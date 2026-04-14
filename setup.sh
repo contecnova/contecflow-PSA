@@ -157,8 +157,8 @@ setup_backend() {
   if [ ! -f ".env" ]; then
     log "Creando archivo .env..."
     if ! cp .env.example .env 2>/dev/null; then
-      PORTAL_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
-      GEN_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
+      PORTAL_SECRET=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
+      GEN_SECRET_KEY=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
       cat > .env << ENVEOF
 DATABASE_URL=sqlite:///./clarive.db
 SECRET_KEY=${GEN_SECRET_KEY}
@@ -261,7 +261,10 @@ setup_frontend() {
   fi
   if [ $NEED_NPM_INSTALL -eq 1 ]; then
     log "Instalando dependencias npm (puede tardar unos minutos en la primera ejecución)..."
-    npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps 2>&1 | grep -v "^npm warn" || true
+    if ! npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps; then
+      error "npm install falló. Revisa los logs y ejecuta frontend/npm install manualmente."
+      exit 1
+    fi
     echo "$PKG_HASH" > "$PKG_HASH_FILE"
   else
     log "Dependencias npm sin cambios, omitiendo npm install"

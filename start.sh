@@ -29,12 +29,12 @@ detect_python() {
     if command -v "$cmd" &>/dev/null; then
       MAJOR=$("$cmd" -c "import sys; print(sys.version_info.major)")
       MINOR=$("$cmd" -c "import sys; print(sys.version_info.minor)")
-      if [ "$MAJOR" = "3" ] && [ "$MINOR" -ge "10" ] && [ "$MINOR" -le "12" ]; then
+      if [ "$MAJOR" = "3" ] && [ "$MINOR" -ge "10" ]; then
         echo "$cmd"; return
       fi
     fi
   done
-  err "Necesitas Python 3.10, 3.11 o 3.12.\nDescárgalo en: https://www.python.org/downloads/\n(Python 3.13/3.14 no son compatibles aún)"
+  err "Necesitas Python 3.10 o superior.\nDescárgalo en: https://www.python.org/downloads/"
 }
 
 if [ -z "$PY_BIN" ]; then

@@ -97,8 +97,19 @@ if not exist "venv" (
 )
 
 echo [INFO] Instalando dependencias Python...
-venv\Scripts\pip install --quiet --upgrade pip
-venv\Scripts\pip install --quiet -r requirements.txt
+venv\Scripts\python -m ensurepip --upgrade >nul 2>&1 || true
+venv\Scripts\python -m pip install --quiet --upgrade pip || (
+    echo [WARN] No se pudo actualizar pip directamente. Reinstalando pip desde ensurepip...
+    venv\Scripts\python -m ensurepip --default-pip >nul 2>&1 || (
+        echo [ERROR] No se pudo instalar pip. Abortando.
+        exit /b 1
+    )
+    venv\Scripts\python -m pip install --quiet --upgrade pip || (
+        echo [ERROR] No se pudo actualizar pip tras ensurepip.
+        exit /b 1
+    )
+)
+venv\Scripts\python -m pip install --quiet -r requirements.txt
 if errorlevel 1 (
     echo [ERROR] Fallo al instalar dependencias
     exit /b 1
@@ -107,10 +118,12 @@ if errorlevel 1 (
 :: Crear .env si no existe
 if not exist ".env" (
     echo [INFO] Creando archivo .env...
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).Replace('-','').ToLower()"') do set "SECRET_KEY=%%S"
+    for /f "delims=" %%S in ('powershell -NoProfile -Command "[System.BitConverter]::ToString([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).Replace('-','').ToLower()"') do set "CLIENT_PORTAL_SECRET=%%S"
     (
         echo DATABASE_URL=sqlite:///./clarive.db
-        echo SECRET_KEY=CHANGE_ME_run_python_secrets_token_hex_32
-        echo CLIENT_PORTAL_SECRET=CHANGE_ME_run_python_secrets_token_hex_32
+        echo SECRET_KEY=!SECRET_KEY!
+        echo CLIENT_PORTAL_SECRET=!CLIENT_PORTAL_SECRET!
         echo ACCESS_TOKEN_EXPIRE_MINUTES=60
         echo REFRESH_TOKEN_EXPIRE_DAYS=30
         echo ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
@@ -137,7 +150,7 @@ echo [INFO] Aplicando migraciones de base de datos...
 venv\Scripts\python -m app.db.migrate
 
 :: Comprobar si la BD tiene usuarios
-for /f "tokens=*" %%r in ('venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password!=None).count(); db.close(); print("ok" if c>0 else "empty")" 2^>nul') do set DB_STATUS=%%r
+for /f "tokens=*" %%r in ('venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password!=None).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
 
 if "!DB_STATUS!"=="empty" (
     echo [INFO] Base de datos vacia - ejecutando seed...
@@ -210,7 +223,7 @@ for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%FRONTEND_PORT% " ^|
 
 :: Arrancar backend
 echo [INFO] Arrancando backend en puerto %BACKEND_PORT%...
-start "Clarive Backend" /min cmd /c "cd /d "%SCRIPT_DIR%" && venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info > "%TEMP%\clarive-backend.log" 2>&1"
+start "Clarive Backend" /min cmd /c "cd /d \"%SCRIPT_DIR%\" && venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info > \"%TEMP%\clarive-backend.log\" 2>&1"
 
 :: Esperar a que el backend responda
 echo [INFO] Esperando backend
@@ -222,7 +235,7 @@ echo [INFO] Backend listo
 
 :: Arrancar frontend
 echo [INFO] Arrancando frontend en puerto %FRONTEND_PORT%...
-start "Clarive Frontend" /min cmd /c "cd /d "%SCRIPT_DIR%\frontend" && npm run dev -- --port %FRONTEND_PORT% > "%TEMP%\clarive-frontend.log" 2>&1"
+start "Clarive Frontend" /min cmd /c "cd /d \"%SCRIPT_DIR%\frontend\" && npm run dev -- --port %FRONTEND_PORT% > \"%TEMP%\clarive-frontend.log\" 2>&1"
 
 :: Esperar frontend
 echo [INFO] Esperando frontend
