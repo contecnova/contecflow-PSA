@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, date
 from enum import Enum
@@ -344,8 +344,9 @@ class ImputationCreate(BaseModel):
     description: Optional[str] = None
     is_billable: bool = False
 
-    @validator("hours")
-    def hours_precision(cls, v):
+    @field_validator("hours")
+    @classmethod
+    def hours_precision(cls, v: float) -> float:
         return round(v * 2) / 2  # Round to nearest 0.5h
 
 class ImputationUpdate(BaseModel):

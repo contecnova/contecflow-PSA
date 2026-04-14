@@ -4,7 +4,13 @@ from datetime import date
 
 def make_project(client, token):
     r = client.post("/api/v1/projects", json={"name":"P","code":"IMP","status":"active","billing_type":"time_material"}, headers=auth(token))
-    return r.json()["id"]
+    pid = r.json()["id"]
+    client.post(
+        f"/api/v1/projects/{pid}/members",
+        json={"user_id": "dev-test-id", "role": "developer"},
+        headers=auth(token),
+    )
+    return pid
 
 def test_create_imputation(client, dev_token, pm_token, db):
     pid = make_project(client, pm_token)

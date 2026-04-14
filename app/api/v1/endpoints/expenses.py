@@ -485,7 +485,6 @@ def export_expenses(
 @router.post("/ocr", summary="Escaner OCR de recibo con IA — extrae importe, comercio y fecha")
 async def ocr_receipt(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """

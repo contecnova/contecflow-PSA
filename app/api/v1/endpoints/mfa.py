@@ -1359,7 +1359,7 @@ startxref
 
 
 @router.post("/pdf/export", summary="Exportar informe o factura a PDF con logo")
-async def export_pdf(
+def export_pdf(
 
     background_tasks: BackgroundTasks,
     payload: dict = Body(...),
@@ -1542,6 +1542,8 @@ def bi_data_timesheets(
     request: Request,
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(500, ge=1, le=5000),
     db: Session = Depends(get_db),
     token: Optional[str] = Query(None),
 ):
@@ -1557,7 +1559,12 @@ def bi_data_timesheets(
     )
     if date_from: q = q.filter(Imputation.date >= date.fromisoformat(date_from))
     if date_to:   q = q.filter(Imputation.date <= date.fromisoformat(date_to))
-    imputations = q.order_by(Imputation.date.desc()).limit(10000).all()
+    imputations = (
+        q.order_by(Imputation.date.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return [{
         "date": str(i.date),

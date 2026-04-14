@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, and_
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
 from datetime import date, datetime, timedelta, timezone
 
@@ -8,8 +9,8 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.imputation import Imputation, TimerSession, ImputationAlert
-from app.models.task import Task
-from app.models.project import Project
+from app.models.task import Task, TaskStatus
+from app.models.project import Project, ProjectMember
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.mfa import Organization
 from app.schemas.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
@@ -147,6 +148,31 @@ def create_imputation(
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
+    task = None
+    # Validate task early (needed for assignment rules and duplicate checks).
+    if payload.task_id:
+        task = db.query(Task).filter(
+            Task.id == payload.task_id,
+            Task.project_id == payload.project_id,
+        ).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Tarea no encontrada o no pertenece al proyecto")
+
+    # Validate user assignment to project for non-admin users.
+    # Strict mode: user must be explicit project member, project PM, or task assignee.
+    if current_user.role != UserRole.admin:
+        is_member = db.query(ProjectMember.id).filter(
+            ProjectMember.project_id == payload.project_id,
+            ProjectMember.user_id == current_user.id,
+        ).first()
+        is_pm = project.pm_id == current_user.id
+        is_task_assignee = bool(task and task.assignee_id == current_user.id)
+        if not (is_member or is_pm or is_task_assignee):
+            raise HTTPException(
+                status_code=403,
+                detail="No puedes imputar horas en un proyecto al que no estás asignado.",
+            )
+
     # Block imputations to closed or cancelled projects
     from app.models.project import ProjectStatus as _PS
     if project.status in (_PS.completed, _PS.closed, _PS.cancelled, _PS.archived):
@@ -155,14 +181,26 @@ def create_imputation(
             detail=f"No puedes imputar horas a un proyecto en estado '{project.status}'. Contacta con el PM si necesitas registrar horas históricas.",
         )
 
-    # Validate task if provided
-    if payload.task_id:
-        task = db.query(Task).filter(
-            Task.id == payload.task_id,
-            Task.project_id == payload.project_id,
+    # Validate task status and duplicates if task provided
+    if task:
+
+        if task.status in (TaskStatus.done, TaskStatus.cancelled):
+            raise HTTPException(
+                status_code=400,
+                detail=f"No puedes imputar horas en una tarea con estado '{task.status}'.",
+            )
+
+        # Duplicate guard: same user + same task + same date is not allowed.
+        duplicate = db.query(Imputation.id).filter(
+            Imputation.user_id == current_user.id,
+            Imputation.task_id == payload.task_id,
+            Imputation.date == payload.date,
         ).first()
-        if not task:
-            raise HTTPException(status_code=404, detail="Tarea no encontrada o no pertenece al proyecto")
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe una imputación para esta tarea en esa fecha.",
+            )
 
     # Validate that user has hourly rate assigned
     # Subcontractors may not have a rate configured yet (cost tracked via contract); skip check for them
@@ -217,7 +255,14 @@ def create_imputation(
         cost_amount=cost,
     )
     db.add(imputation)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una imputación para esta tarea en esa fecha.",
+        ) from exc
     db.refresh(imputation)
     return imputation
 

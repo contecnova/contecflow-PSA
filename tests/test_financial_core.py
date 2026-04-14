@@ -31,7 +31,15 @@ def _make_project(client, token, code="FIN01", billing_type="time_material",
         "end_date": str(date.today() + timedelta(days=90)),
     }, headers=auth(token))
     assert r.status_code in (200, 201), f"Project creation failed: {r.text}"
-    return r.json()["id"]
+    pid = r.json()["id"]
+    # Strict assignment: users must be explicit members (or PM) to log hours.
+    for user_id, role in (("dev-test-id", "developer"), ("pm-test-id", "lead")):
+        client.post(
+            f"/api/v1/projects/{pid}/members",
+            json={"user_id": user_id, "role": role},
+            headers=auth(token),
+        )
+    return pid
 
 
 def _log_hours(client, token, project_id, hours, imputation_date=None, description="Work"):

@@ -11,7 +11,14 @@ def _create_project(client, token):
         "end_date": "2025-12-31",
     }, headers=auth(token))
     assert res.status_code in (200, 201), f"No se pudo crear proyecto: {res.text}"
-    return res.json()["id"]
+    project_id = res.json()["id"]
+    # Strict assignment: explicit member required to impute.
+    client.post(
+        f"/api/v1/projects/{project_id}/members",
+        json={"user_id": "dev-test-id", "role": "developer"},
+        headers=auth(token),
+    )
+    return project_id
 
 
 def test_log_hours(client, admin_token, dev_token, db):

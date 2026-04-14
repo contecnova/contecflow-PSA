@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import Optional, List
 from datetime import date, datetime, timedelta, time, timezone
-from pydantic import BaseModel
 import json
 import secrets
 import logging
@@ -38,6 +37,14 @@ from app.models.bookings import (
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.enterprise import SSOConfig
 from app.services.audit import audit_log
+from app.schemas.bookings import (
+    DependencyCreate,
+    BookingCreate,
+    BookingUpdate,
+    SLAScheduleCreate,
+    ApiKeyCreate,
+    RecurringCreate,
+)
 
 router = APIRouter()
 
@@ -45,13 +52,6 @@ router = APIRouter()
 # ═══════════════════════════════════════════════════════════════════════════════
 # TASK DEPENDENCIES
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class DependencyCreate(BaseModel):
-    predecessor_id: str
-    successor_id: str
-    dependency_type: str = "FS"
-    lag_days: int = 0
-
 
 @router.get("/dependencies/{project_id}", summary="Dependencias de tareas de un proyecto")
 def get_dependencies(
@@ -134,17 +134,6 @@ def delete_dependency(
 # ═══════════════════════════════════════════════════════════════════════════════
 # RESOURCE BOOKINGS + HEATMAP
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class BookingCreate(BaseModel):
-    user_id: str
-    project_id: Optional[str] = None
-    task_id: Optional[str] = None
-    booking_type: str = "hard"
-    start_date: date
-    end_date: date
-    hours_per_day: float = settings.DEFAULT_WORKING_HOURS_PER_DAY
-    note: Optional[str] = None
-
 
 def _booking_out(b: ResourceBooking) -> dict:
     days = (b.end_date - b.start_date).days + 1
@@ -304,16 +293,6 @@ def create_booking(
     return _booking_out(booking)
 
 
-class BookingUpdate(BaseModel):
-    start_date:    Optional[date] = None
-    end_date:      Optional[date] = None
-    hours_per_day: Optional[float] = None
-    project_id:    Optional[str] = None
-    task_id:       Optional[str] = None
-    booking_type:  Optional[str] = None
-    note:          Optional[str] = None
-
-
 @router.patch("/bookings/{booking_id}", summary="Actualizar reserva")
 def update_booking(
     booking_id: str,
@@ -457,15 +436,6 @@ def convert_currency(
 # SLA SCHEDULES (Business Hours + Holidays)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class SLAScheduleCreate(BaseModel):
-    name: str
-    timezone: str = settings.DEFAULT_TIMEZONE
-    is_default: bool = False
-    work_days: List[int] = [1, 2, 3, 4, 5]
-    work_start: Optional[str] = "09:00"
-    work_end: Optional[str] = "17:00"
-
-
 def _schedule_out(s: SLASchedule) -> dict:
     return {
         "id": s.id, "name": s.name, "timezone": s.timezone,
@@ -587,14 +557,6 @@ def _verify_api_key(key: str, hashed: str) -> bool:
         return _bcrypt.checkpw(key.encode(), hashed.encode())
     except Exception:
         return False
-
-
-class ApiKeyCreate(BaseModel):
-    name: str
-    scopes: List[str] = ["read"]
-    rate_limit_per_hour: int = 1000
-    rate_limit_per_day: int = 10000
-    expires_at: Optional[datetime] = None
 
 
 @router.post("/sla-schedules/{schedule_id}/holidays", summary="Añadir festivos al calendario")
@@ -752,23 +714,6 @@ def verify_api_key_endpoint(
 # ═══════════════════════════════════════════════════════════════════════════════
 # RECURRING INVOICES
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class RecurringCreate(BaseModel):
-    name: str
-    project_id: Optional[str] = None
-    contract_id: Optional[str] = None
-    frequency: str = "monthly"
-    next_date: date
-    end_date: Optional[date] = None
-    client_name: Optional[str] = None
-    client_email: Optional[str] = None
-    client_vat: Optional[str] = None
-    amount: float
-    tax_rate: float = settings.DEFAULT_TAX_RATE
-    currency: str = settings.DEFAULT_CURRENCY
-    description: Optional[str] = None
-    payment_terms_days: int = 30
-
 
 def _recurring_out(r: RecurringInvoice) -> dict:
     return {

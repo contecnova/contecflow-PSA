@@ -1,3 +1,18 @@
+## Novedades técnicas recientes
+
+- Descomposición progresiva de endpoints legacy:
+  - Se extrajeron routers de dominio para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`.
+  - `v238_features` y `v239_features` quedan como routers de compatibilidad temporal.
+- Normalización de capa de esquemas:
+  - Esquemas movidos a `app/schemas/bookings.py` y `app/schemas/billing_reports.py`.
+  - Se añadió test de guardia para evitar reintroducir `BaseModel` inline en endpoints normalizados.
+- Paginación consistente en endpoints de alto volumen:
+  - `GET /sd/problems`, `GET /sd/cmdb` y `GET /sd/changes` ahora aceptan `page` y `page_size`.
+  - `GET /bi/data/timesheets` ahora acepta `page` y `page_size` (elimina límite fijo de 10k filas).
+  - `POST /analytics/adhoc` usa el `limit` validado del payload en todas las métricas.
+- Gobernanza de índices (Alembic):
+  - Nueva migración `022_perf_composite_indexes.py` con índices compuestos para consultas de tickets, cambios, problemas, tareas, imputaciones e invoices.
+
 **Ejemplo de uso:**
 - Crear un proyecto: En el portal, ve a "Proyectos" > "Nuevo proyecto", completa los datos y asigna equipo. Guarda y revisa el resumen.
 - Crear tarea Kanban: Dentro de un proyecto, accede al tablero, pulsa "+ Tarea", define título, responsable y prioridad.

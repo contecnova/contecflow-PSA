@@ -18,195 +18,15 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole, UserStatus
-from app.models.bookings import ExchangeRate, ResourceBooking as Booking  # ExchangeRate and ResourceBooking live in bookings.py
+from app.models.bookings import ResourceBooking as Booking
 from app.models.pipeline import PipelineStageConfig, Opportunity, OpportunityStage
-from app.models.billing_reports import Invoice, InvoiceStatus
+from app.models.billing_reports import Invoice
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
 from app.models.automations import AutomationRule, TriggerType, ActionType
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. MULTI-CURRENCY — Exchange rates + conversion
-# ══════════════════════════════════════════════════════════════════════════════
-
-class ExchangeRateCreate(BaseModel):
-    from_currency:   str
-    to_currency:     str
-    rate:            float
-    effective_date:  Optional[date] = None
-    source:          Optional[str] = "manual"
-
-
-@router.get("/currency/rates", summary="List exchange rates")
-def list_exchange_rates(
-    base_currency: Optional[str] = Query(None),
-    target_currency: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    q = db.query(ExchangeRate)
-    if base_currency:
-        q = q.filter(ExchangeRate.from_currency == base_currency.upper())
-    if target_currency:
-        q = q.filter(ExchangeRate.to_currency == target_currency.upper())
-    rates = q.order_by(ExchangeRate.effective_date.desc()).limit(200).all()
-    return [
-        {
-            "id": r.id,
-            "from_currency": r.from_currency,
-            "to_currency": r.to_currency,
-            "rate": r.rate,
-            "effective_date": str(r.effective_date),
-            "source": r.source,
-        }
-        for r in rates
-    ]
-
-
-@router.post("/currency/rates", summary="Create/update exchange rate", status_code=201)
-def upsert_exchange_rate(
-    payload: ExchangeRateCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    if payload.rate <= 0:
-        raise HTTPException(status_code=400, detail="Rate must be positive")
-    eff = payload.effective_date or date.today()
-    existing = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == payload.from_currency.upper(),
-        ExchangeRate.to_currency == payload.to_currency.upper(),
-        ExchangeRate.effective_date == eff,
-    ).first()
-    if existing:
-        existing.rate = payload.rate
-        existing.source = payload.source or "manual"
-        db.commit()
-        db.refresh(existing)
-        return {"id": existing.id, "rate": existing.rate, "updated": True}
-    rate = ExchangeRate(
-        from_currency=payload.from_currency.upper(),
-        to_currency=payload.to_currency.upper(),
-        rate=payload.rate,
-        effective_date=eff,
-        source=payload.source or "manual",
-    )
-    db.add(rate)
-    db.commit()
-    db.refresh(rate)
-    return {"id": rate.id, "rate": rate.rate, "created": True}
-
-
-@router.get("/currency/convert", summary="Convert amount between currencies")
-def convert_currency(
-    amount: float = Query(...),
-    from_currency: str = Query(...),
-    to_currency: str = Query(...),
-    as_of_date: Optional[date] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    from_c = from_currency.upper()
-    to_c = to_currency.upper()
-    if from_c == to_c:
-        return {"amount": amount, "from": from_c, "to": to_c, "rate": 1.0, "converted": amount}
-    ref_date = as_of_date or date.today()
-    rate_obj = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == from_c,
-        ExchangeRate.to_currency == to_c,
-        ExchangeRate.effective_date <= ref_date,
-    ).order_by(ExchangeRate.effective_date.desc()).first()
-    if not rate_obj:
-        rate_obj_inv = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == to_c,
-            ExchangeRate.to_currency == from_c,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
-        if rate_obj_inv and rate_obj_inv.rate > 0:
-            rate = 1.0 / rate_obj_inv.rate
-            return {
-                "amount": amount, "from": from_c, "to": to_c,
-                "rate": round(rate, 6),
-                "converted": round(amount * rate, 2),
-                "rate_date": str(rate_obj_inv.effective_date),
-                "source": rate_obj_inv.source,
-            }
-        raise HTTPException(status_code=404, detail=f"No exchange rate found for {from_c}→{to_c}")
-    converted = amount * rate_obj.rate
-    return {
-        "amount": amount, "from": from_c, "to": to_c,
-        "rate": rate_obj.rate,
-        "converted": round(converted, 2),
-        "rate_date": str(rate_obj.effective_date),
-        "source": rate_obj.source,
-    }
-
-
-@router.get("/currency/report", summary="Multi-currency consolidated report")
-def multicurrency_report(
-    report_currency: str = Query(default="EUR", description="Target currency for consolidation"),
-    as_of_date: Optional[date] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    """Consolidated financial report converting all amounts to a single reporting currency."""
-    from app.models.expenses import Expense
-    from app.models.billing_reports import Invoice
-    ref_date = as_of_date or date.today()
-    target = report_currency.upper()
-
-    def _get_rate(from_c: str) -> float:
-        if from_c == target:
-            return 1.0
-        r = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == from_c,
-            ExchangeRate.to_currency == target,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
-        if r:
-            return r.rate
-        # Inverse
-        r2 = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == target,
-            ExchangeRate.to_currency == from_c,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
-        return (1.0 / r2.rate) if r2 and r2.rate else 1.0  # fallback 1:1 if no rate
-
-    invoices = db.query(Invoice).filter(Invoice.status != InvoiceStatus.cancelled).all()
-    expenses = db.query(Expense).all()
-
-    inv_total = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices)
-    inv_paid  = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices if i.status == InvoiceStatus.paid)
-    exp_total = sum((e.amount or 0) * _get_rate(e.currency or target) for e in expenses if e.status in ("approved", "paid"))
-
-    # By currency breakdown
-    currencies_seen = set(i.currency for i in invoices if i.currency) | set(e.currency for e in expenses if e.currency)
-    breakdown = []
-    for curr in sorted(currencies_seen):
-        rate = _get_rate(curr)
-        breakdown.append({
-            "currency": curr,
-            "rate_to_target": rate,
-            "invoices_total": round(sum((i.total or 0) for i in invoices if i.currency == curr), 2),
-            "invoices_in_target": round(sum((i.total or 0) * rate for i in invoices if i.currency == curr), 2),
-            "expenses_total": round(sum((e.amount or 0) for e in expenses if e.currency == curr and e.status in ("approved", "paid")), 2),
-        })
-
-    return {
-        "report_currency": target,
-        "as_of_date": str(ref_date),
-        "consolidated": {
-            "total_invoiced": round(inv_total, 2),
-            "total_paid": round(inv_paid, 2),
-            "total_outstanding": round(inv_total - inv_paid, 2),
-            "total_expenses": round(exp_total, 2),
-        },
-        "by_currency": breakdown,
-    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -700,7 +520,7 @@ def adhoc_query(
             q = q.filter(Imputation.project_id == filters["project_id"])
         if filters.get("user_id"):
             q = q.filter(Imputation.user_id == filters["user_id"])
-        rows = q.limit(10000).all()
+        rows = q.limit(limit).all()
         if "month" in dims:
             grouped: dict = {}
             for row in rows:
@@ -724,14 +544,14 @@ def adhoc_query(
             results = [{"total_hours": round(total, 2)}]
 
     elif metric == "revenue":
-        q = db.query(Invoice).filter(Invoice.status != InvoiceStatus.cancelled)
+        q = db.query(Invoice).filter(Invoice.status != "cancelled")
         if date_from:
             q = q.filter(Invoice.issue_date >= date_from)
         if date_to:
             q = q.filter(Invoice.issue_date <= date_to)
         if filters.get("project_id"):
             q = q.filter(Invoice.project_id == filters["project_id"])
-        rows = q.limit(10000).all()
+        rows = q.limit(limit).all()
         if "month" in dims:
             grouped = {}
             for row in rows:
@@ -753,7 +573,7 @@ def adhoc_query(
             q = q.filter(Task.project_id == filters["project_id"])
         if filters.get("status"):
             q = q.filter(Task.status == filters["status"])
-        rows = q.limit(10000).all()
+        rows = q.limit(limit).all()
         if "status" in dims:
             grouped = {}
             for row in rows:
@@ -775,7 +595,7 @@ def adhoc_query(
             q = q.filter(Ticket.created_at >= datetime.combine(date_from, datetime.min.time()))
         if date_to:
             q = q.filter(Ticket.created_at <= datetime.combine(date_to, datetime.max.time()))
-        rows = q.limit(10000).all()
+        rows = q.limit(limit).all()
         if "status" in dims:
             grouped = {}
             for row in rows:
@@ -838,7 +658,7 @@ def analytics_drilldown(
             for i in items
         ]
     elif metric == "revenue":
-        q = db.query(Invoice).filter(Invoice.status != InvoiceStatus.cancelled)
+        q = db.query(Invoice).filter(Invoice.status != "cancelled")
         if dimension == "project_id":
             q = q.filter(Invoice.project_id == value)
         elif dimension == "month" and len(value) == 7:
@@ -951,7 +771,7 @@ def create_payment_link(
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    if inv.status not in (InvoiceStatus.sent, InvoiceStatus.overdue):
+    if inv.status not in ("sent", "overdue"):
         raise HTTPException(status_code=400, detail=f"Invoice status must be 'sent' or 'overdue', got '{inv.status}'")
     if not inv.total or inv.total <= 0:
         raise HTTPException(status_code=400, detail="Invoice total must be greater than 0")
@@ -1065,8 +885,8 @@ async def stripe_webhook(
         invoice_id = (data.get("metadata") or {}).get("invoice_id")
         if invoice_id:
             inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
-            if inv and inv.status != InvoiceStatus.paid:
-                inv.status = InvoiceStatus.paid
+            if inv and inv.status != "paid":
+                inv.status = "paid"
                 inv.paid_date = date.today()
                 inv.stripe_paid_at = datetime.now(timezone.utc)
                 if data.get("payment_intent"):

@@ -31,6 +31,13 @@ from app.models.billing_reports import (
     ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition, WorkflowStatus
 )
 from app.services.audit import audit_log
+from app.schemas.billing_reports import (
+    ReportSave,
+    InvoiceCreate,
+    WorkflowCreate,
+    TemplateCreate,
+    ScheduledReportCreate,
+)
 
 router = APIRouter()
 
@@ -609,23 +616,6 @@ def _run_system_report(db, report_id, filters, date_from, date_to):
     return _run_projects_report(db, filters, None, df, dt)
 
 
-class ReportSave(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: Optional[str] = "custom"
-    icon: str = "📊"
-    is_public: bool = False
-    data_source: str
-    filters: Optional[dict] = None
-    columns: Optional[list] = None
-    group_by: Optional[str] = None
-    chart_type: Optional[str] = "table"
-    chart_x: Optional[str] = None
-    chart_y: Optional[str] = None
-    schedule_cron: Optional[str] = None
-    schedule_emails: Optional[list] = None
-
-
 @router.post("/report-catalog/save", summary="Guardar informe personalizado")
 def save_report(
     payload: ReportSave,
@@ -709,7 +699,7 @@ def get_import_template(
 
 
 @router.post("/import/validate", summary="Validar CSV antes de importar")
-async def validate_import(
+def validate_import(
     entity_type: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -717,7 +707,7 @@ async def validate_import(
 ):
     """Parse and validate CSV without writing to DB."""
     MAX_IMPORT_BYTES = 5 * 1024 * 1024  # 5 MB
-    content = await file.read()
+    content = file.file.read()
     if len(content) > MAX_IMPORT_BYTES:
         raise HTTPException(status_code=413, detail="Fichero demasiado grande (máx 5 MB)")
     try:
@@ -768,7 +758,7 @@ async def validate_import(
 
 
 @router.post("/import/execute", summary="Ejecutar importación masiva")
-async def execute_import(
+def execute_import(
     entity_type: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -776,7 +766,7 @@ async def execute_import(
 ):
     """Import data from CSV. Returns a job ID for progress tracking."""
     MAX_IMPORT_BYTES = 5 * 1024 * 1024  # 5 MB
-    content = await file.read()
+    content = file.file.read()
     if len(content) > MAX_IMPORT_BYTES:
         raise HTTPException(status_code=413, detail="Fichero demasiado grande (máx 5 MB)")
     try:
@@ -947,24 +937,6 @@ def _invoice_out(inv: Invoice) -> dict:
         } for l in inv.lines],
         "created_at": str(inv.created_at)[:10] if inv.created_at else None,
     }
-
-
-class InvoiceCreate(BaseModel):
-    project_id: Optional[str] = None
-    contract_id: Optional[str] = None
-    client_name: Optional[str] = None
-    client_address: Optional[str] = None
-    client_vat: Optional[str] = None
-    client_email: Optional[str] = None
-    issue_date: date
-    due_date: Optional[date] = None
-    tax_rate: float = settings.DEFAULT_TAX_RATE
-    currency: str = settings.DEFAULT_CURRENCY
-    notes: Optional[str] = None
-    po_reference: Optional[str] = None
-    period_from: Optional[date] = None
-    period_to: Optional[date] = None
-    lines: List[dict] = []
 
 
 @router.get("/invoices", summary="Listar facturas")
@@ -1387,16 +1359,6 @@ def pause_resume_sla(
 # AUTOMATION WORKFLOWS (multi-step)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    project_id: Optional[str] = None
-    is_global: bool = False
-    trigger_type: str
-    trigger_conditions: Optional[dict] = None
-    steps: List[dict] = []
-
-
 def _workflow_out(w: AutomationWorkflow) -> dict:
     return {
         "id": w.id, "name": w.name, "description": w.description,
@@ -1545,17 +1507,6 @@ def list_templates(
         "risk_count": len(t.risks),
         "deliverable_count": len(t.deliverables),
     } for t in templates]
-
-
-class TemplateCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    project_type: Optional[str] = None
-    estimated_weeks: Optional[int] = None
-    estimated_hours: Optional[float] = None
-    phases: List[dict] = []
-    risks: List[dict] = []
-    deliverables: List[dict] = []
 
 
 @router.post("/templates", summary="Crear plantilla de proyecto")
@@ -1829,15 +1780,6 @@ def smartmatch(
     }
 
 # ── Scheduled Reports (persistentes en BD) ────────────────────────────────────
-
-class ScheduledReportCreate(BaseModel):
-    name:       str
-    metric:     Optional[str] = "hours_by_month"
-    frequency:  str  = "weekly"   # daily | weekly | monthly
-    recipients: List[str] = []
-    include_pdf: bool = True
-    filters_json: Optional[str] = "{}"
-
 
 def _sr_out(r) -> dict:
     import json as _json

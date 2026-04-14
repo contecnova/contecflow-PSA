@@ -433,7 +433,7 @@ def push_nexus_to_jira(
 
 
 @router.post("/webhook", summary="Recibir eventos Jira (issue:updated / issue:created)")
-async def jira_webhook(
+def jira_webhook(
     payload: dict,
     x_atlassian_token: Optional[str] = Header(None),
     db: Session = Depends(get_db),

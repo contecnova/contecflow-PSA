@@ -38,6 +38,7 @@ from app.models.client_portal import (
     ClientUser, FeatureRequest, FeatureRequestStatus, UATSession, UATTestCase, UATIssue, UATStatus,
     ClientMessage, ClientSurvey, ClientDocument, client_user_projects
 )
+from app.models.resources import ChangeRequest, ChangeRequestStatus
 
 router = APIRouter()
 
@@ -107,7 +108,7 @@ def get_current_client(
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 
-from pydantic import BaseModel, Field, EmailStr, validator
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 class ClientLoginIn(BaseModel):
     email: EmailStr = Field(..., max_length=120)
@@ -129,8 +130,9 @@ class ClientCreateIn(BaseModel):
     can_view_team: bool = False
     language: str = Field(settings.DEFAULT_LANGUAGE, min_length=2, max_length=10)
 
-    @validator('full_name')
-    def name_must_have_alpha(cls, v):
+    @field_validator('full_name')
+    @classmethod
+    def name_must_have_alpha(cls, v: str) -> str:
         if not any(c.isalpha() for c in v):
             raise ValueError('El nombre debe contener letras')
         return v
@@ -1638,7 +1640,7 @@ def download_signed_pdf(
 
 # ── Wiki (portal cliente — solo páginas con visibility=portal) ──────────────
 @router.get("/wiki/pages", summary="Páginas wiki visibles al cliente")
-async def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depends(get_current_client)):
+def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depends(get_current_client)):
     from app.models.epics import WikiPage
     pages = db.query(WikiPage).filter(
         WikiPage.visibility == 'portal',
@@ -1648,7 +1650,7 @@ async def portal_wiki_pages(db: Session = Depends(get_db), current_client=Depend
              "updated_at": str(p.updated_at)} for p in pages]
 
 @router.get("/wiki/pages/{page_id}", summary="Contenido de página wiki (portal)")
-async def portal_wiki_page_detail(page_id: str, db: Session = Depends(get_db), current_client=Depends(get_current_client)):
+def portal_wiki_page_detail(page_id: str, db: Session = Depends(get_db), current_client=Depends(get_current_client)):
     from app.models.epics import WikiPage
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.visibility == 'portal').first()
     if not page:

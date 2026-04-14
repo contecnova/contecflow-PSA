@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -38,46 +38,7 @@ from app.models.user import User
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. REAL-TIME EXCHANGE RATES — ECB + OpenExchangeRates sync
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/currency/sync-ecb", summary="Sync ECB daily exchange rates (admin)")
-async def sync_ecb_exchange_rates(
-    force: bool = Query(default=False, description="Re-sync even if today's rates already exist"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """
-    Fetch the European Central Bank daily reference rates XML feed and upsert
-    into exchange_rates.  Rate anchor: EUR = 1.  ~30 major currencies.
-    Idempotent — skips if today's data already present unless force=true.
-    """
-    from app.services.exchange_rate_service import sync_ecb_rates
-    result = await sync_ecb_rates(db, force=force)
-    if not result.get("ok"):
-        raise HTTPException(status_code=502, detail=result.get("error", "ECB fetch failed"))
-    return result
-
-
-@router.post("/currency/sync-openexchangerates", summary="Sync OpenExchangeRates (admin)")
-async def sync_openexchangerates(
-    base: str = Query(default="USD"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
-):
-    """Sync rates from OpenExchangeRates if OPEN_EXCHANGE_RATES_APP_ID is configured."""
-    app_id = settings.OPEN_EXCHANGE_RATES_APP_ID
-    if not app_id:
-        raise HTTPException(
-            status_code=503,
-            detail="OPEN_EXCHANGE_RATES_APP_ID not configured. Set it in your .env file.",
-        )
-    from app.services.exchange_rate_service import sync_openexchangerates as _sync
-    result = await _sync(db, app_id=app_id, base=base.upper())
-    if not result.get("ok"):
-        raise HTTPException(status_code=502, detail=result.get("error", "Sync failed"))
-    return result
+# Currency sync endpoints were extracted to `currency_sync.py`.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -107,15 +68,23 @@ class BrandingUpdate(BaseModel):
     enable_ai:            Optional[bool] = None
     custom_css_vars:      Optional[Dict[str, str]] = None
 
-    @validator("primary_color", "secondary_color", "accent_color",
-               "background_color", "text_color", pre=True, always=False)
-    def validate_color(cls, v):
+    @field_validator(
+        "primary_color",
+        "secondary_color",
+        "accent_color",
+        "background_color",
+        "text_color",
+        mode="before",
+    )
+    @classmethod
+    def validate_color(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and not (v.startswith("#") and len(v) in (4, 7, 9)):
             raise ValueError("Color must be a valid hex value like #RRGGBB")
         return v
 
-    @validator("custom_domain", pre=True, always=False)
-    def validate_domain(cls, v):
+    @field_validator("custom_domain", mode="before")
+    @classmethod
+    def validate_domain(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             # Basic domain validation — no path, no protocol
             if "/" in v or " " in v:
@@ -571,14 +540,16 @@ class InstanceCreate(BaseModel):
     sync_direction: str = "bidirectional"
     sync_frequency: str = "hourly"
 
-    @validator("sync_direction")
-    def valid_direction(cls, v):
+    @field_validator("sync_direction")
+    @classmethod
+    def valid_direction(cls, v: str) -> str:
         if v not in ("inbound", "outbound", "bidirectional"):
             raise ValueError("sync_direction must be inbound|outbound|bidirectional")
         return v
 
-    @validator("sync_frequency")
-    def valid_frequency(cls, v):
+    @field_validator("sync_frequency")
+    @classmethod
+    def valid_frequency(cls, v: str) -> str:
         if v not in ("realtime", "hourly", "daily", "manual"):
             raise ValueError("sync_frequency must be realtime|hourly|daily|manual")
         return v
@@ -692,140 +663,7 @@ def uninstall_integration(
     return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. SALESFORCE CRM BIDIRECTIONAL SYNC
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/integrations/salesforce/sync-opportunities",
-             summary="Sync Salesforce opportunities → Pipeline")
-async def sync_salesforce_opportunities(
-    instance_id: str = Query(..., description="IntegrationInstance ID for Salesforce"),
-    direction: str = Query(default="inbound", description="inbound|outbound|bidirectional"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    """
-    Sync Salesforce opportunities with the Clarive pipeline.
-    - inbound:  Salesforce → Clarive (import/update opportunities)
-    - outbound: Clarive → Salesforce (push opportunities)
-    - bidirectional: both directions with conflict resolution (last-write-wins)
-
-    Requires Salesforce Connected App credentials in the IntegrationInstance config.
-    """
-    from app.models.marketplace import IntegrationInstance, IntegrationConnector
-    from app.core.encryption import decrypt_value
-    from app.models.pipeline import Opportunity
-
-    org_id = getattr(current_user, "organization_id", None)
-    inst = db.query(IntegrationInstance).filter(
-        IntegrationInstance.id == instance_id,
-        IntegrationInstance.organization_id == org_id,
-        IntegrationInstance.is_enabled == True,
-    ).first()
-    if not inst:
-        raise HTTPException(404, "Salesforce integration instance not found or disabled")
-
-    # Verify this is a Salesforce connector
-    conn = db.query(IntegrationConnector).filter(
-        IntegrationConnector.id == inst.connector_id,
-        IntegrationConnector.slug == "salesforce",
-    ).first()
-    if not conn:
-        raise HTTPException(400, "This instance is not a Salesforce connector")
-
-    # Decrypt config
-    try:
-        config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
-    except Exception:
-        config = {}
-
-    sf_base = config.get("instance_url", "")
-    access_token = config.get("access_token", "")
-    if not sf_base or not access_token:
-        raise HTTPException(
-            503,
-            "Salesforce credentials incomplete. Configure instance_url and access_token "
-            "in the integration settings.",
-        )
-
-    synced_in = 0
-    synced_out = 0
-    errors: List[str] = []
-
-    if direction in ("inbound", "bidirectional"):
-        import httpx
-        try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                resp = await client.get(
-                    f"{sf_base}/services/data/v57.0/query",
-                    params={"q": "SELECT Id,Name,Amount,StageName,CloseDate,AccountId FROM Opportunity WHERE IsClosed=false LIMIT 200"},
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                resp.raise_for_status()
-                sf_opps = resp.json().get("records", [])
-        except Exception as exc:
-            errors.append(f"Salesforce API error: {exc}")
-            sf_opps = []
-
-        for sf_opp in sf_opps:
-            sf_id = sf_opp.get("Id")
-            # Check if opportunity already exists (matched by external_id)
-            existing_opp = db.query(Opportunity).filter(
-                Opportunity.external_id == sf_id
-            ).first() if hasattr(Opportunity, "external_id") else None
-
-            stage_map = {
-                "Prospecting": "lead", "Qualification": "qualification",
-                "Needs Analysis": "qualification", "Value Proposition": "proposal",
-                "Id. Decision Makers": "proposal", "Perception Analysis": "negotiation",
-                "Proposal/Price Quote": "proposal", "Negotiation/Review": "negotiation",
-                "Closed Won": "won", "Closed Lost": "lost",
-            }
-            mapped_stage = stage_map.get(sf_opp.get("StageName", ""), "lead")
-
-            try:
-                close_date = date.fromisoformat(sf_opp["CloseDate"]) if sf_opp.get("CloseDate") else None
-            except ValueError:
-                close_date = None
-
-            if existing_opp:
-                existing_opp.name = sf_opp.get("Name", existing_opp.name)
-                existing_opp.expected_revenue = sf_opp.get("Amount") or existing_opp.expected_revenue
-                existing_opp.stage = mapped_stage
-                if close_date and hasattr(existing_opp, "close_date"):
-                    existing_opp.close_date = close_date
-            else:
-                new_opp = Opportunity(
-                    name=sf_opp.get("Name", "Imported from Salesforce"),
-                    client_name=sf_opp.get("AccountId", "Salesforce Account"),
-                    stage=mapped_stage,
-                    expected_revenue=sf_opp.get("Amount") or 0,
-                )
-                if hasattr(new_opp, "external_id"):
-                    new_opp.external_id = sf_id
-                if close_date and hasattr(new_opp, "close_date"):
-                    new_opp.close_date = close_date
-                db.add(new_opp)
-            synced_in += 1
-
-        if sf_opps:
-            db.commit()
-
-    # Update sync status
-    inst.last_sync_at = datetime.utcnow()
-    inst.last_sync_status = "error" if errors else "ok"
-    inst.last_sync_records = synced_in + synced_out
-    inst.last_error = "; ".join(errors) if errors else None
-    db.commit()
-
-    return {
-        "ok": not errors,
-        "direction": direction,
-        "synced_inbound": synced_in,
-        "synced_outbound": synced_out,
-        "errors": errors,
-        "synced_at": str(datetime.utcnow()),
-    }
+# Salesforce sync endpoint was extracted to `salesforce_sync.py`.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -877,13 +715,13 @@ def compute_composite_health(
     # --- Delivery component (20%) ---
     try:
         from app.models.project import Project
-        from app.models.milestones import Milestone
+        from app.models.financial import ProjectMilestone
         projects = db.query(Project).filter(Project.client_id == client_id).all()
         proj_ids = [p.id for p in projects]
         if proj_ids:
-            all_milestones = db.query(Milestone).filter(
-                Milestone.project_id.in_(proj_ids)
-            ).all() if hasattr(Milestone, "project_id") else []
+            all_milestones = db.query(ProjectMilestone).filter(
+                ProjectMilestone.project_id.in_(proj_ids)
+            ).all() if hasattr(ProjectMilestone, "project_id") else []
             done = [m for m in all_milestones
                     if str(getattr(m, "status", "")).lower() in ("completed", "done", "approved")]
             on_time = [m for m in done
@@ -1520,156 +1358,4 @@ def validate_workflow_graph(
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 10. SLACK BLOCK KIT RICH NOTIFICATIONS
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _build_block_kit_message(event_type: str, payload: dict) -> dict:
-    """Build a Slack Block Kit message for common NexusPM events."""
-    base_url = settings.FRONTEND_URL or "http://localhost:3000"
-
-    if event_type == "task_overdue":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "⚠️ Task Overdue"}},
-                {"type": "section", "fields": [
-                    {"type": "mrkdwn", "text": f"*Task:*\n{payload.get('task_title', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Project:*\n{payload.get('project_name', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Due Date:*\n{payload.get('due_date', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Assignee:*\n{payload.get('assignee', 'N/A')}"},
-                ]},
-                {"type": "actions", "elements": [
-                    {"type": "button", "text": {"type": "plain_text", "text": "View Task"},
-                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}",
-                     "style": "primary"},
-                    {"type": "button", "text": {"type": "plain_text", "text": "Update Status"},
-                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}?action=update"},
-                ]},
-            ]
-        }
-    elif event_type == "invoice_paid":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "✅ Invoice Paid"}},
-                {"type": "section", "fields": [
-                    {"type": "mrkdwn", "text": f"*Invoice:*\n{payload.get('invoice_number', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('currency', 'EUR')} {payload.get('amount', 0):,.2f}"},
-                    {"type": "mrkdwn", "text": f"*Client:*\n{payload.get('client_name', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Paid At:*\n{payload.get('paid_at', 'N/A')}"},
-                ]},
-                {"type": "divider"},
-                {"type": "context", "elements": [
-                    {"type": "mrkdwn", "text": "💰 Payment received via Stripe"}
-                ]},
-            ]
-        }
-    elif event_type == "approval_required":
-        return {
-            "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "🔔 Approval Required"}},
-                {"type": "section", "text": {
-                    "type": "mrkdwn",
-                    "text": f"*{payload.get('entity_type', 'Item').title()}* submitted by "
-                            f"*{payload.get('submitter', 'Unknown')}* requires your approval.",
-                }},
-                {"type": "section", "fields": [
-                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('amount', 'N/A')}"},
-                    {"type": "mrkdwn", "text": f"*Project:*\n{payload.get('project_name', 'N/A')}"},
-                ]},
-                {"type": "actions", "elements": [
-                    {"type": "button", "text": {"type": "plain_text", "text": "✅ Approve"},
-                     "style": "primary",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=approve"},
-                    {"type": "button", "text": {"type": "plain_text", "text": "❌ Reject"},
-                     "style": "danger",
-                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=reject"},
-                ]},
-            ]
-        }
-    else:
-        # Generic notification
-        return {
-            "blocks": [
-                {"type": "section", "text": {
-                    "type": "mrkdwn",
-                    "text": f"*NexusPM Notification:* {payload.get('message', 'Event occurred')}",
-                }},
-            ]
-        }
-
-
-@router.post("/notifications/slack/block-kit",
-             summary="Send rich Slack Block Kit notification")
-async def send_slack_block_kit(
-    payload: dict = Body(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-):
-    """
-    Send a rich Slack Block Kit notification for a NexusPM event.
-    Requires Slack webhook URL configured in integration settings.
-
-    Payload:
-    {
-      "event_type": "task_overdue|invoice_paid|approval_required|custom",
-      "channel": "#project-updates",   // optional, overrides default
-      "webhook_url": "https://...",     // optional, overrides org default
-      "data": { ... event-specific fields ... }
-    }
-    """
-    import httpx
-    from app.models.mfa import SlackConfig
-
-    event_type = payload.get("event_type", "custom")
-    data = payload.get("data", {})
-
-    # Build Block Kit message
-    block_kit = _build_block_kit_message(event_type, data)
-    if payload.get("channel"):
-        block_kit["channel"] = payload["channel"]
-
-    # Get webhook URL
-    webhook_url = payload.get("webhook_url")
-    if not webhook_url:
-        org_id = getattr(current_user, "organization_id", None)
-        cfg_q = db.query(SlackConfig)
-        # SlackConfig in this codebase has no organization_id column, so guard the filter.
-        if org_id and hasattr(SlackConfig, "organization_id"):
-            cfg_q = cfg_q.filter(SlackConfig.organization_id == org_id)
-        slack_cfg = cfg_q.first()
-        webhook_url = slack_cfg.webhook_url if slack_cfg and hasattr(slack_cfg, "webhook_url") else None
-
-    if not webhook_url:
-        raise HTTPException(
-            status_code=503,
-            detail="No Slack webhook URL configured. Set it in Settings → Integrations → Slack.",
-        )
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(webhook_url, json=block_kit)
-            resp.raise_for_status()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Slack delivery failed: {exc}")
-
-    return {"ok": True, "event_type": event_type, "blocks_count": len(block_kit.get("blocks", []))}
-
-
-@router.get("/notifications/slack/block-kit/preview",
-            summary="Preview Block Kit message for a given event type")
-def preview_block_kit(
-    event_type: str = Query(...),
-    current_user: User = Depends(get_current_user),
-):
-    """Returns the Block Kit JSON for a sample event — useful for visual preview."""
-    sample_data = {
-        "task_overdue": {"task_title": "API Integration", "project_name": "CRM Relaunch",
-                          "due_date": "2026-04-01", "assignee": "Alice Smith", "task_id": "xxx"},
-        "invoice_paid": {"invoice_number": "INV-2026-042", "amount": 12500.0,
-                          "currency": "EUR", "client_name": "Acme Corp", "paid_at": "2026-04-11"},
-        "approval_required": {"entity_type": "expense", "submitter": "Bob Jones",
-                               "amount": "€850", "project_name": "Digital Transformation",
-                               "request_id": "req-001"},
-    }
-    data = sample_data.get(event_type, {"message": f"Sample {event_type} event"})
-    return _build_block_kit_message(event_type, data)
+# Slack Block Kit endpoints were extracted to `slack_block_kit.py`.

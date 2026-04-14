@@ -136,7 +136,7 @@ router = APIRouter(prefix="/abac", tags=["ABAC"])
 # ============================================================================
 
 @router.get("/attribute-definitions")
-async def list_attribute_definitions(
+def list_attribute_definitions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_only: bool = Query(True),
@@ -151,7 +151,7 @@ async def list_attribute_definitions(
 
 
 @router.post("/attribute-definitions")
-async def create_attribute_definition(
+def create_attribute_definition(
     schema: AttributeDefinitionSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -175,7 +175,7 @@ async def create_attribute_definition(
 
 
 @router.post("/attribute-definitions/initialize")
-async def initialize_default_attributes(
+def initialize_default_attributes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -210,7 +210,7 @@ async def initialize_default_attributes(
 # ============================================================================
 
 @router.get("/users/{user_id}/attributes")
-async def get_user_attributes(
+def get_user_attributes(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -229,7 +229,7 @@ async def get_user_attributes(
 
 
 @router.post("/users/{user_id}/attributes")
-async def assign_user_attribute(
+def assign_user_attribute(
     user_id: str,
     schema: UserAttributeAssignSchema,
     db: Session = Depends(get_db),
@@ -254,7 +254,7 @@ async def assign_user_attribute(
 
 
 @router.delete("/users/{user_id}/attributes/{attribute_key}")
-async def revoke_user_attribute(
+def revoke_user_attribute(
     user_id: str,
     attribute_key: str,
     db: Session = Depends(get_db),
@@ -276,7 +276,7 @@ async def revoke_user_attribute(
 # ============================================================================
 
 @router.get("/policies")
-async def list_policies(
+def list_policies(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_only: bool = Query(True),
@@ -291,7 +291,7 @@ async def list_policies(
 
 
 @router.post("/policies")
-async def create_policy(
+def create_policy(
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -320,7 +320,7 @@ async def create_policy(
 
 
 @router.get("/policies/{policy_id}")
-async def get_policy(
+def get_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -337,7 +337,7 @@ async def get_policy(
 
 
 @router.put("/policies/{policy_id}")
-async def update_policy(
+def update_policy(
     policy_id: str,
     schema: ABACPolicyCreateSchema,
     db: Session = Depends(get_db),
@@ -367,7 +367,7 @@ async def update_policy(
 
 
 @router.delete("/policies/{policy_id}")
-async def delete_policy(
+def delete_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -388,7 +388,7 @@ async def delete_policy(
 # ============================================================================
 
 @router.post("/evaluate")
-async def evaluate_access(
+def evaluate_access(
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -432,7 +432,7 @@ async def evaluate_access(
 
 
 @router.post("/evaluate/{user_id}")
-async def evaluate_access_for_user(
+def evaluate_access_for_user(
     user_id: str,
     schema: AccessEvaluationRequestSchema,
     db: Session = Depends(get_db),
@@ -468,7 +468,7 @@ async def evaluate_access_for_user(
 
 
 @router.get("/audit-log")
-async def get_audit_log(
+def get_audit_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     user_id: Optional[str] = Query(None),

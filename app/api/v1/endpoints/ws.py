@@ -35,12 +35,16 @@ _REDIS_URL: Optional[str] = settings.REDIS_URL or ""
 # ── WS Ticket Store ────────────────────────────────────────────────────────────
 # Short-lived (60 s) one-time tickets so browser clients can authenticate the
 # WebSocket connection without reading the httpOnly access token from JS.
+# Production path uses Redis (shared across workers). In-memory is fallback-only.
 _ws_tickets: Dict[str, tuple] = {}   # ticket → (user_id, expires_at)
 _WS_TICKET_TTL = 60  # seconds
 _portal_ws_tickets: Dict[str, tuple] = {}  # ticket → (client_id, expires_at)
 
+_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:user:"
+_PORTAL_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:portal:"
 
-def _issue_ws_ticket(user_id: str) -> str:
+
+def _issue_ws_ticket_local(user_id: str) -> str:
     """Create a single-use WS ticket valid for _WS_TICKET_TTL seconds."""
     # Prune expired tickets lazily
     now = time.monotonic()
@@ -52,7 +56,7 @@ def _issue_ws_ticket(user_id: str) -> str:
     return ticket
 
 
-def _consume_ws_ticket(ticket: str) -> Optional[str]:
+def _consume_ws_ticket_local(ticket: str) -> Optional[str]:
     """Validate and consume a WS ticket, returning user_id or None."""
     entry = _ws_tickets.pop(ticket, None)
     if entry is None:
@@ -63,7 +67,7 @@ def _consume_ws_ticket(ticket: str) -> Optional[str]:
     return user_id
 
 
-def _issue_portal_ws_ticket(client_id: str) -> str:
+def _issue_portal_ws_ticket_local(client_id: str) -> str:
     now = time.monotonic()
     expired = [t for t, (_, exp) in _portal_ws_tickets.items() if exp < now]
     for t in expired:
@@ -73,7 +77,7 @@ def _issue_portal_ws_ticket(client_id: str) -> str:
     return ticket
 
 
-def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
+def _consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
     entry = _portal_ws_tickets.pop(ticket, None)
     if entry is None:
         return None
@@ -81,6 +85,63 @@ def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
     if time.monotonic() > expires_at:
         return None
     return client_id
+
+
+async def _issue_ws_ticket(user_id: str) -> str:
+    ticket = secrets.token_urlsafe(24)
+    if _REDIS_URL:
+        try:
+            r = await _get_redis()
+            await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
+            return ticket
+        except Exception as exc:
+            log.warning("WS ticket Redis issue failed, falling back to memory: %s", exc)
+    return _issue_ws_ticket_local(user_id)
+
+
+async def _consume_ws_ticket(ticket: str) -> Optional[str]:
+    if _REDIS_URL:
+        try:
+            r = await _get_redis()
+            key = f"{_WS_TICKET_KEY_PREFIX}{ticket}"
+            # Atomic single-use consume (GET + DEL in one server-side script).
+            consumed = await r.eval(
+                "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v",
+                1,
+                key,
+            )
+            return consumed if consumed else None
+        except Exception as exc:
+            log.warning("WS ticket Redis consume failed, falling back to memory: %s", exc)
+    return _consume_ws_ticket_local(ticket)
+
+
+async def _issue_portal_ws_ticket(client_id: str) -> str:
+    ticket = secrets.token_urlsafe(24)
+    if _REDIS_URL:
+        try:
+            r = await _get_redis()
+            await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
+            return ticket
+        except Exception as exc:
+            log.warning("Portal WS ticket Redis issue failed, falling back to memory: %s", exc)
+    return _issue_portal_ws_ticket_local(client_id)
+
+
+async def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
+    if _REDIS_URL:
+        try:
+            r = await _get_redis()
+            key = f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}"
+            consumed = await r.eval(
+                "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v",
+                1,
+                key,
+            )
+            return consumed if consumed else None
+        except Exception as exc:
+            log.warning("Portal WS ticket Redis consume failed, falling back to memory: %s", exc)
+    return _consume_portal_ws_ticket_local(ticket)
 
 # Shared async Redis client (initialised lazily on first use, reused thereafter)
 _redis_client = None
@@ -324,7 +385,7 @@ async def get_ws_ticket(
     """Emite un ticket de corta duración (60 s) que el cliente puede usar como
     parámetro ?ticket= al abrir la conexión WebSocket.  Esto evita exponer el
     access token JWT en JavaScript (el token está sólo en una httpOnly cookie)."""
-    ticket = _issue_ws_ticket(str(current_user.id))
+    ticket = await _issue_ws_ticket(str(current_user.id))
     return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
 
 
@@ -347,7 +408,7 @@ async def get_portal_ws_ticket(
         client = verify_client_token(token, db)
         if not client or not getattr(client, "is_active", False):
             raise HTTPException(401, "Token de cliente inválido")
-        ticket = _issue_portal_ws_ticket(str(client.id))
+        ticket = await _issue_portal_ws_ticket(str(client.id))
         return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
     finally:
         db.close()
@@ -370,7 +431,7 @@ async def ws_notifications(
         # Accept either a short-lived one-shot ticket (preferred) or a raw JWT
         user_id: Optional[str] = None
         if ticket:
-            user_id = _consume_ws_ticket(ticket)
+            user_id = await _consume_ws_ticket(ticket)
             if not user_id:
                 await websocket.close(code=4001, reason="Ticket inválido o expirado")
                 return
@@ -433,7 +494,7 @@ async def ws_portal_notifications(
     client_id = None
     try:
         if ticket:
-            client_id = _consume_portal_ws_ticket(ticket)
+            client_id = await _consume_portal_ws_ticket(ticket)
             if not client_id:
                 await websocket.close(code=4001, reason="Ticket inválido o expirado")
                 return

@@ -68,6 +68,22 @@ async def _get_graph_token() -> str:
     return resp.json()["access_token"]
 
 
+def _get_graph_token_sync() -> str:
+    """Obtain a client-credentials OAuth token from Azure AD (sync version)."""
+    url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": settings.AZURE_CLIENT_ID,
+        "client_secret": settings.AZURE_CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default",
+    }
+    with httpx.Client(timeout=15) as client:
+        resp = client.post(url, data=data)
+    if resp.status_code != 200:
+        raise HTTPException(502, "Error obteniendo token de Azure AD")
+    return resp.json()["access_token"]
+
+
 async def _graph_get(path: str) -> dict:
     token = await _get_graph_token()
     async with httpx.AsyncClient(timeout=20) as client:
@@ -98,6 +114,26 @@ async def _graph_delete(path: str):
         resp = await client.delete(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
     if resp.status_code not in (200, 204):
         resp.raise_for_status()
+
+
+def _graph_get_sync(path: str) -> dict:
+    token = _get_graph_token_sync()
+    with httpx.Client(timeout=20) as client:
+        resp = client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _graph_post_sync(path: str, payload: dict) -> dict:
+    token = _get_graph_token_sync()
+    with httpx.Client(timeout=20) as client:
+        resp = client.post(
+            f"{GRAPH_BASE}{path}",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        )
+    resp.raise_for_status()
+    return resp.json()
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -205,7 +241,7 @@ async def delete_calendar_event(
 
 
 @router.post("/calendar/sync-milestones")
-async def sync_milestones_to_calendar(
+def sync_milestones_to_calendar(
     req: MilestoneSyncRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -237,7 +273,7 @@ async def sync_milestones_to_calendar(
             "body":    {"contentType": "text", "content": ms.description or ""},
         }
         try:
-            result = await _graph_post(f"/users/{req.user_upn}/events", payload)
+            result = _graph_post_sync(f"/users/{req.user_upn}/events", payload)
             created.append({"milestone_id": ms.id, "event_id": result.get("id")})
         except Exception as e:
             errors.append({"milestone_id": ms.id, "error": str(e)})
@@ -281,7 +317,6 @@ async def notify_project_milestone(
     project_name: str,
     milestone_name: str,
     due_date: str,
-    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     """Send a formatted Teams notification about an upcoming milestone."""
@@ -369,7 +404,7 @@ async def get_users_presence(
 # ── Microsoft Planner sync ─────────────────────────────────────────────────────
 
 @router.post("/planner/tasks/sync", summary="Sincronizar tareas NexusPM a Microsoft Planner")
-async def sync_to_planner(
+def sync_to_planner(
     project_id: str,
     plan_id: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -409,7 +444,7 @@ async def sync_to_planner(
 
     # Fetch existing Planner tasks for conflict detection
     try:
-        existing_response = await _graph_get(f"/planner/plans/{active_plan_id}/tasks")
+        existing_response = _graph_get_sync(f"/planner/plans/{active_plan_id}/tasks")
         existing_titles = {t.get("title", "").lower() for t in existing_response.get("value", [])}
     except Exception:
         existing_titles = set()
@@ -438,7 +473,7 @@ async def sync_to_planner(
         if due_str:
             payload["dueDateTime"] = due_str
         try:
-            await _graph_post("/planner/tasks", payload)
+            _graph_post_sync("/planner/tasks", payload)
             created += 1
         except Exception:
             errors += 1

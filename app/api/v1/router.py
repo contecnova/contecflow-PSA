@@ -15,6 +15,7 @@ from app.api.v1.endpoints import (
     portfolio, git_integration, esign, report_builder, nps, m365, grc,
     public_forms, developer_portal, scim, governance, abac,
     security_observability, ai_governance, abac_admin, jira,
+    currency_sync, currency_rates, salesforce_sync, slack_block_kit,
     v238_features,
     v239_features,
 )
@@ -95,5 +96,9 @@ api_router.include_router(abac.router)
 api_router.include_router(security_observability.router)
 api_router.include_router(ai_governance.router)
 api_router.include_router(abac_admin.router)
-api_router.include_router(v238_features.router,  tags=["v23.8 Features"])  # multi-currency, pipeline forecast, BI adhoc, Stripe, CRDT, SCIM bulk
-api_router.include_router(v239_features.router,  tags=["v23.9 Features"])  # white-label, gantt baselines, ECB rates, marketplace, Salesforce, AI copilot
+api_router.include_router(currency_sync.router)
+api_router.include_router(currency_rates.router)
+api_router.include_router(salesforce_sync.router)
+api_router.include_router(slack_block_kit.router)
+api_router.include_router(v238_features.router,  tags=["Legacy Features v23.8"])  # compatibility router pending full domain split
+api_router.include_router(v239_features.router,  tags=["Legacy Features v23.9"])  # compatibility router pending full domain split

@@ -77,39 +77,14 @@ from app.schemas.service_desk import (  # noqa: E402
     StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn,
     CannedResponseIn, OnCallScheduleIn, OnCallEntryIn,
 )
-
-
-def _resolve_sla_policy_for_ticket(
-    db: Session,
-    *,
-    contract_id: Optional[str] = None,
-    client_id: Optional[str] = None,
-) -> Optional[SLAPolicy]:
-    """Resolve SLA by precedence: contract -> client -> default active policy."""
-    if contract_id:
-        ctr = db.query(Contract).filter(Contract.id == contract_id).first()
-        if ctr and getattr(ctr, "sla_policy_id", None):
-            p = db.query(SLAPolicy).filter(
-                SLAPolicy.id == ctr.sla_policy_id,
-                SLAPolicy.is_active == True,
-            ).first()
-            if p:
-                return p
-
-    if client_id:
-        cli = db.query(Client).filter(Client.id == client_id).first()
-        if cli and getattr(cli, "sla_policy_id", None):
-            p = db.query(SLAPolicy).filter(
-                SLAPolicy.id == cli.sla_policy_id,
-                SLAPolicy.is_active == True,
-            ).first()
-            if p:
-                return p
-
-    return db.query(SLAPolicy).filter(
-        SLAPolicy.is_default == True,
-        SLAPolicy.is_active == True,
-    ).first()
+from app.services.service_desk.scoping import (  # noqa: E402
+    resolve_sla_policy_for_ticket as _resolve_sla_policy_for_ticket,
+    scope_ticket_query as _scope_ticket_query,
+    scope_problem_query as _scope_problem_query,
+    scope_ci_query as _scope_ci_query,
+    scope_kb_query as _scope_kb_query,
+    _org_user_ids_subquery,
+)
 
 
 def _portal_client_from_auth(
@@ -121,90 +96,6 @@ def _portal_client_from_auth(
     if not token_value and portal_access_token:
         token_value = f"Bearer {portal_access_token}"
     return _get_client_from_token(token_value, db)
-
-
-def _scope_ticket_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin:
-        return q
-    if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        return q.filter(
-            or_(
-                Ticket.requester_user_id == current_user.id,
-                Ticket.assigned_to_user_id == current_user.id,
-            )
-        )
-    if current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        return q.filter(
-            or_(
-                Ticket.requester_user_id.in_(org_user_ids),
-                Ticket.assigned_to_user_id.in_(org_user_ids),
-                Ticket.created_by_user_id.in_(org_user_ids),
-            )
-        )
-    return q
-
-
-def _org_user_ids_subquery(db: Session, current_user: User):
-    if current_user.is_superadmin or not current_user.organization_id:
-        return None
-    return db.query(User.id).filter(
-        User.organization_id == current_user.organization_id
-    ).scalar_subquery()
-
-
-def _org_project_ids_subquery(db: Session, current_user: User):
-    if current_user.is_superadmin or not current_user.organization_id:
-        return None
-    return db.query(Project.id).filter(
-        Project.organization_id == current_user.organization_id
-    ).scalar_subquery()
-
-
-def _scope_problem_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin:
-        return q
-    org_user_ids = _org_user_ids_subquery(db, current_user)
-    org_project_ids = _org_project_ids_subquery(db, current_user)
-    if org_user_ids is None or org_project_ids is None:
-        return q.filter(False)
-    return q.filter(
-        or_(
-            Problem.owner_user_id.in_(org_user_ids),
-            Problem.project_id.in_(org_project_ids),
-            Problem.ci_id.in_(
-                db.query(ConfigurationItem.id).filter(
-                    ConfigurationItem.project_id.in_(org_project_ids)
-                ).scalar_subquery()
-            ),
-        )
-    )
-
-
-def _scope_ci_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin:
-        return q
-    org_user_ids = _org_user_ids_subquery(db, current_user)
-    org_project_ids = _org_project_ids_subquery(db, current_user)
-    if org_user_ids is None or org_project_ids is None:
-        return q.filter(False)
-    return q.filter(
-        or_(
-            ConfigurationItem.owner_user_id.in_(org_user_ids),
-            ConfigurationItem.project_id.in_(org_project_ids),
-        )
-    )
-
-
-def _scope_kb_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin:
-        return q
-    org_user_ids = _org_user_ids_subquery(db, current_user)
-    if org_user_ids is None:
-        return q.filter(False)
-    return q.filter(KBArticle.author_id.in_(org_user_ids))
 
 
 def _scope_change_query(q, db: Session, current_user: User):
@@ -892,13 +783,23 @@ def submit_csat(
 # ── Client ticket views ───────────────────────────────────────────────────────
 
 @router.get("/problems", summary="Listar problemas")
-def list_problems(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_problems(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     q = db.query(Problem).options(
         joinedload(Problem.ci), joinedload(Problem.owner),
         joinedload(Problem.related_tickets),
     )
     q = _scope_problem_query(q, db, current_user)
-    probs = q.order_by(Problem.created_at.desc()).limit(500).all()
+    probs = (
+        q.order_by(Problem.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     return [{
         "id": p.id, "number": p.number, "title": p.title, "description": p.description,
         "status": p.status, "priority": p.priority,
@@ -1054,10 +955,20 @@ def ticket_to_kb(ticket_id: str, title: str = Query(...), db: Session = Depends(
 # ── CMDB ──────────────────────────────────────────────────────────────────────
 
 @router.get("/cmdb", summary="Inventario CMDB")
-def list_cmdb(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_cmdb(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     q = db.query(ConfigurationItem).options(joinedload(ConfigurationItem.project), joinedload(ConfigurationItem.owner))
     q = _scope_ci_query(q, db, current_user)
-    items = q.order_by(ConfigurationItem.name).limit(500).all()
+    items = (
+        q.order_by(ConfigurationItem.name)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     return [{
         "id": ci.id, "code": ci.code, "name": ci.name, "ci_type": ci.ci_type,
         "status": ci.status, "criticality": ci.criticality,
@@ -1880,6 +1791,8 @@ def list_changes(
     change_type: Optional[str] = Query(None),
     date_from:  Optional[str] = Query(None),
     date_to:    Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1894,7 +1807,12 @@ def list_changes(
     if change_type: q = q.filter(ITSMChangeRequest.change_type == change_type)
     if date_from:   q = q.filter(ITSMChangeRequest.created_at >= datetime.fromisoformat(date_from).replace(tzinfo=tz.utc))
     if date_to:     q = q.filter(ITSMChangeRequest.created_at <= datetime.fromisoformat(date_to).replace(tzinfo=tz.utc))
-    changes = q.order_by(ITSMChangeRequest.created_at.desc()).limit(100).all()
+    changes = (
+        q.order_by(ITSMChangeRequest.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     return [_change_out(c) for c in changes]
 
 

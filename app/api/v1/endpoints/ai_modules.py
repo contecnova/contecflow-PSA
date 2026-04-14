@@ -954,7 +954,7 @@ def _openai_key_from_db(db) -> Optional[str]:
 
 
 @router.post("/voice/transcribe", summary="Transcribir audio con Whisper y procesar como comando")
-async def transcribe_voice_audio(
+def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -974,7 +974,7 @@ async def transcribe_voice_audio(
             "Configura la variable de entorno o añade un proveedor OpenAI en IA & Conectores."
         )
 
-    audio_bytes = await audio.read()
+    audio_bytes = audio.file.read()
     if not audio_bytes:
         raise HTTPException(400, "El archivo de audio está vacío.")
     if len(audio_bytes) > 25 * 1024 * 1024:  # 25 MB — Whisper API limit
@@ -982,8 +982,8 @@ async def transcribe_voice_audio(
 
     import httpx as _httpx
     try:
-        async with _httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
+        with _httpx.Client(timeout=60) as client:
+            resp = client.post(
                 f"{settings.OPENAI_API_URL}/audio/transcriptions",
                 headers={"Authorization": f"Bearer {openai_key}"},
                 files={"file": (audio.filename or "audio.wav", audio_bytes, audio.content_type or "audio/wav")},

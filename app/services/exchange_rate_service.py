@@ -43,7 +43,7 @@ ECB_CURRENCIES = {
 }
 
 
-async def sync_ecb_rates(db: Session, force: bool = False) -> dict:
+def sync_ecb_rates(db: Session, force: bool = False) -> dict:
     """
     Fetch the ECB daily reference rates and upsert into the exchange_rates table.
     All rates are EUR-based (EUR = 1.0).
@@ -52,8 +52,8 @@ async def sync_ecb_rates(db: Session, force: bool = False) -> dict:
         {"ok": True, "date": "YYYY-MM-DD", "upserted": N, "skipped": N, "source": "ecb"}
     """
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(ECB_URL)
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(ECB_URL)
             resp.raise_for_status()
     except Exception as exc:
         logger.error("ECB rate fetch failed: %s", exc)
@@ -143,16 +143,16 @@ def _upsert_pair(db: Session, from_c: str, to_c: str, rate: float,
         ))
 
 
-async def sync_openexchangerates(db: Session, app_id: str,
-                                  base: str = "USD") -> dict:
+def sync_openexchangerates(db: Session, app_id: str,
+                           base: str = "USD") -> dict:
     """
     Fetch latest rates from OpenExchangeRates (requires a free App ID).
     Stores USD-based rates (or selected base).
     """
     url = f"https://openexchangerates.org/api/latest.json?app_id={app_id}&base={base}"
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url)
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(url)
             resp.raise_for_status()
             data = resp.json()
     except Exception as exc:
