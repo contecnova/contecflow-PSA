@@ -45,6 +45,13 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario no encontrado o inactivo",
         )
+
+    # Store tenant context in the session so query scoping can enforce row-level isolation.
+    if getattr(user, "is_superadmin", False):
+        db.info["organization_id"] = None
+    else:
+        db.info["organization_id"] = getattr(user, "organization_id", None)
+
     return user
 
 

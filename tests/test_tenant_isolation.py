@@ -140,6 +140,16 @@ def test_foreign_tenant_task_detail_is_not_exposed(client, pm_token, db):
     assert res.status_code == 404
 
 
+def test_deliverables_for_foreign_tenant_project_are_not_exposed(client, pm_token, db):
+    _seed_multitenant_data(db)
+
+    res = client.get(f"/api/v1/deliverables/{PROJECT_B_ID}", headers=auth(pm_token))
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["deliverables"] == []
+    assert payload["summary"]["total"] == 0
+
+
 def test_analytics_query_forbidden_foreign_project_returns_403(client, admin_token, db):
     _seed_multitenant_data(db)
 
