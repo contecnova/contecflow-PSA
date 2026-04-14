@@ -257,6 +257,10 @@ from app.services.service_desk.analytics_service import (  # noqa: E402
 from app.services.service_desk.customer_context_service import (  # noqa: E402
     get_customer_context_payload,
 )
+from app.services.service_desk.semantic_feedback_service import (  # noqa: E402
+    enqueue_profile_refresh,
+    enqueue_reassign_feedback,
+)
 from app.services.service_desk.stats_service import (  # noqa: E402
     get_service_desk_stats,
 )
@@ -517,51 +521,13 @@ def update_ticket(
 
     # Background: refresh semantic profile when ticket is resolved
     if effects["refresh_profile"]:
-        _sd_refresh_profile_bg(background_tasks, ticket.assigned_to_user_id)
+        enqueue_profile_refresh(background_tasks, ticket.assigned_to_user_id)
 
     # Background: implicit feedback when ticket is reassigned
     if effects["reassigned"]:
-        _sd_reassign_feedback_bg(background_tasks, ticket_id, "ticket")
+        enqueue_reassign_feedback(background_tasks, ticket_id, "ticket")
 
     return _ticket_out(ticket)
-
-
-def _sd_refresh_profile_bg(background_tasks: BackgroundTasks, user_id: str):
-    from app.services.semantic_classifier import SemanticAssigner
-    from app.db.session import SessionLocal
-
-    def _run():
-        _db = SessionLocal()
-        try:
-            SemanticAssigner(_db).refresh_user_profile(user_id)
-        except Exception:
-            pass
-        finally:
-            _db.close()
-
-    background_tasks.add_task(_run)
-
-
-def _sd_reassign_feedback_bg(background_tasks: BackgroundTasks, item_id: str, item_type: str):
-    from app.db.session import SessionLocal
-
-    def _run():
-        _db = SessionLocal()
-        try:
-            from app.models.semantic_engine import SemAssignment
-            assignment = _db.query(SemAssignment).filter(
-                SemAssignment.item_id == item_id,
-                SemAssignment.item_type == item_type,
-            ).order_by(SemAssignment.created_at.desc()).first()
-            if assignment and assignment.was_accepted is None:
-                assignment.was_accepted = False
-                _commit_or_rollback(_db)
-        except Exception:
-            pass
-        finally:
-            _db.close()
-
-    background_tasks.add_task(_run)
 
 
 @router.post("/tickets/{ticket_id}/comments", summary="Añadir comentario")
