@@ -24,9 +24,11 @@ api.interceptors.response.use(
   async (err) => {
     const original = err.config
     const status = err.response?.status
+    const requestPath = original?.url || ''
+    const isAuthFlowRequest = requestPath.includes('/auth/login') || requestPath.includes('/auth/refresh')
 
     // Avoid infinite loops: skip if already retried or if there's no response
-    if (!err.response || original._retry) {
+    if (!err.response || original._retry || isAuthFlowRequest) {
       return Promise.reject(err)
     }
 
@@ -34,7 +36,7 @@ api.interceptors.response.use(
     if (status === 401) {
       original._retry = true
       try {
-        await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+        await axios.post(`${BASE_URL}/auth/refresh`, null, { withCredentials: true })
         // New access_token cookie is now set — retry original request
         return api(original)
       } catch {
