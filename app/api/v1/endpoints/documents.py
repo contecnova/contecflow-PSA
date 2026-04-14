@@ -3,7 +3,7 @@ Document Management API Endpoints.
 Handles CRUD operations, versioning, permissions, and file uploads.
 Works with both S3 (when configured) and local filesystem storage.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Form, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -25,6 +25,7 @@ from app.schemas.documents import (
     DocumentPermissionCreate, DocumentPermissionOut, DocumentApprovalPayload
 )
 from app.services.s3_service import file_storage
+from app.services.pagination_service import paginate_query
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -847,13 +848,17 @@ def serve_local_file(
 def docs_by_project(
     project_id: str,
     archived: bool = False,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = db.query(Document).filter(
+    q = db.query(Document).filter(
         Document.project_id == project_id,
         Document.is_archived == archived,
-    ).order_by(Document.created_at.desc()).limit(100).all()
+    ).order_by(Document.created_at.desc())
+    docs, _, _ = paginate_query(q, page, page_size, response)
     return _doc_list(db, docs)
 
 

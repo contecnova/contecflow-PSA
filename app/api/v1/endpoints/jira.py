@@ -34,6 +34,7 @@ from app.models.user import User
 from app.models.settings import AppSetting
 from app.models.task import Task
 from app.models.project import Project
+from app.services.pagination_service import paginate_query
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jira", tags=["Jira Integration"])
@@ -484,13 +485,15 @@ def jira_webhook(
 @router.get("/linked", summary="Tareas NexusPM vinculadas a Jira")
 def get_linked_tasks(
     project_id: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
     q = db.query(Task).filter(Task.jira_issue_key != None)  # noqa: E711
     if project_id:
         q = q.filter(Task.project_id == project_id)
-    tasks = q.limit(500).all()
+    tasks, _, _ = paginate_query(q.order_by(Task.updated_at.desc()), page, page_size)
     return [
         {
             "id": t.id, "title": t.title, "status": t.status,

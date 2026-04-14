@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import List, Optional
@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.models.imputation import Imputation
 from app.models.alert import Alert, AlertType, AlertSeverity
 from app.schemas.schemas import AlertOut
+from app.services.pagination_service import paginate_query
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +254,9 @@ class AlertEngine:
 def list_alerts(
     resolved: bool = False,
     severity: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -277,7 +281,8 @@ def list_alerts(
     if severity:
         q = q.filter(Alert.severity == severity)
 
-    return q.order_by(Alert.created_at.desc()).limit(100).all()
+    items, _, _ = paginate_query(q.order_by(Alert.created_at.desc()), page, page_size, response)
+    return items
 
 
 @router.post("/run", summary="Ejecutar motor de alertas manualmente")

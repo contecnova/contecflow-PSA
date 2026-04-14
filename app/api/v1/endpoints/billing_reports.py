@@ -8,7 +8,7 @@ billing_reports — — all new v12 features:
   templates        — Project templates with full UI
   smartmatch       — AI resource recommendation
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import Optional, List
@@ -31,6 +31,19 @@ from app.models.billing_reports import (
     ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition, WorkflowStatus
 )
 from app.services.audit import audit_log
+from app.services.billing_reports.history_service import (
+    get_import_jobs,
+    get_workflow_executions,
+)
+from app.services.billing_reports.report_catalog_service import (
+    build_report_catalog,
+    dispatch_report,
+    get_data_sources,
+)
+from app.services.billing_reports.data_source_service import (
+    run_skills_report,
+    run_pipeline_report,
+)
 from app.schemas.billing_reports import (
     ReportSave,
     InvoiceCreate,
@@ -46,200 +59,7 @@ router = APIRouter()
 # REPORT BUILDER
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Built-in report catalog
-SYSTEM_REPORTS = [
-    {
-        "id": "utilization_by_person",
-        "name": "Utilización por persona",
-        "description": "Horas facturables vs no facturables por empleado",
-        "category": "utilization", "icon": "👥", "is_system": True,
-        "data_source": "imputations",
-        "chart_type": "bar_stacked",
-    },
-    {
-        "id": "margin_by_project",
-        "name": "Margen por proyecto",
-        "description": "Ingresos, costes y margen para cada proyecto activo",
-        "category": "financial", "icon": "💰", "is_system": True,
-        "data_source": "projects",
-        "chart_type": "bar_grouped",
-    },
-    {
-        "id": "wip_report",
-        "name": "Work In Progress (WIP)",
-        "description": "Proyectos activos: % completado, horas consumidas vs planificadas, desviación",
-        "category": "delivery", "icon": "⚙️", "is_system": True,
-        "data_source": "projects",
-        "chart_type": "table",
-    },
-    {
-        "id": "capacity_forecast_12w",
-        "name": "Previsión de capacidad 12 semanas",
-        "description": "Horas disponibles vs demanda estimada por perfil para las próximas 12 semanas",
-        "category": "utilization", "icon": "📅", "is_system": True,
-        "data_source": "capacity",
-        "chart_type": "area",
-    },
-    {
-        "id": "sla_compliance",
-        "name": "Cumplimiento de SLA",
-        "description": "% SLA cumplido por categoría, prioridad y agente",
-        "category": "itsm", "icon": "🎯", "is_system": True,
-        "data_source": "tickets",
-        "chart_type": "bar",
-    },
-    {
-        "id": "timesheet_hours_trend",
-        "name": "Tendencia de horas mensuales",
-        "description": "Evolución de horas imputadas por mes y tipo",
-        "category": "utilization", "icon": "📈", "is_system": True,
-        "data_source": "imputations",
-        "chart_type": "area",
-    },
-    {
-        "id": "pipeline_health",
-        "name": "Estado del pipeline comercial",
-        "description": "Oportunidades por fase, importe potencial y probabilidad de cierre",
-        "category": "financial", "icon": "🎪", "is_system": True,
-        "data_source": "pipeline",
-        "chart_type": "bar",
-    },
-    {
-        "id": "expense_by_project",
-        "name": "Gastos por proyecto y categoría",
-        "description": "Desglose de gastos aprobados por proyecto, período y categoría",
-        "category": "financial", "icon": "💸", "is_system": True,
-        "data_source": "expenses",
-        "chart_type": "bar_stacked",
-    },
-    {
-        "id": "ticket_volume_trend",
-        "name": "Volumen de tickets por semana",
-        "description": "Evolución del número de tickets creados y resueltos",
-        "category": "itsm", "icon": "🎫", "is_system": True,
-        "data_source": "tickets",
-        "chart_type": "line",
-    },
-    {
-        "id": "project_health_dashboard",
-        "name": "Dashboard de salud de proyectos",
-        "description": "Semáforo de presupuesto, plazos y riesgos para toda la cartera",
-        "category": "delivery", "icon": "🏥", "is_system": True,
-        "data_source": "projects",
-        "chart_type": "table",
-    },
-    {
-        "id": "aged_wip",
-        "name": "WIP Aging — tiempo sin facturar",
-        "description": "Proyectos cerrados pendientes de factura y días transcurridos",
-        "category": "financial", "icon": "⏳", "is_system": True,
-        "data_source": "projects",
-        "chart_type": "table",
-    },
-    {
-        "id": "resource_skills_matrix",
-        "name": "Matriz de skills del equipo",
-        "description": "Qué skills tiene cada miembro y a qué nivel",
-        "category": "utilization", "icon": "🧠", "is_system": True,
-        "data_source": "skills",
-        "chart_type": "table",
-    },
-]
-
-DATA_SOURCES = {
-    "imputations": {
-        "label": "Imputaciones / Horas",
-        "fields": [
-            {"field": "user_name", "label": "Empleado", "type": "string"},
-            {"field": "project_name", "label": "Proyecto", "type": "string"},
-            {"field": "date", "label": "Fecha", "type": "date"},
-            {"field": "hours", "label": "Horas", "type": "number", "aggregate": True},
-            {"field": "is_billable", "label": "Facturable", "type": "boolean"},
-            {"field": "work_type", "label": "Tipo trabajo", "type": "string"},
-            {"field": "hourly_rate", "label": "Tarifa €/h", "type": "number"},
-            {"field": "cost", "label": "Coste €", "type": "number", "aggregate": True},
-        ]
-    },
-    "projects": {
-        "label": "Proyectos",
-        "fields": [
-            {"field": "code", "label": "Código", "type": "string"},
-            {"field": "name", "label": "Nombre", "type": "string"},
-            {"field": "status", "label": "Estado", "type": "string"},
-            {"field": "client_name", "label": "Cliente", "type": "string"},
-            {"field": "budget_amount", "label": "Presupuesto €", "type": "number"},
-            {"field": "budget_used_pct", "label": "% Presupuesto usado", "type": "number"},
-            {"field": "hours_logged", "label": "Horas registradas", "type": "number"},
-            {"field": "margin_pct", "label": "Margen %", "type": "number"},
-            {"field": "start_date", "label": "Inicio", "type": "date"},
-            {"field": "end_date_planned", "label": "Fin previsto", "type": "date"},
-            {"field": "risk_level", "label": "Nivel riesgo", "type": "string"},
-            {"field": "pm_name", "label": "Project Manager", "type": "string"},
-        ]
-    },
-    "tickets": {
-        "label": "Tickets Service Desk",
-        "fields": [
-            {"field": "number", "label": "Nº Ticket", "type": "string"},
-            {"field": "title", "label": "Título", "type": "string"},
-            {"field": "status", "label": "Estado", "type": "string"},
-            {"field": "priority", "label": "Prioridad", "type": "string"},
-            {"field": "ticket_type", "label": "Tipo", "type": "string"},
-            {"field": "assigned_to", "label": "Agente", "type": "string"},
-            {"field": "created_at", "label": "Creado", "type": "date"},
-            {"field": "resolved_at", "label": "Resuelto", "type": "date"},
-            {"field": "mttr_hours", "label": "MTTR (h)", "type": "number"},
-            {"field": "sla_resolution_status", "label": "Estado SLA", "type": "string"},
-            {"field": "csat_score", "label": "CSAT", "type": "number"},
-        ]
-    },
-    "expenses": {
-        "label": "Gastos",
-        "fields": [
-            {"field": "code", "label": "Código", "type": "string"},
-            {"field": "user_name", "label": "Empleado", "type": "string"},
-            {"field": "project_name", "label": "Proyecto", "type": "string"},
-            {"field": "category", "label": "Categoría", "type": "string"},
-            {"field": "amount", "label": "Importe €", "type": "number", "aggregate": True},
-            {"field": "expense_date", "label": "Fecha", "type": "date"},
-            {"field": "is_billable", "label": "Facturable", "type": "boolean"},
-            {"field": "status", "label": "Estado", "type": "string"},
-        ]
-    },
-    "pipeline": {
-        "label": "Pipeline comercial",
-        "fields": [
-            {"field": "name", "label": "Oportunidad", "type": "string"},
-            {"field": "client_name", "label": "Cliente", "type": "string"},
-            {"field": "stage", "label": "Fase", "type": "string"},
-            {"field": "amount", "label": "Importe €", "type": "number"},
-            {"field": "probability_pct", "label": "Probabilidad %", "type": "number"},
-            {"field": "weighted_amount", "label": "Importe ponderado €", "type": "number"},
-            {"field": "expected_close", "label": "Cierre previsto", "type": "date"},
-        ]
-    },
-    "capacity": {
-        "label": "Capacidad y carga",
-        "fields": [
-            {"field": "user_name", "label": "Empleado", "type": "string"},
-            {"field": "week", "label": "Semana", "type": "date"},
-            {"field": "capacity_hours", "label": "Capacidad h", "type": "number"},
-            {"field": "assigned_hours", "label": "Asignadas h", "type": "number"},
-            {"field": "available_hours", "label": "Disponibles h", "type": "number"},
-            {"field": "utilization_pct", "label": "Utilización %", "type": "number"},
-        ]
-    },
-    "skills": {
-        "label": "Skills del equipo",
-        "fields": [
-            {"field": "user_name", "label": "Empleado", "type": "string"},
-            {"field": "skill_name", "label": "Skill", "type": "string"},
-            {"field": "skill_category", "label": "Categoría", "type": "string"},
-            {"field": "level", "label": "Nivel (1-5)", "type": "number"},
-            {"field": "years_experience", "label": "Años exp.", "type": "number"},
-        ]
-    },
-}
+# Report catalog/data sources are now centralized in report_catalog_service.
 
 
 @router.get("/report-catalog/catalog", summary="Catálogo de informes disponibles")
@@ -248,27 +68,12 @@ def report_catalog(
     current_user: User = Depends(require_any_manager),
 ):
     """Return system reports + saved custom reports."""
-    saved = db.query(ReportDefinition).filter(
-        or_(ReportDefinition.is_public == True,
-            ReportDefinition.created_by == current_user.id)
-    ).all()
-
-    return {
-        "system": SYSTEM_REPORTS,
-        "custom": [{
-            "id": r.id, "name": r.name, "description": r.description,
-            "category": r.category, "icon": r.icon,
-            "is_system": False, "is_public": r.is_public,
-            "data_source": r.data_source, "chart_type": r.chart_type,
-            "has_schedule": bool(r.schedule_cron),
-            "created_by": r.created_by,
-        } for r in saved],
-    }
+    return build_report_catalog(db, current_user)
 
 
 @router.get("/report-catalog/data-sources", summary="Fuentes de datos disponibles")
 def report_data_sources(current_user: User = Depends(require_any_manager)):
-    return DATA_SOURCES
+    return get_data_sources()
 
 
 @router.post("/report-catalog/run", summary="Ejecutar un informe con filtros")
@@ -287,25 +92,26 @@ def run_report(
     project_id = payload.get("project_id")
 
     org_id = current_user.organization_id
-
-    # Execute based on data source
-    if data_source == "projects":
-        return _run_projects_report(db, filters, group_by, date_from, date_to, org_id=org_id)
-    elif data_source == "imputations":
-        return _run_imputations_report(db, filters, group_by, date_from, date_to, project_id, org_id=org_id)
-    elif data_source == "tickets":
-        return _run_tickets_report(db, filters, group_by, date_from, date_to, org_id=org_id)
-    elif data_source == "expenses":
-        return _run_expenses_report(db, filters, group_by, date_from, date_to, project_id, org_id=org_id)
-    elif data_source == "capacity":
-        return _run_capacity_report(db, filters, date_from, date_to, org_id=org_id)
-    elif data_source == "skills":
-        return _run_skills_report(db, filters, org_id=org_id)
-    elif data_source == "pipeline":
-        return _run_pipeline_report(db, filters, org_id=org_id)
-    else:
-        # System reports
-        return _run_system_report(db, report_id, filters, date_from, date_to)
+    return dispatch_report(
+        data_source=data_source,
+        report_id=report_id,
+        filters=filters,
+        group_by=group_by,
+        date_from=date_from,
+        date_to=date_to,
+        project_id=project_id,
+        org_id=org_id,
+        runners={
+            "projects": lambda f, g, d1, d2, org_id=None: _run_projects_report(db, f, g, d1, d2, org_id=org_id),
+            "imputations": lambda f, g, d1, d2, p, org_id=None: _run_imputations_report(db, f, g, d1, d2, p, org_id=org_id),
+            "tickets": lambda f, g, d1, d2, org_id=None: _run_tickets_report(db, f, g, d1, d2, org_id=org_id),
+            "expenses": lambda f, g, d1, d2, p, org_id=None: _run_expenses_report(db, f, g, d1, d2, p, org_id=org_id),
+            "capacity": lambda f, d1, d2, org_id=None: _run_capacity_report(db, f, d1, d2, org_id=org_id),
+            "skills": lambda f, org_id=None: run_skills_report(db, f, org_id=org_id),
+            "pipeline": lambda f, org_id=None: run_pipeline_report(db, f, org_id=org_id),
+            "system": lambda rid, f, d1, d2: _run_system_report(db, rid, f, d1, d2),
+        },
+    )
 
 
 def _run_projects_report(db, filters, group_by, date_from, date_to, org_id=None):
@@ -548,56 +354,6 @@ def _run_capacity_report(db, filters, date_from, date_to, org_id=None):
     }
 
 
-def _run_skills_report(db, filters, org_id=None):
-    skills_q = db.query(UserSkill).options(
-        joinedload(UserSkill.user), joinedload(UserSkill.skill)
-    )
-    if org_id:
-        skills_user_ids = [r.id for r in db.query(User.id).filter(
-            User.organization_id == org_id
-        ).all()]
-        skills_q = skills_q.filter(UserSkill.user_id.in_(skills_user_ids))
-    skills = skills_q.all()
-    rows = [{
-        "user_name": s.user.full_name if s.user else "—",
-        "skill_name": s.skill.name if s.skill else "—",
-        "skill_category": s.skill.category if s.skill else "—",
-        "level": s.level, "years_experience": s.years_experience,
-        "is_primary": s.is_primary,
-    } for s in skills]
-    return {"rows": rows, "totals": {"users": len(set(r["user_name"] for r in rows)), "skills": len(rows)}}
-
-
-def _run_pipeline_report(db, filters, org_id=None):
-    from app.models.pipeline import Opportunity
-    opps_q = db.query(Opportunity)
-    if org_id:
-        pipeline_user_ids = [r.id for r in db.query(User.id).filter(
-            User.organization_id == org_id
-        ).all()]
-        opps_q = opps_q.filter(Opportunity.owner_id.in_(pipeline_user_ids))
-    opps = opps_q.all()
-    rows = [{
-        "name": o.name, "client_name": o.client_name or "—",
-        "stage": o.stage, "amount": o.expected_revenue or 0,
-        "probability_pct": o.probability or 0,
-        "weighted_amount": round((o.expected_revenue or 0) * (o.probability or 0) / 100, 0),
-        "expected_close": str(o.expected_close_date) if o.expected_close_date else None,
-        "assigned_to": o.owner.full_name if o.owner else "—",
-    } for o in opps]
-    by_stage = {}
-    for r in rows:
-        s = r["stage"]
-        if s not in by_stage: by_stage[s] = {"stage": s, "count": 0, "amount": 0, "weighted": 0}
-        by_stage[s]["count"] += 1
-        by_stage[s]["amount"] += r["amount"]
-        by_stage[s]["weighted"] += r["weighted_amount"]
-    return {
-        "rows": rows, "by_stage": list(by_stage.values()),
-        "totals": {"total_amount": round(sum(r["amount"] for r in rows), 2), "weighted_amount": round(sum(r["weighted_amount"] for r in rows), 2), "count": len(rows)}
-    }
-
-
 def _run_system_report(db, report_id, filters, date_from, date_to):
     """Route to the right data function for system reports."""
     today = date.today()
@@ -611,8 +367,8 @@ def _run_system_report(db, report_id, filters, date_from, date_to):
     if report_id == "ticket_volume_trend":   return _run_tickets_report(db, filters, "week", df, dt)
     if report_id == "expense_by_project":    return _run_expenses_report(db, filters, "project", df, dt, None)
     if report_id == "capacity_forecast_12w": return _run_capacity_report(db, filters, df, dt)
-    if report_id == "resource_skills_matrix": return _run_skills_report(db, filters)
-    if report_id == "pipeline_health":       return _run_pipeline_report(db, filters)
+    if report_id == "resource_skills_matrix": return run_skills_report(db, filters)
+    if report_id == "pipeline_health":       return run_pipeline_report(db, filters)
     return _run_projects_report(db, filters, None, df, dt)
 
 
@@ -881,16 +637,13 @@ def execute_import(
 
 @router.get("/import/jobs", summary="Historial de importaciones")
 def import_jobs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    jobs = db.query(ImportJob).order_by(ImportJob.started_at.desc()).limit(20).all()
-    return [{
-        "id": j.id, "entity_type": j.entity_type, "filename": j.filename,
-        "status": j.status, "total_rows": j.total_rows,
-        "succeeded": j.succeeded, "failed_rows": j.failed_rows,
-        "started_at": str(j.started_at)[:16], "completed_at": str(j.completed_at)[:16] if j.completed_at else None,
-    } for j in jobs]
+    return get_import_jobs(db, page, page_size, response)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1463,16 +1216,15 @@ def delete_workflow(wf_id: str, db: Session = Depends(get_db), current_user: Use
 
 
 @router.get("/automation-workflows/{wf_id}/executions", summary="Historial de ejecuciones")
-def workflow_executions(wf_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    execs = db.query(WorkflowExecution).filter(WorkflowExecution.workflow_id == wf_id).order_by(WorkflowExecution.started_at.desc()).limit(20).all()
-    return [{
-        "id": e.id, "status": e.status,
-        "current_step": e.current_step,
-        "steps_log": json.loads(e.steps_log) if e.steps_log else [],
-        "error": e.error,
-        "started_at": str(e.started_at)[:16],
-        "completed_at": str(e.completed_at)[:16] if e.completed_at else None,
-    } for e in execs]
+def workflow_executions(
+    wf_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+    response: Response = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    return get_workflow_executions(db, wf_id, page, page_size, response)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

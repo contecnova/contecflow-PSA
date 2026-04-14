@@ -399,10 +399,10 @@ def seed():
 
     db.close()
     print("\nSeed completado!")
-    print("  admin / clarive2024!")
-    print("  ana.torres / clarive2024!")
-    print("  luis.vega / clarive2024!")
-    print("  rrhh / clarive2024!")
+    print(f"  admin / {seed_pwd}")
+    print(f"  ana.torres / {seed_pwd}")
+    print(f"  luis.vega / {seed_pwd}")
+    print(f"  rrhh / {seed_pwd}")
 
 
 def seed_service_desk():

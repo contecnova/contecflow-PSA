@@ -1,0 +1,23 @@
+import math
+from typing import Any, Optional, Tuple
+
+from fastapi import Response
+
+
+def paginate_query(query: Any, page: int, page_size: int, response: Optional[Response] = None) -> Tuple[list, int, int]:
+    """Paginate a SQLAlchemy query and optionally expose pagination headers.
+
+    Returns (items, total, pages). Keeps endpoint payload backward-compatible when
+    the endpoint historically returned a plain list.
+    """
+    total = query.order_by(None).count()
+    pages = math.ceil(total / page_size) if total > 0 else 0
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+        response.headers["X-Total-Pages"] = str(pages)
+
+    return items, total, pages

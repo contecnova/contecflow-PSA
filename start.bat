@@ -28,10 +28,13 @@ echo.
 echo  App:      http://localhost:8000
 echo  API Docs: http://localhost:8000/api/v1/docs
 echo.
-echo  admin       / clarive2024!
-echo  ana.torres  / clarive2024!
-echo  luis.vega   / clarive2024!
-echo  rrhh        / clarive2024!
+set DEMO_PASSWORD=
+for /f "tokens=1,* delims==" %%A in ('findstr /b "DEFAULT_USER_PASSWORD=" .env 2^>nul') do set DEMO_PASSWORD=%%B
+if "%DEMO_PASSWORD%"=="" set DEMO_PASSWORD=clarive2024!
+echo  admin       / %DEMO_PASSWORD%
+echo  ana.torres  / %DEMO_PASSWORD%
+echo  luis.vega   / %DEMO_PASSWORD%
+echo  rrhh        / %DEMO_PASSWORD%
 echo.
 echo  Pulsa Ctrl+C para parar
 echo.

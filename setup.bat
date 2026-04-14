@@ -45,7 +45,9 @@ goto :end
 :update_mode
 echo [INFO] Modo: actualizar dependencias
 call :setup_backend
+if errorlevel 1 goto :error
 call :setup_frontend
+if errorlevel 1 goto :error
 echo.
 echo [OK] Actualizacion completada. Ejecuta: setup.bat start
 goto :end
@@ -97,7 +99,7 @@ if not exist "venv" (
 )
 
 echo [INFO] Instalando dependencias Python...
-venv\Scripts\python -m ensurepip --upgrade >nul 2>&1 || true
+venv\Scripts\python -m ensurepip --upgrade >nul 2>&1
 venv\Scripts\python -m pip install --quiet --upgrade pip || (
     echo [WARN] No se pudo actualizar pip directamente. Reinstalando pip desde ensurepip...
     venv\Scripts\python -m ensurepip --default-pip >nul 2>&1 || (
@@ -129,7 +131,9 @@ if not exist ".env" (
         echo ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
         echo SUPERADMIN_EMAIL=admin@company.com
         echo SUPERADMIN_PASSWORD=clarive2024!
+        echo DEFAULT_USER_PASSWORD=clarive2024!
         echo ANTHROPIC_API_KEY=
+        echo NEXUS_AI_MODEL=claude-haiku-4-5
     ) > .env
     echo [INFO] Archivo .env creado. Edita ANTHROPIC_API_KEY para activar la IA completa.
 )
@@ -144,6 +148,21 @@ findstr /b "SECRET_KEY=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] SECRET_KEY no encontrado en .env - anyadiendo valor por defecto
     echo SECRET_KEY=clarive-secret-key-change-in-production-min32chars!! >> .env
+)
+findstr /b "SUPERADMIN_EMAIL=" .env >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] SUPERADMIN_EMAIL no encontrado en .env - anyadiendo valor por defecto
+    echo SUPERADMIN_EMAIL=admin@company.com >> .env
+)
+findstr /b "SUPERADMIN_PASSWORD=" .env >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] SUPERADMIN_PASSWORD no encontrado en .env - anyadiendo valor por defecto
+    echo SUPERADMIN_PASSWORD=clarive2024! >> .env
+)
+findstr /b "DEFAULT_USER_PASSWORD=" .env >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] DEFAULT_USER_PASSWORD no encontrado en .env - anyadiendo valor por defecto
+    echo DEFAULT_USER_PASSWORD=clarive2024! >> .env
 )
 
 echo [INFO] Aplicando migraciones de base de datos...
@@ -165,6 +184,8 @@ if "!DB_STATUS!"=="empty" (
     venv\Scripts\python -m app.db.migrate
     venv\Scripts\python -m app.db.seed
 )
+
+call :sync_demo_passwords
 
 exit /b 0
 
@@ -201,7 +222,16 @@ if not exist "node_modules" (
         exit /b 1
     )
 ) else (
-    echo [INFO] node_modules ya existe - omitiendo instalacion
+    if not exist "node_modules\vite\dist\node\cli.js" (
+        echo [WARN] Vite no encontrado en node_modules. Reinstalando dependencias...
+        npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps
+        if errorlevel 1 (
+            echo [ERROR] Fallo npm install
+            exit /b 1
+        )
+    ) else (
+        echo [INFO] node_modules ya existe - omitiendo instalacion
+    )
 )
 
 cd /d "%SCRIPT_DIR%"
@@ -212,6 +242,18 @@ exit /b 0
 echo.
 echo [PASO 3/3] Arrancando servicios...
 cd /d "%SCRIPT_DIR%"
+
+if not exist "venv\Scripts\python.exe" (
+    echo [WARN] Entorno virtual no encontrado. Inicializando backend automaticamente...
+    call :setup_backend
+    if errorlevel 1 exit /b 1
+)
+
+if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
+    echo [WARN] Frontend no preparado. Inicializando frontend automaticamente...
+    call :setup_frontend
+    if errorlevel 1 exit /b 1
+)
 
 :: Matar procesos en los puertos si ya existen
 for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%BACKEND_PORT% " ^| findstr "LISTENING"') do (
@@ -253,11 +295,12 @@ echo.
 echo   Abre el navegador en:  http://localhost:%FRONTEND_PORT%
 echo   API / Swagger:         http://localhost:%BACKEND_PORT%/api/v1/docs
 echo.
+call :get_demo_password
 echo   Usuarios de prueba:
-echo     admin      / clarive2024!   (Administrador)
-echo     ana.torres / clarive2024!   (Project Manager)
-echo     luis.vega  / clarive2024!   (Desarrollador)
-echo     rrhh       / clarive2024!   (RRHH)
+echo     admin      / !DEMO_PASSWORD!   (Administrador)
+echo     ana.torres / !DEMO_PASSWORD!   (Project Manager)
+echo     luis.vega  / !DEMO_PASSWORD!   (Desarrollador)
+echo     rrhh       / !DEMO_PASSWORD!   (RRHH)
 echo.
 echo   Logs:
 echo     Backend:   %TEMP%\clarive-backend.log
@@ -287,6 +330,22 @@ for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%FRONTEND_PORT% " ^|
 )
 echo [OK] Servicios parados.
 goto :end
+
+:: -----------------------------------------------------------------------
+:get_demo_password
+set "DEMO_PASSWORD="
+for /f "tokens=1,* delims==" %%A in ('findstr /b "DEFAULT_USER_PASSWORD=" .env 2^>nul') do set "DEMO_PASSWORD=%%B"
+if "!DEMO_PASSWORD!"=="" set "DEMO_PASSWORD=clarive2024!"
+exit /b 0
+
+:: -----------------------------------------------------------------------
+:sync_demo_passwords
+echo [INFO] Sincronizando credenciales de usuarios demo...
+venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; from app.core.security import get_password_hash; from app.core.config import settings; db=SessionLocal(); pwd=settings.DEFAULT_USER_PASSWORD; [setattr(u,'hashed_password',get_password_hash(pwd)) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close()" >nul 2>&1
+if errorlevel 1 (
+    echo [WARN] No se pudieron sincronizar las credenciales demo automaticamente
+)
+exit /b 0
 
 :: -----------------------------------------------------------------------
 :error

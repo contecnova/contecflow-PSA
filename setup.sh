@@ -50,6 +50,31 @@ check_command() {
   command -v "$1" &>/dev/null
 }
 
+hash_file() {
+  local file="$1"
+  if check_command shasum; then
+    shasum -a 256 "$file" 2>/dev/null | awk '{print $1}'
+  elif check_command md5sum; then
+    md5sum "$file" 2>/dev/null | awk '{print $1}'
+  elif check_command md5; then
+    md5 -q "$file" 2>/dev/null
+  else
+    echo "nohash"
+  fi
+}
+
+hash_file_list() {
+  if check_command shasum; then
+    tr '\n' '\0' | xargs -0 shasum -a 256 2>/dev/null | shasum -a 256 2>/dev/null | awk '{print $1}'
+  elif check_command md5sum; then
+    tr '\n' '\0' | xargs -0 md5sum 2>/dev/null | md5sum 2>/dev/null | awk '{print $1}'
+  elif check_command md5; then
+    tr '\n' '\0' | xargs -0 md5 2>/dev/null | md5 -q 2>/dev/null
+  else
+    echo "nohash"
+  fi
+}
+
 # ── Find Python 3.10+ ─────────────────────────────────────────────────────────
 find_python() {
   for cmd in python3.12 python3.11 python3.10 python3; do
@@ -78,6 +103,39 @@ resolve_venv_bins() {
   fi
   PY_BIN="$VENV_DIR/bin/python"
   PIP_BIN="$VENV_DIR/bin/pip"
+}
+
+get_demo_password() {
+  local pwd
+  pwd=$(grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-)
+  if [ -z "$pwd" ]; then
+    pwd="clarive2024!"
+  fi
+  echo "$pwd"
+}
+
+preflight_start_checks() {
+  section "Preflight"
+
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    if ! check_command brew; then
+      warn "Homebrew no detectado en PATH."
+      warn "Se intentara instalar automaticamente cuando sea necesario."
+      warn "Si falla, instala Homebrew manualmente: https://brew.sh"
+    else
+      log "Homebrew detectado"
+    fi
+  fi
+
+  if ! check_command node; then
+    warn "Node.js no detectado en PATH. Se instalara automaticamente para el frontend."
+  else
+    log "Node.js detectado: $(node --version)"
+  fi
+
+  if ! check_command lsof; then
+    warn "lsof no detectado. No se podran liberar puertos automaticamente."
+  fi
 }
 
 # ── Install Homebrew if missing (macOS only) ──────────────────────────────────
@@ -143,7 +201,7 @@ setup_backend() {
 
   # Solo instalar si requirements.txt cambió o venv está recién creado
   REQ_HASH_FILE="$VENV_DIR/.req_hash"
-  REQ_HASH=$(md5sum requirements.txt 2>/dev/null || md5 -q requirements.txt 2>/dev/null || echo "nohash")
+  REQ_HASH=$(hash_file requirements.txt)
   if [ ! -f "$REQ_HASH_FILE" ] || [ "$(cat $REQ_HASH_FILE)" != "$REQ_HASH" ]; then
     log "Instalando dependencias Python..."
     "$PIP_BIN" install --quiet --upgrade pip
@@ -168,6 +226,7 @@ REFRESH_TOKEN_EXPIRE_DAYS=30
 ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
 SUPERADMIN_EMAIL=admin@company.com
 SUPERADMIN_PASSWORD=clarive2024!
+DEFAULT_USER_PASSWORD=clarive2024!
 ANTHROPIC_API_KEY=
 NEXUS_AI_MODEL=claude-haiku-4-5
 ENVEOF
@@ -175,20 +234,23 @@ ENVEOF
   fi
 
   # Patch existing .env: ensure required variables are present
-  for REQUIRED_VAR in CLIENT_PORTAL_SECRET SECRET_KEY SUPERADMIN_EMAIL SUPERADMIN_PASSWORD; do
+  for REQUIRED_VAR in CLIENT_PORTAL_SECRET SECRET_KEY SUPERADMIN_EMAIL SUPERADMIN_PASSWORD DEFAULT_USER_PASSWORD; do
     if ! grep -q "^${REQUIRED_VAR}=" .env 2>/dev/null; then
       warn "${REQUIRED_VAR} no encontrado en .env — añadiendo valor por defecto"
       case "$REQUIRED_VAR" in
         CLIENT_PORTAL_SECRET)
-          VAL=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "clarive-portal-secret-change-in-production!!")
+          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "clarive-portal-secret-change-in-production!!")
           ;;
         SECRET_KEY)
-          VAL=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_CHANGE_THIS_NOW")
+          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_CHANGE_THIS_NOW")
           ;;
         SUPERADMIN_EMAIL)
           VAL="admin@company.com"
           ;;
         SUPERADMIN_PASSWORD)
+          VAL="clarive2024!"
+          ;;
+        DEFAULT_USER_PASSWORD)
           VAL="clarive2024!"
           ;;
       esac
@@ -198,7 +260,7 @@ ENVEOF
 
   # Solo migrar si la BD no existe o los modelos cambiaron
   MODELS_HASH_FILE="$VENV_DIR/.models_hash"
-  MODELS_HASH=$(find app/models -name "*.py" -exec md5sum {} \; 2>/dev/null | sort | md5sum 2>/dev/null | cut -d' ' -f1 || echo "nohash")
+  MODELS_HASH=$(find app/models -type f -name "*.py" 2>/dev/null | sort | hash_file_list)
   if [ ! -f "clarive.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
     log "Aplicando migraciones de base de datos..."
     "$PY_BIN" -m app.db.migrate
@@ -228,6 +290,24 @@ except:
   else
     log "Base de datos OK"
   fi
+
+  # Keep demo users aligned with DEFAULT_USER_PASSWORD in .env
+  log "Sincronizando credenciales de usuarios demo..."
+  "$PY_BIN" -c "
+from app.db.session import SessionLocal
+from app.models.user import User
+from app.core.security import get_password_hash
+from app.core.config import settings
+db = SessionLocal()
+seed_pwd = settings.DEFAULT_USER_PASSWORD
+for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
+    user = db.query(User).filter(User.username == username).first()
+    if user:
+        user.hashed_password = get_password_hash(seed_pwd)
+db.commit()
+db.close()
+print('ok')
+" >/dev/null 2>&1 || warn "No se pudieron sincronizar las credenciales demo automáticamente"
 }
 
 # ── Setup frontend ────────────────────────────────────────────────────────────
@@ -248,7 +328,7 @@ setup_frontend() {
   log "Node.js $(node --version) · npm $(npm --version)"
 
   PKG_HASH_FILE="node_modules/.pkg_hash"
-  PKG_HASH=$(md5sum package.json 2>/dev/null || md5 -q package.json 2>/dev/null || echo "nohash")
+  PKG_HASH=$(hash_file package.json)
   NEED_NPM_INSTALL=0
   # Si falta node_modules, el hash, o cambió package.json
   if [ ! -d "node_modules" ] || [ ! -f "$PKG_HASH_FILE" ] || [ "$(cat $PKG_HASH_FILE)" != "$PKG_HASH" ]; then
@@ -278,11 +358,17 @@ start_services() {
   section "Arrancando Clarive"
   cd "$SCRIPT_DIR"
   resolve_venv_bins
+  preflight_start_checks
 
   if [ ! -x "$PY_BIN" ]; then
     warn "Entorno virtual no encontrado. Inicializando backend automáticamente..."
     setup_backend
     resolve_venv_bins
+  fi
+
+  if [ ! -d "$SCRIPT_DIR/frontend/node_modules" ] || [ ! -f "$SCRIPT_DIR/frontend/node_modules/vite/dist/node/cli.js" ]; then
+    warn "Frontend no preparado. Inicializando frontend automáticamente..."
+    setup_frontend
   fi
 
   # Kill any existing processes on our ports
@@ -337,15 +423,16 @@ start_services() {
   fi
 
   # Solo limpiar caché de Vite si los modelos del frontend cambiaron
+  mkdir -p frontend/node_modules
   VITE_HASH_FILE="frontend/node_modules/.vite_src_hash"
-  VITE_HASH=$(find frontend/src -name "*.jsx" -o -name "*.js" | sort | xargs md5sum 2>/dev/null | md5sum 2>/dev/null | cut -d' ' -f1 || echo "nohash")
+  VITE_HASH=$(find frontend/src -type f \( -name "*.jsx" -o -name "*.js" \) 2>/dev/null | sort | hash_file_list)
   if [ ! -f "$VITE_HASH_FILE" ] || [ "$(cat $VITE_HASH_FILE)" != "$VITE_HASH" ]; then
     rm -rf frontend/node_modules/.vite 2>/dev/null || true
     echo "$VITE_HASH" > "$VITE_HASH_FILE"
   fi
   # Validar JSX solo si el código cambió (evita ~5s en cada arranque)
   JSX_HASH_FILE="frontend/node_modules/.jsx_hash"
-  JSX_HASH=$(find frontend/src -name "*.jsx" | sort | xargs md5sum 2>/dev/null | md5sum 2>/dev/null | cut -d' ' -f1 || echo "nohash")
+  JSX_HASH=$(find frontend/src -type f -name "*.jsx" 2>/dev/null | sort | hash_file_list)
   if [ -f "frontend/node_modules/@babel/parser/lib/index.js" ]; then
     if [ ! -f "$JSX_HASH_FILE" ] || [ "$(cat $JSX_HASH_FILE)" != "$JSX_HASH" ]; then
       log "Validando JSX con Babel..."
@@ -391,11 +478,12 @@ start_services() {
   echo -e "  📡 API:      http://localhost:$BACKEND_PORT/api/v1/docs"
   echo -e "  📋 Logs:     /tmp/clarive-backend.log"
   echo ""
+  DEMO_PASSWORD=$(get_demo_password)
   echo -e "  ${BOLD}Usuarios de prueba:${NC}"
-  echo -e "  admin      / clarive2024!  → Dirección"
-  echo -e "  ana.torres / clarive2024!  → PM"
-  echo -e "  luis.vega  / clarive2024!  → Empleado"
-  echo -e "  rrhh       / clarive2024!  → RRHH"
+  echo -e "  admin      / ${DEMO_PASSWORD}  → Dirección"
+  echo -e "  ana.torres / ${DEMO_PASSWORD}  → PM"
+  echo -e "  luis.vega  / ${DEMO_PASSWORD}  → Empleado"
+  echo -e "  rrhh       / ${DEMO_PASSWORD}  → RRHH"
   echo ""
   echo -e "  ${YELLOW}Presiona Ctrl+C para parar${NC}"
   echo ""
