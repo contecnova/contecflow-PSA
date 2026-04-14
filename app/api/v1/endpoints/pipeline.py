@@ -10,6 +10,7 @@ from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig
 from app.models.project import Project
+from app.services.numbering import next_numbered_code
 
 router = APIRouter()
 
@@ -80,14 +81,7 @@ class StageConfigIn(BaseModel):
 
 
 def _next_code(db: Session) -> str:
-    import re
-    max_code = db.query(func.max(Opportunity.code)).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"OPP-{next_num:04d}"
+    return next_numbered_code(db, "opportunity", prefix="OPP", padding=4)
 
 
 def _opp_out(opp: Opportunity) -> dict:
@@ -275,15 +269,7 @@ def convert_opportunity_to_project(
     if opp.project_id:
         raise HTTPException(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
 
-    # Generar código de proyecto
-    import re as _re
-    max_prj_code = db.query(func.max(Project.code)).scalar()
-    if max_prj_code:
-        _m = _re.search(r"(\d+)$", max_prj_code)
-        next_prj_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_prj_num = 1
-    code = f"PRJ-{next_prj_num:04d}"
+    code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
 
     project = Project(
         id=str(_uuid.uuid4()),

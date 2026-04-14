@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.pipeline import Risk
+from app.services.numbering import next_numbered_code
 
 router = APIRouter()
 
@@ -45,18 +46,7 @@ class RiskUpdate(RiskIn):
 
 
 def _next_code(project_id: str, db: Session) -> str:
-    import re
-    from app.models.project import Project
-    from app.db.session import is_postgres
-    # Lock parent project row to serialise concurrent risk creation for the same project
-    db.query(Project).filter(Project.id == project_id).with_for_update().first()
-    max_code = db.query(func.max(Risk.code)).filter(Risk.project_id == project_id).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"RSK-{next_num:03d}"
+    return next_numbered_code(db, "risk", prefix="RSK", padding=3)
 
 
 def _risk_score(probability: str, impact: str) -> float:

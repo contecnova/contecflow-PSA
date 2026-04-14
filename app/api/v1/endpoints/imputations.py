@@ -16,6 +16,7 @@ from app.models.mfa import Organization
 from app.schemas.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
 from app.core.config import settings
+from app.services.psa_flows import approve_imputation_flow
 
 router = APIRouter()
 
@@ -360,22 +361,7 @@ def approve_imputation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
-    if not imp:
-        raise HTTPException(status_code=404, detail="Imputación no encontrada")
-
-    # Managers can only approve imputations for their own projects; admins/HR can approve all.
-    if current_user.role not in [UserRole.admin, UserRole.hr]:
-        if not imp.project_id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para aprobar esta imputación")
-        project = db.query(Project).filter(Project.id == imp.project_id).first()
-        if not project or project.pm_id != current_user.id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para aprobar esta imputación")
-
-    imp.is_approved = True
-    imp.approved_by = current_user.id
-    imp.approved_at = datetime.now(timezone.utc)
-    db.commit()
+    approve_imputation_flow(db, imputation_id, current_user)
     return {"message": "Imputación aprobada"}
 
 

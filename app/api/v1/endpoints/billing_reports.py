@@ -44,6 +44,8 @@ from app.services.billing_reports.data_source_service import (
     run_skills_report,
     run_pipeline_report,
 )
+from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
+from app.services.numbering import next_numbered_code
 from app.schemas.billing_reports import (
     ReportSave,
     InvoiceCreate,
@@ -651,17 +653,14 @@ def import_jobs(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _next_invoice_number(db: Session) -> str:
-    import re
-    year = datetime.now(timezone.utc).year
-    max_num = db.query(func.max(Invoice.number)).filter(
-        Invoice.number.like(f"INV-{year}-%")
-    ).scalar()
-    if max_num:
-        m = re.search(r"(\d+)$", max_num)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"INV-{year}-{next_num:04d}"
+    return next_numbered_code(
+        db,
+        "invoice",
+        prefix="INV",
+        padding=4,
+        include_year=True,
+        reset_yearly=True,
+    )
 
 
 def _invoice_out(inv: Invoice) -> dict:
@@ -713,61 +712,13 @@ def invoice_from_timesheets(
     current_user: User = Depends(require_any_manager),
 ):
     """Auto-generate invoice lines from approved timesheets in a date range."""
-    project_id = payload.get("project_id")
-    date_from = payload.get("date_from")
-    date_to = payload.get("date_to")
-
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project: raise HTTPException(404, "Proyecto no encontrado")
-
-    # Get approved imputations
-    imps = db.query(Imputation).options(joinedload(Imputation.user)).filter(
-        Imputation.project_id == project_id,
-        Imputation.is_billable == True,
+    return build_invoice_preview_from_timesheets_flow(
+        db=db,
+        project_id=payload.get("project_id"),
+        date_from=payload.get("date_from"),
+        date_to=payload.get("date_to"),
+        tax_rate=payload.get("tax_rate"),
     )
-    if date_from: imps = imps.filter(Imputation.date >= date_from)
-    if date_to:   imps = imps.filter(Imputation.date <= date_to)
-    imps = imps.all()
-
-    # Group by user profile
-    by_profile = {}
-    for imp in imps:
-        rate = project.billing_rate or (imp.user.hourly_rate if imp.user else 0) or 0
-        profile = imp.user.job_title or imp.user.role if imp.user else "Consultor"
-        key = f"{profile}___{rate}"
-        if key not in by_profile:
-            by_profile[key] = {"description": f"{profile} ({rate}€/h)", "hours": 0, "rate": rate, "ids": [], "profile": profile}
-        by_profile[key]["hours"] += imp.hours
-        by_profile[key]["ids"].append(imp.id)
-
-    lines = []
-    subtotal = 0
-    for i, (key, data) in enumerate(by_profile.items()):
-        amount = round(data["hours"] * data["rate"], 2)
-        subtotal += amount
-        lines.append({
-            "order": i, "description": data["description"],
-            "quantity": round(data["hours"], 2), "unit": "h",
-            "unit_price": data["rate"], "discount_pct": 0,
-            "amount": amount, "source_type": "timesheet",
-            "source_ids": json.dumps(data["ids"]),
-        })
-
-    tax_rate = payload.get("tax_rate", settings.DEFAULT_TAX_RATE)
-    tax_amount = round(subtotal * tax_rate / 100, 2)
-    total = round(subtotal + tax_amount, 2)
-
-    return {
-        "preview": True,
-        "project_name": project.name,
-        "client_name": project.client_name,
-        "period_from": date_from, "period_to": date_to,
-        "lines": lines,
-        "subtotal": round(subtotal, 2),
-        "tax_rate": tax_rate, "tax_amount": tax_amount, "total": total,
-        "currency": project.currency or settings.DEFAULT_CURRENCY,
-        "imputation_count": len(imps),
-    }
 
 
 @router.post("/invoices", summary="Crear factura")

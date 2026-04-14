@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.imputation import Imputation
 from app.core.config import settings
 from app.models.financial import CapacityPlan
+from app.services.psa_flows import create_capacity_plan_flow
 
 router = APIRouter()
 
@@ -290,57 +291,23 @@ def create_capacity_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.financial import CapacityPlan
-    from app.models.resources import Absence, AbsenceStatus
-    import uuid
-
     user_id = payload.get("user_id", current_user.id)
     week_start_val = payload.get("week_start")
     week_start = date.fromisoformat(week_start_val) if week_start_val else None
     new_hours = float(payload.get("planned_hours", 8))
 
-    if week_start:
-        # Check capacity overload: prevent double-booking beyond weekly capacity
-        existing_hours = db.query(func.sum(CapacityPlan.planned_hours)).filter(
-            CapacityPlan.user_id == user_id,
-            CapacityPlan.week_start == week_start,
-        ).scalar() or 0.0
-        user_obj = db.query(User).filter(User.id == user_id).first()
-        weekly_capacity = (
-            getattr(user_obj, 'weekly_capacity_hours', None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-        )
-        if existing_hours + new_hours > weekly_capacity:
-            raise HTTPException(
-                400,
-                f"Sobreasignación: el usuario ya tiene {existing_hours}h planificadas esta semana "
-                f"y añadir {new_hours}h supera la capacidad de {weekly_capacity}h.",
-            )
+    if not week_start:
+        raise HTTPException(status_code=400, detail="week_start es obligatorio")
 
-        # Check approved absences: cannot plan work during approved leave
-        week_end = week_start + timedelta(days=6)
-        conflict = db.query(Absence).filter(
-            Absence.user_id == user_id,
-            Absence.status == AbsenceStatus.approved,
-            Absence.start_date <= week_end,
-            Absence.end_date >= week_start,
-        ).first()
-        if conflict:
-            raise HTTPException(
-                409,
-                f"Conflicto de ausencia: el usuario tiene una ausencia aprobada del "
-                f"{conflict.start_date} al {conflict.end_date}.",
-            )
-
-    plan = CapacityPlan(
-        id=str(uuid.uuid4()),
+    plan = create_capacity_plan_flow(
+        db=db,
+        current_user=current_user,
         user_id=user_id,
-        project_id=payload.get("project_id") or None,
         week_start=week_start,
-        planned_hours=new_hours,
+        new_hours=new_hours,
+        project_id=payload.get("project_id") or None,
         notes=payload.get("notes"),
-        created_by=current_user.id,
     )
-    db.add(plan); db.commit(); db.refresh(plan)
     return {"id": plan.id, "user_id": plan.user_id, "week_start": str(plan.week_start),
             "planned_hours": plan.planned_hours, "project_id": plan.project_id}
 

@@ -79,6 +79,15 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class PasswordForgotRequest(BaseModel):
+    email_or_username: str
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class ActiveSessionOut(BaseModel):
     id: str
     ip_address: Optional[str] = None

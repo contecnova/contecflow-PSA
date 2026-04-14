@@ -10,6 +10,12 @@ from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.models.imputation import Imputation
 from app.models.financial import Timesheet, TimesheetStatus
+from app.services.psa_flows import (
+    review_timesheet_flow,
+    send_back_timesheet_flow,
+    submit_timesheet_flow,
+    sync_timesheet_from_imputations_flow,
+)
 
 router = APIRouter()
 
@@ -57,43 +63,7 @@ def _get_week_bounds(week_start: Optional[date]) -> tuple:
 
 
 def _sync_timesheet(db: Session, user_id: str, week_start: date) -> Timesheet:
-    """Create or update timesheet from imputations."""
-    week_end = week_start + timedelta(days=6)
-
-    ts = db.query(Timesheet).filter(
-        Timesheet.user_id == user_id,
-        Timesheet.week_start == week_start,
-    ).first()
-
-    imps = db.query(Imputation).filter(
-        Imputation.user_id == user_id,
-        Imputation.date >= week_start,
-        Imputation.date <= week_end,
-    ).all()
-
-    total = sum(i.hours for i in imps)
-    billable = sum(i.hours for i in imps if i.is_billable)
-    cost = sum(i.cost_amount or 0 for i in imps)
-
-    if not ts:
-        ts = Timesheet(
-            user_id=user_id,
-            week_start=week_start,
-            week_end=week_end,
-            total_hours=total,
-            billable_hours=billable,
-            total_cost=cost,
-        )
-        db.add(ts)
-    else:
-        if ts.status in [TimesheetStatus.draft, TimesheetStatus.rejected]:
-            ts.total_hours = total
-            ts.billable_hours = billable
-            ts.total_cost = cost
-
-    db.commit()
-    db.refresh(ts)
-    return ts
+    return sync_timesheet_from_imputations_flow(db, user_id, week_start)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -158,14 +128,7 @@ def submit_timesheet(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ts = _sync_timesheet(db, current_user.id, week_start)
-    if ts.status not in [TimesheetStatus.draft, TimesheetStatus.rejected]:
-        raise HTTPException(400, "Solo se pueden enviar timesheets en borrador o rechazados")
-    if ts.total_hours == 0:
-        raise HTTPException(400, "No puedes enviar un timesheet vacío")
-    ts.status = TimesheetStatus.submitted
-    ts.submitted_at = datetime.now(timezone.utc)
-    db.commit()
+    ts = submit_timesheet_flow(db, current_user.id, week_start)
     return {"message": "Timesheet enviado para aprobación", "status": ts.status}
 
 
@@ -236,27 +199,7 @@ def review_timesheet(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "timesheet", timesheet_id, action="approve")
-    ts = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
-    if not ts:
-        raise HTTPException(404, "Timesheet no encontrado")
-    if ts.status != TimesheetStatus.submitted:
-        raise HTTPException(400, "Solo se pueden revisar timesheets enviados")
-
-    ts.status = TimesheetStatus.approved if payload.approved else TimesheetStatus.rejected
-    ts.reviewed_by = current_user.id
-    ts.reviewed_at = datetime.now(timezone.utc)
-    ts.review_notes = payload.notes
-
-    # If approved, mark all imputations as approved
-    if payload.approved:
-        week_end = ts.week_start + timedelta(days=6)
-        db.query(Imputation).filter(
-            Imputation.user_id == ts.user_id,
-            Imputation.date >= ts.week_start,
-            Imputation.date <= week_end,
-        ).update({"is_approved": True, "approved_by": current_user.id, "approved_at": datetime.now(timezone.utc)})
-
-    db.commit()
+    ts = review_timesheet_flow(db, timesheet_id, current_user, payload.approved, payload.notes)
     action = "aprobado" if payload.approved else "rechazado"
     return {"message": f"Timesheet {action}", "status": ts.status}
 
@@ -273,17 +216,5 @@ def send_back_timesheet(
     current_user: User = Depends(require_any_manager),
 ):
     """Return a submitted timesheet to the employee so they can correct and re-submit it."""
-    ts = db.query(Timesheet).filter(Timesheet.id == timesheet_id).first()
-    if not ts:
-        raise HTTPException(404, "Timesheet no encontrado")
-    if ts.status != TimesheetStatus.submitted:
-        raise HTTPException(400, "Solo se pueden devolver timesheets en estado 'enviado'")
-
-    ts.status = TimesheetStatus.rejected
-    ts.reviewed_by = current_user.id
-    ts.reviewed_at = datetime.now(timezone.utc)
-    note_prefix = "[Devuelto para corrección]"
-    ts.review_notes = f"{note_prefix} {payload.notes}".strip()
-
-    db.commit()
+    ts = send_back_timesheet_flow(db, timesheet_id, current_user, payload.notes)
     return {"message": "Timesheet devuelto para corrección", "status": ts.status}

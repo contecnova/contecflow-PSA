@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, case
 from typing import Optional
 from datetime import date, timedelta
 from pydantic import BaseModel
@@ -43,15 +43,24 @@ class MilestoneUpdate(BaseModel):
     billing_amount: Optional[float] = None
 
 
-def _calc_project_profitability(project: Project, db: Session) -> dict:
+def _calc_project_profitability(
+    project: Project,
+    db: Session,
+    imputation_totals: Optional[dict] = None,
+    billed_milestones_total: Optional[float] = None,
+) -> dict:
     """Calculate full P&L for a project."""
-    imps = db.query(Imputation).filter(
-        Imputation.project_id == project.id
-    ).all()
-
-    total_hours = sum(i.hours for i in imps)
-    billable_hours = sum(i.hours for i in imps if i.is_billable)
-    internal_cost = sum(i.cost_amount or 0 for i in imps)
+    if imputation_totals is None:
+        imps = db.query(Imputation).filter(
+            Imputation.project_id == project.id
+        ).all()
+        total_hours = sum(i.hours for i in imps)
+        billable_hours = sum(i.hours for i in imps if i.is_billable)
+        internal_cost = sum(i.cost_amount or 0 for i in imps)
+    else:
+        total_hours = float(imputation_totals.get("total_hours") or 0)
+        billable_hours = float(imputation_totals.get("billable_hours") or 0)
+        internal_cost = float(imputation_totals.get("internal_cost") or 0)
 
     # Revenue from billing rate × billable hours
     billing_revenue = 0
@@ -59,11 +68,14 @@ def _calc_project_profitability(project: Project, db: Session) -> dict:
         billing_revenue = project.billing_rate * billable_hours
     elif project.contract_amount:
         # For fixed price, use contract amount × progress
-        milestones = db.query(ProjectMilestone).filter(
-            ProjectMilestone.project_id == project.id,
-            ProjectMilestone.is_billed == True,
-        ).all()
-        billing_revenue = sum(m.billing_amount or 0 for m in milestones)
+        if billed_milestones_total is None:
+            milestones = db.query(ProjectMilestone).filter(
+                ProjectMilestone.project_id == project.id,
+                ProjectMilestone.is_billed == True,
+            ).all()
+            billing_revenue = sum(m.billing_amount or 0 for m in milestones)
+        else:
+            billing_revenue = float(billed_milestones_total or 0)
 
     gross_margin = billing_revenue - internal_cost
     margin_pct = (gross_margin / billing_revenue * 100) if billing_revenue > 0 else 0
@@ -206,7 +218,49 @@ def get_profitability_summary(
         q = q.filter(Project.status.in_([ProjectStatus.active, ProjectStatus.closed]))
 
     projects = q.all()
-    results = [_calc_project_profitability(p, db) for p in projects]
+    project_ids = [p.id for p in projects]
+
+    imputation_totals_by_project = {}
+    billed_milestones_by_project = {}
+
+    if project_ids:
+        imputation_rows = db.query(
+            Imputation.project_id.label("project_id"),
+            func.sum(Imputation.hours).label("total_hours"),
+            func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)).label("billable_hours"),
+            func.sum(Imputation.cost_amount).label("internal_cost"),
+        ).filter(
+            Imputation.project_id.in_(project_ids)
+        ).group_by(Imputation.project_id).all()
+        imputation_totals_by_project = {
+            r.project_id: {
+                "total_hours": r.total_hours,
+                "billable_hours": r.billable_hours,
+                "internal_cost": r.internal_cost,
+            }
+            for r in imputation_rows
+        }
+
+        billed_milestone_rows = db.query(
+            ProjectMilestone.project_id.label("project_id"),
+            func.sum(ProjectMilestone.billing_amount).label("billing_revenue"),
+        ).filter(
+            ProjectMilestone.project_id.in_(project_ids),
+            ProjectMilestone.is_billed == True,
+        ).group_by(ProjectMilestone.project_id).all()
+        billed_milestones_by_project = {
+            r.project_id: r.billing_revenue for r in billed_milestone_rows
+        }
+
+    results = [
+        _calc_project_profitability(
+            p,
+            db,
+            imputation_totals=imputation_totals_by_project.get(p.id, {}),
+            billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+        )
+        for p in projects
+    ]
 
     # Portfolio totals
     total_revenue = sum(r["billing_revenue"] for r in results)

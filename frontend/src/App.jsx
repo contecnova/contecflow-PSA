@@ -14,6 +14,7 @@ import {
 
 // ── Lazy page imports (code-splitting) ────────────────────────────────────────
 const LoginPage              = lazy(() => import('./pages/LoginPage'))
+const ResetPasswordPage      = lazy(() => import('./pages/ResetPasswordPage'))
 const DashboardPage          = lazy(() => import('./pages/DashboardPage'))
 const ProjectsPage           = lazy(() => import('./pages/ProjectsPage'))
 const TasksPage              = lazy(() => import('./pages/TasksPage'))
@@ -237,6 +238,7 @@ function AppRoutes() {
     <Suspense fallback={<SmartPageLoader />}>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/reset-password" element={user ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />} />
 
       <Route path="/" element={
         <ProtectedRoute>

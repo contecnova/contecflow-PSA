@@ -20,6 +20,17 @@ def priority_matrix(urgency: str, impact: str) -> str:
     return matrix.get((urgency, impact), "p3_medium")
 
 
+def priority_matrix_payload(payload: dict) -> dict:
+    urgency = payload.get("urgency", "medium")
+    impact = payload.get("impact", "user")
+    priority = priority_matrix(urgency, impact)
+    return {
+        "urgency": urgency,
+        "impact": impact,
+        "recommended_priority": priority,
+    }
+
+
 def compute_itil_metrics(tickets, now=None) -> dict:
     """Compute MTTR and FCR metrics for a ticket set."""
     if now is None:

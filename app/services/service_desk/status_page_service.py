@@ -67,6 +67,39 @@ def build_public_status_page_payload(db: Session) -> dict:
     }
 
 
+def build_status_page_embed_script() -> str:
+    return """
+(function(){
+    var scriptTag = document.currentScript;
+    var api = (scriptTag && scriptTag.getAttribute('data-api')) || window.location.origin;
+    var targetId = (scriptTag && scriptTag.getAttribute('data-target')) || 'clarive-status-page';
+    var mount = document.getElementById(targetId);
+    if(!mount){
+        mount = document.createElement('div');
+        mount.id = targetId;
+        document.body.appendChild(mount);
+    }
+    fetch(api + '/api/v1/sd/status-page')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            var html = '<div style="font-family:system-ui,sans-serif;border:1px solid #d0d7de;border-radius:8px;padding:12px;max-width:760px">'
+                + '<div style="font-weight:700;margin-bottom:8px">Service Status: ' + (data.overall_status || 'operational') + '</div>';
+            Object.keys(data.groups || {}).forEach(function(g){
+                html += '<div style="margin-top:8px"><div style="font-weight:600">' + g + '</div>';
+                (data.groups[g] || []).forEach(function(c){
+                    html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">'
+                        + '<span>' + c.name + '</span><span>' + c.status + '</span></div>';
+                });
+                html += '</div>';
+            });
+            html += '</div>';
+            mount.innerHTML = html;
+        })
+        .catch(function(){ mount.innerHTML = '<div>Unable to load status page</div>'; });
+})();
+""".strip()
+
+
 def list_status_components(db: Session):
     return db.query(StatusPageComponent).order_by(
         StatusPageComponent.sort_order,

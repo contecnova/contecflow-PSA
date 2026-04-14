@@ -11,6 +11,7 @@ from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
 from app.models.pipeline import Contract, WorkOrder
 from app.models.project import Project
+from app.services.numbering import next_numbered_code
 
 router = APIRouter()
 
@@ -65,24 +66,10 @@ class WorkOrderIn(BaseModel):
 
 
 def _next_code(db: Session) -> str:
-    import re
-    max_code = db.query(func.max(Contract.code)).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"CTR-{next_num:04d}"
+    return next_numbered_code(db, "contract", prefix="CTR", padding=4)
 
 def _next_wo_code(db: Session) -> str:
-    import re
-    max_code = db.query(func.max(WorkOrder.code)).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"WO-{next_num:04d}"
+    return next_numbered_code(db, "work_order", prefix="WO", padding=4)
 
 
 def _contract_out(c: Contract) -> dict:

@@ -32,6 +32,11 @@ def pause_ticket_sla(db: Session, ticket_id: str, user_id: str, note: str) -> di
     return {"ok": True, "paused_at": str(ticket.sla_paused_at)}
 
 
+def pause_ticket_sla_from_payload(db: Session, ticket_id: str, user_id: str, payload: dict) -> dict:
+    note = (payload or {}).get("note", "SLA pausado")
+    return pause_ticket_sla(db, ticket_id, user_id, note)
+
+
 def resume_ticket_sla(db: Session, ticket_id: str, user_id: str) -> dict:
     ticket = get_ticket_or_404(db, ticket_id)
     if not ticket.sla_paused_at:

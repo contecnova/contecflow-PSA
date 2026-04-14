@@ -120,6 +120,8 @@ export default api
 
 export const authApi = {
   login: (credentials) => api.post('/auth/login', credentials),
+  forgotPassword: (payload) => api.post('/auth/password/forgot', payload),
+  resetPassword: (payload) => api.post('/auth/password/reset', payload),
   me:    () => api.get('/auth/me'),
   syncLdap: () => api.post('/auth/ldap/sync'),
 }

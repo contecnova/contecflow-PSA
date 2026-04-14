@@ -1,15 +1,23 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { authApi } from '../services/api'
 
 export default function LoginPage() {
   const { login, sessionExpired } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const t = useAppT()
   const [form, setForm] = useState({ username: '', password: '' })
+  const [forgotInput, setForgotInput] = useState('')
+  const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState(searchParams.get('reset_token') ? 'reset' : 'login')
+
+  const resetToken = searchParams.get('reset_token') || ''
 
   const handleSubmit = async () => {
     if (!form.username || !form.password) { setError(t('login.input_error')); return }
@@ -21,6 +29,51 @@ export default function LoginPage() {
     } catch (e) {
       const raw = e.response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.credentials_error')))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!forgotInput.trim()) {
+      setError('Introduce tu email o usuario')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const { data } = await authApi.forgotPassword({ email_or_username: forgotInput.trim() })
+      setMessage(data?.message || 'Si la cuenta existe, recibirás un email con instrucciones.')
+    } catch (e) {
+      const raw = e.response?.data?.detail
+      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'No se pudo procesar la solicitud'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetToken) {
+      setError('Token de restablecimiento inválido')
+      return
+    }
+    if (!newPassword) {
+      setError('Introduce la nueva contraseña')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setMessage('')
+    try {
+      const { data } = await authApi.resetPassword({ token: resetToken, new_password: newPassword })
+      setMessage(data?.message || 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.')
+      setMode('login')
+      setNewPassword('')
+      setSearchParams({})
+    } catch (e) {
+      const raw = e.response?.data?.detail
+      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'No se pudo restablecer la contraseña'))
     } finally {
       setLoading(false)
     }
@@ -115,43 +168,84 @@ export default function LoginPage() {
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-user">{t('login.username_label')}</label>
-              <input
-                id="login-user"
-                {...field('username')}
-                placeholder={t('login.username_placeholder')}
-                autoFocus
-                autoComplete="username"
-                style={{
-                  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                  borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
-                  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                  transition: 'border-color 0.15s',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
-              />
-            </div>
+            {mode === 'login' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="login-user">{t('login.username_label')}</label>
+                  <input
+                    id="login-user"
+                    {...field('username')}
+                    placeholder={t('login.username_placeholder')}
+                    autoFocus
+                    autoComplete="username"
+                    style={{
+                      width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
+                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                      transition: 'border-color 0.15s',
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
+                  />
+                </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="login-pass">{t('login.password_label')}</label>
-              <input
-                id="login-pass"
-                {...field('password')}
-                type="password"
-                placeholder={t('login.password_placeholder')}
-                autoComplete="current-password"
-                style={{
-                  width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                  borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
-                  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-                  transition: 'border-color 0.15s',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
-              />
-            </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="login-pass">{t('login.password_label')}</label>
+                  <input
+                    id="login-pass"
+                    {...field('password')}
+                    type="password"
+                    placeholder={t('login.password_placeholder')}
+                    autoComplete="current-password"
+                    style={{
+                      width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
+                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                      outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                      transition: 'border-color 0.15s',
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--surface-5)'}
+                  />
+                </div>
+              </>
+            )}
+
+            {mode === 'forgot' && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="forgot-user">Email o usuario</label>
+                <input
+                  id="forgot-user"
+                  value={forgotInput}
+                  onChange={e => setForgotInput(e.target.value)}
+                  placeholder="admin@company.com"
+                  autoFocus
+                  style={{
+                    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
+                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            )}
+
+            {mode === 'reset' && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="reset-pass">Nueva contraseña</label>
+                <input
+                  id="reset-pass"
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Nueva contraseña"
+                  autoFocus
+                  style={{
+                    width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
+                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            )}
 
             {sessionExpired && (
               <div role="alert" style={{
@@ -175,8 +269,19 @@ export default function LoginPage() {
               </div>
             )}
 
+            {message && (
+              <div role="status" style={{
+                background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)',
+                borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: 13,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{ flexShrink: 0 }}>✓</span>
+                <span>{message}</span>
+              </div>
+            )}
+
             <button
-              onClick={handleSubmit}
+              onClick={mode === 'login' ? handleSubmit : (mode === 'forgot' ? handleForgotPassword : handleResetPassword)}
               disabled={loading}
               className="btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: 14, fontWeight: 700 }}
@@ -188,8 +293,29 @@ export default function LoginPage() {
                     animation: 'spin 0.7s linear infinite', display: 'inline-block' }} />
                   {t('login.loading_button')}
                 </span>
-              ) : t('login.login_button')}
+              ) : (mode === 'login' ? t('login.login_button') : (mode === 'forgot' ? 'Enviar enlace' : 'Restablecer contraseña'))}
             </button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: -4 }}>
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); setError(''); setMessage('') }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
+              {mode !== 'login' && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); setError(''); setMessage(''); setSearchParams({}) }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                >
+                  Volver al login
+                </button>
+              )}
+            </div>
           </div>
 
           <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 11, marginTop: 28, lineHeight: 1.5 }}>

@@ -96,7 +96,12 @@ start|"")
     echo "  ✅ Base de datos migrada"
   fi
   UVICORN_LOG_LEVEL="${LOG_LEVEL:-info}"
-  "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level "$UVICORN_LOG_LEVEL"
+  UVICORN_RELOAD="${UVICORN_RELOAD:-1}"
+  if [ "$UVICORN_RELOAD" = "1" ]; then
+    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level "$UVICORN_LOG_LEVEL"
+  else
+    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level "$UVICORN_LOG_LEVEL"
+  fi
   ;;
 seed)
   "$PY_BIN" -m app.db.seed

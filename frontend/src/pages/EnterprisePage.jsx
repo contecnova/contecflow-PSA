@@ -489,19 +489,73 @@ function IntegrationsTab() {
 
 
 function AuditTab() {
-  const { data: logs = [] } = useQuery({ queryKey:['audit-ent'], queryFn:() => api.get('/enterprise/audit?limit=30').then(r => r.data?.logs || r.data || []).catch(() => []) })
+  const { data: logs = [] } = useQuery({
+    queryKey: ['audit-ent'],
+    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=50').then(r => r.data?.logs || []).catch(() => []),
+  })
+  const { data: resetRequestLogs = [] } = useQuery({
+    queryKey: ['audit-ent-reset-request'],
+    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=20&action=PASSWORD_RESET_REQUEST').then(r => r.data?.logs || []).catch(() => []),
+  })
+  const { data: resetCompleteLogs = [] } = useQuery({
+    queryKey: ['audit-ent-reset-complete'],
+    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=20&action=PASSWORD_RESET_COMPLETE').then(r => r.data?.logs || []).catch(() => []),
+  })
+
+  const passwordResetLogs = [...resetCompleteLogs, ...resetRequestLogs]
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 20)
+
   return (
-    <div style={{ ...card, overflow:'hidden' }}>
-      {logs.length === 0 ? <div style={{ padding:32, textAlign:'center', color:'var(--color-text-tertiary)' }}>Sin entradas en el audit log</div> :
+    <div style={{ display: 'grid', gap: 14 }}>
+      <div style={{ ...card, padding: '12px 14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Total eventos</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{logs.length}</div>
+          </div>
+          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset solicitados</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{resetRequestLogs.length}</div>
+          </div>
+          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset completados</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{resetCompleteLogs.length}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ ...card, overflow:'hidden' }}>
+        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', borderBottom: '.5px solid var(--color-border-tertiary)' }}>
+          Eventos de recuperacion de contrasena
+        </div>
+        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--color-text-tertiary)', fontSize: 12 }}>Sin eventos de recuperacion</div> :
+          passwordResetLogs.map((l, i) => (
+            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
+              <span style={{ color:'var(--color-text-secondary)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
+              <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--color-text-success)' : 'var(--color-text-info)' }}>{l.action}</span>
+              <span style={{ color:'var(--color-text-secondary)' }}>{l.resource_name || l.resource || '-'}</span>
+              <span style={{ color:'var(--color-text-tertiary)' }}>{l.user_name||''}</span>
+            </div>
+          ))
+        }
+      </div>
+
+      <div style={{ ...card, overflow:'hidden' }}>
+        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', borderBottom: '.5px solid var(--color-border-tertiary)' }}>
+          Audit log general (ultimos 30)
+        </div>
+      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--color-text-tertiary)', fontSize: 12 }}>Sin entradas en el audit log</div> :
         logs.slice(0,30).map((l, i) => (
-          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'130px 90px 1fr 130px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
-            <span style={{ color:'var(--color-text-secondary)', fontFamily:'monospace' }}>{(l.timestamp||l.created_at||'').slice(0,16)}</span>
+          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
+            <span style={{ color:'var(--color-text-secondary)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
             <span style={{ fontWeight:500 }}>{l.action}</span>
-            <span style={{ color:'var(--color-text-secondary)' }}>{l.entity_type} {l.entity_name||''}</span>
+            <span style={{ color:'var(--color-text-secondary)' }}>{l.resource} {l.resource_name||''}</span>
             <span style={{ color:'var(--color-text-tertiary)' }}>{l.user_name||''}</span>
           </div>
         ))
       }
+      </div>
     </div>
   )
 }

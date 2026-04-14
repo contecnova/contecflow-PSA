@@ -19,7 +19,6 @@ from app.models.service_desk import (
     KBArticle, Announcement,
     # v3 — market-leader extensions
 )
-from app.models.client_portal import ClientUser
 from app.models.clients import Client
 from app.models.pipeline import Contract
 
@@ -40,7 +39,6 @@ from app.services.sla_service import (  # noqa: E402
     next_ticket_number as _next_ticket_number,
     next_problem_number as _next_problem_number,
     log_history as _log_history,
-    get_client_from_token as _get_client_from_token,
     ticket_out as _ticket_out,
 )
 from app.schemas.service_desk import (  # noqa: E402
@@ -180,6 +178,7 @@ from app.services.service_desk.escalation_service import (  # noqa: E402
 )
 from app.services.service_desk.sla_assignment_service import (  # noqa: E402
     assign_sla_policy_target,
+    sla_policy_id_from_payload,
 )
 from app.services.service_desk.sla_policy_service import (  # noqa: E402
     list_sla_policies_payload,
@@ -217,6 +216,7 @@ from app.services.service_desk.asset_service import (  # noqa: E402
 )
 from app.services.service_desk.status_page_service import (  # noqa: E402
     build_public_status_page_payload,
+    build_status_page_embed_script,
     list_status_components_payload,
     create_status_component_record,
     update_status_component_record,
@@ -243,10 +243,10 @@ from app.services.service_desk.routing_rule_service import (  # noqa: E402
     apply_routing_rule_update,
 )
 from app.services.service_desk.metrics_service import (  # noqa: E402
-    priority_matrix as compute_priority_matrix,
+    priority_matrix_payload,
 )
 from app.services.service_desk.sla_event_service import (  # noqa: E402
-    pause_ticket_sla,
+    pause_ticket_sla_from_payload,
     resume_ticket_sla,
     list_sla_events,
 )
@@ -278,17 +278,9 @@ from app.services.service_desk.catalog_service import (  # noqa: E402
     update_service_record,
     deactivate_service_record,
 )
-
-
-def _portal_client_from_auth(
-    authorization: Optional[str],
-    portal_access_token: Optional[str],
-    db: Session,
-) -> Optional[ClientUser]:
-    token_value = authorization
-    if not token_value and portal_access_token:
-        token_value = f"Bearer {portal_access_token}"
-    return _get_client_from_token(token_value, db)
+from app.services.service_desk.portal_auth_service import (  # noqa: E402
+    require_portal_client,
+)
 
 # ── Service Catalog ───────────────────────────────────────────────────────────
 
@@ -442,8 +434,7 @@ def client_my_tickets(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    client = _portal_client_from_auth(authorization, portal_access_token, db)
-    if not client: raise HTTPException(401)
+    client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
     return client_my_tickets_payload(db, client.id, _ticket_out, status)
 
 
@@ -458,9 +449,7 @@ def get_ticket_client(
     db: Session = Depends(get_db),
 ):
     """Endpoint para que el cliente del portal vea el detalle de uno de sus tickets."""
-    client = _portal_client_from_auth(authorization, portal_access_token, db)
-    if not client:
-        raise HTTPException(401, "Autenticación requerida")
+    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     return client_ticket_detail_payload(db, client.id, ticket_id, _ticket_out)
 
 
@@ -488,8 +477,7 @@ def create_ticket_client(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    client = _portal_client_from_auth(authorization, portal_access_token, db)
-    if not client: raise HTTPException(401, "Autenticación requerida")
+    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     ticket = build_client_portal_ticket(db, payload, client)
     _commit_or_rollback(db); db.refresh(ticket)
     return _ticket_out(ticket)
@@ -557,8 +545,7 @@ def add_client_comment(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    client = _portal_client_from_auth(authorization, portal_access_token, db)
-    if not client: raise HTTPException(401, "No autorizado")
+    client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
     ticket = get_ticket_for_client_comment_or_404(db, ticket_id)
     comment = add_client_comment(db, ticket, ticket_id, payload.body, client.id)
     _commit_or_rollback(db)
@@ -600,9 +587,7 @@ def submit_csat(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    client = _portal_client_from_auth(authorization, portal_access_token, db)
-    if not client:
-        raise HTTPException(401, "Autenticación requerida")
+    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     result = submit_ticket_csat(db, ticket_id, payload.score, payload.comment)
     _commit_or_rollback(db)
     return result
@@ -829,10 +814,7 @@ def calculate_priority(
     payload: dict = Body(...),
     current_user: User = Depends(get_current_user),
 ):
-    urgency = payload.get("urgency", "medium")
-    impact  = payload.get("impact", "user")
-    priority = compute_priority_matrix(urgency, impact)
-    return {"urgency": urgency, "impact": impact, "recommended_priority": priority}
+    return priority_matrix_payload(payload)
 
 
 # ── Linked Tickets ────────────────────────────────────────────────────────────
@@ -878,7 +860,7 @@ def pause_sla(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = pause_ticket_sla(db, ticket_id, current_user.id, payload.get("note", "SLA pausado"))
+    result = pause_ticket_sla_from_payload(db, ticket_id, current_user.id, payload)
     _commit_or_rollback(db)
     return result
 
@@ -1401,7 +1383,7 @@ def assign_sla_to_client(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    sla_policy_id = payload.get("sla_policy_id")
+    sla_policy_id = sla_policy_id_from_payload(payload)
     result = assign_sla_policy_target(db, "client", client_id, sla_policy_id)
     _commit_or_rollback(db)
     return result
@@ -1414,7 +1396,7 @@ def assign_sla_to_contract(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    sla_policy_id = payload.get("sla_policy_id")
+    sla_policy_id = sla_policy_id_from_payload(payload)
     result = assign_sla_policy_target(db, "contract", contract_id, sla_policy_id)
     _commit_or_rollback(db)
     return result
@@ -1669,37 +1651,7 @@ def get_status_page(
 @router.get("/status-page/embed.js", summary="Snippet JS embebible de status page", response_class=PlainTextResponse)
 def status_page_embed_js():
     """Returns a lightweight embeddable script for third-party websites."""
-    script = """
-(function(){
-    var scriptTag = document.currentScript;
-    var api = (scriptTag && scriptTag.getAttribute('data-api')) || window.location.origin;
-    var targetId = (scriptTag && scriptTag.getAttribute('data-target')) || 'clarive-status-page';
-    var mount = document.getElementById(targetId);
-    if(!mount){
-        mount = document.createElement('div');
-        mount.id = targetId;
-        document.body.appendChild(mount);
-    }
-    fetch(api + '/api/v1/sd/status-page')
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            var html = '<div style="font-family:system-ui,sans-serif;border:1px solid #d0d7de;border-radius:8px;padding:12px;max-width:760px">'
-                + '<div style="font-weight:700;margin-bottom:8px">Service Status: ' + (data.overall_status || 'operational') + '</div>';
-            Object.keys(data.groups || {}).forEach(function(g){
-                html += '<div style="margin-top:8px"><div style="font-weight:600">' + g + '</div>';
-                (data.groups[g] || []).forEach(function(c){
-                    html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">'
-                        + '<span>' + c.name + '</span><span>' + c.status + '</span></div>';
-                });
-                html += '</div>';
-            });
-            html += '</div>';
-            mount.innerHTML = html;
-        })
-        .catch(function(){ mount.innerHTML = '<div>Unable to load status page</div>'; });
-})();
-""".strip()
-    return script
+    return build_status_page_embed_script()
 
 
 @router.get("/status-page/components", summary="Listar componentes del status page (admin)")

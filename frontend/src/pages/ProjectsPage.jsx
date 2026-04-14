@@ -16,6 +16,7 @@ import { BILLING_TYPES } from '../constants/api'
 import { useAuth } from '../context/AuthContext'
 import { useColVisibility } from '../components/ui/ColVisibility'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
 
 const PROJ_COLS = [
   { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
@@ -50,6 +51,43 @@ const RISK_LEVELS = [
   { value: 'high', label: '🔴 Alto' },
   { value: 'critical', label: '🚨 Crítico' },
 ]
+
+const projectFormSchema = z.object({
+  name: z.string().min(1, 'El nombre es obligatorio'),
+  project_type: z.string().min(1, 'El tipo es obligatorio'),
+  start_date: z.string().optional(),
+  end_date_planned: z.string().optional(),
+  budget_amount: z.union([z.string(), z.number(), z.null()]).optional(),
+  retainer_amount: z.union([z.string(), z.number(), z.null()]).optional(),
+  retainer_day: z.union([z.string(), z.number(), z.null()]).optional(),
+  billing_type: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.start_date && data.end_date_planned && data.end_date_planned < data.start_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date_planned'],
+      message: 'La fecha de fin no puede ser anterior a la de inicio',
+    })
+  }
+
+  const budget = Number(data.budget_amount || 0)
+  if (!Number.isNaN(budget) && budget < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['budget_amount'],
+      message: 'El presupuesto no puede ser negativo',
+    })
+  }
+
+  const retainerDay = Number(data.retainer_day || 0)
+  if (data.billing_type === 'recurring_retainer' && (retainerDay < 1 || retainerDay > 28)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['retainer_day'],
+      message: 'El dia de retainer debe estar entre 1 y 28',
+    })
+  }
+})
 
 function StatusDropdown({ project, onUpdate }) {
   const [open, setOpen] = useState(false)
@@ -181,6 +219,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
     client_id: '', billing_type: '',
     retainer_amount: '', retainer_day: '',
   })
+  const [errors, setErrors] = useState({})
 
   // Actualizar el form cuando lleguen los datos completos
   useEffect(() => {
@@ -248,6 +287,20 @@ function ProjectFormModal({ open, onClose, project = null }) {
   })
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const validateForm = () => {
+    const parsed = projectFormSchema.safeParse(form)
+    if (parsed.success) {
+      setErrors({})
+      return true
+    }
+    const nextErrors = {}
+    parsed.error.issues.forEach(issue => {
+      const key = issue.path?.[0]
+      if (key && !nextErrors[key]) nextErrors[key] = issue.message
+    })
+    setErrors(nextErrors)
+    return false
+  }
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -257,6 +310,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del proyecto" />
+          {errors.name && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.name}</div>}
         </div>
         <div>
           <label style={ls}>Tipo *</label>
@@ -264,6 +318,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
             <option value="">Seleccionar...</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+          {errors.project_type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.project_type}</div>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -303,6 +358,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div>
           <label style={ls}>Presupuesto (€)</label>
           <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="0" />
+          {errors.budget_amount && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
@@ -313,6 +369,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
             <div>
               <label style={ls}>Día del mes (1-28)</label>
               <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder="1" />
+              {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.retainer_day}</div>}
             </div>
           </>
         )}
@@ -323,6 +380,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div>
           <label style={ls}>Fecha fin planificada</label>
           <input type="date" value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
+          {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.end_date_planned}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Descripción</label>
@@ -331,7 +389,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         </div>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.project_type} loading={isPending}>
+          <Button onClick={() => { if (validateForm()) mutate(form) }} disabled={isPending || !form.name || !form.project_type} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear proyecto'}
           </Button>
         </div>
@@ -471,7 +529,17 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button onClick={() => addMember(addForm)} disabled={!addForm.user_id || adding}>
+                <Button
+                  onClick={() => {
+                    const alloc = Number(addForm.allocation_pct || 0)
+                    if (alloc < 1 || alloc > 100) {
+                      toast.error('La dedicacion debe estar entre 1% y 100%')
+                      return
+                    }
+                    addMember(addForm)
+                  }}
+                  disabled={!addForm.user_id || adding}
+                >
                   {adding ? 'Añadiendo...' : 'Confirmar asignación'}
                 </Button>
               </div>

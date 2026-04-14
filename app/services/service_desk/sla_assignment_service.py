@@ -41,3 +41,7 @@ def assign_sla_policy_target(db: Session, target_type: str, target_id: str, sla_
         assign_sla_policy_to_contract(db, target_id, sla_policy_id)
         return {"ok": True, "contract_id": target_id, "sla_policy_id": sla_policy_id}
     raise HTTPException(400, "target_type inválido")
+
+
+def sla_policy_id_from_payload(payload: dict):
+    return payload.get("sla_policy_id")

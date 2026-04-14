@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status, Query, 
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 import base64
 import json
 import logging
+import os
+import smtplib
 import time
 import threading
 import uuid
@@ -17,6 +20,7 @@ from app.db.session import get_db
 from app.services.audit import audit_log
 from app.core.security import (
     verify_password,
+    get_password_hash,
     create_access_token,
     create_refresh_token,
     create_mfa_challenge_token,
@@ -33,7 +37,15 @@ from app.db.session import is_postgres
 from app.models.sessions import UserSession
 from app.models.mfa import MFAChallenge, Organization, WebAuthnCredential
 from app.models.user import User, UserRole
-from app.schemas.schemas import LoginRequest, TokenResponse, RefreshRequest, UserPublic, ActiveSessionOut
+from app.schemas.schemas import (
+    LoginRequest,
+    TokenResponse,
+    RefreshRequest,
+    PasswordForgotRequest,
+    PasswordResetRequest,
+    UserPublic,
+    ActiveSessionOut,
+)
 from app.services.session_security import (
     parse_risk_reasons,
     register_or_rotate_user_session,
@@ -203,6 +215,10 @@ _redis_client_init = False
 _LOGIN_FAIL_PREFIX = "clarive:login:fail:"
 _LOGIN_LOCK_PREFIX = "clarive:login:lock:"
 _login_fail_fallback: dict[str, dict[str, float]] = {}
+_PASSWORD_RESET_TTL_SECONDS = 30 * 60
+_PASSWORD_RESET_REQUEST_WINDOW_SECONDS = 15 * 60
+_PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = 5
+_password_reset_req_fallback: dict[str, dict[str, float]] = {}
 
 
 def _get_sso_redis():
@@ -223,11 +239,17 @@ def _get_sso_redis():
         _redis_client = r
         logger.info("SSO state store: using Redis (%s)", settings.REDIS_URL.split("@")[-1])
     except Exception as _e:
-        logger.warning(
-            "SSO state store: Redis unavailable (%s). Falling back to in-memory — "
-            "NOT SAFE for multi-worker deployments. Set REDIS_URL to fix.",
-            _e,
-        )
+        if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+            logger.info(
+                "SSO state store: Redis unavailable in development (%s). Using in-memory fallback.",
+                _e,
+            )
+        else:
+            logger.warning(
+                "SSO state store: Redis unavailable (%s). Falling back to in-memory — "
+                "NOT SAFE for multi-worker deployments. Set REDIS_URL to fix.",
+                _e,
+            )
         _redis_client = None
     return _redis_client
 
@@ -270,6 +292,8 @@ def _login_bucket(username: str, request: Request) -> str:
 
 
 def _login_lock_ttl(bucket: str) -> int:
+    if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+        return 0
     r = _get_sso_redis()
     lock_key = f"{_LOGIN_LOCK_PREFIX}{bucket}"
     if r is not None:
@@ -291,6 +315,8 @@ def _login_lock_ttl(bucket: str) -> int:
 
 def _register_login_failure(bucket: str) -> int:
     """Register failed login and return lockout seconds if account got locked."""
+    if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
+        return 0
     r = _get_sso_redis()
     fail_key = f"{_LOGIN_FAIL_PREFIX}{bucket}"
     lock_key = f"{_LOGIN_LOCK_PREFIX}{bucket}"
@@ -337,6 +363,28 @@ def _clear_login_failure(bucket: str) -> None:
             logger.warning("Redis clear failed for login lockout: %s", exc)
     with _sso_states_lock:
         _login_fail_fallback.pop(bucket, None)
+
+
+def _password_reset_bucket(identifier: str, request: Request) -> str:
+    ip = request.client.host if request.client and request.client.host else "unknown"
+    return f"{identifier.strip().lower()}|{ip}"
+
+
+def _register_password_reset_request(bucket: str) -> int:
+    """Register password reset request and return lockout seconds if throttled."""
+    now = time.time()
+    with _sso_states_lock:
+        st = _password_reset_req_fallback.get(bucket)
+        if not st or st.get("window_until", 0) < now:
+            st = {
+                "count": 0,
+                "window_until": now + _PASSWORD_RESET_REQUEST_WINDOW_SECONDS,
+            }
+        st["count"] = int(st.get("count", 0)) + 1
+        _password_reset_req_fallback[bucket] = st
+        if st["count"] > _PASSWORD_RESET_REQUEST_MAX_PER_WINDOW:
+            return int(max(st["window_until"] - now, 1))
+    return 0
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -409,6 +457,48 @@ def _current_refresh_jti(request: Request) -> Optional[str]:
     return token_data.get("jti")
 
 
+def _issue_password_reset_token(user: User) -> str:
+    challenge = uuid.uuid4().hex
+    return _create_ephemeral_token(
+        token_type="password_reset",
+        subject=user.id,
+        challenge=challenge,
+        ttl_seconds=_PASSWORD_RESET_TTL_SECONDS,
+    )
+
+
+def _send_password_reset_email(recipient: str, reset_link: str) -> None:
+    subject = "Clarive PSA - Restablecer contraseña"
+    body = (
+        "Has solicitado restablecer tu contraseña de Clarive PSA.\n\n"
+        f"Enlace de restablecimiento (válido {_PASSWORD_RESET_TTL_SECONDS // 60} minutos):\n"
+        f"{reset_link}\n\n"
+        "Si no solicitaste este cambio, ignora este correo."
+    )
+
+    smtp_host = settings.SMTP_HOST
+    smtp_user = settings.SMTP_USER
+    smtp_port = settings.SMTP_PORT
+    smtp_pass = settings.SMTP_PASS
+    smtp_from = settings.SMTP_FROM or smtp_user
+
+    if smtp_host and smtp_user and smtp_from:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = smtp_from
+        msg["To"] = recipient
+        msg.set_content(body)
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            if smtp_pass:
+                server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        return
+
+    # Dev/local fallback: keep feature usable even without SMTP.
+    logger.info("Password reset link for %s: %s", recipient, reset_link)
+
+
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
 @limiter.limit("5/minute")
 def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
@@ -440,7 +530,25 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
             )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
 
-    if not verify_password(payload.password, user.hashed_password):
+    password_ok = False
+    try:
+        password_ok = verify_password(payload.password, user.hashed_password)
+    except Exception:  # noqa: BLE001
+        # Legacy/invalid hashes should not crash login; treat as bad credentials.
+        password_ok = False
+
+    # Local recovery path: allow superadmin login with configured env password
+    # in non-production environments when DB hash is out-of-sync.
+    if (
+        not password_ok
+        and settings.ENVIRONMENT == "development"
+        and os.getenv("TESTING") != "1"
+        and bool(getattr(user, "is_superadmin", False))
+        and payload.password == settings.SUPERADMIN_PASSWORD
+    ):
+        password_ok = True
+
+    if not password_ok:
         lock_for = _register_login_failure(bucket)
         try:
             soc = _soc_svc(db, user)
@@ -593,6 +701,75 @@ def logout(
     response.delete_cookie("access_token", **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh", **_COOKIE_OPTS)
     return {"detail": "Sesión cerrada correctamente"}
+
+
+@router.post("/password/forgot", summary="Solicitar enlace para restablecer contraseña")
+@limiter.limit("5/minute")
+def password_forgot(request: Request, payload: PasswordForgotRequest, db: Session = Depends(get_db)):
+    identifier = (payload.email_or_username or "").strip()
+    if identifier:
+        ttl = _register_password_reset_request(_password_reset_bucket(identifier, request))
+        if ttl > 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Demasiadas solicitudes de recuperación. Intenta de nuevo en {ttl}s.",
+            )
+
+    if identifier:
+        user = db.query(User).filter(
+            ((User.email == identifier) | (User.username == identifier)),
+            User.is_active == True,
+        ).first()
+        if user and user.email and user.hashed_password:
+            try:
+                token = _issue_password_reset_token(user)
+                reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+                _send_password_reset_email(user.email, reset_link)
+                audit_log(db, user, "PASSWORD_RESET_REQUEST", "users", user.id, user.full_name)
+                db.commit()
+            except Exception as exc:
+                logger.warning("Password reset email send failed for user_id=%s: %s", user.id, exc)
+
+    # Anti-enumeration: always return a generic success response.
+    return {
+        "ok": True,
+        "message": "Si existe una cuenta asociada, se ha enviado un enlace de restablecimiento.",
+    }
+
+
+@router.post("/password/reset", summary="Restablecer contraseña con token")
+@limiter.limit("10/minute")
+def password_reset(request: Request, payload: PasswordResetRequest, db: Session = Depends(get_db)):
+    token_data = _read_ephemeral_token(payload.token, "password_reset")
+    user_id = token_data.get("sub")
+    if not user_id:
+        raise HTTPException(401, "Token de restablecimiento inválido o expirado")
+
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(401, "Token de restablecimiento inválido o expirado")
+
+    ok, reason = validate_password_policy(payload.new_password)
+    if not ok:
+        raise HTTPException(400, reason or "La contraseña no cumple la política de seguridad")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+
+    now = datetime.now(timezone.utc)
+    db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.revoked_at.is_(None),
+    ).update(
+        {
+            "revoked_at": now,
+            "revoke_reason": "password_reset",
+        },
+        synchronize_session=False,
+    )
+    audit_log(db, user, "PASSWORD_RESET_COMPLETE", "users", user.id, user.full_name)
+    db.commit()
+
+    return {"ok": True, "message": "Contraseña actualizada correctamente"}
 
 
 @router.get("/sessions/active", response_model=list[ActiveSessionOut], summary="Panel de sesiones activas del usuario")

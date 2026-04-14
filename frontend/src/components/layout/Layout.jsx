@@ -125,6 +125,60 @@ const QUICK_ACCESS = {
   employee:  ['/tasks', '/imputar', '/timesheets', '/expenses', '/absences', '/service-desk'],
 }
 
+const NAV_WORKSPACE_KEY = 'clarive_nav_workspace'
+const WORKSPACE_GROUPS = {
+  all: ['trabajo', 'proyectos', 'equipo', 'negocio', 'soporte', 'analisis', 'ia', 'configuracion'],
+  work: ['trabajo'],
+  projects: ['proyectos'],
+  team: ['equipo'],
+  business: ['negocio'],
+  support: ['soporte'],
+  analytics: ['analisis'],
+  ai: ['ia'],
+  settings: ['configuracion'],
+}
+
+const LAYOUT_TEXT = {
+  es: {
+    shortcuts: 'Atajos',
+    keyboard_shortcuts: 'Atajos de teclado',
+    filter_menu: 'Filtrar menu...',
+    no_results: 'Sin resultados',
+    quick_access: 'Acceso rapido',
+    favorites: 'Favoritos',
+    recent: 'Recientes',
+    workspace: 'Workspace',
+    workspace_all: 'Todo',
+    workspace_work: 'Trabajo',
+    workspace_projects: 'Proyectos',
+    workspace_team: 'Equipo',
+    workspace_business: 'Finanzas',
+    workspace_support: 'Soporte',
+    workspace_analytics: 'Analitica',
+    workspace_ai: 'IA',
+    workspace_settings: 'Config',
+  },
+  en: {
+    shortcuts: 'Shortcuts',
+    keyboard_shortcuts: 'Keyboard shortcuts',
+    filter_menu: 'Filter menu...',
+    no_results: 'No results',
+    quick_access: 'Quick access',
+    favorites: 'Favorites',
+    recent: 'Recent',
+    workspace: 'Workspace',
+    workspace_all: 'All',
+    workspace_work: 'Work',
+    workspace_projects: 'Projects',
+    workspace_team: 'Team',
+    workspace_business: 'Finance',
+    workspace_support: 'Support',
+    workspace_analytics: 'Analytics',
+    workspace_ai: 'AI',
+    workspace_settings: 'Settings',
+  },
+}
+
 const NAV_GROUPS = [
   { id: 'dashboard', single: true, items: [
     { to: '/dashboard', icon: <LayoutDashboard size={SZ} />, label: 'Dashboard', roles: ['admin','pm','hr','team_lead','employee'] },
@@ -243,7 +297,7 @@ const SHORTCUTS = [
   { keys: ['G', 'S'],    label: 'Ir a Service Desk' },
 ]
 
-function ShortcutsModal({ onClose }) {
+function ShortcutsModal({ onClose, text }) {
   const dialogRef = useRef(null)
 
   useEffect(() => {
@@ -268,14 +322,14 @@ function ShortcutsModal({ onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Atajos de teclado"
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={text.keyboard_shortcuts}
         className="modal-glass" style={{ width: 480 }} onClick={e => e.stopPropagation()}
         tabIndex={-1}
       >
         <div className="modal-header">
           <span className="modal-title">
             <Keyboard size={15} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
-            Atajos de teclado
+            {text.keyboard_shortcuts}
           </span>
           <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={14} /></button>
         </div>
@@ -464,7 +518,7 @@ function _lsGet(key) {
   try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
 }
 
-function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems }) {
+function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount, t, allNavItems, quickItems, text }) {
   const pinnedItems = pinned.map(path => allNavItems.find(i => i.to === path)).filter(Boolean)
   const showQuick   = pinnedItems.length === 0
   const displayItems = showQuick ? quickItems : pinnedItems
@@ -475,7 +529,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
         <div style={{ padding: '4px 8px 4px 10px', fontSize: 9.5, fontWeight: 700,
           letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 4,
           display: 'flex', alignItems: 'center', gap: 6 }}>
-          {showQuick ? '⚡ Acceso rápido' : '★ Favoritos'}
+          {showQuick ? `⚡ ${text.quick_access}` : `★ ${text.favorites}`}
           {showQuick && <span style={{ fontSize: 9, color: 'var(--text-4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· añade ★ para personalizar</span>}
         </div>
       )}
@@ -491,7 +545,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function RecentsSection({ recent, collapsed }) {
+function RecentsSection({ recent, collapsed, text }) {
   const allItems = NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider)
   const recentItems = recent.map(path => allItems.find(i => i.to === path)).filter(Boolean)
   if (recentItems.length === 0) return null
@@ -499,7 +553,7 @@ function RecentsSection({ recent, collapsed }) {
     <div style={{ marginBottom: 4 }}>
       {!collapsed && (
         <div style={{ padding: '2px 8px 2px 10px', fontSize: 9.5, fontWeight: 700,
-          letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 2 }}>⏱ Recientes</div>
+          letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 2 }}>{`⏱ ${text.recent}`}</div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {recentItems.map(item => (
@@ -630,7 +684,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
 }
 
 // ── Sidebar nav search ────────────────────────────────────────────────────────
-function NavSearch({ value, onChange }) {
+function NavSearch({ value, onChange, text }) {
   const ref = useRef(null)
   useEffect(() => {
     const h = (e) => { if (e.key === '/' && !e.target?.matches('input,textarea,[contenteditable]')) { e.preventDefault(); ref.current?.focus() } }
@@ -645,7 +699,7 @@ function NavSearch({ value, onChange }) {
         type="search"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Filtrar menú…"
+        placeholder={text.filter_menu}
         aria-label="Filtrar elementos del menú"
         style={{
           width: '100%', boxSizing: 'border-box',
@@ -668,7 +722,7 @@ function NavSearch({ value, onChange }) {
   )
 }
 
-function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate }) {
+function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text }) {
   const allItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
   const q = query.toLowerCase().trim()
   const matches = allItems.filter(i => {
@@ -676,7 +730,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
     return i.label.toLowerCase().includes(q) || (ROUTE_LABELS[i.to] || '').toLowerCase().includes(q)
   })
   if (matches.length === 0) {
-    return <div style={{ padding: '8px 14px', fontSize: 11.5, color: 'var(--text-4)' }}>Sin resultados</div>
+    return <div style={{ padding: '8px 14px', fontSize: 11.5, color: 'var(--text-4)' }}>{text.no_results}</div>
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '3px 4px' }}>
@@ -709,7 +763,8 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
 export default function Layout({ children }) {
   const { user, logout, hasRole } = useAuth()
   const { prefs, save } = useUserPreferences()
-  const { t } = useAppLang()
+  const { t, lang } = useAppLang()
+  const text = LAYOUT_TEXT[lang] || LAYOUT_TEXT.es
 
   useEffect(() => {
     const density = prefs?.ui_density || 'normal'
@@ -766,6 +821,11 @@ export default function Layout({ children }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [navSearch, setNavSearch] = useState('')
+  const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
+
+  useEffect(() => {
+    localStorage.setItem(NAV_WORKSPACE_KEY, workspace)
+  }, [workspace])
 
   useEffect(() => {
     const handleResize = () => setCollapsed(window.innerWidth < 1280)
@@ -850,9 +910,47 @@ export default function Layout({ children }) {
           display: 'flex', flexDirection: 'column', gap: 0,
           scrollbarWidth: 'thin', scrollbarColor: 'var(--surface-4) transparent',
         }}>
+          {!collapsed && (
+            <div style={{ padding: '4px 6px 3px' }}>
+              <div style={{ fontSize: 9.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                {text.workspace}
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {[
+                  ['all', text.workspace_all],
+                  ['work', text.workspace_work],
+                  ['projects', text.workspace_projects],
+                  ['team', text.workspace_team],
+                  ['business', text.workspace_business],
+                  ['support', text.workspace_support],
+                  ['analytics', text.workspace_analytics],
+                  ['ai', text.workspace_ai],
+                  ['settings', text.workspace_settings],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setWorkspace(key)}
+                    style={{
+                      border: '1px solid var(--surface-4)',
+                      borderRadius: 999,
+                      padding: '2px 7px',
+                      fontSize: 10.5,
+                      cursor: 'pointer',
+                      color: workspace === key ? 'var(--accent)' : 'var(--text-3)',
+                      background: workspace === key ? 'var(--accent-muted)' : 'transparent',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {NAV_GROUPS.map(group => {
             const visible = group.items.some(i => !i.divider && (!i.roles || i.roles.some(r => hasRole(r))))
             if (!visible) return null
+            if (!group.single && workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id)) return null
             if (group.single) {
               const item = group.items[0]
               if (!item.roles || item.roles.some(r => hasRole(r))) {
@@ -861,12 +959,12 @@ export default function Layout({ children }) {
                     <NavItem item={item} collapsed={collapsed} alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={togglePin} />
                     <div style={{ height: 1, background: 'var(--surface-4)', margin: collapsed ? '4px 0' : '4px 3px' }} />
                     {!collapsed && (
-                      <NavSearch value={navSearch} onChange={v => setNavSearch(v)} />
+                      <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
                     )}
-                    <RecentsSection recent={recent} collapsed={collapsed} />
+                    <RecentsSection recent={recent} collapsed={collapsed} text={text} />
                     <FavoritesSection pinned={pinned} onPin={togglePin} collapsed={collapsed}
                       alertCount={alertCount} approvalCount={approvalCount} t={t}
-                      allNavItems={allNavItems} quickItems={quickItems} />
+                      allNavItems={allNavItems} quickItems={quickItems} text={text} />
                   </div>
                 )
               }
@@ -884,6 +982,7 @@ export default function Layout({ children }) {
               query={navSearch} hasRole={hasRole}
               alertCount={alertCount} approvalCount={approvalCount}
               onNavigate={() => setNavSearch('')}
+              text={text}
             />
           )}
           <div style={{ padding: '3px 0', marginTop: 4 }}>
@@ -911,7 +1010,7 @@ export default function Layout({ children }) {
           </button>
 
           {!collapsed && (
-            <button onClick={() => setShortcutsOpen(true)} title="Ver atajos de teclado (?)"
+            <button onClick={() => setShortcutsOpen(true)} title={`${text.keyboard_shortcuts} (?)`}
               style={{
                 background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer',
                 fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -921,7 +1020,7 @@ export default function Layout({ children }) {
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
             >
               <Keyboard size={11} />
-              <span>Atajos</span>
+              <span>{text.shortcuts}</span>
               <span className="kbd" style={{ fontSize: 9 }}>?</span>
             </button>
           )}
@@ -962,7 +1061,7 @@ export default function Layout({ children }) {
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
       {aiOpen && <NexusAssistPanel open={aiOpen} onClose={() => setAiOpen(false)} context={{ page: location.pathname }} />}
       {profileOpen && <UserProfilePanel onClose={() => setProfileOpen(false)} />}
-      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} />}
       <OfflineIndicator />
     </div>
   )

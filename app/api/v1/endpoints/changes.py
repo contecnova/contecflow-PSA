@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.models.resources import ChangeRequest, ChangeRequestStatus
+from app.services.numbering import next_numbered_code
 
 router = APIRouter()
 
@@ -43,14 +44,7 @@ class CRReview(BaseModel):
 
 
 def _next_code(project_id: str, db: Session) -> str:
-    import re
-    max_code = db.query(func.max(ChangeRequest.code)).filter(ChangeRequest.project_id == project_id).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"CR-{next_num:03d}"
+    return next_numbered_code(db, "change_request", prefix="CR", padding=3)
 
 
 def _cr_out(cr: ChangeRequest) -> dict:

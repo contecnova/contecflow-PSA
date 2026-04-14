@@ -10,6 +10,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.project import Project
 from app.models.resources import Deliverable, DeliverableStatus
+from app.services.numbering import next_numbered_code
 
 router = APIRouter()
 
@@ -52,18 +53,7 @@ class DeliverableUpdate(BaseModel):
 
 
 def _next_code(project_id: str, db: Session) -> str:
-    import re
-    # Lock the parent project row to serialise concurrent requests, preventing
-    # duplicate DEL codes when two requests race on the same project_id.
-    # SQLite ignores FOR UPDATE; PostgreSQL honours it.
-    db.query(Project).filter(Project.id == project_id).with_for_update().first()
-    max_code = db.query(func.max(Deliverable.code)).filter(Deliverable.project_id == project_id).scalar()
-    if max_code:
-        m = re.search(r"(\d+)$", max_code)
-        next_num = (int(m.group(1)) + 1) if m else 1
-    else:
-        next_num = 1
-    return f"DEL-{next_num:03d}"
+    return next_numbered_code(db, "deliverable", prefix="DEL", padding=3)
 
 
 def _del_out(d: Deliverable) -> dict:

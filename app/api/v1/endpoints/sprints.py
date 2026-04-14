@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.task import Task
 from app.models.sprints import Sprint, SprintTask, SprintStatus
 from app.models.project import Project
+from app.services.psa_flows import close_sprint_flow
 
 router = APIRouter()
 
@@ -254,36 +255,7 @@ def close_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    sprint = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task)
-    ).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
-    if not sprint: raise HTTPException(404, "Sprint no encontrado")
-
-    sprint.status = SprintStatus.completed
-    sprint.closed_at = datetime.now(timezone.utc)
-    if not sprint.end_date:
-        sprint.end_date = date.today()
-
-    # Calculate completed points and velocity
-    sprint.completed_points = sum(
-        st.task.story_points or 0 for st in sprint.sprint_tasks
-        if st.task and st.task.status == "done"
-    )
-    duration_weeks = max((sprint.end_date - sprint.start_date).days / 7, 0.5) if sprint.start_date else 1
-    sprint.velocity = round(sprint.completed_points / duration_weeks, 1)
-
-    # Move incomplete tasks back to backlog (unlink from sprint)
-    incomplete = [st for st in sprint.sprint_tasks if st.task and st.task.status != "done"]
-    for st in incomplete:
-        db.delete(st)
-
-    db.commit()
-    return {
-        "ok": True,
-        "completed_points": sprint.completed_points,
-        "velocity": sprint.velocity,
-        "incomplete_tasks": len(incomplete),
-    }
+    return close_sprint_flow(db, project_id, sprint_id)
 
 
 @router.post("/{project_id}/sprints/{sprint_id}/tasks", summary="Añadir tareas al sprint")

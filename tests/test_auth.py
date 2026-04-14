@@ -37,6 +37,40 @@ def test_login_unknown_user(client, db):
     assert res.status_code == 401
 
 
+def test_password_forgot_always_returns_generic_ok(client, db):
+    res_unknown = client.post("/api/v1/auth/password/forgot", json={"email_or_username": "unknown@example.com"})
+    assert res_unknown.status_code == 200
+    assert res_unknown.json().get("ok") is True
+
+    res_known = client.post("/api/v1/auth/password/forgot", json={"email_or_username": "admin"})
+    assert res_known.status_code == 200
+    assert res_known.json().get("ok") is True
+
+
+def test_password_reset_flow_with_token(client, db):
+    # Request reset for existing user (response is always generic).
+    res = client.post("/api/v1/auth/password/forgot", json={"email_or_username": "admin"})
+    assert res.status_code == 200
+
+    # Build a valid token directly using endpoint helper for deterministic test.
+    from app.api.v1.endpoints.auth import _issue_password_reset_token
+    from app.models.user import User
+
+    admin = db.query(User).filter(User.username == "admin").first()
+    token = _issue_password_reset_token(admin)
+
+    new_password = "ResetPass2026!"
+    reset = client.post(
+        "/api/v1/auth/password/reset",
+        json={"token": token, "new_password": new_password},
+    )
+    assert reset.status_code == 200
+    assert reset.json().get("ok") is True
+
+    login = client.post("/api/v1/auth/login", json={"username": "admin", "password": new_password})
+    assert login.status_code == 200
+
+
 def test_get_me(client, admin_token, db):
     res = client.get("/api/v1/auth/me", headers=auth(admin_token))
     assert res.status_code == 200

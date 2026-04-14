@@ -82,6 +82,17 @@ def get_scoped_ci_by_id(
     return _scope_ci_query(db.query(ConfigurationItem), db, current_user).filter(ConfigurationItem.id == ci_id).first()
 
 
+def get_scoped_ci_or_404(
+    db: Session,
+    current_user: User,
+    ci_id: str,
+) -> ConfigurationItem:
+    ci = get_scoped_ci_by_id(db, current_user, ci_id)
+    if not ci:
+        raise HTTPException(404)
+    return ci
+
+
 def apply_ci_update(ci: ConfigurationItem, payload: CIIn) -> None:
     for k, v in payload.model_dump().items():
         setattr(ci, k, v)

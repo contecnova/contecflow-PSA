@@ -41,6 +41,22 @@ export default defineConfig(({ mode }) => {
     esbuild: {
       drop: mode === 'production' ? ['console', 'debugger'] : [],
     },
+    build: {
+      chunkSizeWarningLimit: 500,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('recharts')) return 'vendor-recharts'
+            if (id.includes('html2canvas')) return 'vendor-html2canvas'
+            if (id.includes('@tanstack')) return 'vendor-react-query'
+            if (id.includes('react-router')) return 'vendor-router'
+            if (id.includes('axios')) return 'vendor-axios'
+            return 'vendor-core'
+          },
+        },
+      },
+    },
     test: {
       environment: 'node',
       include: ['src/**/*.test.{js,jsx}'],

@@ -34,6 +34,7 @@ def _build_limiter() -> Limiter:
     falling back to in-memory storage for local dev / testing.
     Using Redis ensures limits are shared across all uvicorn workers."""
     from app.core.config import settings  # lazy import to avoid circular dependency at startup
+    is_local_dev = settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1"
 
     def _redis_reachable(url: str) -> bool:
         try:
@@ -43,7 +44,10 @@ def _build_limiter() -> Limiter:
             client.ping()
             return True
         except Exception as _e:
-            _logger.warning("Rate limiter: Redis ping failed (%s)", _e)
+            if is_local_dev:
+                _logger.info("Rate limiter: Redis ping failed in development (%s)", _e)
+            else:
+                _logger.warning("Rate limiter: Redis ping failed (%s)", _e)
             return False
 
     redis_url = settings.REDIS_URL
@@ -63,10 +67,15 @@ def _build_limiter() -> Limiter:
                 "Rate limiter backend is not available. Redis is required in production "
                 "(set RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION=0 to override)."
             )
-        _logger.warning(
-            "Rate limiter: Redis unavailable — falling back to in-memory storage. "
-            "Limits will NOT be shared across workers."
-        )
+        if is_local_dev:
+            _logger.info(
+                "Rate limiter: Redis unavailable in development — using in-memory storage."
+            )
+        else:
+            _logger.warning(
+                "Rate limiter: Redis unavailable — falling back to in-memory storage. "
+                "Limits will NOT be shared across workers."
+            )
     return Limiter(
         key_func=_rate_limit_key,
         default_limits=["200/minute"],
