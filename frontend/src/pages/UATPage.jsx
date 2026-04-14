@@ -1,0 +1,401 @@
+/**
+ * UATPage — Gestión de casos UAT (User Acceptance Testing)
+ * Define criterios de aceptación por proyecto/tarea y registra su ejecución.
+ * Permite exportar el plan para enviar al cliente.
+ */
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from '../services/api'
+import { Spinner, EmptyState, Button, Modal } from '../components/ui'
+import PageHeader from '../components/layout/PageHeader'
+import { useToast } from '../context/ToastContext'
+import { extractErr } from '../utils/helpers'
+import { ClipboardCheck } from 'lucide-react'
+import { useAppT } from '../i18n/AppLangContext'
+
+const STATUS_META = {
+  pending:  { label: 'Pendiente', color: 'var(--text-2)',  bg: 'var(--surface-3)',     icon: '⏳' },
+  passed:   { label: 'Pasado',    color: 'var(--success)', bg: 'rgba(74,222,128,0.12)', icon: '✅' },
+  failed:   { label: 'Fallido',   color: 'var(--danger)',  bg: 'rgba(248,113,113,0.12)', icon: '❌' },
+  blocked:  { label: 'Bloqueado', color: 'var(--warning)', bg: 'rgba(251,191,36,0.12)', icon: '🔒' },
+  skipped:  { label: 'Omitido',   color: 'var(--text-3)',  bg: 'rgba(122,138,170,0.1)', icon: '⏭' },
+}
+
+const PRIORITY_META = {
+  critical: { label: 'Crítica',  color: 'var(--danger)' },
+  high:     { label: 'Alta',     color: 'var(--warning)' },
+  medium:   { label: 'Media',    color: 'var(--accent)' },
+  low:      { label: 'Baja',     color: 'var(--text-2)' },
+}
+
+const fs = {
+  background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8,
+  padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none',
+  fontFamily: 'inherit', width: '100%',
+}
+const ls = {
+  fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
+  letterSpacing: '0.07em', display: 'block', marginBottom: 5,
+}
+
+function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
+  const [form, setForm] = useState({
+    title: initial?.title || '',
+    description: initial?.description || '',
+    expected_result: initial?.expected_result || '',
+    actual_result: initial?.actual_result || '',
+    status: initial?.status || 'pending',
+    priority: initial?.priority || 'medium',
+    task_id: initial?.task_id || '',
+    notes: initial?.notes || '',
+  })
+  const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const isEdit = !!initial?.id
+
+  return (
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar caso UAT' : 'Nuevo caso UAT'} width={640}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label style={ls}>Título *</label>
+          <input value={form.title} onChange={s('title')} style={fs} placeholder="Ej: Verificar login con credenciales válidas" />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={ls}>Estado</label>
+            <select value={form.status} onChange={s('status')} style={fs}>
+              {Object.entries(STATUS_META).map(([v, m]) => (
+                <option key={v} value={v}>{m.icon} {m.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={ls}>Prioridad</label>
+            <select value={form.priority} onChange={s('priority')} style={fs}>
+              {Object.entries(PRIORITY_META).map(([v, m]) => (
+                <option key={v} value={v}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={ls}>Tarea vinculada</label>
+            <select value={form.task_id} onChange={s('task_id')} style={fs}>
+              <option value="">— Sin tarea —</option>
+              {tasks.map(t => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={ls}>Pasos para ejecutar el test</label>
+          <textarea value={form.description} onChange={s('description')} rows={3}
+            style={{ ...fs, resize: 'vertical' }}
+            placeholder="1. Navega a la pantalla de login&#10;2. Introduce usuario y contraseña&#10;3. Haz clic en 'Entrar'" />
+        </div>
+
+        <div>
+          <label style={ls}>Resultado esperado *</label>
+          <textarea value={form.expected_result} onChange={s('expected_result')} rows={2}
+            style={{ ...fs, resize: 'vertical' }}
+            placeholder="El sistema muestra el dashboard del usuario y registra la sesión." />
+        </div>
+
+        <div>
+          <label style={ls}>Resultado obtenido (rellenar al ejecutar)</label>
+          <textarea value={form.actual_result} onChange={s('actual_result')} rows={2}
+            style={{ ...fs, resize: 'vertical' }}
+            placeholder="Completar cuando se ejecute el test..." />
+        </div>
+
+        <div>
+          <label style={ls}>Notas internas</label>
+          <textarea value={form.notes} onChange={s('notes')} rows={2}
+            style={{ ...fs, resize: 'vertical' }}
+            placeholder="Contexto adicional, entorno de test, datos necesarios..." />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => onSave(form)} disabled={!form.title || !form.expected_result}>
+            {isEdit ? 'Guardar cambios' : 'Crear caso UAT'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ExportModal({ open, onClose, report }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(report?.text || '').then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="Exportar plan UAT para cliente" width={700}>
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Button variant="secondary" onClick={handleCopy}>
+          {copied ? '✓ Copiado' : '📋 Copiar texto'}
+        </Button>
+      </div>
+      <pre style={{
+        background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10,
+        padding: '16px 18px', fontSize: 12, color: 'var(--text-1)', whiteSpace: 'pre-wrap',
+        maxHeight: 480, overflowY: 'auto', fontFamily: "'Space Mono', monospace", lineHeight: 1.6,
+      }}>
+        {report?.text || ''}
+      </pre>
+      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-2)' }}>
+        {report?.cases_count} casos UAT · Copia este texto para enviar al cliente o pégalo en un documento.
+      </div>
+    </Modal>
+  )
+}
+
+export default function UATPage() {
+  const _t = useAppT()
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [selectedProject, setSelectedProject] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [editCase, setEditCase] = useState(null)
+  const [exportReport, setExportReport] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => api.get('/projects').then(r => r.data),
+  })
+
+  const { data: tasksData = [] } = useQuery({
+    queryKey: ['tasks', selectedProject],
+    queryFn: () => api.get('/tasks', { params: { project_id: selectedProject } }).then(r => r.data),
+    enabled: !!selectedProject,
+    select: d => (Array.isArray(d) ? d : d?.tasks || []),
+  })
+
+  const { data: uatData, isLoading } = useQuery({
+    queryKey: ['uat-cases', selectedProject, statusFilter],
+    queryFn: () => api.get(`/projects/${selectedProject}/uat`, {
+      params: { status: statusFilter || undefined },
+    }).then(r => r.data),
+    enabled: !!selectedProject,
+  })
+
+  const cases = uatData?.cases || []
+  const stats = uatData?.stats || {}
+
+  const { mutate: createCase } = useMutation({
+    mutationFn: data => api.post(`/projects/${selectedProject}/uat`, data),
+    onSuccess: () => { qc.invalidateQueries(['uat-cases']); setShowCreate(false); toast.success('Caso UAT creado') },
+    onError: e => toast.error(extractErr(e, 'Error al crear caso')),
+  })
+
+  const { mutate: updateCase } = useMutation({
+    mutationFn: ({ id, data }) => api.patch(`/projects/${selectedProject}/uat/${id}`, data),
+    onSuccess: () => { qc.invalidateQueries(['uat-cases']); setEditCase(null); toast.success('Caso actualizado') },
+    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+  })
+
+  const { mutate: deleteCase } = useMutation({
+    mutationFn: id => api.delete(`/projects/${selectedProject}/uat/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['uat-cases']); toast.success('Caso eliminado') },
+    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+  })
+
+  const handleExport = async () => {
+    try {
+      const r = await api.get(`/projects/${selectedProject}/uat/export`)
+      setExportReport(r.data)
+    } catch (e) {
+      toast.error(extractErr(e, 'Error al exportar'))
+    }
+  }
+
+  const quickStatus = (caseItem, newStatus) => {
+    updateCase({ id: caseItem.id, data: { ...caseItem, status: newStatus } })
+  }
+
+  return (
+    <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
+      <PageHeader
+        title="UAT — Pruebas de Aceptación"
+        subtitle="Define y gestiona los casos de prueba de usuario. Exporta el plan para que el cliente valide."
+        icon={<ClipboardCheck size={18} />}
+        actions={
+          selectedProject ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="secondary" onClick={handleExport}>📤 Exportar para cliente</Button>
+              <Button onClick={() => setShowCreate(true)}>＋ Nuevo caso</Button>
+            </div>
+          ) : null
+        }
+      />
+
+      {/* Selector de proyecto */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select
+          value={selectedProject}
+          onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
+          style={{ ...fs, width: 280 }}
+        >
+          <option value="">— Selecciona un proyecto —</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+
+        {selectedProject && (
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, width: 180 }}>
+            <option value="">Todos los estados</option>
+            {Object.entries(STATUS_META).map(([v, m]) => (
+              <option key={v} value={v}>{m.icon} {m.label}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* KPI row */}
+      {selectedProject && stats.total > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
+          {[
+            { label: 'Total', value: stats.total, color: 'var(--accent)' },
+            { label: 'Pendientes', value: stats.pending, color: 'var(--text-2)' },
+            { label: 'Pasados', value: stats.passed, color: 'var(--success)' },
+            { label: 'Fallidos', value: stats.failed, color: 'var(--danger)' },
+            { label: 'Bloqueados', value: stats.blocked, color: 'var(--warning)' },
+          ].map(k => (
+            <div key={k.label} style={{
+              background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10,
+              padding: '12px 16px', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>
+                {k.value}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Cases list */}
+      {!selectedProject ? (
+        <EmptyState
+          icon={<ClipboardCheck size={40} />}
+          title="Selecciona un proyecto"
+          description="Elige un proyecto para ver y gestionar sus casos UAT"
+        />
+      ) : isLoading ? (
+        <Spinner />
+      ) : cases.length === 0 ? (
+        <EmptyState
+          icon={<ClipboardCheck size={40} />}
+          title="Sin casos UAT"
+          description="Crea el primer caso de aceptación para este proyecto"
+          action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {cases.map(c => {
+            const st = STATUS_META[c.status] || STATUS_META.pending
+            const pr = PRIORITY_META[c.priority] || PRIORITY_META.medium
+            return (
+              <div key={c.id} style={{
+                background: 'var(--surface-2)', border: `1px solid ${c.status === 'failed' ? 'rgba(248,113,113,0.3)' : c.status === 'passed' ? 'rgba(74,222,128,0.2)' : 'var(--surface-4)'}`,
+                borderRadius: 10, padding: '14px 18px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16 }}>{st.icon}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{c.title}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: pr.color, background: pr.color + '20',
+                        borderRadius: 20, padding: '1px 7px', border: `1px solid ${pr.color}30`,
+                      }}>{pr.label}</span>
+                      {c.task_title && (
+                        <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-muted)', borderRadius: 20, padding: '1px 8px' }}>
+                          📋 {c.task_title}
+                        </span>
+                      )}
+                    </div>
+                    {c.expected_result && (
+                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, paddingLeft: 24 }}>
+                        <span style={{ color: 'var(--text-3)' }}>Esperado: </span>{c.expected_result}
+                      </div>
+                    )}
+                    {c.actual_result && (
+                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2, paddingLeft: 24 }}>
+                        <span style={{ color: 'var(--text-3)' }}>Resultado: </span>{c.actual_result}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                    {/* Quick status buttons */}
+                    {c.status !== 'passed' && (
+                      <button onClick={() => quickStatus(c, 'passed')}
+                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(74,222,128,0.3)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                        ✅ Pasar
+                      </button>
+                    )}
+                    {c.status !== 'failed' && (
+                      <button onClick={() => quickStatus(c, 'failed')}
+                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                        ❌ Fallar
+                      </button>
+                    )}
+                    <button onClick={() => setEditCase(c)}
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                    <button onClick={() => setDeleteTarget(c)}
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modals */}
+      {showCreate && (
+        <CaseFormModal
+          open
+          onClose={() => setShowCreate(false)}
+          onSave={createCase}
+          tasks={tasksData}
+        />
+      )}
+      {editCase && (
+        <CaseFormModal
+          open
+          onClose={() => setEditCase(null)}
+          onSave={data => updateCase({ id: editCase.id, data })}
+          initial={editCase}
+          tasks={tasksData}
+        />
+      )}
+      {exportReport && (
+        <ExportModal open onClose={() => setExportReport(null)} report={exportReport} />
+      )}
+      {/* Delete confirmation modal (no browser confirm()) */}
+      {deleteTarget && (
+        <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+            ¿Eliminar el caso <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>? Esta acción no se puede deshacer.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button
+              variant="danger"
+              onClick={() => { deleteCase(deleteTarget.id); setDeleteTarget(null) }}
+            >Eliminar</Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,49 @@
+"""NPS (Net Promoter Score) + Client Health models."""
+
+import enum
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
+from app.db.base import Base
+
+
+class NPSCategory(str, enum.Enum):
+    promoter  = "promoter"   # 9-10
+    passive   = "passive"    # 7-8
+    detractor = "detractor"  # 0-6
+
+
+class ClientNPS(Base):
+    __tablename__ = "client_nps"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    client_id  = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    score      = Column(Integer,  nullable=False)           # 0-10
+    category   = Column(Enum(NPSCategory), nullable=False)
+    comment    = Column(Text, nullable=True)
+    respondent = Column(String(200), nullable=True)         # name of the person who replied
+    source     = Column(String(50),  default="manual")      # manual | email | portal
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    client = relationship("Client", backref="nps_responses")
+
+
+class ClientHealthSnapshot(Base):
+    """Periodic health score snapshot (0-100) computed from multiple signals."""
+
+    __tablename__ = "client_health_snapshots"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    client_id        = Column(String(36), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    health_score     = Column(Float, nullable=False)       # 0-100
+    # Component scores (all 0-100, nullable = not computed)
+    nps_component    = Column(Float, nullable=True)
+    delivery_component = Column(Float, nullable=True)      # on-time deliverables ratio
+    budget_component   = Column(Float, nullable=True)      # budget under-spend ratio
+    activity_component = Column(Float, nullable=True)      # recent tickets / interactions
+    note             = Column(Text, nullable=True)
+    snapshot_at      = Column(DateTime, default=datetime.utcnow, index=True)
+
+    client = relationship("Client", backref="health_snapshots")

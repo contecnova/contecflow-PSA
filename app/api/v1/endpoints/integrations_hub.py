@@ -1,0 +1,483 @@
+"""
+integrations_hub.py — Endpoints para Slack, Teams y Jira.
+"""
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, Request
+from sqlalchemy.orm import Session
+from typing import Optional
+from datetime import datetime
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.core.secret_utils import decrypt_config_secrets
+from app.db.session import get_db
+from app.core.deps import require_any_manager
+from app.models.user import User
+
+router = APIRouter(prefix="/integrations-hub", tags=["integrations-hub"])
+
+
+# ── Schemas ────────────────────────────────────────────────────────────────────
+class SlackTestIn(BaseModel):
+    webhook_url: str
+    message:     str = "✅ Clarive conectado correctamente con Slack"
+
+class TeamsTestIn(BaseModel):
+    webhook_url: str
+    message:     str = "✅ Clarive conectado correctamente con Teams"
+
+class JiraTestIn(BaseModel):
+    base_url:  str
+    email:     str
+    api_token: str
+
+class JiraIssueIn(BaseModel):
+    integration_id: str
+    project_key:    str
+    summary:        str
+    description:    str = ""
+    issue_type:     str = "Task"
+    priority:       str = "Medium"
+    labels:         Optional[list] = None
+    nexus_task_id:  Optional[str] = None  # vincular con tarea Clarive
+
+
+# ── Slack endpoints ────────────────────────────────────────────────────────────
+@router.post("/slack/test", summary="Probar conexión Slack")
+def test_slack(
+    payload: SlackTestIn,
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.integrations import send_slack_message, build_slack_blocks
+    blocks = build_slack_blocks(
+        "🔗 Clarive — Conexión verificada",
+        [("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
+    )
+    result = send_slack_message(payload.webhook_url, payload.message, blocks=blocks)
+    if not result["ok"]:
+        raise HTTPException(400, f"Error Slack: {result.get('error')}")
+    return {"ok": True, "message": "Mensaje enviado a Slack correctamente"}
+
+
+@router.post("/slack/notify", summary="Enviar notificación manual a Slack")
+def notify_slack(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.models.cab import IntegrationConfig
+    import json
+    cfg = db.query(IntegrationConfig).filter(
+        IntegrationConfig.id == payload.get("integration_id"),
+        IntegrationConfig.is_active == True,
+    ).first()
+    if not cfg: raise HTTPException(404, "Integración no encontrada")
+    cfg_dict     = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    webhook_url  = cfg_dict.get("webhook_url", "")
+    if not webhook_url: raise HTTPException(400, "Webhook URL no configurada")
+
+    from app.services.integrations import send_slack_message
+    result = send_slack_message(webhook_url, payload.get("text", "Notificación de Clarive"))
+    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    return {"ok": True}
+
+
+# ── Teams endpoints ────────────────────────────────────────────────────────────
+@router.post("/teams/test", summary="Probar conexión Microsoft Teams")
+def test_teams(
+    payload: TeamsTestIn,
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.integrations import send_teams_message
+    result = send_teams_message(
+        payload.webhook_url,
+        title="🔗 Clarive — Conexión verificada",
+        text=payload.message,
+        facts=[("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
+    )
+    if not result["ok"]:
+        raise HTTPException(400, f"Error Teams: {result.get('error')}")
+    return {"ok": True, "message": "Mensaje enviado a Teams correctamente"}
+
+
+# ── Jira endpoints ─────────────────────────────────────────────────────────────
+@router.post("/jira/test", summary="Verificar conexión con Jira")
+def test_jira(
+    payload: JiraTestIn,
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.integrations import get_jira_projects
+    cfg = {"base_url": payload.base_url, "email": payload.email, "api_token": payload.api_token}
+    result = get_jira_projects(cfg)
+    if not result["ok"]:
+        raise HTTPException(400, f"Error Jira: {result.get('error')}")
+    projects = result["data"].get("values", [])
+    return {
+        "ok": True,
+        "projects": [{"key": p["key"], "name": p["name"]} for p in projects[:20]],
+        "total": len(projects),
+    }
+
+
+@router.post("/jira/issues", summary="Crear issue en Jira desde Clarive")
+def create_jira_issue(
+    payload: JiraIssueIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.models.cab import IntegrationConfig
+    from app.services.integrations import create_jira_issue as _create_issue
+    from app.models.task import Task
+    import json
+
+    cfg = db.query(IntegrationConfig).filter(
+        IntegrationConfig.id == payload.integration_id,
+        IntegrationConfig.is_active == True,
+    ).first()
+    if not cfg: raise HTTPException(404, "Integración Jira no encontrada")
+
+    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    result = _create_issue(
+        cfg_dict,
+        project_key=payload.project_key,
+        summary=payload.summary,
+        description=payload.description,
+        issue_type=payload.issue_type,
+        priority=payload.priority,
+        labels=payload.labels or [],
+    )
+    if not result["ok"]:
+        raise HTTPException(400, f"Error Jira: {result.get('error')}")
+
+    # Si se vincula con tarea Clarive, guardar la key Jira
+    if payload.nexus_task_id and result.get("key"):
+        task = db.query(Task).filter(Task.id == payload.nexus_task_id).first()
+        if task and hasattr(task, "jira_issue_key"):
+            task.jira_issue_key = result["key"]
+            db.commit()
+
+    return result
+
+
+@router.get("/jira/search", summary="Buscar issues en Jira via JQL")
+def search_jira(
+    integration_id: str = Query(...),
+    jql:            str = Query("project = NEXUS ORDER BY created DESC"),
+    max_results:    int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.models.cab import IntegrationConfig
+    from app.services.integrations import search_jira_issues
+    import json
+
+    cfg = db.query(IntegrationConfig).filter(
+        IntegrationConfig.id == integration_id,
+        IntegrationConfig.is_active == True,
+    ).first()
+    if not cfg: raise HTTPException(404)
+    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    result = search_jira_issues(cfg_dict, jql, max_results)
+    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    issues = result["data"].get("issues", [])
+    return {
+        "total": result["data"].get("total", 0),
+        "issues": [{
+            "key":      i["key"],
+            "summary":  i["fields"]["summary"],
+            "status":   i["fields"]["status"]["name"],
+            "priority": i["fields"].get("priority", {}).get("name", "—"),
+            "assignee": (i["fields"].get("assignee") or {}).get("displayName", "—"),
+        } for i in issues],
+    }
+
+
+@router.post("/jira/transition", summary="Cambiar estado de issue Jira")
+def transition_jira(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.models.cab import IntegrationConfig
+    from app.services.integrations import transition_jira_issue
+    import json
+
+    cfg = db.query(IntegrationConfig).filter(
+        IntegrationConfig.id == payload.get("integration_id"),
+        IntegrationConfig.is_active == True,
+    ).first()
+    if not cfg: raise HTTPException(404)
+    cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
+    result = transition_jira_issue(cfg_dict, payload.get("issue_key"), payload.get("transition"))
+    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    return {"ok": True}
+
+
+# ── Evento manual ──────────────────────────────────────────────────────────────
+@router.post("/notify-event", summary="Disparar notificación de evento a Slack/Teams")
+def manual_event_notify(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.integrations import notify_event
+    results = notify_event(
+        event_type=payload.get("event_type", ""),
+        entity=payload.get("entity", {}),
+        db=db,
+    )
+    return {"ok": True, "dispatched": len(results), "results": results}
+
+
+# ── Inbound bot — Slack slash commands ────────────────────────────────────────
+@router.post("/slack/commands", summary="Receptor de slash commands desde Slack", include_in_schema=False)
+async def slack_inbound_command(
+    request,  # starlette Request injected via FastAPI
+    db: Session = Depends(get_db),
+):
+    """
+    Receives Slack slash command payloads (application/x-www-form-urlencoded).
+    Supported commands:
+      /clarive tarea <título> [#proyecto]  → crear tarea
+      /clarive tiempo <horas> [#proyecto]  → registrar imputación del día de hoy
+      /clarive ticket <asunto>             → crear ticket en Service Desk
+      /clarive estado <code>               → consultar estado de tarea/proyecto
+      /clarive ayuda                       → lista de comandos
+    Security: validates X-Slack-Signature (HMAC-SHA256) when SLACK_SIGNING_SECRET is set.
+    """
+    import hashlib
+    import hmac
+    import json as _json
+
+    # ── Signature verification ────────────────────────────────────────────────
+    signing_secret = settings.SLACK_SIGNING_SECRET
+    body_bytes = await request.body()
+    if signing_secret:
+        ts  = request.headers.get("X-Slack-Request-Timestamp", "")
+        sig = request.headers.get("X-Slack-Signature", "")
+        # Replay attack prevention: reject requests older than 5 minutes
+        try:
+            import time as _time
+            if abs(_time.time() - float(ts)) > 300:
+                raise HTTPException(403, "Request timestamp too old")
+        except (ValueError, TypeError):
+            raise HTTPException(403, "Missing or invalid X-Slack-Request-Timestamp")
+        base = f"v0:{ts}:{body_bytes.decode()}"
+        expected = "v0=" + hmac.new(signing_secret.encode(), base.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, sig):
+            raise HTTPException(403, "Invalid Slack signature")
+
+    from urllib.parse import parse_qs
+    params = {k: v[0] for k, v in parse_qs(body_bytes.decode()).items()}
+
+    command_text = params.get("text", "").strip()
+    user_name    = params.get("user_name", "")
+    response_url = params.get("response_url", "")
+
+    # Parse command verb
+    parts = command_text.split(None, 1)
+    verb  = (parts[0] if parts else "").lower()
+    rest  = parts[1] if len(parts) > 1 else ""
+
+    # Find Clarive user by Slack username
+    clarive_user = db.query(User).filter(
+        (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
+    ).first()
+
+    try:
+        if verb in ("tarea", "task"):
+            return await _slack_create_task(rest, clarive_user, db)
+        elif verb in ("tiempo", "time", "horas"):
+            return await _slack_log_time(rest, clarive_user, db)
+        elif verb in ("ticket",):
+            return await _slack_create_ticket(rest, clarive_user, db)
+        elif verb in ("estado", "status"):
+            return await _slack_get_status(rest, db)
+        else:
+            return _slack_help()
+    except Exception as exc:
+        return {"response_type": "ephemeral", "text": f"❌ Error: {exc}"}
+
+
+async def _slack_create_task(text: str, user, db):
+    """Parse: tarea <título> [#proyecto-code]"""
+    from app.models.task import Task, TaskStatus, TaskPriority
+    from app.models.project import Project
+    import re, uuid
+    project_match = re.search(r'#(\S+)', text)
+    title = re.sub(r'#\S+', '', text).strip() or "Tarea creada desde Slack"
+    project_id = None
+    if project_match:
+        code = project_match.group(1).upper()
+        proj = db.query(Project).filter(Project.code.ilike(code)).first()
+        if proj:
+            project_id = proj.id
+    task = Task(
+        id=str(uuid.uuid4()), title=title, status=TaskStatus.todo,
+        priority=TaskPriority.medium, project_id=project_id,
+        assignee_id=user.id if user else None,
+    )
+    db.add(task); db.commit(); db.refresh(task)
+    return {"response_type": "in_channel",
+            "text": f"✅ Tarea creada: *{task.title}* (`{task.code}`){' en ' + proj.name if project_id and (proj := db.query(Project).get(project_id)) else ''}"}
+
+
+async def _slack_log_time(text: str, user, db):
+    """Parse: tiempo <horas> [#proyecto-code] [descripción]"""
+    from app.models.imputation import Imputation
+    from app.models.project import Project
+    import re, uuid
+    from datetime import date as _date
+    if not user:
+        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Clarive. Contacta con el admin."}
+    hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
+    if not hours_match:
+        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/clarive tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
+    hours = float(hours_match.group(1).replace(',', '.'))
+    project_match = re.search(r'#(\S+)', text)
+    description = re.sub(r'\d+(?:[.,]\d+)?', '', re.sub(r'#\S+', '', text)).strip() or "Imputación desde Slack"
+    project_id = None
+    if project_match:
+        code = project_match.group(1).upper()
+        proj = db.query(Project).filter(Project.code.ilike(code)).first()
+        if proj:
+            project_id = proj.id
+    imp = Imputation(
+        id=str(uuid.uuid4()), user_id=user.id, project_id=project_id,
+        hours=hours, date=_date.today(), description=description,
+    )
+    db.add(imp); db.commit()
+    return {"response_type": "in_channel",
+            "text": f"⏱ *{hours}h* registradas para {user.full_name} — {description}"}
+
+
+async def _slack_create_ticket(text: str, user, db):
+    """Creates a Service Desk incident ticket from Slack."""
+    from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
+    from sqlalchemy import func, cast, Integer
+    import uuid
+    # Generate ticket number
+    prefix = "INC"
+    last_num = db.query(
+        func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer))
+    ).filter(Ticket.ticket_type == TicketType.incident).scalar() or 0
+    number = f"{prefix}-{(last_num + 1):04d}"
+    ticket = Ticket(
+        id=str(uuid.uuid4()),
+        number=number,
+        ticket_type=TicketType.incident,
+        title=(text or "Ticket desde Slack")[:255],
+        description=text or "Ticket creado desde Slack",
+        status=TicketStatus.new,
+        priority=TicketPriority.p3_medium,
+        support_level=SupportLevel.l1,
+        requester_user_id=user.id if user else None,
+        requester_name=user.full_name if user else None,
+        source="slack",
+    )
+    db.add(ticket); db.commit(); db.refresh(ticket)
+    return {"response_type": "in_channel",
+            "text": f"🎫 Ticket creado: *{ticket.title}* (`{ticket.number}`)"}
+
+
+async def _slack_get_status(code: str, db):
+    from app.models.task import Task
+    from app.models.project import Project
+    task = db.query(Task).filter(Task.code.ilike(code.upper())).first()
+    if task:
+        return {"response_type": "ephemeral",
+                "text": f"📋 *{task.code}* — {task.title}\nEstado: `{task.status}` · Prioridad: `{task.priority}`"}
+    proj = db.query(Project).filter(Project.code.ilike(code.upper())).first()
+    if proj:
+        return {"response_type": "ephemeral",
+                "text": f"📁 *{proj.code}* — {proj.name}\nEstado: `{proj.status}` · PM: {proj.project_manager.full_name if proj.project_manager else '—'}"}
+    return {"response_type": "ephemeral", "text": f"❌ No encontré ningún elemento con código `{code}`"}
+
+
+def _slack_help():
+    return {
+        "response_type": "ephemeral",
+        "text": (
+            "*Comandos disponibles de Clarive:*\n"
+            "• `/clarive tarea <título> [#PRJ-code]` — Crear tarea\n"
+            "• `/clarive tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
+            "• `/clarive ticket <asunto>` — Crear ticket en Service Desk\n"
+            "• `/clarive estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
+            "• `/clarive ayuda` — Ver esta ayuda"
+        ),
+    }
+
+
+# ── Inbound bot — MS Teams adaptive card actions ──────────────────────────────
+@router.post("/teams/commands", summary="Receptor de acciones de MS Teams", include_in_schema=False)
+async def teams_inbound_command(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Receives Teams Bot Framework activity payloads (JSON).
+    Supports conversational commands identical to the Slack bot.
+    Validates Bearer token audience against TEAMS_BOT_APP_ID env var.
+    """
+    import json as _json
+
+    # ── Bearer token validation ───────────────────────────────────────────────
+    bot_app_id = settings.TEAMS_BOT_APP_ID
+    if bot_app_id:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(401, "Missing Teams bearer token")
+        import base64 as _b64
+        raw_token = auth_header.removeprefix("Bearer ").strip()
+        try:
+            parts = raw_token.split(".")
+            padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
+            claims = _json.loads(_b64.urlsafe_b64decode(padded))
+            if claims.get("aud") != bot_app_id and claims.get("appid") != bot_app_id:
+                raise HTTPException(403, "Teams token audience mismatch")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(403, "Invalid Teams bearer token")
+
+    body = await request.json()
+    text = (body.get("text") or "").strip().lower()
+    # Extract user info from Teams payload
+    from_obj   = body.get("from", {})
+    teams_name = from_obj.get("name", "").strip()
+
+    # Look up the Clarive user by display name (best effort)
+    clarive_user = None
+    if teams_name:
+        name_parts = teams_name.split()
+        clarive_user = db.query(User).filter(
+            User.full_name.ilike(f"%{teams_name}%")
+        ).first()
+        if not clarive_user and name_parts:
+            clarive_user = db.query(User).filter(
+                User.full_name.ilike(f"%{name_parts[0]}%")
+            ).first()
+
+    parts = text.split(None, 1)
+    verb  = (parts[0] if parts else "").lower()
+    rest  = parts[1] if len(parts) > 1 else ""
+
+    try:
+        if verb in ("tarea", "task"):
+            result = await _slack_create_task(rest, clarive_user, db)
+        elif verb in ("tiempo", "time"):
+            result = await _slack_log_time(rest, clarive_user, db)
+        elif verb in ("ticket",):
+            result = await _slack_create_ticket(rest, clarive_user, db)
+        elif verb in ("estado", "status"):
+            result = await _slack_get_status(rest, db)
+        else:
+            result = _slack_help()
+        reply_text = result.get("text", "✅")
+    except Exception as exc:
+        reply_text = f"❌ Error: {exc}"
+
+    # Return Teams Activity reply format
+    return {
+        "type": "message",
+        "text": reply_text,
+    }

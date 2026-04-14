@@ -1,0 +1,45 @@
+"""Tests del planificador de capacidad."""
+from tests.conftest import auth
+from datetime import date, timedelta
+
+def next_monday():
+    today = date.today()
+    return str(today + timedelta(days=(7 - today.weekday())))
+
+def test_capacity_board_empty(client, admin_token, db):
+    res = client.get("/api/v1/capacity/board", headers=auth(admin_token))
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)
+
+def test_create_capacity_plan(client, pm_token, db):
+    res = client.post("/api/v1/capacity/plans", json={
+        "user_id": "pm-test-id",
+        "week_start": next_monday(),
+        "planned_hours": 32,
+    }, headers=auth(pm_token))
+    assert res.status_code in (200, 201)
+    data = res.json()
+    assert "id" in data
+
+def test_move_capacity_plan(client, pm_token, db):
+    plan = client.post("/api/v1/capacity/plans", json={
+        "user_id": "pm-test-id",
+        "week_start": next_monday(),
+        "planned_hours": 20,
+    }, headers=auth(pm_token)).json()
+    new_week = str(date.today() + timedelta(days=14))
+    res = client.patch(f"/api/v1/capacity/plans/{plan['id']}", json={"week_start": new_week}, headers=auth(pm_token))
+    assert res.status_code == 200
+
+def test_delete_capacity_plan(client, pm_token, db):
+    plan = client.post("/api/v1/capacity/plans", json={
+        "user_id": "pm-test-id", "week_start": next_monday(), "planned_hours": 10,
+    }, headers=auth(pm_token)).json()
+    res = client.delete(f"/api/v1/capacity/plans/{plan['id']}", headers=auth(pm_token))
+    assert res.status_code in (200, 204)
+
+def test_capacity_board_with_range(client, admin_token, db):
+    today = str(date.today())
+    future = str(date.today() + timedelta(weeks=4))
+    res = client.get("/api/v1/capacity/board", params={"week_from": today, "week_to": future}, headers=auth(admin_token))
+    assert res.status_code == 200

@@ -1,0 +1,10 @@
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <rect width="32" height="32" rx="8" fill="#080c14"/>
+  <!-- C estilizada con líneas de datos -->
+  <path d="M22 9.5C20 7.8 17.6 7 15 7C9.5 7 5 11.5 5 17C5 22.5 9.5 27 15 27C17.6 27 20 26.2 22 24.5" 
+        stroke="#4f8ef7" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Barra de métricas -->
+  <rect x="14" y="13" width="13" height="1.8" rx="0.9" fill="#4f8ef7" opacity="0.9"/>
+  <rect x="14" y="17" width="10" height="1.8" rx="0.9" fill="#4f8ef7" opacity="0.6"/>
+  <rect x="14" y="21" width="7"  height="1.8" rx="0.9" fill="#4f8ef7" opacity="0.35"/>
+</svg>

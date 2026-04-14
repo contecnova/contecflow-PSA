@@ -1,0 +1,12 @@
+{
+  "name": "Clarive",
+  "short_name": "Clarive",
+  "description": "Professional Services Automation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#4f8ef7",
+  "icons": [
+    { "src": "/clarive-icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

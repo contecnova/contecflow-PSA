@@ -1,0 +1,432 @@
+import { useState } from 'react'
+import { useToast } from '../context/ToastContext'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api, { projectsApi } from '../services/api'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
+import PageHeader from '../components/layout/PageHeader'
+import { ScrollText } from 'lucide-react'
+import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
+import { useAppT } from '../i18n/AppLangContext'
+
+// ── Estilos compartidos ───────────────────────────────────────────────────────
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+
+const CONTRACT_TYPES = [
+  { value: 'fixed_price', label: 'Precio fijo' },
+  { value: 'time_material', label: 'Tiempo y material' },
+  { value: 'retainer', label: 'Retainer mensual' },
+  { value: 'hourly_bag', label: 'Bolsa de horas' },
+]
+const STATUS_CFG = {
+  draft:     { label: 'Borrador',  color: 'var(--text-2)' },
+  active:    { label: 'Activo',    color: 'var(--accent)' },
+  expired:   { label: 'Expirado', color: 'var(--danger)' },
+  cancelled: { label: 'Cancelado', color: 'var(--text-3)' },
+}
+const WO_STATUS = {
+  open: { label: 'Abierta', color: 'var(--accent)' },
+  in_progress: { label: 'En curso', color: 'var(--warning)' },
+  completed: { label: 'Completada', color: 'var(--success)' },
+  invoiced: { label: 'Facturada', color: 'var(--purple)' },
+}
+
+function ContractFormModal({ contract, onClose }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const isEdit = !!contract?.id
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
+  const [form, setForm] = useState({
+    name: contract?.name || '',
+    project_id: contract?.project_id || '',
+    client_id: contract?.client_id || '',
+    client_name: contract?.client_name || '',
+    client_contact: contract?.client_contact || '',
+    contract_type: contract?.contract_type || 'time_material',
+    status: contract?.status || 'draft',
+    total_amount: contract?.total_amount || '',
+    hourly_rate: contract?.hourly_rate || '',
+    hours_bag: contract?.hours_bag || '',
+    monthly_retainer: contract?.monthly_retainer || '',
+    start_date: contract?.start_date || '',
+    end_date: contract?.end_date || '',
+    signed_date: contract?.signed_date || '',
+    payment_terms: contract?.payment_terms || '',
+    notes: contract?.notes || '',
+  })
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (data) => isEdit ? api.patch(`/contracts/${contract.id}`, data) : api.post('/contracts', data),
+    onSuccess: () => { qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  return (
+    <Modal open title={isEdit ? `Editar contrato` : 'Nuevo Contrato'} onClose={onClose} width={620}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>Nombre *</label>
+          <input value={form.name} onChange={set('name')} style={fs} placeholder="Contrato desarrollo plataforma 2026" />
+        </div>
+        <div>
+          <label style={ls}>Proyecto *</label>
+          <select value={form.project_id} onChange={set('project_id')} style={fs}>
+            <option value="">Seleccionar...</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={ls}>Cliente *</label>
+          <ClientSelect
+            value={form.client_id}
+            onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
+            style={fs}
+          />
+        </div>
+        <div>
+          <label style={ls}>Tipo de contrato *</label>
+          <select value={form.contract_type} onChange={set('contract_type')} style={fs}>
+            {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={ls}>Estado</label>
+          <select value={form.status} onChange={set('status')} style={fs}>
+            {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+          </select>
+        </div>
+        {form.contract_type === 'fixed_price' && (
+          <div>
+            <label style={ls}>Importe total (€)</label>
+            <input type="number" value={form.total_amount} onChange={set('total_amount')} style={fs} placeholder="0" />
+          </div>
+        )}
+        {form.contract_type === 'time_material' && (
+          <div>
+            <label style={ls}>Tarifa €/hora</label>
+            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} placeholder="0" />
+          </div>
+        )}
+        {form.contract_type === 'hourly_bag' && (
+          <>
+            <div>
+              <label style={ls}>Bolsa de horas</label>
+              <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={fs} placeholder="0" />
+            </div>
+            <div>
+              <label style={ls}>Tarifa €/hora</label>
+              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} placeholder="0" />
+            </div>
+          </>
+        )}
+        {form.contract_type === 'retainer' && (
+          <div>
+            <label style={ls}>Retainer mensual (€)</label>
+            <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={fs} placeholder="0" />
+          </div>
+        )}
+        <div>
+          <label style={ls}>Fecha inicio</label>
+          <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+        </div>
+        <div>
+          <label style={ls}>Fecha fin</label>
+          <input type="date" value={form.end_date} onChange={set('end_date')} style={fs} />
+        </div>
+        <div>
+          <label style={ls}>Fecha firma</label>
+          <input type="date" value={form.signed_date} onChange={set('signed_date')} style={fs} />
+        </div>
+        <div>
+          <label style={ls}>Condiciones de pago</label>
+          <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="30 días, por hitos..." />
+        </div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>Notas</label>
+          <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} />
+        </div>
+        <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.client_id} loading={isPending}>
+            {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear contrato'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ContractDetail({ contract, onClose, onEdit }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [showWO, setShowWO] = useState(false)
+  const [woForm, setWoForm] = useState({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
+  const fs = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+
+  const { mutate: createWO } = useMutation({
+    mutationFn: (data) => api.post(`/contracts/${contract.id}/work-orders`, data),
+    onSuccess: () => { qc.invalidateQueries(['contracts']); setShowWO(false) },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: updateWOStatus } = useMutation({
+    mutationFn: ({ woId, status }) => api.patch(`/contracts/${contract.id}/work-orders/${woId}/status?status=${status}`),
+    onSuccess: () => qc.invalidateQueries(['contracts']),
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  const cfg = STATUS_CFG[contract.status] || STATUS_CFG.draft
+
+  return (
+    <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={680}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Cliente', value: contract.client_name || '—' },
+          { label: 'Importe', value: contract.total_amount ? fmtCurrency(contract.total_amount) : contract.monthly_retainer ? `${fmtCurrency(contract.monthly_retainer)}/mes` : '—' },
+          { label: 'Tarifa', value: contract.hourly_rate ? `${contract.hourly_rate}€/h` : '—' },
+          { label: 'Inicio', value: contract.start_date ? fmtDate(contract.start_date) : '—' },
+          { label: 'Fin', value: contract.end_date ? fmtDate(contract.end_date) : '—' },
+          { label: 'Firma', value: contract.signed_date ? fmtDate(contract.signed_date) : '—' },
+          ...(contract.hours_bag ? [{ label: 'Bolsa horas', value: `${contract.hours_used || 0}h / ${contract.hours_bag}h (${contract.hours_pct || 0}%)` }] : []),
+          ...(contract.payment_terms ? [{ label: 'Pago', value: contract.payment_terms }] : []),
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Work Orders */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Órdenes de trabajo ({contract.work_orders?.length || 0})</h4>
+          <Button size="sm" onClick={() => setShowWO(true)} icon="＋">Nueva OT</Button>
+        </div>
+        {contract.work_orders?.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Sin órdenes de trabajo</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {contract.work_orders.map(wo => {
+              const wocfg = WO_STATUS[wo.status] || WO_STATUS.open
+              return (
+                <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{wo.code} — {wo.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                      {wo.amount ? fmtCurrency(wo.amount) : ''} {wo.hours ? `· ${wo.hours}h` : ''}
+                      {wo.start_date ? ` · ${fmtDate(wo.start_date)}` : ''}
+                    </div>
+                  </div>
+                  <select value={wo.status} onChange={e => updateWOStatus({ woId: wo.id, status: e.target.value })}
+                    style={{ ...fs, fontSize: 11, color: wocfg.color, background: wocfg.color + '15', border: `1px solid ${wocfg.color}40`, cursor: 'pointer', padding: '4px 10px' }}>
+                    {Object.entries(WO_STATUS).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+                  </select>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showWO && (
+          <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div><input value={woForm.name} onChange={e => setWoForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre OT *" /></div>
+              <div><input type="number" value={woForm.amount} onChange={e => setWoForm(f => ({ ...f, amount: e.target.value }))} style={fs} placeholder="€" /></div>
+              <div><input type="number" value={woForm.hours} onChange={e => setWoForm(f => ({ ...f, hours: e.target.value }))} style={fs} placeholder="Horas" /></div>
+              <div><input type="date" value={woForm.start_date} onChange={e => setWoForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
+              <div><input type="date" value={woForm.end_date} onChange={e => setWoForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button size="sm" onClick={() => createWO(woForm)} disabled={!woForm.name}>Crear OT</Button>
+              <Button size="sm" variant="secondary" onClick={() => setShowWO(false)}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <Button variant="secondary" onClick={onClose}>Cerrar</Button>
+        <Button onClick={() => { onClose(); onEdit(contract) }}>✏️ Editar</Button>
+      </div>
+    </Modal>
+  )
+}
+
+export default function ContractsPage() {
+  const t = useAppT()
+  const [showCreate, setShowCreate] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [view, setView] = useState('list')
+
+  const { data: contracts = [], isLoading } = useQuery({
+    queryKey: ['contracts', statusFilter],
+    queryFn: () => api.get('/contracts', { params: statusFilter ? { status: statusFilter } : {} }).then(r => r.data),
+  })
+
+  // Contratos que vencen en los próximos 90 días
+  const today = new Date()
+  const expiring = contracts.filter(c => {
+    if (!c.end_date || c.status === 'cancelled' || c.status === 'expired') return false
+    const end = new Date(c.end_date)
+    const daysLeft = Math.ceil((end - today) / (1000 * 60 * 60 * 24))
+    return daysLeft >= 0 && daysLeft <= 90
+  }).map(c => {
+    const daysLeft = Math.ceil((new Date(c.end_date) - today) / (1000 * 60 * 60 * 24))
+    return { ...c, daysLeft }
+  }).sort((a, b) => a.daysLeft - b.daysLeft)
+
+  const totalValue = contracts.reduce((s, c) => s + (c.total_amount || c.monthly_retainer * 12 || 0), 0)
+  const active = contracts.filter(c => c.status === 'active').length
+  const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort(contracts, 'name')
+
+  return (
+    <div style={{ padding: 32 }}>
+      <PageHeader
+        icon={<ScrollText size={18} />}
+        title={t('contracts.title')}
+        subtitle="Gestión de contratos y órdenes de trabajo"
+        actions={
+          <div style={{ display: 'flex', gap: 10 }}>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="">Todos los estados</option>
+              {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
+            </select>
+            <ViewToggle view={view} onChange={setView} />
+            <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo contrato</Button>
+          </div>
+        }
+      />
+
+      {/* Banner de contratos próximos a vencer */}
+      {expiring.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          {expiring.map(c => {
+            const color = c.daysLeft <= 14 ? 'var(--danger)' : c.daysLeft <= 30 ? 'var(--warning)' : 'var(--accent)'
+            const bg    = c.daysLeft <= 14 ? 'var(--danger-bg)' : c.daysLeft <= 30 ? 'var(--warning-bg)' : 'var(--accent-muted)'
+            const bdr   = c.daysLeft <= 14 ? '#ff475730' : c.daysLeft <= 30 ? '#ffb80030' : '#00d4ff30'
+            const icon  = c.daysLeft <= 14 ? '🔴' : c.daysLeft <= 30 ? '🟡' : '🔵'
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 16px', background: bg, border: `1px solid ${bdr}`,
+                borderRadius: 10, marginBottom: 6, cursor: 'pointer' }}
+                onClick={() => setDetail(c)}>
+                <span style={{ fontSize: 16 }}>{icon}</span>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
+                    {c.code} — {c.name}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)', marginLeft: 10 }}>
+                    {c.client_name}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: 'nowrap' }}>
+                  {c.daysLeft === 0 ? 'Vence hoy' : `Vence en ${c.daysLeft} día${c.daysLeft > 1 ? 's' : ''}`}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 24 }}>
+        {[
+          { label: 'Total contratos', value: contracts.length, color: 'var(--text-2)' },
+          { label: 'Activos', value: active, color: 'var(--accent)' },
+          { label: 'Valor total', value: fmtCurrency(totalValue), color: 'var(--success)' },
+          { label: 'OTs abiertas', value: contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0), color: 'var(--warning)' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {isLoading ? <Spinner /> : contracts.length === 0 ? (
+        <EmptyState icon="📄" title="Sin contratos" description="Crea el primer contrato vinculado a un proyecto" />
+      ) : view === 'list' ? (
+        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+            <SortableTH col="name" sort={contractSort} onSort={setContractSort}>Contrato</SortableTH>
+            <SortableTH col="contract_type_label" sort={contractSort} onSort={setContractSort}>Tipo</SortableTH>
+            <SortableTH col="total_amount" sort={contractSort} onSort={setContractSort}>Importe</SortableTH>
+            <SortableTH col="start_date" sort={contractSort} onSort={setContractSort}>Inicio</SortableTH>
+            <SortableTH col="end_date" sort={contractSort} onSort={setContractSort}>Fin</SortableTH>
+            <span>Estado</span><span>OTs</span>
+          </div>
+          {sortedContracts.map(c => {
+            const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
+            return (
+              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onClick={() => setDetail(c)}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.code} · {c.client_name}</div>
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.contract_type_label}</span>
+                <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>
+                  {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.start_date ? fmtDate(c.start_date) : '—'}</span>
+                <span style={{ fontSize: 12, color: c.end_date && new Date(c.end_date) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.work_orders?.length || 0}</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          {sortedContracts.map(c => {
+            const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
+            return (
+              <div key={c.id} onClick={() => setDetail(c)}
+                style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = `${cfg.color}30`}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{c.name}</div>
+                    {c.client_name && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: 'var(--accent)' }}>
+                    {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>
+                  {c.contract_type_label && <span>📋 {c.contract_type_label}</span>}
+                  {c.work_orders?.length > 0 && <span>🔧 {c.work_orders.length} OT{c.work_orders.length !== 1 ? 's' : ''}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid #1e2d45', paddingTop: 8 }}>
+                  {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span style={{ color: new Date(c.end_date) < new Date() ? 'var(--danger)' : 'inherit' }}>{fmtDate(c.end_date)}</span> : '—'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {showCreate && <ContractFormModal onClose={() => setShowCreate(false)} />}
+      {editing && <ContractFormModal contract={editing} onClose={() => setEditing(null)} />}
+      {detail && !editing && <ContractDetail contract={detail} onClose={() => setDetail(null)} onEdit={(c) => { setDetail(null); setEditing(c) }} />}
+    </div>
+  )
+}

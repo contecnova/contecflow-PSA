@@ -1,0 +1,18 @@
+title = "Clarive Gitleaks Config"
+
+[allowlist]
+description = "Global allowlist for known test placeholders"
+regexes = [
+  '''ci-secret-key-not-for-production-use''',
+  '''ci-client-portal-secret''',
+  '''ci-webhook-secret''',
+  '''ci-inbound-secret''',
+  '''Test1234!ci''',
+  '''admin@clarive\.test''',
+  '''example\.com'''
+]
+paths = [
+  '''tests/.*''',
+  '''docs/.*''',
+  '''\.env\.example$'''
+]

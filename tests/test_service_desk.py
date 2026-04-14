@@ -1,0 +1,203 @@
+"""Tests de Service Desk — tickets, SLA, categorías."""
+from jose import jwt
+from tests.conftest import auth
+from app.core.config import settings
+from app.models.client_portal import ClientUser
+from app.models.clients import Client
+from app.models.service_desk import SLAPolicy, Ticket
+from app.api.v1.endpoints import service_desk
+
+
+def test_get_client_from_token_valid(db):
+    user = ClientUser(full_name="Cliente Prueba", email="cliente@test.com", is_active=True)
+    db.add(user)
+    db.commit()
+
+    token = jwt.encode({"sub": user.id, "type": "client"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
+    client_obj = service_desk._get_client_from_token(f"Bearer {token}", db)
+    assert client_obj is not None
+    assert client_obj.id == user.id
+
+
+def test_get_client_from_token_invalid_token(db):
+    client_obj = service_desk._get_client_from_token("Bearer invalid.token.value", db)
+    assert client_obj is None
+
+
+def test_get_client_from_token_wrong_claim_type(db):
+    user = ClientUser(full_name="Cliente Prueba 2", email="cliente2@test.com", is_active=True)
+    db.add(user)
+    db.commit()
+
+    token = jwt.encode({"sub": user.id, "type": "admin"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
+    client_obj = service_desk._get_client_from_token(f"Bearer {token}", db)
+    assert client_obj is None
+
+
+def test_list_tickets_requires_auth(client, db):
+    res = client.get("/api/v1/sd/tickets")
+    assert res.status_code in (401, 403)
+
+
+def test_create_ticket(client, admin_token, db):
+    res = client.post("/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={
+            "title": "Error en producción",
+            "description": "El sistema se cae al guardar",
+            "priority": "p2_high",
+            "ticket_type": "incident"
+        })
+    assert res.status_code in (200, 201)
+    data = res.json()
+    assert "id" in data
+
+
+def test_list_tickets(client, admin_token, db):
+    res = client.get("/api/v1/sd/tickets", headers=auth(admin_token))
+    assert res.status_code == 200
+    data = res.json()
+    items = data if isinstance(data, list) else data.get("items", data.get("tickets", []))
+    assert isinstance(items, list)
+
+
+def test_ticket_detail(client, admin_token, db):
+    create = client.post("/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={"title": "Test ticket", "description": "Detalle de test", "priority": "p4_low", "ticket_type": "incident"})
+    assert create.status_code in (200, 201)
+    tid = create.json()["id"]
+    res = client.get(f"/api/v1/sd/tickets/{tid}", headers=auth(admin_token))
+    assert res.status_code == 200
+    assert res.json()["id"] == tid
+
+
+def test_update_ticket_status(client, admin_token, db):
+    create = client.post("/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={"title": "Ticket estado", "description": "Estado a actualizar", "priority": "p3_medium", "ticket_type": "incident"})
+    assert create.status_code in (200, 201)
+    tid = create.json()["id"]
+    res = client.patch(f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={"status": "in_progress"})
+    assert res.status_code == 200
+
+
+def test_add_comment_to_ticket(client, admin_token, db):
+    create = client.post("/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={"title": "Ticket comentarios", "description": "Comentario test", "priority": "p4_low", "ticket_type": "incident"})
+    tid = create.json()["id"]
+    res = client.post(f"/api/v1/sd/tickets/{tid}/comments",
+        headers=auth(admin_token),
+        json={"body": "Investigando el problema"})
+    assert res.status_code in (200, 201)
+
+
+def test_list_categories(client, admin_token, db):
+    res = client.get("/api/v1/sd/catalog", headers=auth(admin_token))
+    assert res.status_code == 200
+
+
+def test_list_sla_policies(client, admin_token, db):
+    res = client.get("/api/v1/sd/sla-policies", headers=auth(admin_token))
+    assert res.status_code == 200
+
+
+def test_ai_suggest_response_endpoint(client, admin_token, db):
+    created = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={
+            "title": "No puedo entrar al portal",
+            "description": "Al iniciar sesión recibo error 500",
+            "ticket_type": "incident",
+        },
+    )
+    assert created.status_code in (200, 201)
+    tid = created.json()["id"]
+
+    res = client.post(
+        f"/api/v1/sd/tickets/{tid}/ai-suggest",
+        headers=auth(admin_token),
+        json={"content": "cliente bloqueado, pedir logs y pasos de reproducción"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ticket_id"] == tid
+    assert isinstance(data.get("draft"), str)
+
+
+def test_split_ticket_creates_child_and_link(client, admin_token, db):
+    created = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={
+            "title": "Dos incidencias distintas",
+            "description": "Problema A y B",
+            "ticket_type": "incident",
+        },
+    )
+    tid = created.json()["id"]
+
+    split = client.post(
+        f"/api/v1/sd/tickets/{tid}/split",
+        headers=auth(admin_token),
+        json={"title": "Incidencia B separada", "description": "Solo problema B"},
+    )
+    assert split.status_code in (200, 201)
+    out = split.json()
+    assert out["ok"] is True
+    assert out.get("child_id")
+
+    links = client.get(f"/api/v1/sd/tickets/{tid}/links", headers=auth(admin_token))
+    assert links.status_code == 200
+    assert any(l.get("ticket_id") == out["child_id"] for l in links.json())
+
+
+def test_client_ticket_uses_client_sla_policy(client, admin_token, db):
+    policy = SLAPolicy(name="Enterprise 4h", is_default=False, p1_response_hours=1, p1_resolution_hours=4)
+    db.add(policy)
+    db.flush()
+
+    cli = Client(name="Acme", sla_policy_id=policy.id)
+    db.add(cli)
+    db.flush()
+
+    cuser = ClientUser(
+        full_name="Cliente Acme",
+        email="cliente.acme@test.com",
+        is_active=True,
+        client_org_id=cli.id,
+    )
+    db.add(cuser)
+    db.commit()
+
+    client_token = jwt.encode({"sub": cuser.id, "type": "client"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
+
+    created = client.post(
+        "/api/v1/sd/tickets/client",
+        headers={"Authorization": f"Bearer {client_token}"},
+        json={"title": "Ticket cliente", "description": "desc", "ticket_type": "incident"},
+    )
+    assert created.status_code in (200, 201)
+    tid = created.json()["id"]
+
+    t = db.query(Ticket).filter(Ticket.id == tid).first()
+    assert t is not None
+    assert t.sla_policy_id == policy.id
+
+
+def test_public_status_and_embed_routes(client, db):
+    res_status = client.get("/status")
+    assert res_status.status_code == 200
+    assert "Service Status" in res_status.text
+
+    res_embed = client.get("/status/embed.js")
+    assert res_embed.status_code == 200
+    assert "Service Status" in res_embed.text
+
+    res_widget = client.get("/widget/ticket.js")
+    assert res_widget.status_code == 200
+    assert "data-client-token" in res_widget.text

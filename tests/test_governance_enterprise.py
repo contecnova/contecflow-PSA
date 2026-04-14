@@ -1,0 +1,91 @@
+from app.core.config import settings
+from app.models.mfa import Organization
+from app.models.user import User
+from tests.conftest import auth
+
+
+def _seed_org_for_admin(db):
+    org = Organization(name="Acme", slug="acme")
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    admin = db.query(User).filter(User.username == "admin").first()
+    admin.organization_id = org.id
+    db.commit()
+    return org.id
+
+
+def test_policy_pack_and_evidence_flow(client, admin_token, db):
+    _seed_org_for_admin(db)
+
+    packs = client.get("/api/v1/governance/policy-packs", headers=auth(admin_token))
+    assert packs.status_code == 200
+    assert isinstance(packs.json(), list)
+
+    upsert = client.put(
+        "/api/v1/governance/policy-packs/access_baseline",
+        headers=auth(admin_token),
+        json={"is_enabled": True, "pack_version": "1.1", "config": {"review_days": 30}},
+    )
+    assert upsert.status_code == 200
+
+    evidence = client.post(
+        "/api/v1/governance/compliance/evidence",
+        headers=auth(admin_token),
+        json={
+            "framework": "SOC2",
+            "control_id": "SOC2-CC6.1",
+            "evidence_type": "policy",
+            "title": "Access review policy",
+            "artifact_uri": "s3://evidence/policies/access-review-v1.pdf",
+        },
+    )
+    assert evidence.status_code == 200
+    eid = evidence.json()["id"]
+    assert eid
+
+    status = client.get(
+        "/api/v1/governance/compliance/controls/status",
+        headers=auth(admin_token),
+        params={"framework": "SOC2"},
+    )
+    assert status.status_code == 200
+    controls = status.json()["controls"]
+    assert any(c["control_id"] == "SOC2-CC6.1" and c["evidence_count"] >= 1 for c in controls)
+
+
+def test_scim_user_provisioning(client, db):
+    org_id = _seed_org_for_admin(db)
+    token = settings.SCIM_BEARER_TOKEN or settings.CLIENT_PORTAL_SECRET
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create = client.post(
+        f"/api/v1/scim/v2/{org_id}/Users",
+        headers=headers,
+        json={
+            "userName": "scim.user",
+            "externalId": "ext-123",
+            "name": {"givenName": "Scim", "familyName": "User", "formatted": "Scim User"},
+            "emails": [{"value": "scim.user@acme.com", "primary": True}],
+            "active": True,
+            "roles": [{"value": "employee"}],
+        },
+    )
+    assert create.status_code == 201
+    user_id = create.json()["id"]
+
+    list_res = client.get(f"/api/v1/scim/v2/{org_id}/Users", headers=headers)
+    assert list_res.status_code == 200
+    assert list_res.json()["totalResults"] >= 1
+
+    patch = client.patch(
+        f"/api/v1/scim/v2/{org_id}/Users/{user_id}",
+        headers=headers,
+        json={
+            "Operations": [
+                {"op": "Replace", "path": "active", "value": False},
+            ]
+        },
+    )
+    assert patch.status_code == 200
+    assert patch.json()["active"] is False
