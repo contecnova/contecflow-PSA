@@ -27,6 +27,7 @@ from app.schemas.documents import (
 from app.services.s3_service import file_storage
 from app.services.pagination_service import paginate_query
 from app.services.ai_dispatch import call_ai
+from app.services import documents_service as doc_svc
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -83,236 +84,19 @@ BLOCKED_MAGIC_BYTES = {
 BLOCKED_ARCHIVE_EXTENSIONS = {".zip", ".gz", ".tar", ".tgz", ".7z", ".rar"}
 
 
-def _detect_mime_from_magic(content: bytes) -> Optional[str]:
-    """Best-effort MIME detection from magic bytes for common allowed formats."""
-    if not content:
-        return None
-    head = content[:16]
-    if head.startswith(b"%PDF-"):
-        return "application/pdf"
-    if head.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if head.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if head.startswith(b"GIF87a") or head.startswith(b"GIF89a"):
-        return "image/gif"
-    if head.startswith(b"RIFF") and content[8:12] == b"WEBP":
-        return "image/webp"
-    if head.startswith(b"\x1aE\xdf\xa3"):
-        return "video/webm"
-    if head.startswith(b"ID3") or head[:2] == b"\xff\xfb":
-        return "audio/mpeg"
-    if head.startswith(b"PK\x03\x04"):
-        # Office OpenXML and ODF files are ZIP containers
-        name = (content[:2048].decode("latin-1", errors="ignore")).lower()
-        if "word/" in name:
-            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if "xl/" in name:
-            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        if "ppt/" in name:
-            return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        if "content.xml" in name:
-            return "application/vnd.oasis.opendocument.text"
-        return "application/zip"
-    return None
+_detect_mime_from_magic = doc_svc.detect_mime_from_magic
 
 
-def _validate_upload(file_name: str, content_type: str, content: bytes) -> None:
-    """Raise HTTPException 415 if the file fails MIME or magic-byte security checks."""
-    import os as _os
-
-    # 1. Extension check
-    ext = _os.path.splitext(file_name or "")[1].lower()
-    if ext in BLOCKED_ARCHIVE_EXTENSIONS:
-        raise HTTPException(
-            status_code=415,
-            detail="Subida de archivos comprimidos bloqueada por seguridad (riesgo de fuga de secretos y payloads ocultos).",
-        )
-    if ext and ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Tipo de archivo no permitido (extensión: {ext}). Sube un PDF, imagen, documento Office u otro formato aprobado.",
-        )
-
-    # 2. Content-Type header check (client-supplied — not trusted alone, but useful for UX)
-    if content_type and content_type not in ALLOWED_MIME_TYPES:
-        # Allow generic binary if extension is valid
-        if content_type not in ("application/octet-stream", "binary/octet-stream"):
-            raise HTTPException(
-                status_code=415,
-                detail=f"Tipo de contenido no permitido: {content_type}.",
-            )
-
-    # 3. Magic byte check — catches renamed executables
-    if content:
-        header = content[:8]
-        for magic in BLOCKED_MAGIC_BYTES:
-            if header.startswith(magic):
-                raise HTTPException(
-                    status_code=415,
-                    detail="El contenido del archivo parece ser un ejecutable o script. Subida rechazada por seguridad.",
-                )
-
-    # 4. MIME-by-content verification (prevents trivial spoofing)
-    detected = _detect_mime_from_magic(content)
-    if detected == "application/zip":
-        raise HTTPException(
-            status_code=415,
-            detail="Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad.",
-        )
-    if detected and detected not in ALLOWED_MIME_TYPES:
-        raise HTTPException(
-            status_code=415,
-            detail=f"Tipo de archivo detectado no permitido: {detected}",
-        )
-    if (
-        detected
-        and content_type
-        and content_type not in ("application/octet-stream", "binary/octet-stream")
-        and detected != content_type
-    ):
-        raise HTTPException(
-            status_code=415,
-            detail=f"El tipo real del archivo ({detected}) no coincide con el Content-Type enviado ({content_type}).",
-        )
+_validate_upload = doc_svc.validate_upload
 
 
 # ── Helper Functions ───────────────────────────────────────────────────────
 
-def get_document_or_404(db: Session, doc_id: str) -> Document:
-    """Get document by ID or raise 404."""
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return doc
+get_document_or_404   = doc_svc.get_document_or_404
+check_document_access = doc_svc.check_document_access
 
 
-def check_document_access(doc: Document, user: User, required_level: DocumentAccessLevel = DocumentAccessLevel.viewer) -> None:
-    """Check if user has required access level to document."""
-    from app.models.user import UserRole
-
-    # Admins can access all documents
-    if user.role == UserRole.admin:
-        return
-
-    # Check explicit permissions
-    perm = None
-    for p in doc.permissions:
-        if p.user_id == user.id:
-            perm = p
-            break
-
-    # Check if creator (implicit admin access)
-    if doc.created_by == user.id:
-        return
-
-    # Default: project members/clients have viewer access
-    if doc.project:
-        is_member = any(m.user_id == user.id for m in doc.project.members)
-        if is_member and required_level == DocumentAccessLevel.viewer:
-            return
-
-    # Check explicit permission level
-    if perm:
-        # Reject expired permissions
-        perm_exp = perm.expires_at if perm.expires_at is None or perm.expires_at.tzinfo else perm.expires_at.replace(tzinfo=timezone.utc)
-        if perm_exp and perm_exp < datetime.now(timezone.utc):
-            raise HTTPException(status_code=403, detail="Your access to this document has expired")
-        levels = [DocumentAccessLevel.viewer, DocumentAccessLevel.editor, DocumentAccessLevel.admin]
-        required_idx = levels.index(required_level)
-        perm_idx = levels.index(perm.access_level)
-        if perm_idx >= required_idx:
-            return
-
-    raise HTTPException(status_code=403, detail="Insufficient access level to this document")
-
-
-def serialize_document(db: Session, doc: Document, user: User, generate_s3_urls: bool = True) -> DocumentOut:
-    """Serialize document with user-accessible data.
-
-    Args:
-        generate_s3_urls: If False, returns cached URL or None. If True, regenerates if expired.
-    """
-    from app.models.user import UserRole
-    from datetime import datetime, timezone
-
-    # Filter permissions to what user can see
-    visible_perms = []
-    for perm in doc.permissions:
-        if user.role == UserRole.admin or perm.user_id == user.id or doc.created_by == user.id:
-            visible_perms.append(perm)
-
-    # Build versions with smart S3 URL caching
-    versions_out = []
-    for v in doc.versions:
-        s3_url = None
-        if generate_s3_urls and v.file_key:
-            # Check if cached URL is still valid
-            if v.s3_url and v.s3_url_expires_at:
-                expires = v.s3_url_expires_at if v.s3_url_expires_at.tzinfo else v.s3_url_expires_at.replace(tzinfo=timezone.utc)
-                if datetime.now(timezone.utc) < expires:
-                    s3_url = v.s3_url  # Use cached URL
-                else:
-                    # Regenerate expired URL
-                    s3_url = file_storage.generate_presigned_url(v.file_key)
-                    v.s3_url = s3_url
-                    v.s3_url_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-                    db.add(v)
-            else:
-                # First time generating URL
-                s3_url = file_storage.generate_presigned_url(v.file_key)
-                v.s3_url = s3_url
-                v.s3_url_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-                db.add(v)
-
-        versions_out.append(DocumentVersionOut(
-            id=v.id,
-            version_num=v.version_num,
-            file_name=v.file_name,
-            file_size=v.file_size,
-            file_mime_type=v.file_mime_type,
-            change_note=v.change_note,
-            uploader_id=v.created_by,
-            uploader_name=v.uploader.full_name if v.uploader else "Unknown",
-            created_at=v.created_at,
-            download_url=s3_url,
-            s3_url=s3_url,
-        ))
-
-    db.commit()  # Persist any URL updates
-
-    return DocumentOut(
-        id=doc.id,
-        title=doc.title,
-        description=doc.description,
-        category=doc.category,
-        project_id=doc.project_id,
-        client_id=doc.client_id,
-        milestone_id=doc.milestone_id,
-        requires_approval=doc.requires_approval,
-        approval_status=doc.approval_status,
-        is_archived=doc.is_archived,
-        created_by=doc.created_by,
-        created_by_name=doc.creator.full_name if doc.creator else "Unknown",
-        updated_by=doc.updated_by,
-        updated_by_name=doc.updater.full_name if doc.updater else None,
-        approved_by=doc.approved_by,
-        approved_by_name=doc.approver.full_name if doc.approver else None,
-        approved_at=doc.approved_at,
-        created_at=doc.created_at,
-        updated_at=doc.updated_at,
-        versions=versions_out,
-        permissions=[DocumentPermissionOut(
-            id=p.id,
-            user_id=p.user_id,
-            user_name=p.user.full_name if p.user else "Unknown",
-            access_level=p.access_level,
-            granted_by_name=p.grantor.full_name if p.grantor else None,
-            granted_at=p.granted_at,
-            expires_at=p.expires_at,
-        ) for p in visible_perms],
-        tags=[t.tag_name for t in doc.tags],
-    )
+serialize_document = doc_svc.serialize_document
 
 
 # ── CRUD Endpoints ─────────────────────────────────────────────────────────
@@ -889,30 +673,7 @@ def docs_by_ticket(
     return _doc_list(db, docs)
 
 
-def _doc_list(db, docs):
-    result = []
-    for doc in docs:
-        latest = doc.versions[0] if doc.versions else None
-        result.append({
-            "id": doc.id,
-            "title": doc.title,
-            "category": doc.category,
-            "approval_status": doc.approval_status,
-            "is_archived": doc.is_archived,
-            "created_by_name": doc.creator.full_name if doc.creator else "Unknown",
-            "created_at": str(doc.created_at)[:16] if doc.created_at else None,
-            "tags": [t.tag_name for t in doc.tags],
-            "version_count": len(doc.versions),
-            "latest_version": {
-                "id": latest.id,
-                "version_num": latest.version_num,
-                "file_name": latest.file_name,
-                "file_size": latest.file_size,
-                "file_mime_type": latest.file_mime_type,
-                "download_url": file_storage.generate_presigned_url(latest.file_key) if latest and latest.file_key else None,
-            } if latest else None,
-        })
-    return result
+_doc_list = lambda db, docs: doc_svc.build_doc_list(docs)
 
 
 # ── Tag management ─────────────────────────────────────────────────────────
@@ -978,25 +739,7 @@ def ai_summary(
     if not latest.file_key:
         raise HTTPException(400, "No file attached to latest version")
 
-    # Try to read file text
-    text_content = None
-    try:
-        from app.services.s3_service import LocalFileStorage
-        if isinstance(file_storage, LocalFileStorage):
-            raw = file_storage.get_file_bytes(latest.file_key)
-            mime = latest.file_mime_type or ""
-            if "text" in mime or latest.file_name.endswith((".md", ".txt", ".csv")):
-                text_content = raw.decode("utf-8", errors="ignore")[:8000]
-            elif "pdf" in mime:
-                try:
-                    import io
-                    from pypdf import PdfReader
-                    reader = PdfReader(io.BytesIO(raw))
-                    text_content = "\n".join(p.extract_text() or "" for p in reader.pages[:10])[:8000]
-                except Exception:
-                    logger.warning("Failed to extract text from PDF for AI summary", exc_info=True)
-    except Exception:
-        logger.warning("Failed to read document file content for AI summary", exc_info=True)
+    text_content = doc_svc.extract_document_text(latest.file_key, latest.file_name or "", latest.file_mime_type or "")
 
     if not text_content:
         # Fallback: summarise from metadata only
