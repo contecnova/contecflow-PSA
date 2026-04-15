@@ -297,7 +297,7 @@ function MyPendingTab() {
     setBulkApproving(true)
     try {
       await Promise.all(Array.from(selectedIds).map(id => approvalsApi.decide(id, { decision: 'approved' })))
-      toast.success(`${selectedIds.size} solicitudes aprobadas`)
+      toast.success(t('approvals.approve_selected', { count: selectedIds.size }))
       setSelectedIds(new Set())
       qc.invalidateQueries(['approvals-pending-me'])
       qc.invalidateQueries(['timesheets-pending'])
@@ -336,7 +336,6 @@ function MyPendingTab() {
     return acc
   }, {})
 
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando...</div>
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('approvals.loading')}</div>
 
   if (pending.length === 0) return (
@@ -481,16 +480,16 @@ export default function ApprovalsPage() {
       qc.invalidateQueries(['approval-workflows'])
       setShowCreate(false)
       setSelected(res.data.id)
-      toast.success('Flujo creado')
+      toast.success(t('approvals.workflow_created'))
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic'))),
   })
 
   const { mutate: del } = useMutation({
     mutationFn: approvalsApi.deleteWorkflow,
-    onSuccess: () => { qc.invalidateQueries(['approval-workflows']); toast.success('Flujo eliminado') },
+    onSuccess: () => { qc.invalidateQueries(['approval-workflows']); toast.success(t('approvals.workflow_deleted')) },
 
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   if (selected) return <WorkflowDetail workflowId={selected} onBack={() => setSelected(null)} />
@@ -510,10 +509,10 @@ export default function ApprovalsPage() {
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Pendientes',  value: stats.pending,  color: 'var(--warning)' },
-            { label: 'Aprobadas',   value: stats.approved, color: 'var(--success)' },
-            { label: 'Rechazadas',  value: stats.rejected, color: 'var(--danger)' },
-            { label: 'Flujos activos', value: workflows.filter(w => w.is_active).length, color: 'var(--accent)' },
+            { label: t('approvals.pending'), value: stats.pending, color: 'var(--warning)' },
+            { label: t('approvals.approved'), value: stats.approved, color: 'var(--success)' },
+            { label: t('approvals.rejected'), value: stats.rejected, color: 'var(--danger)' },
+            { label: t('approvals.active_flows'), value: workflows.filter(w => w.is_active).length, color: 'var(--accent)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
@@ -524,11 +523,11 @@ export default function ApprovalsPage() {
       )}
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Secciones de aprobaciones" style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
+      <div role="tablist" aria-label={t('approvals.sections_aria')} style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
         <button role="tab" aria-selected={tab === 'pending'} aria-controls="approvals-panel-pending" id="approvals-tab-pending" onClick={() => setTab('pending')}   style={tabStyle(tab === 'pending')}>
-          Mis pendientes {stats?.pending > 0 && <span style={{ marginLeft: 5, fontSize: 10, padding: '1px 5px', borderRadius: 8, background: 'var(--warning-border)', color: 'var(--warning)' }}>{stats.pending}</span>}
+          {t('approvals.my_pending')} {stats?.pending > 0 && <span style={{ marginLeft: 5, fontSize: 10, padding: '1px 5px', borderRadius: 8, background: 'var(--warning-border)', color: 'var(--warning)' }}>{stats.pending}</span>}
         </button>
-        <button role="tab" aria-selected={tab === 'workflows'} aria-controls="approvals-panel-workflows" id="approvals-tab-workflows" onClick={() => setTab('workflows')} style={tabStyle(tab === 'workflows')}>Flujos configurados</button>
+        <button role="tab" aria-selected={tab === 'workflows'} aria-controls="approvals-panel-workflows" id="approvals-tab-workflows" onClick={() => setTab('workflows')} style={tabStyle(tab === 'workflows')}>{t('approvals.tab_workflows')}</button>
       </div>
 
       {/* Tab pendientes */}
@@ -538,17 +537,17 @@ export default function ApprovalsPage() {
       {tab === 'workflows' && (
         <div id="approvals-panel-workflows" role="tabpanel" aria-labelledby="approvals-tab-workflows">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <Button onClick={() => setShowCreate(true)}>+ Nuevo flujo</Button>
+            <Button onClick={() => setShowCreate(true)}>{t('approvals.new_workflow')}</Button>
           </div>
 
           {isLoading ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>{t('approvals.loading')}</div>
           ) : workflows.length === 0 ? (
-            <EmptyState icon="✅" title="Sin flujos configurados"
-              description="Crea flujos de aprobación para timesheets, gastos, cambios y más" />
+            <EmptyState icon="✅" title={t('approvals.no_workflows')}
+              description={t('approvals.workflows_description')} />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-              {Object.entries(ENTITY_LABELS).map(([entityType, cfg]) => {
+              {Object.entries(entityLabels(t)).map(([entityType, cfg]) => {
                 const entityFlows = workflows.filter(w => w.entity_type === entityType)
                 if (entityFlows.length === 0 && tab === 'workflows') return null
                 return entityFlows.map(wf => {
@@ -558,7 +557,7 @@ export default function ApprovalsPage() {
                       tabIndex={0}
                       onClick={() => setSelected(wf.id)}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }}
-                      aria-label={`Abrir flujo ${wf.name}`}
+                      aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                       style={{
                         background: 'var(--surface-2)', border: `1px solid ${wf.is_active ? cfg.color + '30' : 'var(--surface-4)'}`,
                         borderRadius: 12, padding: '16px 20px', cursor: 'pointer',
@@ -577,16 +576,16 @@ export default function ApprovalsPage() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          {wf.is_default && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>DEFAULT</span>}
-                          {!wf.is_active && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>OFF</span>}
+                          {wf.is_default && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>{t('approvals.default_badge')}</span>}
+                          {!wf.is_active && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{t('approvals.inactive_badge')}</span>}
                         </div>
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>
-                        {wf.step_count} paso{wf.step_count !== 1 ? 's' : ''} de aprobación
+                        {t('approvals.steps_count', { count: wf.step_count, suffix: wf.step_count !== 1 ? t('approvals.steps_suffix_plural') : '' })}
                         {wf.description && ` · ${wf.description}`}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button aria-label={`Eliminar flujo ${wf.name}`} onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar flujo "${wf.name}"?`,onConfirm:()=>del(wf.id),danger:true}) }}
+                        <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })} onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm:()=>del(wf.id),danger:true}) }}
                           style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
                           🗑
                         </button>
@@ -595,8 +594,8 @@ export default function ApprovalsPage() {
                   )
                 })
               })}
-              {workflows.filter(w => !Object.keys(ENTITY_LABELS).includes(w.entity_type)).map(wf => (
-                <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={`Abrir flujo ${wf.name}`}
+              {workflows.filter(w => !Object.keys(entityLabels(t)).includes(w.entity_type)).map(wf => (
+                <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                   style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{wf.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} pasos</div>
@@ -608,30 +607,30 @@ export default function ApprovalsPage() {
       )}
 
       {showCreate && (
-        <Modal open title="Nuevo flujo de aprobación" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={t('approvals.new_workflow_title')} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
-              <label htmlFor={`${createIdPrefix}-name`} style={lbl}>Nombre *</label>
-              <input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Aprobación gastos &gt;1000€" />
+              <label htmlFor={`${createIdPrefix}-name`} style={lbl}>{t('approvals.name_required')}</label>
+              <input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.workflow_name_placeholder')} />
             </div>
             <div>
-              <label htmlFor={`${createIdPrefix}-entity-type`} style={lbl}>Tipo de entidad</label>
+              <label htmlFor={`${createIdPrefix}-entity-type`} style={lbl}>{t('approvals.entity_type')}</label>
               <select id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f=>({...f,entity_type:e.target.value}))} style={inp}>
-                {Object.entries(ENTITY_LABELS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                {Object.entries(entityLabels(t)).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor={`${createIdPrefix}-description`} style={lbl}>Descripción</label>
-              <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Cuándo se activa este flujo..." />
+              <label htmlFor={`${createIdPrefix}-description`} style={lbl}>{t('approvals.description')}</label>
+              <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t('approvals.description_placeholder')} />
             </div>
             <label htmlFor={`${createIdPrefix}-is-default`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
               <input id={`${createIdPrefix}-is-default`} type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-              Flujo por defecto para este tipo de entidad
+              {t('approvals.default_flow_label')}
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>Crear flujo</Button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>{t('approvals.create_workflow')}</Button>
           </div>
         </Modal>
       )}

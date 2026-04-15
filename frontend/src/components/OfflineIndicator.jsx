@@ -141,7 +141,7 @@ export default function OfflineIndicator() {
                   cursor: syncing ? 'wait' : 'pointer',
                   fontFamily: 'inherit',
                 }}>
-                syncing ? '⏳' : t('offline_indicator.sync_now')}
+                {syncing ? '⏳' : t('offline_indicator.sync_now')}
               </button>
             )}
           </>

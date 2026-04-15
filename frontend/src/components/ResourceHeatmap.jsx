@@ -45,6 +45,7 @@ const bookingSchema = z.object({
 })
 
 function BookingModal({ onClose, prefill }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const [form, setForm] = useState({
     user_id: prefill?.user_id || '',

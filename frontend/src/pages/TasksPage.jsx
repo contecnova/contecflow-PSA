@@ -14,6 +14,8 @@ import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
 import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -25,6 +27,21 @@ const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review:
 
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const TASK_STATUSES = STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] }))
+
+const createTaskSchema = z.object({
+  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  project_id: z.string().trim().min(1, 'El proyecto es obligatorio'),
+  status: z.enum(['todo', 'in_progress', 'blocked', 'review', 'done']),
+  priority: z.enum(['low', 'medium', 'high', 'critical']),
+  estimated_hours: z.preprocess(
+    (v) => (v === '' || v === null || typeof v === 'undefined' ? undefined : v),
+    z.coerce.number().min(0, 'Las horas estimadas no pueden ser negativas').optional(),
+  ),
+  start_date: z.string().optional(),
+  due_date: z.string().optional(),
+  description: z.string().optional(),
+  assignee_id: z.string().optional(),
+})
 
 function KanbanColumn({ status, tasks, onTaskClick }) {
   const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', review: 'var(--warning)', done: 'var(--success)' }
@@ -906,6 +923,7 @@ function CreateTaskModal({ open, onClose, projects }) {
   const [semEffort, setSemEffort] = useState(null)
   const [suggesting, setSuggesting] = useState(false)
   const [customValues, setCustomValues] = useState({})
+  const validation = useFormValidation(createTaskSchema)
 
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', form.project_id],
@@ -929,6 +947,7 @@ function CreateTaskModal({ open, onClose, projects }) {
       qc.invalidateQueries(['dash-overdue-tasks'])
       qc.invalidateQueries(['cal-tasks'])
       qc.invalidateQueries(['kanban-board'])
+      validation.setErrors({})
       onClose()
       setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
       setCustomValues({})
@@ -936,7 +955,10 @@ function CreateTaskModal({ open, onClose, projects }) {
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
   const titleInputId = `${formIdPrefix}-title`
@@ -973,20 +995,27 @@ function CreateTaskModal({ open, onClose, projects }) {
   }
 
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate({ taskData: result.data, cfValues: customValues, cfFields: customFields })
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Nueva Tarea" width={580}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1 / -1' }}>
           <label htmlFor={titleInputId} style={ls}>Título *</label>
-          <input id={titleInputId} value={form.title} onChange={set('title')} style={fs} placeholder="Título de la tarea" />
+          <input id={titleInputId} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Título de la tarea" />
+          {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <label htmlFor={projectInputId} style={ls}>Proyecto *</label>
-          <select id={projectInputId} value={form.project_id} onChange={set('project_id')} style={fs}>
+          <select id={projectInputId} value={form.project_id} onChange={set('project_id')} style={validation.inputStyle(fs, 'project_id')}>
             <option value="">Seleccionar proyecto...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
+          {validation.errors.project_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.project_id}</div>}
         </div>
         <div>
           <label htmlFor={statusInputId} style={ls}>Estado</label>
@@ -1060,7 +1089,8 @@ function CreateTaskModal({ open, onClose, projects }) {
         )}
         <div>
           <label htmlFor={estimatedHoursInputId} style={ls}>Horas estimadas</label>
-          <input id={estimatedHoursInputId} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" />
+          <input id={estimatedHoursInputId} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={validation.inputStyle(fs, 'estimated_hours')} placeholder="0" />
+          {validation.errors.estimated_hours && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.estimated_hours}</div>}
         </div>
         <div>
           <label htmlFor={startDateInputId} style={ls}>Fecha inicio</label>
@@ -1108,7 +1138,7 @@ function CreateTaskModal({ open, onClose, projects }) {
         )}
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate({ taskData: form, cfValues: customValues, cfFields: customFields })} disabled={isPending || !form.title || !form.project_id} loading={isPending}>
+          <Button onClick={submit} disabled={isPending} loading={isPending}>
             {isPending ? 'Creando...' : 'Crear tarea'}
           </Button>
         </div>

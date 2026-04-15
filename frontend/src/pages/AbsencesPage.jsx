@@ -435,7 +435,7 @@ export default function AbsencesPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                      {fmtDate(a.start_date)} -> {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
+                      {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
                     </div>
                     {a.rejection_reason && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
                   </div>
@@ -483,7 +483,7 @@ export default function AbsencesPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{a.user_name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                      {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} -> {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
+                      {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
                     </div>
                     {a.reason && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
                   </div>

@@ -206,7 +206,7 @@ export default function GlobalSearchModal({ open, onClose }) {
 
         {/* Footer */}
         <div style={{ padding: '10px 20px', borderTop: '1px solid #1e2d45', display: 'flex', gap: 16, alignItems: 'center' }}>
-          {[['↑↓', 'navegar'], ['↵', 'abrir'], ['esc', 'cerrar']].map(([key, label]) => (
+          {[['↑↓', 'navegar'], ['↵', 'abrir'], ['esc', 'cerrar']].map(([key]) => (
             <span key={key} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
               <kbd style={{ background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>{key}</kbd>
               {key === '↑↓' ? t('common.navigate') : key === '↵' ? t('common.open') : t('common.close').toLowerCase()}

@@ -16,6 +16,8 @@ import { COLOR } from '../constants/theme'
 import DocumentsPanel from '../components/DocumentsPanel'
 import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const PRIORITY_COLOR = {
@@ -33,6 +35,18 @@ const STATUS_COLOR = {
   pending_client: COLOR.warning, pending_third: COLOR.warning,
   resolved: COLOR.success, closed: COLOR.text2, cancelled: COLOR.text3,
 }
+
+const createTicketSchema = z.object({
+  ticket_type: z.enum(['incident', 'service_request', 'change', 'problem', 'question']),
+  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  description: z.string().trim().min(1, 'La descripcion es obligatoria'),
+  priority: z.enum(['p1_critical', 'p2_high', 'p3_medium', 'p4_low']),
+  urgency: z.enum(['critical', 'high', 'medium', 'low']),
+  impact: z.enum(['enterprise', 'department', 'user', 'minimal']),
+  assigned_to_user_id: z.string().optional(),
+  client_id: z.string().optional(),
+  service_item_id: z.string().optional(),
+})
 
 const LazyMetricsDashboard = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
@@ -1990,6 +2004,7 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
 
 // ── Create Ticket Modal ───────────────────────────────────────────────────────
 function CreateTicketModal({ onClose, onCreated }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const { data: catalog = [] } = useQuery({
@@ -2010,6 +2025,7 @@ function CreateTicketModal({ onClose, onCreated }) {
     priority: 'p3_medium', urgency: 'medium', impact: 'user',
     assigned_to_user_id: '', client_id: '', service_item_id: '',
   })
+  const validation = useFormValidation(createTicketSchema)
 
   // Priority matrix auto-calc
   const suggestedPrio = useMemo(() => {
@@ -2022,7 +2038,10 @@ function CreateTicketModal({ onClose, onCreated }) {
     return matrix[`${form.urgency}_${form.impact}`] || 'p3_medium'
   }, [form.urgency, form.impact])
 
-  const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
+  const set = k => e => {
+    setForm(f => ({...f, [k]: e.target.value}))
+    validation.clearFieldError(k)
+  }
 
   const buildTicketPayload = (raw) => {
     const payload = {
@@ -2044,6 +2063,7 @@ function CreateTicketModal({ onClose, onCreated }) {
   const { mutate, isPending } = useMutation({
     mutationFn: data => api.post('/sd/tickets', data),
     onSuccess: (res) => {
+      validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
       toast.success(`Ticket ${res.data?.number || ''} creado`)
       onCreated?.(res.data)
@@ -2058,20 +2078,26 @@ function CreateTicketModal({ onClose, onCreated }) {
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
   const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate(buildTicketPayload(result.data))
+  }
 
   return (
     <Modal open title="Crear nuevo ticket" onClose={onClose} size="lg">
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div>
-          <label style={LS}>Tipo *</label>
-          <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
+          <label htmlFor={`${idPrefix}-ticket-type`} style={LS}>Tipo *</label>
+          <select id={`${idPrefix}-ticket-type`} value={form.ticket_type} onChange={set('ticket_type')} style={validation.inputStyle(IS, 'ticket_type')}>
             {['incident','service_request','change','problem','question'].map(t =>
               <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
           </select>
+          {validation.errors.ticket_type && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.ticket_type}</div>}
         </div>
         <div>
-          <label style={LS}>Servicio</label>
-          <select value={form.service_item_id} onChange={set('service_item_id')} style={IS}>
+          <label htmlFor={`${idPrefix}-service-item`} style={LS}>Servicio</label>
+          <select id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} style={IS}>
             <option value="">Sin servicio específico</option>
             {catalog.flatMap(cat => cat.services?.map(s => (
               <option key={s.id} value={s.id}>{cat.name} → {s.name}</option>
@@ -2079,29 +2105,33 @@ function CreateTicketModal({ onClose, onCreated }) {
           </select>
         </div>
         <div style={{ gridColumn:'1/-1' }}>
-          <label style={LS}>Título *</label>
-          <input value={form.title} onChange={set('title')} style={IS}
+          <label htmlFor={`${idPrefix}-title`} style={LS}>Título *</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(IS, 'title')}
             placeholder="Resumen claro del problema o solicitud" />
+          {validation.errors.title && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn:'1/-1' }}>
-          <label style={LS}>Descripción * <span style={{ fontSize: 10, color: '#718096', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
-          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} placeholder="Detalla el problema: qué ocurre, cuándo, pasos para reproducir..." style={{...IS, resize:'vertical'}} />
+          <label htmlFor={`${idPrefix}-description`} style={LS}>Descripción * <span style={{ fontSize: 10, color: '#718096', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
+          <AIInlineEditor inputId={`${idPrefix}-description`} ariaLabel="Descripción del ticket" value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} placeholder="Detalla el problema: qué ocurre, cuándo, pasos para reproducir..." style={{...validation.inputStyle(IS, 'description'), resize:'vertical'}} />
+          {validation.errors.description && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.description}</div>}
         </div>
 
         {/* Priority matrix */}
         <div>
-          <label style={LS}>Urgencia</label>
-          <select value={form.urgency} onChange={set('urgency')} style={IS}>
+          <label htmlFor={`${idPrefix}-urgency`} style={LS}>Urgencia</label>
+          <select id={`${idPrefix}-urgency`} value={form.urgency} onChange={set('urgency')} style={validation.inputStyle(IS, 'urgency')}>
             {['critical','high','medium','low'].map(v => <option key={v} value={v}>{v}</option>)}
           </select>
+          {validation.errors.urgency && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.urgency}</div>}
         </div>
         <div>
-          <label style={LS}>Impacto</label>
-          <select value={form.impact} onChange={set('impact')} style={IS}>
+          <label htmlFor={`${idPrefix}-impact`} style={LS}>Impacto</label>
+          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={validation.inputStyle(IS, 'impact')}>
             {[['enterprise','Empresa entera'],['department','Departamento'],
               ['user','Usuario individual'],['minimal','Mínimo']
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          {validation.errors.impact && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.impact}</div>}
         </div>
 
         {/* Auto priority suggestion */}
@@ -2113,22 +2143,22 @@ function CreateTicketModal({ onClose, onCreated }) {
             style={{ fontSize:11, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>
             Aplicar
           </button>
-          <select value={form.priority} onChange={set('priority')} style={{...IS, width:'auto', flex:1}}>
+          <select aria-label="Prioridad del ticket" value={form.priority} onChange={set('priority')} style={{...validation.inputStyle(IS, 'priority'), width:'auto', flex:1}}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
           </select>
         </div>
 
         <div>
-          <label style={LS}>Asignar a</label>
-          <select value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} style={IS}>
+          <label htmlFor={`${idPrefix}-assigned-to`} style={LS}>Asignar a</label>
+          <select id={`${idPrefix}-assigned-to`} value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} style={IS}>
             <option value="">Auto-routing / Sin asignar</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Cliente</label>
-          <select value={form.client_id} onChange={set('client_id')} style={IS}>
+          <label htmlFor={`${idPrefix}-client`} style={LS}>Cliente</label>
+          <select id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} style={IS}>
             <option value="">Sin cliente específico</option>
             {(Array.isArray(clients) ? clients : clients?.items || []).map(c =>
               <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -2137,8 +2167,8 @@ function CreateTicketModal({ onClose, onCreated }) {
 
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10, marginTop:8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(buildTicketPayload(form))}
-            disabled={isPending || !form.title || !form.description} loading={isPending}>
+          <Button onClick={submit}
+            disabled={isPending} loading={isPending}>
             Crear Ticket
           </Button>
         </div>

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { AppLangProvider } from './i18n/AppLangContext'
+import { useAppT } from './i18n/AppLangContext'
 import { initOfflineSync } from './services/offlineQueue'
 import api from './services/api'
 import './index.css'
@@ -46,12 +47,11 @@ class ErrorBoundary extends React.Component {
         }}>
           <div style={{ fontSize: 56, marginBottom: 20 }}>⚠</div>
           <h2 style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 22 }}>
-            {isChunkError ? 'Error de carga — caché desactualizada' : 'Error al cargar Clarive'}
+            {isChunkError ? this.props.t('app_errors.app_load_outdated') : this.props.t('app_errors.app_load_failed')}
           </h2>
           {isChunkError ? (
             <p style={{ color: 'var(--text-2)', marginBottom: 24, maxWidth: 500 }}>
-              El navegador tiene una versión antigua de la aplicación en caché.
-              Pulsa el botón para recargar con la versión actual.
+              {this.props.t('app_errors.app_outdated_desc')}
             </p>
           ) : (
             <pre style={{
@@ -77,13 +77,18 @@ class ErrorBoundary extends React.Component {
               fontWeight: 700, fontSize: 15,
             }}
           >
-            🔄 Recargar aplicación
+            {this.props.t('app_errors.app_reload')}
           </button>
         </div>
       )
     }
     return this.props.children
   }
+}
+
+function RootBoundary({ children }) {
+  const t = useAppT()
+  return <ErrorBoundary t={t}>{children}</ErrorBoundary>
 }
 
 // ── QueryClient ───────────────────────────────────────────────────────────────
@@ -103,13 +108,13 @@ const queryClient = new QueryClient({
 
 // ── Render ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
       <AppLangProvider>
+        <RootBoundary>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <App />
         </BrowserRouter>
+        </RootBoundary>
       </AppLangProvider>
     </QueryClientProvider>
-  </ErrorBoundary>
 )

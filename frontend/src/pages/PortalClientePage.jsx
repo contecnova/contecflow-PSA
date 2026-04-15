@@ -533,7 +533,7 @@ function PortalFeatureRequests() {
   const [showNew, setShowNew] = useState(false)
   const [editingFr, setEditingFr] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', business_justification: '', affected_area: '', priority: 'medium', project_id: '' })
-  const [_crDetail, setCrDetail] = useState(null)
+  const [_crDetail] = useState(null)
   const [_deciding, setDeciding] = useState(null)
 
   const { data: frs = [], isLoading } = useQuery({ queryKey: ['portal-frs-client'], queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data) })

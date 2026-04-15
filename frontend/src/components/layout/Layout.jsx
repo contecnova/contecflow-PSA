@@ -285,16 +285,16 @@ const NAV_GROUPS = [
 ]
 
 const SHORTCUTS = [
-  { keys: ['⌘', 'K'],    label: 'Búsqueda global' },
-  { keys: ['Ctrl', 'I'], label: 'NexusAssist IA' },
-  { keys: ['?'],         label: 'Ver atajos' },
-  { keys: ['Esc'],       label: 'Cerrar modal / panel' },
-  { keys: ['⌘', 'B'],    label: 'Mostrar / ocultar sidebar' },
-  { keys: ['G', 'D'],    label: 'Ir a Dashboard' },
-  { keys: ['G', 'T'],    label: 'Ir a Tareas' },
-  { keys: ['G', 'P'],    label: 'Ir a Proyectos' },
-  { keys: ['G', 'I'],    label: 'Ir a Imputar horas' },
-  { keys: ['G', 'S'],    label: 'Ir a Service Desk' },
+  { keys: ['⌘', 'K'], labelKey: 'shortcut_global_search' },
+  { keys: ['Ctrl', 'I'], labelKey: 'shortcut_ai_assist' },
+  { keys: ['?'], labelKey: 'shortcut_view_shortcuts' },
+  { keys: ['Esc'], labelKey: 'shortcut_close_modal' },
+  { keys: ['⌘', 'B'], labelKey: 'shortcut_toggle_sidebar' },
+  { keys: ['G', 'D'], labelKey: 'shortcut_go_dashboard' },
+  { keys: ['G', 'T'], labelKey: 'shortcut_go_tasks' },
+  { keys: ['G', 'P'], labelKey: 'shortcut_go_projects' },
+  { keys: ['G', 'I'], labelKey: 'shortcut_go_log_hours' },
+  { keys: ['G', 'S'], labelKey: 'shortcut_go_service_desk' },
 ]
 
 function getNavKeyForPath(path) {
@@ -352,12 +352,12 @@ function ShortcutsModal({ onClose, text }) {
             <Keyboard size={15} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
             {text.keyboard_shortcuts}
           </span>
-          <button className="modal-close" onClick={onClose} aria-label="Cerrar"><X size={14} /></button>
+          <button className="modal-close" onClick={onClose} aria-label={text.close}><X size={14} /></button>
         </div>
         <div className="shortcuts-grid">
           {SHORTCUTS.map((s, i) => (
             <div key={i} className="shortcut-row">
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.label}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{text[s.labelKey]}</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 {s.keys.map((k, j) => <span key={j} className="kbd">{k}</span>)}
               </div>
@@ -365,14 +365,14 @@ function ShortcutsModal({ onClose, text }) {
           ))}
         </div>
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
-          Pulsa <span className="kbd">?</span> desde cualquier página para ver esta pantalla
+          {text.shortcuts_hint} <span className="kbd">?</span> {text.shortcuts_hint_suffix}
         </div>
       </div>
     </div>
   )
 }
 
-function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin }) {
+function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text }) {
   const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
   const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
   const displayLabel = getNavLabel(item.to, item.label, t)
@@ -412,7 +412,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin 
       {!collapsed && hover && onPin && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to) }}
-          title={isPinned ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+          title={isPinned ? text.remove_favorite : text.add_favorite}
           style={{
             position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
             background: 'none', border: 'none', cursor: 'pointer',
@@ -552,7 +552,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
           letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 4,
           display: 'flex', alignItems: 'center', gap: 6 }}>
           {showQuick ? `⚡ ${text.quick_access}` : `★ ${text.favorites}`}
-          {showQuick && <span style={{ fontSize: 9, color: 'var(--text-4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· añade ★ para personalizar</span>}
+          {showQuick && <span style={{ fontSize: 9, color: 'var(--text-4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{text.personalize_hint}</span>}
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -606,7 +606,7 @@ function RecentsSection({ recent, collapsed, text, t }) {
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text }) {
   const location = useLocation()
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
   const currentNavItem = allNavItems.find(i => location.pathname === i.to)
@@ -629,8 +629,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
         </span>
       </div>
       <div className="app-topbar-center">
-        <button onClick={onSearchOpen} title="Búsqueda global (⌘K)"
-          aria-label="Abrir búsqueda global"
+        <button onClick={onSearchOpen} title={text.global_search_title}
+          aria-label={text.open_global_search}
           style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px',
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -639,14 +639,14 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
           }}
         >
           <Search size={12} />
-          <span style={{ flex: 1 }}>Buscar...</span>
+          <span style={{ flex: 1 }}>{text.search_placeholder}</span>
           <span style={{ fontSize: 10, background: 'var(--surface-4)', borderRadius: 4,
             padding: '1px 4px', fontFamily: 'monospace', color: 'var(--text-3)' }}>⌘K</span>
         </button>
       </div>
       <div className="app-topbar-right">
-        <button onClick={onAiToggle} title="NexusAssist IA (Ctrl+I)"
-          aria-label="Abrir asistente IA" aria-pressed={aiOpen}
+        <button onClick={onAiToggle} title={text.ai_title}
+          aria-label={text.open_ai} aria-pressed={aiOpen}
           style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
             background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)',
@@ -656,7 +656,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
           }}
         >
           <Brain size={13} />
-          <span>IA</span>
+          <span>{text.ai_short}</span>
         </button>
         {alertCount > 0 && (
           <NavLink to="/alerts"
@@ -664,7 +664,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
               background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
               borderRadius: 8, color: 'var(--danger)', textDecoration: 'none',
               fontSize: 12, fontWeight: 600 }}
-            title={`${alertCount} alertas activas`}
+            title={text.active_alerts_title.replace('{count}', alertCount)}
           >
             <Bell size={13} /><span>{alertCount}</span>
           </NavLink>
@@ -675,7 +675,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
               background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
               borderRadius: 8, color: 'var(--warning)', textDecoration: 'none',
               fontSize: 12, fontWeight: 600 }}
-            title={`${approvalCount} aprobaciones pendientes`}
+            title={text.pending_approvals_title.replace('{count}', approvalCount)}
           >
             <CheckCircle size={13} /><span>{approvalCount}</span>
           </NavLink>
@@ -728,7 +728,7 @@ function NavSearch({ value, onChange, text }) {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={text.filter_menu}
-        aria-label="Filtrar elementos del menú"
+        aria-label={text.filter_menu_aria}
         style={{
           width: '100%', boxSizing: 'border-box',
           padding: '5px 8px 5px 24px',
@@ -742,7 +742,7 @@ function NavSearch({ value, onChange, text }) {
       {value && (
         <button
           onClick={() => onChange('')}
-          aria-label="Limpiar búsqueda"
+          aria-label={text.clear_search_aria}
           style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-4)', padding: 2, lineHeight: 1 }}
         ><X size={10} /></button>
       )}
@@ -911,9 +911,9 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--surface-0)' }}>
-      <a href="#main-content" className="skip-nav">Saltar al contenido</a>
+      <a href="#main-content" className="skip-nav">{text.skip_to_content}</a>
 
-      <aside aria-label="Navegación principal" role="navigation"
+      <aside aria-label={text.main_navigation} role="navigation"
         className={mobileOpen ? 'mobile-open' : ''}
         style={{
           width: collapsed && !isOverlayNav ? 46 : 222, flexShrink: 0,
@@ -955,7 +955,7 @@ export default function Layout({ children }) {
         </div>
 
         {/* Nav */}
-        <nav aria-label="Menú lateral" style={{
+        <nav aria-label={text.side_menu} style={{
           flex: 1, overflowY: 'auto', overflowX: 'hidden',
           padding: collapsed ? '5px 3px' : '5px 4px',
           display: 'flex', flexDirection: 'column', gap: 0,
@@ -1048,7 +1048,7 @@ export default function Layout({ children }) {
           borderTop: '1px solid var(--surface-4)',
           display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0,
         }}>
-          <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expandir (⌘B)' : 'Colapsar (⌘B)'}
+          <button onClick={() => setCollapsed(c => !c)} title={collapsed ? text.expand_sidebar : text.collapse_sidebar}
             style={{
               background: 'transparent', border: '1px solid var(--surface-4)',
               borderRadius: 6, padding: '5px', cursor: 'pointer', color: 'var(--text-3)',
@@ -1084,11 +1084,11 @@ export default function Layout({ children }) {
           style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.55)', display: 'block' }} />
       )}
 
-      <main id="main-content" aria-label="Contenido principal" role="main"
+      <main id="main-content" aria-label={text.main_content} role="main"
         className="app-main-shell flex min-h-screen min-w-0 flex-1 flex-col"
         style={{ overflow: 'auto' }}>
         <button className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
-          aria-label="Abrir menú"
+          aria-label={text.open_menu}
           style={{
             position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

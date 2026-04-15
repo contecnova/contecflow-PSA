@@ -10,6 +10,8 @@ import { IconFR, IconCR } from '../components/ui/FRCRIcons'
 import _PageHeader from '../components/layout/PageHeader'
 import { fmtCurrency, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilo base ───────────────────────────────────────────────────────────────
 const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
@@ -19,6 +21,21 @@ const lbl   = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTrans
 const STATUS_COLOR = { active: 'var(--success)', prospect: 'var(--accent)', inactive: 'var(--warning)', churned: 'var(--danger)' }
 const STATUS_LABEL = { active: 'Activo', prospect: 'Prospecto', inactive: 'Inactivo', churned: 'Perdido' }
 const SLA_COLOR    = { enterprise: 'var(--purple)', gold: 'var(--warning)', silver: 'var(--text-2)', bronze: 'var(--warning)' }
+
+const clientSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  short_name: z.string().optional(),
+  tax_id: z.string().optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.union([z.literal(''), z.string().email('El email no es valido')]).optional(),
+  contact_phone: z.string().optional(),
+  status: z.enum(['active', 'prospect', 'inactive', 'churned']),
+  industry: z.string().min(1, 'El sector es obligatorio'),
+  notes: z.string().optional(),
+  website: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+})
 
 const MODULES = [
   { id: 'service_desk', label: 'Service Desk', icon: '🎫' },
@@ -1619,6 +1636,8 @@ export default function ClientsPage() {
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState({})
   const [clientView, setClientView] = useState('grid')
+  const createValidation = useFormValidation(clientSchema)
+  const editValidation = useFormValidation(clientSchema)
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['clients', search, statusF],
@@ -1638,6 +1657,7 @@ export default function ClientsPage() {
     onSuccess: (_res) => {
       qc.invalidateQueries(['clients'])
       setShowCreate(false)
+      createValidation.setErrors({})
       setNewForm({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
       toast.success('Cliente creado correctamente')
     },
@@ -1650,6 +1670,7 @@ export default function ClientsPage() {
       qc.invalidateQueries(['clients'])
       qc.invalidateQueries(['client-detail', selected?.id])
       setShowEdit(false)
+      editValidation.setErrors({})
       toast.success('Cliente actualizado correctamente')
     },
     onError: e => toast.error(extractErr(e, 'Error al actualizar cliente')),
@@ -1671,7 +1692,30 @@ export default function ClientsPage() {
       country:       selected.country       || '',
       city:          selected.city          || '',
     })
+    editValidation.setErrors({})
     setShowEdit(true)
+  }
+
+  const setCreateField = (key) => (e) => {
+    setNewForm(f => ({ ...f, [key]: e.target.value }))
+    createValidation.clearFieldError(key)
+  }
+
+  const setEditField = (key) => (e) => {
+    setEditClientForm(f => ({ ...f, [key]: e.target.value }))
+    editValidation.clearFieldError(key)
+  }
+
+  const submitCreate = () => {
+    const result = createValidation.validateForm(newForm)
+    if (!result.success) return
+    create(result.data)
+  }
+
+  const submitEdit = () => {
+    const result = editValidation.validateForm(editClientForm)
+    if (!result.success) return
+    updateClient({ id: selected.id, data: result.data })
   }
 
   const TABS = [
@@ -1868,8 +1912,9 @@ export default function ClientsPage() {
             <div>
               <label htmlFor={`${editIdPrefix}-name`} style={lbl}>Nombre *</label>
               <input id={`${editIdPrefix}-name`} value={editClientForm.name}
-                onChange={e => setEditClientForm(f => ({ ...f, name: e.target.value }))}
-                style={inp} />
+                onChange={setEditField('name')}
+                style={editValidation.inputStyle(inp, 'name')} />
+              {editValidation.errors.name && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{editValidation.errors.name}</div>}
             </div>
             <div>
               <label htmlFor={`${editIdPrefix}-short-name`} style={lbl}>Nombre corto</label>
@@ -1886,12 +1931,13 @@ export default function ClientsPage() {
             <div>
               <label htmlFor={`${editIdPrefix}-industry`} style={lbl}>Sector</label>
               <select id={`${editIdPrefix}-industry`} value={editClientForm.industry}
-                onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
-                style={inp}>
+                onChange={setEditField('industry')}
+                style={editValidation.inputStyle(inp, 'industry')}>
                 {INDUSTRIES.map(i => (
                   <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>
                 ))}
               </select>
+              {editValidation.errors.industry && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{editValidation.errors.industry}</div>}
             </div>
             <div>
               <label htmlFor={`${editIdPrefix}-contact-name`} style={lbl}>Contacto principal</label>
@@ -1902,8 +1948,9 @@ export default function ClientsPage() {
             <div>
               <label htmlFor={`${editIdPrefix}-contact-email`} style={lbl}>Email contacto</label>
               <input id={`${editIdPrefix}-contact-email`} type="email" value={editClientForm.contact_email}
-                onChange={e => setEditClientForm(f => ({ ...f, contact_email: e.target.value }))}
-                style={inp} />
+                onChange={setEditField('contact_email')}
+                style={editValidation.inputStyle(inp, 'contact_email')} />
+              {editValidation.errors.contact_email && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{editValidation.errors.contact_email}</div>}
             </div>
             <div>
               <label htmlFor={`${editIdPrefix}-contact-phone`} style={lbl}>Teléfono</label>
@@ -1954,8 +2001,8 @@ export default function ClientsPage() {
             </button>
             <Button
               loading={updatingClient}
-              disabled={!editClientForm.name || updatingClient}
-              onClick={() => updateClient({ id: selected.id, data: editClientForm })}>
+              disabled={updatingClient}
+              onClick={submitEdit}>
               {updatingClient ? '⟳ Guardando...' : '💾 Guardar cambios'}
             </Button>
           </div>
@@ -1966,16 +2013,17 @@ export default function ClientsPage() {
       {showCreate && (
         <Modal open title="Nuevo cliente" onClose={() => setShowCreate(false)} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label htmlFor={`${createIdPrefix}-name`} style={lbl}>Nombre *</label><input id={`${createIdPrefix}-name`} value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-name`} style={lbl}>Nombre *</label><input id={`${createIdPrefix}-name`} value={newForm.name} onChange={setCreateField('name')} style={createValidation.inputStyle(inp, 'name')} />{createValidation.errors.name && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{createValidation.errors.name}</div>}</div>
             <div><label htmlFor={`${createIdPrefix}-short-name`} style={lbl}>Nombre corto</label><input id={`${createIdPrefix}-short-name`} value={newForm.short_name} onChange={e => setNewForm(f => ({ ...f, short_name: e.target.value }))} style={inp} /></div>
             <div><label htmlFor={`${createIdPrefix}-tax-id`} style={lbl}>CIF / NIF / VAT</label><input id={`${createIdPrefix}-tax-id`} value={newForm.tax_id} onChange={e => setNewForm(f => ({ ...f, tax_id: e.target.value }))} style={inp} /></div>
             <div><label htmlFor={`${createIdPrefix}-industry`} style={lbl}>Sector</label>
-              <select id={`${createIdPrefix}-industry`} value={newForm.industry} onChange={e => setNewForm(f => ({ ...f, industry: e.target.value }))} style={inp}>
+              <select id={`${createIdPrefix}-industry`} value={newForm.industry} onChange={setCreateField('industry')} style={createValidation.inputStyle(inp, 'industry')}>
                 {INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>)}
               </select>
+              {createValidation.errors.industry && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{createValidation.errors.industry}</div>}
             </div>
             <div><label htmlFor={`${createIdPrefix}-contact-name`} style={lbl}>Contacto principal</label><input id={`${createIdPrefix}-contact-name`} value={newForm.contact_name} onChange={e => setNewForm(f => ({ ...f, contact_name: e.target.value }))} style={inp} /></div>
-            <div><label htmlFor={`${createIdPrefix}-contact-email`} style={lbl}>Email contacto</label><input id={`${createIdPrefix}-contact-email`} type="email" value={newForm.contact_email} onChange={e => setNewForm(f => ({ ...f, contact_email: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-contact-email`} style={lbl}>Email contacto</label><input id={`${createIdPrefix}-contact-email`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} style={createValidation.inputStyle(inp, 'contact_email')} />{createValidation.errors.contact_email && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{createValidation.errors.contact_email}</div>}</div>
             <div><label htmlFor={`${createIdPrefix}-contact-phone`} style={lbl}>Teléfono</label><input id={`${createIdPrefix}-contact-phone`} value={newForm.contact_phone} onChange={e => setNewForm(f => ({ ...f, contact_phone: e.target.value }))} style={inp} /></div>
             <div><label htmlFor={`${createIdPrefix}-status`} style={lbl}>Estado</label>
               <select id={`${createIdPrefix}-status`} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value }))} style={inp}>
@@ -1986,7 +2034,7 @@ export default function ClientsPage() {
           <div style={{ marginBottom: 16 }}><label htmlFor={`${createIdPrefix}-notes`} style={lbl}>Notas</label><textarea id={`${createIdPrefix}-notes`} value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
-            <Button onClick={() => create(newForm)} disabled={!newForm.name || creating}>
+            <Button onClick={submitCreate} disabled={creating}>
               {creating ? '⟳ Creando...' : '✓ Crear cliente'}
             </Button>
           </div>
