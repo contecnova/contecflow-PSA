@@ -26,6 +26,7 @@ from app.models.billing_reports import (  # noqa: F401
     SLABreachLog, AutomationWorkflow, WorkflowStep, WorkflowExecution,
     ImportJob, Invoice, InvoiceLine, ReportDefinition, ScheduledReport,
     ApprovalWorkflow, ApprovalStep, ApprovalRequest, ApprovalDecision,
+    FinancialApprovalAuditLog,
     RolePermission, SodRule, GrcAuditLog, SodViolation,
 )
 from app.models.bookings import (  # noqa: F401

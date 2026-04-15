@@ -1,7 +1,52 @@
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
+
+# ── Invoice output schemas (replaces _invoice_out dict) ───────────────────────
+
+class InvoiceLineOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    order: int
+    description: str
+    quantity: float
+    unit: Optional[str] = None
+    unit_price: float
+    discount_pct: float
+    amount: float
+    source_type: Optional[str] = None
+
+
+class InvoiceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    number: str
+    project_id: Optional[str] = None
+    client_id: Optional[str] = None
+    project_name: Optional[str] = None
+    project_code: Optional[str] = None
+    client_name: Optional[str] = None
+    client_email: Optional[str] = None
+    client_vat: Optional[str] = None
+    subtotal: Optional[float] = None
+    tax_rate: Optional[float] = None
+    tax_amount: Optional[float] = None
+    total: Optional[float] = None
+    currency: Optional[str] = None
+    issue_date: Optional[date] = None
+    due_date: Optional[date] = None
+    paid_date: Optional[date] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    po_reference: Optional[str] = None
+    period_from: Optional[date] = None
+    period_to: Optional[date] = None
+    lines: List[InvoiceLineOut] = []
+    created_at: Optional[date] = None
 
 
 # ── Generic ────────────────────────────────────────────────────────────────────

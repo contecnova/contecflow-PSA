@@ -103,19 +103,31 @@ DEFAULT_SETTINGS = {
 }
 
 @router.get("/general", response_model=List[SettingOut])
-def get_general_settings(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    # Seed defaults if not exist
+def get_general_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Seed global defaults if not present (organization_id=NULL rows).
     for key, (value, desc) in DEFAULT_SETTINGS.items():
-        if not db.query(AppSetting).filter(AppSetting.key == key).first():
-            db.add(AppSetting(key=key, value=value, description=desc))
+        exists = db.query(AppSetting).filter(
+            AppSetting.key == key, AppSetting.organization_id.is_(None)
+        ).first()
+        if not exists:
+            db.add(AppSetting(key=key, value=value, description=desc, organization_id=None))
     db.commit()
+    # TenantSession automatically includes org-specific + global rows.
     return db.query(AppSetting).order_by(AppSetting.key).all()
 
 @router.patch("/general/{key}", response_model=SettingOut)
-def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    org_id = current_user.organization_id
+    # Prefer updating a tenant-specific row; fall back to global if none exists.
+    setting = db.query(AppSetting).filter(
+        AppSetting.key == key, AppSetting.organization_id == org_id
+    ).first() if org_id else None
     if not setting:
-        setting = AppSetting(key=key, value=payload.value)
+        setting = db.query(AppSetting).filter(
+            AppSetting.key == key, AppSetting.organization_id.is_(None)
+        ).first()
+    if not setting:
+        setting = AppSetting(key=key, value=payload.value, organization_id=org_id)
         db.add(setting)
     else:
         setting.value = payload.value

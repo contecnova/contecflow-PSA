@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -39,10 +39,24 @@ def apply_ticket_update(
 
     now = datetime.now(timezone.utc)
 
+    def _aware(dt):
+        if dt is None:
+            return None
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
     if payload.status:
         if payload.status == "in_progress":
             if not ticket.first_response_at:
                 ticket.first_response_at = now
+                if ticket.created_at:
+                    ticket.first_response_minutes = int(
+                        (now - _aware(ticket.created_at)).total_seconds() / 60
+                    )
+                if ticket.sla_response_due:
+                    effective_due = _aware(ticket.sla_response_due) + timedelta(
+                        minutes=ticket.sla_pause_minutes or 0
+                    )
+                    ticket.sla_response_breached = now > effective_due
             if ticket.sla_paused_at:
                 paused_at = ticket.sla_paused_at
                 if paused_at.tzinfo is None:
@@ -54,6 +68,19 @@ def apply_ticket_update(
             ticket.resolved_at = now
             if not ticket.first_response_at:
                 ticket.first_response_at = now
+                if ticket.created_at:
+                    ticket.first_response_minutes = int(
+                        (now - _aware(ticket.created_at)).total_seconds() / 60
+                    )
+            if ticket.created_at:
+                ticket.resolution_minutes = int(
+                    (now - _aware(ticket.created_at)).total_seconds() / 60
+                )
+            if ticket.sla_resolution_due:
+                effective_due = _aware(ticket.sla_resolution_due) + timedelta(
+                    minutes=ticket.sla_pause_minutes or 0
+                )
+                ticket.sla_resolution_breached = now > effective_due
         elif payload.status == "closed":
             ticket.closed_at = now
             if not ticket.csat_requested_at:

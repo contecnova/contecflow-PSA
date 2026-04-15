@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime, timezone
 from pydantic import BaseModel
 
@@ -43,34 +43,72 @@ class CRReview(BaseModel):
     resolution_notes: Optional[str] = None
 
 
+class ChangeRequestOut(BaseModel):
+    """Typed response schema — replaces the manual _cr_out() dict builder."""
+    id: str
+    code: str
+    project_id: str
+    title: str
+    description: str
+    justification: Optional[str] = None
+    impact: str
+    impact_label: str = ""
+    impact_color: str = "#7a8aaa"
+    cost_impact: Optional[float] = None
+    schedule_impact_days: Optional[int] = None
+    scope_impact: Optional[str] = None
+    status: str
+    status_label: str = ""
+    status_color: str = "#7a8aaa"
+    requested_by: Optional[str] = None
+    requester_name: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    approver_name: Optional[str] = None
+    submitted_at: Optional[str] = None
+    approved_at: Optional[str] = None
+    implemented_at: Optional[str] = None
+    resolution_notes: Optional[str] = None
+    created_at: Optional[str] = None
+    project_name: Optional[str] = None
+    project_code: Optional[str] = None
+
+    @classmethod
+    def from_orm_obj(cls, cr: "ChangeRequest", **extra: Any) -> "ChangeRequestOut":
+        status_val = cr.status.value if hasattr(cr.status, "value") else cr.status
+        impact_val = cr.impact.value if hasattr(cr.impact, "value") else cr.impact
+        return cls(
+            id=cr.id,
+            code=cr.code,
+            project_id=cr.project_id,
+            title=cr.title,
+            description=cr.description,
+            justification=cr.justification,
+            impact=impact_val,
+            impact_label=IMPACT_CFG.get(impact_val, {}).get("label", impact_val),
+            impact_color=IMPACT_CFG.get(impact_val, {}).get("color", "#7a8aaa"),
+            cost_impact=cr.cost_impact,
+            schedule_impact_days=cr.schedule_impact_days,
+            scope_impact=cr.scope_impact,
+            status=status_val,
+            status_label=STATUS_CFG.get(status_val, {}).get("label", status_val),
+            status_color=STATUS_CFG.get(status_val, {}).get("color", "#7a8aaa"),
+            requested_by=cr.requested_by,
+            requester_name=cr.requester.full_name if cr.requester else None,
+            reviewed_by=cr.reviewed_by,
+            approved_by=cr.approved_by,
+            approver_name=cr.approver_user.full_name if cr.approver_user else None,
+            submitted_at=str(cr.submitted_at) if cr.submitted_at else None,
+            approved_at=str(cr.approved_at) if cr.approved_at else None,
+            implemented_at=str(cr.implemented_at) if cr.implemented_at else None,
+            resolution_notes=cr.resolution_notes,
+            created_at=str(cr.created_at)[:10] if cr.created_at else None,
+            **extra,
+        )
+
+
 def _next_code(project_id: str, db: Session) -> str:
     return next_numbered_code(db, "change_request", prefix="CR", padding=3)
-
-
-def _cr_out(cr: ChangeRequest) -> dict:
-    return {
-        "id": cr.id, "code": cr.code, "project_id": cr.project_id,
-        "title": cr.title, "description": cr.description, "justification": cr.justification,
-        "impact": cr.impact,
-        "impact_label": IMPACT_CFG.get(cr.impact, {}).get("label", cr.impact),
-        "impact_color": IMPACT_CFG.get(cr.impact, {}).get("color", "#7a8aaa"),
-        "cost_impact": cr.cost_impact,
-        "schedule_impact_days": cr.schedule_impact_days,
-        "scope_impact": cr.scope_impact,
-        "status": cr.status,
-        "status_label": STATUS_CFG.get(cr.status, {}).get("label", cr.status),
-        "status_color": STATUS_CFG.get(cr.status, {}).get("color", "#7a8aaa"),
-        "requested_by": cr.requested_by,
-        "requester_name": cr.requester.full_name if cr.requester else None,
-        "reviewed_by": cr.reviewed_by,
-        "approved_by": cr.approved_by,
-        "approver_name": cr.approver_user.full_name if cr.approver_user else None,
-        "submitted_at": str(cr.submitted_at) if cr.submitted_at else None,
-        "approved_at": str(cr.approved_at) if cr.approved_at else None,
-        "implemented_at": str(cr.implemented_at) if cr.implemented_at else None,
-        "resolution_notes": cr.resolution_notes,
-        "created_at": str(cr.created_at)[:10] if cr.created_at else None,
-    }
 
 
 @router.get("/all/pending", summary="Todas las CRs pendientes")
@@ -82,12 +120,14 @@ def get_all_pending(
         joinedload(ChangeRequest.requester),
         joinedload(ChangeRequest.project),
     ).filter(ChangeRequest.status.in_(["submitted", "under_review"])).order_by(ChangeRequest.created_at.desc()).all()
-    result = []
-    for cr in crs:
-        d = _cr_out(cr)
-        d["project_name"] = cr.project.name if cr.project else "—"
-        d["project_code"] = cr.project.code if cr.project else "—"
-        result.append(d)
+    result = [
+        ChangeRequestOut.from_orm_obj(
+            cr,
+            project_name=cr.project.name if cr.project else "—",
+            project_code=cr.project.code if cr.project else "—",
+        ).model_dump()
+        for cr in crs
+    ]
     return result
 
 
@@ -107,7 +147,7 @@ def get_change_requests(
         q = q.filter(ChangeRequest.status == status)
     crs = q.order_by(ChangeRequest.created_at.desc()).all()
     return {
-        "change_requests": [_cr_out(cr) for cr in crs],
+        "change_requests": [ChangeRequestOut.from_orm_obj(cr).model_dump() for cr in crs],
         "summary": {
             "total": len(crs),
             "pending": sum(1 for cr in crs if cr.status in ["submitted", "under_review"]),
@@ -132,7 +172,7 @@ def create_change_request(
         **payload.model_dump(),
     )
     db.add(cr); db.commit(); db.refresh(cr)
-    return _cr_out(cr)
+    return ChangeRequestOut.from_orm_obj(cr).model_dump()
 
 
 @router.patch("/{project_id}/{cr_id}", summary="Actualizar CR")
@@ -150,7 +190,7 @@ def update_change_request(
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(cr, k, v)
     db.commit(); db.refresh(cr)
-    return _cr_out(cr)
+    return ChangeRequestOut.from_orm_obj(cr).model_dump()
 
 
 @router.post("/{project_id}/{cr_id}/submit", summary="Enviar CR para revisión")

@@ -5,7 +5,7 @@ from app.core.config import settings
 from app.models.client_portal import ClientUser
 from app.models.clients import Client
 from app.models.service_desk import SLAPolicy, Ticket
-from app.api.v1.endpoints import service_desk
+from app.services.sla_service import get_client_from_token as _get_client_from_token
 
 
 def test_get_client_from_token_valid(db):
@@ -14,13 +14,13 @@ def test_get_client_from_token_valid(db):
     db.commit()
 
     token = jwt.encode({"sub": user.id, "type": "client"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
-    client_obj = service_desk._get_client_from_token(f"Bearer {token}", db)
+    client_obj = _get_client_from_token(f"Bearer {token}", db)
     assert client_obj is not None
     assert client_obj.id == user.id
 
 
 def test_get_client_from_token_invalid_token(db):
-    client_obj = service_desk._get_client_from_token("Bearer invalid.token.value", db)
+    client_obj = _get_client_from_token("Bearer invalid.token.value", db)
     assert client_obj is None
 
 
@@ -30,7 +30,7 @@ def test_get_client_from_token_wrong_claim_type(db):
     db.commit()
 
     token = jwt.encode({"sub": user.id, "type": "admin"}, settings.CLIENT_PORTAL_SECRET, algorithm="HS256")
-    client_obj = service_desk._get_client_from_token(f"Bearer {token}", db)
+    client_obj = _get_client_from_token(f"Bearer {token}", db)
     assert client_obj is None
 
 

@@ -124,10 +124,8 @@ def generate_retainer_invoices():
     Runs daily; only creates an invoice if today matches project.retainer_day
     and no invoice has been created this month yet.
     """
-    import re
     import uuid
     from datetime import date
-    from sqlalchemy import func
 
     from app.db.session import SessionLocal
     from app.models.project import Project
@@ -156,17 +154,17 @@ def generate_retainer_invoices():
                 if existing:
                     continue
 
-                # Generate invoice number in the INV-YYYY-NNNN format
-                year = today.year
-                max_inv = db.query(func.max(Invoice.number)).filter(
-                    Invoice.number.like(f"INV-{year}-%")
-                ).scalar()
-                if max_inv:
-                    m = re.search(r"(\d+)$", max_inv)
-                    next_num = (int(m.group(1)) + 1) if m else 1
-                else:
-                    next_num = 1
-                inv_number = f"INV-{year}-{next_num:04d}"
+                # Generate invoice number via the locked numbering service
+                from app.services.numbering import next_numbered_code
+                inv_number = next_numbered_code(
+                    db,
+                    "invoice",
+                    prefix="INV",
+                    padding=4,
+                    include_year=True,
+                    reset_yearly=True,
+                    year_separator="-",
+                )
 
                 inv = Invoice(
                     id=str(uuid.uuid4()),
@@ -411,7 +409,10 @@ def jira_periodic_sync():
     errors = 0
 
     def _get(key):
-        row = db.query(AppSetting).filter(AppSetting.key == key).first()
+        # Worker has no request context; read only global (org-independent) settings.
+        row = db.query(AppSetting).filter(
+            AppSetting.key == key, AppSetting.organization_id.is_(None)
+        ).first()
         return (row.value or "").strip() if row else ""
 
     def _jira_headers(email: str, token: str) -> dict:

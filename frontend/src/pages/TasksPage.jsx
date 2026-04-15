@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -14,8 +14,6 @@ import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
 import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
-import { z } from 'zod'
-import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -28,28 +26,13 @@ const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review:
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const TASK_STATUSES = STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] }))
 
-const createTaskSchema = z.object({
-  title: z.string().trim().min(1, 'El titulo es obligatorio'),
-  project_id: z.string().trim().min(1, 'El proyecto es obligatorio'),
-  status: z.enum(['todo', 'in_progress', 'blocked', 'review', 'done']),
-  priority: z.enum(['low', 'medium', 'high', 'critical']),
-  estimated_hours: z.preprocess(
-    (v) => (v === '' || v === null || typeof v === 'undefined' ? undefined : v),
-    z.coerce.number().min(0, 'Las horas estimadas no pueden ser negativas').optional(),
-  ),
-  start_date: z.string().optional(),
-  due_date: z.string().optional(),
-  description: z.string().optional(),
-  assignee_id: z.string().optional(),
-})
-
 function KanbanColumn({ status, tasks, onTaskClick }) {
   const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
-    <section aria-label={`${STATUS_LABELS[status]} — ${tasks.length} tarea${tasks.length !== 1 ? 's' : ''}`} style={{ minWidth: 240, flex: 1 }}>
+    <div style={{ minWidth: 240, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
-        <div aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {STATUS_LABELS[status]}
         </span>
@@ -63,9 +46,9 @@ function KanbanColumn({ status, tasks, onTaskClick }) {
             key={task.id}
             role="button"
             tabIndex={0}
+            aria-label={`${task.title} — ${STATUS_LABELS[task.status] || task.status}`}
             onClick={() => onTaskClick(task)}
-            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onTaskClick(task))}
-            aria-label={`${task.title}, ${STATUS_LABELS[task.status]}, prioridad ${PRIORITY_LABELS[task.priority] || task.priority}`}
+            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onTaskClick(task)}
             style={{
               background: 'var(--surface-2)', border: `1px solid ${task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}`,
               borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s',
@@ -99,12 +82,11 @@ function KanbanColumn({ status, tasks, onTaskClick }) {
           </div>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
 
 function TaskDetailModal({ task, open, onClose }) {
-  const formIdPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
@@ -226,17 +208,6 @@ function TaskDetailModal({ task, open, onClose }) {
   const STATUS_LABEL_MAP = { backlog: 'Backlog', todo: 'Pendiente', in_progress: 'En progreso', review: 'Revisión', blocked: 'Bloqueada', done: 'Hecha', cancelled: 'Cancelada' }
   const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
   const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
-  const titleInputId = `${formIdPrefix}-title`
-  const statusInputId = `${formIdPrefix}-status`
-  const priorityInputId = `${formIdPrefix}-priority`
-  const assigneeInputId = `${formIdPrefix}-assignee`
-  const estimatedHoursInputId = `${formIdPrefix}-estimated-hours`
-  const startDateInputId = `${formIdPrefix}-start-date`
-  const dueDateInputId = `${formIdPrefix}-due-date`
-  const descriptionInputId = `${formIdPrefix}-description`
-  const blockedReasonInputId = `${formIdPrefix}-blocked-reason`
-  const tagsInputId = `${formIdPrefix}-tags`
-  const commentInputId = `${formIdPrefix}-comment`
 
   if (!task || !form) return null
 
@@ -246,13 +217,10 @@ function TaskDetailModal({ task, open, onClose }) {
       width={680}>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Secciones de la tarea" style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 10 }}
+           role="tablist" aria-label="Secciones de la tarea">
         {[['detail','📋 Detalles'],['comments','💬 Comentarios'],['docs','📎 Documentos']].map(([id, label]) => (
-          <button key={id}
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls={`taskpanel-${id}`}
-            id={`tasktab-${id}`}
+          <button key={id} role="tab" aria-selected={tab === id} aria-controls={`tab-panel-${id}`}
             onClick={() => setTab(id)}
             style={{ padding: '5px 14px', borderRadius: 7, border: `1px solid ${tab===id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab===id ? 'var(--accent-muted)' : 'transparent', color: tab===id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label} {id === 'comments' && task.comments?.length > 0 && `(${task.comments.length})`}
@@ -262,7 +230,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── DETALLES / EDITAR ── */}
       {tab === 'detail' && !isEditing && (
-        <div id="taskpanel-detail" role="tabpanel" aria-labelledby="tasktab-detail">
+        <div>
           {/* Title */}
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, lineHeight: 1.3 }}>{task.title}</div>
 
@@ -376,14 +344,14 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Título */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={titleInputId} style={ls}>Título *</label>
-            <input id={titleInputId} value={form.title} onChange={set('title')} style={fs} />
+            <label style={ls}>Título *</label>
+            <input value={form.title} onChange={set('title')} style={fs} />
           </div>
 
           {/* Estado + Prioridad */}
           <div>
-            <label htmlFor={statusInputId} style={ls}>Estado</label>
-            <select id={statusInputId} value={form.status} onChange={set('status')} style={fs}>
+            <label style={ls}>Estado</label>
+            <select value={form.status} onChange={set('status')} style={fs}>
               <option value="backlog">○ Backlog</option>
               <option value="todo">○ Pendiente</option>
               <option value="in_progress">◑ En progreso</option>
@@ -394,8 +362,8 @@ function TaskDetailModal({ task, open, onClose }) {
             </select>
           </div>
           <div>
-            <label htmlFor={priorityInputId} style={ls}>Prioridad</label>
-            <select id={priorityInputId} value={form.priority} onChange={set('priority')} style={fs}>
+            <label style={ls}>Prioridad</label>
+            <select value={form.priority} onChange={set('priority')} style={fs}>
               <option value="low">🟢 Baja</option>
               <option value="medium">🟡 Media</option>
               <option value="high">🔴 Alta</option>
@@ -406,13 +374,13 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Asignado + botón IA */}
           <div style={{ gridColumn: '1/-1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <label htmlFor={assigneeInputId} style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
+              <label style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
               <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
                 style={{ background: 'transparent', border: '1px solid #7c3aed40', borderRadius: 6, padding: '3px 10px', color: 'var(--purple)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
                 {suggesting ? '⏳...' : '🧠 Sugerir con IA'}
               </button>
             </div>
-            <select id={assigneeInputId} value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
+            <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
               <option value="">Sin asignar</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
@@ -445,39 +413,39 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Horas + Fechas */}
           <div>
-            <label htmlFor={estimatedHoursInputId} style={ls}>Horas estimadas</label>
-            <input id={estimatedHoursInputId} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" min="0" step="0.5" />
+            <label style={ls}>Horas estimadas</label>
+            <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" min="0" step="0.5" />
           </div>
           <div style={{ gridColumn: '1/-1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label htmlFor={startDateInputId} style={ls}>Fecha inicio</label>
-              <input id={startDateInputId} type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+              <label style={ls}>Fecha inicio</label>
+              <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
             </div>
             <div>
-              <label htmlFor={dueDateInputId} style={ls}>Fecha límite</label>
-              <input id={dueDateInputId} type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
+              <label style={ls}>Fecha límite</label>
+              <input type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
             </div>
           </div>
 
           {/* Descripción */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={descriptionInputId} style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
-            <AIInlineEditor ariaLabel="Descripción de la tarea" inputId={descriptionInputId} value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
+            <label style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
+            <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
 
           {/* Motivo bloqueo */}
           {form.status === 'blocked' && (
             <div style={{ gridColumn: '1/-1' }}>
-              <label htmlFor={blockedReasonInputId} style={ls}>Motivo del bloqueo</label>
-              <input id={blockedReasonInputId} value={form.blocked_reason} onChange={set('blocked_reason')} style={fs}
+              <label style={ls}>Motivo del bloqueo</label>
+              <input value={form.blocked_reason} onChange={set('blocked_reason')} style={fs}
                 placeholder="¿Qué está bloqueando esta tarea?" />
             </div>
           )}
 
           {/* Tags */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={tagsInputId} style={ls}>Etiquetas (separadas por coma)</label>
-            <input id={tagsInputId} value={form.tags} onChange={set('tags')} style={fs} placeholder="frontend, urgente, bug" />
+            <label style={ls}>Etiquetas (separadas por coma)</label>
+            <input value={form.tags} onChange={set('tags')} style={fs} placeholder="frontend, urgente, bug" />
           </div>
 
           {/* Campos personalizados */}
@@ -487,20 +455,19 @@ function TaskDetailModal({ task, open, onClose }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {customFields.map(f => (
                   <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
-                    <label htmlFor={`${formIdPrefix}-custom-${f.id}`} style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
+                    <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                     {f.field_type === 'select' ? (
-                      <select id={`${formIdPrefix}-custom-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
+                      <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
                         <option value="">Seleccionar...</option>
                         {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : f.field_type === 'boolean' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
-                        <input id={`${formIdPrefix}-custom-${f.id}`} type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                        <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                         <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? 'Sí' : 'No'}</span>
                       </div>
                     ) : (
                       <input
-                        id={`${formIdPrefix}-custom-${f.id}`}
                         type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
                         value={customValues[f.id] ?? ''}
                         onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
@@ -538,7 +505,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── COMENTARIOS ── */}
       {tab === 'comments' && (
-        <div id="taskpanel-comments" role="tabpanel" aria-labelledby="tasktab-comments">
+        <div>
           {(!task.comments || task.comments.length === 0) ? (
             <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 16 }}>Sin comentarios todavía.</p>
           ) : (
@@ -557,7 +524,7 @@ function TaskDetailModal({ task, open, onClose }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <textarea id={commentInputId} aria-label="Añadir comentario" value={comment} onChange={e => setComment(e.target.value)}
+            <textarea value={comment} onChange={e => setComment(e.target.value)}
               placeholder="Añadir comentario..."
               rows={2}
               style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
@@ -571,7 +538,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── DOCUMENTOS ── */}
       {tab === 'docs' && (
-        <div id="taskpanel-docs" role="tabpanel" aria-labelledby="tasktab-docs" style={{ marginTop: 4 }}>
+        <div style={{ marginTop: 4 }}>
           <DocumentsPanel taskId={task.id} />
         </div>
       )}
@@ -593,6 +560,16 @@ export default function TasksPage() {
   const [selectedTask, setSelectedTask] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(new Set())  // bulk selection
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const isCompact = viewportWidth <= 1024
+  const isMobile = viewportWidth <= 768
 
   // Bulk action state
   const [bulkStatus, setBulkStatus] = useState('')
@@ -681,16 +658,15 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<CheckSquare size={18} />}
         title={t('tasks.title')}
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
               {['kanban', 'list'].map(v => (
                 <button key={v} onClick={() => setView(v)}
-                  aria-pressed={view === v}
                   style={{
                     padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent',
                     border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)',
@@ -708,39 +684,30 @@ export default function TasksPage() {
       />
 
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="relative sm:col-span-2 lg:col-span-2" style={{ minWidth: 0 }}>
-          <span aria-hidden="true" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 14 }}>🔍</span>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 14 }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            aria-label="Buscar tareas"
             placeholder="Buscar tareas..."
             style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
         </div>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          aria-label="Filtrar por proyecto"
-          className="w-full"
-          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ flex: 1, minWidth: isMobile ? '100%' : 200, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los proyectos</option>
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-          aria-label="Filtrar por prioridad"
-          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todas las prioridades</option>
           {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
         <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-          aria-label="Filtrar por asignado"
-          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los asignados</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            aria-label="Filtrar por estado"
-            className="w-full"
             style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">Todos los estados</option>
             {TASK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -750,8 +717,7 @@ export default function TasksPage() {
 
       {/* ── Bulk Action Bar ─────────────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center"
-          style={{ padding: '10px 16px',
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', marginBottom: 12,
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
           flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
@@ -759,7 +725,6 @@ export default function TasksPage() {
           </span>
           <div style={{ width: 1, height: 20, background: 'var(--surface-4)' }} />
           <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
-            aria-label="Cambiar estado en bloque"
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkStatus ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">Estado...</option>
             <option value="todo">○ Pendiente</option>
@@ -769,7 +734,6 @@ export default function TasksPage() {
             <option value="done">● Hecha</option>
           </select>
           <select value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
-            aria-label="Cambiar prioridad en bloque"
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkPriority ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">Prioridad...</option>
             <option value="low">🟢 Baja</option>
@@ -778,7 +742,6 @@ export default function TasksPage() {
             <option value="critical">🚨 Crítica</option>
           </select>
           <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
-            aria-label="Asignar en bloque"
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkAssignee ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">Asignar a...</option>
             {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
@@ -798,7 +761,7 @@ export default function TasksPage() {
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
         projectFilter ? (
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div style={{ display: 'flex', flexDirection: isCompact ? 'column' : 'row', gap: 12, overflowX: isCompact ? 'visible' : 'auto', paddingBottom: 16 }}>
             {STATUSES.filter(s => s !== 'backlog').map(status => (
               <KanbanColumn
                 key={status}
@@ -816,13 +779,12 @@ export default function TasksPage() {
           flatTasks.length === 0 ? (
             <EmptyState icon="tasks" title="Sin tareas" description="Crea tu primera tarea o importa desde un proyecto existente." ctaLabel="Nueva tarea" onCta={() => setShowCreate(true)} />
           ) : (
-            <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
-              <div style={{ minWidth: 900 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 12, color: 'var(--text-2)' }}>
                 💡 Selecciona un proyecto para ver el tablero Kanban · Mostrando {flatTasks.length} tareas
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-                <input type="checkbox" aria-label="Seleccionar todas las tareas visibles" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
+                <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
                 <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>Tarea</SortableTH>
                 <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>Proyecto</SortableTH>
                 <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>Asignado</SortableTH>
@@ -837,7 +799,7 @@ export default function TasksPage() {
                     style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                     onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}>
-                    <input type="checkbox" aria-label={`Seleccionar tarea ${t.title}`} checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
+                    <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
                     <div onClick={() => setSelectedTask(t)}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t.code}</div>
@@ -850,18 +812,53 @@ export default function TasksPage() {
                   </div>
                 )
               })}
-              </div>
             </div>
           )
         )
       ) : (
         flatTasks.length === 0 ? (
           <EmptyState icon="search" title="Sin resultados" description="Ninguna tarea coincide con los filtros seleccionados." />
+        ) : isCompact ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {sortedTasks.map((t) => {
+              const proj = projects.find(p => p.id === t.project_id)
+              return (
+                <div key={t.id}
+                  onClick={() => setSelectedTask(t)}
+                  style={{
+                    background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10,
+                    padding: '12px 14px', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
+                      onClick={e => e.stopPropagation()}
+                      style={{ cursor: 'pointer', accentColor: 'var(--accent)' }}
+                    />
+                    <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{t.title}</div>
+                    <Badge label={t.priority} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-2)' }}>
+                    <span>{t.code}</span>
+                    <span>{proj ? proj.code : 'Sin proyecto'}</span>
+                    <span>{t.assignee?.full_name || 'Sin asignar'}</span>
+                    <span>{t.estimated_hours ? `${t.estimated_hours}h est.` : 'Sin estimación'}</span>
+                    <span>{t.real_hours?.toFixed(1) ?? 0}h real</span>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <Badge label={t.status} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         ) : (
-          <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
-            <div style={{ minWidth: 980 }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-              <input type="checkbox" aria-label="Seleccionar todas las tareas visibles" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
+              <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
               <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>Tarea</SortableTH>
               <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>Proyecto</SortableTH>
               <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>Asignado</SortableTH>
@@ -880,7 +877,7 @@ export default function TasksPage() {
                   onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                 >
-                  <input type="checkbox" aria-label={`Seleccionar tarea ${t.title}`} checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
+                  <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
                   <div onClick={() => setSelectedTask(t)}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{t.code}</div>
@@ -896,7 +893,6 @@ export default function TasksPage() {
                 </div>
               )}
             />
-            </div>
           </div>
         )
       )}
@@ -908,7 +904,6 @@ export default function TasksPage() {
 }
 
 function CreateTaskModal({ open, onClose, projects }) {
-  const formIdPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: users = [] } = useQuery({
@@ -923,7 +918,6 @@ function CreateTaskModal({ open, onClose, projects }) {
   const [semEffort, setSemEffort] = useState(null)
   const [suggesting, setSuggesting] = useState(false)
   const [customValues, setCustomValues] = useState({})
-  const validation = useFormValidation(createTaskSchema)
 
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', form.project_id],
@@ -947,7 +941,6 @@ function CreateTaskModal({ open, onClose, projects }) {
       qc.invalidateQueries(['dash-overdue-tasks'])
       qc.invalidateQueries(['cal-tasks'])
       qc.invalidateQueries(['kanban-board'])
-      validation.setErrors({})
       onClose()
       setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
       setCustomValues({})
@@ -955,21 +948,9 @@ function CreateTaskModal({ open, onClose, projects }) {
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
-  const set = (k) => (e) => {
-    setForm(f => ({ ...f, [k]: e.target.value }))
-    validation.clearFieldError(k)
-  }
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
-  const titleInputId = `${formIdPrefix}-title`
-  const projectInputId = `${formIdPrefix}-project`
-  const statusInputId = `${formIdPrefix}-status`
-  const priorityInputId = `${formIdPrefix}-priority`
-  const assigneeInputId = `${formIdPrefix}-assignee`
-  const estimatedHoursInputId = `${formIdPrefix}-estimated-hours`
-  const startDateInputId = `${formIdPrefix}-start-date`
-  const dueDateInputId = `${formIdPrefix}-due-date`
-  const descriptionInputId = `${formIdPrefix}-description`
 
   const analyzeWithAI = async () => {
     if (!form.title) return
@@ -995,31 +976,24 @@ function CreateTaskModal({ open, onClose, projects }) {
   }
 
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
-  const submit = () => {
-    const result = validation.validateForm(form)
-    if (!result.success) return
-    mutate({ taskData: result.data, cfValues: customValues, cfFields: customFields })
-  }
 
   return (
     <Modal open={open} onClose={onClose} title="Nueva Tarea" width={580}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label htmlFor={titleInputId} style={ls}>Título *</label>
-          <input id={titleInputId} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Título de la tarea" />
-          {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.title}</div>}
+          <label style={ls}>Título *</label>
+          <input value={form.title} onChange={set('title')} style={fs} placeholder="Título de la tarea" />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label htmlFor={projectInputId} style={ls}>Proyecto *</label>
-          <select id={projectInputId} value={form.project_id} onChange={set('project_id')} style={validation.inputStyle(fs, 'project_id')}>
+          <label style={ls}>Proyecto *</label>
+          <select value={form.project_id} onChange={set('project_id')} style={fs}>
             <option value="">Seleccionar proyecto...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
-          {validation.errors.project_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.project_id}</div>}
         </div>
         <div>
-          <label htmlFor={statusInputId} style={ls}>Estado</label>
-          <select id={statusInputId} value={form.status} onChange={set('status')} style={fs}>
+          <label style={ls}>Estado</label>
+          <select value={form.status} onChange={set('status')} style={fs}>
             <option value="todo">○ Pendiente</option>
             <option value="in_progress">◑ En progreso</option>
             <option value="blocked">✕ Bloqueada</option>
@@ -1028,8 +1002,8 @@ function CreateTaskModal({ open, onClose, projects }) {
           </select>
         </div>
         <div>
-          <label htmlFor={priorityInputId} style={ls}>Prioridad</label>
-          <select id={priorityInputId} value={form.priority} onChange={set('priority')} style={fs}>
+          <label style={ls}>Prioridad</label>
+          <select value={form.priority} onChange={set('priority')} style={fs}>
             <option value="low">🟢 Baja</option>
             <option value="medium">🟡 Media</option>
             <option value="high">🔴 Alta</option>
@@ -1039,13 +1013,13 @@ function CreateTaskModal({ open, onClose, projects }) {
         {/* Asignación + estimación con IA */}
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <label htmlFor={assigneeInputId} style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
+            <label style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
             <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
               style={{ background: 'transparent', border: '1px solid #7c3aed40', borderRadius: 6, padding: '3px 12px', color: 'var(--purple)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
               {suggesting ? '⏳...' : '🧠 Analizar con IA'}
             </button>
           </div>
-          <select id={assigneeInputId} value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
+          <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
             <option value="">Sin asignar</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
@@ -1088,21 +1062,20 @@ function CreateTaskModal({ open, onClose, projects }) {
           </div>
         )}
         <div>
-          <label htmlFor={estimatedHoursInputId} style={ls}>Horas estimadas</label>
-          <input id={estimatedHoursInputId} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={validation.inputStyle(fs, 'estimated_hours')} placeholder="0" />
-          {validation.errors.estimated_hours && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.estimated_hours}</div>}
+          <label style={ls}>Horas estimadas</label>
+          <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" />
         </div>
         <div>
-          <label htmlFor={startDateInputId} style={ls}>Fecha inicio</label>
-          <input id={startDateInputId} type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+          <label style={ls}>Fecha inicio</label>
+          <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
         </div>
         <div>
-          <label htmlFor={dueDateInputId} style={ls}>Fecha límite</label>
-          <input id={dueDateInputId} type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
+          <label style={ls}>Fecha límite</label>
+          <input type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label htmlFor={descriptionInputId} style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
-          <AIInlineEditor inputId={descriptionInputId} ariaLabel="Descripción de la nueva tarea" value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder="Descripción de la tarea..." style={{ ...fs, resize: 'vertical' }} />
+          <label style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
+          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder="Descripción de la tarea..." style={{ ...fs, resize: 'vertical' }} />
         </div>
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (
@@ -1111,20 +1084,19 @@ function CreateTaskModal({ open, onClose, projects }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {customFields.map(f => (
                 <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
-                  <label htmlFor={`${formIdPrefix}-custom-${f.id}`} style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
+                  <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                   {f.field_type === 'select' ? (
-                    <select id={`${formIdPrefix}-custom-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
+                    <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
                       <option value="">Seleccionar...</option>
                       {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : f.field_type === 'boolean' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
-                      <input id={`${formIdPrefix}-custom-${f.id}`} type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                      <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
                       <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? 'Sí' : 'No'}</span>
                     </div>
                   ) : (
                     <input
-                      id={`${formIdPrefix}-custom-${f.id}`}
                       type={f.field_type === 'number' ? 'number' : f.field_type === 'date' ? 'date' : f.field_type === 'url' ? 'url' : 'text'}
                       value={customValues[f.id] ?? ''}
                       onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))}
@@ -1138,7 +1110,7 @@ function CreateTaskModal({ open, onClose, projects }) {
         )}
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={submit} disabled={isPending} loading={isPending}>
+          <Button onClick={() => mutate({ taskData: form, cfValues: customValues, cfFields: customFields })} disabled={isPending || !form.title || !form.project_id} loading={isPending}>
             {isPending ? 'Creando...' : 'Crear tarea'}
           </Button>
         </div>

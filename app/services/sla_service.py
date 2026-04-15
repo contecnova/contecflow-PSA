@@ -346,15 +346,23 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
 
     time_to_response = None
     if t.first_response_at and t.created_at:
-        time_to_response = round(
-            (aware(t.first_response_at) - aware(t.created_at)).total_seconds() / 3600, 1
-        )
+        # Use pre-computed value when available (set at response time), fall back to live calc
+        if getattr(t, "first_response_minutes", None) is not None:
+            time_to_response = round(t.first_response_minutes / 60, 1)
+        else:
+            time_to_response = round(
+                (aware(t.first_response_at) - aware(t.created_at)).total_seconds() / 3600, 1
+            )
 
     time_to_resolution = None
     if t.resolved_at and t.created_at:
-        time_to_resolution = round(
-            (aware(t.resolved_at) - aware(t.created_at)).total_seconds() / 3600, 1
-        )
+        # Use pre-computed value when available (set at resolution time), fall back to live calc
+        if getattr(t, "resolution_minutes", None) is not None:
+            time_to_resolution = round(t.resolution_minutes / 60, 1)
+        else:
+            time_to_resolution = round(
+                (aware(t.resolved_at) - aware(t.created_at)).total_seconds() / 3600, 1
+            )
 
     created_at_aware = aware(t.created_at)
     age_hours = round((now - created_at_aware).total_seconds() / 3600, 1) if created_at_aware else 0
@@ -405,6 +413,8 @@ def ticket_out(t: "Ticket", include_comments: bool = False) -> dict:
         "sla_resolution_due": str(t.sla_resolution_due)[:16] if t.sla_resolution_due else None,
         "sla_response_status": resp_sla,
         "sla_resolution_status": res_sla,
+        "sla_response_breached": getattr(t, "sla_response_breached", False) or False,
+        "sla_resolution_breached": getattr(t, "sla_resolution_breached", False) or False,
         "time_spent_minutes": t.time_spent_minutes,
         "time_to_response_hours": time_to_response,
         "time_to_resolution_hours": time_to_resolution,

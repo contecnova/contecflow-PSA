@@ -26,6 +26,8 @@ PyJWT==2.12.1
 bcrypt==4.0.1
 passlib==1.7.4
 cryptography==46.0.7
+# MFA QR — generated locally, no third-party service needed
+qrcode[pil]
 pyotp==2.9.0
 webauthn==2.7.0
 python-dotenv==1.0.1

@@ -11,10 +11,10 @@ def _current_year() -> int:
     return datetime.now(timezone.utc).year
 
 
-def _render_sequence(sequence: NumberingSequence, number: int, year: int) -> str:
+def _render_sequence(sequence: NumberingSequence, number: int, year: int, year_separator: str = "") -> str:
     year_part = str(year) if sequence.include_year else ""
     padded = str(number).zfill(sequence.padding or 4)
-    middle = f"{year_part}{padded}" if year_part else padded
+    middle = f"{year_part}{year_separator}{padded}" if year_part else padded
     if sequence.prefix:
         return f"{sequence.prefix}{sequence.separator}{middle}{sequence.suffix}"
     return f"{middle}{sequence.suffix}"
@@ -37,6 +37,7 @@ def next_numbered_code(
     separator: str = "-",
     include_year: bool = False,
     reset_yearly: bool = False,
+    year_separator: str = "",
 ) -> str:
     current_year = _current_year()
     sequence = _lock_sequence(db, entity)
@@ -68,7 +69,7 @@ def next_numbered_code(
         sequence.last_reset_year = current_year
 
     sequence.current_value = int(sequence.current_value or 0) + 1
-    code = _render_sequence(sequence, sequence.current_value, current_year)
+    code = _render_sequence(sequence, sequence.current_value, current_year, year_separator=year_separator)
     sequence.example = code
     db.flush()
     return code

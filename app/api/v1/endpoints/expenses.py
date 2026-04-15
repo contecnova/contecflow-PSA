@@ -18,6 +18,11 @@ from app.models.project import Project, ProjectStatus
 from app.models.expenses import Expense, ExpenseStatus
 from app.core.config import settings
 from app.services.numbering import next_numbered_code
+from app.services.expense_service import (
+    review_expense as svc_review_expense,
+    export_expenses_excel,
+    ocr_receipt as svc_ocr_receipt,
+)
 
 router = APIRouter()
 
@@ -344,32 +349,7 @@ def review_expense(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", expense_id, action="approve")
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
-    if not expense: raise HTTPException(404)
-    if expense.status != ExpenseStatus.submitted:
-        raise HTTPException(400, "El gasto no está pendiente de revisión")
-
-    expense.reviewed_by = current_user.id
-    expense.reviewed_at = datetime.now(timezone.utc)
-    if payload.approved:
-        expense.status = ExpenseStatus.approved
-        expense.rejection_reason = None
-        notify_user(db, expense.user_id, "expense_approved",
-                   f"Gasto aprobado: {expense.description[:50]}",
-                   f"{current_user.full_name} aprobó tu gasto de {expense.amount} {expense.currency}",
-                   resource="expenses", resource_id=expense.id, action_url="/expenses")
-    else:
-        expense.status = ExpenseStatus.rejected
-        expense.rejection_reason = payload.rejection_reason
-        notify_user(db, expense.user_id, "expense_rejected",
-                   f"Gasto rechazado: {expense.description[:50]}",
-                   f"Motivo: {payload.rejection_reason or 'Sin motivo especificado'}",
-                   resource="expenses", resource_id=expense.id, action_url="/expenses")
-    audit_log(db, current_user, "APPROVE" if payload.approved else "REJECT",
-              "expenses", expense.id, expense.description,
-              new_values={"status": expense.status, "amount": expense.amount})
-    db.commit()
-    return {"ok": True, "status": expense.status}
+    return svc_review_expense(expense_id, payload.approved, payload.rejection_reason, current_user, db)
 
 
 @router.post("/{expense_id}/reimburse", summary="Marcar como reembolsado")
@@ -410,75 +390,7 @@ def export_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    """Genera un fichero Excel con los gastos filtrados."""
-    import io
-    from fastapi.responses import StreamingResponse
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
-    from app.models.expenses import Expense
-
-    q = db.query(Expense).join(User, Expense.user_id == User.id, isouter=True)
-    if date_from:  q = q.filter(Expense.expense_date >= date_from)
-    if date_to:    q = q.filter(Expense.expense_date <= date_to)
-    if status:     q = q.filter(Expense.status == status)
-    if category:   q = q.filter(Expense.category == category)
-    expenses = q.order_by(Expense.expense_date.desc()).all()
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Gastos"
-
-    # Cabecera
-    headers = ["Fecha","Empleado","Categoría","Descripción","Importe","Moneda","Proyecto","Estado","Facturable","Notas","URL Justificante"]
-    header_fill = PatternFill("solid", fgColor="0D1B3E")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
-
-    # Datos
-    CAT_LABELS = {
-        "travel":"Viaje","accommodation":"Alojamiento","meals":"Comidas",
-        "software":"Software","hardware":"Hardware","training":"Formación",
-        "marketing":"Marketing","office":"Oficina","other":"Otro"
-    }
-    STATUS_LABELS = {
-        "draft":"Borrador","submitted":"Enviado","approved":"Aprobado",
-        "rejected":"Rechazado","reimbursed":"Reembolsado"
-    }
-    for row, e in enumerate(expenses, 2):
-        row_data = [
-            str(e.expense_date) if e.expense_date else "",
-            e.user.full_name if e.user else "",
-            CAT_LABELS.get(e.category, e.category or ""),
-            e.description or "",
-            e.amount or 0,
-            e.currency or settings.DEFAULT_CURRENCY,
-            e.project.name if hasattr(e, 'project') and e.project else "",
-            STATUS_LABELS.get(str(e.status).replace("ExpenseStatus.",""), str(e.status)),
-            "Sí" if e.is_billable else "No",
-            e.notes or "",
-            e.receipt_url or "",
-        ]
-        for col, val in enumerate(row_data, 1):
-            ws.cell(row=row, column=col, value=val)
-
-    # Anchos de columna
-    for col, w in enumerate([12,20,14,35,10,8,20,12,10,25,35], 1):
-        ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = w
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
-    filename = f"gastos_{date_from or 'todos'}_{date_to or 'hoy'}.xlsx"
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return export_expenses_excel(date_from, date_to, status, category, db)
 
 
 # ── OCR receipt scanning (v24) ────────────────────────────────────────────────
@@ -487,100 +399,11 @@ async def ocr_receipt(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Upload a receipt image (JPEG/PNG/WebP/PDF) and get back pre-filled expense fields.
-    Uses the configured AI provider (Claude Vision by default).
-    Returns: { amount, currency, merchant, date, category, description }
-    """
-    import base64, json as _json
-
     allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"}
     if file.content_type not in allowed_types:
         raise HTTPException(400, f"Tipo de archivo no soportado: {file.content_type}. Usa JPEG, PNG, WebP o PDF.")
-
     image_bytes = await file.read()
     if len(image_bytes) > 10 * 1024 * 1024:
         raise HTTPException(400, "El archivo no puede superar 10 MB.")
-
-    b64 = base64.b64encode(image_bytes).decode()
-
-    _SYSTEM = (
-        "Eres un asistente experto en contabilidad. Analiza la imagen de un recibo o factura y extrae "
-        "los datos estructurados. Responde SOLO con un JSON válido sin markdown, con las claves: "
-        "amount (número), currency (ISO 4217 de 3 letras), merchant (nombre del comercio o emisor), "
-        "date (YYYY-MM-DD), category (una de: travel|accommodation|meals|software|hardware|training|subcontract|other), "
-        "description (descripción breve en español de máximo 80 caracteres). "
-        "Si no puedes leer un campo devuelve null para ese campo."
-    )
-
-    media_type = file.content_type if file.content_type != "application/pdf" else "image/png"
-
-    try:
-        import os
-        anthropic_key = settings.ANTHROPIC_API_KEY or None
-        if not anthropic_key:
-            raise HTTPException(503, "API de IA no configurada (ANTHROPIC_API_KEY ausente).")
-
-        import urllib.request
-        payload = {
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": 500,
-            "system": _SYSTEM,
-            "messages": [{
-                "role": "user",
-                "content": [{
-                    "type": "image",
-                    "source": {"type": "base64", "media_type": media_type, "data": b64}
-                }, {
-                    "type": "text",
-                    "text": "Por favor extrae los datos de este recibo."
-                }]
-            }]
-        }
-        data = _json.dumps(payload).encode()
-        req  = urllib.request.Request(
-            f"{settings.ANTHROPIC_API_URL}/messages",
-            data=data,
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": anthropic_key,
-                "anthropic-version": "2023-06-01",
-            }
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            response_body = _json.loads(resp.read().decode())
-
-        raw_text = response_body["content"][0]["text"].strip()
-        # Strip markdown code fences if present
-        if raw_text.startswith("```"):
-            raw_text = raw_text.split("```")[1].lstrip("json").strip()
-
-        extracted = _json.loads(raw_text)
-
-        # Normalize date
-        if extracted.get("date"):
-            from datetime import datetime as _dt
-            try:
-                _dt.strptime(extracted["date"], "%Y-%m-%d")
-            except ValueError:
-                extracted["date"] = None
-
-        return {
-            "ok": True,
-            "extracted": {
-                "amount":      extracted.get("amount"),
-                "currency":    extracted.get("currency", settings.DEFAULT_CURRENCY),
-                "merchant":    extracted.get("merchant"),
-                "date":        extracted.get("date"),
-                "category":    extracted.get("category", "other"),
-                "description": extracted.get("description", ""),
-            },
-        }
-    except HTTPException:
-        raise
-    except _json.JSONDecodeError:
-        raise HTTPException(422, "La IA devolvió un formato inesperado. Intenta con otra imagen.")
-    except Exception as exc:
-        import logging as _log
-        _log.getLogger(__name__).error("OCR receipt error: %s", exc, exc_info=True)
-        raise HTTPException(500, "Error al procesar el recibo. Por favor, inténtalo de nuevo.")
+    extracted = await svc_ocr_receipt(image_bytes, file.content_type)
+    return {"ok": True, "extracted": extracted}

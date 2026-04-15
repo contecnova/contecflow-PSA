@@ -44,7 +44,8 @@ class MaintenanceWindow(Base):
     """Scheduled maintenance windows for change implementation."""
     __tablename__ = "maintenance_windows"
 
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     start_dt    = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -84,7 +85,8 @@ class WebhookTrigger(Base):
     """Incoming webhook endpoint that fires a workflow."""
     __tablename__ = "webhook_triggers"
 
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(255), nullable=False)
     slug        = Column(String(100), nullable=False, unique=True, index=True)  # URL key
     secret      = Column(String(255), nullable=True)    # HMAC secret for verification
@@ -121,10 +123,11 @@ class WebhookTriggerLog(Base):
 # ── Email Templates & Logs ────────────────────────────────────────────────────
 
 class EmailTemplate(Base):
-    """Reusable HTML email templates for automation actions."""
+    """Reusable HTML email templates for automation actions (per tenant)."""
     __tablename__ = "email_templates"
 
-    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(255), nullable=False)
     subject     = Column(String(500), nullable=False)
     body_html   = Column(Text, nullable=False)    # Jinja2-compatible HTML
@@ -215,10 +218,11 @@ class IntegrationType(str, enum.Enum):
 
 
 class IntegrationConfig(Base):
-    """OAuth/API config for external service integrations."""
+    """OAuth/API config for external service integrations (per tenant)."""
     __tablename__ = "integration_configs"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     integration_type = Column(Enum(IntegrationType), nullable=False, index=True)
     name            = Column(String(255), nullable=False)
     is_active       = Column(Boolean, default=True)

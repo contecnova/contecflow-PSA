@@ -41,16 +41,33 @@ router = APIRouter(prefix="/jira", tags=["Jira Integration"])
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
-def _get_setting(key: str, db: Session) -> Optional[str]:
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+def _get_setting(key: str, db: Session, org_id: Optional[str] = None) -> Optional[str]:
+    """Return the tenant-specific setting first, then fall back to the global row."""
+    if org_id:
+        row = db.query(AppSetting).filter(
+            AppSetting.key == key, AppSetting.organization_id == org_id
+        ).first()
+        if row:
+            return row.value
+    # Fall back to global (org_id IS NULL) — TenantSession already includes these.
+    row = db.query(AppSetting).filter(
+        AppSetting.key == key, AppSetting.organization_id.is_(None)
+    ).first()
     return row.value if row else None
 
-def _set_setting(key: str, value: str, db: Session):
-    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+def _set_setting(key: str, value: str, db: Session, org_id: Optional[str] = None):
+    """Upsert a setting, scoped to *org_id* when provided."""
+    q = db.query(AppSetting).filter(AppSetting.key == key)
+    if org_id:
+        q = q.filter(AppSetting.organization_id == org_id)
+    else:
+        q = q.filter(AppSetting.organization_id.is_(None))
+    row = q.first()
     if row:
         row.value = value
     else:
-        db.add(AppSetting(key=key, value=value, description=f"Jira integration: {key}"))
+        db.add(AppSetting(key=key, value=value, organization_id=org_id,
+                          description=f"Jira integration: {key}"))
     db.flush()
 
 def _jira_headers(email: str, token: str) -> dict:
@@ -61,12 +78,12 @@ def _jira_headers(email: str, token: str) -> dict:
         "Accept": "application/json",
     }
 
-def _get_jira_config(db: Session) -> dict:
+def _get_jira_config(db: Session, org_id: Optional[str] = None) -> dict:
     return {
-        "jira_url":         _get_setting("jira_url", db),
-        "jira_email":       _get_setting("jira_email", db),
-        "jira_api_token":   _get_setting("jira_api_token", db),
-        "jira_project_key": _get_setting("jira_project_key", db),
+        "jira_url":         _get_setting("jira_url",         db, org_id),
+        "jira_email":       _get_setting("jira_email",       db, org_id),
+        "jira_api_token":   _get_setting("jira_api_token",   db, org_id),
+        "jira_project_key": _get_setting("jira_project_key", db, org_id),
     }
 
 # Jira issue status → NexusPM task status mapping
@@ -138,9 +155,9 @@ class JiraPushIn(BaseModel):
 @router.get("/config", summary="Obtener configuración Jira")
 def get_jira_config(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    cfg = _get_jira_config(db)
+    cfg = _get_jira_config(db, current_user.organization_id)
     safe = {k: v for k, v in cfg.items() if k != "jira_api_token"}
     safe["configured"] = bool(cfg.get("jira_url") and cfg.get("jira_api_token"))
     if cfg.get("jira_api_token"):
@@ -153,12 +170,13 @@ def get_jira_config(
 def save_jira_config(
     payload: JiraConfigIn,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    _set_setting("jira_url",         payload.jira_url,         db)
-    _set_setting("jira_email",       payload.jira_email,       db)
-    _set_setting("jira_api_token",   payload.jira_api_token,   db)
-    _set_setting("jira_project_key", payload.jira_project_key, db)
+    org_id = current_user.organization_id
+    _set_setting("jira_url",         payload.jira_url,         db, org_id)
+    _set_setting("jira_email",       payload.jira_email,       db, org_id)
+    _set_setting("jira_api_token",   payload.jira_api_token,   db, org_id)
+    _set_setting("jira_project_key", payload.jira_project_key, db, org_id)
     db.commit()
     return {"ok": True, "message": "Configuración Jira guardada"}
 
@@ -166,9 +184,9 @@ def save_jira_config(
 @router.get("/test", summary="Test de conexión Jira")
 def test_jira_connection(
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    current_user: User = Depends(require_any_manager),
 ):
-    cfg = _get_jira_config(db)
+    cfg = _get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado. Ve a /jira/config primero.")
     try:
@@ -198,9 +216,9 @@ def list_jira_issues(
     max_results: int = Query(50, le=200),
     jql: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    current_user: User = Depends(require_any_manager),
 ):
-    cfg = _get_jira_config(db)
+    cfg = _get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
     key = project_key or cfg["jira_project_key"]
@@ -251,7 +269,7 @@ def sync_jira_to_nexus(
     Pulls issues from Jira and creates or updates corresponding NexusPM Tasks.
     Matching is done by jira_issue_key on the Task model.
     """
-    cfg = _get_jira_config(db)
+    cfg = _get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
 
@@ -359,7 +377,7 @@ def push_nexus_to_jira(
     For each NexusPM task in the project that has no jira_issue_key,
     creates a new Jira issue and stores the returned key back on the task.
     """
-    cfg = _get_jira_config(db)
+    cfg = _get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
 
@@ -488,17 +506,18 @@ def get_linked_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_manager),
+    current_user: User = Depends(require_any_manager),
 ):
     q = db.query(Task).filter(Task.jira_issue_key != None)  # noqa: E711
     if project_id:
         q = q.filter(Task.project_id == project_id)
     tasks, _, _ = paginate_query(q.order_by(Task.updated_at.desc()), page, page_size)
+    jira_url = _get_setting("jira_url", db, current_user.organization_id)
     return [
         {
             "id": t.id, "title": t.title, "status": t.status,
             "jira_issue_key": t.jira_issue_key,
-            "jira_issue_url": f"{_get_setting('jira_url', db)}/browse/{t.jira_issue_key}" if t.jira_issue_key else None,
+            "jira_issue_url": f"{jira_url}/browse/{t.jira_issue_key}" if t.jira_issue_key else None,
             "jira_synced_at": t.jira_synced_at.isoformat() if t.jira_synced_at else None,
         }
         for t in tasks

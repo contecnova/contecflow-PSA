@@ -1,0 +1,571 @@
+"""
+project_service.py — Lógica de negocio para proyectos.
+
+Funciones exportadas:
+  build_project_code(db)
+  empty_enrichment()
+  enrich_projects_batch(project_ids, db)
+  enrich_project(project, db)
+  compute_budget_used_pct(project, enrichment)
+  calculate_evm(project_id, db)
+  calculate_evm_portfolio(db)
+"""
+from __future__ import annotations
+
+import re
+from datetime import date
+from typing import Optional
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+
+# ── Code generation ────────────────────────────────────────────────────────────
+
+def build_project_code(db: Session) -> str:
+    """Generate a unique project code (PRJ-NNNN) with optimistic locking on Postgres."""
+    from app.models.project import Project
+    from app.db.session import is_postgres
+
+    if is_postgres():
+        row = db.execute(
+            select(func.max(Project.code)).with_for_update()
+        ).scalar()
+    else:
+        row = db.query(func.max(Project.code)).scalar()
+
+    if row:
+        m = re.search(r"(\d+)$", row)
+        next_num = (int(m.group(1)) + 1) if m else 1
+    else:
+        next_num = 1
+    return f"PRJ-{next_num:04d}"
+
+
+# ── Batch enrichment ───────────────────────────────────────────────────────────
+
+def empty_enrichment() -> dict:
+    return {
+        "total_hours_spent": 0.0,
+        "total_cost_spent": 0.0,
+        "budget_used_pct": 0.0,
+        "progress_pct": 0.0,
+        "tasks_total": 0,
+        "tasks_done": 0,
+        "team_size": 0,
+        "_total_hours": 0.0,
+        "_total_cost": 0.0,
+    }
+
+
+def enrich_projects_batch(project_ids: list, db: Session) -> dict:
+    """Return enrichment metrics for multiple projects in a minimal set of queries."""
+    from app.models.imputation import Imputation
+    from app.models.task import Task, TaskStatus
+    from app.models.project import ProjectMember
+
+    if not project_ids:
+        return {}
+
+    imp_rows = db.query(
+        Imputation.project_id,
+        func.sum(Imputation.hours).label("total_hours"),
+        func.sum(Imputation.cost_amount).label("total_cost"),
+        func.count(func.distinct(Imputation.user_id)).label("imp_team"),
+    ).filter(Imputation.project_id.in_(project_ids)).group_by(Imputation.project_id).all()
+    imp_by_project = {r.project_id: r for r in imp_rows}
+
+    task_total_rows = db.query(
+        Task.project_id,
+        func.count(Task.id).label("cnt"),
+    ).filter(Task.project_id.in_(project_ids)).group_by(Task.project_id).all()
+
+    task_done_rows = db.query(
+        Task.project_id,
+        func.count(Task.id).label("cnt"),
+    ).filter(Task.project_id.in_(project_ids), Task.status == TaskStatus.done).group_by(Task.project_id).all()
+
+    task_total = {r.project_id: r.cnt for r in task_total_rows}
+    task_done = {r.project_id: r.cnt for r in task_done_rows}
+
+    member_rows = db.query(
+        ProjectMember.project_id,
+        func.count(ProjectMember.id).label("cnt"),
+    ).filter(ProjectMember.project_id.in_(project_ids)).group_by(ProjectMember.project_id).all()
+    member_count = {r.project_id: r.cnt for r in member_rows}
+
+    result: dict = {}
+    for pid in project_ids:
+        imp = imp_by_project.get(pid)
+        total_hours = float(imp.total_hours or 0) if imp else 0.0
+        total_cost = float(imp.total_cost or 0) if imp else 0.0
+        imp_team = int(imp.imp_team or 0) if imp else 0
+        t_total = task_total.get(pid, 0)
+        t_done = task_done.get(pid, 0)
+        members = member_count.get(pid, 0) or imp_team
+        progress = round((t_done / t_total) * 100, 1) if t_total > 0 else 0.0
+
+        result[pid] = {
+            "total_hours_spent": total_hours,
+            "total_cost_spent": total_cost,
+            "budget_used_pct": 0.0,
+            "progress_pct": progress,
+            "tasks_total": t_total,
+            "tasks_done": t_done,
+            "team_size": members,
+            "_total_hours": total_hours,
+            "_total_cost": total_cost,
+        }
+    return result
+
+
+def enrich_project(project, db: Session) -> dict:
+    return enrich_projects_batch([project.id], db).get(project.id, empty_enrichment())
+
+
+def compute_budget_used_pct(project, enrichment: dict) -> float:
+    total_cost = enrichment["_total_cost"]
+    total_hours = enrichment["_total_hours"]
+    if project.budget_amount and project.budget_amount > 0:
+        return round((total_cost / project.budget_amount) * 100, 1)
+    elif project.budget_hours and project.budget_hours > 0:
+        return round((total_hours / project.budget_hours) * 100, 1)
+    return 0.0
+
+
+# ── EVM ────────────────────────────────────────────────────────────────────────
+
+def _evm_health(cpi: Optional[float], spi: Optional[float]) -> str:
+    if cpi is None or spi is None:
+        return "grey"
+    if cpi >= 0.9 and spi >= 0.9:
+        return "green"
+    if cpi < 0.85 or spi < 0.85:
+        return "red"
+    return "yellow"
+
+
+def calculate_evm(project_id: str, db: Session) -> dict:
+    """
+    Calcula indicadores EVM completos para un proyecto:
+    BAC, PV, EV, AC, CPI, SPI, CV, SV, EAC, ETC, VAC, TCPI.
+    """
+    from app.models.project import Project
+    from app.models.imputation import Imputation
+    from app.models.task import Task, TaskStatus
+
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        return None  # caller raises 404
+
+    today = date.today()
+
+    bac = proj.budget_amount or 0.0
+    if bac == 0:
+        total_est = db.query(func.sum(Task.estimated_hours)).filter(
+            Task.project_id == project_id
+        ).scalar() or 0.0
+        avg_rate = db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
+            Imputation.project_id == project_id,
+            Imputation.hourly_rate_snapshot.isnot(None),
+        ).scalar() or 0.0
+        bac = total_est * avg_rate
+
+    ac_cost = db.query(func.sum(Imputation.cost_amount)).filter(
+        Imputation.project_id == project_id,
+        Imputation.cost_amount.isnot(None),
+    ).scalar() or 0.0
+    if ac_cost == 0:
+        rows = db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
+            Imputation.project_id == project_id
+        ).all()
+        ac_cost = sum((r.hours * r.hourly_rate_snapshot) for r in rows if r.hourly_rate_snapshot) or 0.0
+    ac = ac_cost
+
+    tasks_total = db.query(
+        func.count(Task.id).label("cnt"),
+        func.sum(Task.estimated_hours).label("est"),
+    ).filter(Task.project_id == project_id).first()
+    tasks_done = db.query(
+        func.count(Task.id).label("cnt"),
+        func.sum(Task.estimated_hours).label("est"),
+    ).filter(Task.project_id == project_id, Task.status == TaskStatus.done).first()
+
+    total_est_hours = tasks_total.est or 0.0
+    done_est_hours = tasks_done.est or 0.0
+    pct_complete = (done_est_hours / total_est_hours) if total_est_hours > 0 else 0.0
+    ev = bac * pct_complete
+
+    start = proj.start_date
+    end = proj.end_date_planned
+    if start and end and end > start:
+        total_days = (end - start).days
+        elapsed_days = max(0, (today - start).days)
+        pct_time = min(elapsed_days / total_days, 1.0)
+    else:
+        pct_time = None
+
+    pv = bac * pct_time if pct_time is not None else None
+
+    cpi = round(ev / ac, 4) if ac > 0 else None
+    spi = round(ev / pv, 4) if (pv is not None and pv > 0) else None
+    cv = round(ev - ac, 2)
+    sv = round(ev - pv, 2) if pv is not None else None
+    eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
+    etc = round(eac - ac, 2) if eac is not None else None
+    vac = round(bac - eac, 2) if eac is not None else None
+    tcpi_denom = bac - ac
+    tcpi = round((bac - ev) / tcpi_denom, 4) if tcpi_denom != 0 else None
+
+    return {
+        "project_id": project_id,
+        "project_name": proj.name,
+        "currency": "EUR",
+        "bac": round(bac, 2),
+        "pv": round(pv, 2) if pv is not None else None,
+        "ev": round(ev, 2),
+        "ac": round(ac, 2),
+        "cpi": cpi,
+        "spi": spi,
+        "cv": cv,
+        "sv": sv,
+        "eac": eac,
+        "etc": etc,
+        "vac": vac,
+        "tcpi": tcpi,
+        "pct_complete": round(pct_complete * 100, 1),
+        "pct_time_elapsed": round(pct_time * 100, 1) if pct_time is not None else None,
+        "has_schedule": pct_time is not None,
+        "total_tasks": tasks_total.cnt or 0,
+        "done_tasks": tasks_done.cnt or 0,
+        "health": _evm_health(cpi, spi),
+        "start_date": proj.start_date.isoformat() if proj.start_date else None,
+        "planned_end": proj.end_date_planned.isoformat() if proj.end_date_planned else None,
+    }
+
+
+def calculate_evm_portfolio(db: Session) -> list:
+    """EVM summary for all active/on-hold projects."""
+    from app.models.project import Project, ProjectStatus
+    from app.models.imputation import Imputation
+    from app.models.task import Task, TaskStatus
+
+    active = db.query(Project).filter(
+        Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold])
+    ).all()
+
+    results = []
+    today = date.today()
+    for proj in active:
+        bac = proj.budget_amount or 0.0
+        if bac == 0:
+            total_est = db.query(func.sum(Task.estimated_hours)).filter(
+                Task.project_id == proj.id
+            ).scalar() or 0.0
+            avg_rate = db.query(func.avg(Imputation.hourly_rate_snapshot)).filter(
+                Imputation.project_id == proj.id,
+                Imputation.hourly_rate_snapshot.isnot(None),
+            ).scalar() or 0.0
+            bac = total_est * avg_rate
+
+        ac = db.query(func.sum(Imputation.cost_amount)).filter(
+            Imputation.project_id == proj.id,
+            Imputation.cost_amount.isnot(None),
+        ).scalar() or 0.0
+
+        total_est_h = db.query(func.sum(Task.estimated_hours)).filter(
+            Task.project_id == proj.id
+        ).scalar() or 0.0
+        done_est_h = db.query(func.sum(Task.estimated_hours)).filter(
+            Task.project_id == proj.id, Task.status == TaskStatus.done
+        ).scalar() or 0.0
+        pct = (done_est_h / total_est_h) if total_est_h > 0 else 0.0
+        ev = bac * pct
+
+        start, end = proj.start_date, proj.end_date_planned
+        if start and end and end > start:
+            pct_t = min((today - start).days / (end - start).days, 1.0)
+        else:
+            pct_t = pct
+        pv = bac * max(pct_t, 0)
+
+        cpi = round(ev / ac, 3) if ac > 0 else None
+        spi = round(ev / pv, 3) if pv > 0 else None
+        eac = round(bac / cpi, 2) if cpi and cpi > 0 else None
+
+        results.append({
+            "project_id": proj.id,
+            "project_name": proj.name,
+            "bac": round(bac, 2),
+            "ac": round(ac, 2),
+            "ev": round(ev, 2),
+            "pv": round(pv, 2),
+            "cpi": cpi,
+            "spi": spi,
+            "eac": eac,
+            "pct_complete": round(pct * 100, 1),
+            "health": _evm_health(cpi, spi),
+        })
+
+    return sorted(results, key=lambda r: r["health"] == "red", reverse=True)
+
+
+# ── Project scoped query ───────────────────────────────────────────────────────
+
+def scope_projects_query(q, db: Session, current_user):
+    """Apply org isolation and role-based visibility rules to a Project query."""
+    from app.models.project import Project
+    from app.models.imputation import Imputation
+    from app.models.task import Task as _Task
+    from app.models.user import UserRole
+
+    if not current_user.is_superadmin and current_user.organization_id:
+        q = q.filter(Project.organization_id == current_user.organization_id)
+
+    if current_user.role == UserRole.pm:
+        q = q.filter(Project.pm_id == current_user.id)
+    elif current_user.role in (UserRole.employee, UserRole.subcontractor):
+        project_ids = db.query(func.distinct(Imputation.project_id)).filter(
+            Imputation.user_id == current_user.id
+        ).subquery()
+        task_project_ids = db.query(func.distinct(_Task.project_id)).filter(
+            _Task.assignee_id == current_user.id,
+            _Task.project_id.isnot(None),
+        ).subquery()
+        q = q.filter((Project.id.in_(project_ids)) | (Project.id.in_(task_project_ids)))
+
+    return q
+
+
+# ── Milestones ─────────────────────────────────────────────────────────────────
+
+def list_milestones_payload(
+    db: Session,
+    project_id: Optional[str],
+    date_from: Optional[str],
+    date_to: Optional[str],
+    status: Optional[str],
+) -> list:
+    from app.models.financial import ProjectMilestone
+
+    q = db.query(ProjectMilestone)
+    if project_id:
+        q = q.filter(ProjectMilestone.project_id == project_id)
+    if date_from:
+        try:
+            df = date.fromisoformat(date_from)
+            q = q.filter(ProjectMilestone.due_date >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = date.fromisoformat(date_to)
+            q = q.filter(ProjectMilestone.due_date <= dt)
+        except ValueError:
+            pass
+    if status:
+        q = q.filter(ProjectMilestone.billing_status == status)
+
+    milestones = q.order_by(ProjectMilestone.due_date).all()
+    return [
+        {
+            "id":             m.id,
+            "project_id":     m.project_id,
+            "name":           m.name,
+            "billing_amount": m.billing_amount,
+            "billing_status": m.billing_status,
+            "due_date":       str(m.due_date) if m.due_date else None,
+        }
+        for m in milestones
+    ]
+
+
+# ── Project CRUD helpers ───────────────────────────────────────────────────────
+
+def get_project_scoped_or_404(db: Session, project_id: str, current_user):
+    """Fetch project with joinedloads + org isolation. Raises 404 on cross-tenant access."""
+    from app.models.project import Project
+    from fastapi import HTTPException
+    from sqlalchemy.orm import joinedload
+
+    project = (
+        db.query(Project)
+        .options(joinedload(Project.project_manager), joinedload(Project.phases))
+        .filter(Project.id == project_id)
+        .first()
+    )
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+    if (
+        not current_user.is_superadmin
+        and current_user.organization_id
+        and project.organization_id
+        and project.organization_id != current_user.organization_id
+    ):
+        raise HTTPException(404, "Proyecto no encontrado")
+    return project
+
+
+def create_project_record(db: Session, payload, current_user):
+    """Build, flush, and return a new Project (with phases, code generation, org isolation, retry on code clash)."""
+    from app.models.project import Project, ProjectPhase
+    from app.models.user import UserRole
+    from sqlalchemy.exc import IntegrityError
+
+    phases_data = payload.phases or []
+    project_data = payload.model_dump(exclude={"phases"})
+    code = project_data.pop("code", None) or build_project_code(db)
+    if current_user.role == UserRole.pm and not project_data.get("pm_id"):
+        project_data["pm_id"] = current_user.id
+    if not project_data.get("organization_id") and current_user.organization_id:
+        project_data["organization_id"] = current_user.organization_id
+
+    project = Project(**project_data, code=code, created_by=current_user.id)
+    db.add(project)
+    try:
+        db.flush()
+    except IntegrityError as e:
+        db.rollback()
+        if "UNIQUE" in str(e).upper() or "unique" in str(e).lower():
+            code = build_project_code(db)
+            project_data_retry = payload.model_dump(exclude={"phases"})
+            project_data_retry.pop("code", None)
+            if current_user.role == UserRole.pm and not project_data_retry.get("pm_id"):
+                project_data_retry["pm_id"] = current_user.id
+            project = Project(**project_data_retry, code=code, created_by=current_user.id)
+            db.add(project)
+            db.flush()
+        else:
+            raise
+
+    for i, phase_data in enumerate(phases_data):
+        phase = ProjectPhase(**phase_data.model_dump(), project_id=project.id, order=i)
+        db.add(phase)
+
+    return project
+
+
+def apply_project_update(db: Session, project, data: dict) -> None:
+    """Apply update data to a project instance — handles optimistic locking and client_name sync."""
+    from fastapi import HTTPException
+
+    if "version" in data:
+        client_version = data.pop("version")
+        if project.version is not None and client_version != project.version:
+            raise HTTPException(
+                409,
+                f"Conflicto de edición: el proyecto fue modificado por otro usuario "
+                f"(versión esperada {client_version}, versión actual {project.version}). "
+                "Recarga y reintenta.",
+            )
+
+    if "client_id" in data and data["client_id"] and data["client_id"] != project.client_id:
+        from app.models.clients import Client
+        new_client = db.query(Client).filter(Client.id == data["client_id"]).first()
+        if new_client and "client_name" not in data:
+            data["client_name"] = new_client.name
+
+    for field, value in data.items():
+        setattr(project, field, value)
+    project.version = (project.version or 1) + 1
+
+
+def cancel_project_record(db: Session, project_id: str) -> dict:
+    from app.models.project import Project, ProjectStatus
+    from fastapi import HTTPException
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+    project.status = ProjectStatus.cancelled
+    return {"message": "Proyecto cancelado"}
+
+
+def add_project_phase_record(db: Session, project_id: str, payload):
+    """Return a new ProjectPhase after verifying the project exists."""
+    from app.models.project import Project, ProjectPhase
+    from fastapi import HTTPException
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+    return ProjectPhase(**payload.model_dump(), project_id=project_id)
+
+
+# ── Team / Members ─────────────────────────────────────────────────────────────
+
+def get_project_team_users(db: Session, project_id: str) -> list:
+    """Return distinct User objects with imputations on the project."""
+    from app.models.user import User as UserModel
+    from app.models.imputation import Imputation
+
+    return (
+        db.query(UserModel)
+        .join(Imputation, Imputation.user_id == UserModel.id)
+        .filter(Imputation.project_id == project_id)
+        .distinct()
+        .all()
+    )
+
+
+def list_members_payload(db: Session, project_id: str) -> list:
+    from app.models.project import ProjectMember
+    from sqlalchemy.orm import joinedload
+
+    members = (
+        db.query(ProjectMember)
+        .options(joinedload(ProjectMember.user))
+        .filter(ProjectMember.project_id == project_id)
+        .all()
+    )
+    result = []
+    for m in members:
+        u = m.user
+        result.append({
+            "id": m.id, "user_id": m.user_id,
+            "full_name": u.full_name if u else "—",
+            "email": u.email if u else "—",
+            "avatar_initials": (u.full_name or "?")[:2].upper() if u else "?",
+            "role": m.role, "allocation_pct": m.allocation_pct,
+            "start_date": str(m.start_date) if m.start_date else None,
+            "end_date":   str(m.end_date)   if m.end_date   else None,
+            "notes": m.notes,
+        })
+    return result
+
+
+def add_member_record(db: Session, project_id: str, data: dict):
+    """Validate and return a new ProjectMember (does NOT flush/commit). Raises on duplicate."""
+    from app.models.project import ProjectMember
+    from fastapi import HTTPException
+
+    if not data.get("user_id"):
+        raise HTTPException(422, "user_id es obligatorio")
+    existing = db.query(ProjectMember).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.user_id == data["user_id"],
+    ).first()
+    if existing:
+        raise HTTPException(409, "El usuario ya es miembro del proyecto")
+    return ProjectMember(
+        project_id=project_id,
+        user_id=data["user_id"],
+        role=data.get("role", "developer"),
+        allocation_pct=data.get("allocation_pct", 100),
+        start_date=data.get("start_date"),
+        end_date=data.get("end_date"),
+        notes=data.get("notes"),
+    )
+
+
+def get_member_or_404(db: Session, project_id: str, member_id: str):
+    from app.models.project import ProjectMember
+    from fastapi import HTTPException
+
+    m = db.query(ProjectMember).filter(
+        ProjectMember.id == member_id,
+        ProjectMember.project_id == project_id,
+    ).first()
+    if not m:
+        raise HTTPException(404, "Miembro no encontrado")
+    return m

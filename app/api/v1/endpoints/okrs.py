@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
+from app.models.project import Project
 from typing import Optional
 from pydantic import BaseModel
 from datetime import date
@@ -12,6 +13,14 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.models.okrs import Objective, KeyResult, KRCheckin
 from app.models.project import Project
+from app.services.okr_service import (
+    calc_progress as _calc_progress,
+    serialize_kr as _ser_kr,
+    serialize_objective as _ser_objective,
+    task_progress_for_project as _task_progress_for_project,
+    propagate_to_objective as _propagate_to_objective,
+    sync_kr_from_tasks as _sync_kr_from_tasks,
+)
 
 router = APIRouter(prefix="/okrs", tags=["OKRs"])
 
@@ -62,39 +71,6 @@ class CheckinIn(BaseModel):
     value: float
     note: Optional[str] = None
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def _calc_progress(kr: KeyResult) -> float:
-    if kr.kr_type == "boolean":
-        return 100.0 if kr.current_value and kr.current_value >= 1 else 0.0
-    if not kr.target_value or kr.target_value == 0:
-        return 0.0
-    return round(min(100, max(0, (kr.current_value or 0) / kr.target_value * 100)), 1)
-
-def _ser_kr(kr: KeyResult) -> dict:
-    return {
-        "id": kr.id, "objective_id": kr.objective_id, "title": kr.title,
-        "kr_type": kr.kr_type, "target_value": kr.target_value,
-        "current_value": kr.current_value, "unit": kr.unit,
-        "progress": _calc_progress(kr),
-        "owner_id": kr.owner_id,
-        "owner_name": kr.owner.full_name if kr.owner else None,
-        "due_date": str(kr.due_date) if kr.due_date else None, "notes": kr.notes,
-    }
-
-def _ser_objective(obj: Objective) -> dict:
-    krs = obj.key_results or []
-    avg_progress = round(sum(_calc_progress(kr) for kr in krs) / len(krs), 1) if krs else 0
-    return {
-        "id": obj.id, "title": obj.title, "description": obj.description,
-        "owner_id": obj.owner_id,
-        "owner_name": obj.owner.full_name if obj.owner else None,
-        "team_id": obj.team_id, "project_id": obj.project_id,
-        "period": obj.period, "year": obj.year, "status": obj.status,
-        "progress": avg_progress,
-        "key_results": [_ser_kr(kr) for kr in krs],
-        "created_at": str(obj.created_at)[:10] if obj.created_at else None,
-    }
 
 
 # ── Objectives CRUD ───────────────────────────────────────────────────────────
@@ -177,12 +153,7 @@ def update_kr(kr_id: str, payload: KeyResultUpdate,
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(kr, k, v)
     kr.progress = _calc_progress(kr)
-    # Propagate to parent Objective
-    obj = db.query(Objective).options(joinedload(Objective.key_results)).filter(
-        Objective.id == kr.objective_id
-    ).first()
-    if obj and obj.key_results:
-        obj.progress = round(sum(_calc_progress(k) for k in obj.key_results) / len(obj.key_results), 1)
+    _propagate_to_objective(db, kr)
     db.commit(); db.refresh(kr)
     return _ser_kr(kr)
 
@@ -207,11 +178,21 @@ def checkin_kr(kr_id: str, payload: CheckinIn,
     db.add(c)
     kr.current_value = payload.value
     kr.progress = _calc_progress(kr)
-    # Propagate to parent Objective
-    obj = db.query(Objective).options(joinedload(Objective.key_results)).filter(
-        Objective.id == kr.objective_id
-    ).first()
-    if obj and obj.key_results:
-        obj.progress = round(sum(_calc_progress(k) for k in obj.key_results) / len(obj.key_results), 1)
+    _propagate_to_objective(db, kr)
     db.commit()
     return {"progress": kr.progress, "current_value": kr.current_value}
+
+
+# ── Project→Task cascade sync ─────────────────────────────────────────────────
+
+@router.post(
+    "/key-results/{kr_id}/sync-from-tasks",
+    summary="Sincronizar KR con progreso de tareas del proyecto vinculado",
+    status_code=200,
+)
+def sync_kr_from_tasks(
+    kr_id: str,
+    db: Session = Depends(get_db),
+    cu: User = Depends(require_any_manager),
+):
+    return _sync_kr_from_tasks(kr_id, cu.id, db)

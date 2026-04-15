@@ -135,6 +135,12 @@ MIGRATIONS = [
     # v28 — KB article vector embeddings (RAG vectorial)
     ("ai_kb_articles", "embedding", "TEXT"),
 
+    # v30 - financial audit segregation and persisted SLA metrics
+    ("sd_tickets", "first_response_minutes", "INTEGER"),
+    ("sd_tickets", "resolution_minutes", "INTEGER"),
+    ("sd_tickets", "sla_response_breached", "BOOLEAN DEFAULT 0"),
+    ("sd_tickets", "sla_resolution_breached", "BOOLEAN DEFAULT 0"),
+
     # v26 — Document access audit trail (P2-6)
     # (document_access_logs is a new table — created via Base.metadata.create_all)
 ]
@@ -154,6 +160,7 @@ ALLOWED_TABLES = set(
     [t[0] for t in MIGRATIONS] +  # Tablas de MIGRATIONS
     [old_name for old_name, _ in TABLE_RENAMES] +  # Tablas antiguas a renombrar
     [new_name for _, new_name in TABLE_RENAMES] +  # Tablas nuevas después del rename
+    ["financial_approval_audit_logs"] +
     ["document_access_logs"]  # Nueva tabla v26
 )
 

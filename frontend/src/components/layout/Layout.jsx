@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
-import api, { alertsApi } from '../../services/api'
 import { Avatar } from '../ui'
 import NotificationCenter from './NotificationCenter'
 import GlobalSearch from './GlobalSearch'
 import NexusAssistPanel from './NexusAssistPanel'
 import UserProfilePanel from './UserProfilePanel'
 import useUserPreferences from '../../hooks/useUserPreferences'
+import useNotificationBadges from '../../hooks/useNotificationBadges'
 import OfflineIndicator from '../OfflineIndicator'
 import { useAppLang } from '../../i18n/AppLangContext'
 import {
@@ -891,20 +890,6 @@ export default function Layout({ children }) {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
-
-  const { data: alerts } = useQuery({
-    queryKey: ['alerts-count'],
-    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
-    refetchInterval: 60000, enabled: hasRole('admin', 'pm', 'hr'),
-  })
-  const alertCount = alerts ? alerts.filter(a => !a.is_read).length : 0
-
-  const { data: pendingApprovals = [] } = useQuery({
-    queryKey: ['approvals-pending-badge'],
-    queryFn: () => api.get('/approvals/requests/pending-my-action').then(r => r.data || []).catch(() => []),
-    refetchInterval: 60000,
-  })
-  const approvalCount = pendingApprovals.length
 
   const _currentDensity = prefs?.ui_density || 'normal'
   const _setDensity = (d) => save({ ui_density: d })

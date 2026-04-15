@@ -7,57 +7,113 @@ session.py — Configuración de base de datos con soporte dual SQLite / Postgre
 Para migrar datos de SQLite a PostgreSQL:
   python -m app.db.migrate_to_pg
 """
-from sqlalchemy import create_engine, event, inspect
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 from app.core.config import settings
 
 
+def _extract_model_class(entity):
+    """Return the ORM mapped class from an entity (class, InstrumentedAttribute, etc.)."""
+    if isinstance(entity, type):
+        return entity
+    # InstrumentedAttribute e.g. Project.id, Project.name
+    if hasattr(entity, "class_"):
+        return entity.class_
+    # Label / AnnotatedColumn
+    if hasattr(entity, "property") and hasattr(entity.property, "parent"):
+        try:
+            return entity.property.parent.class_
+        except Exception:
+            pass
+    return None
+
+
 def _tenant_filter_for_model(query, model, org_id):
+    """Inject tenant isolation filter into *query* for the given *model*.
+
+    Precedence:
+    1. Model has ``organization_id`` column directly → filter by it.
+    2. Model has ``org_id`` column → filter by it.
+    3. Model has a ``project_id`` FK column → use a subquery against projects.
+    4. Model has a direct FK to users → use a subquery against users.
+    5. Fall through (no filter — safer than crashing).
+    """
     if org_id is None:
         return query
 
     if hasattr(model, "organization_id"):
+        # Some models (e.g. AppSetting) mark themselves to also include
+        # global (org_id IS NULL) rows alongside tenant-specific ones.
+        if getattr(model, "_tenant_filter_include_global", False):
+            from sqlalchemy import or_
+            return query.filter(
+                or_(model.organization_id == org_id, model.organization_id.is_(None))
+            )
         return query.filter(model.organization_id == org_id)
 
     if hasattr(model, "org_id"):
         return query.filter(model.org_id == org_id)
 
-    try:
-        mapper = inspect(model)
-    except Exception:
-        return query
+    # Subquery route — avoids JOIN conflicts on already-joined queries.
+    if hasattr(model, "project_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.project import Project
+        project_ids_sq = (
+            sa_select(Project.id)
+            .where(Project.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return query.filter(model.project_id.in_(project_ids_sq))
 
-    from app.models.project import Project
-    from app.models.user import User
-
-    for rel in mapper.relationships:
-        target = rel.mapper.class_
-        if target is User:
-            query = query.join(getattr(model, rel.key)).filter(User.organization_id == org_id)
-            return query
-        if target is Project:
-            query = query.join(getattr(model, rel.key)).filter(Project.organization_id == org_id)
-            return query
+    if hasattr(model, "user_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.user import User
+        user_ids_sq = (
+            sa_select(User.id)
+            .where(User.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return query.filter(model.user_id.in_(user_ids_sq))
 
     return query
 
 
 class TenantSession(Session):
+    """SQLAlchemy session that transparently injects tenant (org) isolation.
+
+    When ``db.info["organization_id"]`` is set the session automatically adds
+    WHERE clauses so that every ORM query is scoped to the current tenant.
+    Superadmin requests set the value to *None*, which disables filtering and
+    allows full cross-tenant visibility.
+    """
+
     def query(self, *entities, **kwargs):
         q = super().query(*entities, **kwargs)
         org_id = self.info.get("organization_id")
-        if org_id is None or len(entities) != 1:
+        if org_id is None:
             return q
 
-        entity = entities[0]
-        if isinstance(entity, type):
-            try:
-                return _tenant_filter_for_model(q, entity, org_id)
-            except Exception:
-                return q
+        # Resolve the first entity to a mapped model class (handles both class
+        # and InstrumentedAttribute patterns, e.g. db.query(Project.id)).
+        model = None
+        if len(entities) == 1:
+            model = _extract_model_class(entities[0])
+        elif len(entities) > 1:
+            # For multi-column queries pick the first entity that maps to a model.
+            for e in entities:
+                candidate = _extract_model_class(e)
+                if candidate is not None:
+                    model = candidate
+                    break
 
-        return q
+        if model is None:
+            return q
+
+        try:
+            return _tenant_filter_for_model(q, model, org_id)
+        except Exception:
+            return q
 
 _url = settings.DATABASE_URL
 _is_sqlite = _url.startswith("sqlite")

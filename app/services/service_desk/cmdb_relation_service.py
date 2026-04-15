@@ -70,21 +70,63 @@ def build_ci_relation(db: Session, current_user: User, payload: dict) -> CIRelat
     )
 
 
-def get_ci_impact_payload(db: Session, current_user: User, ci_id: str) -> dict:
+def get_ci_impact_payload(
+    db: Session,
+    current_user: User,
+    ci_id: str,
+    max_depth: int = 5,
+    limit: int = 500,
+) -> dict:
+    """BFS traversal of the CI dependency graph.
+
+    Args:
+        max_depth: Maximum number of hops from the root CI (1 = direct dependents only).
+        limit:     Cap on the total number of impacted CIs returned (prevents
+                   unbounded results on large CMDBs).
+
+    Returns a dict with::
+
+        {
+            "ci_id": str,
+            "impacted_count": int,
+            "truncated": bool,   # True when limit was hit before full traversal
+            "max_depth": int,
+            "impacted": [
+                {
+                    "ci_id": str,
+                    "ci_name": str,
+                    "ci_type": str,
+                    "criticality": str | None,
+                    "relation": str,
+                    "depth": int,     # hop distance from root
+                },
+                ...
+            ]
+        }
+    """
     _get_scoped_ci_or_404(db, current_user, ci_id)
     visible_ci_ids = _scope_ci_query(
         db.query(ConfigurationItem.id), db, current_user
     ).scalar_subquery()
 
-    visited = set()
-    queue = deque([ci_id])
-    impacted = []
+    visited: set = set()
+    # Queue items: (ci_id, depth)
+    queue: deque = deque([(ci_id, 0)])
+    impacted: list = []
+    truncated = False
 
     while queue:
-        current = queue.popleft()
+        if len(impacted) >= limit:
+            truncated = True
+            break
+
+        current, depth = queue.popleft()
         if current in visited:
             continue
         visited.add(current)
+
+        if depth >= max_depth:
+            continue
 
         dependents = db.query(CIRelation).filter(
             CIRelation.target_ci_id == current,
@@ -96,6 +138,9 @@ def get_ci_impact_payload(db: Session, current_user: User, ci_id: str) -> dict:
         for dep in dependents:
             if dep.source_ci_id in visited:
                 continue
+            if len(impacted) >= limit:
+                truncated = True
+                break
 
             ci = _scope_ci_query(
                 db.query(ConfigurationItem).filter(ConfigurationItem.id == dep.source_ci_id),
@@ -110,8 +155,15 @@ def get_ci_impact_payload(db: Session, current_user: User, ci_id: str) -> dict:
                         "ci_type": ci.ci_type.value,
                         "criticality": ci.criticality,
                         "relation": dep.relation_type.value,
+                        "depth": depth + 1,
                     }
                 )
-            queue.append(dep.source_ci_id)
+            queue.append((dep.source_ci_id, depth + 1))
 
-    return {"ci_id": ci_id, "impacted_count": len(impacted), "impacted": impacted}
+    return {
+        "ci_id": ci_id,
+        "impacted_count": len(impacted),
+        "truncated": truncated,
+        "max_depth": max_depth,
+        "impacted": impacted,
+    }

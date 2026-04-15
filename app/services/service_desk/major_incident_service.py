@@ -1,10 +1,10 @@
-import re
 from datetime import datetime, timezone as tz
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+
+from app.services.numbering import next_numbered_code
 
 from app.models.service_desk import MajorIncident, Ticket
 
@@ -38,13 +38,7 @@ def serialize_major_incident(major_incident: MajorIncident) -> dict:
 
 
 def next_major_incident_number(db: Session) -> str:
-    max_mi = db.query(func.max(MajorIncident.number)).scalar()
-    if max_mi:
-        match = re.search(r"(\d+)$", max_mi)
-        num = (int(match.group(1)) + 1) if match else 1
-    else:
-        num = 1
-    return f"MI{num:04d}"
+    return next_numbered_code(db, "major_incident", prefix="MI", padding=4, separator="")
 
 
 def build_major_incident(payload: dict, number: str, fallback_commander_id: str) -> MajorIncident:

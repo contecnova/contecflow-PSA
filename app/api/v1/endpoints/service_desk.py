@@ -36,9 +36,7 @@ def _commit_or_rollback(db: Session, detail: str = "Error de transacción") -> N
 
 # ── Service layer & schemas ───────────────────────────────────────────────────
 from app.services.sla_service import (  # noqa: E402
-    next_ticket_number as _next_ticket_number,
     next_problem_number as _next_problem_number,
-    log_history as _log_history,
     ticket_out as _ticket_out,
 )
 from app.schemas.service_desk import (  # noqa: E402
@@ -107,14 +105,14 @@ from app.services.service_desk.announcement_service import (  # noqa: E402
     list_active_announcements,
     serialize_announcements,
     build_announcement,
-    get_announcement_by_id,
+    deactivate_announcement_record,
 )
 from app.services.service_desk.cmdb_service import (  # noqa: E402
     list_cmdb_items,
     serialize_cmdb_items,
     enforce_ci_org_constraints,
     build_ci,
-    get_scoped_ci_by_id,
+    get_scoped_ci_or_404,
     apply_ci_update,
 )
 from app.services.service_desk.change_service import (  # noqa: E402
@@ -160,12 +158,12 @@ from app.services.service_desk.oncall_service import (  # noqa: E402
 from app.services.service_desk.watcher_service import (  # noqa: E402
     list_ticket_watchers,
     serialize_ticket_watcher,
-    get_or_build_ticket_watcher,
-    get_ticket_watcher_for_user,
+    watch_ticket_command,
+    unwatch_ticket_command,
 )
 from app.services.service_desk.merge_split_service import (  # noqa: E402
-    merge_ticket_record,
-    split_ticket_record,
+    merge_ticket_command,
+    split_ticket_command,
     list_ticket_merges_payload,
 )
 from app.services.service_desk.escalation_service import (  # noqa: E402
@@ -201,8 +199,7 @@ from app.services.service_desk.holiday_service import (  # noqa: E402
 )
 from app.services.service_desk.workload_service import (  # noqa: E402
     get_group_workload_payload,
-    prepare_auto_assignment,
-    get_user_name_by_id,
+    auto_assign_ticket_command,
 )
 from app.services.service_desk.asset_service import (  # noqa: E402
     asset_out as _asset_out,
@@ -711,8 +708,7 @@ def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User =
 
 @router.patch("/cmdb/{ci_id}", summary="Actualizar CI")
 def update_ci(ci_id: str, payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    ci = get_scoped_ci_by_id(db, current_user, ci_id)
-    if not ci: raise HTTPException(404)
+    ci = get_scoped_ci_or_404(db, current_user, ci_id)
     enforce_ci_org_constraints(db, current_user, payload, is_update=True)
     apply_ci_update(ci, payload)
     _commit_or_rollback(db); return {"ok": True}
@@ -738,9 +734,8 @@ def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), 
 
 @router.delete("/announcements/{ann_id}", summary="Desactivar anuncio")
 def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    a = get_announcement_by_id(db, ann_id)
-    if not a: raise HTTPException(404)
-    a.is_active = False; _commit_or_rollback(db); return {"ok": True}
+    deactivate_announcement_record(db, ann_id)
+    _commit_or_rollback(db); return {"ok": True}
 
 
 # ── Analytics / Dashboard ─────────────────────────────────────────────────────
@@ -933,10 +928,12 @@ def create_ci_relation(
 @router.get("/cmdb/{ci_id}/impact", summary="Análisis de impacto — CIs afectados si este falla")
 def get_ci_impact(
     ci_id: str,
+    max_depth: int = Query(5, ge=1, le=10, description="Maximum BFS hops from the root CI"),
+    limit: int = Query(500, ge=1, le=2000, description="Maximum number of impacted CIs to return"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_ci_impact_payload(db, current_user, ci_id)
+    return get_ci_impact_payload(db, current_user, ci_id, max_depth=max_depth, limit=limit)
 
 
 # ── Change Management ITSM ────────────────────────────────────────────────────
@@ -1291,11 +1288,12 @@ def watch_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    watcher, already_watching = get_or_build_ticket_watcher(db, ticket_id, current_user.id)
-    if already_watching:
-        return {"ok": True, "already_watching": True}
-    db.add(watcher); _commit_or_rollback(db)
-    return {"ok": True, "id": watcher.id}
+    result = watch_ticket_command(db, ticket_id, current_user.id)
+    watcher = result["watcher"]
+    if watcher is not None:
+        db.add(watcher)
+        _commit_or_rollback(db)
+    return result["response"]
 
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket (unwatch)")
@@ -1304,10 +1302,12 @@ def unwatch_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    w = get_ticket_watcher_for_user(db, ticket_id, current_user.id)
-    if w:
-        db.delete(w); _commit_or_rollback(db)
-    return {"ok": True}
+    result = unwatch_ticket_command(db, ticket_id, current_user.id)
+    watcher = result["watcher"]
+    if watcher is not None:
+        db.delete(watcher)
+        _commit_or_rollback(db)
+    return result["response"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1327,20 +1327,11 @@ def merge_ticket(
     Marca merged_ticket_id como duplicado y lo cierra, transfiriendo su historial
     al ticket primario.
     """
-    primary, dup, merge_log = merge_ticket_record(
-        db,
-        ticket_id,
-        payload.merged_ticket_id,
-        payload.reason,
-        current_user.id,
+    result = merge_ticket_command(
+        db, ticket_id, payload.merged_ticket_id, payload.reason, current_user.id
     )
-    db.add(merge_log)
-
-    # Add history note on primary
-    _log_history(db, primary.id, "merged_ticket", None, dup.number, current_user.id)
-
     _commit_or_rollback(db)
-    return {"ok": True, "primary": primary.number, "merged": dup.number}
+    return result
 
 
 @router.post("/tickets/{ticket_id}/split", summary="Dividir ticket en ticket hijo")
@@ -1350,20 +1341,15 @@ def split_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    parent, child = split_ticket_record(
+    result = split_ticket_command(
         db=db,
         ticket_id=ticket_id,
         payload=payload,
-        next_ticket_number_for_type=lambda ticket_type: _next_ticket_number(ticket_type, db),
-        created_by_user_id=current_user.id,
+        current_user_id=current_user.id,
     )
-
-    _log_history(db, parent.id, "split_ticket", None, child.number, current_user.id)
-    _log_history(db, child.id, "created_from_split", None, parent.number, current_user.id)
-
     _commit_or_rollback(db)
-    db.refresh(child)
-    return {"ok": True, "parent": parent.number, "child": child.number, "child_id": child.id}
+    db.refresh(result["child"])
+    return {"ok": True, "parent": result["parent"].number, "child": result["child"].number, "child_id": result["child"].id}
 
 
 @router.post("/tickets/{ticket_id}/ai-suggest", summary="Sugerir respuesta IA para ticket")
@@ -1542,11 +1528,9 @@ def auto_assign_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    ticket, old_assignee, best_agent_id = prepare_auto_assignment(db, ticket_id)
-    _log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user.id)
+    result = auto_assign_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
-
-    return {"ok": True, "assigned_to": best_agent_id, "agent_name": get_user_name_by_id(db, best_agent_id)}
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

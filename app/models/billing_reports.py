@@ -380,6 +380,26 @@ class ApprovalDecision(Base):
     approver = relationship("User", foreign_keys=[approver_id])
 
 
+class FinancialApprovalAuditLog(Base):
+    """Immutable audit trail for approvals that have financial impact."""
+    __tablename__ = "financial_approval_audit_logs"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    request_id = Column(String(36), ForeignKey("approval_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_type = Column(String(50), nullable=False, index=True)
+    entity_id = Column(String(36), nullable=False, index=True)
+    action = Column(String(30), nullable=False)  # requested | approved | rejected | delegated | cancelled
+    decision = Column(String(20), nullable=True)
+    actor_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    step_order = Column(Integer, nullable=True)
+    note = Column(Text, nullable=True)
+    metadata_ = Column("metadata", Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    request = relationship("ApprovalRequest", foreign_keys=[request_id])
+    actor = relationship("User", foreign_keys=[actor_user_id])
+
+
 # ── GRC — Governance, Risk & Compliance ───────────────────────────────────────
 
 class RolePermission(Base):

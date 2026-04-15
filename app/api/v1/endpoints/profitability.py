@@ -1,22 +1,49 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from datetime import date, timedelta
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.config import settings
 from app.core.deps import get_current_user, require_admin
+from app.core.config import settings
 from app.models.user import User, UserRole
 from app.models.project import Project, ProjectStatus
 from app.models.task import TaskStatus
 from app.models.imputation import Imputation
 from app.models.financial import ProjectMilestone
 from app.models.bookings import ExchangeRate
-from app.services.exchange_rate_service import get_rate
 
 router = APIRouter()
+
+_fx_cache: dict = {}  # (from_currency, to_currency, date) -> rate; request-scoped via clear in each call
+
+
+def _get_fx_rate(db: Session, from_currency: str, to_currency: str, as_of: date) -> float:
+    """Return the exchange rate for *from_currency* → *to_currency* effective on *as_of*.
+
+    Uses the most recent rate with effective_date <= as_of.  Returns 1.0 if
+    identical currencies or no rate found (safe fallback — same as before fix).
+    """
+    if from_currency == to_currency:
+        return 1.0
+    key = (from_currency, to_currency, as_of)
+    if key in _fx_cache:
+        return _fx_cache[key]
+    row = (
+        db.query(ExchangeRate)
+        .filter(
+            ExchangeRate.from_currency == from_currency,
+            ExchangeRate.to_currency == to_currency,
+            ExchangeRate.effective_date <= as_of,
+        )
+        .order_by(ExchangeRate.effective_date.desc())
+        .first()
+    )
+    rate = row.rate if row else 1.0
+    _fx_cache[key] = rate
+    return rate
 
 
 class MilestoneIn(BaseModel):
@@ -46,230 +73,40 @@ class MilestoneUpdate(BaseModel):
     billing_amount: Optional[float] = None
 
 
-# ── Profitability output schemas ───────────────────────────────────────────────
-
-class ByPersonOut(BaseModel):
-    user_id: str
-    user_name: str
-    hours: float
-    cost: float
-    billing: float
-
-
-class ByWeekOut(BaseModel):
-    week: str
-    hours: float
-    cost: float
-
-
-class MilestoneSummaryOut(BaseModel):
-    id: str
-    name: str
-    due_date: Optional[str] = None
-    completed_date: Optional[str] = None
-    billing_amount: Optional[float] = None
-    billing_pct: Optional[float] = None
-    is_completed: bool = False
-    is_billed: bool = False
-    billed_at: Optional[str] = None
-
-
-class ProjectProfitabilityOut(BaseModel):
-    project_id: str
-    project_code: str
-    project_name: str
-    client_name: Optional[str] = None
-    department: Optional[str] = None
-    status: str
-    billing_type: str
-    is_billable: Optional[bool] = None
-    # Hours
-    total_hours: float
-    billable_hours: float
-    budget_hours: Optional[float] = None
-    hours_used_pct: Optional[float] = None
-    # Money
-    internal_cost: float
-    billing_revenue: float
-    gross_margin: float
-    margin_pct: float
-    budget_amount: Optional[float] = None
-    contract_amount: Optional[float] = None
-    budget_used_pct: float
-    forecast_cost: float
-    # Rates
-    billing_rate: Optional[float] = None
-    avg_cost_rate: float
-    # EVM
-    progress_pct: float
-    pv: Optional[float] = None
-    ev: float
-    ac: float
-    cpi: Optional[float] = None
-    spi: Optional[float] = None
-    cv: float
-    sv: Optional[float] = None
-    evm_no_schedule: bool = False
-    eac: float
-    etc: float
-    vac: float
-    margin_at_completion: float
-    risk_flag: str
-    # Detail-only fields (absent in summary list)
-    by_person: List[ByPersonOut] = []
-    by_week: List[ByWeekOut] = []
-    milestones: List[MilestoneSummaryOut] = []
-
-
-class PortfolioOut(BaseModel):
-    total_revenue: float
-    total_cost: float
-    total_margin: float
-    margin_pct: float
-    project_count: int
-    billable_projects: int
-
-
-class ProfitabilitySummaryOut(BaseModel):
-    projects: List[ProjectProfitabilityOut]
-    portfolio: PortfolioOut
-
-
-def _norm_currency(code: Optional[str]) -> str:
-    return (code or settings.DEFAULT_CURRENCY or "EUR").upper()
-
-
-def _load_latest_rates(
-    db: Session,
-    from_currencies: set[str],
-    to_currencies: set[str],
-    as_of: date,
-) -> dict[tuple[str, str], float]:
-    """Load latest available FX rates for a currency matrix in one query."""
-    if not from_currencies or not to_currencies:
-        return {}
-
-    latest_subq = db.query(
-        ExchangeRate.from_currency.label("from_currency"),
-        ExchangeRate.to_currency.label("to_currency"),
-        func.max(ExchangeRate.effective_date).label("max_date"),
-    ).filter(
-        ExchangeRate.from_currency.in_(from_currencies),
-        ExchangeRate.to_currency.in_(to_currencies),
-        ExchangeRate.effective_date <= as_of,
-    ).group_by(
-        ExchangeRate.from_currency,
-        ExchangeRate.to_currency,
-    ).subquery()
-
-    rows = db.query(
-        ExchangeRate.from_currency,
-        ExchangeRate.to_currency,
-        ExchangeRate.rate,
-    ).join(
-        latest_subq,
-        (ExchangeRate.from_currency == latest_subq.c.from_currency)
-        & (ExchangeRate.to_currency == latest_subq.c.to_currency)
-        & (ExchangeRate.effective_date == latest_subq.c.max_date),
-    ).all()
-    return {(r.from_currency, r.to_currency): float(r.rate) for r in rows}
-
-
-def _rate_for_pair(
-    db: Session,
-    rate_cache: dict[tuple[str, str], float],
-    from_currency: str,
-    to_currency: str,
-    as_of: date,
-) -> float:
-    if from_currency == to_currency:
-        return 1.0
-    key = (from_currency, to_currency)
-    cached = rate_cache.get(key)
-    if cached is not None:
-        return cached
-
-    # Fallback for missing pairs: query once and memoize.
-    direct = get_rate(db, from_currency, to_currency, as_of=as_of)
-    if direct is not None and direct > 0:
-        rate_cache[key] = float(direct)
-        return float(direct)
-
-    rate_cache[key] = 1.0
-    return 1.0
-
-
-def _build_imputation_totals_by_project(
-    db: Session,
-    project_ids: list[str],
-    project_currency_by_id: dict[str, str],
-    as_of: Optional[date] = None,
-) -> dict[str, dict[str, float]]:
-    """
-    Aggregate imputations in batch and convert internal cost to project currency.
-    This avoids N+1 queries while keeping multi-currency P&L coherent.
-    """
-    if not project_ids:
-        return {}
-
-    ref_date = as_of or date.today()
-    user_currency = func.coalesce(User.currency, settings.DEFAULT_CURRENCY)
-    rows = db.query(
-        Imputation.project_id.label("project_id"),
-        user_currency.label("currency"),
-        func.sum(Imputation.hours).label("total_hours"),
-        func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)).label("billable_hours"),
-        func.sum(Imputation.cost_amount).label("internal_cost"),
-    ).join(
-        User, User.id == Imputation.user_id
-    ).filter(
-        Imputation.project_id.in_(project_ids)
-    ).group_by(
-        Imputation.project_id,
-        user_currency,
-    ).all()
-
-    from_currencies = {_norm_currency(r.currency) for r in rows}
-    to_currencies = {_norm_currency(project_currency_by_id.get(pid)) for pid in project_ids}
-    rate_cache = _load_latest_rates(db, from_currencies, to_currencies, ref_date)
-
-    totals: dict[str, dict[str, float]] = {
-        pid: {"total_hours": 0.0, "billable_hours": 0.0, "internal_cost": 0.0}
-        for pid in project_ids
-    }
-    for r in rows:
-        pid = r.project_id
-        if pid not in totals:
-            totals[pid] = {"total_hours": 0.0, "billable_hours": 0.0, "internal_cost": 0.0}
-
-        project_currency = _norm_currency(project_currency_by_id.get(pid))
-        source_currency = _norm_currency(r.currency)
-        rate = _rate_for_pair(db, rate_cache, source_currency, project_currency, ref_date)
-
-        totals[pid]["total_hours"] += float(r.total_hours or 0)
-        totals[pid]["billable_hours"] += float(r.billable_hours or 0)
-        totals[pid]["internal_cost"] += float(r.internal_cost or 0) * rate
-
-    return totals
-
-
 def _calc_project_profitability(
     project: Project,
     db: Session,
     imputation_totals: Optional[dict] = None,
     billed_milestones_total: Optional[float] = None,
 ) -> dict:
-    """Calculate full P&L for a project."""
-    if imputation_totals is None:
-        computed_totals = _build_imputation_totals_by_project(
-            db,
-            [project.id],
-            {project.id: _norm_currency(project.currency)},
-        )
-        totals = computed_totals.get(project.id, {})
-        total_hours = float(totals.get("total_hours") or 0)
-        billable_hours = float(totals.get("billable_hours") or 0)
-        internal_cost = float(totals.get("internal_cost") or 0)
+    """Calculate full P&L for a project.
+
+    Costs are normalized to *settings.DEFAULT_CURRENCY* using the exchange rate
+    that was effective on the imputation date, ensuring correct multi-currency
+    consolidation rather than mixing rates from different periods.
+    """
+    # Clear request-scoped FX cache so stale entries don't leak between projects
+    _fx_cache.clear()
+
+    org_currency = settings.DEFAULT_CURRENCY
+    project_currency = getattr(project, "currency", org_currency) or org_currency
+
+    if imputation_totals is None or project_currency != org_currency:
+        # Must do per-row calculation when currency conversion is needed, or when
+        # no pre-aggregated totals were provided.
+        imps = db.query(Imputation).filter(
+            Imputation.project_id == project.id
+        ).all()
+        total_hours = sum(i.hours for i in imps)
+        billable_hours = sum(i.hours for i in imps if i.is_billable)
+        # Normalize each imputation's cost to org base currency at imputation date
+        internal_cost = 0.0
+        for i in imps:
+            raw_cost = i.cost_amount or 0.0
+            if raw_cost and project_currency != org_currency:
+                fx = _get_fx_rate(db, project_currency, org_currency, i.date)
+                raw_cost = raw_cost * fx
+            internal_cost += raw_cost
     else:
         total_hours = float(imputation_totals.get("total_hours") or 0)
         billable_hours = float(imputation_totals.get("billable_hours") or 0)
@@ -381,6 +218,8 @@ def _calc_project_profitability(
         "status": project.status,
         "billing_type": project.billing_type or "time_material",
         "is_billable": project.is_billable,
+        "project_currency": project_currency,
+        "reporting_currency": org_currency,
         # Hours
         "total_hours": round(total_hours, 1),
         "billable_hours": round(billable_hours, 1),
@@ -418,7 +257,7 @@ def _calc_project_profitability(
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/summary", response_model=ProfitabilitySummaryOut, summary="Rentabilidad de todos los proyectos")
+@router.get("/summary", summary="Rentabilidad de todos los proyectos")
 def get_profitability_summary(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -432,16 +271,28 @@ def get_profitability_summary(
 
     projects = q.all()
     project_ids = [p.id for p in projects]
-    project_currency_by_id = {p.id: _norm_currency(p.currency) for p in projects}
 
-    imputation_totals_by_project = _build_imputation_totals_by_project(
-        db,
-        project_ids,
-        project_currency_by_id,
-    )
+    imputation_totals_by_project = {}
     billed_milestones_by_project = {}
 
     if project_ids:
+        imputation_rows = db.query(
+            Imputation.project_id.label("project_id"),
+            func.sum(Imputation.hours).label("total_hours"),
+            func.sum(case((Imputation.is_billable == True, Imputation.hours), else_=0)).label("billable_hours"),
+            func.sum(Imputation.cost_amount).label("internal_cost"),
+        ).filter(
+            Imputation.project_id.in_(project_ids)
+        ).group_by(Imputation.project_id).all()
+        imputation_totals_by_project = {
+            r.project_id: {
+                "total_hours": r.total_hours,
+                "billable_hours": r.billable_hours,
+                "internal_cost": r.internal_cost,
+            }
+            for r in imputation_rows
+        }
+
         billed_milestone_rows = db.query(
             ProjectMilestone.project_id.label("project_id"),
             func.sum(ProjectMilestone.billing_amount).label("billing_revenue"),
@@ -482,7 +333,7 @@ def get_profitability_summary(
     }
 
 
-@router.get("/{project_id}", response_model=ProjectProfitabilityOut, summary="Rentabilidad detallada de un proyecto")
+@router.get("/{project_id}", summary="Rentabilidad detallada de un proyecto")
 def get_project_profitability(
     project_id: str,
     db: Session = Depends(get_db),
@@ -499,47 +350,26 @@ def get_project_profitability(
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
 
-    project_currency = _norm_currency(project.currency)
-    totals = _build_imputation_totals_by_project(
-        db,
-        [project_id],
-        {project_id: project_currency},
-    )
-    base = _calc_project_profitability(project, db, imputation_totals=totals.get(project_id, {}))
-
-    # Reuse a small FX cache for detail breakdown conversions.
-    ref_date = date.today()
-    project_from_currencies = {
-        _norm_currency(c) for (c,) in db.query(func.coalesce(User.currency, settings.DEFAULT_CURRENCY)).join(
-            Imputation, Imputation.user_id == User.id
-        ).filter(
-            Imputation.project_id == project_id
-        ).distinct().all()
-    }
-    rate_cache = _load_latest_rates(db, project_from_currencies, {project_currency}, ref_date)
+    base = _calc_project_profitability(project, db)
 
     # By person breakdown
     by_person = db.query(
         Imputation.user_id,
         User.full_name,
-        func.coalesce(User.currency, settings.DEFAULT_CURRENCY).label("currency"),
         func.sum(Imputation.hours).label("hours"),
         func.sum(Imputation.cost_amount).label("cost"),
     ).join(User, User.id == Imputation.user_id).filter(
         Imputation.project_id == project_id
-    ).group_by(Imputation.user_id, User.full_name, func.coalesce(User.currency, settings.DEFAULT_CURRENCY)).all()
+    ).group_by(Imputation.user_id, User.full_name).all()
 
     # By week breakdown
     by_week = db.query(
         Imputation.date,
-        func.coalesce(User.currency, settings.DEFAULT_CURRENCY).label("currency"),
         func.sum(Imputation.hours).label("hours"),
         func.sum(Imputation.cost_amount).label("cost"),
-    ).join(
-        User, User.id == Imputation.user_id
     ).filter(
         Imputation.project_id == project_id
-    ).group_by(Imputation.date, func.coalesce(User.currency, settings.DEFAULT_CURRENCY)).order_by(Imputation.date).all()
+    ).group_by(Imputation.date).order_by(Imputation.date).all()
 
     # Weekly aggregation
     weekly = {}
@@ -551,37 +381,21 @@ def get_project_profitability(
         key = str(ws)
         if key not in weekly:
             weekly[key] = {"week": key, "hours": 0, "cost": 0}
-        source_currency = _norm_currency(row.currency)
-        rate = _rate_for_pair(db, rate_cache, source_currency, project_currency, ref_date)
         weekly[key]["hours"] += row.hours or 0
-        weekly[key]["cost"] += (row.cost or 0) * rate
+        weekly[key]["cost"] += row.cost or 0
 
     # Milestones
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project_id
     ).order_by(ProjectMilestone.sort_order).all()
 
-    by_person_agg = {}
-    for r in by_person:
-        source_currency = _norm_currency(r.currency)
-        rate = _rate_for_pair(db, rate_cache, source_currency, project_currency, ref_date)
-        if r.user_id not in by_person_agg:
-            by_person_agg[r.user_id] = {
-                "user_id": r.user_id,
-                "user_name": r.full_name,
-                "hours": 0.0,
-                "cost": 0.0,
-            }
-        by_person_agg[r.user_id]["hours"] += float(r.hours or 0)
-        by_person_agg[r.user_id]["cost"] += float(r.cost or 0) * rate
-
     base["by_person"] = [{
-        "user_id": r["user_id"],
-        "user_name": r["user_name"],
-        "hours": round(r["hours"], 1),
-        "cost": round(r["cost"], 2),
-        "billing": round(r["hours"] * (project.billing_rate or 0), 2),
-    } for r in by_person_agg.values()]
+        "user_id": r.user_id,
+        "user_name": r.full_name,
+        "hours": round(r.hours or 0, 1),
+        "cost": round(r.cost or 0, 2),
+        "billing": round((r.hours or 0) * (project.billing_rate or 0), 2),
+    } for r in by_person]
 
     base["by_week"] = sorted(weekly.values(), key=lambda x: x["week"])
 
@@ -602,7 +416,7 @@ def get_project_profitability(
 
 # ── Milestones ────────────────────────────────────────────────────────────────
 
-@router.get("/{project_id}/milestones", response_model=List[MilestoneOut], summary="Hitos de un proyecto")
+@router.get("/{project_id}/milestones", summary="Hitos de un proyecto")
 def get_milestones(
     project_id: str,
     db: Session = Depends(get_db),
@@ -611,10 +425,15 @@ def get_milestones(
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project_id
     ).order_by(ProjectMilestone.sort_order).all()
-    return milestones
+    return [{"id": m.id, "name": m.name, "description": m.description,
+             "due_date": str(m.due_date) if m.due_date else None,
+             "completed_date": str(m.completed_date) if m.completed_date else None,
+             "billing_amount": m.billing_amount, "billing_pct": m.billing_pct,
+             "is_billed": m.is_billed, "billed_at": str(m.billed_at) if m.billed_at else None,
+             "is_completed": m.is_completed, "sort_order": m.sort_order} for m in milestones]
 
 
-@router.post("/{project_id}/milestones", response_model=MilestoneOut, status_code=201, summary="Crear hito")
+@router.post("/{project_id}/milestones", summary="Crear hito")
 def create_milestone(
     project_id: str,
     payload: MilestoneIn,
@@ -628,7 +447,7 @@ def create_milestone(
     return m
 
 
-@router.patch("/{project_id}/milestones/{milestone_id}", response_model=MilestoneOut, summary="Actualizar hito")
+@router.patch("/{project_id}/milestones/{milestone_id}", summary="Actualizar hito")
 def update_milestone(
     project_id: str,
     milestone_id: str,

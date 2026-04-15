@@ -85,11 +85,6 @@ class Settings(BaseSettings):
     WEBAUTHN_RP_NAME: str = Field(default="Clarive PSA", env="WEBAUTHN_RP_NAME")
     WEBAUTHN_ORIGIN: str = Field(default="http://localhost:5173", env="WEBAUTHN_ORIGIN")
 
-    # ── MFA QR ────────────────────────────────────────────────────────────────
-    QR_SERVICE_URL: str = Field(
-        default="https://api.qrserver.com/v1/create-qr-code", env="QR_SERVICE_URL"
-    )
-
     # ── AI providers (opcionales) ─────────────────────────────────────────────
     # Fallback API keys — used only when no provider is configured in the database.
     # Prefer configuring providers via the AI Providers admin panel in the UI.

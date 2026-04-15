@@ -1,5 +1,5 @@
 import { CHART } from '../../constants/theme'
-import React, { useEffect, useRef, useId } from 'react'
+import React from 'react'
 import { X } from 'lucide-react'
 
 export {
@@ -74,14 +74,13 @@ export function Avatar({ name = '', size = 34, url }) {
   ) : (
     <div
       role="img"
-      aria-label={name}
+      aria-label={name || 'Usuario'}
       style={{
-        width: size, height: size, borderRadius: '50%', display: 'flex', flexShrink: 0,
-        alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36),
-        fontWeight: 700, background: `linear-gradient(145deg, ${from}, ${to})`,
-        color: '#fff', letterSpacing: '0.02em',
-      }}
-    >
+      width: size, height: size, borderRadius: '50%', display: 'flex', flexShrink: 0,
+      alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36),
+      fontWeight: 700, background: `linear-gradient(145deg, ${from}, ${to})`,
+      color: '#fff', letterSpacing: '0.02em',
+    }}>
       {initials || '?'}
     </div>
   )
@@ -186,8 +185,9 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
     <button
       type={type || 'button'}
       onClick={isDisabled ? undefined : onClick}
-      aria-busy={loading || undefined}
       aria-disabled={isDisabled || undefined}
+      aria-busy={loading || undefined}
+      disabled={isDisabled}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: s.gap,
         fontFamily: 'var(--font-sans)', fontWeight: 600,
@@ -216,16 +216,14 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 export function Input({ label, value, onChange, placeholder, type = 'text', required, style = {}, hint }) {
-  const inputId = useId()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label htmlFor={inputId} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {label}{required && <span style={{ color: 'var(--danger)' }}> *</span>}
         </label>
       )}
       <input
-        id={inputId}
         type={type} value={value} onChange={onChange} placeholder={placeholder}
         style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -250,16 +248,14 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
 
 // ── Select ────────────────────────────────────────────────────────────────────
 export function Select({ label, value, onChange, options = [], style = {} }) {
-  const selectId = useId()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label htmlFor={selectId} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {label}
         </label>
       )}
       <select
-        id={selectId}
         value={value} onChange={onChange}
         style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -364,46 +360,47 @@ export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 export function Modal({ open, onClose, title, children, width = 520, subtitle }) {
-  const titleId = useId()
-  const panelRef = useRef(null)
+  const dialogRef = React.useRef(null)
 
-  // Close on Escape
-  useEffect(() => {
+  // Focus trap: keep keyboard navigation inside the modal while open
+  React.useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    const el = dialogRef.current
+    if (!el) return
+    const focusable = el.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    const first = focusable[0]
+    const last  = focusable[focusable.length - 1]
+    const prev  = document.activeElement
 
-  // Focus trap + auto-focus first element
-  useEffect(() => {
-    if (!open || !panelRef.current) return
-    const panel = panelRef.current
-    const getFocusable = () => Array.from(panel.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    ))
-    const els = getFocusable()
-    if (els.length > 0) els[0].focus()
-    const trapFocus = (e) => {
+    if (first) first.focus()
+
+    const trap = (e) => {
       if (e.key !== 'Tab') return
-      const focusable = getFocusable()
       if (focusable.length === 0) { e.preventDefault(); return }
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
       if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+        if (document.activeElement === first) { e.preventDefault(); last?.focus() }
       } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+        if (document.activeElement === last)  { e.preventDefault(); first?.focus() }
       }
     }
-    panel.addEventListener('keydown', trapFocus)
-    return () => panel.removeEventListener('keydown', trapFocus)
-  }, [open])
+    const esc = (e) => { if (e.key === 'Escape') onClose() }
+
+    el.addEventListener('keydown', trap)
+    document.addEventListener('keydown', esc)
+    return () => {
+      el.removeEventListener('keydown', trap)
+      document.removeEventListener('keydown', esc)
+      prev?.focus()
+    }
+  }, [open, onClose])
 
   if (!open) return null
   return (
     <div
       onClick={onClose}
+      role="presentation"
       style={{
         position: 'fixed', inset: 0,
         background: 'rgba(8,12,20,0.85)',
@@ -413,10 +410,10 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
       }}
     >
       <div
-        ref={panelRef}
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-label={typeof title === 'string' ? title : undefined}
         onClick={e => e.stopPropagation()}
         style={{
           background: 'var(--surface-2)',
@@ -429,7 +426,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
           <div>
-            <h2 id={titleId} style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{title}</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{title}</h2>
             {subtitle && <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 3 }}>{subtitle}</p>}
           </div>
           <button
@@ -442,7 +439,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
               alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, marginLeft: 12, marginTop: 2,
             }}
-          ><X size={14} /></button>
+          ><X size={14} aria-hidden="true" /></button>
         </div>
         {children}
       </div>
@@ -480,7 +477,6 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
       {data.length > pageSize && (
         <div style={{ marginBottom: 12 }}>
           <input value={filter} onChange={e => { setFilter(e.target.value); setPage(0) }}
-            aria-label="Filtrar registros"
             placeholder="Filtrar..." style={{
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
               borderRadius: 'var(--radius-md)', padding: '7px 12px',
@@ -494,9 +490,7 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
           <thead>
             <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
               {columns.map(col => (
-                <th key={col.key} scope="col"
-                  onClick={() => col.sortable !== false && toggleSort(col.key)}
-                  aria-sort={sort.col === col.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : (col.sortable !== false ? 'none' : undefined)}
+                <th key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
                   style={{
                     textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 600,
                     color: sort.col === col.key ? 'var(--accent)' : 'var(--text-2)',
@@ -505,7 +499,7 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
                     userSelect: 'none',
                   }}>
                   {col.label}
-                  {sort.col === col.key && <span aria-hidden="true" style={{ marginLeft: 4, opacity: 0.7 }}>{sort.dir === 'asc' ? '\u2191' : '\u2193'}</span>}
+                  {sort.col === col.key && <span style={{ marginLeft: 4, opacity: 0.7 }}>{sort.dir === 'asc' ? '↑' : '↓'}</span>}
                 </th>
               ))}
             </tr>
@@ -537,9 +531,9 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
       {pages > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginTop: 14 }}>
           <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{sorted.length} registros</span>
-          <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} aria-label="P\u00e1gina anterior" style={{ ...btnBase, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-          <span style={{ fontSize: 12, color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }} aria-live="polite">{page+1} / {pages}</span>
-          <button onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} aria-label="P\u00e1gina siguiente" style={{ ...btnBase, opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
+          <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ ...btnBase, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
+          <span style={{ fontSize: 12, color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }}>{page+1} / {pages}</span>
+          <button onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ ...btnBase, opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
         </div>
       )}
     </div>
@@ -554,7 +548,7 @@ export function Table({ columns, data, onRowClick }) {
         <thead>
           <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
             {columns.map(col => (
-              <th key={col.key} scope="col" style={{
+              <th key={col.key} style={{
                 padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
                 color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
               }}>{col.label}</th>
@@ -563,20 +557,16 @@ export function Table({ columns, data, onRowClick }) {
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr key={i}
-              onClick={() => onRowClick?.(row)}
-              tabIndex={onRowClick ? 0 : undefined}
-              onKeyDown={onRowClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(row) } } : undefined}
-              style={{
-                borderBottom: '1px solid var(--surface-4)',
-                cursor: onRowClick ? 'pointer' : 'default', transition: 'background 0.1s',
-              }}
+            <tr key={i} onClick={() => onRowClick?.(row)} style={{
+              borderBottom: '1px solid var(--surface-4)',
+              cursor: onRowClick ? 'pointer' : 'default', transition: 'background 0.1s',
+            }}
               onMouseEnter={e => onRowClick && (e.currentTarget.style.background = 'var(--surface-3)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               {columns.map(col => (
                 <td key={col.key} style={{ padding: '11px 14px', color: 'var(--text-1)' }}>
-                  {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '\u2014')}
+                  {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
                 </td>
               ))}
             </tr>

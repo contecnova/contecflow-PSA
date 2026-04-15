@@ -26,7 +26,7 @@ logging.getLogger("uvicorn.error").setLevel(_log_level)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from app.api.v1.router import api_router
-from app.api.v2.router import api_router as api_v2_router
+from app.api.v2.router import api_v2_router
 
 
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
@@ -443,6 +443,7 @@ async def api_version_middleware(request: Request, call_next):
     if path.startswith(settings.API_V1_STR):
         response.headers["X-API-Version"] = "1"
         response.headers["X-API-Deprecated"] = "true"
+        response.headers["X-API-Successor"] = settings.API_V2_STR
         response.headers["Deprecation"] = "true"
         response.headers["Sunset"] = "Thu, 31 Dec 2026 23:59:59 GMT"
     elif path.startswith(settings.API_V2_STR):

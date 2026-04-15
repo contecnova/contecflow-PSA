@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketComment, TicketLink, TicketMerge, TicketStatus
+from app.services.sla_service import log_history, next_ticket_number
 
 
 def get_ticket_or_404(db: Session, ticket_id: str, detail: str) -> Ticket:
@@ -182,3 +183,34 @@ def serialize_ticket_merge(merge: TicketMerge) -> dict:
 def list_ticket_merges_payload(db: Session, ticket_id: str) -> list[dict]:
     merges = list_ticket_merges(db, ticket_id)
     return [serialize_ticket_merge(merge) for merge in merges]
+
+
+def merge_ticket_command(
+    db: Session,
+    ticket_id: str,
+    merged_ticket_id: str,
+    reason: str,
+    current_user_id: str,
+) -> dict:
+    primary, dup, merge_log = merge_ticket_record(db, ticket_id, merged_ticket_id, reason, current_user_id)
+    db.add(merge_log)
+    log_history(db, primary.id, "merged_ticket", None, dup.number, current_user_id)
+    return {"ok": True, "primary": primary.number, "merged": dup.number}
+
+
+def split_ticket_command(
+    db: Session,
+    ticket_id: str,
+    payload,
+    current_user_id: str,
+) -> dict:
+    parent, child = split_ticket_record(
+        db=db,
+        ticket_id=ticket_id,
+        payload=payload,
+        next_ticket_number_for_type=lambda t: next_ticket_number(t, db),
+        created_by_user_id=current_user_id,
+    )
+    log_history(db, parent.id, "split_ticket", None, child.number, current_user_id)
+    log_history(db, child.id, "created_from_split", None, parent.number, current_user_id)
+    return {"parent": parent, "child": child}

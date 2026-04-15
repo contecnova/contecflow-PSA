@@ -1,10 +1,11 @@
-import re
 from datetime import datetime, timezone as tz
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
+
+from app.services.numbering import next_numbered_code
 
 from app.models.service_desk import ChangeStatus, ITSMChangeRequest, Problem, Ticket
 from app.models.user import User
@@ -126,13 +127,7 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
 
 
 def next_change_number(db: Session) -> str:
-    max_change = db.query(func.max(ITSMChangeRequest.number)).scalar()
-    if max_change:
-        match = re.search(r"(\d+)$", max_change)
-        num = (int(match.group(1)) + 1) if match else 1
-    else:
-        num = 1
-    return f"CHG{num:05d}"
+    return next_numbered_code(db, "itsm_change", prefix="CHG", padding=5, separator="")
 
 
 def build_change_request(payload: dict, requester_id: str, number: str) -> ITSMChangeRequest:

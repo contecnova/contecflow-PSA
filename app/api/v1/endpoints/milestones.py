@@ -21,6 +21,14 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.config import settings
 from app.services.notifications import notify_user, notify_role
+from app.services.milestone_service import (
+    compute_billing_amount,
+    complete_milestone as svc_complete_milestone,
+    uncomplete_milestone as svc_uncomplete_milestone,
+    request_milestone_approval,
+    decide_milestone_approval,
+    generate_milestone_invoice,
+)
 
 router = APIRouter(prefix="/milestones", tags=["milestones"])
 
@@ -44,18 +52,7 @@ class ApprovalDecisionIn(BaseModel):
 
 # ── Helper output ──────────────────────────────────────────────────────────────
 def _ms_out(m, db=None) -> dict:
-    # Calcular billing_amount desde pct si hace falta
-    billing_amount = m.billing_amount
-    if not billing_amount and m.billing_pct and db:
-        from app.models.project import Project
-        from app.models.pipeline import Contract
-        proj = db.query(Project).filter(Project.id == m.project_id).first()
-        if proj:
-            total = db.query(func.sum(Contract.amount)).filter(
-                Contract.project_id == proj.id
-            ).scalar() or proj.budget_amount or 0
-            billing_amount = round(total * m.billing_pct / 100, 2)
-
+    billing_amount = compute_billing_amount(m, db) if db else m.billing_amount
     return {
         "id": m.id, "project_id": m.project_id,
         "name": m.name, "description": m.description,
@@ -147,17 +144,7 @@ def complete_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m: raise HTTPException(404)
-    if m.billing_status not in ("pending", "rejected"):
-        raise HTTPException(400, f"No se puede completar en estado '{m.billing_status}'")
-
-    m.is_completed     = True
-    m.completed_date   = date.today()
-    m.completed_by     = current_user.id
-    m.billing_status   = "completed"
-    db.commit()
+    m = svc_complete_milestone(milestone_id, current_user, db)
     return _ms_out(m, db)
 
 
@@ -167,17 +154,7 @@ def uncomplete_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m: raise HTTPException(404)
-    if m.billing_status in ("approved", "invoiced"):
-        raise HTTPException(400, "No se puede revertir un milestone aprobado o facturado")
-
-    m.is_completed   = False
-    m.completed_date = None
-    m.completed_by   = None
-    m.billing_status = "pending"
-    db.commit()
+    m = svc_uncomplete_milestone(milestone_id, current_user, db)
     return _ms_out(m, db)
 
 
@@ -189,38 +166,7 @@ def request_approval(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m: raise HTTPException(404)
-    if m.billing_status != "completed":
-        raise HTTPException(400, "El milestone debe estar completado antes de solicitar aprobación")
-
-    m.billing_status          = "pending_approval"
-    m.approval_requested_at   = datetime.now(timezone.utc)
-    m.approval_requested_by   = current_user.id
-    m.approved_at             = None
-    m.rejected_at             = None
-    m.rejection_reason        = None
-    db.commit()
-
-    # Notificar al manager del proyecto
-    from app.models.project import Project as Proj
-    proj = db.query(Proj).filter(Proj.id == m.project_id).first()
-    if proj and proj.pm_id:
-        try:
-            notify_user(
-                db, proj.pm_id,
-                "system",
-                f"Aprobación solicitada: {m.name}",
-                f"{current_user.full_name} solicita aprobar el milestone '{m.name}' del proyecto {proj.code}."
-                + (f" Nota: {payload.message}" if payload.message else ""),
-                resource="milestones",
-                resource_id=m.id,
-            )
-            db.commit()
-        except Exception:
-            db.rollback()  # notification failure must not roll back the approval state
-
+    m = request_milestone_approval(milestone_id, payload.message, current_user, db)
     return {**_ms_out(m, db), "message": "Solicitud de aprobación enviada"}
 
 
@@ -232,58 +178,11 @@ def approve_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m: raise HTTPException(404)
-    if m.billing_status != "pending_approval":
-        raise HTTPException(400, f"El milestone no está pendiente de aprobación (estado: {m.billing_status})")
-
-    if payload.approved:
-        m.billing_status = "approved"
-        m.approved_at    = datetime.now(timezone.utc)
-        m.approved_by    = current_user.id
-        m.rejected_at    = None
-        m.rejection_reason = None
-        db.commit()
-        # Notificar al solicitante
-        if m.approval_requested_by:
-            try:
-                notify_user(
-                    db, m.approval_requested_by,
-                    "expense_approved",
-                    f"Milestone aprobado: {m.name}",
-                    f"{current_user.full_name} ha aprobado el milestone. Ya puedes generar la factura.",
-                    resource="milestones",
-                    resource_id=m.id,
-                )
-                db.commit()
-            except Exception:
-                db.rollback()  # notification failure must not roll back approval
-        return {**_ms_out(m, db), "message": "Milestone aprobado — puedes generar la factura"}
-    else:
-        if not payload.rejection_reason:
-            raise HTTPException(400, "Indica el motivo del rechazo")
-        m.billing_status   = "rejected"
-        m.rejected_at      = datetime.now(timezone.utc)
-        m.rejected_by      = current_user.id
-        m.rejection_reason = payload.rejection_reason
-        m.approved_at      = None
-        db.commit()
-        # Notificar al solicitante
-        if m.approval_requested_by:
-            try:
-                notify_user(
-                    db, m.approval_requested_by,
-                    "expense_rejected",
-                    f"Milestone rechazado: {m.name}",
-                    f"{current_user.full_name} rechazó el milestone. Motivo: {payload.rejection_reason}",
-                    resource="milestones",
-                    resource_id=m.id,
-                )
-                db.commit()
-            except Exception:
-                db.rollback()  # notification failure must not roll back rejection
-        return {**_ms_out(m, db), "message": "Milestone rechazado"}
+    m = decide_milestone_approval(
+        milestone_id, payload.approved, payload.rejection_reason, current_user, db
+    )
+    msg = "Milestone aprobado — puedes generar la factura" if payload.approved else "Milestone rechazado"
+    return {**_ms_out(m, db), "message": msg}
 
 
 # ── Flujo: Generar Factura ─────────────────────────────────────────────────────
@@ -294,93 +193,21 @@ def generate_invoice(
     current_user: User = Depends(require_any_manager),
 ):
     from app.models.financial import ProjectMilestone
-    from app.models.billing_reports import Invoice, InvoiceLine
-    from app.models.project import Project
-    from app.models.pipeline import Contract
-    import uuid
-
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m: raise HTTPException(404)
-    if m.billing_status != "approved":
-        raise HTTPException(400, f"El milestone debe estar aprobado para facturar (estado: {m.billing_status})")
-    if m.invoice_id:
-        raise HTTPException(400, "Este milestone ya tiene una factura generada")
-
-    proj = db.query(Project).filter(Project.id == m.project_id).first()
-    if not proj: raise HTTPException(404, "Proyecto no encontrado")
-
-    # Calcular importe
-    amount = m.billing_amount
-    if not amount and m.billing_pct:
-        total_contract = db.query(func.sum(Contract.amount)).filter(
-            Contract.project_id == proj.id
-        ).scalar() or getattr(proj, 'budget_amount', 0) or 0
-        amount = round(total_contract * m.billing_pct / 100, 2)
-
-    if not amount or amount <= 0:
-        raise HTTPException(400, "El milestone no tiene importe de facturación definido")
-
-    # Número de factura — usa MAX para evitar race conditions con COUNT
-    import re as _re
-    from app.models.billing_reports import Invoice as Inv
-    max_num_str = db.query(func.max(Inv.number)).scalar()
-    if max_num_str:
-        _m = _re.search(r"(\d+)$", max_num_str)
-        next_num = (int(_m.group(1)) + 1) if _m else 1
-    else:
-        next_num = 1
-    invoice_num = f"INV-{str(next_num).zfill(4)}"
-
-    # Crear factura
-    inv = Invoice(
-        id=str(uuid.uuid4()),
-        project_id=proj.id,
-        client_id=getattr(proj, 'client_id', None),
-        client_name=getattr(proj, 'client_name', ''),
-        number=invoice_num,
-        issue_date=date.today(),
-        subtotal=amount,
-        tax_rate=settings.DEFAULT_TAX_RATE,
-        tax_amount=round(amount * settings.DEFAULT_TAX_RATE / 100, 2),
-        total=round(amount * (1 + settings.DEFAULT_TAX_RATE / 100), 2),
-        status="draft",
-        notes=f"Factura por milestone: {m.name}",
-        created_by=current_user.id,
-    )
-    db.add(inv)
-    db.flush()
-
-    # Línea de factura
-    line = InvoiceLine(
-        id=str(uuid.uuid4()),
-        invoice_id=inv.id,
-        description=f"Milestone: {m.name}",
-        quantity=1.0,
-        unit_price=amount,
-        amount=amount,
-        source_type="milestone",
-        source_ids=f'["{m.id}"]',
-    )
-    db.add(line)
-
-    # Actualizar milestone
-    m.invoice_id     = inv.id
-    m.is_billed      = True
-    m.billed_at      = date.today()
-    m.billing_status = "invoiced"
-
-    db.commit()
-
+    if not m:
+        raise HTTPException(404)
+    invoice_data = generate_milestone_invoice(milestone_id, current_user, db)
+    db.refresh(m)
     return {
         **_ms_out(m, db),
         "invoice": {
-            "id": inv.id,
-            "invoice_number": inv.number,
-            "amount": inv.subtotal,
-            "total_with_tax": inv.total,
-            "status": inv.status,
+            "id": invoice_data["invoice_id"],
+            "invoice_number": invoice_data["invoice_number"],
+            "amount": invoice_data["amount"],
+            "total_with_tax": invoice_data["total_with_tax"],
+            "status": invoice_data["status"],
         },
-        "message": f"Factura {invoice_num} generada correctamente",
+        "message": f"Factura {invoice_data['invoice_number']} generada correctamente",
     }
 
 

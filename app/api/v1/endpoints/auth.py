@@ -1268,6 +1268,19 @@ def mfa_setup(
         name=current_user.email,
         issuer_name="Clarive PSA",
     )
+    # Generate QR locally — no data is sent to third-party services.
+    try:
+        import qrcode
+        import io
+        import base64
+        qr_img = qrcode.make(uri)
+        buf = io.BytesIO()
+        qr_img.save(buf, format="PNG")
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+        qr_url = f"data:image/png;base64,{qr_b64}"
+    except ImportError:
+        raise HTTPException(500, "qrcode no instalado — ejecuta: pip install 'qrcode[pil]'")
+
     # Guardar secreto temporal cifrado (aún no activado)
     current_user.mfa_secret = encrypt_value(secret)
     current_user.mfa_enabled = False
@@ -1276,7 +1289,7 @@ def mfa_setup(
     return {
         "secret":           secret,
         "provisioning_uri": uri,
-        "qr_url": f"{settings.QR_SERVICE_URL}/?data={uri}&size=200x200",
+        "qr_url":           qr_url,
         "issuer":           "Clarive PSA",
         "email":            current_user.email,
     }

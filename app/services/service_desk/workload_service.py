@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import AgentGroup, AgentGroupMember, Ticket, TicketPriority, TicketStatus
 from app.models.user import User
+from app.services.sla_service import log_history
 
 
 def get_group_with_members_or_404(db: Session, group_id: str) -> AgentGroup:
@@ -105,3 +106,9 @@ def prepare_auto_assignment(db: Session, ticket_id: str):
 def get_user_name_by_id(db: Session, user_id: str):
     user = db.query(User).filter(User.id == user_id).first()
     return user.full_name if user else None
+
+
+def auto_assign_ticket_command(db: Session, ticket_id: str, current_user_id: str) -> dict:
+    ticket, old_assignee, best_agent_id = prepare_auto_assignment(db, ticket_id)
+    log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)
+    return {"ok": True, "assigned_to": best_agent_id, "agent_name": get_user_name_by_id(db, best_agent_id)}

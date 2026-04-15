@@ -1,7 +1,7 @@
 import { CHART } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -195,6 +195,24 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
   const [blocks,     setBlocks]    = useState(editPage?.content || [{type:'paragraph',content:''}])
   const [visibility, setVisibility]= useState(editPage?.visibility || 'team')
   const [tplStep,    setTplStep]   = useState(!isEdit)
+  const applyingRemoteRef = useRef(false)
+
+  const { connected: collabConnected, peers: collabPeers, sendUpdate: sendCollabUpdate } = useDocCollab(
+    editPage?.id,
+    (remoteBlocks) => {
+      applyingRemoteRef.current = true
+      setBlocks(Array.isArray(remoteBlocks) ? remoteBlocks : [{ type: 'paragraph', content: '' }])
+    }
+  )
+
+  useEffect(() => {
+    if (!editPage?.id) return
+    if (applyingRemoteRef.current) {
+      applyingRemoteRef.current = false
+      return
+    }
+    sendCollabUpdate(blocks)
+  }, [blocks, editPage?.id, sendCollabUpdate])
   const VIS_OPTS = [
     { value: 'team',   label: '🔒 Solo equipo' },
     { value: 'portal', label: '🌐 Portal cliente' },
@@ -227,6 +245,13 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
           </div>
         )}
         {!tplStep && <>
+          {isEdit && (
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:collabConnected?'var(--success-bg)':'var(--surface-3)',border:`1px solid ${collabConnected?'#00e5a050':'#1e2d45'}`}}>
+              <span style={{fontSize:11,color:collabConnected?'var(--success)':'var(--text-2)',fontWeight:700}}>
+                {collabConnected ? `● Colaboración activa (${collabPeers} en vivo)` : '○ Reconectando colaboración...'}
+              </span>
+            </div>
+          )}
           <div>
             <label style={ls}>Título</label>
             <input style={is} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder="Título de la página"/>

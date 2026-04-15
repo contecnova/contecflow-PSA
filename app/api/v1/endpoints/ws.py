@@ -31,6 +31,12 @@ router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
 
 _REDIS_URL: Optional[str] = settings.REDIS_URL or ""
+if not _REDIS_URL:
+    log.warning(
+        "REDIS_URL no configurado: los tickets WS se almacenan en memoria del proceso. "
+        "Con múltiples workers de Uvicorn los WebSockets fallarán aleatoriamente. "
+        "Configura REDIS_URL para producción multi-worker."
+    )
 
 # ── WS Ticket Store ────────────────────────────────────────────────────────────
 # Short-lived (60 s) one-time tickets so browser clients can authenticate the
@@ -88,18 +94,25 @@ def _consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
 
 
 async def _issue_ws_ticket(user_id: str) -> str:
+    """Emit a one-time WS ticket.
+
+    When REDIS_URL is configured, the ticket is stored in Redis so ANY worker
+    can consume it.  Errors propagate to the caller (route handler converts them
+    to HTTP 503).  Without Redis, the local in-memory store is used — only safe
+    for single-worker / dev deployments.
+    """
     ticket = secrets.token_urlsafe(24)
     if _REDIS_URL:
-        try:
-            r = await _get_redis()
-            await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
-            return ticket
-        except Exception as exc:
-            log.warning("WS ticket Redis issue failed, falling back to memory: %s", exc)
+        # Do NOT fall back to in-memory on Redis errors: a ticket written to
+        # worker-1's dict would be invisible to worker-2's consume call.
+        r = await _get_redis()
+        await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
+        return ticket
     return _issue_ws_ticket_local(user_id)
 
 
 async def _consume_ws_ticket(ticket: str) -> Optional[str]:
+    """Consume a one-time WS ticket, returning user_id or None."""
     if _REDIS_URL:
         try:
             r = await _get_redis()
@@ -112,23 +125,25 @@ async def _consume_ws_ticket(ticket: str) -> Optional[str]:
             )
             return consumed if consumed else None
         except Exception as exc:
-            log.warning("WS ticket Redis consume failed, falling back to memory: %s", exc)
+            # Do NOT fall back to in-memory: reject the ticket to avoid
+            # accepting unverified connections when Redis is unreachable.
+            log.error("WS ticket Redis consume failed — rejecting ticket: %s", exc)
+            return None
     return _consume_ws_ticket_local(ticket)
 
 
 async def _issue_portal_ws_ticket(client_id: str) -> str:
+    """Emit a one-time portal WS ticket (see _issue_ws_ticket for rationale)."""
     ticket = secrets.token_urlsafe(24)
     if _REDIS_URL:
-        try:
-            r = await _get_redis()
-            await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
-            return ticket
-        except Exception as exc:
-            log.warning("Portal WS ticket Redis issue failed, falling back to memory: %s", exc)
+        r = await _get_redis()
+        await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
+        return ticket
     return _issue_portal_ws_ticket_local(client_id)
 
 
 async def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
+    """Consume a one-time portal WS ticket, returning client_id or None."""
     if _REDIS_URL:
         try:
             r = await _get_redis()
@@ -140,7 +155,8 @@ async def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
             )
             return consumed if consumed else None
         except Exception as exc:
-            log.warning("Portal WS ticket Redis consume failed, falling back to memory: %s", exc)
+            log.error("Portal WS ticket Redis consume failed — rejecting ticket: %s", exc)
+            return None
     return _consume_portal_ws_ticket_local(ticket)
 
 # Shared async Redis client (initialised lazily on first use, reused thereafter)
@@ -385,7 +401,11 @@ async def get_ws_ticket(
     """Emite un ticket de corta duración (60 s) que el cliente puede usar como
     parámetro ?ticket= al abrir la conexión WebSocket.  Esto evita exponer el
     access token JWT en JavaScript (el token está sólo en una httpOnly cookie)."""
-    ticket = await _issue_ws_ticket(str(current_user.id))
+    try:
+        ticket = await _issue_ws_ticket(str(current_user.id))
+    except Exception as exc:
+        log.error("No se pudo emitir WS ticket (Redis error): %s", exc)
+        raise HTTPException(503, "Servicio no disponible temporalmente")
     return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
 
 
@@ -408,7 +428,11 @@ async def get_portal_ws_ticket(
         client = verify_client_token(token, db)
         if not client or not getattr(client, "is_active", False):
             raise HTTPException(401, "Token de cliente inválido")
-        ticket = await _issue_portal_ws_ticket(str(client.id))
+        try:
+            ticket = await _issue_portal_ws_ticket(str(client.id))
+        except Exception as exc:
+            log.error("No se pudo emitir portal WS ticket (Redis error): %s", exc)
+            raise HTTPException(503, "Servicio no disponible temporalmente")
         return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
     finally:
         db.close()

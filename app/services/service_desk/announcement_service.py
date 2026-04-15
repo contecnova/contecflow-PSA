@@ -47,3 +47,11 @@ def build_announcement(payload: AnnouncementIn, created_by: str) -> Announcement
 
 def get_announcement_by_id(db: Session, ann_id: str) -> Optional[Announcement]:
     return db.query(Announcement).filter(Announcement.id == ann_id).first()
+
+
+def deactivate_announcement_record(db: Session, ann_id: str) -> Announcement:
+    announcement = get_announcement_by_id(db, ann_id)
+    if not announcement:
+        raise HTTPException(404)
+    announcement.is_active = False
+    return announcement

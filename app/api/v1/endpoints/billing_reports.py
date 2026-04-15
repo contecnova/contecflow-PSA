@@ -24,11 +24,17 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task
 from app.models.imputation import Imputation
+from app.models.project import Project as _Project, ProjectPhase
+from app.models.financial import CapacityPlan
 from app.models.resources import UserSkill
 from app.models.billing_reports import (
     AutomationWorkflow, WorkflowStep, WorkflowExecution,
-    ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition, WorkflowStatus
+    ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition, WorkflowStatus,
+    ScheduledReport,
 )
+from app.models.service_desk import Ticket
+from app.models.expenses import Expense
+from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable
 from app.services.audit import audit_log
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -48,6 +54,8 @@ from app.services.numbering import next_numbered_code
 from app.schemas.billing_reports import (
     ReportSave,
     InvoiceCreate,
+    InvoiceOut,
+    InvoiceLineOut,
     WorkflowCreate,
     TemplateCreate,
     ScheduledReportCreate,
@@ -137,8 +145,6 @@ def run_report(
 
 
 def _run_projects_report(db, filters, group_by, date_from, date_to, org_id=None):
-    from app.models.project import Project
-    from app.models.imputation import Imputation
 
     projects_q = db.query(Project).options(
         joinedload(Project.project_manager),
@@ -188,8 +194,6 @@ def _run_projects_report(db, filters, group_by, date_from, date_to, org_id=None)
 
 
 def _run_imputations_report(db, filters, group_by, date_from, date_to, project_id, org_id=None):
-    from app.models.imputation import Imputation
-    from app.models.project import Project as _Project
 
     q = db.query(Imputation).options(
         joinedload(Imputation.user), joinedload(Imputation.project)
@@ -244,7 +248,6 @@ def _run_imputations_report(db, filters, group_by, date_from, date_to, project_i
 
 
 def _run_tickets_report(db, filters, group_by, date_from, date_to, org_id=None):
-    from app.models.service_desk import Ticket
 
     q = db.query(Ticket).options(joinedload(Ticket.assigned_to))
     if org_id:
@@ -298,8 +301,6 @@ def _run_tickets_report(db, filters, group_by, date_from, date_to, org_id=None):
 
 
 def _run_expenses_report(db, filters, group_by, date_from, date_to, project_id, org_id=None):
-    from app.models.expenses import Expense
-    from app.models.project import Project as _Project
 
     q = db.query(Expense).options(joinedload(Expense.user), joinedload(Expense.project)).filter(
         Expense.status.in_(["approved","reimbursed"])
@@ -339,7 +340,6 @@ def _run_expenses_report(db, filters, group_by, date_from, date_to, project_id, 
 
 
 def _run_capacity_report(db, filters, date_from, date_to, org_id=None):
-    from app.models.financial import CapacityPlan
 
     users_q = db.query(User).filter(User.is_active == True)
     if org_id:
@@ -613,7 +613,6 @@ def execute_import(
                 failed_rows += 1; errors.append({"row": i, "error": str(e)[:100]})
 
     elif entity_type == "imputations":
-        from app.models.imputation import Imputation
         for i, row in enumerate(rows, 1):
             try:
                 user = db.query(User).filter(User.email == row.get("user_email")).first()
@@ -680,35 +679,46 @@ def _next_invoice_number(db: Session) -> str:
         padding=4,
         include_year=True,
         reset_yearly=True,
+        year_separator="-",
     )
 
 
 def _invoice_out(inv: Invoice) -> dict:
-    return {
-        "id": inv.id, "number": inv.number,
-        "project_id": inv.project_id, "client_id": inv.client_id,
-        "project_name": inv.project.name if inv.project else None,
-        "project_code": inv.project.code if inv.project else None,
-        "client_name": inv.client_name, "client_email": inv.client_email,
-        "client_vat": inv.client_vat,
-        "subtotal": inv.subtotal, "tax_rate": inv.tax_rate,
-        "tax_amount": inv.tax_amount, "total": inv.total,
-        "currency": inv.currency,
-        "issue_date": str(inv.issue_date) if inv.issue_date else None,
-        "due_date": str(inv.due_date) if inv.due_date else None,
-        "paid_date": str(inv.paid_date) if inv.paid_date else None,
-        "status": inv.status, "notes": inv.notes,
-        "po_reference": inv.po_reference,
-        "period_from": str(inv.period_from) if inv.period_from else None,
-        "period_to": str(inv.period_to) if inv.period_to else None,
-        "lines": [{
-            "id": l.id, "order": l.order, "description": l.description,
-            "quantity": l.quantity, "unit": l.unit,
-            "unit_price": l.unit_price, "discount_pct": l.discount_pct,
-            "amount": l.amount, "source_type": l.source_type,
-        } for l in inv.lines],
-        "created_at": str(inv.created_at)[:10] if inv.created_at else None,
-    }
+    """Convert Invoice ORM object to validated dict via InvoiceOut schema."""
+    return InvoiceOut(
+        id=inv.id,
+        number=inv.number,
+        project_id=inv.project_id,
+        client_id=inv.client_id,
+        project_name=inv.project.name if inv.project else None,
+        project_code=inv.project.code if inv.project else None,
+        client_name=inv.client_name,
+        client_email=inv.client_email,
+        client_vat=inv.client_vat,
+        subtotal=inv.subtotal,
+        tax_rate=inv.tax_rate,
+        tax_amount=inv.tax_amount,
+        total=inv.total,
+        currency=inv.currency,
+        issue_date=inv.issue_date,
+        due_date=inv.due_date,
+        paid_date=inv.paid_date,
+        status=inv.status,
+        notes=inv.notes,
+        po_reference=inv.po_reference,
+        period_from=inv.period_from,
+        period_to=inv.period_to,
+        lines=[
+            InvoiceLineOut(
+                id=l.id, order=l.order, description=l.description,
+                quantity=l.quantity, unit=l.unit,
+                unit_price=l.unit_price, discount_pct=l.discount_pct,
+                amount=l.amount, source_type=l.source_type,
+            )
+            for l in inv.lines
+        ],
+        created_at=inv.created_at.date() if inv.created_at else None,
+    ).model_dump()
 
 
 @router.get("/invoices", response_model=List[InvoiceOut], summary="Listar facturas")
@@ -926,7 +936,6 @@ def sla_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.service_desk import Ticket
 
     now = datetime.now(timezone.utc)
     open_statuses = ["new","assigned","in_progress","pending_client"]
@@ -992,7 +1001,6 @@ def agent_performance(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.service_desk import Ticket
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
     tickets = db.query(Ticket).options(joinedload(Ticket.assigned_to)).filter(
@@ -1065,7 +1073,6 @@ def pause_resume_sla(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.service_desk import Ticket
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(404)
 
@@ -1222,7 +1229,6 @@ def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.advanced_config import ProjectTemplate, TemplatePhase
     templates = db.query(ProjectTemplate).options(
         joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
         joinedload(ProjectTemplate.risks),
@@ -1253,7 +1259,6 @@ def create_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable
 
     t = ProjectTemplate(
         name=payload.name, description=payload.description,
@@ -1314,9 +1319,6 @@ def instantiate_template(
     current_user: User = Depends(require_any_manager),
 ):
     """Create a real project from a template, copying phases/tasks/risks/deliverables."""
-    from app.models.advanced_config import ProjectTemplate, TemplatePhase
-    from app.models.project import ProjectPhase
-    from app.models.task import Task
 
     tpl = db.query(ProjectTemplate).options(
         joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
@@ -1540,7 +1542,6 @@ def list_scheduled_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.billing_reports import ScheduledReport
     reports = db.query(ScheduledReport).order_by(ScheduledReport.created_at.desc()).all()
     return [_sr_out(r) for r in reports]
 
@@ -1551,7 +1552,6 @@ def create_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ScheduledReport
     from app.services.scheduled_reports import _get_next_run
     import json as _json
     r = ScheduledReport(
@@ -1575,7 +1575,6 @@ def update_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ScheduledReport
     import json as _json
     r = db.query(ScheduledReport).filter(ScheduledReport.id == report_id).first()
     if not r: raise HTTPException(404, "Informe no encontrado")
@@ -1592,7 +1591,6 @@ def delete_scheduled_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ScheduledReport
     r = db.query(ScheduledReport).filter(ScheduledReport.id == report_id).first()
     if not r: raise HTTPException(404)
     db.delete(r); db.commit()
@@ -1622,7 +1620,6 @@ def preview_report_pdf(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ScheduledReport
     from app.services.report_pdf import generate_report_pdf
     from fastapi.responses import Response
 

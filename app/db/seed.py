@@ -29,6 +29,7 @@ def _risk_score(prob, impact):
 def seed():
     # ── Imports ────────────────────────────────────────────────────────────────
     from app.models.user import User, UserRole
+    from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig
     from app.models.project import Project, ProjectType, ProjectStatus
     from app.models.task import Task, TaskStatus, TaskPriority
     from app.models.imputation import Imputation
@@ -88,6 +89,27 @@ def seed():
             db.add(Holiday(date=d, name=name, type="national"))
     db.commit()
 
+    from app.models.mfa import Organization
+
+    # ── Default Organization ────────────────────────────────────────────────────
+    org = db.query(Organization).filter(Organization.slug == "nexus-demo").first()
+    if not org:
+        org = Organization(
+            name="Consultora Nexus SL",
+            slug="nexus-demo",
+            plan="enterprise",
+            is_active=True,
+            max_users=200,
+            max_projects=500,
+            admin_email="admin@company.com",
+            timezone=settings.DEFAULT_TIMEZONE,
+            locale=settings.DEFAULT_LANGUAGE,
+        )
+        db.add(org)
+        db.flush()
+        print(f"  Org: {org.name} (id={org.id})")
+    db.commit()
+
     # ── Users ──────────────────────────────────────────────────────────────────
     users_data = [
         dict(username="admin",    email="admin@company.com",    full_name="Admin Sistema",  role=UserRole.admin,    department="Direccion",      job_title="CTO",               hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS, is_superadmin=True),
@@ -107,9 +129,15 @@ def seed():
     for ud in users_data:
         u = db.query(User).filter(User.username==ud["username"]).first()
         if not u:
-            u = User(**ud, hashed_password=get_password_hash(seed_pwd))
+            # Superadmins span all orgs; everyone else belongs to the default org.
+            org_id = None if ud.get("is_superadmin") else org.id
+            u = User(**ud, hashed_password=get_password_hash(seed_pwd),
+                     organization_id=org_id)
             db.add(u); db.flush()
             print(f"  User: {ud['full_name']}")
+        elif not u.organization_id and not u.is_superadmin:
+            # Back-fill existing users that missed the org assignment.
+            u.organization_id = org.id
         users[ud["username"]] = u
     db.commit()
 
@@ -216,6 +244,64 @@ def seed():
                                        days_pending=settings.DEFAULT_VACATION_DAYS_PER_YEAR - days_taken_val))
     db.commit()
 
+    # ── Clients ────────────────────────────────────────────────────────────────
+    # Fields: name, short_name, industry, status, contact_name, contact_email,
+    #         contact_phone, contact_role, city, country, payment_terms,
+    #         currency, account_manager_id, created_by
+    clients_data = [
+        dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
+             contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
+             contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
+             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["carlos.ruiz"].id),
+        dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
+             contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
+             contact_role="CEO",             city="Barcelona",  country="ES",
+             payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["carlos.ruiz"].id),
+        dict(name="RetailCorp SA",       short_name="RetailCorp", industry=ClientIndustry.retail,        status=ClientStatus.active,
+             contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.es",  contact_phone="+34 95 300 4000",
+             contact_role="Directora de Compras",    city="Sevilla",   country="ES",
+             payment_terms="45 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["ana.torres"].id),
+        dict(name="Hospital X",          short_name="HospX",      industry=ClientIndustry.healthcare,    status=ClientStatus.active,
+             contact_name="Dr. Javier Sanz", contact_email="javier.sanz@hospitalx.es", contact_phone="+34 96 400 5000",
+             contact_role="Director TI",    city="Valencia",  country="ES",
+             payment_terms="60 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["carlos.ruiz"].id),
+        dict(name="FinanceCo SA",        short_name="FinanceCo",  industry=ClientIndustry.finance,       status=ClientStatus.prospect,
+             contact_name="Isabel Navarro",  contact_email="i.navarro@financeco.es",  contact_phone="+34 91 500 6000",
+             contact_role="CFO",             city="Madrid",    country="ES",
+             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["ana.torres"].id),
+        dict(name="FabriTech SL",        short_name="FabriTech",  industry=ClientIndustry.manufacturing, status=ClientStatus.prospect,
+             contact_name="Ramon Ferrer",    contact_email="r.ferrer@fabritech.es",   contact_phone="+34 93 600 7000",
+             contact_role="Director de Operaciones", city="Barcelona", country="ES",
+             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["carlos.ruiz"].id),
+        dict(name="StartupX",            short_name="StartupX",   industry=ClientIndustry.technology,    status=ClientStatus.active,
+             contact_name="Pablo Vidal",     contact_email="pablo@startupx.io",       contact_phone="+34 91 700 8000",
+             contact_role="CTO",             city="Madrid",    country="ES",
+             payment_terms="inmediato",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["ana.torres"].id),
+        dict(name="PymesGroup",          short_name="PymesGroup", industry=ClientIndustry.consulting,    status=ClientStatus.churned,
+             contact_name="Teresa Gil",      contact_email="teresa.gil@pymesgroup.es", contact_phone="+34 91 800 9000",
+             contact_role="Gerente",         city="Madrid",    country="ES",
+             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+             account_manager_id=users["carlos.ruiz"].id),
+    ]
+    clients = {}
+    for cd in clients_data:
+        c = db.query(Client).filter(Client.name == cd["name"]).first()
+        if not c:
+            c = Client(**cd, created_by=users["admin"].id)
+            db.add(c)
+            db.flush()
+            print(f"  Client: {cd['name']}")
+        clients[cd["name"]] = c
+    db.commit()
+    print(f"  {len(clients)} clientes disponibles")
+
     # ── Projects ───────────────────────────────────────────────────────────────
     # Fields: code, name, description, project_type, status, client_name,
     #         is_billable, billing_type, budget_hours, budget_amount,
@@ -223,20 +309,25 @@ def seed():
     if db.query(Project).count() == 0:
         projs_data = [
             dict(code="PRJ-0001",name="Portal Gestion Interno",description="Desarrollo del portal de gestion interna para RRHH y direccion.",project_type=ProjectType.internal,status=ProjectStatus.active,start_date=today-timedelta(days=60),end_date_planned=today+timedelta(days=90),budget_amount=95000,budget_hours=800,pm_id=users["ana.torres"].id,is_billable=False),
-            dict(code="PRJ-0002",name="ERP Acme Industries",description="Implantacion de modulo ERP de contabilidad para cliente Acme Industries.",project_type=ProjectType.consulting,status=ProjectStatus.active,start_date=today-timedelta(days=30),end_date_planned=today+timedelta(days=120),budget_amount=95000,budget_hours=700,pm_id=users["carlos.ruiz"].id,client_name="Acme Industries SA",is_billable=True,billing_type="fixed_price"),
+            dict(code="PRJ-0002",name="ERP Acme Industries",description="Implantacion de modulo ERP de contabilidad para cliente Acme Industries.",project_type=ProjectType.consulting,status=ProjectStatus.active,start_date=today-timedelta(days=30),end_date_planned=today+timedelta(days=120),budget_amount=95000,budget_hours=700,pm_id=users["carlos.ruiz"].id,client_name="Acme Industries SA",client_id=clients["Acme Industries SA"].id,is_billable=True,billing_type="fixed_price"),
             dict(code="PRJ-0003",name="Dashboard Analytics BI",description="Cuadro de mando ejecutivo con Power BI para direccion.",project_type=ProjectType.internal,status=ProjectStatus.active,start_date=today-timedelta(days=20),end_date_planned=today+timedelta(days=40),budget_amount=28000,budget_hours=220,pm_id=users["ana.torres"].id,is_billable=False),
-            dict(code="PRJ-0004",name="App Movil TechStart",description="App React Native para startup TechStart.",project_type=ProjectType.consulting,status=ProjectStatus.paused,start_date=today-timedelta(days=90),end_date_planned=today+timedelta(days=30),budget_amount=55000,budget_hours=500,pm_id=users["carlos.ruiz"].id,client_name="TechStart SL",is_billable=True,billing_type="time_material"),
+            dict(code="PRJ-0004",name="App Movil TechStart",description="App React Native para startup TechStart.",project_type=ProjectType.consulting,status=ProjectStatus.paused,start_date=today-timedelta(days=90),end_date_planned=today+timedelta(days=30),budget_amount=55000,budget_hours=500,pm_id=users["carlos.ruiz"].id,client_name="TechStart SL",client_id=clients["TechStart SL"].id,is_billable=True,billing_type="time_material"),
             dict(code="PRJ-0005",name="Migracion Cloud AWS",description="Migracion de infraestructura on-premise a AWS.",project_type=ProjectType.internal,status=ProjectStatus.planning,start_date=today+timedelta(days=15),end_date_planned=today+timedelta(days=180),budget_amount=70000,budget_hours=600,pm_id=users["ana.torres"].id,is_billable=False),
         ]
         projects = {}
         for pd in projs_data:
-            p = Project(**pd)
+            p = Project(**pd, organization_id=org.id)
             db.add(p); db.flush()
             projects[pd["code"]] = p
         db.commit()
         print(f"  {len(projects)} proyectos creados")
     else:
         projects = {p.code: p for p in db.query(Project).all()}
+        # Back-fill projects missing organization_id.
+        for p in projects.values():
+            if not p.organization_id:
+                p.organization_id = org.id
+        db.commit()
 
     # ── Tasks ──────────────────────────────────────────────────────────────────
     # Fields: code, title, project_id, status, priority, estimated_hours, assignee_id
@@ -306,12 +397,12 @@ def seed():
     #         expected_close_date, owner_id, description
     if db.query(Opportunity).count() == 0:
         opps = [
-            dict(code="OPP-0001",name="Portal B2B RetailCorp",    client_name="RetailCorp SA",  expected_revenue=180000,stage=OpportunityStage.proposal,    probability=60, expected_close_date=today+timedelta(days=30), owner_id=users["carlos.ruiz"].id,description="Portal de gestion de proveedores B2B"),
-            dict(code="OPP-0002",name="Sistema RRHH HospitalX",   client_name="Hospital X",     expected_revenue=95000, stage=OpportunityStage.negotiation,  probability=80, expected_close_date=today+timedelta(days=15), owner_id=users["carlos.ruiz"].id),
-            dict(code="OPP-0003",name="App Analytics FinanceCo",  client_name="FinanceCo SA",   expected_revenue=220000,stage=OpportunityStage.qualification, probability=35, expected_close_date=today+timedelta(days=60), owner_id=users["ana.torres"].id),
-            dict(code="OPP-0004",name="Plataforma IoT Fab",       client_name="FabriTech SL",   expected_revenue=310000,stage=OpportunityStage.lead,          probability=20, expected_close_date=today+timedelta(days=90), owner_id=users["carlos.ruiz"].id),
-            dict(code="OPP-0005",name="Migracion cloud StartupX", client_name="StartupX",       expected_revenue=45000, stage=OpportunityStage.won,           probability=100,expected_close_date=today-timedelta(days=5),  owner_id=users["ana.torres"].id),
-            dict(code="OPP-0006",name="CRM PymesGroup",           client_name="PymesGroup",     expected_revenue=78000, stage=OpportunityStage.lost,          probability=0,  expected_close_date=today-timedelta(days=20), owner_id=users["carlos.ruiz"].id),
+            dict(code="OPP-0001",name="Portal B2B RetailCorp",    client_name="RetailCorp SA",  client_id=clients["RetailCorp SA"].id,  expected_revenue=180000,stage=OpportunityStage.proposal,    probability=60, expected_close_date=today+timedelta(days=30), owner_id=users["carlos.ruiz"].id,description="Portal de gestion de proveedores B2B"),
+            dict(code="OPP-0002",name="Sistema RRHH HospitalX",   client_name="Hospital X",     client_id=clients["Hospital X"].id,     expected_revenue=95000, stage=OpportunityStage.negotiation,  probability=80, expected_close_date=today+timedelta(days=15), owner_id=users["carlos.ruiz"].id),
+            dict(code="OPP-0003",name="App Analytics FinanceCo",  client_name="FinanceCo SA",   client_id=clients["FinanceCo SA"].id,   expected_revenue=220000,stage=OpportunityStage.qualification, probability=35, expected_close_date=today+timedelta(days=60), owner_id=users["ana.torres"].id),
+            dict(code="OPP-0004",name="Plataforma IoT Fab",       client_name="FabriTech SL",   client_id=clients["FabriTech SL"].id,   expected_revenue=310000,stage=OpportunityStage.lead,          probability=20, expected_close_date=today+timedelta(days=90), owner_id=users["carlos.ruiz"].id),
+            dict(code="OPP-0005",name="Migracion cloud StartupX", client_name="StartupX",       client_id=clients["StartupX"].id,       expected_revenue=45000, stage=OpportunityStage.won,           probability=100,expected_close_date=today-timedelta(days=5),  owner_id=users["ana.torres"].id),
+            dict(code="OPP-0006",name="CRM PymesGroup",           client_name="PymesGroup",     client_id=clients["PymesGroup"].id,     expected_revenue=78000, stage=OpportunityStage.lost,          probability=0,  expected_close_date=today-timedelta(days=20), owner_id=users["carlos.ruiz"].id),
         ]
         for od in opps:
             db.add(Opportunity(**od))
@@ -323,9 +414,9 @@ def seed():
     #         total_amount, monthly_retainer, start_date, end_date, signed_date
     # WorkOrder fields: code, contract_id, name, amount, hours, start_date, end_date
     if db.query(Contract).count() == 0:
-        c1 = Contract(code="CNT-0001",name="Contrato ERP Acme Industries",project_id=projects["PRJ-0002"].id,client_name="Acme Industries SA",contract_type=ContractType.fixed_price,status=ContractStatus.active,start_date=today-timedelta(days=30),end_date=today+timedelta(days=120),total_amount=95000,signed_date=today-timedelta(days=35))
-        c2 = Contract(code="CNT-0002",name="Soporte y mantenimiento TechStart",project_id=projects["PRJ-0004"].id,client_name="TechStart SL",contract_type=ContractType.time_material,status=ContractStatus.active,start_date=today-timedelta(days=90),end_date=today+timedelta(days=90),total_amount=36000,monthly_retainer=3000,signed_date=today-timedelta(days=92))
-        c3 = Contract(code="CNT-0003",name="Proyecto Data Analytics RetailCorp",project_id=projects["PRJ-0003"].id,client_name="RetailCorp SA",contract_type=ContractType.fixed_price,status=ContractStatus.draft,start_date=today+timedelta(days=15),end_date=today+timedelta(days=150),total_amount=180000)
+        c1 = Contract(code="CNT-0001",name="Contrato ERP Acme Industries",project_id=projects["PRJ-0002"].id,client_name="Acme Industries SA",client_id=clients["Acme Industries SA"].id,contract_type=ContractType.fixed_price,status=ContractStatus.active,start_date=today-timedelta(days=30),end_date=today+timedelta(days=120),total_amount=95000,signed_date=today-timedelta(days=35))
+        c2 = Contract(code="CNT-0002",name="Soporte y mantenimiento TechStart",project_id=projects["PRJ-0004"].id,client_name="TechStart SL",client_id=clients["TechStart SL"].id,contract_type=ContractType.time_material,status=ContractStatus.active,start_date=today-timedelta(days=90),end_date=today+timedelta(days=90),total_amount=36000,monthly_retainer=3000,signed_date=today-timedelta(days=92))
+        c3 = Contract(code="CNT-0003",name="Proyecto Data Analytics RetailCorp",project_id=projects["PRJ-0003"].id,client_name="RetailCorp SA",client_id=clients["RetailCorp SA"].id,contract_type=ContractType.fixed_price,status=ContractStatus.draft,start_date=today+timedelta(days=15),end_date=today+timedelta(days=150),total_amount=180000)
         db.add_all([c1,c2,c3]); db.flush()
         db.add(WorkOrder(code="OT-0001",contract_id=c1.id,name="Fase 1 - Analisis y diseno",  amount=23750,hours=190,start_date=today-timedelta(days=30),end_date=today-timedelta(days=10)))
         db.add(WorkOrder(code="OT-0002",contract_id=c1.id,name="Fase 2 - Desarrollo API",     amount=33250,hours=270,start_date=today-timedelta(days=10),end_date=today+timedelta(days=40)))
@@ -396,6 +487,28 @@ def seed():
                     sort_order=i
                 ))
         db.commit()
+
+    # ── Backfill client_id on already-seeded records ───────────────────────────
+    # Handles DBs seeded before this fix was applied (client_id = NULL).
+    name_to_client = {c.name: c for c in db.query(Client).all()}
+
+    for p in db.query(Project).filter(Project.client_id == None, Project.client_name != None).all():
+        c = name_to_client.get(p.client_name)
+        if c:
+            p.client_id = c.id
+
+    for o in db.query(Opportunity).filter(Opportunity.client_id == None, Opportunity.client_name != None).all():
+        c = name_to_client.get(o.client_name)
+        if c:
+            o.client_id = c.id
+
+    for ct in db.query(Contract).filter(Contract.client_id == None, Contract.client_name != None).all():
+        c = name_to_client.get(ct.client_name)
+        if c:
+            ct.client_id = c.id
+
+    db.commit()
+    print("  Backfill client_id completado")
 
     db.close()
     print("\nSeed completado!")

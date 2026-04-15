@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 /**
  * DashboardPage v23 — Dashboard ejecutivo con widgets completos
  * Muestra KPIs de todos los módulos en un vistazo
@@ -59,7 +59,7 @@ function KpiRow({ kpis }) {
   ]
 
   return (
-    <div className="grid-kpi grid-kpi-dashboard grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" style={{ marginBottom: 24 }}>
+    <div className="grid-kpi grid-kpi-dashboard" style={{ marginBottom: 24 }}>
       {cards.map(c => (
         <div key={c.label} onClick={() => nav(c.path)}
           className="surface-card-interactive"
@@ -746,6 +746,20 @@ export default function DashboardPage() {
   const [configOpen, setConfigOpen] = useState(false)
   const [dragOver, setDragOver] = useState(null)
   const dragId = React.useRef(null)
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const isMobile = viewportWidth <= 900
+  const isTablet = viewportWidth > 900 && viewportWidth <= 1200
+
+  const topWidgetsCols = isMobile ? '1fr' : '1fr 1fr 1fr'
+  const teamRowCols = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '2fr 1fr 1fr'
+  const bottomRowCols = isMobile ? '1fr' : '1fr 1fr'
 
   if (kpisLoading) return <SkeletonDashboard />
 
@@ -766,8 +780,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+    <div style={{ padding: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Dashboard</div>
           <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
@@ -775,12 +789,11 @@ export default function DashboardPage() {
           </div>
         </div>
         <button onClick={() => setConfigOpen(o => !o)} data-tour="dashboard-customize"
-          className="w-full sm:w-auto"
           style={{ background: configOpen ? 'var(--accent-muted)' : 'var(--surface-2)',
             border: `1px solid ${configOpen ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
             borderRadius: 9, color: configOpen ? 'var(--accent)' : 'var(--text-2)', padding: '8px 16px',
             cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', gap: 6, alignItems: 'center',
-            transition: 'all 0.15s' }}>
+            transition: 'all 0.15s', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'center' : 'flex-start' }}>
           ⊞ {t('dashboard.customize_dashboard')}
         </button>
       </div>
@@ -853,25 +866,25 @@ export default function DashboardPage() {
       {/* Widgets en orden configurado */}
       {isVisible('kpis') && <div style={{ marginBottom: 16 }}>{WIDGET_MAP.kpis}</div>}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div style={{ display: 'grid', gridTemplateColumns: topWidgetsCols, gap: 16, marginBottom: 16 }}>
         {['tasks','alerts','health'].filter(isVisible).map(id => (
           <div key={id}>{WIDGET_MAP[id]}</div>
         ))}
       </div>
 
       {isVisible('overdue') && (
-        <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-1">{WIDGET_MAP.overdue}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: topWidgetsCols, gap: 16, marginBottom: 16 }}>
+          <div>{WIDGET_MAP.overdue}</div>
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {isVisible('team') && <div className="md:col-span-2 lg:col-span-2">{WIDGET_MAP.team}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: teamRowCols, gap: 16, marginBottom: 16 }}>
+        {isVisible('team') && <div>{WIDGET_MAP.team}</div>}
         {isVisible('pipeline') && <div>{WIDGET_MAP.pipeline}</div>}
         {isVisible('clients') && <div>{WIDGET_MAP.clients}</div>}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div style={{ display: 'grid', gridTemplateColumns: bottomRowCols, gap: 16 }}>
         {isVisible('hours')    && <div>{WIDGET_MAP.hours}</div>}
         {isVisible('activity') && <div>{WIDGET_MAP.activity}</div>}
         {isVisible('docs')     && <div>{WIDGET_MAP.docs}</div>}

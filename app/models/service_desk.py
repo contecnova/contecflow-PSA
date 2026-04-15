@@ -282,6 +282,10 @@ class Ticket(Base):
     first_response_at = Column(DateTime(timezone=True), nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     closed_at = Column(DateTime(timezone=True), nullable=True)
+    first_response_minutes = Column(Integer, nullable=True)
+    resolution_minutes = Column(Integer, nullable=True)
+    sla_response_breached = Column(Boolean, default=False)
+    sla_resolution_breached = Column(Boolean, default=False)
 
     source = Column(String(20), default="portal")
     tags = Column(String(500), nullable=True)

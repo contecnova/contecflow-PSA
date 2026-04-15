@@ -94,7 +94,10 @@ def _resolve_material(ref: str) -> str:
 
 
 def _get_setting(db, key: str) -> Optional[AppSetting]:
-    return db.query(AppSetting).filter(AppSetting.key == key).first()
+    # Key management settings are global (organization-independent).
+    return db.query(AppSetting).filter(
+        AppSetting.key == key, AppSetting.organization_id.is_(None)
+    ).first()
 
 
 def _settings_table_available(db) -> bool:
