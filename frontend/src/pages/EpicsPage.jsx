@@ -194,7 +194,7 @@ export default function EpicsPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('epics.title')} subtitle="Agrupa tareas en objetivos de mayor nivel y visualiza el roadmap"
+      <PageHeader title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
           <div style={{display:'flex',gap:8}}>
             <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid #1e2d45',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>Lista</button>

@@ -171,7 +171,7 @@ export default function DeliverablesPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader icon={<Package size={18} />} title={t('deliverables.title')} subtitle="Control de entregables y aceptación del cliente" />
+      <PageHeader icon={<Package size={18} />} title={t('deliverables.title')} subtitle={t('deliverables.subtitle')} />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
         {[['project', '📁 Por proyecto'], ['overview', '🌐 Vista global']].map(([t, label]) => (

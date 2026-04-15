@@ -418,7 +418,7 @@ export default function ResourcesPage() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle="Gestión de capacidad, utilización y asignación del equipo" />
+      <PageHeader icon={<Users size={18} />} title={t('resources.title')} subtitle={t('resources.subtitle')} />
 
       {/* KPI bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>

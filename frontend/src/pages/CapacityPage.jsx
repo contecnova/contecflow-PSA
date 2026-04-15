@@ -14,9 +14,19 @@ import PageHeader from '../components/layout/PageHeader'
 import { TrendingUp } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+const assignPlanSchema = z.object({
+  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
+  project_id: z.string().optional(),
+  week_start: z.string().min(1, 'La semana es obligatoria'),
+  planned_hours: z.coerce.number().min(1, 'Las horas planificadas deben ser al menos 1').max(80, 'Las horas planificadas no pueden superar 80'),
+  notes: z.string().optional(),
+})
 
 const LOAD_COLOR = (pct) => pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 60 ? 'var(--accent)' : 'var(--success)'
 
@@ -50,6 +60,7 @@ function AssignModal({ prefill, onClose }) {
     planned_hours: prefill?.hours || 8,
     notes:         '',
   })
+  const validation = useFormValidation(assignPlanSchema)
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
@@ -67,24 +78,40 @@ function AssignModal({ prefill, onClose }) {
       qc.invalidateQueries(['forecast-heatmap'])
       qc.invalidateQueries(['forecast-summary'])
       toast.success('Asignación creada')
+      validation.setErrors({})
       onClose()
     },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
+
+  const setField = (key) => (e) => {
+    const value = key === 'planned_hours' ? +e.target.value : e.target.value
+    setForm(current => ({ ...current, [key]: value }))
+    validation.clearFieldError(key)
+  }
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) {
+      return
+    }
+    mutate(result.data)
+  }
 
   return (
     <Modal open title="Nueva asignación de capacidad" onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
           <label style={ls}>Persona *</label>
-          <select value={form.user_id} onChange={e => setForm(f=>({...f,user_id:e.target.value}))} style={fs}>
+          <select value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
+          {validation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.user_id}</div>}
         </div>
         <div>
           <label style={ls}>Proyecto</label>
-          <select value={form.project_id} onChange={e => setForm(f=>({...f,project_id:e.target.value}))} style={fs}>
+          <select value={form.project_id} onChange={setField('project_id')} style={fs}>
             <option value="">Sin proyecto (disponible)</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
@@ -93,22 +120,27 @@ function AssignModal({ prefill, onClose }) {
           <div>
             <label style={ls}>Semana</label>
             <input type="date" value={form.week_start}
-              onChange={e => setForm(f=>({...f,week_start:monday(e.target.value)}))} style={fs} />
+              onChange={e => {
+                setForm(current => ({ ...current, week_start: monday(e.target.value) }))
+                validation.clearFieldError('week_start')
+              }} style={validation.inputStyle(fs, 'week_start')} />
+            {validation.errors.week_start && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.week_start}</div>}
           </div>
           <div>
             <label style={ls}>Horas planificadas</label>
             <input type="number" value={form.planned_hours} min="1" max="80" step="0.5"
-              onChange={e => setForm(f=>({...f,planned_hours:+e.target.value}))} style={fs} />
+              onChange={setField('planned_hours')} style={validation.inputStyle(fs, 'planned_hours')} />
+            {validation.errors.planned_hours && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
           <label style={ls}>Notas</label>
-          <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={fs} placeholder="Opcional" />
+          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder="Opcional" />
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
-        <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.user_id || isPending}>
+        <Button onClick={submit} loading={isPending} disabled={isPending}>
           Asignar
         </Button>
       </div>

@@ -163,7 +163,7 @@ export default function IssueTypesPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('issue_types.title')} subtitle="Define los tipos de trabajo de cada proyecto: historia, bug, tarea, mejora, spike…"
+      <PageHeader title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
         actions={project && types.length > 0 && (
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo tipo</Button>
         )} />

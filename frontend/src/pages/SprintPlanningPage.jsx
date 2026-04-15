@@ -204,7 +204,7 @@ export default function SprintPlanningPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('sprint_planning.title')} subtitle="Genera planes de sprint optimizados por IA basados en el backlog y la capacidad del equipo"
+      <PageHeader title={t('sprint_planning.title')} subtitle={t('sprint_planning.subtitle')}
         actions={project && <Button onClick={() => setShowGenerate(true)}>✨ Generar plan</Button>} />
 
       <div style={{...ps,marginBottom:20}}>

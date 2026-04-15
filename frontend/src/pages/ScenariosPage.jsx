@@ -50,7 +50,7 @@ export default function ScenariosPage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('scenarios.title')} subtitle="Simula el impacto de nuevos proyectos en la capacidad del equipo antes de firmarlos" />
+      <PageHeader title={t('scenarios.title')} subtitle={t('scenarios.subtitle')} />
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:20 }}>
         <Button onClick={()=>setShowCreate(true)}>+ Nuevo escenario</Button>
       </div>

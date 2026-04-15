@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -37,6 +37,7 @@ function StatusBadge({ status }) {
 }
 
 function CRFormModal({ cr, projectId, onClose }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!cr?.id
@@ -65,34 +66,34 @@ function CRFormModal({ cr, projectId, onClose }) {
     <Modal open title={isEdit ? `Editar CR — ${cr.code}` : 'Nueva Solicitud de Cambio'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Título *</label>
-          <input value={form.title} onChange={set('title')} style={fs} placeholder="Ampliar alcance módulo de facturación" />
+          <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={fs} placeholder="Ampliar alcance módulo de facturación" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Descripción *</label>
-          <textarea value={form.description} onChange={set('description')} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder="Descripción detallada del cambio solicitado..." />
+          <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción *</label>
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder="Descripción detallada del cambio solicitado..." />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Justificación</label>
-          <textarea value={form.justification} onChange={set('justification')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Por qué es necesario este cambio..." />
+          <label htmlFor={`${idPrefix}-justification`} style={ls}>Justificación</label>
+          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Por qué es necesario este cambio..." />
         </div>
         <div>
-          <label style={ls}>Impacto</label>
-          <select value={form.impact} onChange={set('impact')} style={fs}>
+          <label htmlFor={`${idPrefix}-impact`} style={ls}>Impacto</label>
+          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={fs}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Impacto en coste (€)</label>
-          <input type="number" value={form.cost_impact} onChange={set('cost_impact')} style={fs} placeholder="0" />
+          <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
+          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={fs} placeholder="0" />
         </div>
         <div>
-          <label style={ls}>Impacto en plazo (días)</label>
-          <input type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder="0" />
+          <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>Impacto en plazo (días)</label>
+          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder="0" />
         </div>
         <div>
-          <label style={ls}>Impacto en alcance</label>
-          <input value={form.scope_impact} onChange={set('scope_impact')} style={fs} placeholder="Descripción del cambio de alcance..." />
+          <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
+          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={fs} placeholder="Descripción del cambio de alcance..." />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -106,6 +107,7 @@ function CRFormModal({ cr, projectId, onClose }) {
 }
 
 function ReviewCRModal({ cr, projectId, onClose }) {
+  const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
@@ -136,8 +138,8 @@ function ReviewCRModal({ cr, projectId, onClose }) {
         {cr.scope_impact && <p style={{ fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px' }}>📋 {cr.scope_impact}</p>}
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+        <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
+        <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -294,7 +296,7 @@ export default function ChangesPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle="Gestión formal de solicitudes de cambio de alcance" />
+      <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle={t('changes.subtitle')} />
       <div style={{ display:'flex', gap:8, marginBottom:24 }}>
         {[['changes','🔀 Control de cambios'],['cab','📋 CAB & Ventanas']].map(([id,label]) => (
           <button key={id} onClick={() => setMainTab(id)}

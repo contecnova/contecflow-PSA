@@ -257,7 +257,7 @@ export default function InvoicesPage() {
   const t = useAppT()
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle="Facturas, cobros y seguimiento financiero" />
+      <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle={t('invoices.subtitle')} />
       <InvoicesTab />
     </div>
   )

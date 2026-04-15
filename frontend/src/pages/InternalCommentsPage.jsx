@@ -154,7 +154,7 @@ export default function InternalCommentsPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('internal_comments.title')} subtitle="Notas privadas del equipo de soporte — no visibles para el cliente" />
+      <PageHeader title={t('internal_comments.title')} subtitle={t('internal_comments.subtitle')} />
 
       <div style={{...ps, marginBottom:20}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr', gap:12}}>

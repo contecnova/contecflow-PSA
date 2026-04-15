@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -34,6 +34,7 @@ const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finan
 
 // ── Modal de paso ─────────────────────────────────────────────────────────────
 function StepModal({ workflowId, step, onClose }) {
+  const idPrefix = useId()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
   const qc = useQueryClient()
@@ -71,24 +72,24 @@ function StepModal({ workflowId, step, onClose }) {
     <Modal open title={isEdit ? '✏️ Editar paso' : '+ Nuevo paso de aprobación'} onClose={onClose} width={520}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
-          <label style={lbl}>Nombre del paso *</label>
-          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Manager directo, Director, CFO" />
+          <label htmlFor={`${idPrefix}-name`} style={lbl}>Nombre del paso *</label>
+          <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Manager directo, Director, CFO" />
         </div>
         <div>
-          <label style={lbl}>Orden</label>
-          <input type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
+          <label htmlFor={`${idPrefix}-order`} style={lbl}>Orden</label>
+          <input id={`${idPrefix}-order`} type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={lbl}>Tipo de aprobador</label>
-          <select value={form.approver_type} onChange={e => setForm(f=>({...f,approver_type:e.target.value}))} style={inp}>
+          <label htmlFor={`${idPrefix}-approver-type`} style={lbl}>Tipo de aprobador</label>
+          <select id={`${idPrefix}-approver-type`} value={form.approver_type} onChange={e => setForm(f=>({...f,approver_type:e.target.value}))} style={inp}>
             {Object.entries(APPROVER_TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
 
         {form.approver_type === 'role' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={lbl}>Rol requerido</label>
-            <select value={form.approver_role} onChange={e => setForm(f=>({...f,approver_role:e.target.value}))} style={inp}>
+            <label htmlFor={`${idPrefix}-approver-role`} style={lbl}>Rol requerido</label>
+            <select id={`${idPrefix}-approver-role`} value={form.approver_role} onChange={e => setForm(f=>({...f,approver_role:e.target.value}))} style={inp}>
               <option value="">Seleccionar rol...</option>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -97,8 +98,8 @@ function StepModal({ workflowId, step, onClose }) {
 
         {form.approver_type === 'user' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={lbl}>Usuario aprobador</label>
-            <select value={form.approver_user_id} onChange={e => setForm(f=>({...f,approver_user_id:e.target.value}))} style={inp}>
+            <label htmlFor={`${idPrefix}-approver-user`} style={lbl}>Usuario aprobador</label>
+            <select id={`${idPrefix}-approver-user`} value={form.approver_user_id} onChange={e => setForm(f=>({...f,approver_user_id:e.target.value}))} style={inp}>
               <option value="">Seleccionar usuario...</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
             </select>
@@ -107,26 +108,26 @@ function StepModal({ workflowId, step, onClose }) {
 
         {form.approver_type === 'any_in_department' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={lbl}>Departamento</label>
-            <input value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp} placeholder="IT, Finance, HR..." />
+            <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>Departamento</label>
+            <input id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp} placeholder="IT, Finance, HR..." />
           </div>
         )}
 
         <div>
-          <label style={lbl}>Tiempo límite (horas)</label>
-          <input type="number" value={form.timeout_hours} onChange={e => setForm(f=>({...f,timeout_hours:+e.target.value}))} style={inp} min="1" />
+          <label htmlFor={`${idPrefix}-timeout-hours`} style={lbl}>Tiempo límite (horas)</label>
+          <input id={`${idPrefix}-timeout-hours`} type="number" value={form.timeout_hours} onChange={e => setForm(f=>({...f,timeout_hours:+e.target.value}))} style={inp} min="1" />
         </div>
         <div>
-          <label style={lbl}>Si supera el tiempo</label>
-          <select value={form.on_timeout} onChange={e => setForm(f=>({...f,on_timeout:e.target.value}))} style={inp}>
+          <label htmlFor={`${idPrefix}-on-timeout`} style={lbl}>Si supera el tiempo</label>
+          <select id={`${idPrefix}-on-timeout`} value={form.on_timeout} onChange={e => setForm(f=>({...f,on_timeout:e.target.value}))} style={inp}>
             <option value="escalate">Escalar al siguiente</option>
             <option value="auto_approve">Aprobar automáticamente</option>
             <option value="reject">Rechazar automáticamente</option>
           </select>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
-            <input type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+          <label htmlFor={`${idPrefix}-is-optional`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
+            <input id={`${idPrefix}-is-optional`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             Paso opcional (se puede saltar si el aprobador no responde)
           </label>
         </div>
@@ -173,7 +174,7 @@ function WorkflowDetail({ workflowId, onBack }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
+        <button aria-label="Volver a la lista de flujos" onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800 }}>{wf.name}</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
@@ -182,7 +183,7 @@ function WorkflowDetail({ workflowId, onBack }) {
             {!wf.is_active && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>INACTIVO</span>}
           </div>
         </div>
-        <button onClick={() => toggleActive(!wf.is_active)} style={{
+        <button aria-pressed={wf.is_active} onClick={() => toggleActive(!wf.is_active)} style={{
           background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
           padding: '6px 14px', color: wf.is_active ? 'var(--warning)' : 'var(--success)',
           cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
@@ -227,8 +228,8 @@ function WorkflowDetail({ workflowId, onBack }) {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
-                      <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar paso "${step.name}"?`, onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      <button aria-label={`Editar paso ${step.name}`} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
+                      <button aria-label={`Eliminar paso ${step.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar paso "${step.name}"?`, onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                     </div>
                   </div>
                 </div>
@@ -361,20 +362,22 @@ function MyPendingTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <select value={entityFilter} onChange={e => setEntityFilter(e.target.value)} style={{ ...inp, width: 220 }}>
+        <select aria-label="Filtrar por entidad" value={entityFilter} onChange={e => setEntityFilter(e.target.value)} style={{ ...inp, width: 220 }}>
           <option value="all">Todas las entidades</option>
           {Object.entries(ENTITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ ...inp, width: 220 }}>
+        <select aria-label="Ordenar solicitudes" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ ...inp, width: 220 }}>
           <option value="oldest">Priorizar más antiguas</option>
           <option value="newest">Priorizar más recientes</option>
         </select>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-2)', cursor: 'pointer' }}>
+        <label htmlFor="approvals-select-all" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-2)', cursor: 'pointer' }}>
           <input
+            id="approvals-select-all"
             type="checkbox"
+            aria-label="Seleccionar todas las solicitudes filtradas"
             checked={queue.length > 0 && selectedIds.size === queue.length}
             onChange={toggleAll}
             style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)' }}
@@ -398,6 +401,7 @@ function MyPendingTab() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <input
                 type="checkbox"
+                aria-label={`Seleccionar solicitud ${req.entity_summary || req.entity_id}`}
                 checked={selectedIds.has(req.id)}
                 onChange={() => toggleSelect(req.id)}
                 style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
@@ -425,6 +429,7 @@ function MyPendingTab() {
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button
+                  aria-label={`Rechazar ${req.entity_summary || req.entity_id}`}
                   onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
                   disabled={deciding}
                   style={{ background: 'var(--danger-bg)', border: '1px solid #ff475730', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
@@ -447,6 +452,7 @@ function MyPendingTab() {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ApprovalsPage() {
+  const createIdPrefix = useId()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -494,7 +500,7 @@ export default function ApprovalsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader icon={<CheckCircle size={18} />} title={t('approvals.title')} subtitle="Flujos multi-nivel configurables para timesheets, gastos, cambios y más" />
+      <PageHeader icon={<CheckCircle size={18} />} title={t('approvals.title')} subtitle={t('approvals.subtitle')} />
 
       {/* KPIs */}
       {stats && (
@@ -514,19 +520,19 @@ export default function ApprovalsPage() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
-        <button onClick={() => setTab('pending')}   style={tabStyle(tab === 'pending')}>
+      <div role="tablist" aria-label="Secciones de aprobaciones" style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
+        <button role="tab" aria-selected={tab === 'pending'} aria-controls="approvals-panel-pending" id="approvals-tab-pending" onClick={() => setTab('pending')}   style={tabStyle(tab === 'pending')}>
           Mis pendientes {stats?.pending > 0 && <span style={{ marginLeft: 5, fontSize: 10, padding: '1px 5px', borderRadius: 8, background: 'var(--warning-border)', color: 'var(--warning)' }}>{stats.pending}</span>}
         </button>
-        <button onClick={() => setTab('workflows')} style={tabStyle(tab === 'workflows')}>Flujos configurados</button>
+        <button role="tab" aria-selected={tab === 'workflows'} aria-controls="approvals-panel-workflows" id="approvals-tab-workflows" onClick={() => setTab('workflows')} style={tabStyle(tab === 'workflows')}>Flujos configurados</button>
       </div>
 
       {/* Tab pendientes */}
-      {tab === 'pending' && <MyPendingTab />}
+      {tab === 'pending' && <div id="approvals-panel-pending" role="tabpanel" aria-labelledby="approvals-tab-pending"><MyPendingTab /></div>}
 
       {/* Tab flujos */}
       {tab === 'workflows' && (
-        <div>
+        <div id="approvals-panel-workflows" role="tabpanel" aria-labelledby="approvals-tab-workflows">
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
             <Button onClick={() => setShowCreate(true)}>+ Nuevo flujo</Button>
           </div>
@@ -544,7 +550,11 @@ export default function ApprovalsPage() {
                 return entityFlows.map(wf => {
                   return (
                     <div key={wf.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelected(wf.id)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }}
+                      aria-label={`Abrir flujo ${wf.name}`}
                       style={{
                         background: 'var(--surface-2)', border: `1px solid ${wf.is_active ? cfg.color + '30' : 'var(--surface-4)'}`,
                         borderRadius: 12, padding: '16px 20px', cursor: 'pointer',
@@ -572,7 +582,7 @@ export default function ApprovalsPage() {
                         {wf.description && ` · ${wf.description}`}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar flujo "${wf.name}"?`,onConfirm:()=>del(wf.id),danger:true}) }}
+                        <button aria-label={`Eliminar flujo ${wf.name}`} onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar flujo "${wf.name}"?`,onConfirm:()=>del(wf.id),danger:true}) }}
                           style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
                           🗑
                         </button>
@@ -582,7 +592,7 @@ export default function ApprovalsPage() {
                 })
               })}
               {workflows.filter(w => !Object.keys(ENTITY_LABELS).includes(w.entity_type)).map(wf => (
-                <div key={wf.id} onClick={() => setSelected(wf.id)}
+                <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={`Abrir flujo ${wf.name}`}
                   style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{wf.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} pasos</div>
@@ -597,21 +607,21 @@ export default function ApprovalsPage() {
         <Modal open title="Nuevo flujo de aprobación" onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Aprobación gastos &gt;1000€" />
+              <label htmlFor={`${createIdPrefix}-name`} style={lbl}>Nombre *</label>
+              <input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Aprobación gastos &gt;1000€" />
             </div>
             <div>
-              <label style={lbl}>Tipo de entidad</label>
-              <select value={form.entity_type} onChange={e => setForm(f=>({...f,entity_type:e.target.value}))} style={inp}>
+              <label htmlFor={`${createIdPrefix}-entity-type`} style={lbl}>Tipo de entidad</label>
+              <select id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f=>({...f,entity_type:e.target.value}))} style={inp}>
                 {Object.entries(ENTITY_LABELS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={lbl}>Descripción</label>
-              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Cuándo se activa este flujo..." />
+              <label htmlFor={`${createIdPrefix}-description`} style={lbl}>Descripción</label>
+              <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Cuándo se activa este flujo..." />
             </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
-              <input type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            <label htmlFor={`${createIdPrefix}-is-default`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
+              <input id={`${createIdPrefix}-is-default`} type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               Flujo por defecto para este tipo de entidad
             </label>
           </div>

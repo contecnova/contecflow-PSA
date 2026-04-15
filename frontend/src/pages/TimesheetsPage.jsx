@@ -228,7 +228,7 @@ export default function TimesheetsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('timesheets.title')} subtitle="Control semanal de horas con flujo de aprobación" />
+      <PageHeader title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} />
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
         {tabs.map(t => (

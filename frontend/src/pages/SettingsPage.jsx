@@ -1369,7 +1369,7 @@ export default function SettingsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('settings.title')} subtitle="Administración completa del sistema" icon={<Settings size={18} />} />
+      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} />
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap' }}>

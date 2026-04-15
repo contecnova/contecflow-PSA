@@ -7,6 +7,8 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from './ui'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const STATUS_COLORS = {
   overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
@@ -23,6 +25,24 @@ const BOOKING_COLORS = {
 const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
+const bookingSchema = z.object({
+  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
+  project_id: z.string().optional(),
+  booking_type: z.enum(['hard', 'soft']),
+  start_date: z.string().min(1, 'La fecha de inicio es obligatoria'),
+  end_date: z.string().min(1, 'La fecha de fin es obligatoria'),
+  hours_per_day: z.coerce.number().min(1, 'Las horas por dia deben ser al menos 1').max(24, 'Las horas por dia no pueden superar 24'),
+  note: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.end_date < data.start_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date'],
+      message: 'La fecha de fin no puede ser anterior a la de inicio',
+    })
+  }
+})
+
 function BookingModal({ onClose, prefill }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -34,6 +54,7 @@ function BookingModal({ onClose, prefill }) {
     hours_per_day: 8,
     note: '',
   })
+  const validation = useFormValidation(bookingSchema)
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
@@ -42,47 +63,65 @@ function BookingModal({ onClose, prefill }) {
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/bookings', d),
-    onSuccess: () => { qc.invalidateQueries(['heatmap']); qc.invalidateQueries(['bookings']); onClose() },
+    onSuccess: () => { qc.invalidateQueries(['heatmap']); qc.invalidateQueries(['bookings']); validation.setErrors({}); onClose() },
   })
+
+  const setField = (key) => (e) => {
+    const value = key === 'hours_per_day' ? +e.target.value : e.target.value
+    setForm(current => ({ ...current, [key]: value }))
+    validation.clearFieldError(key)
+  }
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) {
+      return
+    }
+    create(result.data)
+  }
 
   return (
     <Modal open title="Nueva reserva de recurso" onClose={onClose} width={480}>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div><label style={ls}>Persona *</label>
-          <select value={form.user_id} onChange={e => setForm(f => ({...f, user_id:e.target.value}))} style={fs}>
+          <select value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
           </select>
+          {validation.errors.user_id && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.user_id}</div>}
         </div>
         <div><label style={ls}>Proyecto</label>
-          <select value={form.project_id} onChange={e => setForm(f => ({...f, project_id:e.target.value}))} style={fs}>
+          <select value={form.project_id} onChange={setField('project_id')} style={fs}>
             <option value="">Sin proyecto</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
           <div><label style={ls}>Tipo</label>
-            <select value={form.booking_type} onChange={e => setForm(f => ({...f, booking_type:e.target.value}))} style={fs}>
+            <select value={form.booking_type} onChange={setField('booking_type')} style={fs}>
               <option value="hard">Hard — Confirmado</option>
               <option value="soft">Soft — Tentativo</option>
             </select>
           </div>
           <div><label style={ls}>H/día</label>
-            <input type="number" min={1} max={24} value={form.hours_per_day} onChange={e => setForm(f => ({...f, hours_per_day:+e.target.value}))} style={fs} />
+            <input type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
+            {validation.errors.hours_per_day && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.hours_per_day}</div>}
           </div>
           <div><label style={ls}>Fecha inicio *</label>
-            <input type="date" value={form.start_date} onChange={e => setForm(f => ({...f, start_date:e.target.value}))} style={fs} />
+            <input type="date" value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+            {validation.errors.start_date && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.start_date}</div>}
           </div>
           <div><label style={ls}>Fecha fin *</label>
-            <input type="date" value={form.end_date} onChange={e => setForm(f => ({...f, end_date:e.target.value}))} style={fs} />
+            <input type="date" value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+            {validation.errors.end_date && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
         <div><label style={ls}>Nota</label>
-          <input value={form.note} onChange={e => setForm(f => ({...f, note:e.target.value}))} style={fs} placeholder="Motivo de la reserva..." />
+          <input value={form.note} onChange={setField('note')} style={fs} placeholder="Motivo de la reserva..." />
         </div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => create(form)} disabled={isPending || !form.user_id || !form.start_date || !form.end_date}>
+          <Button onClick={submit} disabled={isPending}>
             {isPending ? 'Guardando...' : 'Crear reserva'}
           </Button>
         </div>

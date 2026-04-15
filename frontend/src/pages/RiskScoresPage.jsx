@@ -69,7 +69,7 @@ export default function RiskScoresPage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('risk_scores.title')} subtitle="Motor de alertas proactivas — señales tempranas de desviación" />
+      <PageHeader title={t('risk_scores.title')} subtitle={t('risk_scores.subtitle')} />
 
       {/* Summary KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>

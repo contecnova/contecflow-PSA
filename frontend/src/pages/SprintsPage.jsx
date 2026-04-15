@@ -354,7 +354,7 @@ export default function SprintsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('sprints.title')} subtitle="Gestión ágil de sprints y backlog" icon={<RefreshCw size={18} />} />
+      <PageHeader title={t('sprints.title')} subtitle={t('sprints.subtitle')} icon={<RefreshCw size={18} />} />
 
       {/* Project selector */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>

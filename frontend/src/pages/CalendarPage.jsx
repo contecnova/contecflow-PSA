@@ -106,7 +106,7 @@ export default function CalendarPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('calendar.title')} subtitle="Vista global de tareas, hitos, sprints y ausencias" />
+      <PageHeader title={t('calendar.title')} subtitle={t('calendar.subtitle')} />
 
       {/* Controles */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>

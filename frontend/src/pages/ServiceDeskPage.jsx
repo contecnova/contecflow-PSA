@@ -3,7 +3,7 @@
  * Módulos: Queue · Tickets · Problems/KEDB · Changes · Major Incidents ·
  *          KB · CMDB · Metrics · Routing · Templates · Config
  */
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, lazy, Suspense, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -79,7 +79,8 @@ function TRow({ t, onClick }) {
   const due = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
   const overdue = due && due < now && !['resolved','closed'].includes(t.status)
   return (
-    <tr onClick={onClick} style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
+    <tr onClick={onClick} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} aria-label={`Abrir ticket ${t.number} ${t.title}`}
+      style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t.number}</td>
@@ -153,18 +154,18 @@ function TicketList({ queueOnly, onSelect }) {
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input placeholder="Buscar ticket, nº, solicitante…" value={search}
-          onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1, minWidth: 200 }} />
-        <select value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
+          aria-label="Buscar tickets" onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1, minWidth: 200 }} />
+        <select aria-label="Filtrar tickets por prioridad" value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
           <option value="">Todas las prioridades</option>
           {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
             <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
         </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
+        <select aria-label="Filtrar tickets por estado" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
           <option value="">Todos los estados</option>
           {['new','assigned','in_progress','pending_client','resolved','closed'].map(s =>
             <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
+        <select aria-label="Filtrar tickets por tipo" value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
           <option value="">Todos los tipos</option>
           {['incident','service_request','change','problem','question'].map(t =>
             <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
@@ -292,6 +293,7 @@ function MajorIncidents() {
 
 function DeclareMIModal({ onClose, onSaved }) {
   const toast = useToast()
+  const idPrefix = useId()
   const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
   const { mutate, isPending } = useMutation({
     mutationFn: data => api.post('/sd/major-incidents', data),
@@ -309,19 +311,19 @@ function DeclareMIModal({ onClose, onSaved }) {
     <Modal open title="🚨 Declarar Incidente Mayor" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={LS}>Título del incidente *</label>
-          <input value={form.title} onChange={set('title')} style={IS} placeholder="Ej: Caída del sistema de pagos en producción" />
+          <label htmlFor={`${idPrefix}-title`} style={LS}>Título del incidente *</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Ej: Caída del sistema de pagos en producción" />
         </div>
         <div>
-          <label style={LS}>Severidad</label>
-          <select value={form.severity} onChange={set('severity')} style={IS}>
+          <label htmlFor={`${idPrefix}-severity`} style={LS}>Severidad</label>
+          <select id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} style={IS}>
             <option value="P1">P1 — Crítico (sistema caído, impacto máximo)</option>
             <option value="P2">P2 — Alto (degradación severa)</option>
           </select>
         </div>
         <div>
-          <label style={LS}>Descripción del impacto</label>
-          <textarea value={form.impact_statement} onChange={set('impact_statement')} rows={3}
+          <label htmlFor={`${idPrefix}-impact`} style={LS}>Descripción del impacto</label>
+          <textarea id={`${idPrefix}-impact`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
             style={{ ...IS, resize: 'vertical' }} placeholder="Qué sistemas están afectados, cuántos usuarios, impacto de negocio..." />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -385,17 +387,19 @@ function RoutingRules() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
+                    aria-pressed={rule.is_active}
+                    aria-label={`${rule.is_active ? 'Desactivar' : 'Activar'} regla ${rule.name}`}
                     style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: rule.is_active ? COLOR.success : 'var(--text-3)',
                       fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {rule.is_active ? 'Activa' : 'Inactiva'}
                   </button>
-                  <button onClick={() => setEditingRule(rule)}
+                  <button aria-label={`Editar regla ${rule.name}`} onClick={() => setEditingRule(rule)}
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.accent, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                     ✏ Editar
                   </button>
-                  <button onClick={() => deleteRule(rule.id)}
+                  <button aria-label={`Eliminar regla ${rule.name}`} onClick={() => deleteRule(rule.id)}
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.danger, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                     Eliminar
@@ -2601,10 +2605,10 @@ export default function ServiceDeskPage() {
       />
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
+      <div role="tablist" aria-label="Secciones de Service Desk" style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
         borderBottom: '1px solid var(--surface-4)', paddingBottom: 16 }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+          <button key={t.id} role="tab" aria-selected={tab===t.id} aria-controls={`sd-panel-${t.id}`} id={`sd-tab-${t.id}`} onClick={() => setTab(t.id)} style={{
             padding: '8px 16px', borderRadius: 8,
             border: `1px solid ${tab===t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
             background: tab===t.id ? 'var(--accent-muted)' : 'transparent',
@@ -2619,6 +2623,7 @@ export default function ServiceDeskPage() {
       {isMobile && splitMode && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button onClick={() => setMobileView('list')}
+            aria-pressed={mobileView === 'list'}
             style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 13,
               fontWeight: 600, cursor: 'pointer',
               border: `1px solid ${mobileView === 'list' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
@@ -2627,6 +2632,7 @@ export default function ServiceDeskPage() {
             ← Lista
           </button>
           <button onClick={() => setMobileView('detail')}
+            aria-pressed={mobileView === 'detail'}
             style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 13,
               fontWeight: 600, cursor: 'pointer',
               border: `1px solid ${mobileView === 'detail' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
@@ -2647,41 +2653,41 @@ export default function ServiceDeskPage() {
         {/* List panel — hidden on mobile when viewing detail */}
         {(!isMobile || !splitMode || mobileView === 'list') && (
           <div>
-            {tab === 'queue'    && <TicketList queueOnly={true}  onSelect={t => setSelId(t.id)} />}
-            {tab === 'all'      && <TicketList queueOnly={false} onSelect={t => setSelId(t.id)} />}
-            {tab === 'kanban'   && <KanbanTickets onSelect={t => setSelId(t.id)} />}
+            {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-labelledby="sd-tab-queue"><TicketList queueOnly={true}  onSelect={t => setSelId(t.id)} /></div>}
+            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-labelledby="sd-tab-all"><TicketList queueOnly={false} onSelect={t => setSelId(t.id)} /></div>}
+            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-labelledby="sd-tab-kanban"><KanbanTickets onSelect={t => setSelId(t.id)} /></div>}
             {tab === 'changes'  && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-changes" role="tabpanel" aria-labelledby="sd-tab-changes"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyChangeManagementTab />
-              </Suspense>
+              </Suspense></div>
             )}
-            {tab === 'mi'       && <MajorIncidents />}
+            {tab === 'mi'       && <div id="sd-panel-mi" role="tabpanel" aria-labelledby="sd-tab-mi"><MajorIncidents /></div>}
             {tab === 'problems' && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-problems" role="tabpanel" aria-labelledby="sd-tab-problems"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyITSMKnowledgeTab mode="problems" />
-              </Suspense>
+              </Suspense></div>
             )}
             {tab === 'kedb'     && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-kedb" role="tabpanel" aria-labelledby="sd-tab-kedb"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyITSMKnowledgeTab mode="kedb" />
-              </Suspense>
+              </Suspense></div>
             )}
             {tab === 'kb'       && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-kb" role="tabpanel" aria-labelledby="sd-tab-kb"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyITSMKnowledgeTab mode="kb" />
-              </Suspense>
+              </Suspense></div>
             )}
             {tab === 'cmdb'     && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-cmdb" role="tabpanel" aria-labelledby="sd-tab-cmdb"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyCMDBTab />
-              </Suspense>
+              </Suspense></div>
             )}
             {tab === 'metrics'  && (
-              <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
+              <div id="sd-panel-metrics" role="tabpanel" aria-labelledby="sd-tab-metrics"><Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>}>
                 <LazyMetricsDashboard />
-              </Suspense>
+              </Suspense></div>
             )}
-            {tab === 'config'   && <Config />}
+            {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-labelledby="sd-tab-config"><Config /></div>}
           </div>
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}

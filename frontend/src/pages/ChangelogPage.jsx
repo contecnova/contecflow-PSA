@@ -196,7 +196,7 @@ export default function ChangelogPage() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <PageHeader title={t('changelog.title')} subtitle="Historial de cambios y notas de lanzamiento del proyecto" icon={<ScrollText size={18} />} />
+      <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} />
 
       {/* Project selector + actions */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>

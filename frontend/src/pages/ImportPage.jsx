@@ -226,7 +226,7 @@ export default function ImportPage() {
   const t = useAppT()
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('import_data.title')} subtitle="Importa proyectos, usuarios, imputaciones y gastos desde CSV" />
+      <PageHeader title={t('import_data.title')} subtitle={t('import_data.subtitle')} />
       <ImportTab />
     </div>
   )

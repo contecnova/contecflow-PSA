@@ -1,5 +1,3 @@
-import React from 'react'
-
 /**
  * Icon for Feature Request (FR)
  */

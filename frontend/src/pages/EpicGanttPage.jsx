@@ -238,7 +238,7 @@ export default function EpicGanttPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('epics.gantt_title')} subtitle="Roadmap visual con dependencias entre épicas y tipo de relación"
+      <PageHeader title={t('epics.gantt_title')} subtitle={t('epics.subtitle')}
         actions={project && epics.length > 0 && (
           <Button onClick={() => setShowForm(true)}>+ Dependencia</Button>
         )} />

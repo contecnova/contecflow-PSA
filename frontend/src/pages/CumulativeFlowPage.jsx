@@ -43,8 +43,8 @@ export default function CumulativeFlowPage() {
 
   const { mutate:snapshot, isPending:snapping } = useMutation({
     mutationFn: ()=>api.post(`cfd/snapshot?project_id=${project}`).then(r=>r.data),
-    onSuccess: (d)=>{ qc.invalidateQueries(['cfd',project,days]); toast.info(`Snapshot creado: ${d.states} estados, ${new Date().toLocaleDateString()}`) },
-    onError: e => toast.error(extractErr(e, 'Error al crear snapshot')),
+    onSuccess: ()=>{ qc.invalidateQueries(['cfd',project,days]); toast.info(t('cumulative_flow.snapshot_created')) },
+    onError: e => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
   })
 
   const data    = cfd?.data      || []
@@ -59,46 +59,46 @@ export default function CumulativeFlowPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('cumulative_flow.title')} subtitle="Cumulative Flow Diagram — evolución de tareas por estado para detectar cuellos de botella"/>
+      <PageHeader title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')}/>
 
       {/* Controles */}
       <div style={{...ps,marginBottom:20}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:12,alignItems:'flex-end'}}>
           <div>
-            <label style={ls}>Proyecto</label>
+            <label style={ls}>{t('cumulative_flow.project')}</label>
             <select value={project} onChange={e=>setProject(e.target.value)} style={is}>
-              <option value="">Selecciona un proyecto...</option>
+              <option value="">{t('cumulative_flow.select_project')}</option>
               {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Período</label>
+            <label style={ls}>{t('cumulative_flow.period')}</label>
             <select value={days} onChange={e=>setDays(+e.target.value)} style={{...is,width:140}}>
-              <option value={7}>7 días</option>
-              <option value={14}>14 días</option>
-              <option value={30}>30 días</option>
-              <option value={60}>60 días</option>
-              <option value={90}>90 días</option>
+              <option value={7}>7 {t('common.days')}</option>
+              <option value={14}>14 {t('common.days')}</option>
+              <option value={30}>30 {t('common.days')}</option>
+              <option value={60}>60 {t('common.days')}</option>
+              <option value={90}>90 {t('common.days')}</option>
             </select>
           </div>
           <Button onClick={()=>snapshot()} disabled={!project||snapping}>
-            {snapping?'Guardando...':'📸 Snapshot hoy'}
+            {snapping ? t('cumulative_flow.saving') : `📸 ${t('cumulative_flow.snapshot_today')}`}
           </Button>
         </div>
         <div style={{marginTop:10,fontSize:12,color:'var(--text-3)',lineHeight:1.6}}>
-          El snapshot captura el estado actual del proyecto. Ejecútalo diariamente (o configura un cron en <code style={{color:'var(--text-2)'}}>POST cfd/snapshot?project_id=...</code>) para acumular datos.
+          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)'}}>POST cfd/snapshot?project_id=...</code>)
         </div>
       </div>
 
-      {!project && <EmptyState icon="📊" title="Selecciona un proyecto" description="El CFD muestra la evolución de tareas por estado a lo largo del tiempo"/>}
+      {!project && <EmptyState icon="📊" title={t('cumulative_flow.empty_title')} description={t('cumulative_flow.empty_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&data.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize:48,marginBottom:16}}>📸</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>Sin datos históricos</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>Crea el primer snapshot para empezar a acumular datos. Repite diariamente para ver la evolución.</div>
-          <Button onClick={()=>snapshot()} disabled={snapping}>{snapping?'Creando...':'Crear primer snapshot'}</Button>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('cumulative_flow.no_history')}</div>
+          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('cumulative_flow.no_history_desc')}</div>
+          <Button onClick={()=>snapshot()} disabled={snapping}>{snapping ? t('cumulative_flow.creating') : t('cumulative_flow.create_first_snapshot')}</Button>
         </div>
       )}
 
@@ -108,28 +108,28 @@ export default function CumulativeFlowPage() {
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
             <div style={ps}>
               <div style={{fontSize:22,fontWeight:700,color:'var(--success)'}}>{doneLast}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>Completadas hoy</div>
+              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_today')}</div>
             </div>
             <div style={ps}>
               <div style={{fontSize:22,fontWeight:700}}>{totalLast}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>Total tareas</div>
+              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_total_tasks')}</div>
             </div>
             <div style={ps}>
               <div style={{fontSize:22,fontWeight:700,color:'var(--accent)'}}>{data.length}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>Días con datos</div>
+              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_days_with_data')}</div>
             </div>
             <div style={ps}>
               <div style={{fontSize:22,fontWeight:700,color:totalLast>0?'var(--success)':'var(--text-2)'}}>
                 {totalLast>0?Math.round(doneLast/totalLast*100):0}%
               </div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>% completado</div>
+              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_pct')}</div>
             </div>
           </div>
 
           {/* Gráfico CFD */}
           <div style={ps}>
             <div style={{fontSize:14,fontWeight:600,marginBottom:20}}>
-              Flujo acumulado — últimos {days} días
+              {t('cumulative_flow.chart_title_days')} {days} {t('common.days')}
             </div>
             <ResponsiveContainer width="100%" height={350}>
               <AreaChart data={data} margin={{top:10,right:20,left:0,bottom:0}}>
@@ -161,16 +161,16 @@ export default function CumulativeFlowPage() {
 
           {/* Tabla de datos */}
           <div style={{...ps,marginTop:16}}>
-            <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Datos por día</div>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid #1e2d45'}}>
-                    <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>Fecha</th>
+                    <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_date')}</th>
                     {statuses.map(st=>(
                       <th key={st} style={{textAlign:'center',padding:'8px 12px',color:getColor(st,statuses.indexOf(st)),fontWeight:600}}>{st.replace(/_/g,' ')}</th>
                     ))}
-                    <th style={{textAlign:'center',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>Total</th>
+                    <th style={{textAlign:'center',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_total')}</th>
                   </tr>
                 </thead>
                 <tbody>

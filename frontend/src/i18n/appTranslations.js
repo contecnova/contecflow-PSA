@@ -319,8 +319,61 @@ const es = {
   // ── ALM — Licencias y Activos ────────────────────────────────────────────────
   alm: {
     title: 'Licencias y Activos', dashboard: 'Dashboard ALM',
+    subtitle: 'Proveedores, contratos, licencias, hardware y compliance',
     vendors: 'Proveedores', contracts: 'Contratos', licenses: 'Licencias',
     assets: 'Activos', cost_centers: 'Centros de coste', compliance: 'Compliance',
+    tab_dashboard: 'Dashboard',
+    tab_vendors: 'Proveedores',
+    tab_contracts: 'Contratos',
+    tab_licenses: 'Licencias',
+    tab_assets: 'Activos',
+    tab_cost_centers: 'Centros de coste',
+    tab_compliance: 'Compliance',
+    dashboard_contracts_active: 'Contratos activos',
+    dashboard_licenses_managed: 'Licencias gestionadas',
+    dashboard_assets_inventory: 'Activos inventariados',
+    dashboard_vendors_active: 'Proveedores activos',
+    dashboard_license_annual_cost: 'Coste anual licencias',
+    dashboard_total_annual_cost: 'Coste anual total',
+    dashboard_expire_60: 'expiran en 60 días',
+    dashboard_expired: 'expiradas',
+    dashboard_in_use: 'en uso',
+    dashboard_license_cost_scope: 'licencias activas',
+    dashboard_total_cost_scope: 'contratos + licencias',
+    dashboard_upcoming_renewals: 'Renovaciones próximas (60 días)',
+    dashboard_view_contracts: 'Ver contratos',
+    dashboard_no_urgent_renewals: 'Sin renovaciones urgentes',
+    dashboard_today: 'Hoy',
+    dashboard_days_short: 'd',
+    dashboard_quick_actions: 'Acciones rápidas',
+    action_add_vendor: 'Añadir proveedor',
+    action_new_contract: 'Nuevo contrato',
+    action_register_license: 'Registrar licencia',
+    action_add_asset: 'Añadir activo',
+    action_cost_centers: 'Centros de coste',
+    action_compliance_report: 'Informe compliance',
+    vendor_modal_new: 'Nuevo proveedor',
+    vendor_modal_edit: 'Editar proveedor',
+    vendor_label_name: 'Nombre',
+    vendor_label_category: 'Categoría',
+    vendor_label_country: 'País',
+    vendor_label_web: 'Web',
+    vendor_label_support_email: 'Email soporte',
+    vendor_label_support_phone: 'Teléfono soporte',
+    vendor_label_account_manager: 'Account Manager',
+    vendor_label_account_number: 'Nº cliente',
+    vendor_label_tax_id: 'CIF/NIF',
+    vendor_label_notes: 'Notas',
+    vendor_placeholder_name: 'Microsoft, AWS, GitHub...',
+    vendor_placeholder_web: 'https://...',
+    vendor_create: 'Crear proveedor',
+    vendors_search_placeholder: 'Buscar proveedor...',
+    vendors_filter_all_categories: 'Todas las categorías',
+    vendors_new: 'Nuevo proveedor',
+    vendors_empty_title: 'Sin proveedores',
+    vendors_empty_desc: 'Añade los proveedores de software, hardware y servicios de tu empresa',
+    vendors_delete_confirm: '¿Eliminar proveedor',
+    vendors_contracts_count: 'contrato(s)',
     new_vendor: 'Nuevo proveedor', new_contract: 'Nuevo contrato',
     new_license: 'Nueva licencia', new_asset: 'Nuevo activo',
     vendor_name: 'Nombre proveedor', category: 'Categoría',
@@ -333,15 +386,165 @@ const es = {
     assign_license: 'Asignar licencia', assign_asset: 'Asignar activo',
     expiring_soon: 'Próximos a vencer', overallocated: 'Sobreasignados',
     no_vendors: 'Sin proveedores', no_contracts: 'Sin contratos',
-    no_licenses: 'Sin licencias', no_assets: 'Sin activos',
+    no_licenses: 'Sin licencias', no_assets: 'Sin activos', no_cost_centers: 'Sin centros de coste',
+    contracts_empty_desc: 'Registra los contratos con tus proveedores de software, hardware y servicios',
+    licenses_empty_desc: 'Registra las licencias de software de tu empresa para controlar su uso y coste',
+    assets_empty_desc: 'Inventaría los dispositivos y equipos de tu empresa',
+    cost_centers_empty_desc: 'Define los centros de coste para asignar el gasto de licencias y contratos',
+    contracts_search_placeholder: 'Buscar contrato o proveedor...',
+    licenses_search_placeholder: 'Buscar licencia...',
+    assets_search_placeholder: 'Buscar activo, serie, tag...',
     status_active: 'Activo', status_expired: 'Vencido',
     status_cancelled: 'Cancelado', status_in_use: 'En uso',
     status_available: 'Disponible', status_retired: 'Retirado',
   },
 
+  client_portal: {
+    title: 'Portal del cliente',
+    subtitle: 'Gestión del acceso externo, UATs, solicitudes y comunicación',
+    select_project: 'Seleccionar proyecto...',
+    empty_select_title: 'Selecciona un proyecto',
+    empty_select_desc: 'Elige un proyecto para gestionar su portal de cliente',
+    tab_contacts: 'Contactos',
+    tab_uat: 'UAT',
+    tab_requests: 'Solicitudes',
+    tab_messages: 'Mensajes',
+    tab_documents: 'Documentos',
+    tab_wiki: 'Wiki',
+    stat_contacts: 'Contactos cliente',
+    stat_unread_messages: 'Mensajes sin leer',
+    stat_pending_requests: 'FRs pendientes',
+    stat_pending_uat: 'UATs pendientes',
+    stat_avg_satisfaction: 'Satisfacción media',
+    stat_avg_nps: 'NPS medio',
+    contacts_count: 'contacto(s) con acceso al portal',
+    add_contact: 'Añadir contacto cliente',
+    empty_contacts_title: 'Sin contactos de cliente',
+    empty_contacts_desc: 'Añade los contactos del cliente para que accedan al portal',
+    role_unknown: '—',
+    perm_approve: 'Puede aprobar entregables',
+    perm_request: 'Puede solicitar cambios',
+    perm_view_budget: 'Ve el presupuesto',
+    last_access: 'Último acceso',
+    edit: 'Editar',
+    suspend: 'Suspender',
+    activate: 'Activar',
+    delete_contact_confirm: '¿Eliminar este cliente del portal?',
+    create_contact_title: 'Añadir contacto al portal',
+    label_full_name: 'Nombre completo',
+    label_email: 'Email',
+    label_job_title: 'Cargo',
+    label_company: 'Empresa',
+    label_phone: 'Teléfono',
+    label_password: 'Contraseña de acceso',
+    password_placeholder: 'Mínimo 8 caracteres',
+    additional_projects_access: 'Acceso a proyectos adicionales',
+    permissions: 'Permisos',
+    perm_approve_desc: 'Puede aprobar entregables y UATs',
+    perm_request_desc: 'Puede solicitar nuevas funcionalidades y cambios',
+    perm_budget_desc: 'Puede ver el consumo de presupuesto (horas)',
+    perm_team_desc: 'Puede ver el equipo asignado',
+    create_access: 'Crear acceso',
+    creating: 'Creando...',
+    uat_sessions_count: 'sesion(es) UAT',
+    uat_new_session: 'Nueva sesión UAT',
+    uat_empty_title: 'Sin sesiones UAT',
+    uat_empty_desc: 'Crea sesiones UAT para que el cliente valide los entregables',
+    uat_overdue: 'Vencido',
+    uat_deadline: 'Plazo',
+    uat_cases: 'casos',
+    uat_open_issues: 'incidencia(s) abiertas',
+    uat_modal_new_title: 'Nueva sesión UAT',
+    uat_label_title: 'Título',
+    uat_placeholder_title: 'UAT Portal Cliente - Sprint 3',
+    uat_label_deliverable: 'Entregable asociado',
+    uat_unlinked: 'Sin vincular',
+    uat_label_description: 'Descripción',
+    uat_label_test_env_url: 'URL entorno de pruebas',
+    uat_label_test_credentials: 'Credenciales de acceso',
+    uat_label_available_from: 'Disponible desde',
+    uat_label_deadline: 'Fecha límite',
+    uat_test_cases: 'Casos de prueba',
+    uat_add_test_case: 'Añadir caso de prueba',
+    uat_create_session: 'Crear sesión UAT',
+    uat_creating_session: 'Creando...',
+    uat_detail_test_env: 'Entorno de pruebas',
+    uat_detail_client_notes: 'Notas del cliente',
+    uat_detail_cases_title: 'Casos de prueba',
+    uat_detail_approved: 'aprobados',
+    uat_expected: 'Esperado',
+    uat_result: 'Resultado',
+    uat_pending: 'Pendiente',
+    uat_issues_title: 'Incidencias',
+    uat_open: 'abiertas',
+    uat_issue_open: 'Abierta',
+    uat_issue_fixed: 'Corregida',
+    uat_issue_deferred: 'Aplazada',
+    uat_issue_wontfix: 'No se corrige',
+    close: 'Cerrar',
+    fr_empty_title: 'Sin solicitudes de funcionalidad',
+    fr_empty_desc: 'El cliente no ha enviado ninguna solicitud aún',
+    fr_pm_response: 'Respuesta PM',
+    fr_client_approved: 'Cliente aprobó el',
+    fr_client_rejected: 'Cliente rechazó',
+    fr_respond: 'Responder',
+    fr_start_dev: 'Iniciar desarrollo',
+    fr_completed: 'Completada',
+    fr_modal_title: 'Responder a',
+    fr_label_response: 'Respuesta / Análisis',
+    fr_response_placeholder: 'Describe el análisis y la solución propuesta...',
+    fr_label_hours: 'Horas estimadas',
+    fr_label_cost: 'Coste estimado',
+    fr_label_weeks: 'Semanas entrega',
+    fr_label_status: 'Estado',
+    fr_status_estimated: 'Presupuestada (pendiente aprobación cliente)',
+    fr_status_reviewing: 'En revisión interna',
+    fr_status_rejected: 'Rechazada (no factible)',
+    fr_send_response: 'Enviar respuesta',
+    messages_count: 'conversacion(es)',
+    messages_unread: 'sin leer',
+    messages_new: 'Nuevo mensaje',
+    messages_empty_title: 'Sin mensajes',
+    messages_empty_desc: 'Inicia una conversación con el cliente',
+    messages_badge_unread: 'Sin leer',
+    messages_reply: 'Responder',
+    messages_modal_reply_to: 'Responder a',
+    messages_modal_new_to_client: 'Nuevo mensaje al cliente',
+    messages_subject: 'Asunto',
+    messages_body_placeholder: 'Escribe tu mensaje...',
+    send: 'Enviar',
+    docs_count: 'documento(s) compartidos',
+    docs_add: 'Añadir documento',
+    docs_empty_title: 'Sin documentos',
+    docs_empty_desc: 'Comparte documentos con el cliente: contratos, entregables, actas...',
+    docs_contract: 'Contrato',
+    docs_deliverable: 'Entregable',
+    docs_meeting_notes: 'Acta reunión',
+    docs_report: 'Informe',
+    docs_other: 'Otro',
+    docs_signed: 'Firmado',
+    docs_pending_signature: 'Pendiente firma',
+    docs_download: 'Descargar',
+    docs_modal_title: 'Añadir documento al portal',
+    docs_label_title: 'Título',
+    docs_label_category: 'Categoría',
+    docs_label_file_url: 'URL del archivo',
+    docs_label_file_name: 'Nombre del archivo',
+    docs_requires_signature: 'Requiere firma del cliente',
+    docs_share: 'Compartir',
+    wiki_info_title: 'Visibilidad wiki para el cliente',
+    wiki_info_desc: 'Aquí controlas qué páginas wiki son visibles en el Portal Cliente. Las páginas marcadas como Portal cliente aparecerán en la sección Base de conocimiento del portal externo.',
+    wiki_select_space: 'Selecciona un espacio wiki...',
+    wiki_empty_title: 'Sin páginas',
+    wiki_empty_desc: 'Este espacio wiki no tiene páginas aún',
+    wiki_vis_team: 'Solo equipo',
+    wiki_vis_portal: 'Portal cliente',
+    wiki_vis_public: 'Público',
+  },
+
   // ── Recursos / Equipo ────────────────────────────────────────────────────────
   resources: {
-    title: 'Recursos', capacity: 'Capacidad', load: 'Carga',
+    title: 'Recursos', subtitle: 'Gestión de capacidad, utilización y asignación del equipo', capacity: 'Capacidad', load: 'Carga',
     available: 'Disponible', overloaded: 'Sobrecargado',
     utilization: 'Utilización', weekly_capacity: 'Capacidad semanal',
     current_load: 'Carga actual', skills: 'Habilidades',
@@ -378,7 +581,7 @@ const es = {
 
   // ── Sprints ──────────────────────────────────────────────────────────────────
   sprints: {
-    title: 'Sprints', new_sprint: 'Nuevo sprint', sprint_name: 'Nombre sprint',
+    title: 'Sprints', subtitle: 'Gestión ágil de sprints y backlog', new_sprint: 'Nuevo sprint', sprint_name: 'Nombre sprint',
     start_date: 'Fecha inicio', end_date: 'Fecha fin', goal: 'Objetivo',
     capacity: 'Capacidad (story points)', velocity: 'Velocidad',
     backlog: 'Backlog', board: 'Tablero', completed: 'Completado',
@@ -391,7 +594,7 @@ const es = {
 
   // ── Wiki ─────────────────────────────────────────────────────────────────────
   wiki: {
-    title: 'Wiki', new_page: 'Nueva página', new_folder: 'Nueva carpeta',
+    title: 'Wiki', subtitle: 'Documentación, especificaciones y base de conocimiento', new_page: 'Nueva página', new_folder: 'Nueva carpeta',
     page_title: 'Título', content: 'Contenido', parent: 'Página padre',
     visibility: 'Visibilidad', vis_team: 'Equipo', vis_portal: 'Portal',
     vis_public: 'Público', last_updated: 'Última actualización',
@@ -412,7 +615,7 @@ const es = {
 
   // ── Ausencias ────────────────────────────────────────────────────────────────
   absences: {
-    title: 'Ausencias y Vacaciones', new_absence: 'Nueva ausencia',
+    title: 'Ausencias y Vacaciones', subtitle: 'Gestión de ausencias con flujo de aprobación', new_absence: 'Nueva ausencia',
     absence_type: 'Tipo', start_date: 'Desde', end_date: 'Hasta',
     days: 'Días', reason: 'Motivo', approve: 'Aprobar', reject: 'Rechazar',
     type_vacation: 'Vacaciones', type_sick: 'Baja por enfermedad',
@@ -424,7 +627,7 @@ const es = {
 
   // ── Contratos ────────────────────────────────────────────────────────────────
   contracts: {
-    title: 'Contratos', new_contract: 'Nuevo contrato',
+    title: 'Contratos', subtitle: 'Gestión de contratos y órdenes de trabajo', new_contract: 'Nuevo contrato',
     contract_name: 'Nombre contrato', client: 'Cliente', project: 'Proyecto',
     start_date: 'Fecha inicio', end_date: 'Fecha fin',
     total_amount: 'Importe total', billing_type: 'Tipo facturación',
@@ -449,6 +652,7 @@ const es = {
   // ── Rentabilidad ─────────────────────────────────────────────────────────────
   profitability: {
     title: 'Rentabilidad', revenue: 'Ingresos', costs: 'Costes',
+    revenue_subtitle: 'ASC 606 / IFRS 15 — configuración y seguimiento por proyecto',
     margin: 'Margen', margin_pct: '% Margen', hours_sold: 'Horas vendidas',
     hours_worked: 'Horas trabajadas', avg_rate: 'Tarifa media',
     by_project: 'Por proyecto', by_client: 'Por cliente',
@@ -467,7 +671,7 @@ const es = {
 
   // ── Configuración / Settings ─────────────────────────────────────────────────
   settings: {
-    title: 'Configuración', general: 'General', users: 'Usuarios',
+    title: 'Configuración', subtitle: 'Administración completa del sistema', general: 'General', users: 'Usuarios',
     departments: 'Departamentos', project_types: 'Tipos de proyecto',
     statuses: 'Estados', workflows: 'Workflows', custom_fields: 'Campos personalizados',
     issue_types: 'Tipos de incidencia', holidays: 'Festivos',
@@ -480,8 +684,71 @@ const es = {
   // ── IA / AI Hub ──────────────────────────────────────────────────────────────
   ai: {
     hub_title: 'IA & Conectores', providers: '🤖 Proveedores',
+    hub_subtitle: 'Configura proveedores de IA y gestiona integraciones',
     usage: '📊 Uso y costes', guide: '📖 Guía',
-    add_provider: 'Añadir proveedor', test_connection: '🔌 Test',
+    add_provider: 'Añadir proveedor',
+    edit_provider: 'Editar proveedor',
+    provider: 'Proveedor',
+    provider_active_default: 'Proveedor activo por defecto',
+    config_name: 'Nombre de esta configuración',
+    api_key: 'API Key',
+    default_model: 'Modelo por defecto',
+    select_option: 'Seleccionar...',
+    custom_model: 'Personalizado (escribir ID)...',
+    custom_model_id: 'ID del modelo personalizado',
+    max_response_tokens: 'Max tokens respuesta',
+    temperature: 'Temperatura (0 = preciso, 1 = creativo)',
+    set_global_default: 'Usar como proveedor por defecto en toda la app',
+    available_models: 'Modelos disponibles',
+    free: 'Gratis',
+    save_changes: 'Guardar cambios',
+    add_provider_action: 'Añadir proveedor',
+    testing_provider: 'Probar proveedor',
+    test_connection: 'Ejecutar test de conexión',
+    test_running: 'Probando...',
+    test_success: 'Conexión exitosa',
+    test_error: 'Error de conexión',
+    test_response: 'Respuesta',
+    test_latency_model: 'Latencia y modelo',
+    no_providers_title: 'Sin proveedores de IA configurados',
+    no_providers_desc: 'Añade un proveedor para activar NexusAgent, NexusOracle, Sprint Planning IA y el resto de funciones de IA.',
+    add_first_provider: 'Añadir primer proveedor',
+    default_badge: 'DEFAULT',
+    api_key_configured: 'API key configurada',
+    no_api_key: 'Sin API key',
+    requests: 'Peticiones',
+    total_requests: 'Total peticiones',
+    total_cost: 'Coste total',
+    providers_count: 'Proveedores',
+    module_usage: 'Uso por módulo',
+    calls: 'llamadas',
+    get_key: 'Obtener key',
+    guide_openai: 'OpenAI (GPT)',
+    guide_anthropic: 'Anthropic (Claude)',
+    guide_gemini: 'Google Gemini',
+    guide_deepseek: 'DeepSeek',
+    guide_groq: 'Groq (ultra-rápido)',
+    guide_mistral: 'Mistral AI',
+    guide_ollama: 'Ollama (local)',
+    guide_azure: 'Azure OpenAI',
+    delete_confirm: '¿Eliminar este proveedor?',
+    provider_status_active: 'Activo',
+    provider_status_inactive: 'Inactivo',
+    provider_status_error: 'Error',
+    save_error: 'Error al guardar',
+    generic_error: 'Error',
+    keep_api_key_placeholder: '(sin cambios — dejar vacío para conservar)',
+    enter_api_key_placeholder: 'Introduce tu API key',
+    model_custom_placeholder: 'Escribe el ID del modelo',
+    config_name_placeholder: 'Producción',
+    model_none: 'sin modelo',
+    local_no_key: 'Sin key (local)',
+    connection_help: 'Envía un mensaje de prueba al proveedor para verificar la conexión y la API key.',
+    provider_default_action: 'Default',
+    provider_test_action: 'Test',
+    provider_edit_action: 'Editar',
+    provider_delete_action: 'Eliminar',
+    reset_error: 'Error al actualizar proveedor por defecto',
     set_default: '⭐ Default', active_provider: 'Proveedor activo por defecto',
     no_providers: 'Sin proveedores de IA configurados',
     agent_title: 'NexusAgent', agent_subtitle: 'Agente autónomo',
@@ -505,7 +772,7 @@ const es = {
 
   // ── Entregables / Deliverables ───────────────────────────────────────────────
   deliverables: {
-    title: 'Entregables', new_deliverable: 'Nuevo entregable',
+    title: 'Entregables', subtitle: 'Control de entregables y aceptación del cliente', new_deliverable: 'Nuevo entregable',
     deliverable_name: 'Nombre', due_date: 'Fecha entrega', version: 'Versión',
     review_status: 'Estado revisión', approved: 'Aprobado', rejected: 'Rechazado',
     pending: 'Pendiente revisión', no_deliverables: 'Sin entregables',
@@ -521,7 +788,7 @@ const es = {
 
   // ── Facturación ──────────────────────────────────────────────────────────────
   invoices: {
-    title: 'Facturas', new_invoice: 'Nueva factura', invoice_number: 'Nº Factura',
+    title: 'Facturas', subtitle: 'Facturas, cobros y seguimiento financiero', new_invoice: 'Nueva factura', invoice_number: 'Nº Factura',
     issue_date: 'Fecha emisión', due_date: 'Fecha vencimiento',
     amount: 'Importe', tax: 'IVA', total: 'Total',
     status_draft: 'Borrador', status_sent: 'Enviada', status_paid: 'Pagada',
@@ -530,7 +797,7 @@ const es = {
 
   // ── Control de cambios ───────────────────────────────────────────────────────
   changes: {
-    title: 'Control de Cambios', new_change: 'Nueva solicitud de cambio',
+    title: 'Control de Cambios', subtitle: 'Gestión formal de solicitudes de cambio de alcance', new_change: 'Nueva solicitud de cambio',
     change_title: 'Título', impact: 'Impacto', cost_impact: 'Impacto coste',
     approve: 'Aprobar', reject: 'Rechazar',
     status_draft: 'Borrador', status_pending: 'Pendiente aprobación',
@@ -582,6 +849,17 @@ const es = {
   bi: {
     title: 'Business Intelligence', subtitle: 'Dashboard ejecutivo configurable',
     configure: 'Configurar', config_done: 'Listo', reset_layout: 'Restablecer',
+    presentation: 'Presentación',
+    dashboard_pdf: 'PDF',
+    all_projects: 'Todos los proyectos',
+    all_types: 'Todos los tipos',
+    all_clients: 'Todos los clientes',
+    all_people: 'Todas las personas',
+    all_departments: 'Todos los departamentos',
+    clear_filters: 'Limpiar filtros',
+    config_mode_active: 'Modo configuración activo',
+    config_mode_help: 'Usa ↑↓ para reordenar, S/M/L para cambiar tamaño y Visible para mostrar/ocultar.',
+    widgets_visible_count: 'widgets visibles',
     theme: 'Tema', accent_color: 'Color de acento', ui_density: 'Densidad',
     density_compact: 'Compacta', density_normal: 'Normal', density_comfortable: 'Confortable',
     save_prefs: 'Guardar preferencias', preview: 'Vista previa',
@@ -704,7 +982,7 @@ const es = {
 
   // ── Aprobaciones ─────────────────────────────────────────────────────────────
   approvals: {
-    title: 'Aprobaciones', new_flow: 'Nuevo flujo', flow_name: 'Nombre del flujo',
+    title: 'Aprobaciones', subtitle: 'Flujos multi-nivel configurables para timesheets, gastos, cambios y más', new_flow: 'Nuevo flujo', flow_name: 'Nombre del flujo',
     steps: 'Pasos', approvers: 'Aprobadores', pending: 'Pendiente',
     approved: 'Aprobado', rejected: 'Rechazado', cancelled: 'Cancelado',
     my_pending: 'Mis pendientes', all_requests: 'Todas las solicitudes',
@@ -713,7 +991,7 @@ const es = {
 
   // ── Presupuestos ──────────────────────────────────────────────────────────────
   budgets: {
-    title: 'Presupuestos', new_budget: 'Nuevo presupuesto',
+    title: 'Presupuestos', subtitle: 'Control presupuestario multi-período por departamento', new_budget: 'Nuevo presupuesto',
     budget_name: 'Nombre', department: 'Departamento', period: 'Período',
     total_budget: 'Presupuesto total', consumed: 'Consumido', remaining: 'Restante',
     variance: 'Variación', over_budget: 'Sobre presupuesto', on_track: 'En línea',
@@ -722,7 +1000,7 @@ const es = {
 
   // ── Calendario ────────────────────────────────────────────────────────────────
   calendar: {
-    title: 'Calendario', today: 'Hoy', month: 'Mes', week: 'Semana',
+    title: 'Calendario', subtitle: 'Vista global de tareas, hitos, sprints y ausencias', today: 'Hoy', month: 'Mes', week: 'Semana',
     day: 'Día', agenda: 'Agenda', add_event: 'Añadir evento',
     tasks: 'Tareas', milestones: 'Hitos', sprints: 'Sprints', absences: 'Ausencias',
     all_types: 'Todos', no_events: 'Sin eventos',
@@ -730,7 +1008,7 @@ const es = {
 
   // ── Changelog ─────────────────────────────────────────────────────────────────
   changelog: {
-    title: 'Changelog', new_entry: 'Nueva entrada', version: 'Versión',
+    title: 'Changelog', subtitle: 'Historial de cambios y notas de lanzamiento del proyecto', new_entry: 'Nueva entrada', version: 'Versión',
     release_date: 'Fecha lanzamiento', category: 'Categoría', content: 'Contenido',
     cat_feature: 'Nueva funcionalidad', cat_fix: 'Corrección', cat_improvement: 'Mejora',
     cat_breaking: 'Cambio importante', cat_security: 'Seguridad',
@@ -739,7 +1017,7 @@ const es = {
 
   // ── CMDB ──────────────────────────────────────────────────────────────────────
   cmdb: {
-    title: 'CMDB', new_ci: 'Nuevo CI', ci_name: 'Nombre CI',
+    title: 'CMDB', subtitle: 'Configuration Management Database e inventario de activos IT', new_ci: 'Nuevo CI', ci_name: 'Nombre CI',
     ci_type: 'Tipo', environment: 'Entorno', status: 'Estado',
     owner: 'Responsable', relationships: 'Relaciones', impact: 'Impacto',
     type_server: 'Servidor', type_database: 'Base de datos', type_service: 'Servicio',
@@ -749,15 +1027,35 @@ const es = {
 
   // ── Flujo acumulado ───────────────────────────────────────────────────────────
   cumulative_flow: {
-    title: 'Flujo acumulado', period: 'Período', project: 'Proyecto',
+    title: 'Flujo acumulado', subtitle: 'Evolución de tareas por estado para detectar cuellos de botella', period: 'Período', project: 'Proyecto',
     backlog: 'Backlog', in_progress: 'En progreso', in_review: 'En revisión', review: 'Revisión',
     done: 'Hecho', blocked: 'Bloqueado', wip_limit: 'Límite WIP',
     bottleneck: 'Cuello de botella',
+    select_project: 'Selecciona un proyecto...',
+    snapshot_today: 'Snapshot hoy',
+    saving: 'Guardando...',
+    snapshot_created: 'Snapshot creado correctamente',
+    snapshot_create_error: 'Error al crear snapshot',
+    snapshot_help: 'El snapshot captura el estado actual del proyecto. Ejecútalo diariamente para acumular datos.',
+    empty_title: 'Selecciona un proyecto',
+    empty_desc: 'El CFD muestra la evolución de tareas por estado a lo largo del tiempo',
+    no_history: 'Sin datos históricos',
+    no_history_desc: 'Crea el primer snapshot para empezar a acumular datos y ver la evolución.',
+    create_first_snapshot: 'Crear primer snapshot',
+    creating: 'Creando...',
+    kpi_completed_today: 'Completadas hoy',
+    kpi_total_tasks: 'Total tareas',
+    kpi_days_with_data: 'Días con datos',
+    kpi_completed_pct: '% completado',
+    chart_title_days: 'Flujo acumulado — últimos días',
+    table_title: 'Datos por día',
+    col_date: 'Fecha',
+    col_total: 'Total',
   },
 
   // ── Dependencias ──────────────────────────────────────────────────────────────
   dependencies: {
-    title: 'Dependencias de tareas', new_dep: 'Nueva dependencia',
+    title: 'Dependencias de tareas', subtitle: 'Gestiona y visualiza qué tareas bloquean a otras', new_dep: 'Nueva dependencia',
     from_task: 'Tarea origen', to_task: 'Tarea destino', dep_type: 'Tipo',
     finish_to_start: 'Fin a Inicio', start_to_start: 'Inicio a Inicio',
     finish_to_finish: 'Fin a Fin', start_to_finish: 'Inicio a Fin',
@@ -766,7 +1064,7 @@ const es = {
 
   // ── Épicas ────────────────────────────────────────────────────────────────────
   epics: {
-    title: 'Épicas', new_epic: 'Nueva épica', epic_name: 'Nombre de la épica',
+    title: 'Épicas', subtitle: 'Agrupa tareas en objetivos de mayor nivel y visualiza el roadmap', new_epic: 'Nueva épica', epic_name: 'Nombre de la épica',
     start_date: 'Fecha inicio', end_date: 'Fecha fin', progress: 'Progreso',
     linked_tasks: 'Tareas vinculadas', roadmap: 'Roadmap',
     gantt_title: 'Gantt de épicas', dep_title: 'Nueva dependencia entre épicas',
@@ -775,7 +1073,7 @@ const es = {
 
   // ── Exportar ──────────────────────────────────────────────────────────────────
   exports: {
-    title: 'Exportar e Integrar', export_data: 'Exportar datos',
+    title: 'Exportar e Integrar', subtitle: 'Descarga datos y sincroniza con herramientas externas', export_data: 'Exportar datos',
     format: 'Formato', entity: 'Entidad', download: 'Descargar',
     csv: 'CSV', excel: 'Excel', json: 'JSON',
     integrations: 'Integraciones', sync: 'Sincronizar',
@@ -783,7 +1081,7 @@ const es = {
 
   // ── Importación ───────────────────────────────────────────────────────────────
   import_data: {
-    title: 'Importación de datos', upload_file: 'Subir archivo',
+    title: 'Importación de datos', subtitle: 'Importa proyectos, usuarios, imputaciones y gastos desde CSV', upload_file: 'Subir archivo',
     entity: 'Entidad', format: 'Formato', template: 'Descargar plantilla',
     validate: 'Validar', import_btn: 'Importar', results: 'Resultados',
     rows_ok: 'filas importadas', rows_error: 'filas con error',
@@ -792,7 +1090,7 @@ const es = {
 
   // ── Tipos de issue ────────────────────────────────────────────────────────────
   issue_types: {
-    title: 'Tipos de issue', new_type: 'Nuevo tipo', type_name: 'Nombre',
+    title: 'Tipos de issue', subtitle: 'Define los tipos de trabajo por proyecto', new_type: 'Nuevo tipo', type_name: 'Nombre',
     icon: 'Icono', color: 'Color', description: 'Descripción',
     type_story: 'Historia', type_bug: 'Bug', type_task: 'Tarea',
     type_improvement: 'Mejora', type_spike: 'Spike', type_epic: 'Épica',
@@ -809,7 +1107,7 @@ const es = {
 
   // ── Menciones ─────────────────────────────────────────────────────────────────
   mentions: {
-    title: 'Menciones y comentarios', all: 'Todas', unread: 'Sin leer',
+    title: 'Menciones y comentarios', subtitle: 'Menciones recibidas y comentarios en tareas y tickets', all: 'Todas', unread: 'Sin leer',
     mention_type: 'Tipo', task_comment: 'Comentario de tarea',
     ticket_comment: 'Comentario de ticket', mention: 'Mención',
     mark_all_read: 'Marcar todas como leídas', no_mentions: 'Sin menciones',
@@ -817,7 +1115,7 @@ const es = {
 
   // ── Organizaciones ────────────────────────────────────────────────────────────
   organizations: {
-    title: 'Organizaciones', new_org: 'Nueva organización',
+    title: 'Organizaciones', subtitle: 'Multi-tenancy con espacios de datos aislados por organización', new_org: 'Nueva organización',
     org_name: 'Nombre', subdomain: 'Subdominio', plan: 'Plan',
     status: 'Estado', users: 'Usuarios', storage: 'Almacenamiento',
     switch_org: 'Cambiar organización', no_orgs: 'Sin organizaciones',
@@ -825,7 +1123,7 @@ const es = {
 
   // ── RACI ──────────────────────────────────────────────────────────────────────
   raci: {
-    title: 'Matriz RACI', add_entry: 'Añadir entrada',
+    title: 'Matriz RACI', subtitle: 'Define quién es Responsable, Aprobador, Consultado e Informado', add_entry: 'Añadir entrada',
     deliverable: 'Entregable / Fase', responsible: 'Responsable (R)',
     accountable: 'Aprobador (A)', consulted: 'Consultado (C)',
     informed: 'Informado (I)', no_entries: 'Sin entradas RACI',
@@ -833,7 +1131,7 @@ const es = {
 
   // ── Rate Cards ────────────────────────────────────────────────────────────────
   rate_cards: {
-    title: 'Rate Cards', new_card: 'Nueva rate card',
+    title: 'Rate Cards', subtitle: 'Tablas de tarifas por rol, departamento o cliente', new_card: 'Nueva rate card',
     card_name: 'Nombre', role: 'Rol', department: 'Departamento',
     rate: 'Tarifa (€/h)', currency: 'Moneda', effective_from: 'Vigente desde',
     client_specific: 'Específica de cliente', no_cards: 'Sin rate cards',
@@ -841,7 +1139,7 @@ const es = {
 
   // ── Predicción de riesgo ──────────────────────────────────────────────────────
   risk_scores: {
-    title: 'Predicción de riesgo', risk_level: 'Nivel de riesgo',
+    title: 'Predicción de riesgo', subtitle: 'Motor de alertas proactivas y señales tempranas de desviación', risk_level: 'Nivel de riesgo',
     high_risk: 'Riesgo alto', medium_risk: 'Riesgo medio', low_risk: 'Riesgo bajo',
     factors: 'Factores de riesgo', prediction: 'Predicción IA',
     run_analysis: 'Ejecutar análisis', last_run: 'Último análisis',
@@ -849,7 +1147,7 @@ const es = {
 
   // ── Scenarios (What-if) ───────────────────────────────────────────────────────
   scenarios: {
-    title: 'Scenario Planning', new_scenario: 'Nuevo escenario',
+    title: 'Scenario Planning', subtitle: 'Simula el impacto de nuevos proyectos en la capacidad del equipo', new_scenario: 'Nuevo escenario',
     scenario_name: 'Nombre del escenario', add_project: 'Añadir proyecto',
     capacity_impact: 'Impacto en capacidad', cost_impact: 'Impacto en coste',
     compare: 'Comparar escenarios', base_plan: 'Plan base',
@@ -858,7 +1156,7 @@ const es = {
 
   // ── Skills ────────────────────────────────────────────────────────────────────
   skills: {
-    title: 'Skills & Competencias', new_skill: 'Nueva skill',
+    title: 'Skills & Competencias', subtitle: 'Gestión del conocimiento del equipo y búsqueda de recursos', new_skill: 'Nueva skill',
     skill_name: 'Nombre', category: 'Categoría', level: 'Nivel',
     find_expert: 'Buscar experto', assigned: 'Asignados',
     level_beginner: 'Principiante', level_intermediate: 'Intermedio',
@@ -868,7 +1166,7 @@ const es = {
 
   // ── Sprint Planning IA ────────────────────────────────────────────────────────
   sprint_planning: {
-    title: 'Sprint planning IA', generate: 'Generar plan IA',
+    title: 'Sprint planning IA', subtitle: 'Genera planes de sprint optimizados por IA', generate: 'Generar plan IA',
     backlog: 'Backlog de tareas', capacity: 'Capacidad del equipo',
     suggested_plan: 'Plan sugerido', accept: 'Aceptar plan',
     sprint_goal: 'Objetivo del sprint', points_total: 'Puntos totales',
@@ -877,7 +1175,7 @@ const es = {
 
   // ── Subcontratistas ───────────────────────────────────────────────────────────
   subcontractors: {
-    title: 'Subcontratistas', new_sub: 'Nuevo subcontratista',
+    title: 'Subcontratistas', subtitle: 'Gestión completa de freelancers, proveedores y empresas externas', new_sub: 'Nuevo subcontratista',
     company_name: 'Empresa', contact: 'Contacto', specialty: 'Especialidad',
     hourly_rate: 'Tarifa/hora', status_active: 'Activo', status_inactive: 'Inactivo',
     linked_projects: 'Proyectos vinculados', no_subs: 'Sin subcontratistas',
@@ -885,7 +1183,7 @@ const es = {
 
   // ── Timesheets ────────────────────────────────────────────────────────────────
   timesheets: {
-    title: 'Timesheets', period: 'Período', status: 'Estado',
+    title: 'Timesheets', subtitle: 'Control semanal de horas con flujo de aprobación', period: 'Período', status: 'Estado',
     submitted: 'Enviado', approved: 'Aprobado', rejected: 'Rechazado',
     pending: 'Pendiente', submit: 'Enviar timesheet', approve: 'Aprobar',
     week_hours: 'Horas semanales', overtime: 'Horas extra',
@@ -894,7 +1192,7 @@ const es = {
 
   // ── AI Governance ─────────────────────────────────────────────────────────────
   governance: {
-    title: 'AI Governance', modules: 'Módulos IA', usage: 'Uso',
+    title: 'AI Governance', subtitle: 'Control y auditoría de todos los módulos de inteligencia artificial', modules: 'Módulos IA', usage: 'Uso',
     cost: 'Coste', audit_log: 'Log de auditoría', policies: 'Políticas',
     enable: 'Activar', disable: 'Desactivar', run_history: 'Historial de ejecuciones',
     token_usage: 'Uso de tokens', model: 'Modelo', provider: 'Proveedor',
@@ -902,7 +1200,7 @@ const es = {
 
   // ── MFA / 2FA ─────────────────────────────────────────────────────────────────
   mfa: {
-    title: 'Autenticación en dos pasos', setup: 'Configurar 2FA',
+    title: 'Autenticación en dos pasos', subtitle: 'MFA/2FA para proteger tu cuenta con TOTP', setup: 'Configurar 2FA',
     scan_qr: 'Escanea el código QR con tu app de autenticación',
     enter_code: 'Introduce el código de 6 dígitos', verify: 'Verificar',
     enabled: 'MFA activado', disabled: 'MFA desactivado',
@@ -986,7 +1284,7 @@ const es = {
 
   // ── SLA Calendars ─────────────────────────────────────────────────────────────
   sla_calendars: {
-    title: 'Calendarios SLA', new_calendar: 'Nuevo calendario',
+    title: 'Calendarios SLA', subtitle: 'Define horarios laborables y festivos para calcular SLA correctamente', new_calendar: 'Nuevo calendario',
     calendar_name: 'Nombre', timezone: 'Zona horaria',
     work_hours: 'Horas laborables', holidays: 'Festivos',
     add_holiday: 'Añadir festivo', apply_to: 'Aplicar a',
@@ -995,7 +1293,7 @@ const es = {
 
   // ── Comentarios internos ──────────────────────────────────────────────────────
   internal_comments: {
-    title: 'Comentarios internos', new_comment: 'Nuevo comentario',
+    title: 'Comentarios internos', subtitle: 'Notas privadas del equipo de soporte no visibles para el cliente', new_comment: 'Nuevo comentario',
     add_comment: 'Añadir nota interna', private_note: 'Nota privada',
     agent_only: 'Solo agentes', visible_to_customer: 'Visible para cliente',
     no_comments: 'Sin comentarios internos',
@@ -1052,10 +1350,35 @@ const es = {
 
   // ── Dashboard de agente ───────────────────────────────────────────────────────
   agent_dashboard: {
-    title: 'Dashboard de agente', my_tickets: 'Mis tickets',
+    title: 'Dashboard de agente', subtitle: 'Métricas individuales de rendimiento: tickets, SLA y satisfacción por agente', my_tickets: 'Mis tickets',
     avg_resolution: 'Tiempo medio resolución', sla_compliance: 'Cumplimiento SLA',
     csat: 'Satisfacción cliente', open: 'Abiertos', resolved_today: 'Resueltos hoy',
     overdue: 'Vencidos', escalated: 'Escalados',
+    agent: 'Agente',
+    select_agent: 'Selecciona un agente...',
+    period: 'Período',
+    snapshot_today: 'Snapshot hoy',
+    snapshot_created: 'Snapshot creado',
+    snapshot_create_error: 'Error al crear snapshot',
+    empty_title: 'Selecciona un agente',
+    empty_desc: 'El dashboard muestra métricas individuales por agente de soporte',
+    no_history: 'Sin datos históricos',
+    no_history_desc: 'Crea el primer snapshot para este agente.',
+    create_snapshot: 'Crear snapshot',
+    kpi_open_tickets: 'Tickets abiertos',
+    kpi_resolved_period: 'Resueltos (período)',
+    kpi_avg_time_hours: 'Tiempo medio (h)',
+    kpi_sla_compliance: 'SLA compliance',
+    kpi_avg_csat: 'CSAT promedio',
+    no_data: 'Sin datos',
+    trend_no_data: 'Sin datos de tendencia. Crea snapshots diariamente para ver la evolución.',
+    chart_resolved_by_day: 'Tickets resueltos por día',
+    chart_sla_by_day: 'Cumplimiento SLA por día',
+    sla_within: 'Dentro SLA',
+    sla_outside: 'Fuera SLA',
+    chart_daily_csat: 'CSAT diario',
+    instructions_label: 'Instrucciones',
+    instructions_text: 'Los snapshots se crean manualmente o vía cron en este endpoint. Programa su ejecución diaria para acumular métricas históricas.',
   },
   v238: {
     // Multi-moneda

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -117,6 +117,7 @@ const SectionTitle = ({ children, action }) => (
 
 // ── Dashboard ALM ─────────────────────────────────────────────────────────────
 function ALMDashboard({ onNavigate }) {
+  const t = useAppT()
   const { data: dash = {}, isLoading } = useQuery({
     queryKey: ['alm-dashboard'],
     queryFn: () => api.get('/alm/dashboard').then(r => r.data),
@@ -131,29 +132,29 @@ function ALMDashboard({ onNavigate }) {
     <div>
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <KPI icon="📄" label="Contratos activos"        value={kpis.total_contracts ?? 0}   color="#00d4ff"
-          sub={kpis.expiring_soon ? `${kpis.expiring_soon} expiran en 60 días` : undefined}
+        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="#00d4ff"
+          sub={kpis.expiring_soon ? `${kpis.expiring_soon} ${t('alm.dashboard_expire_60')}` : undefined}
           alert={kpis.expiring_soon > 0} />
-        <KPI icon="🔑" label="Licencias gestionadas"   value={kpis.total_licenses ?? 0}    color="#7c3aed"
-          sub={kpis.expired_licenses ? `${kpis.expired_licenses} expiradas` : undefined}
+        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="#7c3aed"
+          sub={kpis.expired_licenses ? `${kpis.expired_licenses} ${t('alm.dashboard_expired')}` : undefined}
           alert={kpis.expired_licenses > 0} />
-        <KPI icon="🖥️" label="Activos inventariados"  value={kpis.total_assets ?? 0}       color="#00e5a0"
-          sub={`${kpis.assets_in_use ?? 0} en uso`} />
-        <KPI icon="🏢" label="Proveedores activos"     value={kpis.total_vendors ?? 0}      color="#f97316" />
-        <KPI icon="💰" label="Coste anual licencias"   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="#ffb800" sub="licencias activas" />
-        <KPI icon="📊" label="Coste anual total"       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="#ff4757" sub="contratos + licencias" />
+        <KPI icon="🖥️" label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="#00e5a0"
+          sub={`${kpis.assets_in_use ?? 0} ${t('alm.dashboard_in_use')}`} />
+        <KPI icon="🏢" label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="#f97316" />
+        <KPI icon="💰" label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="#ffb800" sub={t('alm.dashboard_license_cost_scope')} />
+        <KPI icon="📊" label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="#ff4757" sub={t('alm.dashboard_total_cost_scope')} />
       </div>
 
       {/* Renovaciones próximas */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div style={card}>
           <div style={{ padding: '18px 20px 14px' }}>
-            <SectionTitle>⚠️ Renovaciones próximas (60 días)
-              <Button onClick={() => onNavigate('contracts')} variant="secondary">Ver contratos →</Button>
+            <SectionTitle>{`⚠️ ${t('alm.dashboard_upcoming_renewals')}`}
+              <Button onClick={() => onNavigate('contracts')} variant="secondary">{`${t('alm.dashboard_view_contracts')} →`}</Button>
             </SectionTitle>
             {renewals.length === 0 ? (
               <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>
-                ✅ Sin renovaciones urgentes
+                {`✅ ${t('alm.dashboard_no_urgent_renewals')}`}
               </div>
             ) : (
               renewals.map(c => (
@@ -164,7 +165,7 @@ function ALMDashboard({ onNavigate }) {
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: c.days_to_renewal <= 14 ? 'var(--danger)' : c.days_to_renewal <= 30 ? 'var(--warning)' : 'var(--success)' }}>
-                      {c.days_to_renewal === 0 ? 'Hoy' : `${c.days_to_renewal}d`}
+                        {c.days_to_renewal === 0 ? t('alm.dashboard_today') : `${c.days_to_renewal}${t('alm.dashboard_days_short')}`}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{fmtDate(c.renewal_date)}</div>
                   </div>
@@ -176,14 +177,14 @@ function ALMDashboard({ onNavigate }) {
 
         <div style={card}>
           <div style={{ padding: '18px 20px 14px' }}>
-            <SectionTitle>💡 Acciones rápidas</SectionTitle>
+            <SectionTitle>{`💡 ${t('alm.dashboard_quick_actions')}`}</SectionTitle>
             {[
-              { icon: '🏢', label: 'Añadir proveedor',   tab: 'vendors',   color: 'var(--accent)' },
-              { icon: '📄', label: 'Nuevo contrato',      tab: 'contracts', color: 'var(--purple)' },
-              { icon: '🔑', label: 'Registrar licencia',  tab: 'licenses',  color: 'var(--success)' },
-              { icon: '🖥️', label: 'Añadir activo',      tab: 'assets',    color: 'var(--warning)' },
-              { icon: '💼', label: 'Centros de coste',    tab: 'cost',      color: 'var(--warning)' },
-              { icon: '📊', label: 'Informe compliance',  tab: 'compliance',color: 'var(--danger)' },
+              { icon: '🏢', label: t('alm.action_add_vendor'),   tab: 'vendors',   color: 'var(--accent)' },
+              { icon: '📄', label: t('alm.action_new_contract'),      tab: 'contracts', color: 'var(--purple)' },
+              { icon: '🔑', label: t('alm.action_register_license'),  tab: 'licenses',  color: 'var(--success)' },
+              { icon: '🖥️', label: t('alm.action_add_asset'),      tab: 'assets',    color: 'var(--warning)' },
+              { icon: '💼', label: t('alm.action_cost_centers'),    tab: 'cost',      color: 'var(--warning)' },
+              { icon: '📊', label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
             ].map(a => (
               <button key={a.tab} onClick={() => onNavigate(a.tab)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-1)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
@@ -202,6 +203,8 @@ function ALMDashboard({ onNavigate }) {
 
 // ── Vendors ────────────────────────────────────────────────────────────────────
 function VendorModal({ vendor, onClose }) {
+  const t = useAppT()
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!vendor
@@ -216,31 +219,31 @@ function VendorModal({ vendor, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? api.patch(`/alm/vendors/${vendor.id}`, d) : api.post('/alm/vendors', d),
     onSuccess: () => { qc.invalidateQueries(['alm-vendors']); qc.invalidateQueries(['alm-dashboard']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar proveedor' : 'Nuevo proveedor'} width={640}>
+    <Modal open onClose={onClose} title={isEdit ? t('alm.vendor_modal_edit') : t('alm.vendor_modal_new')} width={640}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>Nombre *</label><input value={form.name} onChange={s('name')} style={fs} placeholder="Microsoft, AWS, GitHub..." /></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-name`} style={ls}>{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.vendor_placeholder_name')} /></div>
         <div>
-          <label style={ls}>Categoría</label>
-          <select value={form.category} onChange={s('category')} style={fs}>
+          <label htmlFor={`${idPrefix}-category`} style={ls}>{t('alm.vendor_label_category')}</label>
+          <select id={`${idPrefix}-category`} value={form.category} onChange={s('category')} style={fs}>
             {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
-        <div><label style={ls}>País</label><input value={form.country} onChange={s('country')} style={fs} placeholder="ES" /></div>
-        <div><label style={ls}>Web</label><input value={form.website} onChange={s('website')} style={fs} placeholder="https://..." /></div>
-        <div><label style={ls}>Email soporte</label><input value={form.support_email} onChange={s('support_email')} style={fs} /></div>
-        <div><label style={ls}>Teléfono soporte</label><input value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
-        <div><label style={ls}>Account Manager</label><input value={form.account_manager} onChange={s('account_manager')} style={fs} /></div>
-        <div><label style={ls}>Nº cliente</label><input value={form.account_number} onChange={s('account_number')} style={fs} /></div>
-        <div><label style={ls}>CIF/NIF</label><input value={form.tax_id} onChange={s('tax_id')} style={fs} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>Notas</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
+        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder="ES" /></div>
+        <div><label htmlFor={`${idPrefix}-website`} style={ls}>{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} value={form.website} onChange={s('website')} style={fs} placeholder={t('alm.vendor_placeholder_web')} /></div>
+        <div><label htmlFor={`${idPrefix}-support-email`} style={ls}>{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} value={form.support_email} onChange={s('support_email')} style={fs} /></div>
+        <div><label htmlFor={`${idPrefix}-support-phone`} style={ls}>{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
+        <div><label htmlFor={`${idPrefix}-account-manager`} style={ls}>{t('alm.vendor_label_account_manager')}</label><input id={`${idPrefix}-account-manager`} value={form.account_manager} onChange={s('account_manager')} style={fs} /></div>
+        <div><label htmlFor={`${idPrefix}-account-number`} style={ls}>{t('alm.vendor_label_account_number')}</label><input id={`${idPrefix}-account-number`} value={form.account_number} onChange={s('account_number')} style={fs} /></div>
+        <div><label htmlFor={`${idPrefix}-tax-id`} style={ls}>{t('alm.vendor_label_tax_id')}</label><input id={`${idPrefix}-tax-id`} value={form.tax_id} onChange={s('tax_id')} style={fs} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label htmlFor={`${idPrefix}-notes`} style={ls}>{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => mutate(form)} disabled={isPending || !form.name} loading={isPending}>
-          {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear proveedor'}
+          {isPending ? t('common.saving') : isEdit ? t('common.save') : t('alm.vendor_create')}
         </Button>
       </div>
     </Modal>
@@ -248,6 +251,7 @@ function VendorModal({ vendor, onClose }) {
 }
 
 function VendorsTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -261,7 +265,7 @@ function VendorsTab() {
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/alm/vendors/${id}`),
     onSuccess: () => qc.invalidateQueries(['alm-vendors']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const filtered = vendors.filter(v =>
@@ -272,17 +276,17 @@ function VendorsTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor..."
+        <input aria-label={t('alm.vendors_search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('alm.vendors_search_placeholder')}
           style={{ ...fs, flex: 2 }} />
-        <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={{ ...fs, flex: 1 }}>
-          <option value="">Todas las categorías</option>
+        <select aria-label="Filtrar proveedores por categoría" value={catFilter} onChange={e => setCatFilter(e.target.value)} style={{ ...fs, flex: 1 }}>
+          <option value="">{t('alm.vendors_filter_all_categories')}</option>
           {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">Nuevo proveedor</Button>
+        <Button onClick={() => setModal({})} icon="＋">{t('alm.vendors_new')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🏢" title="Sin proveedores" description="Añade los proveedores de software, hardware y servicios de tu empresa" />
+        <EmptyState icon="🏢" title={t('alm.vendors_empty_title')} description={t('alm.vendors_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
           {filtered.map(v => {
@@ -302,8 +306,8 @@ function VendorsTab() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                    <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar proveedor "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
+                    <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                   </div>
                 </div>
@@ -313,7 +317,7 @@ function VendorsTab() {
                   {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: 12 }}>🔗 {v.website}</a>}
                 </div>
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #1e2d4530', fontSize: 11, color: 'var(--text-3)' }}>
-                  {v.contracts_count} contrato(s)
+                  {v.contracts_count} {t('alm.vendors_contracts_count')}
                 </div>
               </div>
             )
@@ -327,6 +331,7 @@ function VendorsTab() {
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 function ContractModal({ contract, vendors, users, costCenters, onClose }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!contract?.id
@@ -357,7 +362,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? api.patch(`/alm/contracts/${contract.id}`, d) : api.post('/alm/contracts', d),
     onSuccess: () => { qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar contrato' : 'Nuevo contrato'} width={720}>
@@ -435,6 +440,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
 }
 
 function ContractsTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -450,7 +456,7 @@ function ContractsTab() {
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/alm/contracts/${id}`),
     onSuccess: () => { qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const filtered = contracts.filter(c =>
@@ -464,17 +470,17 @@ function ContractsTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contrato o proveedor..."
+        <input aria-label={t('alm.contracts_search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('alm.contracts_search_placeholder')}
           style={{ ...fs, flex: 2, minWidth: 200 }} />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
+        <select aria-label="Filtrar contratos por estado" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
           <option value="">Todos los estados</option>
           {Object.entries(CONTRACT_STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <button onClick={() => setUrgentOnly(u => !u)}
+        <button aria-pressed={urgentOnly} aria-label="Mostrar solo contratos urgentes" onClick={() => setUrgentOnly(u => !u)}
           style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${urgentOnly ? 'var(--danger-border)' : 'var(--surface-4)'}`, background: urgentOnly ? 'rgba(248,113,113,0.06)' : 'transparent', color: urgentOnly ? 'var(--danger)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
           ⚠️ Solo urgentes
         </button>
-        <Button onClick={() => setModal({})} icon="＋">Nuevo contrato</Button>
+        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_new_contract')}</Button>
       </div>
 
       {filtered.length > 0 && (
@@ -484,7 +490,7 @@ function ContractsTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="📄" title="Sin contratos" description="Registra los contratos con tus proveedores de software, hardware y servicios" />
+        <EmptyState icon="📄" title={t('alm.no_contracts')} description={t('alm.contracts_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(c => {
@@ -512,8 +518,8 @@ function ContractsTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el contrato "${c.title}"?`, onConfirm: () => del(c.id), danger: true }) }}
+                  <button aria-label={`Editar contrato ${c.title}`} onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Eliminar contrato ${c.title}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el contrato "${c.title}"?`, onConfirm: () => del(c.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
               </div>
@@ -528,6 +534,7 @@ function ContractsTab() {
 
 // ── Licenses ───────────────────────────────────────────────────────────────────
 function LicenseAssignModal({ license, onClose }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
@@ -538,7 +545,7 @@ function LicenseAssignModal({ license, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => api.post(`/alm/licenses/${license.id}/assign`, d),
     onSuccess: () => { qc.invalidateQueries(['alm-licenses']); qc.invalidateQueries(['alm-license', license.id]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al asignar')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
     <Modal open onClose={onClose} title={`Asignar licencia: ${license.name}`} width={520}>
@@ -576,6 +583,7 @@ function LicenseAssignModal({ license, onClose }) {
 }
 
 function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!license?.id
@@ -594,7 +602,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? api.patch(`/alm/licenses/${license.id}`, d) : api.post('/alm/licenses', d),
     onSuccess: () => { qc.invalidateQueries(['alm-licenses']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar licencia' : 'Nueva licencia'} width={720}>
@@ -665,6 +673,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
 }
 
 function LicensesTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -681,7 +690,7 @@ function LicensesTab() {
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/alm/licenses/${id}`),
     onSuccess: () => qc.invalidateQueries(['alm-licenses']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const filtered = licenses.filter(l =>
@@ -697,17 +706,17 @@ function LicensesTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar licencia..."
+        <input aria-label={t('alm.licenses_search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('alm.licenses_search_placeholder')}
           style={{ ...fs, flex: 2, minWidth: 180 }} />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
+        <select aria-label="Filtrar licencias por tipo" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
           <option value="">Todos los tipos</option>
           {Object.entries(LICENSE_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
+        <select aria-label="Filtrar licencias por estado" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
           <option value="">Todos los estados</option>
           {Object.entries(LICENSE_STATUS_CFG).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">Nueva licencia</Button>
+        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_register_license')}</Button>
       </div>
 
       {filtered.length > 0 && (
@@ -719,7 +728,7 @@ function LicensesTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔑" title="Sin licencias" description="Registra las licencias de software de tu empresa para controlar su uso y coste" />
+        <EmptyState icon="🔑" title={t('alm.no_licenses')} description={t('alm.licenses_empty_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(lic => {
@@ -765,12 +774,12 @@ function LicensesTab() {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => setAssignModal(lic)}
+                    <button aria-label={`Asignar licencia ${lic.name}`} onClick={() => setAssignModal(lic)}
                       style={{ background: 'none', border: '1px solid #00d4ff30', borderRadius: 6, padding: '5px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>
                       👤 Asignar
                     </button>
-                    <button onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                    <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar la licencia "${lic.name}"?`, onConfirm: () => del(lic.id), danger: true }) }}
+                    <button aria-label={`Editar licencia ${lic.name}`} onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`Eliminar licencia ${lic.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar la licencia "${lic.name}"?`, onConfirm: () => del(lic.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                   </div>
                 </div>
@@ -787,6 +796,7 @@ function LicensesTab() {
 
 // ── Assets ─────────────────────────────────────────────────────────────────────
 function AssetModal({ asset, vendors, users, onClose }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const isEdit = !!asset?.id
@@ -808,7 +818,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? api.patch(`/alm/assets/${asset.id}`, d) : api.post('/alm/assets', d),
     onSuccess: () => { qc.invalidateQueries(['alm-assets']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   return (
     <Modal open onClose={onClose} title={isEdit ? 'Editar activo' : 'Nuevo activo'} width={720}>
@@ -876,6 +886,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
 }
 
 function AssetsTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -890,7 +901,7 @@ function AssetsTab() {
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/alm/assets/${id}`),
     onSuccess: () => qc.invalidateQueries(['alm-assets']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const filtered = assets.filter(a =>
@@ -905,17 +916,17 @@ function AssetsTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar activo, serie, tag..."
+        <input aria-label={t('alm.assets_search_placeholder')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('alm.assets_search_placeholder')}
           style={{ ...fs, flex: 2, minWidth: 180 }} />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
+        <select aria-label="Filtrar activos por tipo" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
           <option value="">Todos los tipos</option>
           {Object.entries(ASSET_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
+        <select aria-label="Filtrar activos por estado" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, flex: '0 0 160px' }}>
           <option value="">Todos los estados</option>
           {Object.entries(ASSET_STATUS_CFG).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <Button onClick={() => setModal({})} icon="＋">Nuevo activo</Button>
+        <Button onClick={() => setModal({})} icon="＋">{t('alm.action_add_asset')}</Button>
       </div>
 
       {filtered.length > 0 && (
@@ -927,7 +938,7 @@ function AssetsTab() {
       )}
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🖥️" title="Sin activos" description="Inventaría los dispositivos y equipos de tu empresa" />
+        <EmptyState icon="🖥️" title={t('alm.no_assets')} description={t('alm.assets_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {filtered.map(a => {
@@ -955,8 +966,8 @@ function AssetsTab() {
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <button onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el activo "${a.name}"?`, onConfirm: () => del(a.id), danger: true }) }}
+                  <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Eliminar activo ${a.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el activo "${a.name}"?`, onConfirm: () => del(a.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
               </div>
@@ -971,6 +982,7 @@ function AssetsTab() {
 
 // ── Cost Centers ───────────────────────────────────────────────────────────────
 function CostCentersTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -983,12 +995,12 @@ function CostCentersTab() {
   const { mutate: save, isPending } = useMutation({
     mutationFn: d => editing ? api.patch(`/alm/cost-centers/${editing.id}`, d) : api.post('/alm/cost-centers', d),
     onSuccess: () => { qc.invalidateQueries(['alm-cost-centers']); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: 'EUR' }) },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/alm/cost-centers/${id}`),
     onSuccess: () => qc.invalidateQueries(['alm-cost-centers']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const openEdit = (c) => { setEditing(c); setForm({ code: c.code, name: c.name, description: c.description || '', budget_annual: c.budget_annual || '', currency: c.currency || 'EUR' }); setShowForm(true) }
@@ -996,7 +1008,7 @@ function CostCentersTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button onClick={() => { setEditing(null); setShowForm(true) }} icon="＋">Nuevo centro de coste</Button>
+        <Button onClick={() => { setEditing(null); setShowForm(true) }} icon="＋">{t('alm.action_cost_centers')}</Button>
       </div>
       {showForm && (
         <div style={{ ...card, padding: 20, marginBottom: 20 }}>
@@ -1015,7 +1027,7 @@ function CostCentersTab() {
         </div>
       )}
       {isLoading ? <Spinner /> : centers.length === 0 ? (
-        <EmptyState icon="💼" title="Sin centros de coste" description="Define los centros de coste para asignar el gasto de licencias y contratos" />
+        <EmptyState icon="💼" title={t('alm.no_cost_centers')} description={t('alm.cost_centers_empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {centers.map(c => (
@@ -1026,8 +1038,8 @@ function CostCentersTab() {
                   <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{c.name}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el centro de coste "${c.name}"?`, onConfirm: () => del(c.id), danger: true }) }}
+                  <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Eliminar centro de coste ${c.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el centro de coste "${c.name}"?`, onConfirm: () => del(c.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
               </div>
@@ -1111,30 +1123,30 @@ function ComplianceTab() {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function ALMPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const [tab, setTab] = useState('dashboard')
 
   const TABS = [
-    { id: 'dashboard',   label: '📊 Dashboard',         desc: 'KPIs y renovaciones' },
-    { id: 'vendors',     label: '🏢 Proveedores',        desc: 'Gestión de proveedores' },
-    { id: 'contracts',   label: '📄 Contratos',          desc: 'Contratos activos' },
-    { id: 'licenses',    label: '🔑 Licencias',          desc: 'Software y suscripciones' },
-    { id: 'assets',      label: '🖥️ Activos',            desc: 'Hardware e inventario' },
-    { id: 'cost',        label: '💼 Centros de coste',   desc: 'Asignación de costes' },
-    { id: 'compliance',  label: '✅ Compliance',          desc: 'Auditoría de licencias' },
+    { id: 'dashboard',   label: `📊 ${t('alm.tab_dashboard')}` },
+    { id: 'vendors',     label: `🏢 ${t('alm.tab_vendors')}` },
+    { id: 'contracts',   label: `📄 ${t('alm.tab_contracts')}` },
+    { id: 'licenses',    label: `🔑 ${t('alm.tab_licenses')}` },
+    { id: 'assets',      label: `🖥️ ${t('alm.tab_assets')}` },
+    { id: 'cost',        label: `💼 ${t('alm.tab_cost_centers')}` },
+    { id: 'compliance',  label: `✅ ${t('alm.tab_compliance')}` },
   ]
 
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Gestión de Licencias y Activos"
-        subtitle="Proveedores · Contratos · Licencias · Hardware · Compliance"
+        title={t('alm.title')}
+        subtitle={t('alm.subtitle')}
       />
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div role="tablist" aria-label="Secciones de gestión de licencias y activos" style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-controls={`alm-panel-${t.id}`} id={`alm-tab-${t.id}`} onClick={() => setTab(t.id)}
             style={{
               padding: '8px 16px', borderRadius: 10,
               border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
@@ -1149,13 +1161,13 @@ export default function ALMPage() {
       </div>
 
       {/* Content */}
-      {tab === 'dashboard'  && <ALMDashboard onNavigate={setTab} />}
-      {tab === 'vendors'    && <VendorsTab />}
-      {tab === 'contracts'  && <ContractsTab />}
-      {tab === 'licenses'   && <LicensesTab />}
-      {tab === 'assets'     && <AssetsTab />}
-      {tab === 'cost'       && <CostCentersTab />}
-      {tab === 'compliance' && <ComplianceTab />}
+      {tab === 'dashboard'  && <div id="alm-panel-dashboard" role="tabpanel" aria-labelledby="alm-tab-dashboard"><ALMDashboard onNavigate={setTab} /></div>}
+      {tab === 'vendors'    && <div id="alm-panel-vendors" role="tabpanel" aria-labelledby="alm-tab-vendors"><VendorsTab /></div>}
+      {tab === 'contracts'  && <div id="alm-panel-contracts" role="tabpanel" aria-labelledby="alm-tab-contracts"><ContractsTab /></div>}
+      {tab === 'licenses'   && <div id="alm-panel-licenses" role="tabpanel" aria-labelledby="alm-tab-licenses"><LicensesTab /></div>}
+      {tab === 'assets'     && <div id="alm-panel-assets" role="tabpanel" aria-labelledby="alm-tab-assets"><AssetsTab /></div>}
+      {tab === 'cost'       && <div id="alm-panel-cost" role="tabpanel" aria-labelledby="alm-tab-cost"><CostCentersTab /></div>}
+      {tab === 'compliance' && <div id="alm-panel-compliance" role="tabpanel" aria-labelledby="alm-tab-compliance"><ComplianceTab /></div>}
     </div>
   )
 }

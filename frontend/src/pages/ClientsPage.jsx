@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -432,6 +432,7 @@ function ProjectsTab({ cid }) {
 
 // ── Gestión de contactos ──────────────────────────────────────────────────────
 function ContactsTab({ cid }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const [showAdd, setShowAdd] = useState(false)
@@ -490,7 +491,7 @@ function ContactsTab({ cid }) {
                 {ROLES.find(r => r.id === ct.role)?.label || ct.role}
               </span>
               {ct.phone && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>📞 {ct.phone}</span>}
-              <button onClick={() => remove(ct.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14 }}>🗑</button>
+              <button aria-label={`Eliminar contacto ${ct.full_name}`} onClick={() => remove(ct.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14 }}>🗑</button>
             </div>
           </div>
         ))
@@ -498,18 +499,18 @@ function ContactsTab({ cid }) {
       {showAdd && (
         <Modal open title="Añadir contacto" onClose={() => setShowAdd(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Teléfono</label><input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Rol</label>
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
+            <div><label htmlFor={`${idPrefix}-contact-full-name`} style={lbl}>Nombre completo *</label><input id={`${idPrefix}-contact-full-name`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${idPrefix}-contact-email`} style={lbl}>Email</label><input id={`${idPrefix}-contact-email`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${idPrefix}-contact-phone`} style={lbl}>Teléfono</label><input id={`${idPrefix}-contact-phone`} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${idPrefix}-contact-job-title`} style={lbl}>Cargo</label><input id={`${idPrefix}-contact-job-title`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${idPrefix}-contact-role`} style={lbl}>Rol</label>
+              <select id={`${idPrefix}-contact-role`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
                 {ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 13 }}>
-                <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
+              <label htmlFor={`${idPrefix}-contact-primary`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 13 }}>
+                <input id={`${idPrefix}-contact-primary`} type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
                 Contacto principal
               </label>
             </div>
@@ -526,6 +527,7 @@ function ContactsTab({ cid }) {
 
 // ── Gestión de licencias vinculadas ───────────────────────────────────────────
 function LicensesTab({ cid }) {
+  const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
@@ -574,7 +576,7 @@ function LicensesTab({ cid }) {
               <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20,
                 background: (STATUS_COL[l.status] || 'var(--text-2)') + '15',
                 color: STATUS_COL[l.status] || 'var(--text-2)', fontWeight: 700 }}>{l.status}</span>
-              <button onClick={() => unlink(l.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
+              <button aria-label={`Desvincular licencia ${l.name}`} onClick={() => unlink(l.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
             </div>
           </div>
         ))
@@ -582,15 +584,15 @@ function LicensesTab({ cid }) {
       {showLink && (
         <Modal open title="Vincular licencia" onClose={() => setShowLink(false)} width={440}>
           <div style={{ marginBottom: 14 }}>
-            <label style={lbl}>Licencia</label>
-            <select value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
+            <label htmlFor={`${idPrefix}-license-id`} style={lbl}>Licencia</label>
+            <select id={`${idPrefix}-license-id`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
               {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Notas (opcional)</label>
-            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder="Ej: Licencia dedicada para soporte" />
+            <label htmlFor={`${idPrefix}-license-note`} style={lbl}>Notas (opcional)</label>
+            <input id={`${idPrefix}-license-note`} value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder="Ej: Licencia dedicada para soporte" />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
@@ -604,6 +606,7 @@ function LicensesTab({ cid }) {
 
 // ── Gestión de contratos vinculados ───────────────────────────────────────────
 function ContractsTab({ cid }) {
+  const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [showLink, setShowLink] = useState(false)
@@ -650,7 +653,7 @@ function ContractsTab({ cid }) {
               <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20,
                 background: (STATUS_COL[c.status] || 'var(--text-2)') + '15',
                 color: STATUS_COL[c.status] || 'var(--text-2)', fontWeight: 700 }}>{c.status}</span>
-              <button onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
+              <button aria-label={`Desvincular contrato ${c.title}`} onClick={() => unlink(c.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>🗑</button>
             </div>
           </div>
         ))
@@ -658,8 +661,8 @@ function ContractsTab({ cid }) {
       {showLink && (
         <Modal open title="Vincular contrato" onClose={() => setShowLink(false)} width={440}>
           <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Contrato</label>
-            <select value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
+            <label htmlFor={`${idPrefix}-contract-id`} style={lbl}>Contrato</label>
+            <select id={`${idPrefix}-contract-id`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
               <option value="">Seleccionar...</option>
               {available.map(c => <option key={c.id} value={c.id}>{c.title || c.client_name} — {c.status}</option>)}
             </select>
@@ -691,9 +694,9 @@ function PortalConfigTab({ cid, clientDetail }) {
   return (
     <div>
       {/* Sub-navegación del portal */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #1a2640', paddingBottom: 10 }}>
+      <div role="tablist" aria-label="Subsecciones del portal del cliente" style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #1a2640', paddingBottom: 10 }}>
         {SUB_TABS.map(t => (
-          <button key={t.id} onClick={() => setSub(t.id)}
+          <button key={t.id} role="tab" aria-selected={sub === t.id} aria-controls={`client-portal-subpanel-${t.id}`} id={`client-portal-subtab-${t.id}`} onClick={() => setSub(t.id)}
             style={{ padding: '5px 14px', borderRadius: 8, border: `1px solid ${sub === t.id ? 'var(--accent-glow)' : 'transparent'}`,
               background: sub === t.id ? 'var(--accent-muted)' : 'transparent',
               color: sub === t.id ? 'var(--accent)' : 'var(--text-2)',
@@ -703,12 +706,12 @@ function PortalConfigTab({ cid, clientDetail }) {
         ))}
       </div>
 
-      {sub === 'accesos'     && <PortalUsersTab cid={cid} clientName={clientDetail?.name} />}
-      {sub === 'uat'         && <PortalUATTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'solicitudes' && <PortalSolicitudesTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'mensajes'    && <PortalMensajesTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'documentos'  && <PortalDocumentosTab cid={cid} projects={clientDetail?.projects || []} />}
-      {sub === 'config'      && <PortalSettingsTab cid={cid} />}
+      {sub === 'accesos'     && <div id="client-portal-subpanel-accesos" role="tabpanel" aria-labelledby="client-portal-subtab-accesos"><PortalUsersTab cid={cid} clientName={clientDetail?.name} /></div>}
+      {sub === 'uat'         && <div id="client-portal-subpanel-uat" role="tabpanel" aria-labelledby="client-portal-subtab-uat"><PortalUATTab cid={cid} projects={clientDetail?.projects || []} /></div>}
+      {sub === 'solicitudes' && <div id="client-portal-subpanel-solicitudes" role="tabpanel" aria-labelledby="client-portal-subtab-solicitudes"><PortalSolicitudesTab cid={cid} projects={clientDetail?.projects || []} /></div>}
+      {sub === 'mensajes'    && <div id="client-portal-subpanel-mensajes" role="tabpanel" aria-labelledby="client-portal-subtab-mensajes"><PortalMensajesTab cid={cid} projects={clientDetail?.projects || []} /></div>}
+      {sub === 'documentos'  && <div id="client-portal-subpanel-documentos" role="tabpanel" aria-labelledby="client-portal-subtab-documentos"><PortalDocumentosTab cid={cid} projects={clientDetail?.projects || []} /></div>}
+      {sub === 'config'      && <div id="client-portal-subpanel-config" role="tabpanel" aria-labelledby="client-portal-subtab-config"><PortalSettingsTab cid={cid} /></div>}
     </div>
   )
 }
@@ -798,6 +801,8 @@ function PortalUATTab({ _cid, projects }) {
 
 // ── Portal: Solicitudes (feature requests) del cliente ───────────────────────
 function PortalSolicitudesTab({ cid }) {
+  const toast = useToast()
+  const qc = useQueryClient()
     // --- WebSocket para notificaciones CR ---
     useEffect(() => {
       let ws;
@@ -816,7 +821,9 @@ function PortalSolicitudesTab({ cid }) {
                 toast.info(`El estado de la Change Request vinculada a "${msg.title}" ha cambiado a: ${msg.cr_status}`)
                 qc.invalidateQueries(['portal-frs-client', cid])
               }
-            } catch {}
+            } catch {
+              // Ignore malformed websocket payloads.
+            }
           }
         })
       }
@@ -824,8 +831,6 @@ function PortalSolicitudesTab({ cid }) {
       return () => { ws && ws.close(); clearTimeout(reconnectTimer) }
       // eslint-disable-next-line
     }, [cid])
-  const toast = useToast()
-  const qc = useQueryClient()
   const [responding, setResponding] = useState(null)
   const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
   const [crDetail, setCrDetail] = useState(null)
@@ -1599,6 +1604,8 @@ function PortalUsersTab({ cid, clientName }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientsPage() {
+  const editIdPrefix = useId()
+  const createIdPrefix = useId()
   const _t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -1709,7 +1716,9 @@ export default function ClientsPage() {
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon="🏢" title="Sin clientes" />
           : clientView === 'grid' ? sortedClients.map(c => (
-            <div key={c.id} onClick={() => { setSelected(c); setActiveTab('360') }}
+            <div key={c.id} role="button" tabIndex={0} onClick={() => { setSelected(c); setActiveTab('360') }}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(c); setActiveTab('360') } }}
+              aria-label={`Abrir cliente ${c.name}`}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
@@ -1736,7 +1745,9 @@ export default function ClientsPage() {
                 <span>SD</span>
               </div>
               {sortedClients.map(c => (
-                <div key={c.id} onClick={() => { setSelected(c); setActiveTab('360') }}
+                <div key={c.id} role="button" tabIndex={0} onClick={() => { setSelected(c); setActiveTab('360') }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(c); setActiveTab('360') } }}
+                  aria-label={`Abrir cliente ${c.name}`}
                   style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
@@ -1804,9 +1815,9 @@ export default function ClientsPage() {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap', borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+            <div role="tablist" aria-label="Secciones del detalle de cliente" style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap', borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
               {TABS.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
+                <button key={t.id} role="tab" aria-selected={activeTab === t.id} aria-controls={`client-panel-${t.id}`} id={`client-tab-${t.id}`} onClick={() => setActiveTab(t.id)}
                   style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${activeTab === t.id ? 'var(--accent-glow)' : 'transparent'}`,
                     background: activeTab === t.id ? 'var(--accent-muted)' : 'transparent', color: activeTab === t.id ? 'var(--accent)' : 'var(--text-2)',
                     fontSize: 12, fontWeight: activeTab === t.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1816,15 +1827,15 @@ export default function ClientsPage() {
             </div>
 
             {/* Contenido de cada tab */}
-            {activeTab === '360'      && <Client360 cid={selected.id} />}
-            {activeTab === 'contacts' && <ContactsTab cid={selected.id} />}
-            {activeTab === 'projects' && <ProjectsTab cid={selected.id} />}
-            {activeTab === 'timeline'  && <ClientTimelineTab cid={selected.id} clientName={detail?.name} />}
-            {activeTab === 'contracts' && <ContractsTab cid={selected.id} />}
-            {activeTab === 'licenses'  && <LicensesTab cid={selected.id} />}
-            {activeTab === 'invoices' && <InvoicesClientTab cid={selected.id} />}
+            {activeTab === '360'      && <div id="client-panel-360" role="tabpanel" aria-labelledby="client-tab-360"><Client360 cid={selected.id} /></div>}
+            {activeTab === 'contacts' && <div id="client-panel-contacts" role="tabpanel" aria-labelledby="client-tab-contacts"><ContactsTab cid={selected.id} /></div>}
+            {activeTab === 'projects' && <div id="client-panel-projects" role="tabpanel" aria-labelledby="client-tab-projects"><ProjectsTab cid={selected.id} /></div>}
+            {activeTab === 'timeline'  && <div id="client-panel-timeline" role="tabpanel" aria-labelledby="client-tab-timeline"><ClientTimelineTab cid={selected.id} clientName={detail?.name} /></div>}
+            {activeTab === 'contracts' && <div id="client-panel-contracts" role="tabpanel" aria-labelledby="client-tab-contracts"><ContractsTab cid={selected.id} /></div>}
+            {activeTab === 'licenses'  && <div id="client-panel-licenses" role="tabpanel" aria-labelledby="client-tab-licenses"><LicensesTab cid={selected.id} /></div>}
+            {activeTab === 'invoices' && <div id="client-panel-invoices" role="tabpanel" aria-labelledby="client-tab-invoices"><InvoicesClientTab cid={selected.id} /></div>}
             {activeTab === 'tickets' && (
-              <div>
+              <div id="client-panel-tickets" role="tabpanel" aria-labelledby="client-tab-tickets">
                 {detail?.tickets?.length === 0
                   ? <EmptyState icon="🎫" title="Sin tickets" description="Este cliente no ha abierto tickets aún" />
                   : detail?.tickets?.map(t => (
@@ -1844,7 +1855,7 @@ export default function ClientsPage() {
                 }
               </div>
             )}
-            {activeTab === 'portal'   && <PortalConfigTab cid={selected.id} clientDetail={detail} />}
+            {activeTab === 'portal'   && <div id="client-panel-portal" role="tabpanel" aria-labelledby="client-tab-portal"><PortalConfigTab cid={selected.id} clientDetail={detail} /></div>}
 
           </div>
         )}
@@ -1855,26 +1866,26 @@ export default function ClientsPage() {
         <Modal open title={`✏️ Editar: ${editClientForm.name}`} onClose={() => setShowEdit(false)} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label style={lbl}>Nombre *</label>
-              <input value={editClientForm.name}
+              <label htmlFor={`${editIdPrefix}-name`} style={lbl}>Nombre *</label>
+              <input id={`${editIdPrefix}-name`} value={editClientForm.name}
                 onChange={e => setEditClientForm(f => ({ ...f, name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Nombre corto</label>
-              <input value={editClientForm.short_name}
+              <label htmlFor={`${editIdPrefix}-short-name`} style={lbl}>Nombre corto</label>
+              <input id={`${editIdPrefix}-short-name`} value={editClientForm.short_name}
                 onChange={e => setEditClientForm(f => ({ ...f, short_name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>CIF / NIF / VAT</label>
-              <input value={editClientForm.tax_id}
+              <label htmlFor={`${editIdPrefix}-tax-id`} style={lbl}>CIF / NIF / VAT</label>
+              <input id={`${editIdPrefix}-tax-id`} value={editClientForm.tax_id}
                 onChange={e => setEditClientForm(f => ({ ...f, tax_id: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Sector</label>
-              <select value={editClientForm.industry}
+              <label htmlFor={`${editIdPrefix}-industry`} style={lbl}>Sector</label>
+              <select id={`${editIdPrefix}-industry`} value={editClientForm.industry}
                 onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
                 style={inp}>
                 {INDUSTRIES.map(i => (
@@ -1883,26 +1894,26 @@ export default function ClientsPage() {
               </select>
             </div>
             <div>
-              <label style={lbl}>Contacto principal</label>
-              <input value={editClientForm.contact_name}
+              <label htmlFor={`${editIdPrefix}-contact-name`} style={lbl}>Contacto principal</label>
+              <input id={`${editIdPrefix}-contact-name`} value={editClientForm.contact_name}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_name: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Email contacto</label>
-              <input type="email" value={editClientForm.contact_email}
+              <label htmlFor={`${editIdPrefix}-contact-email`} style={lbl}>Email contacto</label>
+              <input id={`${editIdPrefix}-contact-email`} type="email" value={editClientForm.contact_email}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_email: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Teléfono</label>
-              <input value={editClientForm.contact_phone}
+              <label htmlFor={`${editIdPrefix}-contact-phone`} style={lbl}>Teléfono</label>
+              <input id={`${editIdPrefix}-contact-phone`} value={editClientForm.contact_phone}
                 onChange={e => setEditClientForm(f => ({ ...f, contact_phone: e.target.value }))}
                 style={inp} />
             </div>
             <div>
-              <label style={lbl}>Estado</label>
-              <select value={editClientForm.status}
+              <label htmlFor={`${editIdPrefix}-status`} style={lbl}>Estado</label>
+              <select id={`${editIdPrefix}-status`} value={editClientForm.status}
                 onChange={e => setEditClientForm(f => ({ ...f, status: e.target.value }))}
                 style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => (
@@ -1911,27 +1922,27 @@ export default function ClientsPage() {
               </select>
             </div>
             <div>
-              <label style={lbl}>País</label>
-              <input value={editClientForm.country}
+              <label htmlFor={`${editIdPrefix}-country`} style={lbl}>País</label>
+              <input id={`${editIdPrefix}-country`} value={editClientForm.country}
                 onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
                 style={inp} placeholder="España" />
             </div>
             <div>
-              <label style={lbl}>Ciudad</label>
-              <input value={editClientForm.city}
+              <label htmlFor={`${editIdPrefix}-city`} style={lbl}>Ciudad</label>
+              <input id={`${editIdPrefix}-city`} value={editClientForm.city}
                 onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
                 style={inp} placeholder="Madrid" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={lbl}>Website</label>
-              <input value={editClientForm.website}
+              <label htmlFor={`${editIdPrefix}-website`} style={lbl}>Website</label>
+              <input id={`${editIdPrefix}-website`} value={editClientForm.website}
                 onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
                 style={inp} placeholder="https://empresa.com" />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Notas</label>
-            <textarea value={editClientForm.notes}
+            <label htmlFor={`${editIdPrefix}-notes`} style={lbl}>Notas</label>
+            <textarea id={`${editIdPrefix}-notes`} value={editClientForm.notes}
               onChange={e => setEditClientForm(f => ({ ...f, notes: e.target.value }))}
               style={{ ...inp, minHeight: 70, resize: 'vertical' }} />
           </div>
@@ -1955,24 +1966,24 @@ export default function ClientsPage() {
       {showCreate && (
         <Modal open title="Nuevo cliente" onClose={() => setShowCreate(false)} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={e => setNewForm(f => ({ ...f, short_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>CIF / NIF / VAT</label><input value={newForm.tax_id} onChange={e => setNewForm(f => ({ ...f, tax_id: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Sector</label>
-              <select value={newForm.industry} onChange={e => setNewForm(f => ({ ...f, industry: e.target.value }))} style={inp}>
+            <div><label htmlFor={`${createIdPrefix}-name`} style={lbl}>Nombre *</label><input id={`${createIdPrefix}-name`} value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-short-name`} style={lbl}>Nombre corto</label><input id={`${createIdPrefix}-short-name`} value={newForm.short_name} onChange={e => setNewForm(f => ({ ...f, short_name: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-tax-id`} style={lbl}>CIF / NIF / VAT</label><input id={`${createIdPrefix}-tax-id`} value={newForm.tax_id} onChange={e => setNewForm(f => ({ ...f, tax_id: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-industry`} style={lbl}>Sector</label>
+              <select id={`${createIdPrefix}-industry`} value={newForm.industry} onChange={e => setNewForm(f => ({ ...f, industry: e.target.value }))} style={inp}>
                 {INDUSTRIES.map(i => <option key={i} value={i}>{i.charAt(0).toUpperCase() + i.slice(1)}</option>)}
               </select>
             </div>
-            <div><label style={lbl}>Contacto principal</label><input value={newForm.contact_name} onChange={e => setNewForm(f => ({ ...f, contact_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Email contacto</label><input type="email" value={newForm.contact_email} onChange={e => setNewForm(f => ({ ...f, contact_email: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Teléfono</label><input value={newForm.contact_phone} onChange={e => setNewForm(f => ({ ...f, contact_phone: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Estado</label>
-              <select value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value }))} style={inp}>
+            <div><label htmlFor={`${createIdPrefix}-contact-name`} style={lbl}>Contacto principal</label><input id={`${createIdPrefix}-contact-name`} value={newForm.contact_name} onChange={e => setNewForm(f => ({ ...f, contact_name: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-contact-email`} style={lbl}>Email contacto</label><input id={`${createIdPrefix}-contact-email`} type="email" value={newForm.contact_email} onChange={e => setNewForm(f => ({ ...f, contact_email: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-contact-phone`} style={lbl}>Teléfono</label><input id={`${createIdPrefix}-contact-phone`} value={newForm.contact_phone} onChange={e => setNewForm(f => ({ ...f, contact_phone: e.target.value }))} style={inp} /></div>
+            <div><label htmlFor={`${createIdPrefix}-status`} style={lbl}>Estado</label>
+              <select id={`${createIdPrefix}-status`} value={newForm.status} onChange={e => setNewForm(f => ({ ...f, status: e.target.value }))} style={inp}>
                 {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
           </div>
-          <div style={{ marginBottom: 16 }}><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} /></div>
+          <div style={{ marginBottom: 16 }}><label htmlFor={`${createIdPrefix}-notes`} style={lbl}>Notas</label><textarea id={`${createIdPrefix}-notes`} value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(newForm)} disabled={!newForm.name || creating}>

@@ -85,7 +85,7 @@ export default function RevenuePage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('profitability.revenue')} subtitle="ASC 606 / IFRS 15 — configuración y seguimiento por proyecto" />
+      <PageHeader title={t('profitability.revenue')} subtitle={t('profitability.revenue_subtitle')} />
 
       {/* KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>

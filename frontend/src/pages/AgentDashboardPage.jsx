@@ -34,8 +34,8 @@ export default function AgentDashboardPage() {
 
   const { mutate: snapshot, isPending: snapping } = useMutation({
     mutationFn: () => api.post(`/agent-dashboard/${agentId}/snapshot`).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['agent-dash', agentId, days]); toast.info('Snapshot creado') },
-    onError: e => toast.error(extractErr(e, 'Error al crear snapshot')),
+    onSuccess: () => { qc.invalidateQueries(['agent-dash', agentId, days]); toast.info(t('agent_dashboard.snapshot_created')) },
+    onError: e => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
   })
 
   const trend = dash?.trend || []
@@ -43,42 +43,42 @@ export default function AgentDashboardPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('agent_dashboard.title')} subtitle="Métricas individuales de rendimiento: tickets, SLA y satisfacción por agente" />
+      <PageHeader title={t('agent_dashboard.title')} subtitle={t('agent_dashboard.subtitle')} />
 
       <div style={{...ps,marginBottom:20}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto auto',gap:12,alignItems:'flex-end'}}>
           <div>
-            <label style={ls}>Agente</label>
+            <label style={ls}>{t('agent_dashboard.agent')}</label>
             <select value={agentId} onChange={e => setAgentId(e.target.value)} style={is}>
-              <option value="">Selecciona un agente...</option>
+              <option value="">{t('agent_dashboard.select_agent')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.username}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Período</label>
+            <label style={ls}>{t('agent_dashboard.period')}</label>
             <select value={days} onChange={e => setDays(+e.target.value)} style={is}>
-              <option value={7}>7 días</option>
-              <option value={14}>14 días</option>
-              <option value={30}>30 días</option>
-              <option value={60}>60 días</option>
-              <option value={90}>90 días</option>
+              <option value={7}>7 {t('common.days')}</option>
+              <option value={14}>14 {t('common.days')}</option>
+              <option value={30}>30 {t('common.days')}</option>
+              <option value={60}>60 {t('common.days')}</option>
+              <option value={90}>90 {t('common.days')}</option>
             </select>
           </div>
           <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
-            {snapping ? '...' : '📸 Snapshot hoy'}
+            {snapping ? '...' : `📸 ${t('agent_dashboard.snapshot_today')}`}
           </Button>
         </div>
       </div>
 
-      {!agentId && <EmptyState icon="👤" title="Selecciona un agente" description="El dashboard muestra métricas individuales por agente de soporte" />}
+      {!agentId && <EmptyState icon="👤" title={t('agent_dashboard.empty_title')} description={t('agent_dashboard.empty_desc')} />}
       {agentId && isLoading && <Spinner />}
 
       {agentId && !isLoading && !dash && (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize:48,marginBottom:16}}>📸</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>Sin datos históricos</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>Crea el primer snapshot para este agente.</div>
-          <Button onClick={() => snapshot()} disabled={snapping}>{snapping?'...':'Crear snapshot'}</Button>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('agent_dashboard.no_history')}</div>
+          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('agent_dashboard.no_history_desc')}</div>
+          <Button onClick={() => snapshot()} disabled={snapping}>{snapping ? '...' : t('agent_dashboard.create_snapshot')}</Button>
         </div>
       )}
 
@@ -87,11 +87,11 @@ export default function AgentDashboardPage() {
           {/* KPIs */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:20}}>
             {[
-              ['Tickets abiertos', dash.current?.open_tickets || 0, 'var(--text-1)'],
-              ['Resueltos (período)', kpis.total_resolved || 0, 'var(--success)'],
-              ['Tiempo medio (h)', kpis.avg_resolution_hours || 0, 'var(--accent)'],
-              ['SLA compliance', `${kpis.sla_compliance_pct || 0}%`, kpis.sla_compliance_pct >= 90 ? 'var(--success)' : kpis.sla_compliance_pct >= 70 ? 'var(--warning)' : 'var(--danger)'],
-              ['CSAT promedio', kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : 'N/A', 'var(--purple)'],
+              [t('agent_dashboard.kpi_open_tickets'), dash.current?.open_tickets || 0, 'var(--text-1)'],
+              [t('agent_dashboard.kpi_resolved_period'), kpis.total_resolved || 0, 'var(--success)'],
+              [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
+              [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`, kpis.sla_compliance_pct >= 90 ? 'var(--success)' : kpis.sla_compliance_pct >= 70 ? 'var(--warning)' : 'var(--danger)'],
+              [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
             ].map(([label,val,color]) => (
               <div key={label} style={{...ps,padding:'14px 16px'}}>
                 <div style={{fontSize:24,fontWeight:700,color}}>{val}</div>
@@ -102,32 +102,32 @@ export default function AgentDashboardPage() {
 
           {trend.length === 0 ? (
             <div style={{...ps,textAlign:'center',padding:40,color:'var(--text-3)',fontSize:13}}>
-              Sin datos de tendencia. Crea snapshots diariamente para ver la evolución.
+              {t('agent_dashboard.trend_no_data')}
             </div>
           ) : (
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
               <div style={ps}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>Tickets resueltos por día</div>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_resolved_by_day')}</div>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
                     <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
                     <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="resolved" name="Resueltos" fill="#00e5a0" radius={[4,4,0,0]} />
+                    <Bar dataKey="resolved" name={t('agent_dashboard.kpi_resolved_period')} fill="#00e5a0" radius={[4,4,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div style={ps}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>Cumplimiento SLA por día</div>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_sla_by_day')}</div>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
                     <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
                     <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="sla_ok"   name="Dentro SLA"  fill="#00e5a0" stackId="sla" radius={[0,0,0,0]} />
-                    <Bar dataKey="sla_fail" name="Fuera SLA"   fill="#ff4757" stackId="sla" radius={[4,4,0,0]} />
+                    <Bar dataKey="sla_ok"   name={t('agent_dashboard.sla_within')}  fill="#00e5a0" stackId="sla" radius={[0,0,0,0]} />
+                    <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="#ff4757" stackId="sla" radius={[4,4,0,0]} />
                     <Legend wrapperStyle={{fontSize:11,color:'var(--text-2)'}} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -137,7 +137,7 @@ export default function AgentDashboardPage() {
 
           {trend.some(d => d.csat !== null) && (
             <div style={ps}>
-              <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>CSAT diario</div>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_daily_csat')}</div>
               <ResponsiveContainer width="100%" height={180}>
                 <LineChart data={trend.filter(d=>d.csat!==null)} margin={{top:5,right:10,left:0,bottom:0}}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
@@ -152,9 +152,8 @@ export default function AgentDashboardPage() {
 
           <div style={{...ps,marginTop:16,padding:'14px 18px'}}>
             <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.7}}>
-              <strong style={{color:'var(--text-2)'}}>Instrucciones:</strong> Los snapshots se crean manualmente o vía cron en
+              <strong style={{color:'var(--text-2)'}}>{t('agent_dashboard.instructions_label')}:</strong> {t('agent_dashboard.instructions_text')}
               <code style={{color:'var(--accent)',marginLeft:6}}>POST /agent-dashboard/{'{agent_id}'}/snapshot</code>.
-              Programa este endpoint diariamente para acumular métricas históricas.
             </div>
           </div>
         </div>

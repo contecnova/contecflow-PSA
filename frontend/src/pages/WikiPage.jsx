@@ -474,7 +474,7 @@ export default function WikiPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('wiki.title')} subtitle="Documentación, especificaciones y base de conocimiento"
+      <PageHeader title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:10,padding:4}}>

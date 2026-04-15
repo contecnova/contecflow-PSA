@@ -53,7 +53,7 @@ export default function MFAPage() {
 
   return (
     <div style={{ padding:32, maxWidth:640, margin:'0 auto' }}>
-      <PageHeader title={t('mfa.title')} subtitle="MFA/2FA — Protege tu cuenta con TOTP" />
+      <PageHeader title={t('mfa.title')} subtitle={t('mfa.subtitle')} />
 
       {/* Status card */}
       <div style={{ ...card, padding:'20px 24px', marginBottom:24 }}>

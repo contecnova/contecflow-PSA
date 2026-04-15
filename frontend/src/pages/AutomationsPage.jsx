@@ -2,7 +2,7 @@
  * AutomationsPage — Visual no-code rule builder + Workflows multi-paso + RPA
  * SI [trigger] [condiciones] ENTONCES [acciones]
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -192,17 +192,17 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
           {rule.description && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>{rule.description}</div>}
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
-          <button onClick={() => onToggle(rule)}
+          <button aria-pressed={rule.is_active} aria-label={`${rule.is_active ? 'Pausar' : 'Activar'} regla ${rule.name}`} onClick={() => onToggle(rule)}
             style={{ background: rule.is_active ? 'var(--warning-bg)' : 'var(--success-bg)', border: `1px solid ${rule.is_active ? 'rgba(245,158,11,0.25)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 6, padding: '4px 10px', color: rule.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
             {rule.is_active ? '⏸ Pausar' : '▶ Activar'}
           </button>
-          <button onClick={() => onTest(rule)}
+          <button aria-label={`Probar regla ${rule.name}`} onClick={() => onTest(rule)}
             style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff40', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
             ▷ Probar
           </button>
-          <button onClick={() => onEdit(rule)}
+          <button aria-label={`Editar regla ${rule.name}`} onClick={() => onEdit(rule)}
             style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
-          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla?', onConfirm: () => onDelete(rule.id), danger: true }) }}
+          <button aria-label={`Eliminar regla ${rule.name}`} onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla?', onConfirm: () => onDelete(rule.id), danger: true }) }}
             style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
         </div>
       </div>
@@ -244,6 +244,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
 
 // ── Rule editor modal ─────────────────────────────────────────────────────────
 function RuleModal({ rule, onClose }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!rule
@@ -295,16 +296,16 @@ function RuleModal({ rule, onClose }) {
         {/* Basic info */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>Nombre de la regla *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Ej: Alerta cuando presupuesto supera 85%" />
+            <label htmlFor={`${idPrefix}-name`} style={ls}>Nombre de la regla *</label>
+            <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Ej: Alerta cuando presupuesto supera 85%" />
           </div>
           <div>
-            <label style={ls}>Descripción</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
+            <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción</label>
+            <input id={`${idPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
           </div>
           <div>
-            <label style={ls}>Proyecto (vacío = global)</label>
-            <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value }))} style={fs}>
+            <label htmlFor={`${idPrefix}-project`} style={ls}>Proyecto (vacío = global)</label>
+            <select id={`${idPrefix}-project`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value }))} style={fs}>
               <option value="">Global — todos los proyectos</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
@@ -318,8 +319,8 @@ function RuleModal({ rule, onClose }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
             <div>
-              <label style={ls}>Disparador</label>
-              <select value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} style={fs}>
+              <label htmlFor={`${idPrefix}-trigger`} style={ls}>Disparador</label>
+              <select id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} style={fs}>
                 {TRIGGER_CATEGORIES.map(cat => (
                   <optgroup key={cat} label={cat}>
                     {Object.entries(TRIGGERS).filter(([, v]) => v.category === cat).map(([k, v]) => (
@@ -332,16 +333,16 @@ function RuleModal({ rule, onClose }) {
 
             {/* Condition */}
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)' }}>
-                <input type="checkbox" checked={hasCondition} onChange={e => setHasCondition(e.target.checked)} />
+              <label htmlFor={`${idPrefix}-has-condition`} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-2)' }}>
+                <input id={`${idPrefix}-has-condition`} type="checkbox" checked={hasCondition} onChange={e => setHasCondition(e.target.checked)} />
                 Añadir condición (opcional)
               </label>
             </div>
             {hasCondition && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, padding: '10px 14px', background: 'var(--surface-3)', borderRadius: 8 }}>
                 <div>
-                  <label style={ls}>Campo</label>
-                  <select value={condition.field} onChange={e => setCondition(c => ({ ...c, field: e.target.value }))} style={fs}>
+                  <label htmlFor={`${idPrefix}-condition-field`} style={ls}>Campo</label>
+                  <select id={`${idPrefix}-condition-field`} value={condition.field} onChange={e => setCondition(c => ({ ...c, field: e.target.value }))} style={fs}>
                     <option value="">Seleccionar...</option>
                     {fields.map(f => <option key={f} value={f}>{f}</option>)}
                     <option value="budget_pct">budget_pct (%)</option>
@@ -351,14 +352,14 @@ function RuleModal({ rule, onClose }) {
                   </select>
                 </div>
                 <div>
-                  <label style={ls}>Operador</label>
-                  <select value={condition.operator} onChange={e => setCondition(c => ({ ...c, operator: e.target.value }))} style={fs}>
+                  <label htmlFor={`${idPrefix}-condition-operator`} style={ls}>Operador</label>
+                  <select id={`${idPrefix}-condition-operator`} value={condition.operator} onChange={e => setCondition(c => ({ ...c, operator: e.target.value }))} style={fs}>
                     {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={ls}>Valor</label>
-                  <input value={condition.value} onChange={e => setCondition(c => ({ ...c, value: e.target.value }))} style={fs} placeholder="Ej: 85, done, p1_critical..." />
+                  <label htmlFor={`${idPrefix}-condition-value`} style={ls}>Valor</label>
+                  <input id={`${idPrefix}-condition-value`} value={condition.value} onChange={e => setCondition(c => ({ ...c, value: e.target.value }))} style={fs} placeholder="Ej: 85, done, p1_critical..." />
                 </div>
               </div>
             )}
@@ -388,7 +389,7 @@ function RuleModal({ rule, onClose }) {
                     </select>
                   </div>
                   {form.actions.length > 1 && (
-                    <button onClick={() => removeAction(i)}
+                    <button aria-label={`Eliminar acción ${i + 1}`} onClick={() => removeAction(i)}
                       style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, alignSelf: 'flex-end', paddingBottom: 8 }}>×</button>
                   )}
                 </div>
@@ -412,7 +413,7 @@ function RuleModal({ rule, onClose }) {
               </div>
             )
           })}
-          <button onClick={addAction}
+          <button aria-label="Añadir una nueva acción" onClick={addAction}
             style={{ background: 'transparent', border: '1px dashed #00d4ff40', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', width: '100%' }}>
             + Añadir acción
           </button>
@@ -472,7 +473,7 @@ function StepConfig({ step, idx, onChange, onRemove }) {
           {Object.keys(STEP_ICONS).map(t => <option key={t} value={t}>{STEP_ICONS[t]} {t}</option>)}
         </select>
         <input value={name} onChange={e => onChange(idx, { ...step, name: e.target.value })} style={{ ...fs, padding: '6px 10px', fontSize: 12 }} placeholder="Nombre del paso" />
-        <button onClick={() => onRemove(idx)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button aria-label={`Eliminar paso ${idx + 1}`} onClick={() => onRemove(idx)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       {/* Per-type config */}
@@ -607,6 +608,7 @@ function StepConfig({ step, idx, onChange, onRemove }) {
 }
 
 function WorkflowModal({ workflow, onClose }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!workflow
@@ -641,16 +643,16 @@ function WorkflowModal({ workflow, onClose }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>Nombre *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} />
+            <label htmlFor={`${idPrefix}-name`} style={ls}>Nombre *</label>
+            <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} />
           </div>
           <div>
-            <label style={ls}>Descripción</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
+            <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción</label>
+            <input id={`${idPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} />
           </div>
           <div>
-            <label style={ls}>Trigger de entrada</label>
-            <select value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} style={fs}>
+            <label htmlFor={`${idPrefix}-trigger`} style={ls}>Trigger de entrada</label>
+            <select id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} style={fs}>
               {TRIGGER_CATEGORIES.map(cat => (
                 <optgroup key={cat} label={cat}>
                   {Object.entries(TRIGGERS).filter(([,v]) => v.category === cat).map(([k, v]) => (
@@ -666,7 +668,7 @@ function WorkflowModal({ workflow, onClose }) {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <label style={{ ...ls, display: 'inline', marginBottom: 0 }}>Pasos del workflow ({form.steps.length})</label>
-            <button onClick={addStep} style={{ background: 'transparent', border: '1px dashed #00d4ff40', borderRadius: 6, padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>+ Añadir paso</button>
+            <button aria-label="Añadir un nuevo paso al workflow" onClick={addStep} style={{ background: 'transparent', border: '1px dashed #00d4ff40', borderRadius: 6, padding: '4px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>+ Añadir paso</button>
           </div>
           {form.steps.length === 0 && (
             <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-3)', fontSize: 13 }}>Sin pasos aún — añade al menos uno</div>
@@ -748,13 +750,13 @@ function WorkflowsTab() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => update({ id: wf.id, data: { status: wf.status === 'active' ? 'paused' : 'active' } })}
+                    <button aria-pressed={wf.status === 'active'} aria-label={`${wf.status === 'active' ? 'Pausar' : 'Activar'} workflow ${wf.name}`} onClick={() => update({ id: wf.id, data: { status: wf.status === 'active' ? 'paused' : 'active' } })}
                       style={{ background: wf.status === 'active' ? 'var(--warning-bg)' : 'var(--success-bg)', border: `1px solid ${wf.status === 'active' ? 'rgba(245,158,11,0.25)' : 'rgba(52,211,153,0.25)'}`, borderRadius: 6, padding: '4px 10px', color: wf.status === 'active' ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                       {wf.status === 'active' ? '⏸ Pausar' : '▶ Activar'}
                     </button>
-                    <button onClick={() => setEditingWf(wf)}
+                    <button aria-label={`Editar workflow ${wf.name}`} onClick={() => setEditingWf(wf)}
                       style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏ Editar</button>
-                    <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este workflow?', onConfirm: () => del(wf.id), danger: true }) }}
+                    <button aria-label={`Eliminar workflow ${wf.name}`} onClick={() => { openConfirmGlobal({ message: '¿Eliminar este workflow?', onConfirm: () => del(wf.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                   </div>
                 </div>
@@ -856,18 +858,18 @@ export default function AutomationsPage() {
       />
 
       {/* Tab selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+      <div role="tablist" aria-label="Secciones de automatizaciones" style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {[['rules', '⚙️ Reglas simples'], ['workflows', '⚡ Workflows multi-paso']].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
+          <button key={id} role="tab" aria-selected={tab === id} aria-controls={`automations-panel-${id}`} id={`automations-tab-${id}`} onClick={() => setTab(id)}
             style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
       </div>
 
-      {tab === 'workflows' && <WorkflowsTab />}
+      {tab === 'workflows' && <div id="automations-panel-workflows" role="tabpanel" aria-labelledby="automations-tab-workflows"><WorkflowsTab /></div>}
 
-      {tab === 'rules' && <>
+      {tab === 'rules' && <div id="automations-panel-rules" role="tabpanel" aria-labelledby="automations-tab-rules">
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
@@ -887,7 +889,7 @@ export default function AutomationsPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {[[null,'Todas'],[true,'Activas'],[false,'Pausadas']].map(([val, label]) => (
-          <button key={String(val)} onClick={() => setFilterActive(val)}
+          <button key={String(val)} aria-pressed={filterActive === val} onClick={() => setFilterActive(val)}
             style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${filterActive === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filterActive === val ? 'var(--accent-muted)' : 'transparent', color: filterActive === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
@@ -958,7 +960,7 @@ export default function AutomationsPage() {
                       return <span key={i} style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{aCfg.icon} {aCfg.label}</span>
                     })}
                   </div>
-                  <button onClick={() => createFromTemplate(tpl)}
+                  <button aria-label={`Usar plantilla ${tpl.name}`} onClick={() => createFromTemplate(tpl)}
                     style={{ background: 'linear-gradient(135deg,#00d4ff,#7c3aed)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
                     Usar esta plantilla
                   </button>
@@ -968,7 +970,7 @@ export default function AutomationsPage() {
           </div>
         </Modal>
       )}
-      </>
+      </div>
       }
     </div>
   )

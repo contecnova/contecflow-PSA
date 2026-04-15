@@ -66,7 +66,7 @@ export default function GovernancePage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('governance.title')} subtitle="Control y auditoría de todos los módulos de inteligencia artificial" />
+      <PageHeader title={t('governance.title')} subtitle={t('governance.subtitle')} />
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>

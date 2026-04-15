@@ -1,5 +1,3 @@
-import React from 'react'
-
 /**
  * Badge with tooltip (hover for info)
  * Props:

@@ -40,7 +40,7 @@ export default function OrganizationsPage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('organizations.title')} subtitle="Multi-tenancy — cada organización es un espacio de datos aislado" />
+      <PageHeader title={t('organizations.title')} subtitle={t('organizations.subtitle')} />
       <div style={{ background:'var(--color-background-info)', border:'.5px solid var(--color-border-info)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize:13, color:'var(--color-text-info)' }}>
         Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Clarive como SaaS multi-empresa.
       </div>

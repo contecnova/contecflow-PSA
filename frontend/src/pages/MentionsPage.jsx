@@ -169,7 +169,7 @@ export default function MentionsPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('mentions.title')} subtitle="@menciones recibidas y comentarios threaded en tareas y tickets"/>
+      <PageHeader title={t('mentions.title')} subtitle={t('mentions.subtitle')}/>
 
       {/* Tabs */}
       <div style={{display:'flex',gap:6,marginBottom:20}}>

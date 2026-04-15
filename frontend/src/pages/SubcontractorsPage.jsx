@@ -723,7 +723,7 @@ export default function SubcontractorsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('subcontractors.title')} subtitle="Gestión completa de freelancers, proveedores y empresas externas" />
+      <PageHeader title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')} />
 
       {/* KPIs */}
       {dashboard && (

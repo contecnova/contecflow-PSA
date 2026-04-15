@@ -411,7 +411,7 @@ export default function SkillsPage() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <PageHeader title={t('skills.title')} subtitle="Gestión del conocimiento del equipo y búsqueda de recursos" />
+      <PageHeader title={t('skills.title')} subtitle={t('skills.subtitle')} />
 
       {/* KPI bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>

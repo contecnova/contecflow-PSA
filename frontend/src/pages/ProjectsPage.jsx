@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext'
 import { useColVisibility } from '../components/ui/ColVisibility'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const PROJ_COLS = [
   { id: 'name',     label: 'Proyecto',     width: '2fr',   sortKey: 'name' },
@@ -87,6 +88,13 @@ const projectFormSchema = z.object({
       message: 'El dia de retainer debe estar entre 1 y 28',
     })
   }
+})
+
+const projectMemberSchema = z.object({
+  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
+  role: z.string().trim().min(1, 'El rol es obligatorio'),
+  allocation_pct: z.coerce.number().min(1, 'La dedicacion debe ser al menos 1%').max(100, 'La dedicacion no puede superar el 100%'),
+  notes: z.string().optional(),
 })
 
 function StatusDropdown({ project, onUpdate }) {
@@ -409,6 +417,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState('info')
   const [addForm, setAddForm] = useState({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' })
+  const addValidation = useFormValidation(projectMemberSchema)
   const [showAdd, setShowAdd] = useState(false)
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
@@ -425,7 +434,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { mutate: addMember, isPending: adding } = useMutation({
     mutationFn: d => api.post(`/projects/${project.id}/members`, d),
-    onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }) },
+    onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
   })
   const { mutate: removeMember } = useMutation({
@@ -445,6 +454,20 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const memberUserIds = new Set(members.map(m => m.user_id))
   const availableUsers = allUsers.filter(u => !memberUserIds.has(u.id))
+
+  const setAddField = (key) => (e) => {
+    const value = key === 'allocation_pct' ? Number(e.target.value) : e.target.value
+    setAddForm(current => ({ ...current, [key]: value }))
+    addValidation.clearFieldError(key)
+  }
+
+  const submitAddMember = () => {
+    const result = addValidation.validateForm(addForm)
+    if (!result.success) {
+      return
+    }
+    addMember(result.data)
+  }
 
   return (
     <Modal open={open} onClose={onClose} title={detail.name} width={720}>
@@ -508,15 +531,16 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 10, marginBottom: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
-                  <select value={addForm.user_id} onChange={e => setAddForm(f => ({ ...f, user_id: e.target.value }))}
-                    style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }}>
+                  <select value={addForm.user_id} onChange={setAddField('user_id')}
+                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'user_id')}>
                     <option value="">Seleccionar persona...</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
                   </select>
+                  {addValidation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
-                  <select value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))}
+                  <select value={addForm.role} onChange={setAddField('role')}
                     style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }}>
                     {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
@@ -524,21 +548,15 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
                   <input type="number" min="1" max="100" value={addForm.allocation_pct}
-                    onChange={e => setAddForm(f => ({ ...f, allocation_pct: parseInt(e.target.value) || 100 }))}
-                    style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }} />
+                    onChange={setAddField('allocation_pct')}
+                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
+                  {addValidation.errors.allocation_pct && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
-                  onClick={() => {
-                    const alloc = Number(addForm.allocation_pct || 0)
-                    if (alloc < 1 || alloc > 100) {
-                      toast.error('La dedicacion debe estar entre 1% y 100%')
-                      return
-                    }
-                    addMember(addForm)
-                  }}
-                  disabled={!addForm.user_id || adding}
+                  onClick={submitAddMember}
+                  disabled={adding}
                 >
                   {adding ? 'Añadiendo...' : 'Confirmar asignación'}
                 </Button>

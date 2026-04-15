@@ -269,7 +269,7 @@ export default function RateCardsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('rate_cards.title')} subtitle="Tablas de tarifas por rol, departamento o cliente" />
+      <PageHeader title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button onClick={() => setShowCreate(true)}>+ Nueva tabla de tarifas</Button>

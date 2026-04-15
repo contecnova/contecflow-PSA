@@ -297,6 +297,27 @@ const SHORTCUTS = [
   { keys: ['G', 'S'],    label: 'Ir a Service Desk' },
 ]
 
+function getNavKeyForPath(path) {
+  return PATH_NAV_KEY[path] || path?.replace(/^\//, '').replace(/-/g, '_')
+}
+
+function getNavLabel(path, fallbackLabel, t) {
+  const navKey = getNavKeyForPath(path)
+  const translated = t ? t('nav', navKey) : null
+  if (translated && translated !== navKey) return translated
+  return ROUTE_LABELS[path] || fallbackLabel || path?.replace(/^\//, '').replace(/-/g, ' ')
+}
+
+function getSectionLabel(path, t) {
+  const group = NAV_GROUPS.find(g => (g.items || []).some(
+    i => !i.divider && (path === i.to || path.startsWith(i.to + '/'))
+  ))
+  if (!group || group.single) return null
+  const translated = (t && group.groupKey) ? t('nav', group.groupKey) : null
+  if (translated && translated !== group.groupKey) return translated
+  return group.label
+}
+
 function ShortcutsModal({ onClose, text }) {
   const dialogRef = useRef(null)
 
@@ -354,9 +375,7 @@ function ShortcutsModal({ onClose, text }) {
 function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin }) {
   const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
   const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
-  const navKey = PATH_NAV_KEY[item.to] || item.to?.replace(/^\//, '').replace(/-/g, '_')
-  const translated = t ? t('nav', navKey) : null
-  const displayLabel = (translated && translated !== navKey) ? translated : item.label
+  const displayLabel = getNavLabel(item.to, item.label, t)
   const isPinned = pinned?.includes(item.to)
   const [hover, setHover] = useState(false)
 
@@ -453,7 +472,9 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
             onMouseLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), 150) }}
           >
             <div className="nav-hover-title">{groupLabel}</div>
-            {realVisible.map(item => (
+            {realVisible.map(item => {
+              const itemLabel = getNavLabel(item.to, item.label, t)
+              return (
               <NavLink key={item.to} to={item.to} onClick={() => setHoverOpen(false)}
                 style={({ isActive }) => ({
                   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6,
@@ -463,9 +484,10 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
                 })}
               >
                 <span style={{ width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
-                <span>{item.label}</span>
+                <span>{itemLabel}</span>
               </NavLink>
-            ))}
+              )
+            })}
           </div>
         )}
         <div style={{ height: 1, background: 'var(--surface-4)', margin: '3px 0' }} />
@@ -545,7 +567,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function RecentsSection({ recent, collapsed, text }) {
+function RecentsSection({ recent, collapsed, text, t }) {
   const allItems = NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider)
   const recentItems = recent.map(path => allItems.find(i => i.to === path)).filter(Boolean)
   if (recentItems.length === 0) return null
@@ -556,9 +578,11 @@ function RecentsSection({ recent, collapsed, text }) {
           letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 2 }}>{`⏱ ${text.recent}`}</div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {recentItems.map(item => (
+        {recentItems.map(item => {
+          const itemLabel = getNavLabel(item.to, item.label, t)
+          return (
           <NavLink key={item.to} to={item.to}
-            title={ROUTE_LABELS[item.to] || item.label}
+            title={itemLabel}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 8,
               padding: collapsed ? '7px 9px' : '5px 8px 5px 14px',
@@ -572,20 +596,24 @@ function RecentsSection({ recent, collapsed, text }) {
             <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
               {item.icon}
             </span>
-            {!collapsed && <span style={{ flex: 1, fontSize: 12.5 }}>{ROUTE_LABELS[item.to] || item.label}</span>}
+            {!collapsed && <span style={{ flex: 1, fontSize: 12.5 }}>{itemLabel}</span>}
           </NavLink>
-        ))}
+          )
+        })}
       </div>
       <div style={{ height: 1, background: 'var(--surface-4)', margin: collapsed ? '5px 0' : '5px 3px' }} />
     </div>
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems }) {
   const location = useLocation()
-  const section = ROUTE_SECTION[location.pathname]
-  const rawLabel = ROUTE_LABELS[location.pathname]
-  const pageLabel = rawLabel || location.pathname.replace(/^\//, '').replace(/-/g, ' ')
+  const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
+  const currentNavItem = allNavItems.find(i => location.pathname === i.to)
+    || allNavItems.find(i => location.pathname.startsWith(i.to + '/'))
+  const pageLabel = currentNavItem
+    ? getNavLabel(currentNavItem.to, currentNavItem.label, t)
+    : location.pathname.replace(/^\//, '').replace(/-/g, ' ')
 
   return (
     <div className="app-topbar" role="banner">
@@ -722,12 +750,14 @@ function NavSearch({ value, onChange, text }) {
   )
 }
 
-function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text }) {
+function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigate, text, t }) {
   const allItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
   const q = query.toLowerCase().trim()
   const matches = allItems.filter(i => {
     if (i.roles && !i.roles.some(r => hasRole(r))) return false
-    return i.label.toLowerCase().includes(q) || (ROUTE_LABELS[i.to] || '').toLowerCase().includes(q)
+    const translatedLabel = getNavLabel(i.to, i.label, t)
+    const fallbackLabel = ROUTE_LABELS[i.to] || i.label
+    return translatedLabel.toLowerCase().includes(q) || fallbackLabel.toLowerCase().includes(q)
   })
   if (matches.length === 0) {
     return <div style={{ padding: '8px 14px', fontSize: 11.5, color: 'var(--text-4)' }}>{text.no_results}</div>
@@ -737,9 +767,10 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
       {matches.map(item => {
         const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
         const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
+        const itemLabel = getNavLabel(item.to, item.label, t)
         return (
           <NavLink key={item.to} to={item.to} onClick={onNavigate}
-            aria-label={ROUTE_LABELS[item.to] || item.label}
+            aria-label={itemLabel}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '5px 8px 5px 14px', borderRadius: 6, textDecoration: 'none',
@@ -751,7 +782,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
             })}
           >
             <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
-            <span style={{ flex: 1, fontSize: 12.5 }}>{ROUTE_LABELS[item.to] || item.label}</span>
+            <span style={{ flex: 1, fontSize: 12.5 }}>{itemLabel}</span>
             {badge > 0 && <span style={{ background: badgeColor + '22', color: badgeColor, borderRadius: 9, padding: '1px 5px', fontSize: 9.5, fontWeight: 700 }}>{badge}</span>}
           </NavLink>
         )
@@ -981,7 +1012,7 @@ export default function Layout({ children }) {
                     {!collapsed && (
                       <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
                     )}
-                    <RecentsSection recent={recent} collapsed={collapsed} text={text} />
+                    <RecentsSection recent={recent} collapsed={collapsed} text={text} t={t} />
                     <FavoritesSection pinned={pinned} onPin={togglePin} collapsed={collapsed}
                       alertCount={alertCount} approvalCount={approvalCount} t={t}
                       allNavItems={allNavItems} quickItems={quickItems} text={text} />
@@ -1003,6 +1034,7 @@ export default function Layout({ children }) {
               alertCount={alertCount} approvalCount={approvalCount}
               onNavigate={() => setNavSearch('')}
               text={text}
+              t={t}
             />
           )}
           <div style={{ padding: '3px 0', marginTop: 4 }}>
@@ -1075,6 +1107,7 @@ export default function Layout({ children }) {
           alertCount={alertCount}
           approvalCount={approvalCount}
           t={t}
+          allNavItems={allNavItems}
         />
         {children}
       </main>

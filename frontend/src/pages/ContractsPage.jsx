@@ -294,7 +294,7 @@ export default function ContractsPage() {
       <PageHeader
         icon={<ScrollText size={18} />}
         title={t('contracts.title')}
-        subtitle="Gestión de contratos y órdenes de trabajo"
+        subtitle={t('contracts.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}

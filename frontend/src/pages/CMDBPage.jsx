@@ -325,7 +325,7 @@ export default function CMDBPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('cmdb.title')} subtitle="Configuration Management Database — inventario de activos IT y sus relaciones"
+      <PageHeader title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
 
       {/* KPIs */}

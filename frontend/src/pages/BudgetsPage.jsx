@@ -10,6 +10,8 @@ import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const fs = { width:'100%', background:'var(--color-background-secondary)', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'9px 12px', color:'var(--color-text-primary)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -17,6 +19,20 @@ const card = { background:'var(--color-background-primary)', border:'.5px solid 
 
 const fmtEur = n => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
+const budgetSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  year: z.coerce.number().int().min(2000, 'El año no es válido').max(2100, 'El año no es válido'),
+  department: z.string().optional(),
+  total_amount: z.coerce.number().min(0, 'El importe total no puede ser negativo'),
+  currency: z.string().trim().min(1),
+})
+
+const budgetEntrySchema = z.object({
+  actual: z.coerce.number().min(0, 'El gasto real no puede ser negativo'),
+  committed: z.coerce.number().min(0, 'El importe comprometido no puede ser negativo'),
+  notes: z.string().optional(),
+})
 
 export default function BudgetsPage() {
   const t = useAppT()
@@ -28,18 +44,20 @@ export default function BudgetsPage() {
   const [form, setForm] = useState({ name:'', year:new Date().getFullYear(), department:'', total_amount:0, currency:'EUR' })
   const [editEntry, setEditEntry] = useState(null)
   const [entryForm, setEntryForm] = useState({ actual:0, committed:0, notes:'' })
+  const createValidation = useFormValidation(budgetSchema)
+  const entryValidation = useFormValidation(budgetEntrySchema)
 
   const { data: budgets = [], isLoading } = useQuery({ queryKey:['budgets', year], queryFn:()=>api.get(`/budgets?year=${year}`).then(r=>r.data) })
   const { data: summary } = useQuery({ queryKey:['budget-summary', year], queryFn:()=>api.get(`/budgets/summary?year=${year}`).then(r=>r.data) })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/budgets', d),
-    onSuccess: () => { qc.invalidateQueries(['budgets']); setShowCreate(false) },
+    onSuccess: () => { qc.invalidateQueries(['budgets']); setShowCreate(false); createValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateEntry } = useMutation({
     mutationFn: ({ id, month, data }) => api.patch(`/budgets/${id}/entry`, { month, ...data }),
-    onSuccess: () => { qc.invalidateQueries(['budgets']); setEditEntry(null) },
+    onSuccess: () => { qc.invalidateQueries(['budgets']); setEditEntry(null); entryValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: approve } = useMutation({
@@ -51,9 +69,37 @@ export default function BudgetsPage() {
   const _sel = selected ? budgets.find(b => b.id === selected) : null
   const chartData = summary?.by_month?.map(m => ({ mes: MONTHS[m.month-1], Planificado: Math.round(m.planned), Real: Math.round(m.actual) })) || []
 
+  const setCreateField = (key) => (e) => {
+    const value = key === 'year' || key === 'total_amount' ? +e.target.value : e.target.value
+    setForm(current => ({ ...current, [key]: value }))
+    createValidation.clearFieldError(key)
+  }
+
+  const setEntryField = (key) => (e) => {
+    const value = key === 'actual' || key === 'committed' ? +e.target.value : e.target.value
+    setEntryForm(current => ({ ...current, [key]: value }))
+    entryValidation.clearFieldError(key)
+  }
+
+  const submitCreate = () => {
+    const result = createValidation.validateForm(form)
+    if (!result.success) {
+      return
+    }
+    create(result.data)
+  }
+
+  const submitEntry = () => {
+    const result = entryValidation.validateForm(entryForm)
+    if (!result.success) {
+      return
+    }
+    updateEntry({ id:editEntry.budget_id, month:editEntry.month, data:result.data })
+  }
+
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('budgets.title')} subtitle="Control presupuestario multi-período por departamento" />
+      <PageHeader title={t('budgets.title')} subtitle={t('budgets.subtitle')} />
 
       {/* Year selector + summary */}
       <div style={{ display:'flex', gap:16, marginBottom:24, alignItems:'center' }}>
@@ -155,16 +201,28 @@ export default function BudgetsPage() {
       {showCreate && (
         <Modal open title="Nuevo presupuesto" onClose={()=>setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <div><label style={ls}>Año</label><input type="number" value={form.year} onChange={e=>setForm(f=>({...f,year:+e.target.value}))} style={fs} /></div>
-              <div><label style={ls}>Departamento</label><input value={form.department} onChange={e=>setForm(f=>({...f,department:e.target.value}))} style={fs} /></div>
+            <div>
+              <label style={ls}>Nombre</label>
+              <input value={form.name} onChange={setCreateField('name')} style={createValidation.inputStyle(fs, 'name')} />
+              {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.name}</div>}
             </div>
-            <div><label style={ls}>Importe total anual (€)</label><input type="number" value={form.total_amount} onChange={e=>setForm(f=>({...f,total_amount:+e.target.value}))} style={fs} /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div>
+                <label style={ls}>Año</label>
+                <input type="number" value={form.year} onChange={setCreateField('year')} style={createValidation.inputStyle(fs, 'year')} />
+                {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.year}</div>}
+              </div>
+              <div><label style={ls}>Departamento</label><input value={form.department} onChange={setCreateField('department')} style={fs} /></div>
+            </div>
+            <div>
+              <label style={ls}>Importe total anual (€)</label>
+              <input type="number" value={form.total_amount} onChange={setCreateField('total_amount')} style={createValidation.inputStyle(fs, 'total_amount')} />
+              {createValidation.errors.total_amount && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.total_amount}</div>}
+            </div>
             <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>Se distribuirá en 12 mensualidades iguales de {fmtEur((form.total_amount||0)/12)}.</div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>Cancelar</Button>
-              <Button onClick={()=>create(form)} disabled={isPending||!form.name}>{isPending?'Creando...':'Crear presupuesto'}</Button>
+              <Button onClick={submitCreate} disabled={isPending}>{isPending?'Creando...':'Crear presupuesto'}</Button>
             </div>
           </div>
         </Modal>
@@ -173,12 +231,20 @@ export default function BudgetsPage() {
       {editEntry && (
         <Modal open title={`Actualizar ${MONTHS[editEntry.month-1]}`} onClose={()=>setEditEntry(null)} width={400}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Gasto real (€)</label><input type="number" value={entryForm.actual} onChange={e=>setEntryForm(f=>({...f,actual:+e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Comprometido (€)</label><input type="number" value={entryForm.committed} onChange={e=>setEntryForm(f=>({...f,committed:+e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Notas</label><input value={entryForm.notes} onChange={e=>setEntryForm(f=>({...f,notes:e.target.value}))} style={fs} /></div>
+            <div>
+              <label style={ls}>Gasto real (€)</label>
+              <input type="number" value={entryForm.actual} onChange={setEntryField('actual')} style={entryValidation.inputStyle(fs, 'actual')} />
+              {entryValidation.errors.actual && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{entryValidation.errors.actual}</div>}
+            </div>
+            <div>
+              <label style={ls}>Comprometido (€)</label>
+              <input type="number" value={entryForm.committed} onChange={setEntryField('committed')} style={entryValidation.inputStyle(fs, 'committed')} />
+              {entryValidation.errors.committed && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{entryValidation.errors.committed}</div>}
+            </div>
+            <div><label style={ls}>Notas</label><input value={entryForm.notes} onChange={setEntryField('notes')} style={fs} /></div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>setEditEntry(null)}>Cancelar</Button>
-              <Button onClick={()=>updateEntry({ id:editEntry.budget_id, month:editEntry.month, data:entryForm })}>Guardar</Button>
+              <Button onClick={submitEntry}>Guardar</Button>
             </div>
           </div>
         </Modal>

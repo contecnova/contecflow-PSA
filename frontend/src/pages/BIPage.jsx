@@ -203,25 +203,25 @@ export default function BIPage() {
         <PageHeader
           icon={<PieChartIcon size={18} />}
           title={t('bi.title')}
-          subtitle="Dashboard ejecutivo configurable — datos en tiempo real"
+          subtitle={t('bi.subtitle')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {configMode && (
                 <button onClick={() => updateLayout(DEFAULT_LAYOUT)} style={{ fontSize: 11, padding: '6px 12px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  ↺ Restablecer
+                  ↺ {t('bi.reset_layout')}
                 </button>
               )}
               <button onClick={handleExportDashboardPdf} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-                PDF
+                {t('bi.dashboard_pdf')}
               </button>
               <button onClick={() => setPresentationMode(true)} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-                Presentación
+                {t('bi.presentation')}
               </button>
               <button onClick={() => setShowThemePanel(s => !s)} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, background: showThemePanel ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${showThemePanel ? 'var(--accent-glow)' : 'var(--surface-4)'}`, color: showThemePanel ? 'var(--accent)' : 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
-                🎨 Tema
+                🎨 {t('bi.theme')}
               </button>
               <button onClick={() => setConfigMode(s => !s)} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, background: configMode ? 'var(--accent)' : 'var(--surface-2)', border: `1px solid ${configMode ? 'var(--accent)' : 'var(--surface-4)'}`, color: configMode ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                {configMode ? '✓ Listo' : '⚙ Configurar'}
+                {configMode ? `✓ ${t('bi.config_done')}` : `⚙ ${t('bi.configure')}`}
               </button>
             </div>
           }
@@ -241,35 +241,35 @@ export default function BIPage() {
       {!presentationMode && (
         <div style={{ marginBottom: 16, padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
           <select value={filters.projectId} onChange={e => updateFilters(prev => ({ ...prev, projectId: e.target.value }))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)' }}>
-            <option value="">Todos los proyectos</option>
+            <option value="">{t('bi.all_projects')}</option>
             {(filterOptions.projects || []).map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <select value={filters.projectType} onChange={e => updateFilters(prev => ({ ...prev, projectType: e.target.value }))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)' }}>
-            <option value="">Todos los tipos</option>
+            <option value="">{t('bi.all_types')}</option>
             {(filterOptions.project_types || []).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <select value={filters.clientId} onChange={e => updateFilters(prev => ({ ...prev, clientId: e.target.value }))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)' }}>
-            <option value="">Todos los clientes</option>
+            <option value="">{t('bi.all_clients')}</option>
             {(filterOptions.clients || []).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
           <select value={filters.userId} onChange={e => updateFilters(prev => ({ ...prev, userId: e.target.value }))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)' }}>
-            <option value="">Todas las personas</option>
+            <option value="">{t('bi.all_people')}</option>
             {(filterOptions.users || []).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
           </select>
           <select value={filters.department} onChange={e => updateFilters(prev => ({ ...prev, department: e.target.value }))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)' }}>
-            <option value="">Todos los departamentos</option>
+            <option value="">{t('bi.all_departments')}</option>
             {(filterOptions.departments || []).map(d => <option key={d} value={d}>{d}</option>)}
           </select>
           <button onClick={resetFilters} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>
-            Limpiar filtros
+            {t('bi.clear_filters')}
           </button>
         </div>
       )}
 
       {configMode && !presentationMode && (
         <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, fontSize: 12, color: 'var(--accent)' }}>
-          Modo configuración activo — usa ↑↓ para reordenar, S/M/L para cambiar tamaño, y ✓ Visible para mostrar/ocultar.
-          <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>{visibleCount} de {layout.length} widgets visibles</span>
+          {t('bi.config_mode_active')} — {t('bi.config_mode_help')}
+          <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>{visibleCount} / {layout.length} {t('bi.widgets_visible_count')}</span>
         </div>
       )}
 

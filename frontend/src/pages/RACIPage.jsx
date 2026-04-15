@@ -145,7 +145,7 @@ export default function RACIPage() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <PageHeader title={t('raci.title')} subtitle="Define quién es Responsable, Aprobador, Consultado e Informado por entregable o fase" icon={<Shield size={18} />} />
+      <PageHeader title={t('raci.title')} subtitle={t('raci.subtitle')} icon={<Shield size={18} />} />
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>

@@ -231,7 +231,7 @@ export default function DependenciesPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('dependencies.title')} subtitle="Gestiona y visualiza qué tareas bloquean a otras"
+      <PageHeader title={t('dependencies.title')} subtitle={t('dependencies.subtitle')}
         actions={project && (
           <Button onClick={() => setShowForm(true)}>+ Nueva dependencia</Button>
         )} />

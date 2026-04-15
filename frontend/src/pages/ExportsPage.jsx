@@ -62,7 +62,7 @@ export default function ExportsPage() {
 
   return (
     <div style={{ padding: 32, maxWidth: 760, margin: '0 auto' }}>
-      <PageHeader title={t('exports.title')} subtitle="Descarga datos y sincroniza con herramientas externas" />
+      <PageHeader title={t('exports.title')} subtitle={t('exports.subtitle')} />
 
       {message && (
         <div style={{

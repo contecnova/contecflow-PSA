@@ -37,7 +37,7 @@ const PROMPT_MAP = {
   puntos:    (text) => `Extrae los puntos clave del siguiente texto como una lista con viñetas (•):\n\n${text}`,
 };
 
-export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled }) {
+export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }) {
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
   const [loading, setLoading] = useState(false);    // AI in progress
@@ -198,11 +198,13 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <textarea
+        id={inputId}
         ref={textareaRef}
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         rows={rows}
+        aria-label={ariaLabel}
         placeholder={placeholder || "Escribe '/' para comandos IA..."}
         disabled={disabled || loading}
         style={{

@@ -248,7 +248,7 @@ export default function SLACalendarsPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('sla_calendars.title')} subtitle="Define horarios laborables y festivos para calcular SLA correctamente"
+      <PageHeader title={t('sla_calendars.title')} subtitle={t('sla_calendars.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo calendario</Button>} />
 
       {isLoading ? <Spinner /> : calendars.length === 0 ? (

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -9,6 +9,8 @@ import { Umbrella } from 'lucide-react'
 import { fmtDate, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { z } from 'zod'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -26,18 +28,42 @@ const STATUS_CFG = {
   cancelled: { label: 'Cancelada',  color: 'var(--text-2)' },
 }
 
+const absenceRequestSchema = z.object({
+  type: z.string().min(1, 'El tipo es obligatorio'),
+  start_date: z.string().min(1, 'La fecha de inicio es obligatoria'),
+  end_date: z.string().min(1, 'La fecha de fin es obligatoria'),
+  reason: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.end_date < data.start_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date'],
+      message: 'La fecha de fin no puede ser anterior a la de inicio',
+    })
+  }
+})
+
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.pending
   return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
 }
 
 function RequestModal({ onClose }) {
+  const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ type: 'vacation', start_date: '', end_date: '', reason: '' })
+  const validation = useFormValidation(absenceRequestSchema)
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
+  const typeId = `${idPrefix}-type`
+  const startId = `${idPrefix}-start`
+  const endId = `${idPrefix}-end`
+  const reasonId = `${idPrefix}-reason`
 
   const { data: balance } = useQuery({
     queryKey: ['vacation-balance-my'],
@@ -47,9 +73,15 @@ function RequestModal({ onClose }) {
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: (data) => api.post('/absences/my', data),
-    onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); onClose() },
+    onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); validation.setErrors({}); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate(result.data)
+  }
 
   return (
     <Modal open title="Solicitar ausencia" onClose={onClose} width={460}>
@@ -73,29 +105,32 @@ function RequestModal({ onClose }) {
           </div>
         )}
         <div>
-          <label style={ls}>Tipo</label>
-          <select value={form.type} onChange={set('type')} style={fs}>
+          <label htmlFor={typeId} style={ls}>Tipo</label>
+          <select id={typeId} value={form.type} onChange={set('type')} style={validation.inputStyle(fs, 'type')}>
             {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.type}</div>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={ls}>Fecha inicio *</label>
-            <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+            <label htmlFor={startId} style={ls}>Fecha inicio *</label>
+            <input id={startId} type="date" value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
+            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.start_date}</div>}
           </div>
           <div>
-            <label style={ls}>Fecha fin *</label>
-            <input type="date" value={form.end_date} onChange={set('end_date')} style={fs} />
+            <label htmlFor={endId} style={ls}>Fecha fin *</label>
+            <input id={endId} type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
         <div>
-          <label style={ls}>Motivo (opcional)</label>
-          <textarea value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Motivo de la ausencia..." />
+          <label htmlFor={reasonId} style={ls}>Motivo (opcional)</label>
+          <textarea id={reasonId} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Motivo de la ausencia..." />
         </div>
         {error && <div style={{ fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{Array.isArray(error.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error.response?.data?.detail || 'Error al enviar la solicitud')}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)}>
+          <Button onClick={submit} disabled={isPending}>
             {isPending ? 'Enviando...' : 'Solicitar'}
           </Button>
         </div>
@@ -105,6 +140,7 @@ function RequestModal({ onClose }) {
 }
 
 function ReviewModal({ absence, onClose }) {
+  const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
@@ -130,8 +166,8 @@ function ReviewModal({ absence, onClose }) {
       </div>
       {absence.reason && <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 16 }}>{absence.reason}</p>}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (motivo rechazo si aplica)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+        <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (motivo rechazo si aplica)</label>
+        <textarea id={`${idPrefix}-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -199,6 +235,7 @@ function CalendarView({ year, month }) {
 }
 
 function EditAbsenceModal({ absence, onClose }) {
+  const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({
@@ -207,6 +244,7 @@ function EditAbsenceModal({ absence, onClose }) {
     end_date:   absence.end_date   || '',
     reason:     absence.reason     || '',
   })
+  const validation = useFormValidation(absenceRequestSchema)
 
   const { mutate, isPending, error } = useMutation({
     mutationFn: (data) => api.patch(`/absences/my/${absence.id}`, data),
@@ -216,6 +254,7 @@ function EditAbsenceModal({ absence, onClose }) {
       qc.invalidateQueries({ queryKey: ['vacation-balance-my'] })
       qc.invalidateQueries({ queryKey: ['cal-absences'] })
       qc.invalidateQueries({ queryKey: ['absence-calendar'] })
+      validation.setErrors({})
       toast.success('Ausencia actualizada')
       onClose()
     },
@@ -227,6 +266,21 @@ function EditAbsenceModal({ absence, onClose }) {
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
   const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const typeId = `${idPrefix}-type`
+  const startId = `${idPrefix}-start`
+  const endId = `${idPrefix}-end`
+  const reasonId = `${idPrefix}-reason`
+
+  const setField = (key) => (e) => {
+    setForm(f => ({ ...f, [key]: e.target.value }))
+    validation.clearFieldError(key)
+  }
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate(result.data)
+  }
 
   return (
     <Modal open title="Editar solicitud de ausencia" onClose={onClose} width={460}>
@@ -237,30 +291,33 @@ function EditAbsenceModal({ absence, onClose }) {
         </div>
 
         <div>
-          <label style={LS}>Tipo de ausencia</label>
-          <select value={form.type} onChange={e => setForm(f=>({...f,type:e.target.value}))} style={IS}>
+          <label htmlFor={typeId} style={LS}>Tipo de ausencia</label>
+          <select id={typeId} value={form.type} onChange={setField('type')} style={validation.inputStyle(IS, 'type')}>
             {[['vacation','Vacaciones'],['sick','Baja médica'],['personal','Asunto personal'],
               ['training','Formación'],['maternity','Maternidad'],['paternity','Paternidad'],['other','Otro']
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.type}</div>}
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
           <div>
-            <label style={LS}>Fecha inicio</label>
-            <input type="date" value={form.start_date}
-              onChange={e => setForm(f=>({...f,start_date:e.target.value}))} style={IS} />
+            <label htmlFor={startId} style={LS}>Fecha inicio</label>
+            <input id={startId} type="date" value={form.start_date}
+              onChange={setField('start_date')} style={validation.inputStyle(IS, 'start_date')} />
+            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.start_date}</div>}
           </div>
           <div>
-            <label style={LS}>Fecha fin</label>
-            <input type="date" value={form.end_date}
-              onChange={e => setForm(f=>({...f,end_date:e.target.value}))} style={IS} />
+            <label htmlFor={endId} style={LS}>Fecha fin</label>
+            <input id={endId} type="date" value={form.end_date}
+              onChange={setField('end_date')} style={validation.inputStyle(IS, 'end_date')} />
+            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
 
         <div>
-          <label style={LS}>Motivo (opcional)</label>
-          <textarea value={form.reason} onChange={e => setForm(f=>({...f,reason:e.target.value}))}
+          <label htmlFor={reasonId} style={LS}>Motivo (opcional)</label>
+          <textarea id={reasonId} value={form.reason} onChange={setField('reason')}
             rows={3} placeholder="Describe el motivo de la ausencia..."
             style={{...IS, resize:'vertical'}} />
         </div>
@@ -275,8 +332,8 @@ function EditAbsenceModal({ absence, onClose }) {
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button
-            onClick={() => mutate(form)}
-            disabled={isPending || !form.start_date || !form.end_date}
+            onClick={submit}
+            disabled={isPending}
             loading={isPending}>
             Guardar cambios
           </Button>
@@ -341,13 +398,13 @@ export default function AbsencesPage() {
       <PageHeader
         icon={<Umbrella size={18} />}
         title={t('absences.title')}
-        subtitle="Gestión de ausencias con flujo de aprobación"
+        subtitle={t('absences.subtitle')}
         actions={<Button onClick={() => setShowRequest(true)} icon="＋">Solicitar ausencia</Button>}
       />
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div role="tablist" aria-label="Secciones de ausencias" style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-controls={`absences-panel-${t.id}`} id={`absences-tab-${t.id}`} onClick={() => setTab(t.id)}
             style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
@@ -355,45 +412,47 @@ export default function AbsencesPage() {
       </div>
 
       {tab === 'mine' && (
-        loadingMine ? <Spinner /> : myAbsences.length === 0 ? (
-          <EmptyState icon="🏖" title="Sin ausencias registradas" description="Solicita tus vacaciones o registra una ausencia" />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {myAbsences.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{TYPE_LABELS[a.type] || a.type}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                    {fmtDate(a.start_date)} → {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} días laborables</span>
+        <div id="absences-panel-mine" role="tabpanel" aria-labelledby="absences-tab-mine">
+          {loadingMine ? <Spinner /> : myAbsences.length === 0 ? (
+            <EmptyState icon="🏖" title="Sin ausencias registradas" description="Solicita tus vacaciones o registra una ausencia" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myAbsences.map(a => (
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{TYPE_LABELS[a.type] || a.type}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                      {fmtDate(a.start_date)} → {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} días laborables</span>
+                    </div>
+                    {a.rejection_reason && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
                   </div>
-                  {a.rejection_reason && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
+                  <StatusBadge status={a.status} />
+                  <div style={{ display:'flex', gap:6 }}>
+                    {a.status === 'pending' && (
+                      <button aria-label={`Editar ausencia ${TYPE_LABELS[a.type] || a.type}`} onClick={() => setEditingAbsence(a)}
+                        style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
+                          padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                        ✏ Editar
+                      </button>
+                    )}
+                    {(a.status === 'pending' || a.status === 'approved') && (
+                      <button aria-label={`Cancelar ausencia ${TYPE_LABELS[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: '¿Cancelar esta solicitud de ausencia?', onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>Cancelar</button>
+                    )}
+                  </div>
                 </div>
-                <StatusBadge status={a.status} />
-                <div style={{ display:'flex', gap:6 }}>
-                {a.status === 'pending' && (
-                  <button onClick={() => setEditingAbsence(a)}
-                    style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
-                      padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
-                    ✏ Editar
-                  </button>
-                )}
-                {(a.status === 'pending' || a.status === 'approved') && (
-                  <button onClick={() => { openConfirmGlobal({ message: '¿Cancelar esta solicitud de ausencia?', onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>Cancelar</button>
-                )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'calendar' && (
-        <div>
+        <div id="absences-panel-calendar" role="tabpanel" aria-labelledby="absences-tab-calendar">
           <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}>
-            <button onClick={() => { if (calMonth === 1) { setCalMonth(12); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}
+            <button aria-label="Mes anterior" onClick={() => { if (calMonth === 1) { setCalMonth(12); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}
               style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
-            <span style={{ fontSize: 16, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>{MONTH_NAMES[calMonth]} {calYear}</span>
-            <button onClick={() => { if (calMonth === 12) { setCalMonth(1); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}
+            <span aria-live="polite" style={{ fontSize: 16, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>{MONTH_NAMES[calMonth]} {calYear}</span>
+            <button aria-label="Mes siguiente" onClick={() => { if (calMonth === 12) { setCalMonth(1); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}
               style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
           </div>
           <CalendarView year={calYear} month={calMonth} />
@@ -401,52 +460,56 @@ export default function AbsencesPage() {
       )}
 
       {tab === 'pending' && (
-        pending.length === 0 ? (
-          <EmptyState icon="✅" title="Sin solicitudes pendientes" description="Todas las ausencias están revisadas" />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pending.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid #ffb80030', borderRadius: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{a.user_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                    {TYPE_LABELS[a.type]} · {fmtDate(a.start_date)} → {fmtDate(a.end_date)} · {a.working_days} días
+        <div id="absences-panel-pending" role="tabpanel" aria-labelledby="absences-tab-pending">
+          {pending.length === 0 ? (
+            <EmptyState icon="✅" title="Sin solicitudes pendientes" description="Todas las ausencias están revisadas" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {pending.map(a => (
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid #ffb80030', borderRadius: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{a.user_name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                      {TYPE_LABELS[a.type]} · {fmtDate(a.start_date)} → {fmtDate(a.end_date)} · {a.working_days} días
+                    </div>
+                    {a.reason && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
                   </div>
-                  {a.reason && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
+                  <StatusBadge status={a.status} />
+                  <Button size="sm" onClick={() => setReviewing(a)}>Revisar</Button>
                 </div>
-                <StatusBadge status={a.status} />
-                <Button size="sm" onClick={() => setReviewing(a)}>Revisar</Button>
-              </div>
-            ))}
-          </div>
-        )
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'team' && (
-        teamAbsences.length === 0 ? (
-          <EmptyState icon="👥" title="Sin ausencias del equipo" />
-        ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
-              <SortableTH col="user_name" sort={teamAbsSort} onSort={setTeamAbsSort}>Persona</SortableTH>
-              <SortableTH col="type" sort={teamAbsSort} onSort={setTeamAbsSort}>Tipo</SortableTH>
-              <SortableTH col="start_date" sort={teamAbsSort} onSort={setTeamAbsSort}>Inicio</SortableTH>
-              <SortableTH col="end_date" sort={teamAbsSort} onSort={setTeamAbsSort}>Fin</SortableTH>
-              <SortableTH col="working_days" sort={teamAbsSort} onSort={setTeamAbsSort}>Días</SortableTH>
-              <SortableTH col="status" sort={teamAbsSort} onSort={setTeamAbsSort}>Estado</SortableTH>
-            </div>
-            {sortedTeamAbs.map(a => (
-              <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{a.user_name}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{TYPE_LABELS[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
-                <span style={{ fontSize: 12 }}>{fmtDate(a.start_date)}</span>
-                <span style={{ fontSize: 12 }}>{fmtDate(a.end_date)}</span>
-                <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{a.working_days}d</span>
-                <StatusBadge status={a.status} />
+        <div id="absences-panel-team" role="tabpanel" aria-labelledby="absences-tab-team">
+          {teamAbsences.length === 0 ? (
+            <EmptyState icon="👥" title="Sin ausencias del equipo" />
+          ) : (
+            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+                <SortableTH col="user_name" sort={teamAbsSort} onSort={setTeamAbsSort}>Persona</SortableTH>
+                <SortableTH col="type" sort={teamAbsSort} onSort={setTeamAbsSort}>Tipo</SortableTH>
+                <SortableTH col="start_date" sort={teamAbsSort} onSort={setTeamAbsSort}>Inicio</SortableTH>
+                <SortableTH col="end_date" sort={teamAbsSort} onSort={setTeamAbsSort}>Fin</SortableTH>
+                <SortableTH col="working_days" sort={teamAbsSort} onSort={setTeamAbsSort}>Días</SortableTH>
+                <SortableTH col="status" sort={teamAbsSort} onSort={setTeamAbsSort}>Estado</SortableTH>
               </div>
-            ))}
-          </div>
-        )
+              {sortedTeamAbs.map(a => (
+                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{a.user_name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{TYPE_LABELS[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
+                  <span style={{ fontSize: 12 }}>{fmtDate(a.start_date)}</span>
+                  <span style={{ fontSize: 12 }}>{fmtDate(a.end_date)}</span>
+                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{a.working_days}d</span>
+                  <StatusBadge status={a.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {showRequest && <RequestModal onClose={() => setShowRequest(false)} />}
