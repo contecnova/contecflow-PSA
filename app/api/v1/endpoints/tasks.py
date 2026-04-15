@@ -16,7 +16,7 @@ from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority, TaskComment
 from app.models.project import Project
 from app.services.numbering import next_numbered_code
-from app.schemas.schemas import (
+from app.schemas.tasks import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
 

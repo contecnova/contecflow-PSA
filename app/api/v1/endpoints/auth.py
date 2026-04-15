@@ -37,15 +37,15 @@ from app.db.session import is_postgres
 from app.models.sessions import UserSession
 from app.models.mfa import MFAChallenge, Organization, WebAuthnCredential
 from app.models.user import User, UserRole
-from app.schemas.schemas import (
+from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
     RefreshRequest,
     PasswordForgotRequest,
     PasswordResetRequest,
-    UserPublic,
     ActiveSessionOut,
 )
+from app.schemas.users import UserPublic
 from app.services.session_security import (
     parse_risk_reasons,
     register_or_rotate_user_session,

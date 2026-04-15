@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import Optional, List
 from datetime import date, datetime, timedelta, timezone
-from pydantic import BaseModel
 import json
 import csv
 import io

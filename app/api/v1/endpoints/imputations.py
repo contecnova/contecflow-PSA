@@ -13,7 +13,7 @@ from app.models.task import Task, TaskStatus
 from app.models.project import Project, ProjectMember
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.mfa import Organization
-from app.schemas.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
+from app.schemas.imputations import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
 from app.core.config import settings
 from app.services.psa_flows import approve_imputation_flow

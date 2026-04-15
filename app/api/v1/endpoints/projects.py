@@ -12,9 +12,10 @@ from app.models.user import User, UserRole
 from app.models.project import Project, ProjectPhase, ProjectStatus, ProjectType, ProjectMember
 from app.models.imputation import Imputation
 from app.models.task import Task, TaskStatus
-from app.schemas.schemas import (
+from app.schemas.projects import (
     ProjectCreate, ProjectUpdate, ProjectOut, ProjectSummary, ProjectPhaseCreate, ProjectPhaseOut
 )
+from app.schemas.users import UserPublic
 
 router = APIRouter()
 
@@ -433,7 +434,6 @@ def get_project_team(
         Imputation.project_id == project_id
     ).distinct().all()
 
-    from app.schemas.schemas import UserPublic
     return [UserPublic.model_validate(m) for m in members]
 
 

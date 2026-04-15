@@ -13,7 +13,7 @@ from app.models.task import Task, TaskStatus
 from app.core.config import settings
 from app.models.imputation import Imputation
 from app.models.alert import Alert, AlertType, AlertSeverity
-from app.schemas.schemas import AlertOut
+from app.schemas.alerts import AlertOut
 from app.services.pagination_service import paginate_query
 
 logger = logging.getLogger(__name__)

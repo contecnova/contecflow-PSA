@@ -10,7 +10,7 @@ from app.core.deps import get_current_user, require_admin, require_admin_or_hr, 
 from app.models.user import User, UserRole, UserStatus, UserPreference
 from app.models.imputation import Imputation
 from app.models.task import Task, TaskStatus
-from app.schemas.schemas import (
+from app.schemas.users import (
     UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
 )
 from app.core.security import get_password_hash, validate_password_policy

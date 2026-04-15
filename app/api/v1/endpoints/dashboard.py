@@ -14,7 +14,7 @@ from app.models.project import Project, ProjectStatus, ProjectRisk
 from app.models.task import Task, TaskStatus
 from app.models.imputation import Imputation
 from app.models.alert import Alert
-from app.schemas.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
+from app.schemas.dashboard import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
 from app.core.config import settings
 
 router = APIRouter()
