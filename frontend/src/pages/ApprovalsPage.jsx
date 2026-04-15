@@ -34,6 +34,7 @@ const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finan
 
 // ── Modal de paso ─────────────────────────────────────────────────────────────
 function StepModal({ workflowId, step, onClose }) {
+  const t = useAppT()
   const idPrefix = useId()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
@@ -62,35 +63,35 @@ function StepModal({ workflowId, step, onClose }) {
       : approvalsApi.addStep(workflowId, d),
     onSuccess: () => {
       qc.invalidateQueries(['approval-workflow', workflowId])
-      toast.success(isEdit ? 'Paso actualizado' : 'Paso añadido')
+      toast.success(isEdit ? t('approvals.step_updated') : t('approvals.step_added'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic'))),
   })
 
   return (
-    <Modal open title={isEdit ? '✏️ Editar paso' : '+ Nuevo paso de aprobación'} onClose={onClose} width={520}>
+    <Modal open title={isEdit ? t('approvals.step_modal_edit_title') : t('approvals.step_modal_new_title')} onClose={onClose} width={520}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div>
-          <label htmlFor={`${idPrefix}-name`} style={lbl}>Nombre del paso *</label>
-          <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Manager directo, Director, CFO" />
+          <label htmlFor={`${idPrefix}-name`} style={lbl}>{t('approvals.step_name_required')}</label>
+          <input id={`${idPrefix}-name`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t('approvals.step_name_placeholder')} />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-order`} style={lbl}>Orden</label>
+          <label htmlFor={`${idPrefix}-order`} style={lbl}>{t('approvals.order')}</label>
           <input id={`${idPrefix}-order`} type="number" value={form.step_order} onChange={e => setForm(f=>({...f,step_order:+e.target.value}))} style={inp} min="1" max="10" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label htmlFor={`${idPrefix}-approver-type`} style={lbl}>Tipo de aprobador</label>
+          <label htmlFor={`${idPrefix}-approver-type`} style={lbl}>{t('approvals.approver_type')}</label>
           <select id={`${idPrefix}-approver-type`} value={form.approver_type} onChange={e => setForm(f=>({...f,approver_type:e.target.value}))} style={inp}>
-            {Object.entries(APPROVER_TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            {Object.entries(approverTypeLabels(t)).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
 
         {form.approver_type === 'role' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={`${idPrefix}-approver-role`} style={lbl}>Rol requerido</label>
+            <label htmlFor={`${idPrefix}-approver-role`} style={lbl}>{t('approvals.required_role')}</label>
             <select id={`${idPrefix}-approver-role`} value={form.approver_role} onChange={e => setForm(f=>({...f,approver_role:e.target.value}))} style={inp}>
-              <option value="">Seleccionar rol...</option>
+              <option value="">{t('approvals.select_role')}</option>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
@@ -98,9 +99,9 @@ function StepModal({ workflowId, step, onClose }) {
 
         {form.approver_type === 'user' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={`${idPrefix}-approver-user`} style={lbl}>Usuario aprobador</label>
+            <label htmlFor={`${idPrefix}-approver-user`} style={lbl}>{t('approvals.approver_user_label')}</label>
             <select id={`${idPrefix}-approver-user`} value={form.approver_user_id} onChange={e => setForm(f=>({...f,approver_user_id:e.target.value}))} style={inp}>
-              <option value="">Seleccionar usuario...</option>
+              <option value="">{t('approvals.select_user')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
             </select>
           </div>
@@ -108,34 +109,34 @@ function StepModal({ workflowId, step, onClose }) {
 
         {form.approver_type === 'any_in_department' && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>Departamento</label>
-            <input id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp} placeholder="IT, Finance, HR..." />
+            <label htmlFor={`${idPrefix}-approver-department`} style={lbl}>{t('approvals.department')}</label>
+            <input id={`${idPrefix}-approver-department`} value={form.approver_department} onChange={e => setForm(f=>({...f,approver_department:e.target.value}))} style={inp} placeholder={t('approvals.department_placeholder')} />
           </div>
         )}
 
         <div>
-          <label htmlFor={`${idPrefix}-timeout-hours`} style={lbl}>Tiempo límite (horas)</label>
+          <label htmlFor={`${idPrefix}-timeout-hours`} style={lbl}>{t('approvals.timeout_hours')}</label>
           <input id={`${idPrefix}-timeout-hours`} type="number" value={form.timeout_hours} onChange={e => setForm(f=>({...f,timeout_hours:+e.target.value}))} style={inp} min="1" />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-on-timeout`} style={lbl}>Si supera el tiempo</label>
+          <label htmlFor={`${idPrefix}-on-timeout`} style={lbl}>{t('approvals.on_timeout')}</label>
           <select id={`${idPrefix}-on-timeout`} value={form.on_timeout} onChange={e => setForm(f=>({...f,on_timeout:e.target.value}))} style={inp}>
-            <option value="escalate">Escalar al siguiente</option>
-            <option value="auto_approve">Aprobar automáticamente</option>
-            <option value="reject">Rechazar automáticamente</option>
+            <option value="escalate">{t('approvals.timeout_escalate')}</option>
+            <option value="auto_approve">{t('approvals.timeout_auto_approve')}</option>
+            <option value="reject">{t('approvals.timeout_reject')}</option>
           </select>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-is-optional`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
             <input id={`${idPrefix}-is-optional`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
-            Paso opcional (se puede saltar si el aprobador no responde)
+            {t('approvals.optional_step_label')}
           </label>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.name || isPending}>
-          {isEdit ? '💾 Guardar' : '+ Añadir paso'}
+          {isEdit ? t('approvals.save_step') : t('approvals.add_step')}
         </Button>
       </div>
     </Modal>
@@ -144,6 +145,7 @@ function StepModal({ workflowId, step, onClose }) {
 
 // ── Detalle de flujo ──────────────────────────────────────────────────────────
 function WorkflowDetail({ workflowId, onBack }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showStep, setShowStep] = useState(false)
@@ -156,31 +158,31 @@ function WorkflowDetail({ workflowId, onBack }) {
 
   const { mutate: delStep } = useMutation({
     mutationFn: sid => approvalsApi.deleteStep(workflowId, sid),
-    onSuccess: () => { qc.invalidateQueries(['approval-workflow', workflowId]); toast.success('Paso eliminado') },
+    onSuccess: () => { qc.invalidateQueries(['approval-workflow', workflowId]); toast.success(t('approvals.step_deleted')) },
 
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   const { mutate: toggleActive } = useMutation({
     mutationFn: val => approvalsApi.updateWorkflow(workflowId, { is_active: val }),
     onSuccess: () => qc.invalidateQueries(['approval-workflow', workflowId]),
-    onError: e => toast.error(extractErr(e, 'Error'))
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
   if (!wf) return null
   const steps = [...(wf.steps || [])].sort((a, b) => a.step_order - b.step_order)
-  const entity = ENTITY_LABELS[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
+  const entity = entityLabels(t)[wf.entity_type] || { label: wf.entity_type, icon: '○', color: 'var(--text-2)' }
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button aria-label="Volver a la lista de flujos" onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
+        <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('approvals.back')}</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800 }}>{wf.name}</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
             <span style={{ color: entity.color }}>{entity.icon} {entity.label}</span>
-            {wf.is_default && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>DEFAULT</span>}
-            {!wf.is_active && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>INACTIVO</span>}
+            {wf.is_default && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t('approvals.default_badge')}</span>}
+            {!wf.is_active && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{t('approvals.inactive_badge')}</span>}
           </div>
         </div>
         <button aria-pressed={wf.is_active} onClick={() => toggleActive(!wf.is_active)} style={{
@@ -188,13 +190,13 @@ function WorkflowDetail({ workflowId, onBack }) {
           padding: '6px 14px', color: wf.is_active ? 'var(--warning)' : 'var(--success)',
           cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
         }}>
-          {wf.is_active ? '⏸ Desactivar' : '▶ Activar'}
+          {wf.is_active ? t('approvals.deactivate') : t('approvals.activate')}
         </button>
-        <Button onClick={() => setShowStep(true)}>+ Añadir paso</Button>
+        <Button onClick={() => setShowStep(true)}>{t('approvals.add_step')}</Button>
       </div>
 
       {steps.length === 0 ? (
-        <EmptyState icon="○" title="Sin pasos definidos" description="Añade los pasos del flujo de aprobación en orden" />
+        <EmptyState icon="○" title={t('approvals.no_steps_defined')} description={t('approvals.no_steps_description')} />
       ) : (
         <div style={{ position: 'relative' }}>
           {steps.map((step, i) => {
@@ -217,19 +219,19 @@ function WorkflowDetail({ workflowId, onBack }) {
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{step.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                        {APPROVER_TYPE_LABELS[step.approver_type]}
-                        {step.approver_role && ` · Rol: ${step.approver_role}`}
+                        {approverTypeLabels(t)[step.approver_type]}
+                        {step.approver_role && ` · ${t('approvals.role_prefix')}: ${step.approver_role}`}
                         {step.approver_user_name && ` · ${step.approver_user_name}`}
-                        {step.approver_department && ` · Dept: ${step.approver_department}`}
+                        {step.approver_department && ` · ${t('approvals.dept_prefix')}: ${step.approver_department}`}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                        ⏱ {step.timeout_hours}h timeout · {step.on_timeout === 'escalate' ? 'Escala si no responde' : step.on_timeout === 'auto_approve' ? 'Auto-aprueba' : 'Auto-rechaza'}
-                        {step.is_optional && ' · Opcional'}
+                        ⏱ {step.timeout_hours}h timeout · {step.on_timeout === 'escalate' ? t('approvals.timeout_waiting') : step.on_timeout === 'auto_approve' ? t('approvals.timeout_auto_approve_short') : t('approvals.timeout_auto_reject_short')}
+                        {step.is_optional && ` · ${t('approvals.optional_short')}`}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button aria-label={`Editar paso ${step.name}`} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
-                      <button aria-label={`Eliminar paso ${step.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar paso "${step.name}"?`, onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
+                      <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                     </div>
                   </div>
                 </div>
@@ -243,8 +245,8 @@ function WorkflowDetail({ workflowId, onBack }) {
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--success-bg)', border: '2px solid #00e5a0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✓</div>
             </div>
             <div style={{ ...panel, padding: '12px 18px', flex: 1, borderColor: 'var(--success-border)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>Aprobado — acción automática</div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>El sistema ejecuta la acción vinculada al entity_type</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>{t('approvals.approved_auto_title')}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{t('approvals.approved_auto_desc')}</div>
             </div>
           </div>
         </div>
@@ -259,6 +261,7 @@ function WorkflowDetail({ workflowId, onBack }) {
 
 // ── Tab de mis solicitudes pendientes ─────────────────────────────────────────
 function MyPendingTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -282,9 +285,9 @@ function MyPendingTab() {
       qc.invalidateQueries(['expenses-my'])
       qc.invalidateQueries(['absences-pending'])
       qc.invalidateQueries(['team-absences'])
-      toast.success('Decisión registrada')
+      toast.success(t('approvals.decision_registered'))
     },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('approvals.error_generic'))),
   })
 
   const [bulkApproving, setBulkApproving] = useState(false)
@@ -304,7 +307,7 @@ function MyPendingTab() {
       qc.invalidateQueries(['absences-pending'])
       qc.invalidateQueries(['team-absences'])
     } catch (e) {
-      toast.error(extractErr(e, 'Error en aprobación masiva'))
+      toast.error(extractErr(e, t('approvals.bulk_approval_error')))
     } finally {
       setBulkApproving(false)
     }
@@ -334,12 +337,13 @@ function MyPendingTab() {
   }, {})
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando...</div>
+  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>{t('approvals.loading')}</div>
 
   if (pending.length === 0) return (
     <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-2)' }}>
       <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Sin aprobaciones pendientes</div>
-      <div style={{ fontSize: 13 }}>Estás al día con todas las solicitudes</div>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{t('approvals.no_pending_title')}</div>
+      <div style={{ fontSize: 13 }}>{t('approvals.no_pending_desc')}</div>
     </div>
   )
 
@@ -347,11 +351,11 @@ function MyPendingTab() {
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 14 }}>
         <div style={{ ...panel, padding: '10px 12px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pendientes totales</div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('approvals.total_pending')}</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--warning)' }}>{pending.length}</div>
         </div>
         {Object.entries(statsByEntity).slice(0, 3).map(([k, count]) => {
-          const entity = ENTITY_LABELS[k] || { label: k, icon: '○', color: 'var(--text-2)' }
+          const entity = entityLabels(t)[k] || { label: k, icon: '○', color: 'var(--text-2)' }
           return (
             <div key={k} style={{ ...panel, padding: '10px 12px' }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{entity.icon} {entity.label}</div>
@@ -362,13 +366,13 @@ function MyPendingTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <select aria-label="Filtrar por entidad" value={entityFilter} onChange={e => setEntityFilter(e.target.value)} style={{ ...inp, width: 220 }}>
-          <option value="all">Todas las entidades</option>
-          {Object.entries(ENTITY_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+        <select aria-label={t('approvals.filter_by_entity')} value={entityFilter} onChange={e => setEntityFilter(e.target.value)} style={{ ...inp, width: 220 }}>
+          <option value="all">{t('approvals.all_entities')}</option>
+          {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select aria-label="Ordenar solicitudes" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ ...inp, width: 220 }}>
-          <option value="oldest">Priorizar más antiguas</option>
-          <option value="newest">Priorizar más recientes</option>
+        <select aria-label={t('approvals.sort_requests')} value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ ...inp, width: 220 }}>
+          <option value="oldest">{t('approvals.sort_oldest')}</option>
+          <option value="newest">{t('approvals.sort_newest')}</option>
         </select>
       </div>
 
@@ -377,23 +381,23 @@ function MyPendingTab() {
           <input
             id="approvals-select-all"
             type="checkbox"
-            aria-label="Seleccionar todas las solicitudes filtradas"
+            aria-label={t('approvals.select_all_filtered')}
             checked={queue.length > 0 && selectedIds.size === queue.length}
             onChange={toggleAll}
             style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)' }}
           />
           {selectedIds.size === 0
-            ? `${queue.length} solicitud(es) en cola para tu aprobación`
-            : `${selectedIds.size} de ${queue.length} seleccionadas`}
+            ? t('approvals.queue_for_approval', { count: queue.length })
+            : t('approvals.selected_of_total', { selected: selectedIds.size, total: queue.length })}
         </label>
         {selectedIds.size > 0 && (
           <Button size="sm" onClick={handleBulkApprove} loading={bulkApproving}>
-            ✅ Aprobar seleccionadas ({selectedIds.size})
+            {t('approvals.approve_selected', { count: selectedIds.size })}
           </Button>
         )}
       </div>
       {queue.map(req => {
-        const entity = ENTITY_LABELS[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
+        const entity = entityLabels(t)[req.entity_type] || { label: req.entity_type, icon: '○', color: 'var(--text-2)' }
         const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
         const isUrgent = ageHours >= 24
         return (
@@ -419,11 +423,11 @@ function MyPendingTab() {
                   {req.entity_summary || req.entity_id}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                  Solicitado por: {req.requester_name} · {req.created_at}
+                  {t('approvals.request_by')}: {req.requester_name} · {req.created_at}
                 </div>
                 {isUrgent && (
                   <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 4, fontWeight: 700 }}>
-                    ⏱ Pendiente hace {ageHours}h
+                    {t('approvals.pending_since', { hours: ageHours })}
                   </div>
                 )}
               </div>
@@ -433,13 +437,13 @@ function MyPendingTab() {
                   onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
                   disabled={deciding}
                   style={{ background: 'var(--danger-bg)', border: '1px solid #ff475730', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
-                  ✗ Rechazar
+                  {t('approvals.reject_action')}
                 </button>
                 <Button
                   size="sm"
                   onClick={() => decide({ id: req.id, decision: 'approved' })}
                   loading={deciding}>
-                  ✅ Aprobar
+                  {t('approvals.approve_action')}
                 </Button>
               </div>
             </div>
