@@ -55,49 +55,6 @@ class OkResponse(BaseModel):
     ok: bool = True
 
 
-# ── Invoice output schemas ─────────────────────────────────────────────────────
-
-class InvoiceLineOut(BaseModel):
-    id: str
-    order: int
-    description: str
-    quantity: float
-    unit: Optional[str] = None
-    unit_price: float
-    discount_pct: float = 0.0
-    amount: float
-    source_type: Optional[str] = None
-    model_config = {"from_attributes": True}
-
-
-class InvoiceOut(BaseModel):
-    id: str
-    number: str
-    project_id: Optional[str] = None
-    client_id: Optional[str] = None
-    project_name: Optional[str] = None
-    project_code: Optional[str] = None
-    client_name: Optional[str] = None
-    client_email: Optional[str] = None
-    client_vat: Optional[str] = None
-    subtotal: float = 0.0
-    tax_rate: float = 0.0
-    tax_amount: float = 0.0
-    total: float = 0.0
-    currency: str = "EUR"
-    issue_date: Optional[date] = None
-    due_date: Optional[date] = None
-    paid_date: Optional[date] = None
-    status: str = "draft"
-    notes: Optional[str] = None
-    po_reference: Optional[str] = None
-    period_from: Optional[date] = None
-    period_to: Optional[date] = None
-    lines: List[InvoiceLineOut] = []
-    created_at: Optional[str] = None
-    model_config = {"from_attributes": True}
-
-
 class InvoiceStatusOut(BaseModel):
     count: int
     total: float
