@@ -48,6 +48,7 @@ from app.models.cab import (
 from app.services.audit import audit_log
 
 router = APIRouter()
+import app.services.cab_service as _svc
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -260,14 +261,7 @@ class WebhookTriggerCreate(BaseModel):
 
 
 def _trigger_out(t: WebhookTrigger) -> dict:
-    return {
-        "id": t.id, "name": t.name, "slug": t.slug,
-        "workflow_id": t.workflow_id,
-        "is_active": t.is_active,
-        "fire_count": t.fire_count or 0,
-        "last_fired_at": str(t.last_fired_at)[:16] if t.last_fired_at else None,
-        "endpoint": f"/api/v1/webhooks/fire/{t.slug}",
-    }
+    return _svc.trigger_out(t)
 
 
 @router.get("/webhooks", summary="Listar webhook triggers configurados")
@@ -365,23 +359,7 @@ async def fire_webhook(
 
 
 def _execute_workflow_from_webhook(workflow_id: str, context: dict):
-    """Background task: enqueue workflow triggered by incoming webhook."""
-    from app.models.bookings import WorkflowQueueItem
-    from app.db.session import SessionLocal
-    bg_db = SessionLocal()
-    try:
-        item = WorkflowQueueItem(
-            workflow_id=workflow_id,
-            trigger_data=json.dumps(context),
-            execute_at=datetime.now(timezone.utc),
-            status="pending",
-        )
-        bg_db.add(item); bg_db.commit()
-    except Exception as e:
-        bg_db.rollback()
-        logger.error(f"Failed to create webhook trigger: {e}", exc_info=True)
-    finally:
-        bg_db.close()
+    return _svc.execute_workflow_from_webhook(workflow_id, context)
 
 
 @router.get("/webhooks/{trigger_id}/logs", summary="Historial de llamadas al webhook")
@@ -416,56 +394,7 @@ def delete_webhook_trigger(
 # EMAIL — SMTP TEMPLATES + SEND
 # ═══════════════════════════════════════════════════════════════════════════════
 
-SYSTEM_EMAIL_TEMPLATES = [
-    {
-        "id": "tpl_task_overdue",
-        "name": "Tarea vencida",
-        "subject": "[Clarive] Tarea vencida: {{task_title}}",
-        "category": "automation",
-        "variables": ["task_title", "project_name", "assignee_name", "due_date"],
-        "is_system": True,
-    },
-    {
-        "id": "tpl_budget_alert",
-        "name": "Alerta de presupuesto",
-        "subject": "[Clarive] Alerta presupuesto: {{project_name}} al {{pct_used}}%",
-        "category": "alert",
-        "variables": ["project_name", "budget_total", "budget_used", "pct_used"],
-        "is_system": True,
-    },
-    {
-        "id": "tpl_invoice_sent",
-        "name": "Factura enviada al cliente",
-        "subject": "Factura {{invoice_number}} — {{client_name}}",
-        "category": "invoice",
-        "variables": ["invoice_number", "client_name", "amount", "due_date"],
-        "is_system": True,
-    },
-    {
-        "id": "tpl_sla_breach",
-        "name": "SLA incumplido",
-        "subject": "[Clarive] SLA vencido: Ticket #{{ticket_number}}",
-        "category": "alert",
-        "variables": ["ticket_number", "ticket_title", "assignee_name", "sla_due"],
-        "is_system": True,
-    },
-    {
-        "id": "tpl_new_ticket",
-        "name": "Nuevo ticket asignado",
-        "subject": "[Service Desk] Ticket #{{ticket_number}} asignado a ti",
-        "category": "automation",
-        "variables": ["ticket_number", "ticket_title", "priority", "requester"],
-        "is_system": True,
-    },
-    {
-        "id": "tpl_report_ready",
-        "name": "Informe programado listo",
-        "subject": "[Clarive] Informe: {{report_name}}",
-        "category": "report",
-        "variables": ["report_name", "generated_at", "period"],
-        "is_system": True,
-    },
-]
+SYSTEM_EMAIL_TEMPLATES = _svc.SYSTEM_EMAIL_TEMPLATES
 
 
 @router.get("/email/templates", summary="Listar plantillas de email")
@@ -524,51 +453,11 @@ class SendEmailPayload(BaseModel):
 
 
 def _render_template(template_str: str, variables: dict) -> str:
-    """Simple {{variable}} substitution — no Jinja2 required."""
-    for key, value in (variables or {}).items():
-        template_str = template_str.replace(f"{{{{{key}}}}}", str(value))
-    return template_str
+    return _svc.render_template(template_str, variables)
 
 
 def _send_email_smtp(to: list, subject: str, body_html: str, cc: list = None) -> bool:
-    """
-    Send email via SMTP.
-    In production: configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS env vars.
-    This implementation logs the attempt and simulates sending.
-    """
-    smtp_host = settings.SMTP_HOST
-    smtp_user = settings.SMTP_USER
-
-    if smtp_host and smtp_user:
-        try:
-            import smtplib
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-            smtp_port = settings.SMTP_PORT
-            smtp_pass = settings.SMTP_PASS
-            sender = settings.SMTP_FROM or smtp_user
-
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = sender
-            msg["To"] = ", ".join(to)
-            if cc: msg["Cc"] = ", ".join(cc)
-            msg.attach(MIMEText(body_html, "html", "utf-8"))
-
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.ehlo()
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                recipients = to + (cc or [])
-                server.sendmail(sender, recipients, msg.as_string())
-            return True
-        except Exception as e:
-            logger.error(f"SMTP error sending email: {e}", exc_info=True)
-            return False
-    else:
-        # No SMTP configured — log as simulated
-        logger.warning(f"[EMAIL SIMULATED] To: {to} | Subject: {subject}")
-        return True  # Return True so the log shows 'sent'
+    return _svc.send_email_smtp(to, subject, body_html, cc)
 
 
 @router.post("/email/send", summary="Enviar email (con plantilla o ad-hoc)")
@@ -890,20 +779,7 @@ def global_search(
 # DASHBOARD WIDGETS (personalisation)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-AVAILABLE_WIDGETS = [
-    {"type": "kpi_hours_week",    "label": "Horas esta semana",          "category": "time",      "default_w": 1, "default_h": 1},
-    {"type": "kpi_projects_active","label": "Proyectos activos",          "category": "projects",  "default_w": 1, "default_h": 1},
-    {"type": "kpi_tickets_open",  "label": "Tickets abiertos",           "category": "itsm",      "default_w": 1, "default_h": 1},
-    {"type": "kpi_budget_health", "label": "Salud presupuesto",          "category": "finance",   "default_w": 1, "default_h": 1},
-    {"type": "chart_hours_trend", "label": "Tendencia horas (14d)",      "category": "time",      "default_w": 2, "default_h": 2},
-    {"type": "chart_pipeline",    "label": "Pipeline por fase",          "category": "sales",     "default_w": 2, "default_h": 2},
-    {"type": "chart_sla",         "label": "SLA compliance (30d)",       "category": "itsm",      "default_w": 2, "default_h": 1},
-    {"type": "list_my_tasks",     "label": "Mis tareas pendientes",      "category": "tasks",     "default_w": 2, "default_h": 2},
-    {"type": "list_alerts",       "label": "Alertas recientes",          "category": "alerts",    "default_w": 2, "default_h": 1},
-    {"type": "list_my_timesheets","label": "Mis imputaciones recientes", "category": "time",      "default_w": 2, "default_h": 1},
-    {"type": "calendar_week",     "label": "Calendario semanal",         "category": "calendar",  "default_w": 4, "default_h": 2},
-    {"type": "chart_budget_gauge","label": "Gauge presupuesto",          "category": "finance",   "default_w": 1, "default_h": 1},
-]
+AVAILABLE_WIDGETS = _svc.AVAILABLE_WIDGETS
 
 
 @router.get("/dashboard-widgets/catalog", summary="Catálogo de widgets disponibles")
@@ -1181,118 +1057,19 @@ def sync_integration(
 
 
 def _sync_git_commits(db, config, payload):
-    """
-    Simulate GitHub/GitLab commit sync.
-    In production: call GitHub API GET /repos/{owner}/{repo}/commits
-    and link commits mentioning task codes (e.g., #PRJ-001-T003).
-    """
-    cfg = decrypt_config_secrets(json.loads(config.config or "{}"))
-    repo = cfg.get("repo", "org/repo")
-    task_pattern = re.compile(r'([A-Z]{2,5}-\d{3}-T\d{3})', re.IGNORECASE) # noqa: F841 F401
-
-    # Simulate: find tasks with matching codes
-    tasks = db.query(Task).options(joinedload(Task.project)).filter(Task.code != None).limit(5).all()
-    synced = 0
-    for task in tasks:
-        if task.code:
-            existing = db.query(CommitLink).filter(
-                CommitLink.task_id == task.id,
-                CommitLink.external_id == f"demo_{task.code}",
-            ).first()
-            if not existing:
-                db.add(CommitLink(
-                    task_id=task.id,
-                    integration_id=config.id,
-                    link_type="commit",
-                    external_id=f"demo_{task.code}",
-                    title=f"feat: implement {task.title[:50]}",
-                    url=f"https://github.com/{repo}/commit/abc123def456",
-                    author="developer@empresa.com",
-                    state="merged",
-                ))
-                synced += 1
-    db.flush()
-    return synced, []
+    return _svc.sync_git_commits(db, config, payload)
 
 
 def _sync_calendar(db, config, payload):
-    """
-    Simulate Google Calendar / Outlook sync.
-    In production: call Calendar API to read/write events.
-    """
-    cfg = decrypt_config_secrets(json.loads(config.config or "{}")) # noqa: F841 F401
-    # Sync sprint dates as calendar events
-    from app.models.sprints import Sprint
-    sprints = db.query(Sprint).filter(
-        Sprint.start_date != None,
-        Sprint.end_date != None,
-    ).limit(10).all()
-    synced = 0
-    for sprint in sprints:
-        external_id = f"clarive_sprint_{sprint.id}"
-        existing = db.query(CalendarEvent).filter(
-            CalendarEvent.external_id == external_id
-        ).first()
-        if not existing:
-            db.add(CalendarEvent(
-                integration_id=config.id,
-                external_id=external_id,
-                title=f"Sprint: {sprint.name}",
-                start_dt=datetime.combine(sprint.start_date, datetime.min.time()),
-                end_dt=datetime.combine(sprint.end_date, datetime.min.time()),
-                all_day=True,
-                sprint_id=sprint.id,
-                project_id=sprint.project_id,
-                sync_direction="push",
-            ))
-            synced += 1
-    db.flush()
-    return synced, []
+    return _svc.sync_calendar(db, config, payload)
 
 
 def _sync_accounting(db, config, payload):
-    """
-    Simulate QuickBooks/Xero sync.
-    In production: call QB/Xero API to create invoices.
-    """
-    invoices = db.query(Invoice).filter(
-        Invoice.status == "sent",
-    ).limit(5).all()
-    synced = len(invoices)
-    # In production: POST to QB/Xero API for each invoice
-    return synced, []
+    return _svc.sync_accounting(db, config, payload)
 
 
 def _sync_jira(db, config, payload):
-    """
-    Sync Jira bidireccional: actualiza estados de tareas con jira_issue_key.
-    """
-    from app.models.task import Task
-    from app.services.integrations import get_jira_issue, update_jira_issue
-    import json
-
-    cfg_dict = decrypt_config_secrets(json.loads(config.config or "{}"))
-    tasks_with_jira = db.query(Task).filter(Task.jira_issue_key != None).limit(50).all()
-
-    synced = 0
-    errors = []
-    STATUS_MAP = {
-        "done": "Done", "in_progress": "In Progress",
-        "todo": "To Do", "review": "In Review",
-    }
-    for task in tasks_with_jira:
-        result = get_jira_issue(cfg_dict, task.jira_issue_key)
-        if result.get("ok"):
-            jira_status = result["data"].get("fields", {}).get("status", {}).get("name", "")
-            # Actualizar descripción de Jira con el estado de Clarive
-            nexus_status = STATUS_MAP.get(str(task.status).lower(), str(task.status))
-            if jira_status.lower() != nexus_status.lower():
-                update_jira_issue(cfg_dict, task.jira_issue_key,
-                                  {"summary": task.title})  # actualizar summary como mínimo
-            synced += 1
-        elif "error" in result:
-            errors.append(f"{task.jira_issue_key}: {result['error'][:100]}")
-    return synced, errors[:5]
+    return _svc.sync_jira(db, config, payload)
 
 
 @router.get("/oauth-integrations/calendar/events", summary="Eventos de calendario sincronizados")
@@ -1620,94 +1397,8 @@ def revenue_summary(
 # PROJECT RISK SCORE (predictive engine)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _compute_risk_score(db: Session, project: Project) -> dict:
-    """
-    Rule-based risk scoring. Returns score components and overall risk level.
-    Designed to mimic ML-based predictions using observable project signals.
-    """
-    from app.models.imputation import Imputation
-    from app.models.resources import ChangeRequest
-    from app.models.pipeline import Risk
-    from datetime import date as d
-
-    today = d.today()
-    score = {}
-
-    # ── Schedule risk ─────────────────────────────────────────────
-    schedule_risk = 0
-    if project.start_date and project.end_date_planned:
-        total_days = (project.end_date_planned - project.start_date).days
-        elapsed_days = (today - project.start_date).days
-        if total_days > 0:
-            time_pct = elapsed_days / total_days * 100
-            # Get task completion
-            total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
-            done_tasks = db.query(func.count(Task.id)).filter(
-                Task.project_id == project.id, Task.status == "done"
-            ).scalar() or 0
-            completion_pct = done_tasks / total_tasks * 100
-            # Risk = how much behind schedule
-            behind_pct = max(time_pct - completion_pct, 0)
-            schedule_risk = min(behind_pct * 1.5, 100)
-    score["schedule_risk"] = round(schedule_risk, 1)
-
-    # ── Budget risk ───────────────────────────────────────────────
-    budget_risk = 0
-    if project.budget_amount and project.budget_amount > 0:
-        spent = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == project.id
-        ).scalar() or 0
-        avg_rate = 80  # Default €/h estimate
-        cost_estimate = spent * avg_rate
-        budget_pct = cost_estimate / project.budget_amount * 100
-        if budget_pct > 100: budget_risk = min((budget_pct - 100) * 2, 100)
-        elif budget_pct > 85: budget_risk = (budget_pct - 85) * 3
-    score["budget_risk"] = round(budget_risk, 1)
-
-    # ── Scope risk (open CRs) ────────────────────────────────────
-    open_crs = db.query(func.count(ChangeRequest.id)).filter(
-        ChangeRequest.project_id == project.id,
-        ChangeRequest.status.in_(["submitted", "under_review"]),
-    ).scalar() or 0
-    score["scope_risk"] = min(open_crs * 20, 100)
-
-    # ── Resource risk (open high-priority risks) ─────────────────
-    high_risks = db.query(func.count(Risk.id)).filter(
-        Risk.project_id == project.id,
-        Risk.status == "open",
-        Risk.probability.in_(["high", "very_high"]),
-    ).scalar() if hasattr(Risk, 'project_id') else 0
-    score["resource_risk"] = min((high_risks or 0) * 25, 100)
-
-    # ── Overloaded members ────────────────────────────────────────
-    score["overloaded_members"] = 0
-
-    # ── Overall weighted score ────────────────────────────────────
-    overall = (
-        score["schedule_risk"] * 0.40 +
-        score["budget_risk"] * 0.30 +
-        score["scope_risk"] * 0.15 +
-        score["resource_risk"] * 0.15
-    )
-    score["overall_score"] = round(overall, 1)
-
-    level = "critical" if overall >= 75 else "high" if overall >= 50 else "medium" if overall >= 25 else "low"
-    score["level"] = level
-
-    delay_prob = min(overall * 0.8, 95)
-    score["delay_probability_pct"] = round(delay_prob, 1)
-    score["predicted_delay_weeks"] = round(delay_prob / 20, 1) if delay_prob > 20 else None
-
-    if level == "critical":
-        score["recommendation"] = "Escalar inmediatamente a dirección. Revisar alcance y recursos."
-    elif level == "high":
-        score["recommendation"] = "Revisar con el PM en la próxima reunión. Considerar ajuste de fechas."
-    elif level == "medium":
-        score["recommendation"] = "Monitorizar semanalmente. Resolver CRs pendientes."
-    else:
-        score["recommendation"] = "Proyecto en buen estado. Mantener ritmo actual."
-
-    return score
+def _compute_risk_score(db, project):
+    return _svc.compute_risk_score(db, project)
 
 
 @router.get("/risk-scores", summary="Puntuaciones de riesgo de todos los proyectos activos")
