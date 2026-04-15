@@ -822,17 +822,30 @@ export default function Layout({ children }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [navSearch, setNavSearch] = useState('')
   const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
+  const [isOverlayNav, setIsOverlayNav] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth <= 1024
+  })
 
   useEffect(() => {
     localStorage.setItem(NAV_WORKSPACE_KEY, workspace)
   }, [workspace])
 
   useEffect(() => {
-    const handleResize = () => setCollapsed(window.innerWidth < 1280)
+    const handleResize = () => {
+      const width = window.innerWidth
+      setCollapsed(width < 1280)
+      setIsOverlayNav(width <= 1024)
+      if (width > 1024) setMobileOpen(false)
+    }
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
 
   useEffect(() => {
     const handler = (e) => {
@@ -866,17 +879,24 @@ export default function Layout({ children }) {
   const _setDensity = (d) => save({ ui_density: d })
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface-0)' }}>
+    <div className="flex min-h-screen" style={{ background: 'var(--surface-0)' }}>
       <a href="#main-content" className="skip-nav">Saltar al contenido</a>
 
       <aside aria-label="Navegación principal" role="navigation"
         className={mobileOpen ? 'mobile-open' : ''}
         style={{
-          width: collapsed ? 46 : 222, flexShrink: 0,
+          width: collapsed && !isOverlayNav ? 46 : 222, flexShrink: 0,
           background: 'var(--surface-1)', borderRight: '1px solid var(--surface-4)',
           display: 'flex', flexDirection: 'column',
-          transition: 'width 0.2s cubic-bezier(0.4,0,0.2,1)',
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+          transition: 'width 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.25s cubic-bezier(0.4,0,0.2,1)',
+          position: isOverlayNav ? 'fixed' : 'sticky',
+          left: isOverlayNav ? 0 : undefined,
+          top: 0,
+          height: '100vh',
+          overflow: 'hidden',
+          zIndex: isOverlayNav ? 120 : undefined,
+          transform: isOverlayNav ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+          boxShadow: isOverlayNav ? '4px 0 24px rgba(0,0,0,0.4)' : 'none',
         }}
       >
         {/* Logo row */}
@@ -1027,17 +1047,18 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      {mobileOpen && (
+      {isOverlayNav && mobileOpen && (
         <div onClick={() => setMobileOpen(false)} className="mobile-overlay"
-          style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.55)', display: 'none' }} />
+          style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.55)', display: 'block' }} />
       )}
 
       <main id="main-content" aria-label="Contenido principal" role="main"
-        style={{ flex: 1, overflow: 'auto', minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        className="app-main-shell flex min-h-screen min-w-0 flex-1 flex-col"
+        style={{ overflow: 'auto' }}>
         <button className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
           aria-label="Abrir menú"
           style={{
-            display: 'none', position: 'fixed', top: 12, left: 12, zIndex: 100,
+            position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
             borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}

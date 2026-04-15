@@ -59,7 +59,7 @@ function KpiRow({ kpis }) {
   ]
 
   return (
-    <div className="grid-kpi grid-kpi-dashboard" style={{ marginBottom: 24 }}>
+    <div className="grid-kpi grid-kpi-dashboard grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" style={{ marginBottom: 24 }}>
       {cards.map(c => (
         <div key={c.label} onClick={() => nav(c.path)}
           className="surface-card-interactive"
@@ -766,8 +766,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Dashboard</div>
           <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
@@ -775,6 +775,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <button onClick={() => setConfigOpen(o => !o)} data-tour="dashboard-customize"
+          className="w-full sm:w-auto"
           style={{ background: configOpen ? 'var(--accent-muted)' : 'var(--surface-2)',
             border: `1px solid ${configOpen ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
             borderRadius: 9, color: configOpen ? 'var(--accent)' : 'var(--text-2)', padding: '8px 16px',
@@ -852,25 +853,25 @@ export default function DashboardPage() {
       {/* Widgets en orden configurado */}
       {isVisible('kpis') && <div style={{ marginBottom: 16 }}>{WIDGET_MAP.kpis}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {['tasks','alerts','health'].filter(isVisible).map(id => (
           <div key={id}>{WIDGET_MAP[id]}</div>
         ))}
       </div>
 
       {isVisible('overdue') && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
-          <div>{WIDGET_MAP.overdue}</div>
+        <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-1">{WIDGET_MAP.overdue}</div>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
-        {isVisible('team') && <div>{WIDGET_MAP.team}</div>}
+      <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {isVisible('team') && <div className="md:col-span-2 lg:col-span-2">{WIDGET_MAP.team}</div>}
         {isVisible('pipeline') && <div>{WIDGET_MAP.pipeline}</div>}
         {isVisible('clients') && <div>{WIDGET_MAP.clients}</div>}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {isVisible('hours')    && <div>{WIDGET_MAP.hours}</div>}
         {isVisible('activity') && <div>{WIDGET_MAP.activity}</div>}
         {isVisible('docs')     && <div>{WIDGET_MAP.docs}</div>}

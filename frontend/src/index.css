@@ -119,6 +119,12 @@
   --color-border-danger:    var(--danger-border);
   --color-border-warning:   var(--warning-border);
   --color-border-info:      var(--info-border);
+
+  /* Safe areas for iOS notch / PWA standalone */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 /* ── Reset base ───────────────────────────────────────────────── */
@@ -216,6 +222,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   padding: var(--space-8);
   max-width: 1400px;
   animation: fadeUp 0.25s ease forwards;
+}
+
+.app-main-shell {
+  padding-bottom: var(--safe-bottom);
 }
 
 /* ── Clarive sidebar customizations ──────────────────────────── */
@@ -469,8 +479,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   }
 }
 
-/* ── Sidebar adaptativo — mobile (<768px) ───────────────────────────────────── */
-@media (max-width: 768px) {
+/* ── Sidebar adaptativo — tablet/mobile (<=1024px) ─────────────────────────── */
+@media (max-width: 1024px) {
   /* Show the hamburger button */
   .mobile-hamburger {
     display: flex !important;
@@ -1143,6 +1153,43 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   .grid-kpi-dashboard { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
+@media (max-width: 1024px) {
+  .app-topbar {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    padding: calc(10px + var(--safe-top)) calc(12px + var(--safe-right)) 10px calc(56px + var(--safe-left));
+    gap: 8px;
+  }
+  .app-topbar-breadcrumb {
+    width: 100%;
+    flex: 0 0 100%;
+    order: 1;
+  }
+  .app-topbar-center {
+    flex: 1 1 260px;
+    order: 2;
+    min-width: 180px;
+  }
+  .app-topbar-center button {
+    width: 100%;
+    min-width: 0 !important;
+  }
+  .app-topbar-right {
+    order: 3;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .app-main-shell {
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+    padding-bottom: calc(12px + var(--safe-bottom));
+  }
+}
+
 /* ── Focus-visible improvements for a11y ──────────────────────── */
 button:focus-visible,
 a:focus-visible,
@@ -1215,11 +1262,23 @@ textarea:focus-visible {
 
   /* Page padding reduced on mobile */
   main, .page-content { padding: 12px !important; }
+  .app-main-shell {
+    padding-left: var(--safe-left) !important;
+    padding-right: var(--safe-right) !important;
+    padding-bottom: calc(16px + var(--safe-bottom)) !important;
+  }
 
   /* Stack flex rows vertically on mobile */
   .flex-row-responsive { flex-direction: column !important; }
 
   /* Full-width action buttons on mobile */
   .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+}
+
+@media (display-mode: standalone) and (max-width: 1024px) {
+  .mobile-hamburger {
+    top: calc(12px + var(--safe-top)) !important;
+    left: calc(12px + var(--safe-left)) !important;
+  }
 }
 

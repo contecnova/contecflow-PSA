@@ -642,13 +642,13 @@ export default function TasksPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         icon={<CheckSquare size={18} />}
         title={t('tasks.title')}
         actions={
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
               {['kanban', 'list'].map(v => (
                 <button key={v} onClick={() => setView(v)}
                   style={{
@@ -668,30 +668,34 @@ export default function TasksPage() {
       />
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="relative sm:col-span-2 lg:col-span-2" style={{ minWidth: 0 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 14 }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar tareas..."
             style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
         </div>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          className="w-full"
+          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los proyectos</option>
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
+          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todas las prioridades</option>
           {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
         <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
+          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los asignados</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="w-full"
             style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">Todos los estados</option>
             {TASK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -701,7 +705,8 @@ export default function TasksPage() {
 
       {/* ── Bulk Action Bar ─────────────────────────────────────────────── */}
       {selected.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', marginBottom: 12,
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+          style={{ padding: '10px 16px',
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
           flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
@@ -745,7 +750,7 @@ export default function TasksPage() {
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
         projectFilter ? (
-          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 16 }}>
+          <div className="flex gap-3 overflow-x-auto pb-4">
             {STATUSES.filter(s => s !== 'backlog').map(status => (
               <KanbanColumn
                 key={status}
@@ -763,7 +768,8 @@ export default function TasksPage() {
           flatTasks.length === 0 ? (
             <EmptyState icon="tasks" title="Sin tareas" description="Crea tu primera tarea o importa desde un proyecto existente." ctaLabel="Nueva tarea" onCta={() => setShowCreate(true)} />
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
+            <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
+              <div style={{ minWidth: 900 }}>
               <div style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 12, color: 'var(--text-2)' }}>
                 💡 Selecciona un proyecto para ver el tablero Kanban · Mostrando {flatTasks.length} tareas
               </div>
@@ -796,6 +802,7 @@ export default function TasksPage() {
                   </div>
                 )
               })}
+              </div>
             </div>
           )
         )
@@ -803,7 +810,8 @@ export default function TasksPage() {
         flatTasks.length === 0 ? (
           <EmptyState icon="search" title="Sin resultados" description="Ninguna tarea coincide con los filtros seleccionados." />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
+            <div style={{ minWidth: 980 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
               <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>Tarea</SortableTH>
@@ -840,6 +848,7 @@ export default function TasksPage() {
                 </div>
               )}
             />
+            </div>
           </div>
         )
       )}

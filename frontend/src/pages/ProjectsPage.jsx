@@ -806,14 +806,14 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <div className="p-4 sm:p-6 lg:p-8">
       <PageHeader
         icon={<FolderOpen size={18} />}
         title={t('projects.title')}
         subtitle={`${stats.total} proyectos · ${stats.active} activos · ${stats.atRisk} en riesgo`}
         actions={
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
               {[['grid', '⊞'], ['list', '☰'], ['gantt', '📅'], ['templates', '📋']].map(([v, icon]) => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent', border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -829,7 +829,7 @@ export default function ProjectsPage() {
       />
 
       {/* Stats strip */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'Total', value: stats.total, color: 'var(--text-2)' },
           { label: 'Activos', value: stats.active, color: 'var(--accent)' },
@@ -844,17 +844,20 @@ export default function ProjectsPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="🔍 Buscar por nombre o código..."
-          style={{ flex: 1, minWidth: 200, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+          className="sm:col-span-2"
+          style={{ minWidth: 0, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los estados</option>
           {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+          className="w-full"
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los tipos</option>
           {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -866,14 +869,15 @@ export default function ProjectsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState icon="folder" title="Sin proyectos" description="Crea tu primer proyecto para empezar a gestionar tu equipo, tareas y entregas." ctaLabel="Nuevo proyecto" onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {sortedProjects.map(p => (
             <ProjectCard key={p.id} project={p} onClick={setSelected}
               onStatusChange={(id, status) => updateStatus({ id, status })} onEdit={setEditTarget} />
           ))}
         </div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
+          <div style={{ minWidth: 920 }}>
           <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             {visibleCols.map(c => (
               c.id === 'risk'
@@ -904,6 +908,7 @@ export default function ProjectsPage() {
               {visCols.includes('risk') && <Badge label={p.risk_level} />}
             </div>
           ))}
+          </div>
         </div>
       )}
 
