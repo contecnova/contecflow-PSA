@@ -13,6 +13,7 @@ from datetime import date
 
 import pytest
 
+from app.main import app
 from tests.conftest import auth
 
 
@@ -403,3 +404,155 @@ def test_invoice_from_timesheets_requires_manager(client, dev_token, db):
         headers=auth(dev_token),
     )
     assert res.status_code in (401, 403)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUTOMATION WORKFLOWS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_automation_workflow_create_and_list(client, pm_token, db):
+    payload = {
+        "name": "WF Aprobaciones",
+        "description": "Flujo test",
+        "trigger_type": "timesheet_submitted",
+        "steps": [
+            {
+                "name": "Notificar",
+                "step_type": "notify",
+                "config": {"channel": "email"},
+            }
+        ],
+    }
+    create_res = client.post("/api/v1/automation-workflows", json=payload, headers=auth(pm_token))
+    assert create_res.status_code in (200, 201), create_res.text
+    created = create_res.json()
+    assert "id" in created
+    assert created["trigger_type"] == "timesheet_submitted"
+    assert isinstance(created["steps"], list)
+
+    list_res = client.get("/api/v1/automation-workflows", headers=auth(pm_token))
+    assert list_res.status_code == 200
+    assert any(w["id"] == created["id"] for w in list_res.json())
+
+
+def test_automation_workflow_update_and_delete(client, pm_token, db):
+    create_res = client.post(
+        "/api/v1/automation-workflows",
+        json={"name": "WF Update", "trigger_type": "ticket_created", "steps": []},
+        headers=auth(pm_token),
+    )
+    wf = create_res.json()
+
+    update_res = client.patch(
+        f"/api/v1/automation-workflows/{wf['id']}",
+        json={"name": "WF Update 2", "status": "active"},
+        headers=auth(pm_token),
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["name"] == "WF Update 2"
+
+    delete_res = client.delete(f"/api/v1/automation-workflows/{wf['id']}", headers=auth(pm_token))
+    assert delete_res.status_code == 200
+    assert delete_res.json().get("ok") is True
+
+
+def test_automation_workflow_executions_empty(client, pm_token, db):
+    create_res = client.post(
+        "/api/v1/automation-workflows",
+        json={"name": "WF Exec", "trigger_type": "ticket_created", "steps": []},
+        headers=auth(pm_token),
+    )
+    wf = create_res.json()
+    res = client.get(f"/api/v1/automation-workflows/{wf['id']}/executions", headers=auth(pm_token))
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCHEDULED REPORTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_scheduled_report_crud_and_run(client, pm_token, db):
+    create_payload = {
+        "name": "Informe semanal",
+        "metric": "hours_by_month",
+        "frequency": "weekly",
+        "recipients": ["pm@clarive.com"],
+        "include_pdf": True,
+        "filters_json": "{}",
+    }
+    create_res = client.post("/api/v1/scheduled-reports", json=create_payload, headers=auth(pm_token))
+    assert create_res.status_code in (200, 201), create_res.text
+    created = create_res.json()
+    assert created.get("ok") is True
+    report_id = created["id"]
+
+    list_res = client.get("/api/v1/scheduled-reports", headers=auth(pm_token))
+    assert list_res.status_code == 200
+    assert any(r["id"] == report_id for r in list_res.json())
+
+    update_res = client.patch(
+        f"/api/v1/scheduled-reports/{report_id}",
+        json={"name": "Informe semanal v2", "is_active": True},
+        headers=auth(pm_token),
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["name"] == "Informe semanal v2"
+
+    run_res = client.post(f"/api/v1/scheduled-reports/{report_id}/run", headers=auth(pm_token))
+    assert run_res.status_code == 200
+    assert run_res.json().get("ok") is True
+
+    delete_res = client.delete(f"/api/v1/scheduled-reports/{report_id}", headers=auth(pm_token))
+    assert delete_res.status_code == 200
+    assert delete_res.json().get("ok") is True
+
+
+def test_scheduled_report_requires_manager_for_write(client, dev_token, db):
+    res = client.post(
+        "/api/v1/scheduled-reports",
+        json={"name": "X", "frequency": "weekly", "recipients": ["x@x.com"]},
+        headers=auth(dev_token),
+    )
+    assert res.status_code in (401, 403)
+
+
+def test_scheduled_report_list_requires_auth(client, db):
+    res = client.get("/api/v1/scheduled-reports")
+    assert res.status_code in (401, 403)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OPENAPI CONTRACTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_openapi_contract_for_import_execute(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/import/execute"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "$ref" in schema_ref
+
+
+def test_openapi_contract_for_sla_dashboard(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/itsm-metrics/sla-dashboard"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "$ref" in schema_ref
+
+
+def test_openapi_contract_for_invoice_status_patch(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/invoices/{invoice_id}/status"]["patch"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "$ref" in schema_ref
+
+
+def test_openapi_contract_for_automation_workflows(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/automation-workflows"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert schema_ref.get("type") == "array"
+    assert "$ref" in schema_ref.get("items", {})
+
+
+def test_openapi_contract_for_scheduled_reports(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/scheduled-reports"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert schema_ref.get("type") == "array"
+    assert "$ref" in schema_ref.get("items", {})

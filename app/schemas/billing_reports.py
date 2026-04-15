@@ -240,6 +240,78 @@ class SlaPauseResumeOut(BaseModel):
     sla_resolution_due: Optional[str] = None
 
 
+class ImportJobHistoryOut(BaseModel):
+    id: str
+    entity_type: str
+    filename: Optional[str] = None
+    status: str
+    total_rows: int
+    succeeded: int
+    failed_rows: int
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class WorkflowStepConfigOut(BaseModel):
+    id: str
+    order: int
+    step_type: str
+    name: Optional[str] = None
+    config: Dict[str, Any] = {}
+    next_step_yes: Optional[str] = None
+    next_step_no: Optional[str] = None
+
+
+class AutomationWorkflowOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    project_id: Optional[str] = None
+    project_name: Optional[str] = None
+    is_global: bool = False
+    status: str
+    trigger_type: str
+    trigger_conditions: Optional[Dict[str, Any]] = None
+    steps: List[WorkflowStepConfigOut] = []
+    run_count: int = 0
+    success_count: int = 0
+    error_count: int = 0
+    last_run_at: Optional[str] = None
+
+
+class WorkflowExecutionOut(BaseModel):
+    id: str
+    status: str
+    current_step: int
+    steps_log: List[Dict[str, Any]] = []
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
+
+class ScheduledReportOut(BaseModel):
+    id: str
+    name: str
+    metric: Optional[str] = None
+    frequency: str
+    recipients: List[str] = []
+    include_pdf: bool = True
+    is_active: bool = True
+    last_run_at: Optional[str] = None
+    next_run_at: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ScheduledReportCreateOut(BaseModel):
+    ok: bool
+    id: str
+
+
+class ScheduledReportRunOut(BaseModel):
+    ok: bool
+    recipients: List[str] = []
+
+
 # ── Report ─────────────────────────────────────────────────────────────────────
 
 class ReportSave(BaseModel):

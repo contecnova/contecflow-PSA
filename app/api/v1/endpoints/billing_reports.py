@@ -58,9 +58,15 @@ from app.schemas.billing_reports import (
     ImportTemplateOut,
     ImportValidateOut,
     ImportExecuteOut,
+    ImportJobHistoryOut,
     SlaDashboardOut,
     AgentPerformanceOut,
     SlaPauseResumeOut,
+    AutomationWorkflowOut,
+    WorkflowExecutionOut,
+    ScheduledReportOut,
+    ScheduledReportCreateOut,
+    ScheduledReportRunOut,
     OkResponse,
 )
 
@@ -647,7 +653,7 @@ def execute_import(
     }
 
 
-@router.get("/import/jobs", summary="Historial de importaciones")
+@router.get("/import/jobs", response_model=List[ImportJobHistoryOut], summary="Historial de importaciones")
 def import_jobs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=200),
@@ -1095,7 +1101,7 @@ def _workflow_out(w: AutomationWorkflow) -> dict:
     }
 
 
-@router.get("/automation-workflows", summary="Listar workflows multi-paso")
+@router.get("/automation-workflows", response_model=List[AutomationWorkflowOut], summary="Listar workflows multi-paso")
 def list_workflows(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -1107,7 +1113,7 @@ def list_workflows(
     return [_workflow_out(w) for w in workflows]
 
 
-@router.post("/automation-workflows", summary="Crear workflow")
+@router.post("/automation-workflows", response_model=AutomationWorkflowOut, status_code=201, summary="Crear workflow")
 def create_workflow(
     payload: WorkflowCreate,
     db: Session = Depends(get_db),
@@ -1139,7 +1145,7 @@ def create_workflow(
     return _workflow_out(wf)
 
 
-@router.patch("/automation-workflows/{wf_id}", summary="Actualizar workflow")
+@router.patch("/automation-workflows/{wf_id}", response_model=AutomationWorkflowOut, summary="Actualizar workflow")
 def update_workflow(
     wf_id: str, payload: dict = Body(...),
     db: Session = Depends(get_db),
@@ -1168,7 +1174,7 @@ def update_workflow(
     return _workflow_out(wf)
 
 
-@router.delete("/automation-workflows/{wf_id}", summary="Eliminar workflow")
+@router.delete("/automation-workflows/{wf_id}", response_model=OkResponse, summary="Eliminar workflow")
 def delete_workflow(wf_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
     wf = db.query(AutomationWorkflow).filter(AutomationWorkflow.id == wf_id).first()
     if not wf: raise HTTPException(404)
@@ -1176,7 +1182,7 @@ def delete_workflow(wf_id: str, db: Session = Depends(get_db), current_user: Use
     return {"ok": True}
 
 
-@router.get("/automation-workflows/{wf_id}/executions", summary="Historial de ejecuciones")
+@router.get("/automation-workflows/{wf_id}/executions", response_model=List[WorkflowExecutionOut], summary="Historial de ejecuciones")
 def workflow_executions(
     wf_id: str,
     page: int = Query(1, ge=1),
@@ -1510,7 +1516,7 @@ def _sr_out(r) -> dict:
     }
 
 
-@router.get("/scheduled-reports", summary="Listar informes programados")
+@router.get("/scheduled-reports", response_model=List[ScheduledReportOut], summary="Listar informes programados")
 def list_scheduled_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1520,7 +1526,7 @@ def list_scheduled_reports(
     return [_sr_out(r) for r in reports]
 
 
-@router.post("/scheduled-reports", summary="Crear informe programado")
+@router.post("/scheduled-reports", response_model=ScheduledReportCreateOut, status_code=201, summary="Crear informe programado")
 def create_scheduled_report(
     payload: ScheduledReportCreate,
     db: Session = Depends(get_db),
@@ -1543,7 +1549,7 @@ def create_scheduled_report(
     return {"ok": True, "id": r.id}
 
 
-@router.patch("/scheduled-reports/{report_id}", summary="Actualizar informe programado")
+@router.patch("/scheduled-reports/{report_id}", response_model=ScheduledReportOut, summary="Actualizar informe programado")
 def update_scheduled_report(
     report_id: str,
     payload: dict = Body(...),
@@ -1561,7 +1567,7 @@ def update_scheduled_report(
     return _sr_out(r)
 
 
-@router.delete("/scheduled-reports/{report_id}", summary="Eliminar informe programado")
+@router.delete("/scheduled-reports/{report_id}", response_model=OkResponse, summary="Eliminar informe programado")
 def delete_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
@@ -1574,7 +1580,7 @@ def delete_scheduled_report(
     return {"ok": True}
 
 
-@router.post("/scheduled-reports/{report_id}/run", summary="Ejecutar informe ahora")
+@router.post("/scheduled-reports/{report_id}/run", response_model=ScheduledReportRunOut, summary="Ejecutar informe ahora")
 def run_scheduled_report(
     report_id: str,
     db: Session = Depends(get_db),
