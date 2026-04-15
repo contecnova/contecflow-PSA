@@ -159,6 +159,7 @@ def build_invoice_preview_from_timesheets_flow(
         Imputation.project_id == project_id,
         Imputation.is_billable == True,
         Imputation.is_approved == True,
+        Imputation.is_invoiced != True,
     )
     if date_from:
         imps_q = imps_q.filter(Imputation.date >= date_from)

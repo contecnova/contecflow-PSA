@@ -42,6 +42,10 @@ class Imputation(Base):
     # Billable flag
     is_billable = Column(Boolean, default=False)
 
+    # Invoicing: set to True once this imputation is included in a persisted Invoice
+    is_invoiced = Column(Boolean, default=False, nullable=False)
+    invoiced_invoice_id = Column(String(36), nullable=True, index=True)  # no FK — avoids circular dep
+
     # Jira worklog sync
     jira_worklog_id = Column(String(50), nullable=True)
 

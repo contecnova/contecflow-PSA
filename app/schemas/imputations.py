@@ -39,6 +39,8 @@ class ImputationOut(BaseModel):
     description: Optional[str] = None
     is_billable: bool
     is_approved: bool
+    is_invoiced: bool = False
+    invoiced_invoice_id: Optional[str] = None
     timer_session_id: Optional[str] = None
     created_at: datetime
 
