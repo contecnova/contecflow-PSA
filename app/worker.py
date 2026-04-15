@@ -233,9 +233,11 @@ def run_agent_task(
     from app.models.ai_chat import AIAgentExecution, AIAgentStep
     from app.models.user import User
     from app.core.config import settings
-    from app.api.v1.endpoints.ai_chat import (
-        _execute_tool, AGENT_TOOLS,
-        _build_agent_system_prompt, _log_action,
+    from app.services.ai_chat_service import (
+        execute_tool as _execute_tool,
+        AGENT_TOOLS,
+        build_agent_system_prompt as _build_agent_system_prompt,
+        log_action as _log_action,
     )
     from app.services.ai_client import (
         call_claude as _call_claude,
