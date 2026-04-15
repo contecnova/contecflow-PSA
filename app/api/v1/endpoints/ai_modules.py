@@ -1,6 +1,5 @@
 """
-v16 endpoint parte 2 — NexusOracle, Meeting Assistant, Contract Intelligence,
-                        AI Knowledge Base, Voice Interface, Client Portal AI
+ai_modules — thin router delegating to app.services.ai_modules_service
 """
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
@@ -16,7 +15,6 @@ import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
-from app.services.ai_dispatch import call_ai
 from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task
@@ -29,179 +27,64 @@ from app.models.ai_chat import (
     AIKBArticle, AIVoiceCommand,
     AIClientChatSession, AIClientChatMessage,
 )
+import app.services.ai_modules_service as _svc
 
 router = APIRouter()
 
+# Local aliases for backward compatibility with tests
+def _api_key():
+    return _svc.api_key()
 
-def _api_key(): return settings.ANTHROPIC_API_KEY or None
-
-# Import lazy del sistema unificado de IA
 def _call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
-    """Wrapper que usa el proveedor configurado o fallback a Claude directo."""
-    try:
-        return call_ai(db, messages, system=system, module=module,
-                      user_id=user_id, max_tokens=max_tokens)
-    except Exception:
-        # Fallback al sistema anterior si no hay proveedores configurados
-        resp = _call_claude(messages, system=system, max_tokens=max_tokens)
-        return _extract_text(resp)
+    return _svc.call_ai_unified(db, messages, system=system, module=module,
+                                user_id=user_id, max_tokens=max_tokens)
 
 def _call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
-    import urllib.request
-    import json as _json
-    body = {"model": model or settings.NEXUS_AI_MODEL, "max_tokens": max_tokens, "messages": messages}
-    if system: body["system"] = system
-    if tools:  body["tools"] = tools
-    data = _json.dumps(body).encode()
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": _api_key(),
-        "anthropic-version": "2023-06-01",
-    }
-    req = urllib.request.Request(settings.ANTHROPIC_API_URL, data=data, headers=headers)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return _json.loads(resp.read())
+    return _svc.call_claude(messages, system=system, model=model, tools=tools, max_tokens=max_tokens)
 
 def _extract_text(response):
-    return "\n".join(b["text"] for b in response.get("content", []) if b.get("type") == "text")
+    return _svc.extract_text(response)
 
 def _compute_kb_embedding(db, article_id: str, text: str):
-    """Compute and persist the vector embedding for a KB article (best-effort)."""
-    try:
-        from app.services.semantic_classifier import _get_model
-        model, _ = _get_model()
-        if hasattr(model, "encode"):
-            emb = model.encode([text], show_progress_bar=False)[0].tolist()
-        else:
-            emb = model.encode([text])[0]
-        from app.models.ai_chat import AIKBArticle as _Art
-        art = db.query(_Art).filter(_Art.id == article_id).first()
-        if art:
-            art.embedding = json.dumps(emb)
-            db.commit()
-    except Exception:
-        pass  # Non-critical; falls back to LIKE search
-
+    return _svc.compute_kb_embedding(db, article_id, text)
 
 def _log_action(db, user_id, module, action_type, input_s=None, output_s=None,
                 entities=None, tokens=0, latency=0, status="success"):
-    db.add(AIActionLog(
-        user_id=user_id, module=module, action_type=action_type,
-        input_summary=(input_s or "")[:300], output_summary=(output_s or "")[:300],
-        entities_affected=json.dumps(entities or []),
-        tokens_used=tokens, latency_ms=latency, status=status,
-    ))
-
-
-# ─── Burnout multi-factor scorer ─────────────────────────────────────────────
+    return _svc.log_action(db, user_id, module, action_type, input_s=input_s,
+                           output_s=output_s, entities=entities, tokens=tokens,
+                           latency=latency, status=status)
 
 def _burnout_score(weekly_hours: list) -> float:
-    """
-    Multi-factor burnout probability (0–0.99):
-      - Weighted average (most recent 2 weeks weighted 2×)
-      - Trend factor (increasing load adds up to +0.15)
-      - Coefficient of Variation (high variance = additional stress)
-      - Consecutive overloaded weeks (>42h each adds +0.08)
-    """
-    n = len(weekly_hours)
-    if n == 0:
-        return 0.0
-    # Weights: last week = 2, 2nd-last = 2, older = 1
-    weights = ([2, 2] + [1] * max(n - 2, 0))[:n]
-    wavg    = sum(h * w for h, w in zip(weekly_hours, weights)) / sum(weights)
-    if wavg < 30:
-        return 0.0  # clearly under threshold
-
-    base = max(0.0, (wavg - 35) / 25)
-
-    # Trend: recent week vs oldest week
-    if n > 1:
-        trend = (weekly_hours[0] - weekly_hours[-1]) / max(weekly_hours[-1], 1)
-        trend_factor = max(0.0, min(trend * 0.15, 0.15))
-    else:
-        trend_factor = 0.0
-
-    # Variance / coefficient of variation
-    mean = sum(weekly_hours) / n
-    variance = sum((h - mean) ** 2 for h in weekly_hours) / n
-    std = variance ** 0.5
-    cv  = std / max(mean, 1)
-    cv_factor = min(cv * 0.05, 0.08)
-
-    # Consecutive weeks overloaded
-    consecutive = sum(1 for h in weekly_hours if h > 42)
-    consec_factor = consecutive * 0.08
-
-    return min(base + trend_factor + cv_factor + consec_factor, 0.99)
-
-
-# ─── Chunking helpers for long-document analysis ────────────────────────────
+    return _svc.burnout_score(weekly_hours)
 
 def _chunk_text(text: str, chunk_size: int = 6000, overlap: int = 500) -> list:
-    """Split text into overlapping chunks so no content is lost."""
-    chunks, start = [], 0
-    while start < len(text):
-        chunks.append(text[start:start + chunk_size])
-        start += chunk_size - overlap
-    return chunks
+    return _svc.chunk_text(text, chunk_size=chunk_size, overlap=overlap)
 
+def _map_reduce_analysis(text, map_system, map_user_prefix, reduce_system, reduce_user_suffix,
+                         db, module, user_id, map_tokens=1500, reduce_tokens=3000):
+    return _svc.map_reduce_analysis(text, map_system, map_user_prefix, reduce_system,
+                                    reduce_user_suffix, db, module, user_id,
+                                    map_tokens=map_tokens, reduce_tokens=reduce_tokens)
 
-def _map_reduce_analysis(
-    text: str,
-    map_system: str,
-    map_user_prefix: str,
-    reduce_system: str,
-    reduce_user_suffix: str,
-    db,
-    module: str,
-    user_id: str,
-    map_tokens: int = 1500,
-    reduce_tokens: int = 3000,
-) -> str:
-    """
-    Map-reduce analysis for documents that exceed the direct-prompt limit.
+def _kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool = True) -> list:
+    return _svc.kb_vector_search(db, query_text, limit=limit, only_published=only_published)
 
-    MAP  — each chunk is analysed independently with map_system + map_user_prefix.
-    REDUCE — partial results are merged with reduce_system + reduce_user_suffix to
-             produce the final structured response.
+def _openai_key_from_db(db) -> Optional[str]:
+    return _svc.openai_key_from_db(db)
 
-    If the text fits in a single chunk, only the reduce call is made (single-pass).
-    """
-    chunks = _chunk_text(text)
+def _process_voice_core(transcript: str, db, current_user):
+    return _svc.process_voice_core(transcript, db, current_user)
 
-    if len(chunks) == 1:
-        # Short document — single call with full text
-        prompt = f"{map_user_prefix}\n\n{text}\n\n{reduce_user_suffix}"
-        return _call_ai_unified(
-            db, [{"role": "user", "content": prompt}],
-            system=reduce_system, module=module, user_id=user_id, max_tokens=reduce_tokens,
-        )
+def _get_client_project_data(client_user, db: Session) -> dict:
+    return _svc.get_client_project_data(client_user, db)
 
-    # MAP phase: extract key points from each chunk as plain text
-    partials = []
-    for i, chunk in enumerate(chunks):
-        prompt = (
-            f"{map_user_prefix}\n\n"
-            f"[Fragmento {i + 1} de {len(chunks)}]:\n{chunk}\n\n"
-            "Extrae los puntos más importantes de este fragmento en texto libre. Sé conciso."
-        )
-        partial = _call_ai_unified(
-            db, [{"role": "user", "content": prompt}],
-            system=map_system, module=module, user_id=user_id, max_tokens=map_tokens,
-        )
-        partials.append(f"--- Fragmento {i + 1} ---\n{partial}")
+def _client_demo_response(message: str, project_data: dict) -> str:
+    return _svc.client_demo_response(message, project_data)
 
-    # REDUCE phase: synthesise into the final structured format
-    combined = "\n\n".join(partials)
-    reduce_prompt = (
-        f"Los siguientes son los análisis parciales de cada fragmento del documento completo:\n\n"
-        f"{combined}\n\n"
-        f"{reduce_user_suffix}"
-    )
-    return _call_ai_unified(
-        db, [{"role": "user", "content": reduce_prompt}],
-        system=reduce_system, module=module, user_id=user_id, max_tokens=reduce_tokens,
-    )
+def _predict_overrun_ml(cpi, spi, budget_used_pct, elapsed_pct,
+                        task_completion_pct, overdue_task_ratio, team_load_pct):
+    return _svc.predict_overrun_ml(cpi, spi, budget_used_pct, elapsed_pct,
+                                   task_completion_pct, overdue_task_ratio, team_load_pct)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -236,169 +119,7 @@ def run_oracle(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    """
-    Runs all rule-based risk analyses and stores results as AIPrediction records.
-    Uses deterministic scoring rules (overdue tasks, SLA age, hours, budget ratios).
-    methodology: rules_based — no ML model involved.
-    """
-    now       = datetime.now(timezone.utc)
-    generated = []
-
-    # ── 1. Project delay prediction ──────────────────────────────────────────
-    projects = db.query(Project).filter(Project.status.in_(["active","planning"])).all()
-    for p in projects:
-        tasks = db.query(Task).filter(Task.project_id == p.id).all()
-        if not tasks: continue
-        done    = sum(1 for t in tasks if t.status == "done")
-        overdue = sum(1 for t in tasks if t.status != "done" and t.due_date and t.due_date < now.date())
-        pct_done = done / len(tasks)
-
-        # Velocity score
-        hours_total = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
-        budget = p.budget_amount or 1
-        budget_consumed_pct = (hours_total * (getattr(p, 'billing_rate', 100) or 100)) / max(budget, 1)
-
-        risk_score = 0
-        if overdue > 0:     risk_score += min(overdue / max(len(tasks), 1) * 50, 40)
-        if pct_done < 0.3 and p.end_date_planned and p.end_date_planned < (now + timedelta(days=14)).date():
-            risk_score += 35
-        if budget_consumed_pct > 0.9: risk_score += 25
-
-        probability = min(round(risk_score / 100, 2), 0.99)
-        if probability < 0.25: continue
-
-        severity = "critical" if probability > 0.75 else "high" if probability > 0.5 else "medium"
-        title = f"Riesgo de retraso — {p.name}"
-        explanation = (
-            f"El proyecto tiene {overdue} tareas vencidas de {len(tasks)} totales "
-            f"({round(pct_done*100)}% completado). "
-            f"Consumo de presupuesto estimado: {round(budget_consumed_pct*100)}%."
-        )
-        action = "Revisar tareas bloqueadas con el PM. Considerar reasignación de recursos."
-
-        # Upsert prediction
-        existing = db.query(AIPrediction).filter(
-            AIPrediction.entity_id == p.id,
-            AIPrediction.prediction_type == "project_delay",
-            AIPrediction.is_acknowledged == False,
-        ).first()
-        if existing:
-            existing.probability = probability; existing.severity = severity
-            existing.explanation = explanation; existing.recommended_action = action
-        else:
-            pred = AIPrediction(
-                prediction_type="project_delay", entity_type="project", entity_id=p.id,
-                probability=probability, severity=severity,
-                title=title, explanation=explanation, recommended_action=action,
-                features_used=json.dumps({"overdue_ratio": round(overdue/max(len(tasks),1),2),
-                                          "pct_done": round(pct_done,2),
-                                          "budget_consumed": round(budget_consumed_pct,2)}),
-            )
-            db.add(pred)
-            generated.append({"type": "project_delay", "entity": p.name, "probability": probability})
-
-    # ── 2. SLA breach prediction ──────────────────────────────────────────────
-    open_tickets = db.query(Ticket).filter(Ticket.status.in_(["open","in_progress"])).all()
-    for t in open_tickets:
-        if not t.created_at: continue
-        created_aware = t.created_at.replace(tzinfo=timezone.utc) if t.created_at.tzinfo is None else t.created_at
-        age_hours = (now - created_aware).total_seconds() / 3600
-        sla_limit  = {"critical": 4, "high": 8, "medium": 24, "low": 72}.get(t.priority or "medium", 24)
-        if age_hours < sla_limit * 0.7: continue  # only flag near-breach
-
-        remaining  = sla_limit - age_hours
-        probability = min(round(age_hours / sla_limit, 2), 0.99)
-        severity   = "critical" if remaining < 1 else "high" if remaining < 4 else "medium"
-        existing   = db.query(AIPrediction).filter(
-            AIPrediction.entity_id == t.id,
-            AIPrediction.prediction_type == "sla_breach",
-            AIPrediction.is_acknowledged == False,
-        ).first()
-        if not existing:
-            db.add(AIPrediction(
-                prediction_type="sla_breach", entity_type="ticket", entity_id=t.id,
-                probability=probability, severity=severity,
-                title=f"Riesgo de incumplimiento SLA — Ticket {t.number}",
-                explanation=f"Llevas {round(age_hours,1)}h abierto. Límite SLA para prioridad '{t.priority}': {sla_limit}h. Quedan {round(remaining,1)}h.",
-                recommended_action="Asignar o escalar el ticket inmediatamente.",
-            ))
-            generated.append({"type": "sla_breach", "entity": t.number, "probability": probability})
-
-    # ── 3. Burnout detection (multi-factor model) ─────────────────────────────
-    active_users = db.query(User).filter(User.is_active == True).all()
-    week_starts  = [(now - timedelta(weeks=i)).date() for i in range(4)]
-    for u in active_users:
-        weekly = []
-        for ws in week_starts:
-            we = ws + timedelta(days=6)
-            h  = db.query(func.sum(Imputation.hours)).filter(
-                Imputation.user_id == u.id,
-                Imputation.date >= ws, Imputation.date <= we,
-            ).scalar() or 0
-            weekly.append(h)
-        probability = _burnout_score(weekly)
-        if probability < 0.25: continue
-        avg   = sum(weekly) / max(len(weekly), 1)
-        max_w = max(weekly)
-        trend = weekly[0] - weekly[-1] if len(weekly) > 1 else 0
-        trend_txt = f" Tendencia: {'↑ creciente' if trend > 3 else '→ estable'}." if len(weekly) > 1 else ""
-        existing = db.query(AIPrediction).filter(
-            AIPrediction.entity_id == u.id,
-            AIPrediction.prediction_type == "burnout",
-            AIPrediction.is_acknowledged == False,
-        ).first()
-        if existing:
-            existing.probability = probability
-            existing.severity    = "critical" if probability > 0.75 else "high" if probability > 0.5 else "medium"
-        else:
-            db.add(AIPrediction(
-                prediction_type="burnout", entity_type="user", entity_id=u.id,
-                probability=probability,
-                severity="critical" if probability > 0.75 else "high" if probability > 0.5 else "medium",
-                title=f"Riesgo de burnout — {u.full_name}",
-                explanation=(
-                    f"Media ponderada (semanas recientes 2×): {round(avg,1)}h/sem. "
-                    f"Pico: {round(max_w,1)}h.{trend_txt} "
-                    f"Semanas con >42h: {sum(1 for h in weekly if h > 42)}."
-                ),
-                recommended_action="Revisar asignaciones. Redistribuir carga de trabajo.",
-            ))
-            generated.append({"type": "burnout", "entity": u.full_name, "probability": probability})
-
-    # ── 4. Budget overrun anomaly detection ───────────────────────────────────
-    for p in projects:
-        if not p.budget_amount: continue
-        hours = db.query(func.sum(Imputation.hours)).filter(Imputation.project_id == p.id).scalar() or 0
-        rate  = getattr(p, 'billing_rate', 85) or 85
-        spent = hours * rate
-        ratio = spent / p.budget_amount
-        if ratio < 0.85: continue
-        existing = db.query(AIPrediction).filter(
-            AIPrediction.entity_id == p.id,
-            AIPrediction.prediction_type == "budget_overrun",
-            AIPrediction.is_acknowledged == False,
-        ).first()
-        if not existing:
-            db.add(AIPrediction(
-                prediction_type="budget_overrun", entity_type="project", entity_id=p.id,
-                probability=min(ratio - 0.5, 0.99), severity="critical" if ratio > 1 else "high",
-                title=f"Desviación presupuestaria — {p.name}",
-                explanation=f"Consumo estimado: {round(ratio*100)}% del presupuesto ({round(spent/1000,1)}k€ de {round(p.budget_amount/1000,1)}k€).",
-                recommended_action="Revisar alcance con el cliente. Preparar change order si hay trabajo extra.",
-            ))
-            generated.append({"type": "budget_overrun", "entity": p.name, "probability": round(ratio-0.5,2)})
-
-    _log_action(db, current_user.id, "nexusoracle", "run",
-                "oracle_full_analysis", f"Generated {len(generated)} predictions")
-    db.commit()
-
-    return {
-        "ok": True,
-        "methodology": "rules_based",
-        "alerts_generated": len(generated),
-        "alerts": generated,
-        "run_at": datetime.now(timezone.utc).isoformat(),
-    }
+    return _svc.run_oracle_analysis(db, current_user)
 
 
 @router.post("/oracle/predictions/{pred_id}/acknowledge", summary="Reconocer predicción")
@@ -444,7 +165,7 @@ class MeetingProcessPayload(BaseModel):
     title: Optional[str] = None
     project_id: Optional[str] = None
     platform: str = "upload"
-    transcript: str                    # full meeting transcript text
+    transcript: str
     participants: Optional[List[str]] = None
     meeting_date: Optional[str] = None
     duration_min: Optional[int] = None
@@ -519,7 +240,6 @@ Responde SOLO con JSON:
                     assignee_name=action_data.get("assignee_name"),
                     due_date_text=action_data.get("due_date_text"),
                 )
-                # Try to match assignee to user
                 if action_data.get("assignee_name"):
                     user = db.query(User).filter(
                         User.full_name.ilike(f"%{action_data['assignee_name']}%")
@@ -559,17 +279,16 @@ def create_tasks_from_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create Clarive tasks from meeting action items."""
     meeting = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
         AIMeeting.id == meeting_id
     ).first()
     if not meeting: raise HTTPException(404)
 
-    project_id  = payload.get("project_id") or meeting.project_id
+    project_id = payload.get("project_id") or meeting.project_id
     if not project_id:
         raise HTTPException(400, "Se requiere project_id para crear tareas")
-    action_ids  = payload.get("action_ids", [a.id for a in meeting.actions])
-    created     = []
+    action_ids = payload.get("action_ids", [a.id for a in meeting.actions])
+    created = []
 
     for action in meeting.actions:
         if action.id not in action_ids or action.is_created: continue
@@ -582,7 +301,7 @@ def create_tasks_from_meeting(
             created_by=current_user.id,
         )
         db.add(task); db.flush()
-        action.task_id   = task.id
+        action.task_id    = task.id
         action.is_created = True
         created.append({"action_id": action.id, "task_id": task.id, "title": task.title})
 
@@ -645,7 +364,7 @@ class ContractAnalyzePayload(BaseModel):
     project_id: Optional[str] = None
     client_name: Optional[str] = None
     filename: Optional[str] = None
-    contract_text: str              # full contract text
+    contract_text: str
 
 
 @router.post("/contracts-ai/analyze", summary="Analizar contrato con IA")
@@ -733,7 +452,8 @@ Responde SOLO con JSON:
 
     latency = int((time.time() - t0) * 1000)
     _log_action(db, current_user.id, "contract_intelligence", "analyze",
-                f"contract_len={len(payload.contract_text)}", f"risk={contract.risk_level}", latency=latency)
+                f"contract_len={len(payload.contract_text)}", f"risk={contract.risk_level}",
+                latency=latency)
     db.commit()
     db.refresh(contract)
 
@@ -830,44 +550,8 @@ Responde SOLO con JSON:
                 f"ticket={ticket_id}", f"title={title}")
     db.commit()
     db.refresh(article)
-    # Compute vector embedding in background
     _compute_kb_embedding(db, article.id, title + " " + (content or ""))
     return {"article_id": article.id, "title": article.title, "is_published": article.is_published}
-
-
-def _kb_vector_search(db, query_text: str, limit: int = 5, only_published: bool = True) -> list:
-    """
-    Vector similarity search over KB articles.
-    Falls back to empty list if no embeddings exist, so callers can try LIKE instead.
-    """
-    try:
-        from app.services.semantic_classifier import _get_model, _cosine
-        model, _ = _get_model()
-        if hasattr(model, "encode"):
-            q_emb = model.encode([query_text], show_progress_bar=False)[0].tolist()
-        else:
-            q_emb = model.encode([query_text])[0]
-
-        q = db.query(AIKBArticle).filter(AIKBArticle.embedding.isnot(None))
-        if only_published:
-            q = q.filter(AIKBArticle.is_published == True)
-        articles = q.all()
-        if not articles:
-            return []
-
-        scored = []
-        for a in articles:
-            try:
-                a_emb = json.loads(a.embedding)
-                sim = _cosine(q_emb, a_emb)
-                scored.append((sim, a))
-            except Exception:
-                continue
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [a for _, a in scored[:limit]]
-    except Exception:
-        return []
 
 
 @router.post("/kb/search", summary="Búsqueda semántica en KB")
@@ -879,10 +563,8 @@ def search_kb(
     query = payload.get("query", "")
     if not query: raise HTTPException(400, "query required")
 
-    # Try vector similarity search first (when embeddings exist)
     articles = _kb_vector_search(db, query, limit=10)
     if not articles:
-        # Fallback: keyword LIKE search
         articles = db.query(AIKBArticle).filter(
             AIKBArticle.is_published == True,
             or_(
@@ -907,7 +589,6 @@ def rebuild_kb_embeddings(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    """Recalcula los vectores de todos los artículos KB. Útil tras cambiar el modelo."""
     articles = db.query(AIKBArticle).all()
     count = 0
     for a in articles:
@@ -930,7 +611,6 @@ def update_kb(
     if "tags" in payload: article.tags = json.dumps(payload["tags"])
     if payload.get("is_published"): article.reviewed_by = current_user.id
     db.commit()
-    # Re-compute embedding when content/title change
     if "title" in payload or "content" in payload:
         _compute_kb_embedding(db, article.id, article.title + " " + (article.content or ""))
     return {"ok": True}
@@ -940,32 +620,12 @@ def update_kb(
 # VOICE INTERFACE
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _openai_key_from_db(db) -> Optional[str]:
-    """Return the API key of the first active OpenAI provider, or None."""
-    try:
-        from app.models.ai_providers import AIProvider
-        p = db.query(AIProvider).filter(
-            AIProvider.provider == "openai",
-            AIProvider.status != "error",
-        ).first()
-        return p.api_key if p and p.api_key else None
-    except Exception:
-        return None
-
-
 @router.post("/voice/transcribe", summary="Transcribir audio con Whisper y procesar como comando")
 def transcribe_voice_audio(
     audio: UploadFile = File(..., description="Archivo de audio (.mp3, .wav, .m4a, .webm, .ogg)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Acepta un archivo de audio, lo transcribe con OpenAI Whisper-1 y procesa
-    el resultado como si fuera un comando de voz (misma lógica que /voice/command).
-
-    Requiere que la variable de entorno **OPENAI_API_KEY** esté configurada, o que
-    exista un proveedor OpenAI activo en la configuración de IA.
-    """
     openai_key = (settings.OPENAI_API_KEY or None) or _openai_key_from_db(db)
     if not openai_key:
         raise HTTPException(
@@ -977,7 +637,7 @@ def transcribe_voice_audio(
     audio_bytes = audio.file.read()
     if not audio_bytes:
         raise HTTPException(400, "El archivo de audio está vacío.")
-    if len(audio_bytes) > 25 * 1024 * 1024:  # 25 MB — Whisper API limit
+    if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(413, "El archivo de audio no puede superar 25 MB.")
 
     import httpx as _httpx
@@ -1002,161 +662,8 @@ def transcribe_voice_audio(
     if not transcript:
         raise HTTPException(422, "Whisper no pudo transcribir el audio (resultado vacío).")
 
-    # Delegate to the voice command processor reusing its payload model
-    voice_payload = VoiceCommandPayload(transcript=transcript)
-    result = process_voice_command.__wrapped__(voice_payload, db, current_user) \
-        if hasattr(process_voice_command, "__wrapped__") \
-        else _process_voice_core(transcript, db, current_user)
-
+    result = _process_voice_core(transcript, db, current_user)
     return {**result, "whisper_transcript": transcript}
-
-
-def _process_voice_core(transcript: str, db, current_user):
-    """Shared logic extracted from process_voice_command for reuse by transcribe endpoint."""
-    t0 = time.time()
-    intent = "unknown"
-    entities: dict = {}
-    action_taken = ""
-    status = "done"
-
-    try:
-        prompt = f"""Analiza este comando de voz de un usuario de Clarive y extrae:
-- intent: log_hours | create_ticket | query_hours | create_task | get_summary | other
-- entities: objetos relevantes (project_name, hours, task_name, date, ticket_title, priority, etc.)
-
-Comando: "{transcript}"
-Usuario: {current_user.full_name}
-Hoy: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
-
-Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_description": "..."}}"""
-        text = _call_ai_unified(
-            db, [{"role": "user", "content": prompt}],
-            module="voice", user_id=current_user.id, max_tokens=300
-        )
-        import re as _re
-        match = _re.search(r'\{.*\}', text, _re.DOTALL)
-        if match:
-            try:
-                data = json.loads(match.group())
-                intent = data.get("intent", "unknown")
-                entities = data.get("entities", {})
-                action_taken = data.get("action_description", "")
-            except json.JSONDecodeError:
-                pass
-    except Exception as e:
-        logging.getLogger(__name__).warning(f"Voice command parsing failed: {e}")
-        intent = "unknown"
-        action_taken = "Error en IA, modo fallback activado"
-
-    result: dict = {"intent": intent, "entities": entities, "action": action_taken}
-
-    if intent == "log_hours" and entities.get("hours") and entities.get("project_name"):
-        project = db.query(Project).filter(
-            Project.name.ilike(f"%{entities['project_name']}%")
-        ).first()
-        if project:
-            imp = Imputation(
-                user_id=current_user.id, project_id=project.id,
-                hours=float(entities["hours"]),
-                date=date.today(),
-                description=f"Imputado por voz: {transcript[:100]}",
-                is_billable=True,
-            )
-            db.add(imp)
-            result["action"] = f"✓ Registradas {entities['hours']}h en {project.name}"
-
-    elif intent == "create_ticket" and entities.get("ticket_title"):
-        ticket = Ticket(
-            title=entities["ticket_title"],
-            priority=entities.get("priority", "medium"),
-            status="open",
-            requester_user_id=current_user.id,
-        )
-        db.add(ticket); db.flush()
-        result["action"] = f"✓ Ticket creado: {ticket.title}"
-
-    elif intent == "query_hours":
-        week_start = (date.today() - timedelta(days=date.today().weekday()))
-        hours = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == current_user.id,
-            Imputation.date >= week_start,
-        ).scalar() or 0
-        result["action"] = f"Esta semana llevas {round(hours, 1)} horas imputadas."
-
-    elif intent == "create_task" and entities.get("task_name"):
-        from app.models.task import Task as _Task
-        project = None
-        if entities.get("project_name"):
-            project = db.query(Project).filter(
-                Project.name.ilike(f"%{entities['project_name']}%")
-            ).first()
-        task = _Task(
-            title=entities["task_name"][:255],
-            project_id=project.id if project else None,
-            status="todo",
-            priority=entities.get("priority", "medium"),
-            created_by=current_user.id,
-        )
-        db.add(task); db.flush()
-        result["action"] = f"✓ Tarea creada: {task.title}"
-        if project:
-            result["action"] += f" en {project.name}"
-
-    elif intent == "get_summary" and entities.get("project_name"):
-        project = db.query(Project).filter(
-            Project.name.ilike(f"%{entities['project_name']}%")
-        ).first()
-        if project:
-            from app.models.task import Task as _Task
-            tasks = db.query(_Task).filter(_Task.project_id == project.id).all()
-            done = sum(1 for t in tasks if t.status == "done")
-            open_tasks = sum(1 for t in tasks if t.status != "done")
-            result["action"] = (
-                f"Proyecto '{project.name}': {round(done / max(len(tasks), 1) * 100)}% completado, "
-                f"{open_tasks} tareas pendientes, estado: {project.status}."
-            )
-        else:
-            result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
-
-    elif intent == "other" and len(transcript.strip()) > 20:
-        # Complex or compound command — delegate to NexusAgent via Celery
-        from app.models.ai_chat import AIAgentExecution as _Exec
-        from app.worker import run_agent_task
-        exec_record = _Exec(
-            user_id=current_user.id,
-            instruction=transcript,
-            status="queued",
-        )
-        db.add(exec_record); db.flush()
-        run_agent_task.delay(str(exec_record.id), transcript, str(current_user.id))
-        result["action"] = (
-            f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
-            "Revisa el historial de NexusAgent para el resultado."
-        )
-        result["execution_id"] = str(exec_record.id)
-
-    latency = int((time.time() - t0) * 1000)
-    vc = AIVoiceCommand(
-        user_id=current_user.id,
-        transcript=transcript,
-        intent=intent,
-        entities=json.dumps(entities),
-        action_taken=result.get("action", ""),
-        status=status,
-    )
-    db.add(vc)
-    _log_action(db, current_user.id, "voice", "command", transcript[:200],
-                result.get("action", ""), latency=latency)
-    db.commit()
-
-    return {
-        "transcript": transcript,
-        "intent": intent,
-        "entities": entities,
-        "action": result.get("action", action_taken),
-        "status": status,
-        "latency_ms": latency,
-    }
 
 
 class VoiceCommandPayload(BaseModel):
@@ -1191,9 +698,6 @@ def client_portal_chat(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
 ):
-    """
-    Endpoint for client portal AI chat. Uses client_token for auth (not internal JWT).
-    """
     client_token = payload.get("client_token")
     message      = payload.get("message", "")
     session_id   = payload.get("session_id")
@@ -1201,7 +705,6 @@ def client_portal_chat(
     if not client_token or not message:
         raise HTTPException(400, "client_token and message required")
 
-    # Verify client token
     from app.core.security import verify_client_token
     try:
         client_user = verify_client_token(client_token, db)
@@ -1210,7 +713,6 @@ def client_portal_chat(
 
     if not client_user: raise HTTPException(401)
 
-    # Get or create session
     session = None
     if session_id:
         session = db.query(AIClientChatSession).filter(
@@ -1221,15 +723,10 @@ def client_portal_chat(
         session = AIClientChatSession(client_user_id=client_user.id)
         db.add(session); db.flush()
 
-    # Get project data (read-only, sanitized)
     project_data = _get_client_project_data(client_user, db)
 
-    # Save user message
-    db.add(AIClientChatMessage(
-        session_id=session.id, role="user", content=message
-    ))
+    db.add(AIClientChatMessage(session_id=session.id, role="user", content=message))
 
-    # Build history
     history = db.query(AIClientChatMessage).filter(
         AIClientChatMessage.session_id == session.id
     ).order_by(AIClientChatMessage.created_at.desc()).limit(8).all()
@@ -1248,45 +745,10 @@ def client_portal_chat(
     except Exception as e:
         response_text = f"Error del asistente: {str(e)[:80]}"
 
-    db.add(AIClientChatMessage(
-        session_id=session.id, role="assistant", content=response_text
-    ))
+    db.add(AIClientChatMessage(session_id=session.id, role="assistant", content=response_text))
     db.commit()
 
-    return {
-        "session_id": session.id,
-        "response": response_text,
-    }
-
-
-def _get_client_project_data(client_user, db: Session) -> dict:
-    """Get sanitized project data for client portal."""
-    projects = db.query(Project).filter(
-        Project.client_name.ilike(f"%{getattr(client_user, 'company', '')}%")
-    ).limit(5).all()
-
-    result = []
-    for p in projects:
-        tasks = db.query(Task).filter(Task.project_id == p.id).all()
-        done  = sum(1 for t in tasks if t.status == "done")
-        result.append({
-            "name": p.name, "status": p.status,
-            "progress_pct": round(done / max(len(tasks), 1) * 100),
-            "start_date": str(p.start_date) if p.start_date else None,
-            "end_date": str(p.end_date_planned) if p.end_date_planned else None,
-            "open_tasks": sum(1 for t in tasks if t.status != "done"),
-        })
-    return {"projects": result}
-
-
-def _client_demo_response(message: str, project_data: dict) -> str:
-    projects = project_data.get("projects", [])
-    if projects:
-        p = projects[0]
-        return (f"Su proyecto **{p['name']}** tiene un progreso del {p['progress_pct']}% "
-                f"con {p['open_tasks']} tareas pendientes. "
-                f"Para análisis detallado, configure ANTHROPIC_API_KEY.")
-    return "Hola, soy el asistente del portal. Configure ANTHROPIC_API_KEY para respuestas completas."
+    return {"session_id": session.id, "response": response_text}
 
 
 # ─── Revenue forecast (pure-Python linear regression) ────────────────────────
@@ -1297,19 +759,13 @@ def revenue_forecast(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """
-    Queries the last 12 months of invoiced revenue, fits a pure-Python OLS
-    linear regression (no numpy), and returns a forecast for the next
-    `months_ahead` months together with the R² goodness-of-fit score.
-    """
     from calendar import monthrange
 
     now   = datetime.utcnow()
     start = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
 
-    # Try to import Invoice model; gracefully degrade if not available
     try:
-        from app.models.invoicing import Invoice  # adjust import if model differs
+        from app.models.invoicing import Invoice
         rows = (
             db.query(
                 func.date_trunc("month", Invoice.invoice_date).label("month"),
@@ -1322,7 +778,6 @@ def revenue_forecast(
         )
         history = [{"month": str(r.month)[:7], "amount": float(r.total or 0)} for r in rows]
     except Exception:
-        # Fall back to imputation-based revenue estimate
         rows = (
             db.query(
                 func.date_trunc("month", Imputation.date).label("month"),
@@ -1338,7 +793,6 @@ def revenue_forecast(
     if len(history) < 3:
         return {"error": "Insufficient data", "message": "Need at least 3 months of data", "history": history}
 
-    # Pure-Python OLS: y = a + b*x
     n   = len(history)
     xs  = list(range(n))
     ys  = [h["amount"] for h in history]
@@ -1351,38 +805,35 @@ def revenue_forecast(
     b = (n * sxy - sx * sy) / denom
     a = (sy - b * sx) / n
 
-    # R²
     y_mean = sy / n
     ss_tot = sum((y - y_mean) ** 2 for y in ys)
     ss_res = sum((y - (a + b * x)) ** 2 for x, y in zip(xs, ys))
     r2     = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
 
-    # Forecast
     forecast = []
     last_month_str = history[-1]["month"]
     lm_year, lm_mon = int(last_month_str[:4]), int(last_month_str[5:7])
     for i in range(1, months_ahead + 1):
-        xi      = n - 1 + i
-        pred    = max(0.0, a + b * xi)
-        fm      = lm_mon + i
-        fy      = lm_year + (fm - 1) // 12
-        fm      = (fm - 1) % 12 + 1
-        label   = f"{fy}-{fm:02d}"
-        # 80% CI: ±1.28 * residual std
+        xi    = n - 1 + i
+        pred  = max(0.0, a + b * xi)
+        fm    = lm_mon + i
+        fy    = lm_year + (fm - 1) // 12
+        fm    = (fm - 1) % 12 + 1
+        label = f"{fy}-{fm:02d}"
         res_std = (ss_res / max(n - 2, 1)) ** 0.5
-        ci      = 1.28 * res_std
+        ci    = 1.28 * res_std
         forecast.append({"month": label, "amount": round(pred, 2), "ci_low": round(max(0, pred - ci), 2), "ci_high": round(pred + ci, 2)})
 
     return {
-        "history":      history,
-        "forecast":     forecast,
-        "r2":           round(r2, 4),
+        "history":       history,
+        "forecast":      forecast,
+        "r2":            round(r2, 4),
         "trend_monthly": round(b, 2),
-        "model":        "OLS linear regression (pure Python)",
+        "model":         "OLS linear regression (pure Python)",
     }
 
 
-# ─── Smart schedule (AI-assisted scheduling) ─────────────────────────────────
+# ─── Smart schedule ───────────────────────────────────────────────────────────
 
 class SmartScheduleRequest(BaseModel):
     project_id: Optional[str] = None
@@ -1395,12 +846,6 @@ def smart_schedule(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Looks at tasks without start/due dates in the project, gathers current
-    team capacity (imputations last 4 weeks), and calls the configured AI
-    (Claude/GPT) to suggest a schedule. Returns a list of
-    { task_id, title, suggested_start, suggested_due, rationale }.
-    """
     q = db.query(Task).filter(Task.start_date == None, Task.due_date == None)
     if payload.project_id:
         q = q.filter(Task.project_id == payload.project_id)
@@ -1409,7 +854,6 @@ def smart_schedule(
     if not unscheduled:
         return {"scheduled": [], "message": "No unscheduled tasks found"}
 
-    # Build capacity summary (avg hours/week per user last 4 weeks)
     now   = datetime.utcnow()
     w4ago = (now - timedelta(weeks=4)).date()
     capacity = []
@@ -1421,13 +865,13 @@ def smart_schedule(
         available = max(0, 40 - round(hrs / 4, 1))
         capacity.append({"name": u.full_name, "available_hours_per_week": available})
 
-    task_list = "\n".join(
+    task_list    = "\n".join(
         f"- [{t.id}] {t.title} (priority={t.priority or 'medium'}, points={t.story_points or '?'})"
         for t in unscheduled
     )
     capacity_str = "\n".join(f"  {c['name']}: ~{c['available_hours_per_week']}h/week free" for c in capacity[:10])
+    today_str    = now.strftime("%Y-%m-%d")
 
-    today_str = now.strftime("%Y-%m-%d")
     system = (
         "You are a project scheduling AI. Given a list of unscheduled tasks and team capacity, "
         "produce a realistic schedule starting from today. "
@@ -1443,18 +887,16 @@ def smart_schedule(
     )
 
     try:
-        response = _call_ai_unified(db, [{"role": "user", "content": user_msg}], system=system, module="smart_schedule", user_id=current_user.id, max_tokens=2000)
+        response = _call_ai_unified(db, [{"role": "user", "content": user_msg}], system=system,
+                                    module="smart_schedule", user_id=current_user.id, max_tokens=2000)
         text = _extract_text(response)
-        # Extract JSON from response
         import re as _re
+        import json as _json
         match = _re.search(r'\[.*\]', text, _re.DOTALL)
-        if match:
-            import json as _json
-            scheduled = _json.loads(match.group(0))
-        else:
-            scheduled = []
+        scheduled = _json.loads(match.group(0)) if match else []
     except Exception as exc:
-        return {"scheduled": [], "error": str(exc), "message": "AI scheduling failed — configure ANTHROPIC_API_KEY or OPENAI_API_KEY"}
+        return {"scheduled": [], "error": str(exc),
+                "message": "AI scheduling failed — configure ANTHROPIC_API_KEY or OPENAI_API_KEY"}
 
     return {"scheduled": scheduled, "unscheduled_count": len(unscheduled), "capacity_summary": capacity[:10]}
 
@@ -1464,127 +906,13 @@ def smart_schedule(
 class OverrunPredictionOut(BaseModel):
     project_id:             str
     project_name:           str
-    cost_overrun_prob:      float   # 0–1
-    schedule_overrun_prob:  float   # 0–1
-    cost_overrun_pct:       float   # estimated magnitude (% over budget)
-    schedule_overrun_days:  int     # estimated extra days
-    confidence:             str     # "low" | "medium" | "high"
-    signals:                list    # list of contributing factors
+    cost_overrun_prob:      float
+    schedule_overrun_prob:  float
+    cost_overrun_pct:       float
+    schedule_overrun_days:  int
+    confidence:             str
+    signals:                list
     recommendation:         str
-
-
-def _predict_overrun_ml(
-    cpi: float, spi: float,
-    budget_used_pct: float, elapsed_pct: float,
-    task_completion_pct: float,
-    overdue_task_ratio: float,
-    team_load_pct: float,
-) -> dict:
-    """
-    Heuristic ensemble model for overrun prediction.
-    Uses multiple evidence signals, weighs them and produces calibrated probabilities.
-    Designed to approximate a logistic regression trained on PSA project data.
-    """
-    signals = []
-    cost_score = 0.0
-    sched_score = 0.0
-
-    # Signal 1: CPI < 1 → cost overrun risk
-    if cpi < 0.7:
-        cost_score += 0.45
-        signals.append({"signal": "CPI crítico", "value": round(cpi, 2), "weight": 0.45, "type": "cost"})
-    elif cpi < 0.85:
-        cost_score += 0.25
-        signals.append({"signal": "CPI bajo", "value": round(cpi, 2), "weight": 0.25, "type": "cost"})
-    elif cpi < 1.0:
-        cost_score += 0.10
-        signals.append({"signal": "CPI ligeramente bajo", "value": round(cpi, 2), "weight": 0.10, "type": "cost"})
-
-    # Signal 2: SPI < 1 → schedule overrun risk
-    if spi < 0.65:
-        sched_score += 0.5
-        signals.append({"signal": "SPI crítico (muy retrasado)", "value": round(spi, 2), "weight": 0.5, "type": "schedule"})
-    elif spi < 0.8:
-        sched_score += 0.3
-        signals.append({"signal": "SPI bajo", "value": round(spi, 2), "weight": 0.3, "type": "schedule"})
-    elif spi < 0.95:
-        sched_score += 0.15
-        signals.append({"signal": "SPI moderadamente bajo", "value": round(spi, 2), "weight": 0.15, "type": "schedule"})
-
-    # Signal 3: Budget burn vs elapsed time
-    burn_delta = budget_used_pct - elapsed_pct
-    if burn_delta > 20:
-        cost_score += 0.3
-        signals.append({"signal": "Quema de presupuesto avanzada vs tiempo", "value": round(burn_delta, 1), "weight": 0.3, "type": "cost"})
-    elif burn_delta > 10:
-        cost_score += 0.15
-        signals.append({"signal": "Quema de presupuesto algo elevada", "value": round(burn_delta, 1), "weight": 0.15, "type": "cost"})
-
-    # Signal 4: Task completion vs elapsed time
-    completion_gap = elapsed_pct - task_completion_pct
-    if completion_gap > 25:
-        sched_score += 0.35
-        signals.append({"signal": "Tareas retrasadas respecto al avance temporal", "value": round(completion_gap, 1), "weight": 0.35, "type": "schedule"})
-    elif completion_gap > 10:
-        sched_score += 0.15
-        signals.append({"signal": "Leve retraso en finalización de tareas", "value": round(completion_gap, 1), "weight": 0.15, "type": "schedule"})
-
-    # Signal 5: High overdue task ratio
-    if overdue_task_ratio > 0.4:
-        sched_score += 0.25
-        cost_score  += 0.1
-        signals.append({"signal": "Alto porcentaje de tareas vencidas", "value": f"{overdue_task_ratio*100:.0f}%", "weight": 0.25, "type": "both"})
-    elif overdue_task_ratio > 0.2:
-        sched_score += 0.1
-        signals.append({"signal": "Tareas vencidas moderadas", "value": f"{overdue_task_ratio*100:.0f}%", "weight": 0.1, "type": "schedule"})
-
-    # Signal 6: Team overload
-    if team_load_pct > 110:
-        cost_score  += 0.15
-        sched_score += 0.2
-        signals.append({"signal": "Equipo sobrecargado (burnout risk)", "value": f"{team_load_pct:.0f}%", "weight": 0.15, "type": "both"})
-
-    # Cap at 0.97
-    cost_prob  = min(round(cost_score,  2), 0.97)
-    sched_prob = min(round(sched_score, 2), 0.97)
-
-    # Magnitude estimates
-    cost_overrun_pct = 0.0
-    if cpi > 0 and cpi < 1:
-        # EAC-based estimate: (1/CPI - 1) * 100 = % over budget
-        cost_overrun_pct = round((1/cpi - 1) * 100 * budget_used_pct / 100, 1)
-
-    sched_overrun_days = 0
-    if spi > 0 and spi < 1:
-        # Rough: (1/SPI - 1) * elapsed_pct/100 * estimated_duration
-        # We can only compute a ratio; caller provides context
-        sched_overrun_days = max(0, int((1/spi - 1) * 30))  # 30-day proxy
-
-    # Confidence based on data availability
-    n_signals = len(signals)
-    confidence = "high" if n_signals >= 4 else ("medium" if n_signals >= 2 else "low")
-
-    # Recommendation
-    if cost_prob > 0.6 and sched_prob > 0.6:
-        rec = "Revisión ejecutiva urgente: alto riesgo de sobrecosto y retraso. Considera replanning o recorte de alcance."
-    elif cost_prob > 0.5:
-        rec = "Revisar coste: CPI bajo indica gasto mayor que lo planificado. Optimiza asignaciones."
-    elif sched_prob > 0.5:
-        rec = "Revisar cronograma: SPI bajo y tareas vencidas. Considera aumentar capacidad o reducir alcance."
-    elif cost_prob + sched_prob < 0.3:
-        rec = "Proyecto dentro de parámetros normales. Mantén el seguimiento semanal."
-    else:
-        rec = "Señales de alerta moderadas. Monitorea KPIs semana a semana."
-
-    return {
-        "cost_overrun_prob":     cost_prob,
-        "schedule_overrun_prob": sched_prob,
-        "cost_overrun_pct":      cost_overrun_pct,
-        "schedule_overrun_days": sched_overrun_days,
-        "confidence":            confidence,
-        "signals":               signals,
-        "recommendation":        rec,
-    }
 
 
 @router.post("/overrun-prediction", summary="Predicción de sobrecosto/retraso por proyecto")
@@ -1593,22 +921,12 @@ def overrun_prediction(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    """
-    Ensemble heuristic model to predict cost and schedule overrun probability.
-    Uses real project data: EVM KPIs (CPI/SPI), task completion, overdue tasks,
-    budget burn rate, and team load.
-
-    Returns:
-      cost_overrun_prob (0-1), schedule_overrun_prob (0-1),
-      estimated magnitude, confidence level, feature signals, and recommendation.
-    """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
 
     today = date.today()
 
-    # ── EVM inputs ──────────────────────────────────────────────────────────────
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
         raise HTTPException(422, "El proyecto no tiene tareas; sin datos suficientes para predicción.")
@@ -1621,14 +939,12 @@ def overrun_prediction(
     task_completion_pct = done_tasks / total_tasks * 100 if total_tasks > 0 else 0
     overdue_ratio       = overdue_tasks / total_tasks if total_tasks > 0 else 0
 
-    # Budget utilization
-    budget  = float(project.budget_amount or 0)
+    budget      = float(project.budget_amount or 0)
     actual_cost = float(
         db.query(func.sum(Imputation.hours * 1)).filter(
             Imputation.project_id == project_id
         ).scalar() or 0
     )
-    # Use cost_amount if available, else hours as proxy
     actual_cost_full = float(
         db.query(func.sum(Imputation.cost_amount)).filter(
             Imputation.project_id == project_id,
@@ -1637,7 +953,6 @@ def overrun_prediction(
     )
     budget_used_pct = (actual_cost_full / budget * 100) if budget > 0 else 0
 
-    # Elapsed time %
     start = project.start_date
     end   = project.end_date_planned
     if start and end and end > start:
@@ -1645,19 +960,17 @@ def overrun_prediction(
         elapsed_days = min((today - start).days, total_days)
         elapsed_pct  = elapsed_days / total_days * 100
     else:
-        elapsed_pct = task_completion_pct  # fallback
+        elapsed_pct = task_completion_pct
 
-    # EVM: EV / PV / CPI / SPI
     budget_per_task = budget / total_tasks if budget > 0 and total_tasks > 0 else 0
     ev = budget_per_task * done_tasks
     pv = budget * elapsed_pct / 100 if budget > 0 else 0
     ac = actual_cost_full
 
-    cpi = ev / ac  if ac > 0 else 1.0
-    spi = ev / pv  if pv > 0 else 1.0
+    cpi = ev / ac if ac > 0 else 1.0
+    spi = ev / pv if pv > 0 else 1.0
 
-    # Team load (from resource_forecast helper if available)
-    team_load_pct = 85.0  # default neutral
+    team_load_pct = 85.0
 
     result = _predict_overrun_ml(
         cpi=cpi, spi=spi,
@@ -1679,4 +992,3 @@ def overrun_prediction(
         "overdue_task_ratio":    round(overdue_ratio, 3),
         **result,
     }
-
