@@ -33,7 +33,7 @@ def get_global_kpis(db: Session):
     from app.models.task import Task, TaskStatus
     from app.models.user import User, UserStatus
     from app.models.alert import Alert
-    from app.schemas.schemas import DashboardKPIs
+    from app.schemas import DashboardKPIs
 
     cache_key = date.today().isoformat()
     with _kpi_cache_lock:
@@ -169,7 +169,7 @@ def get_projects_health(db: Session) -> list:
     from app.models.imputation import Imputation
     from app.models.task import Task, TaskStatus
     from app.models.alert import Alert
-    from app.schemas.schemas import ProjectHealthItem
+    from app.schemas import ProjectHealthItem
 
     projects = db.query(Project).filter(Project.status == ProjectStatus.active).all()
     if not projects:
@@ -257,7 +257,7 @@ def get_resource_load(
     from app.models.user import User, UserStatus
     from app.models.imputation import Imputation
     from app.models.task import Task, TaskStatus
-    from app.schemas.schemas import ResourceLoadItem
+    from app.schemas import ResourceLoadItem
 
     if not week_start:
         today = date.today()

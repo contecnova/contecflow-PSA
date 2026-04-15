@@ -499,7 +499,7 @@ def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict
 
 def get_week_summary(week_start: Optional[date], current_user: User, db: Session) -> dict:
     from app.models.imputation import Imputation
-    from app.schemas.schemas import WeekSummary
+    from app.schemas import WeekSummary
 
     if not week_start:
         today = date.today()

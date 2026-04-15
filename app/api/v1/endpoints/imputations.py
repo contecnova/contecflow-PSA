@@ -7,7 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.imputation import Imputation
-from app.schemas.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
+from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
 from app.services.psa_flows import approve_imputation_flow
 from app.services.imputation_service import (

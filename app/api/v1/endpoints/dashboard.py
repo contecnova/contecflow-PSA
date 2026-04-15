@@ -6,7 +6,7 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User
-from app.schemas.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
+from app.schemas import DashboardKPIs, ProjectHealthItem, ResourceLoadItem
 from app.services.dashboard_service import (
     get_global_kpis,
     get_projects_health,

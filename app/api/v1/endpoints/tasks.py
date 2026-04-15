@@ -12,7 +12,7 @@ from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority, TaskComment
 from app.models.project import Project
-from app.schemas.schemas import (
+from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
 from app.services.task_service import (

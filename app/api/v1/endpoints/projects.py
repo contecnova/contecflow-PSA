@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.project import Project, ProjectStatus, ProjectType
-from app.schemas.schemas import (
+from app.schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut, ProjectSummary, ProjectPhaseCreate, ProjectPhaseOut
 )
 from app.services.project_service import (
@@ -190,7 +190,7 @@ def get_project_team(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.schemas.schemas import UserPublic
+    from app.schemas import UserPublic
     return [UserPublic.model_validate(m) for m in get_project_team_users(db, project_id)]
 
 

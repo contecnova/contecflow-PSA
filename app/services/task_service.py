@@ -221,7 +221,7 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
     from fastapi import HTTPException
     from app.models.task import Task, TaskStatus, TaskOut
     from app.models.user import UserRole
-    from app.schemas.schemas import TaskOut as TaskOutSchema
+    from app.schemas import TaskOut as TaskOutSchema
     from sqlalchemy.orm import joinedload
 
     project = project_for_user(db, project_id, current_user)
