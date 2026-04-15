@@ -51,6 +51,9 @@ from app.schemas.billing_reports import (
     WorkflowCreate,
     TemplateCreate,
     ScheduledReportCreate,
+    InvoiceOut,
+    InvoiceSummaryOut,
+    OkResponse,
 )
 
 router = APIRouter()
@@ -690,7 +693,7 @@ def _invoice_out(inv: Invoice) -> dict:
     }
 
 
-@router.get("/invoices", summary="Listar facturas")
+@router.get("/invoices", response_model=List[InvoiceOut], summary="Listar facturas")
 def list_invoices(
     project_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -720,7 +723,7 @@ def invoice_from_timesheets(
     )
 
 
-@router.post("/invoices", summary="Crear factura")
+@router.post("/invoices", response_model=InvoiceOut, status_code=201, summary="Crear factura")
 def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
@@ -857,7 +860,7 @@ def download_invoice_pdf(
     )
 
 
-@router.get("/invoices/summary", summary="Resumen financiero de facturas")
+@router.get("/invoices/summary", response_model=InvoiceSummaryOut, summary="Resumen financiero de facturas")
 def invoice_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),

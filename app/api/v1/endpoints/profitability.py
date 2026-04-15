@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from datetime import date, timedelta
 from pydantic import BaseModel
 
@@ -44,6 +44,95 @@ class MilestoneUpdate(BaseModel):
     name: Optional[str] = None
     due_date: Optional[date] = None
     billing_amount: Optional[float] = None
+
+
+# ── Profitability output schemas ───────────────────────────────────────────────
+
+class ByPersonOut(BaseModel):
+    user_id: str
+    user_name: str
+    hours: float
+    cost: float
+    billing: float
+
+
+class ByWeekOut(BaseModel):
+    week: str
+    hours: float
+    cost: float
+
+
+class MilestoneSummaryOut(BaseModel):
+    id: str
+    name: str
+    due_date: Optional[str] = None
+    completed_date: Optional[str] = None
+    billing_amount: Optional[float] = None
+    billing_pct: Optional[float] = None
+    is_completed: bool = False
+    is_billed: bool = False
+    billed_at: Optional[str] = None
+
+
+class ProjectProfitabilityOut(BaseModel):
+    project_id: str
+    project_code: str
+    project_name: str
+    client_name: Optional[str] = None
+    department: Optional[str] = None
+    status: str
+    billing_type: str
+    is_billable: Optional[bool] = None
+    # Hours
+    total_hours: float
+    billable_hours: float
+    budget_hours: Optional[float] = None
+    hours_used_pct: Optional[float] = None
+    # Money
+    internal_cost: float
+    billing_revenue: float
+    gross_margin: float
+    margin_pct: float
+    budget_amount: Optional[float] = None
+    contract_amount: Optional[float] = None
+    budget_used_pct: float
+    forecast_cost: float
+    # Rates
+    billing_rate: Optional[float] = None
+    avg_cost_rate: float
+    # EVM
+    progress_pct: float
+    pv: Optional[float] = None
+    ev: float
+    ac: float
+    cpi: Optional[float] = None
+    spi: Optional[float] = None
+    cv: float
+    sv: Optional[float] = None
+    evm_no_schedule: bool = False
+    eac: float
+    etc: float
+    vac: float
+    margin_at_completion: float
+    risk_flag: str
+    # Detail-only fields (absent in summary list)
+    by_person: List[ByPersonOut] = []
+    by_week: List[ByWeekOut] = []
+    milestones: List[MilestoneSummaryOut] = []
+
+
+class PortfolioOut(BaseModel):
+    total_revenue: float
+    total_cost: float
+    total_margin: float
+    margin_pct: float
+    project_count: int
+    billable_projects: int
+
+
+class ProfitabilitySummaryOut(BaseModel):
+    projects: List[ProjectProfitabilityOut]
+    portfolio: PortfolioOut
 
 
 def _norm_currency(code: Optional[str]) -> str:
@@ -329,7 +418,7 @@ def _calc_project_profitability(
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/summary", summary="Rentabilidad de todos los proyectos")
+@router.get("/summary", response_model=ProfitabilitySummaryOut, summary="Rentabilidad de todos los proyectos")
 def get_profitability_summary(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -393,7 +482,7 @@ def get_profitability_summary(
     }
 
 
-@router.get("/{project_id}", summary="Rentabilidad detallada de un proyecto")
+@router.get("/{project_id}", response_model=ProjectProfitabilityOut, summary="Rentabilidad detallada de un proyecto")
 def get_project_profitability(
     project_id: str,
     db: Session = Depends(get_db),
@@ -513,7 +602,7 @@ def get_project_profitability(
 
 # ── Milestones ────────────────────────────────────────────────────────────────
 
-@router.get("/{project_id}/milestones", summary="Hitos de un proyecto")
+@router.get("/{project_id}/milestones", response_model=List[MilestoneOut], summary="Hitos de un proyecto")
 def get_milestones(
     project_id: str,
     db: Session = Depends(get_db),
@@ -522,15 +611,10 @@ def get_milestones(
     milestones = db.query(ProjectMilestone).filter(
         ProjectMilestone.project_id == project_id
     ).order_by(ProjectMilestone.sort_order).all()
-    return [{"id": m.id, "name": m.name, "description": m.description,
-             "due_date": str(m.due_date) if m.due_date else None,
-             "completed_date": str(m.completed_date) if m.completed_date else None,
-             "billing_amount": m.billing_amount, "billing_pct": m.billing_pct,
-             "is_billed": m.is_billed, "billed_at": str(m.billed_at) if m.billed_at else None,
-             "is_completed": m.is_completed, "sort_order": m.sort_order} for m in milestones]
+    return milestones
 
 
-@router.post("/{project_id}/milestones", summary="Crear hito")
+@router.post("/{project_id}/milestones", response_model=MilestoneOut, status_code=201, summary="Crear hito")
 def create_milestone(
     project_id: str,
     payload: MilestoneIn,
@@ -544,7 +628,7 @@ def create_milestone(
     return m
 
 
-@router.patch("/{project_id}/milestones/{milestone_id}", summary="Actualizar hito")
+@router.patch("/{project_id}/milestones/{milestone_id}", response_model=MilestoneOut, summary="Actualizar hito")
 def update_milestone(
     project_id: str,
     milestone_id: str,

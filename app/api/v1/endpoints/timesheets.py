@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from typing import Optional
+from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone
 from pydantic import BaseModel
 
@@ -68,7 +68,7 @@ def _sync_timesheet(db: Session, user_id: str, week_start: date) -> Timesheet:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/my", summary="Mis timesheets")
+@router.get("/my", response_model=List[TimesheetOut], summary="Mis timesheets")
 def get_my_timesheets(
     weeks: int = Query(8, ge=1, le=52),
     db: Session = Depends(get_db),
@@ -81,14 +81,15 @@ def get_my_timesheets(
         ts = _sync_timesheet(db, current_user.id, ws)
         results.append({
             "id": ts.id,
-            "week_start": str(ts.week_start),
-            "week_end": str(ts.week_end),
+            "user_id": ts.user_id,
+            "week_start": ts.week_start,
+            "week_end": ts.week_end,
             "status": ts.status,
             "total_hours": ts.total_hours,
             "billable_hours": ts.billable_hours,
             "total_cost": ts.total_cost,
-            "submitted_at": str(ts.submitted_at) if ts.submitted_at else None,
-            "reviewed_at": str(ts.reviewed_at) if ts.reviewed_at else None,
+            "submitted_at": ts.submitted_at,
+            "reviewed_at": ts.reviewed_at,
             "review_notes": ts.review_notes,
         })
     return results
@@ -132,7 +133,7 @@ def submit_timesheet(
     return {"message": "Timesheet enviado para aprobación", "status": ts.status}
 
 
-@router.get("/pending", summary="Timesheets pendientes de revisión (managers)")
+@router.get("/pending", response_model=List[TimesheetOut], summary="Timesheets pendientes de revisión (managers)")
 def get_pending_timesheets(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -145,19 +146,19 @@ def get_pending_timesheets(
 
     return [{
         "id": ts.id,
-        "week_start": str(ts.week_start),
-        "week_end": str(ts.week_end),
+        "user_id": ts.user_id,
+        "week_start": ts.week_start,
+        "week_end": ts.week_end,
         "status": ts.status,
         "total_hours": ts.total_hours,
         "billable_hours": ts.billable_hours,
         "total_cost": ts.total_cost,
-        "user_id": ts.user_id,
         "user_name": ts.user.full_name if ts.user else "—",
-        "submitted_at": str(ts.submitted_at) if ts.submitted_at else None,
+        "submitted_at": ts.submitted_at,
     } for ts in ts_list]
 
 
-@router.get("/team", summary="Todos los timesheets del equipo")
+@router.get("/team", response_model=List[TimesheetOut], summary="Todos los timesheets del equipo")
 def get_team_timesheets(
     week_start: Optional[date] = None,
     user_id: Optional[str] = None,
@@ -177,16 +178,16 @@ def get_team_timesheets(
 
     return [{
         "id": ts.id,
-        "week_start": str(ts.week_start),
-        "week_end": str(ts.week_end),
+        "user_id": ts.user_id,
+        "week_start": ts.week_start,
+        "week_end": ts.week_end,
         "status": ts.status,
         "total_hours": ts.total_hours,
         "billable_hours": ts.billable_hours,
         "total_cost": ts.total_cost,
-        "user_id": ts.user_id,
         "user_name": ts.user.full_name if ts.user else "—",
-        "submitted_at": str(ts.submitted_at) if ts.submitted_at else None,
-        "reviewed_at": str(ts.reviewed_at) if ts.reviewed_at else None,
+        "submitted_at": ts.submitted_at,
+        "reviewed_at": ts.reviewed_at,
         "review_notes": ts.review_notes,
     } for ts in ts_list]
 

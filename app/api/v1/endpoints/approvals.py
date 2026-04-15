@@ -7,7 +7,7 @@ Flujo: request → step 1 → step 2 → ... → step N → decision final
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
 import logging
@@ -17,6 +17,13 @@ from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole
 from app.services.grc_sod import record_self_approval_violation_for_request
 from app.services.approval_workflows import find_default_workflow
+from app.schemas.billing_reports import (
+    WorkflowOut,
+    WorkflowStepOut,
+    ApprovalRequestOut,
+    ApprovalStatsOut,
+    OkResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +163,7 @@ def _notify_approver(request, step, db: Session, explicit_user_id: Optional[str]
 
 
 # ── CRUD Workflows ─────────────────────────────────────────────────────────────
-@router.get("/workflows", summary="Listar flujos de aprobación")
+@router.get("/workflows", response_model=List[WorkflowOut], summary="Listar flujos de aprobación")
 def list_workflows(
     entity_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -169,7 +176,7 @@ def list_workflows(
     return [_workflow_out(w, include_steps=True) for w in q.order_by(ApprovalWorkflow.entity_type).all()]
 
 
-@router.post("/workflows", summary="Crear flujo de aprobación")
+@router.post("/workflows", response_model=WorkflowOut, status_code=201, summary="Crear flujo de aprobación")
 def create_workflow(
     payload: WorkflowIn,
     db: Session = Depends(get_db),
@@ -186,7 +193,7 @@ def create_workflow(
     return _workflow_out(w, include_steps=True)
 
 
-@router.get("/workflows/{workflow_id}", summary="Detalle de flujo")
+@router.get("/workflows/{workflow_id}", response_model=WorkflowOut, summary="Detalle de flujo")
 def get_workflow(
     workflow_id: str,
     db: Session = Depends(get_db),
@@ -198,7 +205,7 @@ def get_workflow(
     return _workflow_out(w, include_steps=True)
 
 
-@router.patch("/workflows/{workflow_id}", summary="Actualizar flujo")
+@router.patch("/workflows/{workflow_id}", response_model=WorkflowOut, summary="Actualizar flujo")
 def update_workflow(
     workflow_id: str,
     payload: dict = Body(...),
@@ -215,7 +222,7 @@ def update_workflow(
     return _workflow_out(w, include_steps=True)
 
 
-@router.delete("/workflows/{workflow_id}", summary="Eliminar flujo")
+@router.delete("/workflows/{workflow_id}", response_model=OkResponse, summary="Eliminar flujo")
 def delete_workflow(
     workflow_id: str,
     db: Session = Depends(get_db),
@@ -229,7 +236,7 @@ def delete_workflow(
 
 
 # ── CRUD Steps ─────────────────────────────────────────────────────────────────
-@router.post("/workflows/{workflow_id}/steps", summary="Añadir paso al flujo")
+@router.post("/workflows/{workflow_id}/steps", response_model=WorkflowStepOut, status_code=201, summary="Añadir paso al flujo")
 def add_step(
     workflow_id: str,
     payload: StepIn,
@@ -245,7 +252,7 @@ def add_step(
     return _step_out(s)
 
 
-@router.patch("/workflows/{workflow_id}/steps/{step_id}", summary="Actualizar paso")
+@router.patch("/workflows/{workflow_id}/steps/{step_id}", response_model=WorkflowStepOut, summary="Actualizar paso")
 def update_step(
     workflow_id: str, step_id: str,
     payload: dict = Body(...),
@@ -268,7 +275,7 @@ def update_step(
     return _step_out(s)
 
 
-@router.delete("/workflows/{workflow_id}/steps/{step_id}", summary="Eliminar paso")
+@router.delete("/workflows/{workflow_id}/steps/{step_id}", response_model=OkResponse, summary="Eliminar paso")
 def delete_step(
     workflow_id: str, step_id: str,
     db: Session = Depends(get_db),
@@ -284,7 +291,7 @@ def delete_step(
 
 
 # ── Requests ───────────────────────────────────────────────────────────────────
-@router.get("/requests", summary="Solicitudes de aprobación — mis pendientes")
+@router.get("/requests", response_model=List[ApprovalRequestOut], summary="Solicitudes de aprobación — mis pendientes")
 def list_requests(
     status:      Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
@@ -307,7 +314,7 @@ def list_requests(
     return [_request_out(r) for r in q.order_by(ApprovalRequest.created_at.desc()).limit(100).all()]
 
 
-@router.get("/requests/pending-my-action", summary="Solicitudes que yo debo aprobar ahora")
+@router.get("/requests/pending-my-action", response_model=List[ApprovalRequestOut], summary="Solicitudes que yo debo aprobar ahora")
 def pending_my_action(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -371,7 +378,7 @@ def pending_my_action(
     return result
 
 
-@router.post("/requests", summary="Crear solicitud de aprobación")
+@router.post("/requests", response_model=ApprovalRequestOut, status_code=201, summary="Crear solicitud de aprobación")
 def create_request(
     payload: ApprovalRequestIn,
     db: Session = Depends(get_db),
@@ -413,7 +420,7 @@ def create_request(
     return _request_out(req)
 
 
-@router.post("/requests/{request_id}/decide", summary="Aprobar, rechazar o delegar un paso")
+@router.post("/requests/{request_id}/decide", response_model=ApprovalRequestOut, summary="Aprobar, rechazar o delegar un paso")
 def decide_request(
     request_id: str,
     payload: DecisionIn,
@@ -543,7 +550,7 @@ def decide_request(
     return _request_out(req)
 
 
-@router.post("/requests/{request_id}/cancel", summary="Cancelar solicitud")
+@router.post("/requests/{request_id}/cancel", response_model=OkResponse, summary="Cancelar solicitud")
 def cancel_request(
     request_id: str,
     db: Session = Depends(get_db),
@@ -561,7 +568,7 @@ def cancel_request(
 
 
 # ── Stats ──────────────────────────────────────────────────────────────────────
-@router.get("/stats", summary="Estadísticas de aprobaciones")
+@router.get("/stats", response_model=ApprovalStatsOut, summary="Estadísticas de aprobaciones")
 def approval_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
