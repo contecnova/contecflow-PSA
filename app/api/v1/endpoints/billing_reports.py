@@ -11,7 +11,7 @@ billing_reports — — all new v12 features:
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 from datetime import date, datetime, timedelta, timezone
 import json
 import csv
@@ -53,6 +53,14 @@ from app.schemas.billing_reports import (
     ScheduledReportCreate,
     InvoiceOut,
     InvoiceSummaryOut,
+    InvoiceStatusUpdateOut,
+    ReportSaveOut,
+    ImportTemplateOut,
+    ImportValidateOut,
+    ImportExecuteOut,
+    SlaDashboardOut,
+    AgentPerformanceOut,
+    SlaPauseResumeOut,
     OkResponse,
 )
 
@@ -376,7 +384,7 @@ def _run_system_report(db, report_id, filters, date_from, date_to):
     return _run_projects_report(db, filters, None, df, dt)
 
 
-@router.post("/report-catalog/save", summary="Guardar informe personalizado")
+@router.post("/report-catalog/save", response_model=ReportSaveOut, summary="Guardar informe personalizado")
 def save_report(
     payload: ReportSave,
     db: Session = Depends(get_db),
@@ -398,7 +406,7 @@ def save_report(
     return {"ok": True, "id": r.id}
 
 
-@router.delete("/report-catalog/{report_id}", summary="Eliminar informe guardado")
+@router.delete("/report-catalog/{report_id}", response_model=OkResponse, summary="Eliminar informe guardado")
 def delete_report(
     report_id: str,
     db: Session = Depends(get_db),
@@ -442,7 +450,7 @@ IMPORT_TEMPLATES = {
 }
 
 
-@router.get("/import/template/{entity_type}", summary="Plantilla CSV para importación")
+@router.get("/import/template/{entity_type}", response_model=ImportTemplateOut, summary="Plantilla CSV para importación")
 def get_import_template(
     entity_type: str,
     current_user: User = Depends(require_any_manager),
@@ -458,7 +466,7 @@ def get_import_template(
     }
 
 
-@router.post("/import/validate", summary="Validar CSV antes de importar")
+@router.post("/import/validate", response_model=ImportValidateOut, summary="Validar CSV antes de importar")
 def validate_import(
     entity_type: str,
     file: UploadFile = File(...),
@@ -517,7 +525,7 @@ def validate_import(
     }
 
 
-@router.post("/import/execute", summary="Ejecutar importación masiva")
+@router.post("/import/execute", response_model=ImportExecuteOut, summary="Ejecutar importación masiva")
 def execute_import(
     entity_type: str,
     file: UploadFile = File(...),
@@ -707,7 +715,7 @@ def list_invoices(
     return [_invoice_out(i) for i in invoices]
 
 
-@router.post("/invoices/from-timesheets", summary="Generar factura desde timesheets aprobados")
+@router.post("/invoices/from-timesheets", response_model=Dict[str, Any], summary="Generar factura desde timesheets aprobados")
 def invoice_from_timesheets(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
@@ -784,7 +792,7 @@ def create_invoice(
     return _invoice_out(inv)
 
 
-@router.patch("/invoices/{invoice_id}/status", summary="Cambiar estado de factura")
+@router.patch("/invoices/{invoice_id}/status", response_model=InvoiceStatusUpdateOut, summary="Cambiar estado de factura")
 def update_invoice_status(
     invoice_id: str,
     payload: dict = Body(...),
@@ -888,7 +896,7 @@ def invoice_summary(
 # ITSM ADVANCED METRICS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/itsm-metrics/sla-dashboard", summary="Dashboard SLA en tiempo real")
+@router.get("/itsm-metrics/sla-dashboard", response_model=SlaDashboardOut, summary="Dashboard SLA en tiempo real")
 def sla_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -953,7 +961,7 @@ def sla_dashboard(
     }
 
 
-@router.get("/itsm-metrics/agent-performance", summary="Rendimiento por agente")
+@router.get("/itsm-metrics/agent-performance", response_model=List[AgentPerformanceOut], summary="Rendimiento por agente")
 def agent_performance(
     days: int = Query(30),
     db: Session = Depends(get_db),
@@ -1025,7 +1033,7 @@ def _business_minutes_between(start: datetime, end: datetime) -> int:
     return total
 
 
-@router.post("/itsm-metrics/pause-sla/{ticket_id}", summary="Pausar/reanudar SLA (pendiente cliente)")
+@router.post("/itsm-metrics/pause-sla/{ticket_id}", response_model=SlaPauseResumeOut, summary="Pausar/reanudar SLA (pendiente cliente)")
 def pause_resume_sla(
     ticket_id: str,
     payload: dict = Body(...),

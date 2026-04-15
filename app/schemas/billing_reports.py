@@ -67,6 +67,11 @@ class InvoiceSummaryOut(BaseModel):
     overdue_amount: float
 
 
+class InvoiceStatusUpdateOut(BaseModel):
+    ok: bool
+    status: str
+
+
 # ── Approval workflow output schemas ───────────────────────────────────────────
 
 class WorkflowStepOut(BaseModel):
@@ -133,6 +138,106 @@ class ApprovalStatsOut(BaseModel):
     approved: int
     rejected: int
     by_entity_type: Dict[str, int] = {}
+
+
+# ── Report / Import / ITSM output schemas ─────────────────────────────────────
+
+class ReportSaveOut(BaseModel):
+    ok: bool
+    id: str
+
+
+class ImportTemplateOut(BaseModel):
+    entity_type: str
+    columns: List[str]
+    example: List[List[str]] = []
+    instructions: str
+
+
+class ImportValidationErrorOut(BaseModel):
+    row: int
+    field: str
+    error: str
+
+
+class ImportValidateOut(BaseModel):
+    valid: bool
+    total_rows: int
+    errors: List[ImportValidationErrorOut] = []
+    warnings: List[str] = []
+    preview: List[Dict[str, Any]] = []
+
+
+class ImportExecuteOut(BaseModel):
+    job_id: str
+    status: str
+    total: int
+    succeeded: int
+    failed: int
+    errors: List[Dict[str, Any]] = []
+
+
+class SlaTicketMiniOut(BaseModel):
+    id: str
+    number: Optional[str] = None
+    title: str
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    sla_due: Optional[str] = None
+    breach_minutes: Optional[int] = None
+    remaining_minutes: Optional[int] = None
+    requester: Optional[str] = None
+
+
+class SlaPriorityComplianceOut(BaseModel):
+    total: int
+    breached: int
+    compliance_pct: float
+
+
+class SlaRealTimeOut(BaseModel):
+    open: int
+    breached: int
+    at_risk_2h: int
+    at_risk_4h: int
+    healthy: int
+
+
+class SlaHeatmapPointOut(BaseModel):
+    day: int
+    hour: int
+    count: int
+
+
+class SlaDashboardOut(BaseModel):
+    real_time: SlaRealTimeOut
+    breached_tickets: List[SlaTicketMiniOut] = []
+    at_risk_tickets: List[SlaTicketMiniOut] = []
+    compliance_by_priority: Dict[str, SlaPriorityComplianceOut] = {}
+    volume_heatmap: List[SlaHeatmapPointOut] = []
+
+
+class AgentPerformanceOut(BaseModel):
+    user_id: str
+    user_name: str
+    total: int
+    resolved: int
+    breached: int
+    total_mttr: float
+    csat_sum: float
+    csat_count: int
+    open: int
+    avg_mttr_hours: float
+    avg_csat: Optional[float] = None
+    sla_compliance_pct: float
+    resolution_rate_pct: float
+
+
+class SlaPauseResumeOut(BaseModel):
+    ok: bool
+    message: str
+    sla_resolution_due: Optional[str] = None
 
 
 # ── Report ─────────────────────────────────────────────────────────────────────
