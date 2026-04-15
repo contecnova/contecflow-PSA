@@ -4,6 +4,7 @@
  * Uso: const toast = useToast(); toast.success('Guardado'); toast.error('Error')
  */
 import { createContext, useContext, useState, useCallback, useRef } from 'react'
+import { useAppT } from '../i18n/AppLangContext'
 
 const ToastContext = createContext(null)
 
@@ -24,6 +25,7 @@ const COLORS = {
 let _id = 0
 
 export function ToastProvider({ children }) {
+  const t = useAppT()
   const [toasts, setToasts] = useState([])
   const timers = useRef({})
 
@@ -38,11 +40,11 @@ export function ToastProvider({ children }) {
     let msg = message
     if (Array.isArray(msg)) msg = msg.map(d => d?.msg || String(d)).filter(Boolean).join(' · ')
     else if (msg !== null && typeof msg === 'object') msg = String(msg)
-    else if (msg == null) msg = 'Error inesperado'
+    else if (msg == null) msg = t('toast.unexpected_error')
     setToasts(t => [...t.slice(-4), { id, type, message: String(msg) }])
     timers.current[id] = setTimeout(() => dismiss(id), duration)
     return id
-  }, [dismiss])
+  }, [dismiss, t])
 
   const toast = {
     success: (msg, d) => add('success', msg, d),

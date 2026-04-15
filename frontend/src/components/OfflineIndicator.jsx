@@ -8,8 +8,10 @@
 import { useState, useEffect } from 'react';
 import { pendingCount, syncPending } from '../services/offlineQueue';
 import api from '../services/api';
+import { useAppT } from '../i18n/AppLangContext';
 
 export default function OfflineIndicator() {
+  const t = useAppT();
   const [online, setOnline]   = useState(navigator.onLine);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -78,8 +80,8 @@ export default function OfflineIndicator() {
           gap: 8,
         }}>
           {lastSync.failed
-            ? `⚠ Sincronizados ${lastSync.synced}, fallaron ${lastSync.failed} — ${lastSync.at}`
-            : `✅ ${lastSync.synced} imputaciones sincronizadas — ${lastSync.at}`
+            ? t('offline_indicator.synced_partial', { synced: lastSync.synced, failed: lastSync.failed, at: lastSync.at })
+            : t('offline_indicator.synced_ok', { synced: lastSync.synced, at: lastSync.at })
           }
           <button onClick={() => setLastSync(null)}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 11 }}>
@@ -109,7 +111,7 @@ export default function OfflineIndicator() {
         }} />
 
         <span style={{ fontSize: 12, color: online ? '#68d391' : '#fc8181', fontWeight: 500 }}>
-          {online ? 'En línea' : 'Sin conexión'}
+          {online ? t('offline_indicator.online') : t('offline_indicator.offline')}
         </span>
 
         {pending > 0 && (
@@ -122,7 +124,7 @@ export default function OfflineIndicator() {
               fontSize: 11,
               fontWeight: 700,
             }}>
-              {pending} pendiente{pending !== 1 ? 's' : ''}
+              {t('offline_indicator.pending_label', { count: pending, s: pending !== 1 ? 's' : '' })}
             </span>
 
             {online && (
@@ -139,7 +141,7 @@ export default function OfflineIndicator() {
                   cursor: syncing ? 'wait' : 'pointer',
                   fontFamily: 'inherit',
                 }}>
-                {syncing ? '⏳' : '⚡ Sincronizar'}
+                syncing ? '⏳' : t('offline_indicator.sync_now')}
               </button>
             )}
           </>

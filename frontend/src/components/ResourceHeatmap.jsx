@@ -9,6 +9,7 @@ import api, { projectsApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from './ui'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_COLORS = {
   overloaded: { bg: 'var(--danger-border)', border: 'rgba(248,113,113,0.50)', text: 'var(--danger)', label: 'Sobrecargado' },
@@ -81,7 +82,7 @@ function BookingModal({ onClose, prefill }) {
   }
 
   return (
-    <Modal open title="Nueva reserva de recurso" onClose={onClose} width={480}>
+    <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div><label style={ls}>Persona *</label>
           <select value={form.user_id} onChange={setField('user_id')} style={validation.inputStyle(fs, 'user_id')}>
@@ -131,6 +132,7 @@ function BookingModal({ onClose, prefill }) {
 }
 
 export default function ResourceHeatmap() {
+  const t = useAppT()
   const qc = useQueryClient()
   const [weeks, setWeeks] = useState(8)
   const [showBooking, setShowBooking] = useState(false)
@@ -225,30 +227,30 @@ export default function ResourceHeatmap() {
           </div>
         ))}
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text-2)', marginLeft:8 }}>
-          <div style={{ width:12, height:3, background:BOOKING_COLORS.hard, borderRadius:2 }} /> Hard booking
+          <div style={{ width:12, height:3, background:BOOKING_COLORS.hard, borderRadius:2 }} /> {t('resource_heatmap.hard_booking')}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text-2)' }}>
-          <div style={{ width:12, height:3, background:BOOKING_COLORS.soft, borderRadius:2, borderTop:'1px dashed #7c3aed' }} /> Soft booking
+          <div style={{ width:12, height:3, background:BOOKING_COLORS.soft, borderRadius:2, borderTop:'1px dashed #7c3aed' }} /> {t('resource_heatmap.soft_booking')}
         </div>
       </div>
 
       {/* Bookings panel */}
       {showBookingsPanel && (
         <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
-          <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>Reservas activas</div>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>{t('resource_heatmap.active_bookings')}</div>
           {bookings.length === 0 ? (
-            <EmptyState icon="📅" title="Sin reservas" description="Crea reservas para planificar la carga del equipo" />
+            <EmptyState icon="📅" title={t('resource_heatmap.empty_bookings_title')} description={t('resource_heatmap.empty_bookings_desc')} />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {bookings.map(b => (
                 <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize:12 }}>
                   <span style={{ fontWeight:600 }}>{b.user_name}</span>
                   <span style={{ fontSize:11, fontWeight:700, color:BOOKING_COLORS[b.booking_type], background:BOOKING_COLORS[b.booking_type]+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
-                  <span style={{ color:'var(--text-2)' }}>{b.project_name || 'Sin proyecto'}</span>
+                  <span style={{ color:'var(--text-2)' }}>{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}h/día</span>
                   <span style={{ fontWeight:700 }}>{b.total_hours}h total</span>
-                  <button onClick={() => { openConfirmGlobal({message:'¿Eliminar esta reserva?',onConfirm:()=>deleteBooking(b.id),danger:true}) }}
+                  <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
                     style={{ background:'none', border:'1px solid #ff475730', borderRadius:6, padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize:11 }}>🗑</button>
                 </div>
               ))}
@@ -259,13 +261,13 @@ export default function ResourceHeatmap() {
 
       {/* Heatmap grid */}
       {isLoading ? <Spinner /> : filteredUsers.length === 0 ? (
-        <EmptyState icon="👥" title="Sin datos" description="No hay datos de carga del equipo" />
+        <EmptyState icon="👥" title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
         <div style={{ overflowX:'auto', border:'1px solid #1e2d45', borderRadius:12, background:'var(--surface-1)' }}>
           <div style={{ minWidth: 200 + weekLabels.length * 72 }}>
             {/* Header row */}
             <div style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid #1e2d45' }}>
-              <div style={{ padding:'10px 14px', fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Persona</div>
+              <div style={{ padding:'10px 14px', fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('resource_heatmap.person')}</div>
               {weekLabels.map((label, i) => (
                 <div key={i} style={{ padding:'10px 4px', fontSize:11, color:'var(--text-2)', textAlign:'center', fontFamily:'monospace' }}>{label}</div>
               ))}

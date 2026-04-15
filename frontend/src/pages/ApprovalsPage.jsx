@@ -15,20 +15,20 @@ const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borde
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
-const ENTITY_LABELS = {
-  timesheet:      { label: 'Timesheets',       icon: '🕐', color: 'var(--accent)' },
-  expense:        { label: 'Gastos',            icon: '💶', color: 'var(--warning)' },
-  change_request: { label: 'Cambios (CR)',       icon: '🔄', color: 'var(--purple)' },
-  milestone:      { label: 'Milestones',        icon: '◎',  color: 'var(--success)' },
-  purchase:       { label: 'Compras',           icon: '🛒', color: 'var(--danger)' },
-}
+const entityLabels = (t) => ({
+  timesheet: { label: t('approvals.entity_timesheet'), icon: '🕐', color: 'var(--accent)' },
+  expense: { label: t('approvals.entity_expense'), icon: '💶', color: 'var(--warning)' },
+  change_request: { label: t('approvals.entity_change_request'), icon: '🔄', color: 'var(--purple)' },
+  milestone: { label: t('approvals.entity_milestone'), icon: '◎', color: 'var(--success)' },
+  purchase: { label: t('approvals.entity_purchase'), icon: '🛒', color: 'var(--danger)' },
+})
 
-const APPROVER_TYPE_LABELS = {
-  user:               'Usuario específico',
-  role:               'Por rol',
-  manager:            'Manager del solicitante',
-  any_in_department:  'Cualquiera del departamento',
-}
+const approverTypeLabels = (t) => ({
+  user: t('approvals.approver_user'),
+  role: t('approvals.approver_role'),
+  manager: t('approvals.approver_manager'),
+  any_in_department: t('approvals.approver_any_department'),
+})
 
 const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
 

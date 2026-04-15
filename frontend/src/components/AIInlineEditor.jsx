@@ -20,6 +20,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import api from '../services/api';
+import { useAppT } from '../i18n/AppLangContext';
 
 const COMMANDS = [
   { id: 'completar', label: '✏️ Completar', hint: 'Continúa el texto automáticamente' },
@@ -38,6 +39,7 @@ const PROMPT_MAP = {
 };
 
 export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }) {
+  const t = useAppT();
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
   const [loading, setLoading] = useState(false);    // AI in progress
@@ -123,7 +125,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
 
     const contextText = (before + after).trim();
     if (!contextText && cmd !== 'completar') {
-      setError('El campo está vacío. Escribe algo primero.');
+      setError(t('ai_inline.field_empty'));
       return;
     }
 
@@ -134,7 +136,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
         context_type: 'inline_editor',
       });
       const aiText = res.data?.response || res.data?.message || '';
-      if (!aiText) throw new Error('Respuesta IA vacía');
+      if (!aiText) throw new Error(t('ai_inline.empty_response'));
 
       let newVal;
       if (cmd === 'completar') {
@@ -147,13 +149,13 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       onChange(newVal);
     } catch (err) {
       const _raw = err?.response?.data?.detail
-      const msg = Array.isArray(_raw) ? _raw.map(d => d.msg).join(', ') : (_raw || err.message || 'Error al contactar con la IA');
+      const msg = Array.isArray(_raw) ? _raw.map(d => d.msg).join(', ') : (_raw || err.message || t('ai_inline.contact_error'));
       setError(msg);
     } finally {
       setLoading(false);
       textareaRef.current?.focus();
     }
-  }, [value, slashPos, filter, onChange]);
+  }, [value, slashPos, filter, onChange, t]);
 
   // Close palette on outside click
   useEffect(() => {
@@ -205,7 +207,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
         onKeyDown={handleKeyDown}
         rows={rows}
         aria-label={ariaLabel}
-        placeholder={placeholder || "Escribe '/' para comandos IA..."}
+        placeholder={placeholder || t('ai_inline.default_placeholder')}
         disabled={disabled || loading}
         style={{
           ...baseStyle,
@@ -220,7 +222,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
           position: 'absolute', top: 8, right: 12,
           color: '#63b3ed', fontSize: 13, pointerEvents: 'none',
         }}>
-          ✨ Procesando...
+          {t('ai_inline.processing')}
         </div>
       )}
 
@@ -250,9 +252,9 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
             alignItems: 'center',
             gap: 6,
           }}>
-            ✨ <strong style={{ color: '#90cdf4' }}>Comandos IA</strong>
-            {filter && <span>— buscando &quot;{filter}&quot;</span>}
-            <span style={{ marginLeft: 'auto', fontSize: 10 }}>Esc para cancelar</span>
+            ✨ <strong style={{ color: '#90cdf4' }}>{t('ai_inline.commands_title')}</strong>
+            {filter && <span>- {t('ai_inline.searching')} &quot;{filter}&quot;</span>}
+            <span style={{ marginLeft: 'auto', fontSize: 10 }}>{t('ai_inline.esc_cancel')}</span>
           </div>
           {filtered.map(cmd => (
             <button

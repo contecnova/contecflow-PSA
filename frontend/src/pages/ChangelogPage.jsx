@@ -4,6 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -11,6 +12,7 @@ import { ScrollText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 const TYPE_META = {
   feature:     { label: 'Feature',      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
@@ -29,6 +31,19 @@ const lbStyle = {
   fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
   display: 'block', marginBottom: 5,
 }
+
+const manualEntrySchema = z.object({
+  version_tag: z.string().optional(),
+  entry_date: z.string().min(1, 'La fecha es obligatoria'),
+  entry_type: z.enum(['feature', 'bugfix', 'improvement', 'milestone', 'breaking']),
+  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  description: z.string().optional(),
+})
+
+const generateSchema = z.object({
+  weeks: z.coerce.number().int('Debe ser un numero entero').min(1, 'Minimo 1 semana').max(52, 'Maximo 52 semanas'),
+  version_tag: z.string().optional(),
+})
 
 function EntryCard({ entry, onDelete }) {
   const meta = TYPE_META[entry.entry_type] || TYPE_META.feature
@@ -74,42 +89,51 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
   const toast = useToast()
   const today = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({ version_tag: '', entry_date: today, entry_type: 'feature', title: '', description: '' })
+  const validation = useFormValidation(manualEntrySchema)
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: () => api.post(`/projects/${projectId}/changelog`, form),
-    onSuccess: () => { onSaved(); onClose() },
+    mutationFn: (data) => api.post(`/projects/${projectId}/changelog`, data),
+    onSuccess: () => { validation.setErrors({}); onSaved(); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    save(result.data)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>Versión / etiqueta</label>
-          <input value={form.version_tag} onChange={e => setForm(f => ({ ...f, version_tag: e.target.value }))} style={inputStyle} placeholder="v2.1.0, Sprint 14..." />
+          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder="v2.1.0, Sprint 14..." />
         </div>
         <div>
           <label style={lbStyle}>Fecha</label>
-          <input type="date" value={form.entry_date} onChange={e => setForm(f => ({ ...f, entry_date: e.target.value }))} style={inputStyle} />
+          <input type="date" value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
+          {validation.errors.entry_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.entry_date}</p>}
         </div>
         <div>
           <label style={lbStyle}>Tipo</label>
-          <select value={form.entry_type} onChange={e => setForm(f => ({ ...f, entry_type: e.target.value }))} style={inputStyle}>
+          <select value={form.entry_type} onChange={e => { setForm(f => ({ ...f, entry_type: e.target.value })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
             {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
       </div>
       <div>
         <label style={lbStyle}>Título *</label>
-        <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inputStyle} placeholder="Descripción concisa del cambio..." />
+        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder="Descripción concisa del cambio..." />
+        {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
       </div>
       <div>
         <label style={lbStyle}>Descripción detallada</label>
-        <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Más detalle, impacto, instrucciones de actualización..." />
+        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder="Más detalle, impacto, instrucciones de actualización..." />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={() => save()} disabled={isPending || !form.title}>{isPending ? 'Guardando...' : 'Añadir entrada'}</Button>
+        <Button onClick={submit} disabled={isPending}>{isPending ? 'Guardando...' : 'Añadir entrada'}</Button>
       </div>
     </div>
   )
@@ -119,14 +143,21 @@ function GenerateModal({ projectId, onClose, onSaved }) {
   const toast = useToast()
   const [weeks, setWeeks] = useState(2)
   const [versionTag, setVersionTag] = useState('')
+  const validation = useFormValidation(generateSchema)
 
   const [genResult, setGenResult] = useState(null)
 
   const { mutate: generate, isPending } = useMutation({
-    mutationFn: () => api.post(`/projects/${projectId}/changelog/generate`, { weeks, version_tag: versionTag || null }),
+    mutationFn: ({ weeks: validWeeks, version_tag }) => api.post(`/projects/${projectId}/changelog/generate`, { weeks: validWeeks, version_tag: version_tag || null }),
     onSuccess: (res) => { setGenResult(res.data); onSaved() },
     onError: e => toast.error(extractErr(e, 'Error al generar')),
   })
+
+  const submitGenerate = () => {
+    const result = validation.validateForm({ weeks, version_tag: versionTag })
+    if (!result.success) return
+    generate(result.data)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -137,11 +168,12 @@ function GenerateModal({ projectId, onClose, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>Período (semanas)</label>
-          <input type="number" value={weeks} onChange={e => setWeeks(Number(e.target.value))} min={1} max={52} style={inputStyle} />
+          <input type="number" value={weeks} onChange={e => { setWeeks(e.target.value); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
+          {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
         </div>
         <div>
           <label style={lbStyle}>Versión / etiqueta (opcional)</label>
-          <input value={versionTag} onChange={e => setVersionTag(e.target.value)} style={inputStyle} placeholder="Sprint 14, v1.5.0..." />
+          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder="Sprint 14, v1.5.0..." />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (
@@ -156,7 +188,7 @@ function GenerateModal({ projectId, onClose, onSaved }) {
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>{genResult ? 'Cerrar' : 'Cancelar'}</Button>
-        {!genResult && <Button onClick={() => generate()} disabled={isPending}>{isPending ? 'Generando...' : '🤖 Generar'}</Button>}
+        {!genResult && <Button onClick={submitGenerate} disabled={isPending}>{isPending ? 'Generando...' : '🤖 Generar'}</Button>}
       </div>
     </div>
   )

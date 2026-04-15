@@ -9,9 +9,9 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
 const SEVERITY_CONFIG = {
-  critical: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', dot: 'var(--danger)', label: 'Crítica' },
-  warning:  { bg: 'var(--warning-bg)', border: 'var(--warning-border)', dot: 'var(--warning)', label: 'Aviso' },
-  info:     { bg: 'var(--accent-muted)', border: 'var(--accent-glow)', dot: 'var(--accent)', label: 'Info' },
+  critical: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', dot: 'var(--danger)', label: 'alerts.severity_critical' },
+  warning:  { bg: 'var(--warning-bg)', border: 'var(--warning-border)', dot: 'var(--warning)', label: 'alerts.severity_warning' },
+  info:     { bg: 'var(--accent-muted)', border: 'var(--accent-glow)', dot: 'var(--accent)', label: 'alerts.severity_info' },
 }
 
 const TYPE_ICONS = {
@@ -40,19 +40,19 @@ export default function AlertsPage() {
   const { mutate: runEngine, isPending: running } = useMutation({
     mutationFn: () => alertsApi.run(),
     onSuccess: () => qc.invalidateQueries(['alerts-page']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: resolve } = useMutation({
     mutationFn: (id) => alertsApi.resolve(id),
     onSuccess: () => qc.invalidateQueries(['alerts-page']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id) => alertsApi.read(id),
     onSuccess: () => qc.invalidateQueries(['alerts-page']),
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('alerts.generic_error'))),
   })
 
   const unread = alerts.filter(a => !a.is_read).length
@@ -67,11 +67,11 @@ export default function AlertsPage() {
       <PageHeader
         icon={<Bell size={18} />}
         title={t('alerts.title')}
-        subtitle={`${alerts.length} activas · ${unread} sin leer`}
+        subtitle={t('alerts.subtitle_active_unread', { active: alerts.length, unread })}
         actions={
           hasRole('admin') && (
             <Button onClick={() => runEngine()} disabled={running} icon="⚡">
-              {running ? 'Ejecutando...' : 'Ejecutar motor'}
+              {running ? t('alerts.running_engine') : t('alerts.run_engine')}
             </Button>
           )
         }
@@ -89,16 +89,16 @@ export default function AlertsPage() {
               <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: cfg.dot }}>
                 {bySeverity[sev].length}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{cfg.label}s</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t(cfg.label)}</div>
             </div>
           </div>
         ))}
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando alertas...</span></div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('alerts.loading')}</span></div>
       ) : alerts.length === 0 ? (
-        <EmptyState icon="✅" title="Sin alertas activas" description="Todo el equipo está dentro de los parámetros normales" />
+        <EmptyState icon="✅" title={t('alerts.no_alerts')} description={t('alerts.empty_description')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {alerts.map(alert => {
@@ -130,7 +130,7 @@ export default function AlertsPage() {
                       {!alert.is_read && (
                         <button onClick={() => markRead(alert.id)}
                           style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
-                          Marcar leída
+                          {t('alerts.mark_as_read')}
                         </button>
                       )}
                       {hasRole('admin', 'pm', 'hr') && (
@@ -149,7 +149,7 @@ export default function AlertsPage() {
                       <span style={{ color: cfg.dot, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>
                         {alert.value?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}
                       </span>
-                      <span style={{ color: 'var(--text-3)' }}> / límite {alert.threshold?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}</span>
+                      <span style={{ color: 'var(--text-3)' }}> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}</span>
                     </div>
                   )}
                 </div>

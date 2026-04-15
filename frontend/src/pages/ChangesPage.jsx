@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -9,6 +10,7 @@ import { ArrowLeftRight } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -31,6 +33,35 @@ const STATUS_CFG = {
   implemented:  { label: 'Implementado', color: 'var(--purple)' },
 }
 
+const crSchema = z.object({
+  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  description: z.string().trim().min(1, 'La descripcion es obligatoria'),
+  justification: z.string().optional(),
+  impact: z.enum(['low', 'medium', 'high', 'critical']),
+  cost_impact: z.preprocess(
+    (v) => (v === '' || v === null || typeof v === 'undefined' ? undefined : v),
+    z.coerce.number().min(0, 'El impacto en coste no puede ser negativo').optional(),
+  ),
+  schedule_impact_days: z.preprocess(
+    (v) => (v === '' || v === null || typeof v === 'undefined' ? undefined : v),
+    z.coerce.number().int('Debe ser un numero entero').min(0, 'No puede ser negativo').optional(),
+  ),
+  scope_impact: z.string().optional(),
+})
+
+const reviewSchema = z.object({
+  approved: z.boolean(),
+  resolution_notes: z.string().trim().optional(),
+}).superRefine((values, ctx) => {
+  if (!values.approved && !values.resolution_notes) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['resolution_notes'],
+      message: 'Las notas de resolucion son obligatorias al rechazar',
+    })
+  }
+})
+
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
@@ -50,54 +81,71 @@ function CRFormModal({ cr, projectId, onClose }) {
     schedule_impact_days: cr?.schedule_impact_days || '',
     scope_impact: cr?.scope_impact || '',
   })
+  const validation = useFormValidation(crSchema)
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit
       ? api.patch(`/changes/${projectId}/${cr.id}`, data)
       : api.post(`/changes/${projectId}`, data),
-    onSuccess: () => { qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate(result.data)
+  }
 
   return (
     <Modal open title={isEdit ? `Editar CR — ${cr.code}` : 'Nueva Solicitud de Cambio'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={fs} placeholder="Ampliar alcance módulo de facturación" />
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Ampliar alcance módulo de facturación" />
+          {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción *</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder="Descripción detallada del cambio solicitado..." />
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder="Descripción detallada del cambio solicitado..." />
+          {validation.errors.description && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.description}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-justification`} style={ls}>Justificación</label>
-          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Por qué es necesario este cambio..." />
+          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder="Por qué es necesario este cambio..." />
+          {validation.errors.justification && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.justification}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} style={ls}>Impacto</label>
-          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={fs}>
+          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={validation.inputStyle(fs, 'impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
           </select>
+          {validation.errors.impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
-          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={fs} placeholder="0" />
+          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder="0" />
+          {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>Impacto en plazo (días)</label>
-          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder="0" />
+          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder="0" />
+          {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
-          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={fs} placeholder="Descripción del cambio de alcance..." />
+          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder="Descripción del cambio de alcance..." />
+          {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.description} loading={isPending}>
+          <Button onClick={submit} disabled={isPending} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear CR'}
           </Button>
         </div>
@@ -111,12 +159,19 @@ function ReviewCRModal({ cr, projectId, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
+  const validation = useFormValidation(reviewSchema)
   const { mutate, isPending } = useMutation({
-    mutationFn: ({ approved }) => api.post(`/changes/${projectId}/${cr.id}/review`, { approved, resolution_notes: notes }),
-    onSuccess: () => { qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
+    mutationFn: ({ approved, resolution_notes }) => api.post(`/changes/${projectId}/${cr.id}/review`, { approved, resolution_notes }),
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
+
+  const submitReview = (approved) => {
+    const result = validation.validateForm({ approved, resolution_notes: notes })
+    if (!result.success) return
+    mutate(result.data)
+  }
 
   return (
     <Modal open title={`Revisar CR — ${cr.code}`} onClose={onClose} width={520}>
@@ -139,13 +194,14 @@ function ReviewCRModal({ cr, projectId, onClose }) {
       </div>
       <div style={{ marginBottom: 16 }}>
         <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
-        <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+        <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2}
+          style={validation.inputStyle({ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }, 'resolution_notes')} />
+        {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" onClick={() => mutate({ approved: false })} disabled={isPending} loading={isPending}>✕ Rechazar</Button>
-        <Button onClick={() => mutate({ approved: true })} disabled={isPending} loading={isPending}>✓ Aprobar</Button>
+        <Button variant="danger" onClick={() => submitReview(false)} disabled={isPending} loading={isPending}>✕ Rechazar</Button>
+        <Button onClick={() => submitReview(true)} disabled={isPending} loading={isPending}>✓ Aprobar</Button>
       </div>
     </Modal>
   )

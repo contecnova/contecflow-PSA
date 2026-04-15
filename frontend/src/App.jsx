@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
 import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
+import { useAppT } from './i18n/AppLangContext'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
   SkeletonKanban, SkeletonGantt, SkeletonServiceDesk,
@@ -182,19 +183,19 @@ class PageErrorBoundary extends Component {
       }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
         <h3 style={{ color: 'var(--danger)', marginBottom: 8 }}>
-          {isChunk ? 'Error de carga — versión desactualizada' : 'Error al cargar esta página'}
+          {isChunk ? this.props.t('app_errors.page_load_outdated') : this.props.t('app_errors.page_load_failed')}
         </h3>
         <p style={{ color: 'var(--text-2)', marginBottom: 20, maxWidth: 480 }}>
           {isChunk
-            ? 'El navegador tiene una versión antigua en caché. Recarga para obtener la última versión.'
-            : 'Ha ocurrido un error inesperado. Inicia sesión de nuevo o recarga la página.'}
+            ? this.props.t('app_errors.page_outdated_desc')
+            : this.props.t('app_errors.page_unexpected_desc')}
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           <button
             onClick={() => { this.setState({ error: null }); window.location.href = '/login' }}
             style={{ padding: '10px 22px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontWeight: 600 }}
           >
-            Ir al inicio de sesión
+            {this.props.t('app_errors.go_login')}
           </button>
           <button
             onClick={() => {
@@ -203,7 +204,7 @@ class PageErrorBoundary extends Component {
             }}
             style={{ padding: '10px 22px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-1)', cursor: 'pointer', fontWeight: 600 }}
           >
-            🔄 Recargar
+            {this.props.t('app_errors.reload')}
           </button>
         </div>
       </div>
@@ -213,7 +214,8 @@ class PageErrorBoundary extends Component {
 
 function RouteScopedBoundary({ children }) {
   const { pathname } = useLocation()
-  return <PageErrorBoundary resetKey={pathname}>{children}</PageErrorBoundary>
+  const t = useAppT()
+  return <PageErrorBoundary resetKey={pathname} t={t}>{children}</PageErrorBoundary>
 }
 
 function ProtectedRoute({ children, roles }) {

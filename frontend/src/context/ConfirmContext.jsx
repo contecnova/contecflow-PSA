@@ -14,6 +14,7 @@
  */
 import _React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Button } from '../components/ui'
+import { useAppT } from '../i18n/AppLangContext'
 
 const ConfirmContext = createContext(null)
 
@@ -26,6 +27,7 @@ export function openConfirmGlobal(opts) {
 }
 
 export function ConfirmProvider({ children }) {
+  const t = useAppT()
   const [state, setState] = useState({
     open: false, title: '', message: '', danger: false, onConfirm: null,
   })
@@ -33,10 +35,10 @@ export function ConfirmProvider({ children }) {
   const openConfirm = useCallback(({ title, message, onConfirm, danger = false }) => {
     setState({
       open: true,
-      title: title || (danger ? '⚠️ Confirmar acción' : 'Confirmar'),
+      title: title || (danger ? t('confirm_modal.danger_title') : t('confirm_modal.default_title')),
       message, danger, onConfirm,
     })
-  }, [])
+  }, [t])
 
   // Exponer globalmente para uso sin hook
   useEffect(() => {
@@ -84,9 +86,9 @@ export function ConfirmProvider({ children }) {
               {state.message}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Button variant="secondary" onClick={close}>Cancelar</Button>
+              <Button variant="secondary" onClick={close}>{t('common.cancel')}</Button>
               <Button variant={state.danger ? 'danger' : 'primary'} onClick={handleConfirm}>
-                Confirmar
+                {t('confirm_modal.default_title')}
               </Button>
             </div>
           </div>

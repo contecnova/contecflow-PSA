@@ -10,16 +10,64 @@ import React, { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+
+const uatSessionSchema = z.object({
+  title: z.string().trim().min(1, 'El titulo es obligatorio'),
+  description: z.string().optional(),
+  deliverable_id: z.string().optional(),
+  test_environment: z.string().optional(),
+  test_credentials: z.string().optional(),
+  test_guide_url: z.string().optional(),
+  available_from: z.string().optional(),
+  deadline: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.available_from && values.deadline && values.deadline < values.available_from) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['deadline'],
+      message: 'La fecha limite no puede ser anterior a la fecha disponible desde',
+    })
+  }
+})
+
+const portalClientCreateSchema = z.object({
+  full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  email: z.string().trim().email('Email invalido'),
+  job_title: z.string().optional(),
+  company: z.string().optional(),
+  phone: z.string().optional(),
+  password: z.string().min(1, 'La contrasena es obligatoria'),
+  can_approve_deliverables: z.boolean(),
+  can_request_changes: z.boolean(),
+  can_view_budget: z.boolean(),
+  can_view_team: z.boolean(),
+})
+
+const portalClientEditSchema = z.object({
+  full_name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  email: z.string().trim().email('Email invalido'),
+  job_title: z.string().optional(),
+  company: z.string().optional(),
+  phone: z.string().optional(),
+  password: z.string().optional(),
+  project_ids: z.array(z.union([z.string(), z.number()])),
+  can_approve_deliverables: z.boolean(),
+  can_request_changes: z.boolean(),
+  can_view_budget: z.boolean(),
+  can_view_team: z.boolean(),
+})
 
 
 // STATUS_CFG y FR_STATUS_CFG centralizados en constants/sharedStatus.js
@@ -104,9 +152,13 @@ function CreateClientModal({ projectId, onClose }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ full_name: '', email: '', job_title: '', company: '', phone: '', password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
   const [extraProjectIds, setExtraProjectIds] = useState([]) // additional projects beyond projectId
+  const validation = useFormValidation(portalClientCreateSchema)
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = k => e => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
 
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
@@ -115,21 +167,39 @@ function CreateClientModal({ projectId, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => api.post('/portal/clients', data),
-    onSuccess: () => { qc.invalidateQueries(['portal-clients', projectId]); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['portal-clients', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const allProjectIds = [...new Set([projectId, ...extraProjectIds].filter(Boolean))]
 
+  const handleSubmit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate({ ...result.data, project_id: projectId, project_ids: allProjectIds })
+  }
+
   return (
     <Modal open title={t('client_portal.create_contact_title')} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('client_portal.label_full_name')} *</label><input value={form.full_name} onChange={set('full_name')} style={fs} /></div>
-        <div><label style={ls}>{t('client_portal.label_email')} *</label><input type="email" value={form.email} onChange={set('email')} style={fs} /></div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>{t('client_portal.label_full_name')} *</label>
+          <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
+          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
+        </div>
+        <div>
+          <label style={ls}>{t('client_portal.label_email')} *</label>
+          <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
+          {validation.errors.email && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.email}</p>}
+        </div>
         <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
         <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
         <div><label style={ls}>{t('client_portal.label_phone')}</label><input value={form.phone} onChange={set('phone')} style={fs} /></div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('client_portal.label_password')} *</label><input type="password" value={form.password} onChange={set('password')} style={fs} placeholder={t('client_portal.password_placeholder')} /></div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>{t('client_portal.label_password')} *</label>
+          <input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} placeholder={t('client_portal.password_placeholder')} />
+          {validation.errors.password && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.password}</p>}
+        </div>
         {allProjects.length > 1 && (
           <div style={{ gridColumn: '1/-1' }}>
             <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.additional_projects_access')}</label>
@@ -158,7 +228,7 @@ function CreateClientModal({ projectId, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => mutate({ ...form, project_id: projectId, project_ids: allProjectIds })} disabled={isPending || !form.full_name || !form.email || !form.password} loading={isPending}>
+          <Button onClick={handleSubmit} disabled={isPending} loading={isPending}>
             {isPending ? t('client_portal.creating') : t('client_portal.create_access')}
           </Button>
         </div>
@@ -194,13 +264,19 @@ function EditClientModal({ client, onClose, onSaved }) {
     can_view_budget: client.can_view_budget ?? true,
     can_view_team: client.can_view_team ?? false,
   })
+  const validation = useFormValidation(portalClientEditSchema)
 
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = k => e => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
 
   const handleSave = () => {
-    const data = { ...form }
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    const data = { ...result.data }
     if (!data.password) delete data.password  // Only send password if changed
     mutate(data)
   }
@@ -208,8 +284,16 @@ function EditClientModal({ client, onClose, onSaved }) {
   return (
     <Modal open title={`${t('client_portal.edit')} — ${client.full_name}`} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('client_portal.label_full_name')} *</label><input value={form.full_name} onChange={set('full_name')} style={fs} /></div>
-        <div><label style={ls}>{t('client_portal.label_email')} *</label><input type="email" value={form.email} onChange={set('email')} style={fs} /></div>
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={ls}>{t('client_portal.label_full_name')} *</label>
+          <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
+          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
+        </div>
+        <div>
+          <label style={ls}>{t('client_portal.label_email')} *</label>
+          <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
+          {validation.errors.email && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.email}</p>}
+        </div>
         <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
         <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
         <div><label style={ls}>{t('client_portal.label_phone')}</label><input value={form.phone} onChange={set('phone')} style={fs} /></div>
@@ -330,9 +414,13 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
   const [testCases, setTestCases] = useState([{ title: '', steps: '', expected_result: '' }])
+  const validation = useFormValidation(uatSessionSchema)
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = k => e => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data) => {
@@ -342,15 +430,25 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
       }
       return res
     },
-    onSuccess: () => { qc.invalidateQueries(['uat-team', projectId]); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['uat-team', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate({ form: result.data, testCases })
+  }
 
   return (
     <Modal open title={t('client_portal.uat_modal_new_title')} onClose={onClose} width={680}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
-          <div><label style={ls}>{t('client_portal.uat_label_title')} *</label><input value={form.title} onChange={set('title')} style={fs} placeholder={t('client_portal.uat_placeholder_title')} /></div>
+          <div>
+            <label style={ls}>{t('client_portal.uat_label_title')} *</label>
+            <input value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('client_portal.uat_placeholder_title')} />
+            {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
+          </div>
           <div><label style={ls}>{t('client_portal.uat_label_deliverable')}</label>
             <select value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
               <option value="">{t('client_portal.uat_unlinked')}</option>
@@ -360,19 +458,23 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
         </div>
         <div><label style={ls}>{t('client_portal.uat_label_description')}</label><textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={ls}>{t('client_portal.uat_label_test_env_url')}</label><input value={form.test_environment} onChange={set('test_environment')} style={fs} placeholder="https://staging.cliente.com" /></div>
-          <div><label style={ls}>{t('client_portal.uat_label_test_credentials')}</label><input value={form.test_credentials} onChange={set('test_credentials')} style={fs} placeholder="user: demo / pass: ****" /></div>
-          <div><label style={ls}>{t('client_portal.uat_label_available_from')}</label><input type="date" value={form.available_from} onChange={set('available_from')} style={fs} /></div>
-          <div><label style={ls}>{t('client_portal.uat_label_deadline')}</label><input type="date" value={form.deadline} onChange={set('deadline')} style={fs} /></div>
+          <div><label style={ls}>{t('client_portal.uat_label_test_env_url')}</label><input value={form.test_environment} onChange={set('test_environment')} style={fs} placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
+          <div><label style={ls}>{t('client_portal.uat_label_test_credentials')}</label><input value={form.test_credentials} onChange={set('test_credentials')} style={fs} placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
+          <div><label style={ls}>{t('client_portal.uat_label_available_from')}</label><input type="date" value={form.available_from} onChange={set('available_from')} style={validation.inputStyle(fs, 'available_from')} /></div>
+          <div>
+            <label style={ls}>{t('client_portal.uat_label_deadline')}</label>
+            <input type="date" value={form.deadline} onChange={set('deadline')} style={validation.inputStyle(fs, 'deadline')} />
+            {validation.errors.deadline && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.deadline}</p>}
+          </div>
         </div>
 
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 30px', gap: 8, marginBottom: 8, padding: 10, background: 'var(--surface-3)', borderRadius: 8 }}>
-              <input value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={`Caso ${i + 1}: Título`} />
-              <input value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder="Pasos a seguir" />
-              <input value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder="Resultado esperado" />
+              <input value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
+              <input value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
+              <input value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
               <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
             </div>
           ))}
@@ -384,7 +486,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={() => mutate({ form, testCases })} disabled={isPending || !form.title} loading={isPending}>
+          <Button onClick={submit} disabled={isPending} loading={isPending}>
             {isPending ? t('client_portal.uat_creating_session') : t('client_portal.uat_create_session')}
           </Button>
         </div>
@@ -771,7 +873,7 @@ function DocumentsTab({ projectId }) {
               </select>
             </div>
             <div><label style={ls}>{t('client_portal.docs_label_file_url')}</label><input value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
-            <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder="contrato_v1.pdf" /></div>
+            <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
               <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}

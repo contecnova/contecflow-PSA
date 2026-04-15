@@ -1,3 +1,4 @@
+import { useAppT } from '../i18n/AppLangContext'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt
  * Pure SVG + React — no Gantt library required.
@@ -122,6 +123,7 @@ export default function GanttChart({
   showBaseline = false,
   dependencies = [],
 }) {
+    const t = useAppT()
   const [zoom, setZoom]           = useState('month')
   const [dragState, setDragState] = useState(null)
   const [depDraw, setDepDraw]     = useState(null)
@@ -266,13 +268,18 @@ export default function GanttChart({
     document.addEventListener('mouseup', onUp)
   }, [dayPx, dateToX, onTaskUpdate, onDepCreate, rowsLayout])
 
-  const LBL_ZOOM = { day: 'Día', week: 'Semana', month: 'Mes', quarter: 'Trimestre' }
+  const LBL_ZOOM = {
+    day: t('gantt.view_day'),
+    week: t('gantt.view_week'),
+    month: t('gantt.view_month'),
+    quarter: t('gantt.view_quarter'),
+  }
 
   return (
     <div style={{ userSelect: 'none', fontFamily: 'var(--font-sans)' }}>
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Zoom</span>
+        <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
           <button key={z} onClick={() => setZoom(z)}
             style={{
@@ -286,7 +293,7 @@ export default function GanttChart({
           </button>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-          {[['var(--accent)', 'En curso', false], ['var(--success)', 'Completado', false], ['var(--danger)', 'Bloqueado', false], ['var(--purple)', 'Milestone', true]].map(([c, l, rot]) => (
+          {[['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]].map(([c, l, rot]) => (
             <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 10, height: 10, background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
               {l}
@@ -294,7 +301,7 @@ export default function GanttChart({
           ))}
           {showBaseline && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: 10, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />Baseline
+              <div style={{ width: 10, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />{t('gantt.baseline')}
             </span>
           )}
           <span style={{ fontSize: 10, color: 'var(--text-3)', borderLeft: '1px solid var(--surface-4)', paddingLeft: 10 }}>

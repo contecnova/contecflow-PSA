@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react'
 import { Calendar } from 'lucide-react'
+import { useAppT } from '../../i18n/AppLangContext'
 
 const RANGE_PRESETS = {
-  week:    { label: 'Última semana',    days: 7 },
-  month:   { label: 'Último mes',       days: 30 },
-  quarter: { label: 'Último trimestre', days: 90 },
-  year:    { label: 'Último año',       days: 365 },
+  week: { key: 'date_range_filter.week', days: 7 },
+  month: { key: 'date_range_filter.month', days: 30 },
+  quarter: { key: 'date_range_filter.quarter', days: 90 },
+  year: { key: 'date_range_filter.year', days: 365 },
 }
 
 export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, disabled = false }) {
+  const t = useAppT()
   const [customOpen, setCustomOpen] = useState(false)
   const [localFrom, setLocalFrom] = useState(dateFrom || '')
   const [localTo, setLocalTo] = useState(dateTo || '')
@@ -31,7 +33,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
   }, [localFrom, localTo, onDateChange])
 
   const getLabel = () =>
-    dateFrom && dateTo ? `${dateFrom} — ${dateTo}` : 'Seleccionar rango'
+    dateFrom && dateTo ? `${dateFrom} — ${dateTo}` : t('date_range_filter.select_range')
 
   const btnBase = {
     padding: '4px 12px',
@@ -61,7 +63,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
     >
       <Calendar style={{ width: 15, height: 15, color: 'var(--text-3, #666)', flexShrink: 0 }} />
       <span style={{ fontSize: '0.875em', fontWeight: 500, color: 'var(--text-2)' }}>
-        Período:
+        {t('date_range_filter.period')}
       </span>
 
       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -72,7 +74,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
             disabled={disabled}
             style={btnBase}
           >
-            {preset.label}
+            {t(preset.key)}
           </button>
         ))}
       </div>
@@ -82,7 +84,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
         disabled={disabled}
         style={{ ...btnBase, marginLeft: '4px' }}
       >
-        Personalizado
+        {t('date_range_filter.custom')}
       </button>
 
       {customOpen && (
@@ -130,7 +132,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
               cursor: (disabled || !localFrom || !localTo) ? 'not-allowed' : 'pointer',
             }}
           >
-            Aplicar
+            {t('date_range_filter.apply')}
           </button>
         </div>
       )}

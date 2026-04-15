@@ -4,11 +4,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
+import { useAppT } from '../../i18n/AppLangContext'
 
 const ICON_MAP = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
 const TYPE_LABELS = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
 
 export default function GlobalSearch({ onClose }) {
+  const t = useAppT()
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const inputRef = useRef(null)
@@ -39,22 +41,22 @@ export default function GlobalSearch({ onClose }) {
             ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Buscar proyectos, tareas, tickets, usuarios..."
+            placeholder={t('global_search.placeholder')}
             style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize:15, color:'var(--color-text-primary)', fontFamily:'inherit' }}
             onKeyDown={e => { if(e.key === 'Escape') onClose() }}
           />
-          {isLoading && <span style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>Buscando...</span>}
+          {isLoading && <span style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>{t('common.searching')}</span>}
           <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--color-border-tertiary)', borderRadius:6, padding:'3px 8px', fontSize:11, color:'var(--color-text-secondary)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
         </div>
 
         <div style={{ maxHeight:450, overflowY:'auto' }}>
           {debouncedQ.length < 2 ? (
             <div style={{ padding:'32px', textAlign:'center', color:'var(--color-text-tertiary)', fontSize:13 }}>
-              Escribe al menos 2 caracteres para buscar
+              {t('common.write_at_least_2')}
             </div>
           ) : results.length === 0 && !isLoading ? (
             <div style={{ padding:'32px', textAlign:'center', color:'var(--color-text-tertiary)', fontSize:13 }}>
-              Sin resultados para &quot;{debouncedQ}&quot;
+              {t('global_search.no_results_for')} &quot;{debouncedQ}&quot;
             </div>
           ) : (
             Object.entries(grouped).filter(([, items]) => items?.length > 0).map(([type, items]) => (
@@ -85,7 +87,7 @@ export default function GlobalSearch({ onClose }) {
         </div>
 
         <div style={{ padding:'8px 18px', borderTop:'.5px solid var(--color-border-tertiary)', fontSize:11, color:'var(--color-text-tertiary)', display:'flex', gap:16 }}>
-          <span>↑↓ navegar</span><span>↵ abrir</span><span>Esc cerrar</span>
+          <span>{`↑↓ ${t('common.navigate')}`}</span><span>{`↵ ${t('common.open')}`}</span><span>{`Esc ${t('common.close').toLowerCase()}`}</span>
         </div>
       </div>
     </div>

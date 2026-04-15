@@ -7,6 +7,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useToast } from '../context/ToastContext';
+import { useAppT } from '../i18n/AppLangContext';
 import {
   Upload, Download, CheckCircle, XCircle, History,
   ChevronDown, ChevronUp, Eye, Sparkles, Loader, ExternalLink
@@ -72,6 +73,7 @@ const CAT_STYLE = {
 
 const DocumentViewer = ({ documentId }) => {
   const toast = useToast();
+  const t = useAppT();
   const qc = useQueryClient();
   const fileRef = useRef();
   const [previewVer, setPreviewVer] = useState(null);
@@ -99,35 +101,35 @@ const DocumentViewer = ({ documentId }) => {
       return axios.post(`/api/v1/documents/${documentId}/versions`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
     onSuccess: () => {
-      toast.success('Nueva versión subida');
+      toast.success(t('document_viewer.uploaded_version'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setFile(null); setChangeNote(''); setShowUploadForm(false);
     },
-    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+    onError: e => toast.error(e.response?.data?.detail || t('common.error')),
   });
 
   const approveMutation = useMutation({
     mutationFn: status => axios.post(`/api/v1/documents/${documentId}/approve`, { status }),
     onSuccess: (_, s) => {
-      toast.success(s === 'approved' ? 'Documento aprobado' : 'Documento rechazado');
+      toast.success(s === 'approved' ? t('document_viewer.approve_success') : t('document_viewer.reject_success'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
     },
-    onError: e => toast.error(e.response?.data?.detail || 'Error'),
+    onError: e => toast.error(e.response?.data?.detail || t('common.error')),
   });
 
   const summaryMutation = useMutation({
     mutationFn: () => axios.post(`/api/v1/documents/${documentId}/ai-summary`),
-    onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
-    onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
+    onSuccess: () => { toast.success(t('document_viewer.ai_summary_success')); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
+    onError: e => toast.error(e.response?.data?.detail || t('document_viewer.ai_error')),
   });
 
   if (isLoading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--text-3)', fontSize: 13, gap: 8 }}>
-      <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Cargando documento
+      <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('document_viewer.loading')}
     </div>
   );
   if (!doc) return (
-    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--danger)', fontSize: 13 }}>Documento no encontrado</div>
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--danger)', fontSize: 13 }}>{t('document_viewer.not_found')}</div>
   );
 
   const activeVer = previewVer || doc.versions?.[0] || null;
@@ -156,12 +158,12 @@ const DocumentViewer = ({ documentId }) => {
             </span>
             {doc.approval_status === 'approved' && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#10b98115', color: '#10b981' }}>
-                <CheckCircle size={9} /> Aprobado
+                <CheckCircle size={9} /> {t('document_viewer.approved')}
               </span>
             )}
             {doc.requires_approval && doc.approval_status === 'pending' && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#f59e0b15', color: '#f59e0b' }}>
-               ⏳ Pendiente aprobación
+               {t('document_viewer.pending_approval')}
               </span>
             )}
             {doc.tags?.map(t => (
@@ -176,23 +178,23 @@ const DocumentViewer = ({ documentId }) => {
             <>
               <button onClick={() => approveMutation.mutate('approved')}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: '#10b981', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                <CheckCircle size={13} /> Aprobar
+                <CheckCircle size={13} /> {t('document_viewer.approve')}
               </button>
               <button onClick={() => approveMutation.mutate('rejected')}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                <XCircle size={13} /> Rechazar
+                <XCircle size={13} /> {t('document_viewer.reject')}
               </button>
             </>
           )}
           <button onClick={() => summaryMutation.mutate()} disabled={summaryMutation.isPending}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--purple)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             <Sparkles size={13} />
-            {summaryMutation.isPending ? '' : 'Resumen IA'}Generando
+            {summaryMutation.isPending ? t('document_viewer.generating') : t('document_viewer.ai_summary')}
           </button>
           {activeVer?.download_url && (
             <a href={activeVer.download_url} target="_blank" rel="noreferrer"
               style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-              <Download size={13} /> Descargar
+              <Download size={13} /> {t('document_viewer.download')}
             </a>
           )}
         </div>
@@ -207,7 +209,7 @@ const DocumentViewer = ({ documentId }) => {
             </span>
             <a href={activeVer.download_url} target="_blank" rel="noreferrer"
               style={{ fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
-               <ExternalLink size={11} /> Abrir en nueva pestaña
+               <ExternalLink size={11} /> {t('document_viewer.open_new_tab')}
             </a>
           </div>
           {(() => {
@@ -217,10 +219,10 @@ const DocumentViewer = ({ documentId }) => {
             return (
               <div style={{ padding: 36, textAlign: 'center' }}>
                 <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={52} />
-                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-3)' }}>Vista previa no disponible para este tipo de archivo</div>
+                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-3)' }}>{t('document_viewer.preview_unavailable')}</div>
                 <a href={activeVer.download_url} target="_blank" rel="noreferrer"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
-                  <Download size={14} /> Descargar para ver
+                  <Download size={14} /> {t('document_viewer.download_to_view')}
                 </a>
               </div>
             );
@@ -233,7 +235,7 @@ const DocumentViewer = ({ documentId }) => {
         <button onClick={() => setShowVersions(s => !s)}
           style={{ width: '100%', padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--surface-2)', border: 'none', cursor: 'pointer', color: 'var(--text-1)', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <History size={14} style={{ color: 'var(--text-2)' }} /> Historial de versiones ({versions.length})
+            <History size={14} style={{ color: 'var(--text-2)' }} /> {t('document_viewer.versions_history')} ({versions.length})
           </span>
           {showVersions ? <ChevronUp size={14} style={{ color: 'var(--text-3)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-3)' }} />}
         </button>
@@ -256,7 +258,7 @@ const DocumentViewer = ({ documentId }) => {
                   {v.change_note && <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
                   <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{v.uploader_name}  {fmtDate(v.created_at)}  {fmtBytes(v.file_size)}</div>
                 </div>
-                {i === 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'var(--accent)20', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>Actual</span>}
+                {i === 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'var(--accent)20', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>{t('document_viewer.current')}</span>}
                 {v.download_url && (
                   <a href={v.download_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                     style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none', flexShrink: 0 }}>
@@ -271,25 +273,25 @@ const DocumentViewer = ({ documentId }) => {
               {!showUploadForm ? (
                 <button onClick={() => setShowUploadForm(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--accent)', background: 'none', border: '1px dashed var(--surface-5)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
-                   <Upload size={13} /> Subir nueva versión
+                   <Upload size={13} /> {t('document_viewer.upload_new_version')}
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div onClick={() => fileRef.current?.click()}
                     style={{ border: `2px dashed ${file ? '#10b981' : 'var(--surface-5)'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }}>
                     {file ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
-                      : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />Clic para seleccionar</span>}
+                      : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('document_viewer.click_select_file')}</span>}
                     <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
                   </div>
-                  <input placeholder="Nota del cambio (opcional)" value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
+                  <input placeholder={t('document_viewer.change_note_placeholder')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
                       style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: 13, fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                       {uploadMutation.isPending ? 'Subiendo...' : 'Subir versión'}
+                       {uploadMutation.isPending ? t('common.saving') : t('document_viewer.upload_version')}
                     </button>
                     <button onClick={() => { setShowUploadForm(false); setFile(null); setChangeNote(''); }}
                       style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      Cancelar
+                      {t('common.cancel')}
                     </button>
                   </div>
                 </div>
@@ -302,12 +304,12 @@ const DocumentViewer = ({ documentId }) => {
       {/* Metadata */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {[
-          ['Creado por', doc.created_by_name || ''],
-          ['Fecha creación', fmtDate(doc.created_at)],
-          ['Categor', doc.category],
-          ['Versiones', versions.length],
-          doc.approved_by_name && ['Aprobado por', doc.approved_by_name],
-          doc.approved_at && ['Fecha aprobación', fmtDate(doc.approved_at)],
+          [t('document_viewer.created_by'), doc.created_by_name || ''],
+          [t('document_viewer.created_date'), fmtDate(doc.created_at)],
+          [t('document_viewer.category'), doc.category],
+          [t('document_viewer.versions'), versions.length],
+          doc.approved_by_name && [t('document_viewer.approved_by'), doc.approved_by_name],
+          doc.approved_at && [t('document_viewer.approved_date'), fmtDate(doc.approved_at)],
         ].filter(Boolean).map(([k, v]) => (
           <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</div>

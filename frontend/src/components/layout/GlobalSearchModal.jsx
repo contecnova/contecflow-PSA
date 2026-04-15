@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
+import { useAppT } from '../../i18n/AppLangContext'
 
 const ENTITY_CFG = {
   project:  { icon: '⬡', color: 'var(--accent)', label: 'Proyecto',  path: _p => `/projects` },
@@ -17,6 +18,7 @@ const ENTITY_CFG = {
 }
 
 export default function GlobalSearchModal({ open, onClose }) {
+  const t = useAppT()
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef(null)
@@ -93,12 +95,12 @@ export default function GlobalSearchModal({ open, onClose }) {
   if (!open) return null
 
   const QUICK_ACTIONS = [
-    { icon: '⬡', label: 'Proyectos',    path: '/projects' },
-    { icon: '▦', label: 'Mis tareas',   path: '/tasks' },
-    { icon: '🏢', label: 'Clientes',     path: '/clients' },
-    { icon: '🎫', label: 'Service Desk', path: '/service-desk' },
-    { icon: '📊', label: 'Reportes',     path: '/reports' },
-    { icon: '📚', label: 'Wiki',         path: '/wiki' },
+    { icon: '⬡', label: t('global_search.quick_projects'), path: '/projects' },
+    { icon: '▦', label: t('global_search.quick_my_tasks'), path: '/tasks' },
+    { icon: '🏢', label: t('global_search.quick_clients'), path: '/clients' },
+    { icon: '🎫', label: t('global_search.quick_service_desk'), path: '/service-desk' },
+    { icon: '📊', label: t('global_search.quick_reports'), path: '/reports' },
+    { icon: '📚', label: t('global_search.quick_wiki'), path: '/wiki' },
   ]
 
   return (
@@ -120,7 +122,7 @@ export default function GlobalSearchModal({ open, onClose }) {
             ref={inputRef}
             value={q}
             onChange={e => { setQ(e.target.value); setSelected(0) }}
-            placeholder="Buscar proyectos, tareas, clientes, tickets..."
+            placeholder={t('global_search.placeholder_modal')}
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
               fontSize: 16, color: 'var(--text-1)', fontFamily: 'inherit',
@@ -134,7 +136,7 @@ export default function GlobalSearchModal({ open, onClose }) {
           {q.trim().length < 2 ? (
             <div style={{ padding: '12px 8px' }}>
               <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '4px 12px', marginBottom: 6 }}>
-                Accesos rápidos
+                {t('global_search.quick_access')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '0 8px' }}>
                 {QUICK_ACTIONS.map(a => (
@@ -155,7 +157,7 @@ export default function GlobalSearchModal({ open, onClose }) {
             </div>
           ) : results.length === 0 && !isFetching ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>
-              Sin resultados para &quot;{q}&quot;
+              {t('global_search.no_results_for')} &quot;{q}&quot;
             </div>
           ) : (
             <div style={{ padding: '8px 8px' }}>
@@ -207,7 +209,7 @@ export default function GlobalSearchModal({ open, onClose }) {
           {[['↑↓', 'navegar'], ['↵', 'abrir'], ['esc', 'cerrar']].map(([key, label]) => (
             <span key={key} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
               <kbd style={{ background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>{key}</kbd>
-              {label}
+              {key === '↑↓' ? t('common.navigate') : key === '↵' ? t('common.open') : t('common.close').toLowerCase()}
             </span>
           ))}
         </div>

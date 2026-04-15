@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { ScrollText } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -32,6 +34,58 @@ const WO_STATUS = {
   invoiced: { label: 'Facturada', color: 'var(--purple)' },
 }
 
+const contractSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es obligatorio'),
+  project_id: z.string().trim().min(1, 'El proyecto es obligatorio'),
+  client_id: z.union([z.string(), z.number()]).refine((v) => `${v}`.trim().length > 0, 'El cliente es obligatorio'),
+  client_name: z.string().optional(),
+  client_contact: z.string().optional(),
+  contract_type: z.enum(['fixed_price', 'time_material', 'retainer', 'hourly_bag']),
+  status: z.enum(['draft', 'active', 'expired', 'cancelled']),
+  total_amount: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'El importe no puede ser negativo').optional()),
+  hourly_rate: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'La tarifa no puede ser negativa').optional()),
+  hours_bag: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'Las horas no pueden ser negativas').optional()),
+  monthly_retainer: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'El retainer no puede ser negativo').optional()),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+  signed_date: z.string().optional(),
+  payment_terms: z.string().optional(),
+  notes: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.start_date && values.end_date && values.end_date < values.start_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date'], message: 'La fecha fin no puede ser anterior a la fecha inicio' })
+  }
+  if (values.contract_type === 'fixed_price' && typeof values.total_amount !== 'number') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['total_amount'], message: 'El importe total es obligatorio para precio fijo' })
+  }
+  if (values.contract_type === 'time_material' && typeof values.hourly_rate !== 'number') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hourly_rate'], message: 'La tarifa es obligatoria para tiempo y material' })
+  }
+  if (values.contract_type === 'hourly_bag') {
+    if (typeof values.hours_bag !== 'number') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hours_bag'], message: 'La bolsa de horas es obligatoria' })
+    }
+    if (typeof values.hourly_rate !== 'number') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['hourly_rate'], message: 'La tarifa es obligatoria para bolsa de horas' })
+    }
+  }
+  if (values.contract_type === 'retainer' && typeof values.monthly_retainer !== 'number') {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['monthly_retainer'], message: 'El retainer mensual es obligatorio' })
+  }
+})
+
+const workOrderSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre de la OT es obligatorio'),
+  amount: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'El importe no puede ser negativo').optional()),
+  hours: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0, 'Las horas no pueden ser negativas').optional()),
+  start_date: z.string().optional(),
+  end_date: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.start_date && values.end_date && values.end_date < values.start_date) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date'], message: 'La fecha fin no puede ser anterior al inicio' })
+  }
+})
+
 function ContractFormModal({ contract, onClose }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -55,43 +109,60 @@ function ContractFormModal({ contract, onClose }) {
     payment_terms: contract?.payment_terms || '',
     notes: contract?.notes || '',
   })
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const validation = useFormValidation(contractSchema)
+  const set = (k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    validation.clearFieldError(k)
+  }
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit ? api.patch(`/contracts/${contract.id}`, data) : api.post('/contracts', data),
-    onSuccess: () => { qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
+    onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
+
+  const submit = () => {
+    const result = validation.validateForm(form)
+    if (!result.success) return
+    mutate(result.data)
+  }
 
   return (
     <Modal open title={isEdit ? `Editar contrato` : 'Nuevo Contrato'} onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder="Contrato desarrollo plataforma 2026" />
+          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder="Contrato desarrollo plataforma 2026" />
+          {validation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div>
           <label style={ls}>Proyecto *</label>
-          <select value={form.project_id} onChange={set('project_id')} style={fs}>
+          <select value={form.project_id} onChange={set('project_id')} style={validation.inputStyle(fs, 'project_id')}>
             <option value="">Seleccionar...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
+          {validation.errors.project_id && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.project_id}</p>}
         </div>
         <div>
           <label style={ls}>Cliente *</label>
           <ClientSelect
             value={form.client_id}
-            onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
-            style={fs}
+            onChange={(id, client) => {
+              setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))
+              validation.clearFieldError('client_id')
+            }}
+            style={validation.inputStyle(fs, 'client_id')}
           />
+          {validation.errors.client_id && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.client_id}</p>}
         </div>
         <div>
           <label style={ls}>Tipo de contrato *</label>
-          <select value={form.contract_type} onChange={set('contract_type')} style={fs}>
+          <select value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {validation.errors.contract_type && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.contract_type}</p>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -102,40 +173,46 @@ function ContractFormModal({ contract, onClose }) {
         {form.contract_type === 'fixed_price' && (
           <div>
             <label style={ls}>Importe total (€)</label>
-            <input type="number" value={form.total_amount} onChange={set('total_amount')} style={fs} placeholder="0" />
+            <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder="0" />
+            {validation.errors.total_amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_amount}</p>}
           </div>
         )}
         {form.contract_type === 'time_material' && (
           <div>
             <label style={ls}>Tarifa €/hora</label>
-            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} placeholder="0" />
+            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="0" />
+            {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
           </div>
         )}
         {form.contract_type === 'hourly_bag' && (
           <>
             <div>
               <label style={ls}>Bolsa de horas</label>
-              <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={fs} placeholder="0" />
+              <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder="0" />
+              {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
             </div>
             <div>
               <label style={ls}>Tarifa €/hora</label>
-              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={fs} placeholder="0" />
+              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="0" />
+              {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
             </div>
           </>
         )}
         {form.contract_type === 'retainer' && (
           <div>
             <label style={ls}>Retainer mensual (€)</label>
-            <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={fs} placeholder="0" />
+            <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder="0" />
+            {validation.errors.monthly_retainer && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.monthly_retainer}</p>}
           </div>
         )}
         <div>
           <label style={ls}>Fecha inicio</label>
-          <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
+          <input type="date" value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
         </div>
         <div>
           <label style={ls}>Fecha fin</label>
-          <input type="date" value={form.end_date} onChange={set('end_date')} style={fs} />
+          <input type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
+          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
         </div>
         <div>
           <label style={ls}>Fecha firma</label>
@@ -151,7 +228,7 @@ function ContractFormModal({ contract, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.client_id} loading={isPending}>
+          <Button onClick={submit} disabled={isPending} loading={isPending}>
             {isPending ? 'Guardando...' : isEdit ? 'Guardar' : 'Crear contrato'}
           </Button>
         </div>
@@ -165,11 +242,12 @@ function ContractDetail({ contract, onClose, onEdit }) {
   const qc = useQueryClient()
   const [showWO, setShowWO] = useState(false)
   const [woForm, setWoForm] = useState({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
+  const woValidation = useFormValidation(workOrderSchema)
   const fs = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
 
   const { mutate: createWO } = useMutation({
     mutationFn: (data) => api.post(`/contracts/${contract.id}/work-orders`, data),
-    onSuccess: () => { qc.invalidateQueries(['contracts']); setShowWO(false) },
+    onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries(['contracts']); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateWOStatus } = useMutation({
@@ -179,6 +257,12 @@ function ContractDetail({ contract, onClose, onEdit }) {
   })
 
   const cfg = STATUS_CFG[contract.status] || STATUS_CFG.draft
+
+  const submitWO = () => {
+    const result = woValidation.validateForm(woForm)
+    if (!result.success) return
+    createWO(result.data)
+  }
 
   return (
     <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={680}>
@@ -238,14 +322,26 @@ function ContractDetail({ contract, onClose, onEdit }) {
         {showWO && (
           <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><input value={woForm.name} onChange={e => setWoForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre OT *" /></div>
-              <div><input type="number" value={woForm.amount} onChange={e => setWoForm(f => ({ ...f, amount: e.target.value }))} style={fs} placeholder="€" /></div>
-              <div><input type="number" value={woForm.hours} onChange={e => setWoForm(f => ({ ...f, hours: e.target.value }))} style={fs} placeholder="Horas" /></div>
-              <div><input type="date" value={woForm.start_date} onChange={e => setWoForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
-              <div><input type="date" value={woForm.end_date} onChange={e => setWoForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
+              <div>
+                <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder="Nombre OT *" />
+                {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
+              </div>
+              <div>
+                <input type="number" value={woForm.amount} onChange={e => { setWoForm(f => ({ ...f, amount: e.target.value })); woValidation.clearFieldError('amount') }} style={woValidation.inputStyle(fs, 'amount')} placeholder="€" />
+                {woValidation.errors.amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.amount}</p>}
+              </div>
+              <div>
+                <input type="number" value={woForm.hours} onChange={e => { setWoForm(f => ({ ...f, hours: e.target.value })); woValidation.clearFieldError('hours') }} style={woValidation.inputStyle(fs, 'hours')} placeholder="Horas" />
+                {woValidation.errors.hours && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.hours}</p>}
+              </div>
+              <div><input type="date" value={woForm.start_date} onChange={e => { setWoForm(f => ({ ...f, start_date: e.target.value })); woValidation.clearFieldError('start_date') }} style={woValidation.inputStyle(fs, 'start_date')} /></div>
+              <div>
+                <input type="date" value={woForm.end_date} onChange={e => { setWoForm(f => ({ ...f, end_date: e.target.value })); woValidation.clearFieldError('end_date') }} style={woValidation.inputStyle(fs, 'end_date')} />
+                {woValidation.errors.end_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.end_date}</p>}
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button size="sm" onClick={() => createWO(woForm)} disabled={!woForm.name}>Crear OT</Button>
+              <Button size="sm" onClick={submitWO}>Crear OT</Button>
               <Button size="sm" variant="secondary" onClick={() => setShowWO(false)}>Cancelar</Button>
             </div>
           </div>

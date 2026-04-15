@@ -9,6 +9,7 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
+import { useAppT } from '../i18n/AppLangContext';
 
 function fmtBytes(b) {
   if (!b) return '';
@@ -72,6 +73,7 @@ function resolveApiPath(projectId, taskId, ticketId) {
 }
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }) {
+  const t = useAppT();
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef();
@@ -102,23 +104,23 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       return api.post('/documents/upload', fd);
     },
     onSuccess: () => {
-      toast.success('Documento subido');
+      toast.success(t('documents_panel.uploaded_ok'));
       qc.invalidateQueries({ queryKey: qKey });
       setFile(null); setTitle(''); setShowForm(false);
     },
-    onError: e => toast.error(extractErr(e, 'Error al subir')),
+    onError: e => toast.error(extractErr(e, t('documents_panel.upload_error'))),
   });
 
   const deleteMutation = useMutation({
     mutationFn: id => api.delete(`/documents/${id}`),
-    onSuccess: () => { toast.success('Eliminado'); qc.invalidateQueries({ queryKey: qKey }); },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onSuccess: () => { toast.success(t('documents_panel.deleted_ok')); qc.invalidateQueries({ queryKey: qKey }); },
+    onError: e => toast.error(extractErr(e, t('documents_panel.delete_error'))),
   });
 
   const summaryMutation = useMutation({
     mutationFn: id => api.post(`/documents/${id}/ai-summary`),
-    onSuccess: () => { toast.success('Resumen IA guardado'); qc.invalidateQueries({ queryKey: qKey }); },
-    onError: e => toast.error(extractErr(e, 'Error IA')),
+    onSuccess: () => { toast.success(t('documents_panel.ai_summary_saved')); qc.invalidateQueries({ queryKey: qKey }); },
+    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   });
 
   const onDrop = useCallback(e => {
@@ -148,7 +150,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
         </div>
         <button onClick={() => setShowForm(s => !s)}
           style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: 'none', backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          {showForm ? <><X size={11} /> Cerrar</> : <><Plus size={11} /> Aadir</>}
+          {showForm ? <><X size={11} /> {t('documents_panel.close')}</> : <><Plus size={11} /> {t('documents_panel.add')}</>}
         </button>
       </div>
 
@@ -166,13 +168,13 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             {file
               ? <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
               : <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                  <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />Arrastra o clic para seleccionar
+                  <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
                 </span>}
           </div>
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="Título del documento"
+            placeholder={t('documents_panel.title_placeholder')}
             style={fs}
           />
           <select value={category} onChange={e => setCategory(e.target.value)} style={fs}>
@@ -182,11 +184,11 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
               style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: 12, fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               {uploadMutation.isPending ? <Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={12} />}
-              {uploadMutation.isPending ? 'Subiendo...' : 'Subir'}
+              {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
             </button>
             <button onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}
               style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Cancelar
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -200,7 +202,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           </div>
         ) : docs.length === 0 ? (
           <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>
-            Sin documentos. Haz clic en &quot;Aadir&quot; para subir uno.
+            {t('documents_panel.no_documents')}
           </div>
         ) : (
           docs.map((doc, i) => {
@@ -222,16 +224,16 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
                   {lv?.download_url && (
-                    <a href={lv.download_url} target="_blank" rel="noreferrer" title="Descargar"
+                    <a href={lv.download_url} target="_blank" rel="noreferrer" title={t('documents_panel.download_title')}
                       style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
                       <Download size={11} />
                     </a>
                   )}
-                  <button onClick={() => summaryMutation.mutate(doc.id)} title="Resumen IA"
+                  <button onClick={() => summaryMutation.mutate(doc.id)} title={t('documents_panel.ai_summary_title')}
                     style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
                     <Sparkles size={11} />
                   </button>
-                  <button onClick={() => { openConfirmGlobal({message:`Eliminar "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title="Eliminar"
+                  <button onClick={() => { openConfirmGlobal({message:`${t('documents_panel.delete_confirm')} "${doc.title}"?`,onConfirm:()=>deleteMutation.mutate(doc.id),danger:true}) }} title={t('documents_panel.delete_title')}
                     style={{ width: 24, height: 24, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
                     <Trash2 size={11} />
                   </button>
