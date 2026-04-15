@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import api, { dashboardApi } from '../../services/api'
 import { Spinner, EmptyState } from '../../components/ui'
+import { useAppLang, useAppT } from '../../i18n/AppLangContext'
 
 const BLUE = 'var(--accent)'
 const GREEN = 'var(--success)'
@@ -15,8 +16,10 @@ const RED = 'var(--danger)'
 const PURPLE = 'var(--purple)'
 const PALETTE = [BLUE, GREEN, AMBER, PURPLE, RED, 'var(--sky-blue)', 'var(--chart-teal)']
 
-const fmtCur = (v) => v != null
-  ? new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
+const getLocale = (lang) => (lang === 'en' ? 'en-US' : 'es-ES')
+
+const fmtCur = (v, lang = 'es') => v != null
+  ? new Intl.NumberFormat(getLocale(lang), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v)
   : '—'
 const fmtPct = (v) => v != null ? `${v.toFixed(1)}%` : '—'
 
@@ -47,6 +50,8 @@ function CustomTooltip({ active, payload, label, fmt = v => v }) {
 }
 
 function KpiGridWidget({ filters }) {
+  const t = useAppT()
+  const { lang } = useAppLang()
   const filterParams = useMemo(() => buildFilterParams(filters), [filters])
 
   const { data: kpis } = useQuery({
@@ -69,12 +74,12 @@ function KpiGridWidget({ filters }) {
   const deltaHours = prev > 0 ? ((last - prev) / prev) * 100 : 0
 
   const items = [
-    { icon: '⬡', label: 'Proyectos activos', value: health.length, color: BLUE, sub: `${onTrackPct}% en tiempo` },
-    { icon: '▦', label: 'Tareas vencidas', value: kpis?.tasks_overdue ?? 0, color: (kpis?.tasks_overdue ?? 0) > 0 ? RED : GREEN, sub: 'requieren atención' },
-    { icon: '💰', label: 'Presupuesto usado', value: kpis?.total_budget > 0 ? `${Math.round((kpis.total_spent / kpis.total_budget) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0)} gastado` },
-    { icon: '🎫', label: 'Tickets abiertos', value: kpis?.tasks_open ?? 0, color: PURPLE, sub: 'service desk' },
-    { icon: '⏱', label: 'Horas esta semana', value: kpis?.hours_logged_this_week?.toFixed(0) ?? '0', color: 'var(--sky-blue)', sub: `${deltaHours >= 0 ? '▲' : '▼'} ${Math.abs(deltaHours).toFixed(1)}% vs periodo anterior` },
-    { icon: '🚨', label: 'Proyectos críticos', value: critProj, color: critProj > 0 ? RED : GREEN, sub: 'fuera de tiempo/budget' },
+    { icon: '⬡', label: t('bi.active_projects'), value: health.length, color: BLUE, sub: `${onTrackPct}% ${t('bi.on_time_pct')}` },
+    { icon: '▦', label: t('bi.overdue_tasks'), value: kpis?.tasks_overdue ?? 0, color: (kpis?.tasks_overdue ?? 0) > 0 ? RED : GREEN, sub: t('bi.need_attention') },
+    { icon: '💰', label: t('bi.budget_used'), value: kpis?.total_budget > 0 ? `${Math.round((kpis.total_spent / kpis.total_budget) * 100)}%` : '—', color: AMBER, sub: `${fmtCur(kpis?.total_spent ?? 0, lang)} ${t('bi.spent_amount')}` },
+    { icon: '🎫', label: t('bi.open_tickets'), value: kpis?.tasks_open ?? 0, color: PURPLE, sub: t('bi.service_desk_short') },
+    { icon: '⏱', label: t('bi.hours_this_week'), value: kpis?.hours_logged_this_week?.toFixed(0) ?? '0', color: 'var(--sky-blue)', sub: `${deltaHours >= 0 ? '▲' : '▼'} ${Math.abs(deltaHours).toFixed(1)}% ${t('bi.previous_period')}` },
+    { icon: '🚨', label: t('bi.critical_projects'), value: critProj, color: critProj > 0 ? RED : GREEN, sub: t('bi.out_of_time_budget') },
   ]
 
   return (
@@ -92,6 +97,7 @@ function KpiGridWidget({ filters }) {
 }
 
 function HealthWidget({ filters }) {
+  const t = useAppT()
   const params = buildFilterParams(filters)
   const { data: health = [], isLoading } = useQuery({
     queryKey: ['bi-health', params],
@@ -106,9 +112,9 @@ function HealthWidget({ filters }) {
     crit: health.filter(p => getColor(p) === RED).length,
   }
   const pieData = [
-    { name: 'OK', value: counts.ok, fill: GREEN },
-    { name: 'Riesgo', value: counts.warn, fill: AMBER },
-    { name: 'Crítico', value: counts.crit, fill: RED },
+    { name: t('bi.health_ok'), value: counts.ok, fill: GREEN },
+    { name: t('bi.health_risk'), value: counts.warn, fill: AMBER },
+    { name: t('bi.health_critical'), value: counts.crit, fill: RED },
   ].filter(d => d.value > 0)
 
   if (isLoading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><Spinner /></div>
@@ -145,13 +151,14 @@ function HealthWidget({ filters }) {
 }
 
 function ProjectsByTypeWidget({ filters, onFilterType }) {
+  const t = useAppT()
   const params = buildFilterParams(filters)
   const { data = [], isLoading } = useQuery({
     queryKey: ['bi-projects-by-type', params],
     queryFn: () => api.get('/analytics/query/projects_by_type', { params }).then(r => r.data?.rows || []).catch(() => []),
   })
   if (isLoading) return <Spinner />
-  if (!data.length) return <EmptyState icon="🧩" title="Sin datos por tipo" />
+  if (!data.length) return <EmptyState icon="🧩" title={t('bi.no_data_by_type')} />
   return (
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
@@ -165,6 +172,8 @@ function ProjectsByTypeWidget({ filters, onFilterType }) {
 }
 
 function RevenueVsCostWidget({ filters }) {
+  const t = useAppT()
+  const { lang } = useAppLang()
   const [period, setPeriod] = useState('ytd')
   const queryParams = { ...buildFilterParams(filters), period }
   const { data: revenueData, isLoading } = useQuery({
@@ -173,19 +182,19 @@ function RevenueVsCostWidget({ filters }) {
   })
 
   const chartData = (revenueData?.monthly || []).map(m => ({
-    mes: m.month ? new Date(2024, (m.month || 1) - 1, 1).toLocaleDateString('es-ES', { month: 'short' }) : '',
-    Ingresos: m.revenue_actual || 0,
-    Costes: m.cost_actual || 0,
-    Margen: (m.revenue_actual || 0) - (m.cost_actual || 0),
+    mes: m.month ? new Date(2024, (m.month || 1) - 1, 1).toLocaleDateString(getLocale(lang), { month: 'short' }) : '',
+    [t('bi.revenue_label')]: m.revenue_actual || 0,
+    [t('bi.costs_label')]: m.cost_actual || 0,
+    [t('bi.margin_label')]: (m.revenue_actual || 0) - (m.cost_actual || 0),
   }))
 
   if (isLoading) return <Spinner />
-  if (!chartData.length) return <EmptyState icon="📊" title="Sin datos de ingresos" />
+  if (!chartData.length) return <EmptyState icon="📊" title={t('bi.no_revenue_data')} />
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-        {[['ytd', 'YTD'], ['q', 'Trimestre'], ['m', 'Mes']].map(([p, l]) => (
+        {[['ytd', 'YTD'], ['q', t('bi.quarter')], ['m', t('common.month')]].map(([p, l]) => (
           <button key={p} onClick={() => setPeriod(p)} style={{ padding: '3px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', background: period === p ? 'var(--accent)' : 'var(--surface-3)', color: period === p ? '#fff' : 'var(--text-2)', fontSize: 11, fontFamily: 'inherit' }}>
             {l}
           </button>
@@ -197,10 +206,10 @@ function RevenueVsCostWidget({ filters }) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
             <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
             <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-            <Tooltip content={<CustomTooltip fmt={fmtCur} />} />
-            <Area type="monotone" dataKey="Ingresos" stroke={BLUE} fillOpacity={0.25} fill={BLUE} strokeWidth={2} />
-            <Area type="monotone" dataKey="Costes" stroke={RED} fillOpacity={0.2} fill={RED} strokeWidth={2} />
-            <Line type="monotone" dataKey="Margen" stroke={GREEN} strokeWidth={2} dot={false} strokeDasharray="5 3" />
+            <Tooltip content={<CustomTooltip fmt={(value) => fmtCur(value, lang)} />} />
+            <Area type="monotone" dataKey={t('bi.revenue_label')} stroke={BLUE} fillOpacity={0.25} fill={BLUE} strokeWidth={2} />
+            <Area type="monotone" dataKey={t('bi.costs_label')} stroke={RED} fillOpacity={0.2} fill={RED} strokeWidth={2} />
+            <Line type="monotone" dataKey={t('bi.margin_label')} stroke={GREEN} strokeWidth={2} dot={false} strokeDasharray="5 3" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -209,6 +218,7 @@ function RevenueVsCostWidget({ filters }) {
 }
 
 function ProfitByProjectWidget({ onDrill, onFilterProject, filters }) {
+  const t = useAppT()
   const params = buildFilterParams(filters)
   const { data: raw, isLoading } = useQuery({
     queryKey: ['bi-profit', params],
@@ -226,7 +236,7 @@ function ProfitByProjectWidget({ onDrill, onFilterProject, filters }) {
     }).catch(() => []),
   })
   if (isLoading) return <Spinner />
-  if (!raw?.length) return <EmptyState icon="💰" title="Sin datos de rentabilidad" />
+  if (!raw?.length) return <EmptyState icon="💰" title={t('bi.no_profitability_data')} />
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -246,6 +256,7 @@ function ProfitByProjectWidget({ onDrill, onFilterProject, filters }) {
 }
 
 function UtilizationWidget({ filters }) {
+  const t = useAppT()
   const params = { ...buildFilterParams(filters), weeks_ahead: 4 }
   const { data = [] } = useQuery({
     queryKey: ['bi-utilization-advanced', params],
@@ -257,7 +268,7 @@ function UtilizationWidget({ filters }) {
       })) : []
     }).catch(() => []),
   })
-  if (!data.length) return <EmptyState icon="👥" title="Sin datos de utilización" />
+  if (!data.length) return <EmptyState icon="👥" title={t('bi.no_utilization_data')} />
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'auto' }}>
       {data.map((u, i) => (
@@ -276,6 +287,8 @@ function UtilizationWidget({ filters }) {
 }
 
 function TopClientsWidget({ filters, onFilterClient }) {
+  const t = useAppT()
+  const { lang } = useAppLang()
   const params = buildFilterParams(filters)
   const { data = [], isLoading } = useQuery({
     queryKey: ['bi-top-clients', params],
@@ -283,7 +296,7 @@ function TopClientsWidget({ filters, onFilterClient }) {
       const projects = r.data?.projects || r.data || []
       const byClient = {}
       projects.forEach(p => {
-        const cl = p.client_name || 'Sin cliente'
+        const cl = p.client_name || t('bi.no_client_label')
         const cid = p.client_id || cl
         if (!byClient[cid]) byClient[cid] = { name: cl, id: cid, revenue: 0, margin: [], projects: 0 }
         byClient[cid].revenue += p.billing_revenue || 0
@@ -297,7 +310,7 @@ function TopClientsWidget({ filters, onFilterClient }) {
     }).catch(() => []),
   })
   if (isLoading) return <Spinner />
-  if (!data.length) return <EmptyState icon="🏢" title="Sin datos de clientes" />
+  if (!data.length) return <EmptyState icon="🏢" title={t('bi.no_client_data')} />
 
   const maxRev = Math.max(...data.map(d => d.revenue))
   return (
@@ -308,7 +321,7 @@ function TopClientsWidget({ filters, onFilterClient }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 12 }}>
               <span style={{ color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{c.name}</span>
-              <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 4 }}>{fmtCur(c.revenue)}</span>
+              <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 4 }}>{fmtCur(c.revenue, lang)}</span>
             </div>
             <div style={{ height: 4, background: 'var(--surface-4)', borderRadius: 2, overflow: 'hidden' }}>
               <div style={{ height: '100%', borderRadius: 2, width: `${(c.revenue / maxRev) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
@@ -321,13 +334,15 @@ function TopClientsWidget({ filters, onFilterClient }) {
 }
 
 function PipelineWidget() {
+  const t = useAppT()
+  const { lang } = useAppLang()
   const { data: pipeline = [] } = useQuery({
     queryKey: ['bi-pipeline'],
     queryFn: () => api.get('/pipeline', { params: { page_size: 100 } }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])).catch(() => []),
   })
 
   const STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost']
-  const STAGE_LABELS = { lead: 'Lead', qualified: 'Calificado', proposal: 'Propuesta', negotiation: 'Negociación', won: 'Ganado', lost: 'Perdido' }
+  const STAGE_LABELS = { lead: t('bi.stage_lead'), qualified: t('bi.stage_qualified'), proposal: t('bi.stage_proposal'), negotiation: t('bi.stage_negotiation'), won: t('bi.stage_won'), lost: t('bi.stage_lost') }
   const byStage = STAGES.map(s => ({
     name: STAGE_LABELS[s] || s,
     deals: pipeline.filter(o => o.stage === s).length,
@@ -340,14 +355,15 @@ function PipelineWidget() {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-        <Tooltip formatter={(v, n) => n === 'revenue' ? [fmtCur(v), 'Revenue'] : [v, 'Deals']} contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }} />
-        <Bar dataKey="deals" fill={AMBER} radius={[4, 4, 0, 0]} name="Deals" />
+        <Tooltip formatter={(v, n) => n === 'revenue' ? [fmtCur(v, lang), t('bi.revenue_label')] : [v, t('bi.deals_label')]} contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }} />
+        <Bar dataKey="deals" fill={AMBER} radius={[4, 4, 0, 0]} name={t('bi.deals_label')} />
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 function HoursWidget({ filters }) {
+  const t = useAppT()
   const params = { weeks: 10, project_id: filters?.projectId || undefined }
   const { data: hoursData = [] } = useQuery({
     queryKey: ['bi-hours', params],
@@ -360,7 +376,7 @@ function HoursWidget({ filters }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-        <Tooltip formatter={v => [`${v}h`, 'Horas']} />
+        <Tooltip formatter={v => [`${v}h`, t('common.hours')]} />
         <Area type="monotone" dataKey="hours" stroke={BLUE} fill={BLUE} fillOpacity={0.25} strokeWidth={2} />
       </AreaChart>
     </ResponsiveContainer>
@@ -368,6 +384,8 @@ function HoursWidget({ filters }) {
 }
 
 function TopProjectsMarginWidget({ filters, onFilterProject }) {
+  const t = useAppT()
+  const { lang } = useAppLang()
   const params = buildFilterParams(filters)
   const { data: raw = [] } = useQuery({
     queryKey: ['bi-top-margin', params],
@@ -375,7 +393,7 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
   })
 
   const top = [...raw].sort((a, b) => (b.margin_pct || 0) - (a.margin_pct || 0)).slice(0, 6)
-  if (!top.length) return <EmptyState icon="💰" title="Sin datos" />
+  if (!top.length) return <EmptyState icon="💰" title={t('bi.no_data')} />
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', overflow: 'auto' }}>
@@ -384,7 +402,7 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
           <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', minWidth: 20 }}>#{i + 1}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name || p.name || p.code}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{fmtCur(p.revenue || p.billed || 0)} facturado</div>
+            <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{fmtCur(p.revenue || p.billed || 0, lang)} {t('bi.billed_label')}</div>
           </div>
           <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: (p.margin_pct || 0) >= 30 ? GREEN : (p.margin_pct || 0) >= 15 ? AMBER : RED }}>
             {p.margin_pct ? `${p.margin_pct.toFixed(1)}%` : '—'}
@@ -396,35 +414,36 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
 }
 
 function MetricAlertsWidget() {
+  const t = useAppT()
   const [threshold, setThreshold] = useState(10)
   const { data, isLoading } = useQuery({
     queryKey: ['bi-metric-alerts', threshold],
     queryFn: () => api.get('/analytics/alerts/metric-breaches', { params: { margin_threshold_pct: threshold } }).then(r => r.data).catch(() => ({ items: [] })),
   })
 
-  if (isLoading) return <EmptyState icon="🚨" title="Cargando alertas..." />
+  if (isLoading) return <EmptyState icon="🚨" title={t('bi.loading_alerts')} />
 
   const alerts = data?.items || []
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-2)' }}>Umbral de margen</div>
+        <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t('bi.margin_threshold')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="range" min={-20} max={40} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} style={{ width: 120 }} />
           <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-1)', minWidth: 40, textAlign: 'right' }}>{threshold}%</span>
         </div>
       </div>
       {alerts.length === 0 ? (
-        <EmptyState icon="✅" title="No hay breaches de margen" subtitle="Todos los proyectos cumplen el umbral actual" />
+        <EmptyState icon="✅" title={t('bi.no_margin_breaches')} subtitle={t('bi.all_projects_meet_threshold')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflow: 'auto' }}>
           {alerts.slice(0, 10).map((a, i) => (
             <div key={`${a.project_code || i}-${i}`} style={{ background: 'var(--surface-3)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{a.project_code || 'Proyecto'}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{a.project_code || t('bi.project_fallback')}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: RED }}>{fmtPct(a.margin_pct || 0)}</div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{a.description || 'Margen por debajo del umbral configurado'}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{a.description || t('bi.margin_below_threshold')}</div>
             </div>
           ))}
         </div>
@@ -434,17 +453,17 @@ function MetricAlertsWidget() {
 }
 
 export const WIDGET_REGISTRY = [
-  { id: 'kpi_grid', label: 'KPIs principales', icon: '◈', defaultSize: 'L' },
-  { id: 'health', label: 'Salud de proyectos', icon: '⬡', defaultSize: 'M' },
-  { id: 'projects_type', label: 'Proyectos por tipo', icon: '🧩', defaultSize: 'M' },
-  { id: 'revenue_cost', label: 'Ingresos vs Costes', icon: '📈', defaultSize: 'L' },
-  { id: 'profit_project', label: 'Rentabilidad por proyecto', icon: '💰', defaultSize: 'L' },
-  { id: 'utilization', label: 'Utilización del equipo', icon: '👥', defaultSize: 'M' },
-  { id: 'top_clients', label: 'Top clientes', icon: '🏢', defaultSize: 'M' },
-  { id: 'pipeline', label: 'Pipeline de ventas', icon: '🎪', defaultSize: 'M' },
-  { id: 'hours', label: 'Horas imputadas', icon: '⏱', defaultSize: 'M' },
-  { id: 'top_margin', label: 'Top proyectos por margen', icon: '🏆', defaultSize: 'M' },
-  { id: 'metric_alerts', label: 'Alertas por umbral', icon: '🚨', defaultSize: 'M' },
+  { id: 'kpi_grid', labelKey: 'bi.widget_kpi', icon: '◈', defaultSize: 'L' },
+  { id: 'health', labelKey: 'bi.widget_health', icon: '⬡', defaultSize: 'M' },
+  { id: 'projects_type', labelKey: 'bi.widget_projects_type', icon: '🧩', defaultSize: 'M' },
+  { id: 'revenue_cost', labelKey: 'bi.widget_revenue_cost', icon: '📈', defaultSize: 'L' },
+  { id: 'profit_project', labelKey: 'bi.widget_profit_project', icon: '💰', defaultSize: 'L' },
+  { id: 'utilization', labelKey: 'bi.widget_utilization', icon: '👥', defaultSize: 'M' },
+  { id: 'top_clients', labelKey: 'bi.widget_clients', icon: '🏢', defaultSize: 'M' },
+  { id: 'pipeline', labelKey: 'bi.widget_pipeline', icon: '🎪', defaultSize: 'M' },
+  { id: 'hours', labelKey: 'bi.widget_hours', icon: '⏱', defaultSize: 'M' },
+  { id: 'top_margin', labelKey: 'bi.widget_top_margin', icon: '🏆', defaultSize: 'M' },
+  { id: 'metric_alerts', labelKey: 'bi.widget_metric_alerts', icon: '🚨', defaultSize: 'M' },
 ]
 
 export const DEFAULT_LAYOUT = WIDGET_REGISTRY.map(w => ({ id: w.id, visible: true, size: w.defaultSize }))
@@ -466,6 +485,7 @@ export const WIDGET_ENDPOINTS = {
 }
 
 export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onMoveDown, isFirst, isLast, configMode, onExportData, onExportPdf, children }) {
+  const t = useAppT()
   const reg = WIDGET_REGISTRY.find(w => w.id === wid)
   const cfg = layout.find(l => l.id === wid) || { size: 'M', visible: true }
   const height = SIZE_HEIGHTS[cfg.size] || 280
@@ -475,7 +495,7 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>{reg?.icon}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{reg?.label}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{reg?.labelKey ? t(reg.labelKey) : reg?.label}</span>
         </div>
         {configMode ? (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -487,12 +507,12 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
             <button onClick={() => onMoveUp(wid)} disabled={isFirst} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isFirst ? 'var(--text-4)' : 'var(--text-2)', cursor: isFirst ? 'default' : 'pointer', fontSize: 12 }}>↑</button>
             <button onClick={() => onMoveDown(wid)} disabled={isLast} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isLast ? 'var(--text-4)' : 'var(--text-2)', cursor: isLast ? 'default' : 'pointer', fontSize: 12 }}>↓</button>
             <button onClick={() => onToggle(wid)} style={{ background: cfg.visible ? 'var(--success)' : 'var(--surface-4)', border: 'none', borderRadius: 4, padding: '2px 8px', color: cfg.visible ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'inherit' }}>
-              {cfg.visible ? '✓ Visible' : '○ Oculto'}
+              {cfg.visible ? `✓ ${t('bi.visible')}` : `○ ${t('bi.hidden')}`}
             </button>
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button onClick={() => onExportData?.(wid)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>XLS/CSV</button>
+            <button onClick={() => onExportData?.(wid)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>{t('bi.xls_csv')}</button>
             <button onClick={() => onExportPdf?.(wid)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>PDF</button>
           </div>
         )}
@@ -500,7 +520,7 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
       <div style={{ flex: 1, minHeight: height, overflow: 'hidden' }}>
         {cfg.visible ? children : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: 'var(--text-3)' }}>
-            Widget oculto — actívalo con el botón de configuración
+            {t('bi.hidden_widget_message')}
           </div>
         )}
       </div>
@@ -509,17 +529,18 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
 }
 
 const ACCENT_PRESETS = [
-  { label: 'Azul clásico', color: 'var(--accent)' },
+  { labelKey: 'bi.classic_blue', color: 'var(--accent)' },
   { label: 'Índigo', color: '#7c3aed' },
   { label: 'Teal', color: '#1d9e75' },
   { label: 'Cyan', color: '#0ea5e9' },
   { label: 'Coral', color: '#f43f5e' },
-  { label: 'Ámbar', color: '#f59e0b' },
+  { labelKey: 'bi.amber', color: '#f59e0b' },
   { label: 'Lime', color: '#84cc16' },
-  { label: 'Rosa', color: '#ec4899' },
+  { labelKey: 'bi.pink', color: '#ec4899' },
 ]
 
 export function ConfigPanel({ prefs, onSave, onClose }) {
+  const t = useAppT()
   const [localAccent, setLocalAccent] = useState(prefs.accent_color || '#4f8ef7')
   const [localDensity, setLocalDensity] = useState(prefs.ui_density || 'normal')
 
@@ -538,33 +559,33 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
   return (
     <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 340, zIndex: 200, background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>⚙ Personalizar dashboard</div>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>⚙ {t('bi.customize_dashboard')}</div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 20, padding: '0 4px' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Color de acento</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('bi.accent_color')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 12 }}>
             {ACCENT_PRESETS.map(p => (
-              <button key={p.color} onClick={() => applyAccent(p.color)} title={p.label} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: p.color, border: `2px solid ${localAccent === p.color ? '#fff' : 'transparent'}`, cursor: 'pointer' }} />
+              <button key={p.color} onClick={() => applyAccent(p.color)} title={p.labelKey ? t(p.labelKey) : p.label} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: p.color, border: `2px solid ${localAccent === p.color ? '#fff' : 'transparent'}`, cursor: 'pointer' }} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="color" value={localAccent} onChange={e => applyAccent(e.target.value)} style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none', padding: 0 }} />
             <div>
               <div style={{ fontSize: 12, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{localAccent}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-3)' }}>Color personalizado</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{t('bi.custom_color')}</div>
             </div>
           </div>
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Densidad de la interfaz</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{t('bi.interface_density')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
-              ['compact', 'Compacta', 'Más información en pantalla'],
-              ['normal', 'Normal', 'Equilibrio entre densidad y legibilidad'],
-              ['comfortable', 'Confortable', 'Más espaciado, más fácil de leer'],
+              ['compact', t('bi.density_compact'), t('bi.density_compact_desc')],
+              ['normal', t('bi.density_normal'), t('bi.density_normal_desc')],
+              ['comfortable', t('bi.density_comfortable'), t('bi.density_comfortable_desc')],
             ].map(([val, label, desc]) => (
               <button key={val} onClick={() => setLocalDensity(val)} style={{ padding: '10px 14px', borderRadius: 9, textAlign: 'left', background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${localDensity === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: localDensity === val ? 'var(--accent)' : 'var(--text-1)' }}>{label}</div>
@@ -575,8 +596,8 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
         </div>
       </div>
       <div style={{ padding: '16px 20px', borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 10, flexShrink: 0 }}>
-        <button onClick={handleSave} style={{ flex: 1, padding: '10px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', fontWeight: 600 }}>Guardar preferencias</button>
-        <button onClick={onClose} style={{ padding: '10px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={handleSave} style={{ flex: 1, padding: '10px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', fontWeight: 600 }}>{t('bi.save_prefs')}</button>
+        <button onClick={onClose} style={{ padding: '10px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
       </div>
     </div>
   )

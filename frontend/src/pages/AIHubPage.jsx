@@ -8,7 +8,7 @@ import api from '../services/api'
 import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppLang, useAppT } from '../i18n/AppLangContext'
 
 const PROVIDER_META = {
   anthropic: { icon: '🟠', color: CHART.orange, name: 'Anthropic' },
@@ -79,7 +79,7 @@ function ProviderModal({ provider, catalog, onClose }) {
           <label style={ls}>{t('ai.provider')}</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
             {Object.entries(PROVIDER_META).map(([key, meta]) => (
-              <button key={key} aria-pressed={providerType === key} aria-label={`Seleccionar proveedor ${meta.name}`} onClick={() => handleProviderChange(key)}
+              <button key={key} aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? meta.color + '80' : 'var(--surface-4)'}`, background: providerType === key ? meta.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
                 <div style={{ fontSize: 18, marginBottom: 4 }}>{meta.icon}</div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
@@ -105,7 +105,7 @@ function ProviderModal({ provider, catalog, onClose }) {
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
                 style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, display: 'block' }}>
-                🔗 Obtener API key en {catEntry.docs_url}
+                🔗 {t('ai.get_api_key_at')} {catEntry.docs_url}
               </a>
             )}
           </div>
@@ -113,7 +113,7 @@ function ProviderModal({ provider, catalog, onClose }) {
 
         {(providerType === 'ollama' || providerType === 'azure') && (
           <div style={{ gridColumn: '1/-1' }}>
-            <label htmlFor={`${idPrefix}-api-base-url`} style={ls}>URL base {providerType === 'ollama' ? '(ej: http://localhost:11434)' : ''}</label>
+            <label htmlFor={`${idPrefix}-api-base-url`} style={ls}>{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
             <input id={`${idPrefix}-api-base-url`} value={form.api_base_url} onChange={s('api_base_url')} style={fs}
               placeholder={catEntry.base_url || 'https://...'} />
           </div>
@@ -155,7 +155,7 @@ function ProviderModal({ provider, catalog, onClose }) {
             </>
           ) : (
             <input id={`${idPrefix}-default-model`} value={form.default_model} onChange={s('default_model')} style={fs}
-              placeholder="nombre-del-modelo" />
+              placeholder={t('ai.model_name_placeholder')} />
           )}
         </div>
 
@@ -257,8 +257,9 @@ function TestModal({ provider, onClose }) {
 }
 
 export default function AIHubPage() {
+  const { lang } = useAppLang()
   const t = useAppT()
-    const statusCfg = getStatusCfg(t)
+  const statusCfg = getStatusCfg(t)
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState(null)
@@ -294,6 +295,8 @@ export default function AIHubPage() {
 
   const defaultProvider = providers.find(p => p.is_default)
   const byModule = stats.by_module || []
+  const moneyFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
+  const intFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES')
 
   return (
     <div style={{ padding: 32 }}>
@@ -324,7 +327,7 @@ export default function AIHubPage() {
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
                   <div style={{ fontSize: 16, fontWeight: 800 }}>{defaultProvider.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Modelo: {defaultProvider.default_model} · {defaultProvider.total_requests} peticiones · ${defaultProvider.total_cost_usd.toFixed(4)} gastados</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
                 </div>
               </div>
             </div>
@@ -364,7 +367,7 @@ export default function AIHubPage() {
 
                     <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>
                       {p.has_api_key ? `🔑 ${t('ai.api_key_configured')}` : p.provider === 'ollama' ? `🦙 ${t('ai.local_no_key')}` : `⚠️ ${t('ai.no_api_key')}`}
-                      {p.last_error && <span style={{ color: 'var(--danger)', marginLeft: 8 }}>· Error: {p.last_error.slice(0, 40)}...</span>}
+                      {p.last_error && <span style={{ color: 'var(--danger)', marginLeft: 8 }}>· {t('common.error')}: {p.last_error.slice(0, 40)}...</span>}
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: 12 }}>
@@ -373,17 +376,17 @@ export default function AIHubPage() {
                     </div>
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button aria-label={`Probar proveedor ${p.name}`} onClick={() => setTestModal(p)}
+                      <button aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
                         style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                         🔌 {t('ai.provider_test_action')}
                       </button>
                       {!p.is_default && (
-                        <button aria-label={`Establecer ${p.name} como proveedor por defecto`} onClick={() => setDefault(p.id)}
+                        <button aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
                           style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #00d4ff30', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                           ⭐ {t('ai.provider_default_action')}
                         </button>
                       )}
-                      <button aria-label={`Editar proveedor ${p.name}`} onClick={() => setModal(p)}
+                      <button aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
                         style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                         {t('ai.provider_edit_action')}
                       </button>
@@ -405,9 +408,9 @@ export default function AIHubPage() {
         <div id="aihub-panel-stats" role="tabpanel" aria-labelledby="aihub-tab-stats">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
             {[
-              { icon: '🤖', label: 'Proveedores', value: (stats.providers || []).length, color: 'var(--accent)' },
+              { icon: '🤖', label: t('ai.providers_count'), value: (stats.providers || []).length, color: 'var(--accent)' },
               { icon: '💬', label: t('ai.total_requests'), value: stats.total_requests || 0, color: 'var(--success)' },
-              { icon: '💰', label: t('ai.total_cost'), value: `$${(stats.total_cost || 0).toFixed(4)}`, color: 'var(--warning)' },
+              { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats.total_cost || 0), color: 'var(--warning)' },
             ].map(k => (
               <div key={k.label} style={{ ...card, padding: '18px 20px' }}>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>{k.icon}</div>
@@ -425,8 +428,8 @@ export default function AIHubPage() {
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
-                    <span>{(r.tokens || 0).toLocaleString()} tokens</span>
-                    <span style={{ color: 'var(--warning)' }}>${r.cost.toFixed(4)}</span>
+                    <span>{intFmt.format(r.tokens || 0)} {t('ai.tokens_label')}</span>
+                    <span style={{ color: 'var(--warning)' }}>{moneyFmt.format(r.cost || 0)}</span>
                   </div>
                 </div>
               ))}
@@ -439,14 +442,14 @@ export default function AIHubPage() {
       {tab === 'guide' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {[
-            { icon: '🟠', title: t('ai.guide_anthropic'), desc: 'Los modelos Claude son los más capaces para análisis de proyectos y razonamiento complejo. Recomendado para NexusOracle y Sprint Planning IA.', link: PROVIDER_DOCS.anthropic, hint: 'sk-ant-...' },
-            { icon: '🟢', title: t('ai.guide_openai'), desc: 'GPT-4o es excelente para generación de texto y análisis. GPT-4o mini ofrece gran calidad a bajo coste para uso intensivo.', link: PROVIDER_DOCS.openai, hint: 'sk-...' },
-            { icon: '🔵', title: t('ai.guide_gemini'), desc: 'Gemini 2.5 Pro tiene la ventana de contexto más grande (1M tokens), ideal para analizar proyectos muy grandes.', link: PROVIDER_DOCS.gemini, hint: 'AIza...' },
-            { icon: '🐋', title: t('ai.guide_deepseek'), desc: 'DeepSeek-V3 ofrece rendimiento comparable a GPT-4 a un precio 10x menor. DeepSeek-R1 es especialista en razonamiento.', link: PROVIDER_DOCS.deepseek, hint: 'sk-...' },
-            { icon: '⚡', title: t('ai.guide_groq'), desc: 'Groq ejecuta modelos open-source (Llama 4, QwQ) a velocidades extremas. Ideal para respuestas en tiempo real.', link: PROVIDER_DOCS.groq, hint: 'gsk_...' },
-            { icon: '🌪', title: t('ai.guide_mistral'), desc: 'Mistral Large y Codestral ofrecen gran rendimiento en razonamiento y código. Modelos open-weight disponibles también via Ollama.', link: PROVIDER_DOCS.mistral, hint: '...' },
-            { icon: '🦙', title: t('ai.guide_ollama'), desc: 'Ejecuta Llama, Mistral, Phi, Gemma y otros modelos en tu propio hardware. Sin coste por token y con total privacidad de datos.', link: PROVIDER_DOCS.ollama, hint: t('ai.no_api_key') },
-            { icon: '☁️', title: t('ai.guide_azure'), desc: 'Accede a modelos GPT-4o y o-series a través de Azure con cumplimiento empresarial, SLA y datos en tu región.', link: PROVIDER_DOCS.azure, hint: '(Azure API key)' },
+            { icon: '🟠', title: t('ai.guide_anthropic'), desc: t('ai.guide_anthropic_desc'), link: PROVIDER_DOCS.anthropic, hint: 'sk-ant-...' },
+            { icon: '🟢', title: t('ai.guide_openai'), desc: t('ai.guide_openai_desc'), link: PROVIDER_DOCS.openai, hint: 'sk-...' },
+            { icon: '🔵', title: t('ai.guide_gemini'), desc: t('ai.guide_gemini_desc'), link: PROVIDER_DOCS.gemini, hint: 'AIza...' },
+            { icon: '🐋', title: t('ai.guide_deepseek'), desc: t('ai.guide_deepseek_desc'), link: PROVIDER_DOCS.deepseek, hint: 'sk-...' },
+            { icon: '⚡', title: t('ai.guide_groq'), desc: t('ai.guide_groq_desc'), link: PROVIDER_DOCS.groq, hint: 'gsk_...' },
+            { icon: '🌪', title: t('ai.guide_mistral'), desc: t('ai.guide_mistral_desc'), link: PROVIDER_DOCS.mistral, hint: '...' },
+            { icon: '🦙', title: t('ai.guide_ollama'), desc: t('ai.guide_ollama_desc'), link: PROVIDER_DOCS.ollama, hint: t('ai.no_api_key') },
+            { icon: '☁️', title: t('ai.guide_azure'), desc: t('ai.guide_azure_desc'), link: PROVIDER_DOCS.azure, hint: `(${t('ai.azure_api_key_hint')})` },
           ].map(p => (
             <div key={p.title} style={{ ...card, padding: '18px 20px' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
