@@ -39,6 +39,8 @@ from app.models.client_portal import (
     ClientMessage, ClientSurvey, ClientDocument, client_user_projects
 )
 from app.models.resources import ChangeRequest, ChangeRequestStatus
+from app.services.approval_workflows import find_default_workflow
+from app.services.realtime_notifications import publish_user_notification
 
 router = APIRouter()
 
@@ -1009,7 +1011,6 @@ def respond_to_fr(
 
     # Notificación en tiempo real por WebSocket
     try:
-        from app.api.v1.endpoints.ws import manager
         user_id = str(fr.client_id)
         notif = {
             "type": "cr_state_changed",
@@ -1021,7 +1022,7 @@ def respond_to_fr(
             "ts": datetime.now(timezone.utc).isoformat(),
         }
         import asyncio
-        asyncio.create_task(manager.publish(user_id, notif))
+        asyncio.create_task(publish_user_notification(user_id, notif))
     except Exception as e:
         logger.warning(f"No se pudo enviar notificación WS: {e}")
     return _fr_out(fr)
@@ -1037,7 +1038,6 @@ def client_decide_fr(
     from app.models.client_portal import FeatureRequest, FeatureRequestStatus
     from app.models.resources import ChangeRequest, ChangeRequestStatus, ChangeRequestImpact
     from app.models.billing_reports import ApprovalRequest
-    from app.api.v1.endpoints.approvals import _find_default_workflow
     import uuid
     accessible = current_client.get_project_ids()
     fr = db.query(FeatureRequest).filter(
@@ -1081,7 +1081,7 @@ def client_decide_fr(
             db.flush()
             fr.change_request_id = cr.id
             # Disparar workflow de aprobaciones
-            wf = _find_default_workflow("change_request", db)
+            wf = find_default_workflow("change_request", db)
             if wf:
                 req = ApprovalRequest(
                     id=str(uuid.uuid4()),

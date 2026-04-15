@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = Field(default="Clarive", env="PROJECT_NAME")
     VERSION: str = Field(default="23.9.3", env="VERSION")
     API_V1_STR: str = Field(default="/api/v1", env="API_V1_STR")
+    API_V2_STR: str = Field(default="/api/v2", env="API_V2_STR")
     ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")  # DEBUG|INFO|WARNING|ERROR|CRITICAL
 

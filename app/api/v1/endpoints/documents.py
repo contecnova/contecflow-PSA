@@ -26,6 +26,7 @@ from app.schemas.documents import (
 )
 from app.services.s3_service import file_storage
 from app.services.pagination_service import paginate_query
+from app.services.ai_dispatch import call_ai
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -1007,7 +1008,6 @@ def ai_summary(
         )
 
     try:
-        from app.api.v1.endpoints.ai_providers import call_ai
         summary_text = call_ai(
             db,
             messages=[{"role": "user", "content": f"Genera un resumen ejecutivo conciso (mximo 150 palabras) de este documento:\n\n{text_content}"}],

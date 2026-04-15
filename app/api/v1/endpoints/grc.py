@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User
+from app.services.grc_sod import record_sod_violation as _record_sod_violation
 
 router = APIRouter(prefix="/grc", tags=["GRC"])
 
@@ -519,16 +520,11 @@ def record_sod_violation(
     Records a SoD violation in grc_sod_violations.
     Called from approvals and other enforcement points.
     """
-    from app.models.billing_reports import SodViolation
-    v = SodViolation(
-        id=str(uuid.uuid4()),
+    _record_sod_violation(
+        db=db,
         rule_id=rule_id,
         user_id=user_id,
         role=role,
         context_type=context_type,
         context_id=context_id,
     )
-    db.add(v)
-    _log_grc(db, user_id, "sod_violation_detected", "sod_violation", v.id,
-             {"rule_id": rule_id, "context": context_type, "context_id": context_id},
-             severity="critical")

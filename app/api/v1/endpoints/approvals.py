@@ -15,6 +15,8 @@ import logging
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole
+from app.services.grc_sod import record_self_approval_violation_for_request
+from app.services.approval_workflows import find_default_workflow
 
 logger = logging.getLogger(__name__)
 
@@ -120,15 +122,6 @@ def _request_out(r) -> dict:
             for d in (r.decisions or [])
         ],
     }
-
-
-def _find_default_workflow(entity_type: str, db: Session):
-    from app.models.billing_reports import ApprovalWorkflow
-    return db.query(ApprovalWorkflow).filter(
-        ApprovalWorkflow.entity_type == entity_type,
-        ApprovalWorkflow.is_default  == True,
-        ApprovalWorkflow.is_active   == True,
-    ).first()
 
 
 def _notify_approver(request, step, db: Session, explicit_user_id: Optional[str] = None):
@@ -390,7 +383,7 @@ def create_request(
     # Buscar workflow
     wf_id = payload.workflow_id
     if not wf_id:
-        wf = _find_default_workflow(payload.entity_type, db)
+        wf = find_default_workflow(payload.entity_type, db)
         if not wf:
             raise HTTPException(404, f"No hay flujo de aprobación configurado para '{payload.entity_type}'")
         wf_id = wf.id
@@ -464,33 +457,27 @@ def decide_request(
         raise HTTPException(403, "No tienes permiso para aprobar este paso")
 
     # ── SoD: el solicitante no puede aprobar su propia solicitud ──────────────
-    if req.requested_by == current_user.id:
-        # Record the violation before blocking
-        try:
-            from app.api.v1.endpoints.grc import record_sod_violation
-            from app.models.billing_reports import SodRule
-            # Find matching SoD rule for this entity_type
-            matching = db.query(SodRule).filter(
-                SodRule.module_a == req.entity_type,
-                SodRule.action_a == "crear",
-                SodRule.module_b == req.entity_type,
-                SodRule.action_b == "aprobar",
-                SodRule.is_active == True,
-            ).first()
-            if matching:
-                record_sod_violation(
-                    db=db, rule_id=matching.id,
-                    user_id=current_user.id, role=str(current_user.role),
-                    context_type="approval_request", context_id=req.id,
-                )
-                db.flush()
-        except Exception:
-            pass
-        raise HTTPException(
-            403,
-            "SoD: el solicitante no puede aprobar su propia solicitud "
-            "(Segregación de Funciones — crear ≠ aprobar)"
+    try:
+        is_sod_violation = record_self_approval_violation_for_request(
+            db=db,
+            entity_type=req.entity_type,
+            request_id=req.id,
+            requested_by=req.requested_by,
+            actor_id=current_user.id,
+            actor_role=str(current_user.role),
         )
+        if is_sod_violation:
+            db.flush()
+            raise HTTPException(
+                403,
+                "SoD: el solicitante no puede aprobar su propia solicitud "
+                "(Segregación de Funciones — crear ≠ aprobar)"
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        # SoD enforcement cannot block the main workflow if logging fails.
+        pass
 
     # Registrar decisión
     decision = ApprovalDecision(

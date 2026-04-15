@@ -26,6 +26,7 @@ logging.getLogger("uvicorn.error").setLevel(_log_level)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from app.api.v1.router import api_router
+from app.api.v2.router import api_router as api_v2_router
 
 
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
@@ -259,6 +260,7 @@ async def security_headers_middleware(request: Request, call_next):
     return response
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_v2_router, prefix=settings.API_V2_STR)
 
 
 @app.get("/status", response_class=HTMLResponse)
@@ -437,10 +439,14 @@ def ticket_widget_js():
 @app.middleware("http")
 async def api_version_middleware(request: Request, call_next):
     response = await call_next(request)
-    # Current API is v1 — add version metadata to all API responses
-    if request.url.path.startswith(settings.API_V1_STR):
+    path = request.url.path
+    if path.startswith(settings.API_V1_STR):
         response.headers["X-API-Version"] = "1"
-        # When a v2 exists, set X-API-Deprecated: true for v1 paths
+        response.headers["X-API-Deprecated"] = "true"
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = "Thu, 31 Dec 2026 23:59:59 GMT"
+    elif path.startswith(settings.API_V2_STR):
+        response.headers["X-API-Version"] = "2"
         response.headers["X-API-Deprecated"] = "false"
     return response
 

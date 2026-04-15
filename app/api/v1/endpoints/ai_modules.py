@@ -16,6 +16,7 @@ import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
+from app.services.ai_dispatch import call_ai
 from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task
@@ -38,7 +39,6 @@ def _api_key(): return settings.ANTHROPIC_API_KEY or None
 def _call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
     """Wrapper que usa el proveedor configurado o fallback a Claude directo."""
     try:
-        from app.api.v1.endpoints.ai_providers import call_ai
         return call_ai(db, messages, system=system, module=module,
                       user_id=user_id, max_tokens=max_tokens)
     except Exception:

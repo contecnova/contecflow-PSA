@@ -10,11 +10,10 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.pipeline import Risk
 from app.services.numbering import next_numbered_code
+from app.services.risk_scoring import risk_level, risk_score
 
 router = APIRouter()
 
-PROB_SCORE = {"very_low": 0.05, "low": 0.2, "medium": 0.5, "high": 0.7, "very_high": 0.9}
-IMPACT_SCORE = {"negligible": 1, "minor": 2, "moderate": 3, "major": 4, "critical": 5}
 PROB_LABELS = {"very_low": "Muy baja (<10%)", "low": "Baja (10-30%)", "medium": "Media (30-60%)", "high": "Alta (60-80%)", "very_high": "Muy alta (>80%)"}
 IMPACT_LABELS = {"negligible": "Insignificante", "minor": "Menor", "moderate": "Moderado", "major": "Mayor", "critical": "Crítico"}
 STATUS_LABELS = {"identified": "Identificado", "analyzing": "Analizando", "mitigating": "Mitigando", "monitoring": "Monitorizando", "closed": "Cerrado", "materialized": "Materializado"}
@@ -49,19 +48,8 @@ def _next_code(project_id: str, db: Session) -> str:
     return next_numbered_code(db, "risk", prefix="RSK", padding=3)
 
 
-def _risk_score(probability: str, impact: str) -> float:
-    return round(PROB_SCORE.get(probability, 0.5) * IMPACT_SCORE.get(impact, 3), 2)
-
-
-def _risk_level(score: float) -> str:
-    if score >= 3.0: return "critical"
-    if score >= 2.0: return "high"
-    if score >= 1.0: return "medium"
-    return "low"
-
-
 def _risk_out(r: Risk) -> dict:
-    score = r.risk_score or _risk_score(r.probability, r.impact)
+    score = r.risk_score or risk_score(r.probability, r.impact)
     return {
         "id": r.id, "code": r.code, "project_id": r.project_id,
         "title": r.title, "description": r.description,
@@ -72,7 +60,7 @@ def _risk_out(r: Risk) -> dict:
         "impact": r.impact,
         "impact_label": IMPACT_LABELS.get(r.impact, r.impact),
         "risk_score": score,
-        "risk_level": _risk_level(score),
+        "risk_level": risk_level(score),
         "status": r.status,
         "status_label": STATUS_LABELS.get(r.status, r.status),
         "mitigation_plan": r.mitigation_plan,
@@ -150,7 +138,7 @@ def create_risk(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    score = _risk_score(payload.probability, payload.impact)
+    score = risk_score(payload.probability, payload.impact)
     risk = Risk(
         project_id=project_id,
         code=_next_code(project_id, db),
@@ -177,7 +165,7 @@ def update_risk(
         raise HTTPException(404, "Riesgo no encontrado")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(risk, k, v)
-    risk.risk_score = _risk_score(risk.probability, risk.impact)
+    risk.risk_score = risk_score(risk.probability, risk.impact)
     db.commit(); db.refresh(risk)
     return _risk_out(risk)
 

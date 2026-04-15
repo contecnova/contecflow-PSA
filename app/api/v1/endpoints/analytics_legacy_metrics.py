@@ -10,6 +10,7 @@ from app.models.project import Project
 from app.models.resources import Absence, ChangeRequest, Deliverable
 from app.models.task import Task
 from app.models.user import User
+from app.services.risk_scoring import risk_level, risk_score
 
 
 LEGACY_METRIC_IDS = [
@@ -191,12 +192,11 @@ def run_legacy_metric(
         rows = [{"label": STATUS_LABELS.get(r.status, r.status), "value": r.count} for r in q.all()]
 
     elif metric_id == "risks_by_level":
-        from app.api.v1.endpoints.risks import _risk_level, _risk_score
         from app.models.pipeline import Risk
         risks = db.query(Risk).filter(Risk.status.notin_(["closed"])).all()
         levels = {}
         for r in risks:
-            lvl = _risk_level(_risk_score(r.probability, r.impact))
+            lvl = risk_level(risk_score(r.probability, r.impact))
             levels[lvl] = levels.get(lvl, 0) + 1
         LEVEL_LABELS = {"critical": "Crítico", "high": "Alto", "medium": "Medio", "low": "Bajo"}
         rows = [{"label": LEVEL_LABELS.get(k, k), "value": v} for k, v in sorted(levels.items(), key=lambda x: ["critical", "high", "medium", "low"].index(x[0]))]

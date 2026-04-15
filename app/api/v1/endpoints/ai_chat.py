@@ -29,7 +29,7 @@ import asyncio
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole
-from app.api.v1.endpoints.ai_providers import call_ai
+from app.services.ai_dispatch import call_ai, get_default_provider
 from app.models.project import Project
 from app.models.task import Task
 from app.models.service_desk import Ticket
@@ -464,7 +464,6 @@ async def chat_stream(
     messages.append({"role": "user", "content": effective_message})
 
     # Detect whether the active provider is Anthropic (supports native SSE)
-    from app.api.v1.endpoints.ai_providers import get_default_provider
     active_provider = get_default_provider(db)
     is_anthropic_native = (
         active_provider is not None
@@ -2110,8 +2109,7 @@ def run_agent_stream(
     auto_approve  = getattr(payload, "auto_approve", True) # noqa: F841 F401
     user_id       = current_user.id # noqa: F841 F401
 
-    from app.api.v1.endpoints.ai_providers import get_default_provider as _gdp
-    active_prov = _gdp(db)
+    active_prov = get_default_provider(db)
     has_anthropic_tools = bool(
         _api_key() or (active_prov and active_prov.provider == "anthropic" and active_prov.api_key)
     )
@@ -2144,8 +2142,7 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
                 # No Anthropic provider — use call_ai() with any configured provider (Gemini, OpenAI, etc.)
                 # and simulate streaming with a rich analysis
                 try:
-                    from app.api.v1.endpoints.ai_providers import call_ai as _call_any
-                    fallback_text = _call_any(
+                    fallback_text = call_ai(
                         _db,
                         messages=[{"role": "user", "content": instruction}],
                         system=SYSTEM + (
