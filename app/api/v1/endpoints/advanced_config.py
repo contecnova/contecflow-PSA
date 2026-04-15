@@ -12,94 +12,14 @@ from app.models.user import User, UserRole
 from app.models.advanced_config import (
     CustomRole, ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
     TaskType, AlertConfig, RateTable, RateEntry, VacationPolicy, UserVacationBalance,
-    Office, NumberingSequence, CustomField, CustomFieldValue
+    Office, NumberingSequence, CustomField, CustomFieldValue,
 )
 from app.core.config import settings
+import app.services.advanced_config_service as _svc
 
 router = APIRouter()
 
-# ── Default data seeders ──────────────────────────────────────────────────────
-
-DEFAULT_ALERT_CONFIGS = [
-    ("overload", "Sobrecarga de recursos", "Recurso supera el % de capacidad configurado", 100, "%", True, True, False, False, "critical"),
-    ("burnout_risk", "Riesgo de burnout", "Recurso con alta carga durante N semanas consecutivas", 85, "%", True, True, True, False, "warning"),
-    ("budget_exceeded", "Presupuesto superado", "Proyecto supera el % de presupuesto configurado", 90, "%", True, True, False, False, "warning"),
-    ("budget_critical", "Presupuesto crítico", "Proyecto supera el 100% del presupuesto", 100, "%", True, True, False, False, "critical"),
-    ("deadline_risk", "Riesgo de plazo", "Proyecto con retraso en días", 0, "days", True, True, False, False, "warning"),
-    ("no_imputation", "Sin imputaciones", "Recurso sin imputar durante N días laborables", 2, "days", False, False, True, True, "info"),
-    ("task_blocked", "Tarea bloqueada", "Tarea bloqueada durante más de N días", 2, "days", False, True, False, False, "warning"),
-    ("hours_deviation", "Desviación de horas", "Tarea supera el % de horas estimadas", 50, "%", False, True, False, False, "warning"),
-]
-
-DEFAULT_TASK_TYPES = [
-    ("development", "Desarrollo", "💻", "#00d4ff", True),
-    ("bug", "Bug / Incidencia", "🐛", "#ff4757", False),
-    ("review", "Revisión / QA", "👁", "#ffb800", True),
-    ("meeting", "Reunión", "🤝", "#7c3aed", False),
-    ("documentation", "Documentación", "📄", "#7a8aaa", True),
-    ("analysis", "Análisis", "🔍", "#00e5a0", True),
-    ("training", "Formación", "📚", "#f97316", False),
-    ("support", "Soporte", "🔧", "#06b6d4", True),
-]
-
-DEFAULT_NUMBERING = [
-    ("project", "PRJ", "", "-", False, 4, False, "PRJ-0001"),
-    ("task", "TSK", "", "-", False, 4, False, "TSK-0001"),
-    ("contract", "CTR", "", "-", False, 4, False, "CTR-0001"),
-    ("opportunity", "OPP", "", "-", False, 4, False, "OPP-0001"),
-    ("change_request", "CR", "", "-", False, 3, False, "CR-001"),
-    ("deliverable", "DEL", "", "-", False, 3, False, "DEL-001"),
-    ("risk", "RSK", "", "-", False, 3, False, "RSK-001"),
-]
-
-DEFAULT_MODULES = ["dashboard", "projects", "tasks", "imputations", "timesheets", "resources", "capacity", "profitability", "pipeline", "contracts", "risks", "changes", "deliverables", "skills", "absences", "reports", "alerts", "exports", "settings"]
-
-DEFAULT_SYSTEM_ROLES = [
-    ("admin", "Dirección / Admin", "#ff4757", True),
-    ("pm", "Project Manager", "#00d4ff", True),
-    ("hr", "RRHH", "#00e5a0", True),
-    ("team_lead", "Team Lead", "#7c3aed", True),
-    ("employee", "Empleado", "#7a8aaa", True),
-]
-
-
-def _seed_alert_configs(db: Session):
-    if db.query(AlertConfig).count() > 0:
-        return
-    for at, label, desc, threshold, unit, notify_admin, notify_pm, notify_hr, notify_emp, severity in DEFAULT_ALERT_CONFIGS:
-        db.add(AlertConfig(
-            alert_type=at, label=label, description=desc,
-            threshold_value=threshold, threshold_unit=unit,
-            notify_admin=notify_admin, notify_pm=notify_pm,
-            notify_hr=notify_hr, notify_employee=notify_emp,
-            severity=severity,
-        ))
-    db.commit()
-
-
-def _seed_task_types(db: Session):
-    if db.query(TaskType).count() > 0:
-        return
-    for i, (value, name, icon, color, billable) in enumerate(DEFAULT_TASK_TYPES):
-        db.add(TaskType(value=value, name=name, icon=icon, color=color, is_billable_default=billable, sort_order=i))
-    db.commit()
-
-
-def _seed_numbering(db: Session):
-    if db.query(NumberingSequence).count() > 0:
-        return
-    for entity, prefix, suffix, sep, year, padding, reset, example in DEFAULT_NUMBERING:
-        db.add(NumberingSequence(entity=entity, prefix=prefix, suffix=suffix, separator=sep, include_year=year, padding=padding, reset_yearly=reset, example=example))
-    db.commit()
-
-
-def _seed_system_roles(db: Session):
-    if db.query(CustomRole).filter(CustomRole.is_system == True).count() > 0:
-        return
-    all_modules = {m: True for m in DEFAULT_MODULES}
-    for name, description, color, is_system in DEFAULT_SYSTEM_ROLES:
-        db.add(CustomRole(name=name, description=description, color=color, is_system=is_system, module_access=json.dumps(all_modules)))
-    db.commit()
+DEFAULT_MODULES = _svc.DEFAULT_MODULES
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
@@ -210,7 +130,7 @@ class TemplateIn(BaseModel):
 
 @router.get("/roles", summary="Listar roles")
 def get_roles(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    _seed_system_roles(db)
+    _svc.seed_system_roles(db)
     roles = db.query(CustomRole).filter(CustomRole.is_active == True).order_by(CustomRole.is_system.desc(), CustomRole.name).all()
     return [{
         "id": r.id, "name": r.name, "description": r.description, "color": r.color,
@@ -263,7 +183,7 @@ def get_modules(_: User = Depends(get_current_user)):
 
 @router.get("/task-types", summary="Tipos de tarea")
 def get_task_types(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    _seed_task_types(db)
+    _svc.seed_task_types(db)
     types = db.query(TaskType).filter(TaskType.is_active == True).order_by(TaskType.sort_order).all()
     return [{"id": t.id, "name": t.name, "value": t.value, "icon": t.icon, "color": t.color,
              "is_billable_default": t.is_billable_default, "is_active": t.is_active, "sort_order": t.sort_order} for t in types]
@@ -293,7 +213,7 @@ def delete_task_type(type_id: str, db: Session = Depends(get_db), _: User = Depe
 
 @router.get("/alert-configs", summary="Configuración de alertas")
 def get_alert_configs(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    _seed_alert_configs(db)
+    _svc.seed_alert_configs(db)
     configs = db.query(AlertConfig).order_by(AlertConfig.alert_type).all()
     return [{"id": c.id, "alert_type": c.alert_type, "label": c.label, "description": c.description,
              "is_enabled": c.is_enabled, "threshold_value": c.threshold_value, "threshold_unit": c.threshold_unit,
@@ -315,9 +235,10 @@ def get_rate_tables(db: Session = Depends(get_db), _: User = Depends(require_adm
     tables = db.query(RateTable).options(joinedload(RateTable.entries)).filter(RateTable.is_active == True).all()
     return [{"id": t.id, "name": t.name, "description": t.description,
              "is_default": t.is_default, "is_active": t.is_active, "applies_to": t.applies_to,
-             "entries": [{"id": e.id, "label": e.label,
-                          "cost_rate": e.cost_rate, "billing_rate": e.billing_rate,
-                          "currency": getattr(e, "currency", settings.DEFAULT_CURRENCY)} for e in (t.entries or [])]} for t in tables]
+             "entries": [{"id": e.id, "label": e.label, "cost_rate": e.cost_rate,
+                          "billing_rate": e.billing_rate,
+                          "currency": getattr(e, "currency", settings.DEFAULT_CURRENCY)}
+                         for e in (t.entries or [])]} for t in tables]
 
 @router.post("/rate-tables", summary="Crear tabla de tarifas")
 def create_rate_table(payload: RateTableIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
@@ -358,8 +279,10 @@ def get_vacation_policies(db: Session = Depends(get_db), _: User = Depends(requi
     policies = db.query(VacationPolicy).filter(VacationPolicy.is_active == True).all()
     return [{"id": p.id, "name": p.name, "description": p.description,
              "days_per_year": p.days_per_year, "carries_over": p.carries_over,
-             "max_carryover_days": p.max_carryover_days, "carryover_expiry_months": p.carryover_expiry_months,
-             "applies_to_roles": p.applies_to_roles, "is_default": p.is_default, "is_active": p.is_active} for p in policies]
+             "max_carryover_days": p.max_carryover_days,
+             "carryover_expiry_months": p.carryover_expiry_months,
+             "applies_to_roles": p.applies_to_roles, "is_default": p.is_default,
+             "is_active": p.is_active} for p in policies]
 
 @router.post("/vacation-policies", summary="Crear política de vacaciones")
 def create_vacation_policy(payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
@@ -384,46 +307,11 @@ def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), _: Use
 
 @router.get("/vacation-balances", summary="Saldos de vacaciones del equipo")
 def get_vacation_balances(year: int = Query(default=None), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
-    from datetime import datetime
-    if not year: year = datetime.now().year
-    from app.models.user import User as UserModel
-    from app.models.resources import Absence, AbsenceStatus, AbsenceType
-    users = db.query(UserModel).filter(UserModel.is_active == True).all()
-    results = []
-    for u in users:
-        bal = db.query(UserVacationBalance).filter(UserVacationBalance.user_id == u.id, UserVacationBalance.year == year).first()
-        year_start = date(year, 1, 1)
-        year_end = date(year + 1, 1, 1)
-        taken = db.query(func.sum(Absence.working_days)).filter(
-            Absence.user_id == u.id, Absence.type == AbsenceType.vacation,
-            Absence.status == AbsenceStatus.approved,
-            Absence.start_date >= year_start,
-            Absence.start_date < year_end,
-        ).scalar() or 0
-        pending = db.query(func.sum(Absence.working_days)).filter(
-            Absence.user_id == u.id, Absence.type == AbsenceType.vacation,
-            Absence.status == AbsenceStatus.pending,
-            Absence.start_date >= year_start,
-            Absence.start_date < year_end,
-        ).scalar() or 0
-        entitled = bal.days_entitled if bal else settings.DEFAULT_VACATION_DAYS_PER_YEAR
-        results.append({
-            "user_id": u.id, "user_name": u.full_name, "department": u.department,
-            "year": year, "days_entitled": entitled, "days_taken": round(taken, 1),
-            "days_pending": round(pending, 1), "days_remaining": round(entitled - taken - pending, 1),
-            "days_carried_over": bal.days_carried_over if bal else 0,
-        })
-    return results
+    return _svc.get_vacation_balances(year, db)
 
 @router.patch("/vacation-balances/{user_id}", summary="Actualizar saldo de vacaciones")
-def update_vacation_balance(user_id: str, year: int = Query(...), days_entitled: float = Query(...), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
-    bal = db.query(UserVacationBalance).filter(UserVacationBalance.user_id == user_id, UserVacationBalance.year == year).first()
-    if not bal:
-        bal = UserVacationBalance(user_id=user_id, year=year, days_entitled=days_entitled)
-        db.add(bal)
-    else:
-        bal.days_entitled = days_entitled
-    db.commit(); return {"ok": True}
+def update_vacation_balance_endpoint(user_id: str, year: int = Query(...), days_entitled: float = Query(...), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+    return _svc.update_vacation_balance(user_id, year, days_entitled, db)
 
 
 # ── Offices ───────────────────────────────────────────────────────────────────
@@ -457,7 +345,7 @@ def delete_office(office_id: str, db: Session = Depends(get_db), _: User = Depen
 
 @router.get("/numbering", summary="Secuencias de numeración")
 def get_numbering(db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    _seed_numbering(db)
+    _svc.seed_numbering(db)
     seqs = db.query(NumberingSequence).order_by(NumberingSequence.entity).all()
     result = []
     for s in seqs:
@@ -466,7 +354,10 @@ def get_numbering(db: Session = Depends(get_db), _: User = Depends(require_admin
         year_part = f"{year}{s.separator}" if s.include_year else ""
         padded = str(next_val).zfill(s.padding)
         preview = f"{s.prefix}{s.separator}{year_part}{padded}{s.suffix}" if s.prefix else f"{year_part}{padded}{s.suffix}"
-        result.append({"id": s.id, "entity": s.entity, "prefix": s.prefix, "suffix": s.suffix, "separator": s.separator, "include_year": s.include_year, "padding": s.padding, "reset_yearly": s.reset_yearly, "current_value": s.current_value, "example": s.example, "next_preview": preview})
+        result.append({"id": s.id, "entity": s.entity, "prefix": s.prefix, "suffix": s.suffix,
+                        "separator": s.separator, "include_year": s.include_year, "padding": s.padding,
+                        "reset_yearly": s.reset_yearly, "current_value": s.current_value,
+                        "example": s.example, "next_preview": preview})
     return result
 
 @router.patch("/numbering/{entity}", summary="Actualizar numeración")
@@ -477,7 +368,6 @@ def update_numbering(entity: str, payload: NumberingIn, db: Session = Depends(ge
         db.add(s)
     else:
         for k, v in payload.model_dump().items(): setattr(s, k, v)
-    # Update example
     year = datetime.now().year
     year_part = f"{year}{payload.separator}" if payload.include_year else ""
     padded = "1".zfill(payload.padding)
@@ -498,21 +388,21 @@ def get_custom_fields(entity: Optional[str] = None, db: Session = Depends(get_db
     q = db.query(CustomField).filter(CustomField.is_active == True)
     if entity: q = q.filter(CustomField.entity == entity)
     fields = q.order_by(CustomField.entity, CustomField.sort_order).all()
-    return [{
-        "id": f.id, "entity": f.entity, "name": f.name, "field_key": f.field_key,
-        "field_type": f.field_type,
-        "options": json.loads(f.options) if f.options else None,
-        "is_required": f.is_required, "placeholder": f.placeholder,
-        "default_value": f.default_value,
-        "visible_to_roles": json.loads(f.visible_to_roles) if f.visible_to_roles else None,
-        "sort_order": f.sort_order,
-    } for f in fields]
+    return [{"id": f.id, "entity": f.entity, "name": f.name, "field_key": f.field_key,
+             "field_type": f.field_type,
+             "options": json.loads(f.options) if f.options else None,
+             "is_required": f.is_required, "placeholder": f.placeholder,
+             "default_value": f.default_value,
+             "visible_to_roles": json.loads(f.visible_to_roles) if f.visible_to_roles else None,
+             "sort_order": f.sort_order} for f in fields]
 
 @router.post("/custom-fields", summary="Crear campo personalizado")
 def create_custom_field(payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    existing = db.query(CustomField).filter(CustomField.entity == payload.entity, CustomField.field_key == payload.field_key).first()
-    if existing: raise HTTPException(400, "Ya existe un campo con esa clave para esa entidad")
-    f = CustomField(**{**payload.model_dump(), "options": json.dumps(payload.options) if payload.options else None, "visible_to_roles": json.dumps(payload.visible_to_roles) if payload.visible_to_roles else None})
+    if db.query(CustomField).filter(CustomField.entity == payload.entity, CustomField.field_key == payload.field_key).first():
+        raise HTTPException(400, "Ya existe un campo con esa clave para esa entidad")
+    f = CustomField(**{**payload.model_dump(),
+                       "options": json.dumps(payload.options) if payload.options else None,
+                       "visible_to_roles": json.dumps(payload.visible_to_roles) if payload.visible_to_roles else None})
     db.add(f); db.commit(); db.refresh(f); return {"id": f.id}
 
 @router.patch("/custom-fields/{field_id}", summary="Actualizar campo")
@@ -520,10 +410,7 @@ def update_custom_field(field_id: str, payload: CustomFieldIn, db: Session = Dep
     f = db.query(CustomField).filter(CustomField.id == field_id).first()
     if not f: raise HTTPException(404, "No encontrado")
     for k, v in payload.model_dump().items():
-        if k in ("options", "visible_to_roles"):
-            setattr(f, k, json.dumps(v) if v else None)
-        else:
-            setattr(f, k, v)
+        setattr(f, k, json.dumps(v) if k in ("options", "visible_to_roles") and v else v)
     db.commit(); db.refresh(f); return {"id": f.id}
 
 @router.delete("/custom-fields/{field_id}", summary="Eliminar campo")
@@ -572,13 +459,15 @@ def get_templates(db: Session = Depends(get_db), _: User = Depends(get_current_u
         "task_count": sum(len(p.tasks) for p in t.phases),
         "risk_count": len(t.risks),
         "deliverable_count": len(t.deliverables),
-        "phases": [{
-            "id": p.id, "name": p.name, "order": p.order,
-            "estimated_weeks": p.estimated_weeks, "estimated_hours": p.estimated_hours,
-            "tasks": [{"id": tk.id, "title": tk.title, "estimated_hours": tk.estimated_hours, "skill_required": tk.skill_required} for tk in p.tasks],
-        } for p in sorted(t.phases, key=lambda x: x.order)],
-        "risks": [{"id": r.id, "title": r.title, "category": r.category, "probability": r.probability, "impact": r.impact} for r in t.risks],
-        "deliverables": [{"id": d.id, "name": d.name, "format": d.format, "week_offset": d.week_offset, "billing_pct": d.billing_pct} for d in t.deliverables],
+        "phases": [{"id": p.id, "name": p.name, "order": p.order,
+                    "estimated_weeks": p.estimated_weeks, "estimated_hours": p.estimated_hours,
+                    "tasks": [{"id": tk.id, "title": tk.title, "estimated_hours": tk.estimated_hours,
+                                "skill_required": tk.skill_required} for tk in p.tasks]}
+                   for p in sorted(t.phases, key=lambda x: x.order)],
+        "risks": [{"id": r.id, "title": r.title, "category": r.category,
+                   "probability": r.probability, "impact": r.impact} for r in t.risks],
+        "deliverables": [{"id": d.id, "name": d.name, "format": d.format,
+                           "week_offset": d.week_offset, "billing_pct": d.billing_pct} for d in t.deliverables],
     } for t in templates]
 
 @router.post("/templates", summary="Crear plantilla")
@@ -586,17 +475,25 @@ def create_template(payload: TemplateIn, db: Session = Depends(get_db), current_
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
     try:
-        t = ProjectTemplate(name=payload.name, description=payload.description, project_type=payload.project_type, estimated_weeks=payload.estimated_weeks, estimated_hours=payload.estimated_hours, created_by=current_user.id)
+        t = ProjectTemplate(name=payload.name, description=payload.description, project_type=payload.project_type,
+                            estimated_weeks=payload.estimated_weeks, estimated_hours=payload.estimated_hours,
+                            created_by=current_user.id)
         db.add(t); db.flush()
         for i, ph in enumerate(payload.phases or []):
-            phase = TemplatePhase(template_id=t.id, name=ph.name, description=ph.description, order=ph.order or i, estimated_weeks=ph.estimated_weeks, estimated_hours=ph.estimated_hours)
+            phase = TemplatePhase(template_id=t.id, name=ph.name, description=ph.description,
+                                  order=ph.order or i, estimated_weeks=ph.estimated_weeks, estimated_hours=ph.estimated_hours)
             db.add(phase); db.flush()
             for j, tk in enumerate(ph.tasks or []):
-                db.add(TemplateTask(phase_id=phase.id, title=tk.get("title", ""), estimated_hours=tk.get("estimated_hours"), skill_required=tk.get("skill_required"), order=j))
+                db.add(TemplateTask(phase_id=phase.id, title=tk.get("title", ""),
+                                    estimated_hours=tk.get("estimated_hours"),
+                                    skill_required=tk.get("skill_required"), order=j))
         for r in payload.risks or []:
-            db.add(TemplateRisk(template_id=t.id, title=r.get("title", ""), category=r.get("category"), probability=r.get("probability", "medium"), impact=r.get("impact", "moderate"), mitigation_plan=r.get("mitigation_plan")))
+            db.add(TemplateRisk(template_id=t.id, title=r.get("title", ""), category=r.get("category"),
+                                probability=r.get("probability", "medium"), impact=r.get("impact", "moderate"),
+                                mitigation_plan=r.get("mitigation_plan")))
         for d in payload.deliverables or []:
-            db.add(TemplateDeliverable(template_id=t.id, name=d.get("name", ""), format=d.get("format"), billing_pct=d.get("billing_pct"), week_offset=d.get("week_offset")))
+            db.add(TemplateDeliverable(template_id=t.id, name=d.get("name", ""), format=d.get("format"),
+                                       billing_pct=d.get("billing_pct"), week_offset=d.get("week_offset")))
         db.commit()
         return {"id": t.id, "name": t.name}
     except Exception:
@@ -610,50 +507,10 @@ def delete_template(template_id: str, db: Session = Depends(get_db), _: User = D
     t.is_active = False; db.commit(); return {"ok": True}
 
 @router.post("/templates/{template_id}/apply/{project_id}", summary="Aplicar plantilla a proyecto")
-def apply_template(template_id: str, project_id: str, start_date: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
-    from app.models.project import Project, ProjectPhase
-    from app.models.task import Task, TaskStatus, TaskPriority
-    from app.models.resources import Deliverable
-
-    t = db.query(ProjectTemplate).options(
-        joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
-        joinedload(ProjectTemplate.risks), joinedload(ProjectTemplate.deliverables),
-    ).filter(ProjectTemplate.id == template_id).first()
-    if not t: raise HTTPException(404, "Plantilla no encontrada")
-
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project: raise HTTPException(404, "Proyecto no encontrado")
-
-    from datetime import datetime, timedelta
-    base_date = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else date.today()
-
-    created_phases = 0; created_tasks = 0; created_risks = 0; created_deliverables = 0
-
-    try:
-        for ph in sorted(t.phases, key=lambda x: x.order):
-            phase = ProjectPhase(project_id=project_id, name=ph.name, description=ph.description, order=ph.order, budget_hours=ph.estimated_hours)
-            db.add(phase); db.flush()
-            created_phases += 1
-            for tk in sorted(ph.tasks, key=lambda x: x.order):
-                task = Task(project_id=project_id, phase_id=phase.id, title=tk.title, description=tk.description, estimated_hours=tk.estimated_hours, status=TaskStatus.todo, priority=TaskPriority.medium)
-                db.add(task); created_tasks += 1
-
-        for i, r in enumerate(t.risks):
-            from app.models.pipeline import Risk as RiskModel
-            risk = RiskModel(project_id=project_id, code=f"RSK-{i+1:03d}", title=r.title, category=r.category, probability=r.probability, impact=r.impact, mitigation_plan=r.mitigation_plan, identified_by=current_user.id)
-            db.add(risk); created_risks += 1
-
-        for i, d in enumerate(t.deliverables):
-            planned = None
-            if d.week_offset is not None:
-                planned = base_date + timedelta(weeks=d.week_offset)
-            deliverable = Deliverable(project_id=project_id, code=f"DEL-{i+1:03d}", name=d.name, format=d.format, billing_pct=d.billing_pct, planned_date=planned)
-            db.add(deliverable); created_deliverables += 1
-
-        db.commit()
-        return {"message": f"Plantilla aplicada: {created_phases} fases, {created_tasks} tareas, {created_risks} riesgos, {created_deliverables} entregables"}
-    except Exception:
-        db.rollback()
-        raise
+def apply_template(template_id: str, project_id: str, start_date: Optional[str] = None,
+                   db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return _svc.apply_template_to_project(
+        template_id, project_id, start_date, str(current_user.id),
+        current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
+        db,
+    )
