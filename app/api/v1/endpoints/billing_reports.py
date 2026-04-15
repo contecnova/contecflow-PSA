@@ -67,6 +67,10 @@ from app.schemas.billing_reports import (
     ScheduledReportOut,
     ScheduledReportCreateOut,
     ScheduledReportRunOut,
+    ProjectTemplateOut,
+    TemplateCreateOut,
+    TemplateInstantiateOut,
+    SmartMatchOut,
     OkResponse,
 )
 
@@ -792,6 +796,17 @@ def create_invoice(
         )
         db.add(line)
 
+    # Mark imputations as invoiced so they cannot be re-included in a future invoice
+    for line_data in payload.lines:
+        if line_data.get("source_type") == "timesheet":
+            raw_ids = line_data.get("source_ids", [])
+            imp_ids = json.loads(raw_ids) if isinstance(raw_ids, str) else raw_ids
+            if imp_ids:
+                db.query(Imputation).filter(Imputation.id.in_(imp_ids)).update(
+                    {"is_invoiced": True, "invoiced_invoice_id": inv.id},
+                    synchronize_session=False,
+                )
+
     audit_log(db, current_user, "CREATE", "invoices", inv.id, inv.number)
     db.commit()
     inv = db.query(Invoice).options(joinedload(Invoice.project), joinedload(Invoice.lines)).filter(Invoice.id == inv.id).first()
@@ -1198,7 +1213,7 @@ def workflow_executions(
 # PROJECT TEMPLATES (full UI)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.get("/templates", summary="Listar plantillas de proyecto")
+@router.get("/templates", response_model=List[ProjectTemplateOut], summary="Listar plantillas de proyecto")
 def list_templates(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -1228,7 +1243,7 @@ def list_templates(
     } for t in templates]
 
 
-@router.post("/templates", summary="Crear plantilla de proyecto")
+@router.post("/templates", response_model=TemplateCreateOut, status_code=201, summary="Crear plantilla de proyecto")
 def create_template(
     payload: TemplateCreate,
     db: Session = Depends(get_db),
@@ -1287,7 +1302,7 @@ def create_template(
     return {"ok": True, "id": t.id}
 
 
-@router.post("/templates/{template_id}/instantiate", summary="Crear proyecto desde plantilla")
+@router.post("/templates/{template_id}/instantiate", response_model=TemplateInstantiateOut, summary="Crear proyecto desde plantilla")
 def instantiate_template(
     template_id: str,
     payload: dict = Body(...),
@@ -1382,7 +1397,7 @@ def instantiate_template(
 # SMARTMATCH — Resource recommendation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/smartmatch", summary="SmartMatch — sugerir mejores recursos para una tarea/proyecto")
+@router.post("/smartmatch", response_model=SmartMatchOut, summary="SmartMatch — sugerir mejores recursos para una tarea/proyecto")
 def smartmatch(
     payload: dict = Body(...),
     db: Session = Depends(get_db),

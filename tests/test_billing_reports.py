@@ -14,6 +14,7 @@ from datetime import date
 import pytest
 
 from app.main import app
+from app.models.imputation import Imputation
 from tests.conftest import auth
 
 
@@ -406,6 +407,63 @@ def test_invoice_from_timesheets_requires_manager(client, dev_token, db):
     assert res.status_code in (401, 403)
 
 
+def test_invoice_from_timesheets_excludes_already_invoiced_imputations(client, pm_token, db):
+    pid = make_project(client, pm_token, code="BRP-INV-01")
+
+    imp = Imputation(
+        user_id="dev-test-id",
+        project_id=pid,
+        date=date.today(),
+        hours=8,
+        description="Sprint implementation",
+        is_billable=True,
+        is_approved=True,
+    )
+    db.add(imp)
+    db.commit()
+    db.refresh(imp)
+
+    preview_1 = client.post(
+        "/api/v1/invoices/from-timesheets",
+        json={"project_id": pid, "date_from": str(date.today()), "date_to": str(date.today())},
+        headers=auth(pm_token),
+    )
+    assert preview_1.status_code == 200, preview_1.text
+    preview_data_1 = preview_1.json()
+    assert preview_data_1["imputation_count"] == 1
+    assert len(preview_data_1["lines"]) >= 1
+
+    create_res = client.post(
+        "/api/v1/invoices",
+        json={
+            "project_id": pid,
+            "issue_date": str(date.today()),
+            "due_date": str(date.today()),
+            "tax_rate": 21.0,
+            "currency": "EUR",
+            "client_name": "ACME Corp",
+            "lines": preview_data_1["lines"],
+        },
+        headers=auth(pm_token),
+    )
+    assert create_res.status_code in (200, 201), create_res.text
+    invoice_id = create_res.json()["id"]
+
+    db.refresh(imp)
+    assert imp.is_invoiced is True
+    assert imp.invoiced_invoice_id == invoice_id
+
+    preview_2 = client.post(
+        "/api/v1/invoices/from-timesheets",
+        json={"project_id": pid, "date_from": str(date.today()), "date_to": str(date.today())},
+        headers=auth(pm_token),
+    )
+    assert preview_2.status_code == 200, preview_2.text
+    preview_data_2 = preview_2.json()
+    assert preview_data_2["imputation_count"] == 0
+    assert preview_data_2["lines"] == []
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # AUTOMATION WORKFLOWS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -523,6 +581,89 @@ def test_scheduled_report_list_requires_auth(client, db):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PROJECT TEMPLATES + SMARTMATCH
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def test_templates_create_list_and_instantiate(client, pm_token, db):
+    create_payload = {
+        "name": "Plantilla Consultoria",
+        "description": "Template test",
+        "project_type": "consulting",
+        "estimated_weeks": 4,
+        "estimated_hours": 120,
+        "phases": [
+            {
+                "name": "Discovery",
+                "estimated_weeks": 1,
+                "tasks": [
+                    {
+                        "title": "Workshop inicial",
+                        "estimated_hours": 8,
+                        "skill_required": "analysis",
+                    }
+                ],
+            }
+        ],
+        "risks": [],
+        "deliverables": [],
+    }
+
+    create_res = client.post("/api/v1/templates", json=create_payload, headers=auth(pm_token))
+    assert create_res.status_code in (200, 201), create_res.text
+    created = create_res.json()
+    assert created.get("ok") is True
+    template_id = created["id"]
+
+    list_res = client.get("/api/v1/templates", headers=auth(pm_token))
+    assert list_res.status_code == 200
+    templates = list_res.json()
+    assert any(t["id"] == template_id for t in templates)
+
+    inst_res = client.post(
+        f"/api/v1/templates/{template_id}/instantiate",
+        json={"name": "Proyecto desde template"},
+        headers=auth(pm_token),
+    )
+    assert inst_res.status_code == 200
+    data = inst_res.json()
+    assert data.get("ok") is True
+    assert "project_id" in data
+    assert "project_code" in data
+
+
+def test_templates_require_manager(client, dev_token, db):
+    res = client.post(
+        "/api/v1/templates",
+        json={"name": "Nope", "phases": [], "risks": [], "deliverables": []},
+        headers=auth(dev_token),
+    )
+    assert res.status_code in (401, 403)
+
+
+def test_smartmatch_returns_contract(client, pm_token, db):
+    res = client.post(
+        "/api/v1/smartmatch",
+        json={"skills": ["python"], "hours_needed": 20},
+        headers=auth(pm_token),
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert "query" in data
+    assert "candidates" in data
+    assert "total_evaluated" in data
+    assert "message" in data
+
+
+def test_smartmatch_bad_date_format_rejected(client, pm_token, db):
+    res = client.post(
+        "/api/v1/smartmatch",
+        json={"start_date": "15-01-2026", "end_date": "2026-01-20"},
+        headers=auth(pm_token),
+    )
+    assert res.status_code == 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # OPENAPI CONTRACTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -556,3 +697,16 @@ def test_openapi_contract_for_scheduled_reports(client, db):
     schema_ref = spec["paths"]["/api/v1/scheduled-reports"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert schema_ref.get("type") == "array"
     assert "$ref" in schema_ref.get("items", {})
+
+
+def test_openapi_contract_for_templates(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/templates"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert schema_ref.get("type") == "array"
+    assert "$ref" in schema_ref.get("items", {})
+
+
+def test_openapi_contract_for_smartmatch(client, db):
+    spec = app.openapi()
+    schema_ref = spec["paths"]["/api/v1/smartmatch"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+    assert "$ref" in schema_ref

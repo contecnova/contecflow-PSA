@@ -312,6 +312,87 @@ class ScheduledReportRunOut(BaseModel):
     recipients: List[str] = []
 
 
+class TemplateTaskOut(BaseModel):
+    id: str
+    title: str
+    estimated_hours: Optional[float] = None
+    skill_required: Optional[str] = None
+
+
+class TemplatePhaseOut(BaseModel):
+    id: str
+    name: str
+    order: int
+    estimated_weeks: Optional[int] = None
+    tasks: List[TemplateTaskOut] = []
+
+
+class ProjectTemplateOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    project_type: Optional[str] = None
+    estimated_weeks: Optional[int] = None
+    estimated_hours: Optional[float] = None
+    phases: List[TemplatePhaseOut] = []
+    risk_count: int = 0
+    deliverable_count: int = 0
+
+
+class TemplateCreateOut(BaseModel):
+    ok: bool
+    id: str
+
+
+class TemplateInstantiateOut(BaseModel):
+    ok: bool
+    project_id: str
+    project_code: str
+    project_name: str
+    phases_created: int
+    tasks_created: int
+
+
+class SmartMatchQueryOut(BaseModel):
+    skills: List[str] = []
+    role: Optional[str] = None
+    hours_needed: float
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
+class SmartMatchScoresOut(BaseModel):
+    overall: float
+    skills: float
+    availability: float
+    workload: float
+    cost: float
+
+
+class SmartMatchCandidateOut(BaseModel):
+    user_id: str
+    user_name: str
+    role: Optional[str] = None
+    department: Optional[str] = None
+    job_title: Optional[str] = None
+    hourly_rate: float
+    weekly_capacity: float
+    active_tasks: int
+    matched_skills: List[str] = []
+    missing_skills: List[str] = []
+    avg_skill_level: float
+    availability_hours: float
+    scores: SmartMatchScoresOut
+    recommendation: str
+
+
+class SmartMatchOut(BaseModel):
+    query: SmartMatchQueryOut
+    candidates: List[SmartMatchCandidateOut] = []
+    total_evaluated: int
+    message: str
+
+
 # ── Report ─────────────────────────────────────────────────────────────────────
 
 class ReportSave(BaseModel):
