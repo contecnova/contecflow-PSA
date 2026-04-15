@@ -1,14 +1,5 @@
 """
-mfa — — all remaining pending features:
-  mfa              — TOTP 2FA setup, verify, backup codes
-  organizations    — Multi-tenancy CRUD + tenant context
-  slack            — Slack/Teams config, send, slash command
-  budgets          — Multi-period department budgets
-  ai/triage        — AI ticket triage (Claude API)
-  ai/estimate      — AI task hour estimation
-  scenarios        — What-if capacity scenario planning
-  pdf              — PDF export with company logo
-  bi               — BI connector tokens + data endpoints
+mfa — thin router delegating to app.services.mfa_service
 """
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
@@ -21,7 +12,6 @@ from pydantic import BaseModel
 import json
 import logging
 import secrets
-import os
 import io
 
 _logger = logging.getLogger(__name__)
@@ -43,41 +33,37 @@ from app.models.mfa import (
     PDFExportJob, BIToken,
 )
 from app.services.audit import audit_log
+import app.services.mfa_service as _svc
 
 router = APIRouter()
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# MFA / 2FA — TOTP (RFC 6238)
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# Local aliases kept for backward compatibility with any tests that patch these names
 def _get_totp_lib():
-    try:
-        import pyotp
-        return pyotp
-    except ImportError:
-        return None
+    return _svc.get_totp_lib()
 
+def _send_slack_message(config, text, channel=None):
+    return _svc.send_slack_message(config, text, channel)
+
+def _budget_by_dept(budgets):
+    return _svc.budget_by_dept(budgets)
+
+def _generate_pdf(export_type, source_id, params, db):
+    return _svc.generate_pdf(export_type, source_id, params, db)
+
+def _verify_bi_token(token, db):
+    return _svc.verify_bi_token(token, db)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MFA / 2FA — TOTP
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/mfa/status", summary="Estado MFA del usuario actual")
 def mfa_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    config = db.query(MFAConfig).filter(MFAConfig.user_id == current_user.id).first()
-    if not config:
-        return {"enabled": False, "has_config": False}
-    backup_count = db.query(func.count(MFABackupCode.id)).filter(
-        MFABackupCode.mfa_id == config.id,
-        MFABackupCode.used_at == None,
-    ).scalar()
-    return {
-        "enabled": config.is_enabled,
-        "has_config": True,
-        "verified_at": str(config.verified_at)[:16] if config.verified_at else None,
-        "last_used_at": str(config.last_used_at)[:16] if config.last_used_at else None,
-        "backup_codes_remaining": backup_count or 0,
-    }
+    return _svc.get_mfa_status(current_user.id, db)
 
 
 @router.post("/mfa/setup", summary="Iniciar configuración MFA — genera secret y QR URL")
@@ -85,46 +71,17 @@ def mfa_setup(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Step 1: Generate TOTP secret and return provisioning URI for QR code.
-    The user scans the QR in their authenticator app, then calls /mfa/verify to activate.
-    """
-    pyotp = _get_totp_lib()
-    if not pyotp:
-        raise HTTPException(503, "pyotp no instalado — ejecuta: pip install pyotp")
-
-    # Remove existing unverified config
-    existing = db.query(MFAConfig).filter(MFAConfig.user_id == current_user.id).first()
-    if existing and existing.is_enabled:
-        raise HTTPException(400, "MFA ya está activado. Desactívalo antes de reconfigurar.")
-    if existing:
-        db.delete(existing); db.flush()
-
-    secret = pyotp.random_base32()
-    totp = pyotp.TOTP(secret)
-    issuer = "Clarive"
-    uri = totp.provisioning_uri(
-        name=current_user.email,
-        issuer_name=issuer
-    )
-
-    config = MFAConfig(
-        user_id=current_user.id,
-        totp_secret=encrypt_value(secret),  # cifrado en reposo
-        is_enabled=False,
-    )
-    db.add(config); db.commit()
-
-    return {
-        "secret": secret,
-        "provisioning_uri": uri,
-        "qr_url": f"{settings.GOOGLE_CHART_URL}?chs=200x200&chld=M|0&cht=qr&chl={uri}",
-        "instructions": "Escanea el QR con Google Authenticator, Authy o similar. Luego llama a POST /mfa/verify con el código de 6 dígitos para activar.",
-    }
+    try:
+        return _svc.setup_mfa(current_user, db)
+    except ValueError as e:
+        msg = str(e)
+        if "pyotp" in msg:
+            raise HTTPException(503, msg)
+        raise HTTPException(400, msg)
 
 
 class MFAVerifyPayload(BaseModel):
-    code: str   # 6-digit TOTP code
+    code: str
 
 
 @router.post("/mfa/verify", summary="Verificar código TOTP y activar MFA")
@@ -133,40 +90,13 @@ def mfa_verify(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    pyotp = _get_totp_lib()
-    if not pyotp:
-        raise HTTPException(503, "pyotp no instalado")
-
-    config = db.query(MFAConfig).filter(MFAConfig.user_id == current_user.id).first()
-    if not config:
-        raise HTTPException(400, "Primero llama a /mfa/setup")
-
-    totp = pyotp.TOTP(decrypt_value(config.totp_secret) or config.totp_secret)
-    if not totp.verify(payload.code, valid_window=1):
-        raise HTTPException(400, "Código incorrecto o caducado")
-
-    config.is_enabled = True
-    config.verified_at = datetime.now(timezone.utc)
-    config.last_used_at = datetime.now(timezone.utc)
-
-    # Generate 8 backup codes
-    import bcrypt
-    backup_codes = []
-    for _ in range(8):
-        raw = secrets.token_hex(4).upper()  # e.g. A1B2C3D4
-        hashed = bcrypt.hashpw(raw.encode(), bcrypt.gensalt()).decode()
-        db.add(MFABackupCode(mfa_id=config.id, code_hash=hashed))
-        backup_codes.append(raw)
-
-    audit_log(db, current_user, "MFA_ENABLED", "users", current_user.id, current_user.email)
-    db.commit()
-
-    return {
-        "ok": True,
-        "message": "MFA activado correctamente",
-        "backup_codes": backup_codes,
-        "warning": "Guarda estos códigos en un lugar seguro. Solo se muestran una vez.",
-    }
+    try:
+        return _svc.verify_and_activate_mfa(current_user, payload.code, db)
+    except ValueError as e:
+        msg = str(e)
+        if "pyotp" in msg:
+            raise HTTPException(503, msg)
+        raise HTTPException(400, msg)
 
 
 @router.post("/mfa/validate", summary="Validar código MFA durante el login")
@@ -175,41 +105,13 @@ def mfa_validate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Called after password login to complete MFA step."""
-    pyotp = _get_totp_lib()
-    config = db.query(MFAConfig).filter(
-        MFAConfig.user_id == current_user.id,
-        MFAConfig.is_enabled == True,
-    ).first()
-    if not config:
-        return {"ok": True, "mfa_required": False}
-    if not pyotp:
-        raise HTTPException(503, "pyotp no instalado — ejecuta: pip install pyotp")
-
-    totp = pyotp.TOTP(decrypt_value(config.totp_secret) or config.totp_secret)
-    if totp.verify(payload.code, valid_window=1):
-        config.last_used_at = datetime.now(timezone.utc)
-        db.commit()
-        return {"ok": True, "valid": True}
-
-    # Try backup codes
-    import bcrypt
-    backup_codes = db.query(MFABackupCode).filter(
-        MFABackupCode.mfa_id == config.id,
-        MFABackupCode.used_at == None,
-    ).all()
-    for bc in backup_codes:
-        if bcrypt.checkpw(payload.code.upper().encode(), bc.code_hash.encode()):
-            bc.used_at = datetime.now(timezone.utc)
-            config.last_used_at = datetime.now(timezone.utc)
-            db.commit()
-            remaining = db.query(func.count(MFABackupCode.id)).filter(
-                MFABackupCode.mfa_id == config.id, MFABackupCode.used_at == None,
-            ).scalar()
-            return {"ok": True, "valid": True, "used_backup_code": True,
-                    "backup_codes_remaining": remaining}
-
-    raise HTTPException(401, "Código MFA inválido")
+    try:
+        return _svc.validate_mfa_code(current_user, payload.code, db)
+    except ValueError as e:
+        msg = str(e)
+        if "pyotp" in msg:
+            raise HTTPException(503, msg)
+        raise HTTPException(401, msg)
 
 
 @router.delete("/mfa/disable", summary="Desactivar MFA")
@@ -218,21 +120,13 @@ def mfa_disable(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    pyotp = _get_totp_lib()
-    if not pyotp:
-        raise HTTPException(503, "pyotp no instalado — ejecuta: pip install pyotp")
-    config = db.query(MFAConfig).filter(
-        MFAConfig.user_id == current_user.id, MFAConfig.is_enabled == True,
-    ).first()
-    if not config:
-        raise HTTPException(400, "MFA no está activado")
-    totp = pyotp.TOTP(decrypt_value(config.totp_secret) or config.totp_secret)
-    if not totp.verify(payload.code, valid_window=1):
-        raise HTTPException(400, "Código incorrecto")
-    config.is_enabled = False
-    audit_log(db, current_user, "MFA_DISABLED", "users", current_user.id, current_user.email)
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.disable_mfa(current_user, payload.code, db)
+    except ValueError as e:
+        msg = str(e)
+        if "pyotp" in msg:
+            raise HTTPException(503, msg)
+        raise HTTPException(400, msg)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -245,15 +139,7 @@ def list_organizations(
     current_user: User = Depends(require_admin),
 ):
     orgs = db.query(Organization).order_by(Organization.name).limit(200).all()
-    return [{
-        "id": o.id, "name": o.name, "slug": o.slug,
-        "plan": o.plan, "is_active": o.is_active,
-        "max_users": o.max_users, "max_projects": o.max_projects,
-        "admin_email": o.admin_email,
-        "created_at": str(o.created_at)[:10] if o.created_at else None,
-        "user_count": db.query(func.count(User.id)).filter(User.organization_id == o.id).scalar(),
-        "project_count": db.query(func.count(Project.id)).filter(Project.organization_id == o.id).scalar() if hasattr(Project, 'organization_id') else 0,
-    } for o in orgs]
+    return [_svc.serialize_organization(o, db) for o in orgs]
 
 
 class OrgCreate(BaseModel):
@@ -312,8 +198,8 @@ def update_organization(
 ):
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org: raise HTTPException(404)
-    allowed = {"name","plan","max_users","max_projects","is_active","admin_email",
-               "timezone","locale","primary_color","logo_url"}
+    allowed = {"name", "plan", "max_users", "max_projects", "is_active", "admin_email",
+               "timezone", "locale", "primary_color", "logo_url"}
     for k, v in payload.items():
         if k in allowed: setattr(org, k, v)
     db.commit()
@@ -331,10 +217,10 @@ def assign_user_to_org(
     if not org: raise HTTPException(404, "Organización no encontrada")
     user = db.query(User).filter(User.id == payload.get("user_id")).first()
     if not user: raise HTTPException(404, "Usuario no encontrado")
-    # Check org user limit
-    count = db.query(func.count(User.id)).filter(User.organization_id == org_id).scalar()
-    if count >= org.max_users:
-        raise HTTPException(400, f"Límite de {org.max_users} usuarios alcanzado para este plan")
+    try:
+        _svc.check_org_user_limit(org, db)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     user.organization_id = org_id
     db.commit()
     return {"ok": True, "user": user.full_name, "org": org.name}
@@ -377,7 +263,7 @@ def create_slack_config(
     current_user: User = Depends(require_admin),
 ):
     existing = db.query(SlackConfig).filter(SlackConfig.platform == payload.platform).first()
-    subs = json.dumps(payload.subscriptions or ["task_overdue","budget_alert","ticket_sla"])
+    subs = json.dumps(payload.subscriptions or ["task_overdue", "budget_alert", "ticket_sla"])
     if existing:
         existing.workspace_name = payload.workspace_name
         existing.bot_token = payload.bot_token
@@ -429,63 +315,6 @@ def test_slack(
     return {"ok": sent, "error": error, "platform": config.platform}
 
 
-def _send_slack_message(config: SlackConfig, text: str, channel: str = None) -> tuple:
-    """
-    Send a message to Slack or Teams.
-    Uses bot token (preferred) or incoming webhook as fallback.
-    Returns (success: bool, error: str|None)
-    """
-    import urllib.request
-    import urllib.error
-
-    ch = channel or config.default_channel or "#general"
-
-    # Slack Bot API
-    if config.platform == "slack" and config.bot_token:
-        try:
-            data = json.dumps({
-                "channel": ch,
-                "text": text,
-                "username": "Clarive",
-                "icon_emoji": ":rocket:",
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                f"{settings.SLACK_API_BASE}/chat.postMessage",
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {config.bot_token}",
-                }
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                result = json.loads(resp.read())
-                if result.get("ok"):
-                    return True, None
-                return False, result.get("error", "Slack API error")
-        except Exception:
-            pass  # Fall through to webhook
-
-    # Incoming webhook (Slack or Teams)
-    if config.webhook_url:
-        try:
-            if config.platform == "teams":
-                body = json.dumps({"text": text}).encode("utf-8")
-            else:
-                body = json.dumps({"text": text, "channel": ch}).encode("utf-8")
-            req = urllib.request.Request(
-                config.webhook_url, data=body,
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                return resp.status in (200, 201), None
-        except Exception as e:
-            return False, str(e)
-
-    # No credentials — simulate
-    _logger.info("[SLACK SIMULATED] %s → %s: %s", config.platform, ch, text)
-    return True, None
-
-
 @router.post("/slack/notify", summary="Enviar notificación de evento Slack")
 def slack_notify(
     payload: dict = Body(...),
@@ -493,15 +322,14 @@ def slack_notify(
     current_user: User = Depends(require_any_manager),
 ):
     event_type = payload.get("event_type", "manual")
-    message    = payload.get("message", "Notificación de Clarive")
-    channel    = payload.get("channel")
-    source_id  = payload.get("source_id")
+    message = payload.get("message", "Notificación de Clarive")
+    channel = payload.get("channel")
+    source_id = payload.get("source_id")
 
     config = db.query(SlackConfig).filter(SlackConfig.is_active == True).first()
     if not config:
         raise HTTPException(400, "No hay integración Slack/Teams activa")
 
-    # Check subscription
     subs = json.loads(config.subscriptions or "[]")
     if event_type not in subs and event_type != "manual":
         return {"ok": True, "skipped": True, "reason": f"Event '{event_type}' not subscribed"}
@@ -546,7 +374,7 @@ def list_budgets(
     current_user: User = Depends(require_any_manager),
 ):
     q = db.query(Budget).options(joinedload(Budget.entries))
-    if year:       q = q.filter(Budget.year == year)
+    if year: q = q.filter(Budget.year == year)
     if department: q = q.filter(Budget.department == department)
     budgets = q.order_by(Budget.year.desc(), Budget.name).limit(200).all()
     return [{
@@ -555,8 +383,8 @@ def list_budgets(
         "total_amount": b.total_amount, "currency": b.currency,
         "is_approved": b.is_approved,
         "planned_total": sum(e.planned for e in b.entries),
-        "actual_total":  sum(e.actual  for e in b.entries),
-        "deviation":     sum(e.actual  for e in b.entries) - sum(e.planned for e in b.entries),
+        "actual_total": sum(e.actual for e in b.entries),
+        "deviation": sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries),
         "deviation_pct": round((sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries)) / max(b.total_amount, 1) * 100, 1),
         "entries": [{
             "month": e.month, "planned": e.planned,
@@ -574,7 +402,6 @@ class BudgetCreate(BaseModel):
     total_amount: float = 0
     currency: str = settings.DEFAULT_CURRENCY
     notes: Optional[str] = None
-    # Monthly planned amounts (1-12)
     monthly_planned: Optional[List[float]] = None
 
 
@@ -594,11 +421,10 @@ def create_budget(
 
     monthly = payload.monthly_planned or []
     if not monthly:
-        # Distribute evenly across 12 months
         monthly = [round(payload.total_amount / 12, 2)] * 12
 
     for month in range(1, 13):
-        planned = monthly[month-1] if month <= len(monthly) else 0
+        planned = monthly[month - 1] if month <= len(monthly) else 0
         db.add(BudgetEntry(budget_id=b.id, month=month, planned=planned))
 
     db.commit()
@@ -652,39 +478,25 @@ def budget_summary(
         Budget.year == yr
     ).all()
     total_planned = sum(e.planned for b in budgets for e in b.entries)
-    total_actual  = sum(e.actual  for b in budgets for e in b.entries)
+    total_actual = sum(e.actual for b in budgets for e in b.entries)
     by_month = {}
     for b in budgets:
         for e in b.entries:
             if e.month not in by_month:
                 by_month[e.month] = {"month": e.month, "planned": 0, "actual": 0}
             by_month[e.month]["planned"] += e.planned
-            by_month[e.month]["actual"]  += e.actual
+            by_month[e.month]["actual"] += e.actual
     return {
         "year": yr,
         "total_planned": round(total_planned, 2),
-        "total_actual":  round(total_actual,  2),
-        "deviation":     round(total_actual - total_planned, 2),
+        "total_actual": round(total_actual, 2),
+        "deviation": round(total_actual - total_planned, 2),
         "deviation_pct": round((total_actual - total_planned) / max(total_planned, 1) * 100, 1),
         "budgets_count": len(budgets),
         "approved_count": sum(1 for b in budgets if b.is_approved),
         "by_month": [by_month[m] for m in sorted(by_month.keys())],
         "by_department": _budget_by_dept(budgets),
     }
-
-
-def _budget_by_dept(budgets):
-    dept_map = {}
-    for b in budgets:
-        dept = b.department or "Sin departamento"
-        if dept not in dept_map:
-            dept_map[dept] = {"department": dept, "planned": 0, "actual": 0}
-        for e in b.entries:
-            dept_map[dept]["planned"] += e.planned
-            dept_map[dept]["actual"]  += e.actual
-    for d in dept_map.values():
-        d["deviation_pct"] = round((d["actual"] - d["planned"]) / max(d["planned"], 1) * 100, 1)
-    return list(dept_map.values())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -697,129 +509,10 @@ def estimate_task_hours(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Estimates task hours based on historical similar tasks.
-    Uses rule-based scoring when Claude API is not configured;
-    calls Claude API when ANTHROPIC_API_KEY is set.
-    """
-    task = db.query(Task).options(joinedload(Task.project)).filter(Task.id == task_id).first()
-    if not task: raise HTTPException(404)
-
-    # Find similar completed tasks by title keywords
-    keywords = [w for w in (task.title or "").lower().split() if len(w) > 3]
-    similar_tasks = []
-    if keywords:
-        from sqlalchemy import or_ as sql_or
-        filters = sql_or(*[
-            func.lower(Task.title).contains(kw) for kw in keywords[:5]
-        ])
-        similar_tasks = db.query(Task).filter(
-            Task.status == "done",
-            Task.estimated_hours != None,
-            Task.actual_hours != None,
-            Task.id != task_id,
-            filters,
-        ).limit(10).all()
-
-    estimated_hours = None
-    confidence = 0
-    reasoning = ""
-    similar_ids = []
-
-    if similar_tasks:
-        # Weight by recency and accuracy
-        estimates = []
-        for st in similar_tasks:
-            accuracy = 1 - abs(st.actual_hours - st.estimated_hours) / max(st.estimated_hours, 1)
-            estimates.append((st.actual_hours, max(accuracy, 0.1)))
-            similar_ids.append(st.id)
-
-        # Weighted average
-        total_weight = sum(w for _, w in estimates)
-        estimated_hours = round(sum(h * w for h, w in estimates) / total_weight, 1)
-        confidence = min(round(len(similar_tasks) / 10 * 70 + 20), 85)
-        reasoning = f"Basado en {len(similar_tasks)} tareas similares completadas. Promedio ponderado por precisión histórica."
-    else:
-        # Heuristic based on task title length and complexity keywords
-        title_lower = (task.title or "").lower()
-        base = 4.0
-        if any(w in title_lower for w in ["implementar", "desarrollar", "crear", "diseñar"]): base += 4
-        if any(w in title_lower for w in ["integración", "migración", "refactor"]): base += 6
-        if any(w in title_lower for w in ["fix", "corrección", "bug", "error"]): base = 2
-        if any(w in title_lower for w in ["test", "prueba", "validar"]): base = 3
-        estimated_hours = round(base, 1)
-        confidence = 30
-        reasoning = "Sin tareas similares en el historial. Estimación heurística por tipo de tarea."
-
-    # Try Claude API if key is available
-    api_key = settings.ANTHROPIC_API_KEY or None
-    if api_key and similar_tasks:
-        try:
-            import urllib.request
-            similar_context = "\n".join([
-                f"- '{t.title}': estimado {t.estimated_hours}h, real {t.actual_hours}h"
-                for t in similar_tasks[:5]
-            ])
-            prompt = f"""Tarea a estimar: "{task.title}"
-Proyecto: {task.project.name if task.project else "—"}
-Descripción: {(task.description or "Sin descripción")[:200]}
-
-Tareas similares completadas:
-{similar_context}
-
-Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning": "<explicación breve>"}}"""
-
-            data = json.dumps({
-                "model": settings.NEXUS_AI_MODEL,
-                "max_tokens": 200,
-                "messages": [{"role": "user", "content": prompt}]
-            }).encode()
-            req = urllib.request.Request(
-                settings.ANTHROPIC_API_URL,
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                }
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                result = json.loads(resp.read())
-                text = result["content"][0]["text"]
-                parsed = json.loads(text)
-                estimated_hours = parsed["hours"]
-                confidence = parsed.get("confidence", confidence)
-                reasoning = parsed.get("reasoning", reasoning) + " [Claude API]"
-        except Exception:
-            pass  # Fall back to heuristic result
-
-    # Save estimate
-    existing = db.query(AITaskEstimate).filter(AITaskEstimate.task_id == task_id).first()
-    if existing:
-        existing.estimated_hours = estimated_hours
-        existing.confidence_pct = confidence
-        existing.reasoning = reasoning
-        existing.similar_tasks = json.dumps(similar_ids)
-    else:
-        db.add(AITaskEstimate(
-            task_id=task_id,
-            estimated_hours=estimated_hours,
-            confidence_pct=confidence,
-            reasoning=reasoning,
-            similar_tasks=json.dumps(similar_ids),
-            model_used="claude_api" if api_key else "rule_based",
-        ))
-    db.commit()
-
-    return {
-        "task_id": task_id,
-        "task_title": task.title,
-        "estimated_hours": estimated_hours,
-        "confidence_pct": confidence,
-        "reasoning": reasoning,
-        "similar_count": len(similar_tasks),
-        "current_estimate": task.estimated_hours,
-    }
+    try:
+        return _svc.estimate_task_hours(task_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.post("/ai-planning/estimate/{task_id}/accept", summary="Aceptar o rechazar estimación IA")
@@ -829,20 +522,14 @@ def accept_estimate(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    estimate = db.query(AITaskEstimate).filter(AITaskEstimate.task_id == task_id).first()
-    if not estimate: raise HTTPException(404)
-    accepted = payload.get("accepted", True)
-    estimate.accepted = accepted
-    estimate.accepted_at = datetime.now(timezone.utc)
-    if accepted:
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if task: task.estimated_hours = estimate.estimated_hours
-    db.commit()
-    return {"ok": True, "accepted": accepted}
+    try:
+        return _svc.accept_task_estimate(task_id, payload.get("accepted", True), db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# AI — TICKET TRIAGE (Claude API)
+# AI — TICKET TRIAGE
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/ai-planning/triage/{ticket_id}", summary="Triaje automático de ticket con IA")
@@ -851,123 +538,10 @@ def ai_triage_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Uses AI to suggest category, priority, agent and KB article for a ticket.
-    Works with rule-based heuristics; uses Claude API if ANTHROPIC_API_KEY is set.
-    """
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    if not ticket: raise HTTPException(404)
-
-    title_lower = (ticket.title or "").lower()
-    desc_lower  = (ticket.description or "").lower()
-    full_text   = f"{title_lower} {desc_lower}"
-
-    # Rule-based heuristics
-    suggested_priority = "medium"
-    suggested_category = "General"
-    reasoning = "Clasificación por reglas heurísticas."
-
-    # Priority rules
-    critical_kw = ["caído", "down", "producción", "bloqueado", "urgente", "crítico", "no funciona", "error 500"]
-    high_kw     = ["lento", "fallo", "problema", "no puedo", "imposible", "impide"]
-    low_kw      = ["consulta", "pregunta", "cómo", "información", "mejora", "sugerencia"]
-
-    if any(kw in full_text for kw in critical_kw): suggested_priority = "critical"
-    elif any(kw in full_text for kw in high_kw):   suggested_priority = "high"
-    elif any(kw in full_text for kw in low_kw):    suggested_priority = "low"
-
-    # Category rules
-    if any(kw in full_text for kw in ["contraseña", "acceso", "login", "usuario", "permisos"]):
-        suggested_category = "Acceso y seguridad"
-    elif any(kw in full_text for kw in ["instalar", "instalación", "configurar", "setup"]):
-        suggested_category = "Instalación y configuración"
-    elif any(kw in full_text for kw in ["red", "internet", "conexión", "wifi", "vpn"]):
-        suggested_category = "Red y conectividad"
-    elif any(kw in full_text for kw in ["impres", "escaner", "periférico", "hardware"]):
-        suggested_category = "Hardware y periféricos"
-    elif any(kw in full_text for kw in ["excel", "word", "office", "correo", "email", "outlook"]):
-        suggested_category = "Software de oficina"
-    elif any(kw in full_text for kw in ["lento", "rendimiento", "cuelga", "memoria"]):
-        suggested_category = "Rendimiento"
-
-    # Find best matching agent by workload (least loaded active agent)
-    agent_loads = db.query(
-        Ticket.assignee_id, func.count(Ticket.id).label("open_count")
-    ).filter(
-        Ticket.status.in_(["open", "in_progress"]),
-        Ticket.assignee_id != None,
-    ).group_by(Ticket.assignee_id).order_by("open_count").limit(5).all()
-
-    suggested_agent_id = agent_loads[0].assignee_id if agent_loads else None
-    confidence = 60
-
-    # Claude API enhancement
-    api_key = settings.ANTHROPIC_API_KEY or None
-    if api_key:
-        try:
-            import urllib.request
-            prompt = f"""Analiza este ticket de soporte y clasifícalo.
-
-Título: {ticket.title}
-Descripción: {(ticket.description or "Sin descripción")[:300]}
-
-Responde SOLO con JSON:
-{{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en español>"}}"""
-
-            data = json.dumps({
-                "model": settings.NEXUS_AI_MODEL,
-                "max_tokens": 300,
-                "messages": [{"role": "user", "content": prompt}]
-            }).encode()
-            req = urllib.request.Request(
-                settings.ANTHROPIC_API_URL,
-                data=data,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                }
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                result = json.loads(resp.read())
-                parsed = json.loads(result["content"][0]["text"])
-                suggested_category = parsed.get("category", suggested_category)
-                suggested_priority  = parsed.get("priority", suggested_priority)
-                confidence          = parsed.get("confidence", 75)
-                reasoning           = parsed.get("reasoning", reasoning) + " [Claude API]"
-        except Exception:
-            pass
-
-    # Save triage result
-    existing = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
-    if existing:
-        existing.suggested_category   = suggested_category
-        existing.suggested_priority   = suggested_priority
-        existing.suggested_agent_id   = suggested_agent_id
-        existing.confidence_pct       = confidence
-        existing.reasoning            = reasoning
-    else:
-        db.add(AITicketTriage(
-            ticket_id=ticket_id,
-            suggested_category=suggested_category,
-            suggested_priority=suggested_priority,
-            suggested_agent_id=suggested_agent_id,
-            confidence_pct=confidence,
-            reasoning=reasoning,
-        ))
-    db.commit()
-
-    agent = db.query(User).filter(User.id == suggested_agent_id).first() if suggested_agent_id else None
-    return {
-        "ticket_id": ticket_id,
-        "ticket_title": ticket.title,
-        "suggested_category":  suggested_category,
-        "suggested_priority":  suggested_priority,
-        "suggested_agent":     agent.full_name if agent else None,
-        "suggested_agent_id":  suggested_agent_id,
-        "confidence_pct":      confidence,
-        "reasoning":           reasoning,
-    }
+    try:
+        return _svc.triage_ticket(ticket_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.post("/ai-planning/triage/{ticket_id}/accept", summary="Aplicar triaje IA al ticket")
@@ -977,20 +551,10 @@ def accept_triage(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    triage = db.query(AITicketTriage).filter(AITicketTriage.ticket_id == ticket_id).first()
-    if not triage: raise HTTPException(404)
-    accepted = payload.get("accepted", True)
-    triage.accepted = accepted
-    triage.accepted_by = current_user.id
-    triage.accepted_at = datetime.now(timezone.utc)
-    if accepted:
-        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-        if ticket:
-            if triage.suggested_priority:  ticket.priority   = triage.suggested_priority
-            if triage.suggested_category:  ticket.ticket_type   = triage.suggested_category
-            if triage.suggested_agent_id:  ticket.assignee_id = triage.suggested_agent_id
-    db.commit()
-    return {"ok": True, "accepted": accepted}
+    try:
+        return _svc.accept_ticket_triage(ticket_id, payload.get("accepted", True), current_user.id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1022,7 +586,7 @@ class ScenarioCreate(BaseModel):
     description: Optional[str] = None
     base_date: Optional[date] = None
     horizon_weeks: int = 12
-    projects: Optional[List[dict]] = None  # list of {name, start_date, end_date, total_hours, skill_demand}
+    projects: Optional[List[dict]] = None
 
 
 @router.post("/scenarios", summary="Crear escenario what-if")
@@ -1061,94 +625,10 @@ def compute_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    """
-    Simulates capacity impact of all projects in the scenario
-    against current team capacity over the horizon period.
-    """
-    scenario = db.query(ScenarioModel).options(
-        joinedload(ScenarioModel.projects)
-    ).filter(ScenarioModel.id == scenario_id).first()
-    if not scenario: raise HTTPException(404)
-
-    base_date = scenario.base_date or date.today()
-    horizon_end = base_date + timedelta(weeks=scenario.horizon_weeks)
-
-    # Current team capacity: sum of available hours per week
-    active_users = db.query(User).filter(User.is_active == True).count()
-    hours_per_week_per_person = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
-    weekly_capacity = active_users * hours_per_week_per_person
-
-    # Demand from scenario projects
-    total_demand_hours = 0
-    weekly_demand = {}
-    overloaded_weeks = []
-    project_breakdown = []
-
-    for sp in scenario.projects:
-        if not sp.start_date or not sp.end_date: continue
-        duration_weeks = max((sp.end_date - sp.start_date).days / 7, 1)
-        hours_per_week = sp.total_hours / duration_weeks
-
-        # Distribute demand week by week
-        current = sp.start_date
-        while current < sp.end_date and current < horizon_end:
-            week_key = current.strftime("%Y-W%W")
-            weekly_demand[week_key] = weekly_demand.get(week_key, 0) + hours_per_week
-            current += timedelta(weeks=1)
-
-        total_demand_hours += sp.total_hours
-        project_breakdown.append({
-            "name": sp.name,
-            "total_hours": sp.total_hours,
-            "hours_per_week": round(hours_per_week, 1),
-            "start": str(sp.start_date),
-            "end": str(sp.end_date),
-            "is_existing": sp.is_existing,
-        })
-
-    # Identify overloaded weeks
-    capacity_timeline = []
-    for week_key, demand in sorted(weekly_demand.items()):
-        utilization_pct = round(demand / max(weekly_capacity, 1) * 100, 1)
-        is_overloaded = utilization_pct > 100
-        if is_overloaded: overloaded_weeks.append(week_key)
-        capacity_timeline.append({
-            "week": week_key,
-            "demand": round(demand, 1),
-            "capacity": weekly_capacity,
-            "utilization_pct": utilization_pct,
-            "is_overloaded": is_overloaded,
-        })
-
-    # Overall assessment
-    avg_utilization = sum(c["utilization_pct"] for c in capacity_timeline) / max(len(capacity_timeline), 1)
-    feasible = len(overloaded_weeks) == 0
-    risk_level = "low" if feasible else ("medium" if len(overloaded_weeks) <= 3 else "high")
-
-    results = {
-        "feasible": feasible,
-        "risk_level": risk_level,
-        "avg_utilization_pct": round(avg_utilization, 1),
-        "peak_utilization_pct": max((c["utilization_pct"] for c in capacity_timeline), default=0),
-        "overloaded_weeks_count": len(overloaded_weeks),
-        "overloaded_weeks": overloaded_weeks[:10],
-        "total_demand_hours": round(total_demand_hours, 1),
-        "team_size": active_users,
-        "weekly_capacity": weekly_capacity,
-        "horizon_weeks": scenario.horizon_weeks,
-        "project_breakdown": project_breakdown,
-        "capacity_timeline": capacity_timeline[:24],  # First 24 weeks
-        "recommendation": (
-            "El equipo tiene capacidad suficiente para asumir todos los proyectos del escenario." if feasible
-            else f"Se detectan {len(overloaded_weeks)} semanas con sobrecarga. Considera retrasar proyectos o ampliar equipo."
-        ),
-    }
-
-    scenario.results = json.dumps(results)
-    scenario.status = "computed"
-    scenario.computed_at = datetime.now(timezone.utc)
-    db.commit()
-    return results
+    try:
+        return _svc.compute_scenario(scenario_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.get("/scenarios/{scenario_id}", summary="Detalle de escenario")
@@ -1190,188 +670,22 @@ def delete_scenario(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PDF EXPORT WITH COMPANY LOGO
+# PDF EXPORT
 # ═══════════════════════════════════════════════════════════════════════════════
-
-def _generate_pdf(export_type: str, source_id: str, params: dict, db: Session) -> bytes:
-    """
-    Generate PDF using reportlab.
-    Falls back to a simple text-based PDF if reportlab is not available.
-    """
-    try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-        from reportlab.platypus import KeepTogether # noqa: F841 F401
-
-        buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4,
-                                 rightMargin=20*mm, leftMargin=20*mm,
-                                 topMargin=20*mm, bottomMargin=20*mm)
-        styles = getSampleStyleSheet()
-
-        # Custom styles
-        title_style = ParagraphStyle("NexusTitle", parent=styles["Heading1"],
-                                      fontSize=20, textColor=colors.HexColor("#1C2833"),
-                                      spaceAfter=4)
-        subtitle_style = ParagraphStyle("NexusSubtitle", parent=styles["Normal"],
-                                         fontSize=10, textColor=colors.HexColor("#7F8C8D"),
-                                         spaceAfter=12)
-        section_style = ParagraphStyle("NexusSection", parent=styles["Heading2"],
-                                        fontSize=13, textColor=colors.HexColor("#1A5276"),
-                                        spaceBefore=12, spaceAfter=6)
-        body_style  = ParagraphStyle("NexusBody", parent=styles["Normal"],
-                                      fontSize=9, textColor=colors.HexColor("#2C3E50"),
-                                      leading=14)
-
-        elements = []
-
-        # Header: Logo + Title
-        logo_b64 = params.get("logo_b64") # noqa: F841 F401
-        company_name = params.get("company_name", "Clarive")
-        primary_color = params.get("primary_color", "#1C2833")
-
-        elements.append(Paragraph(f"<b>{company_name}</b>", title_style))
-        elements.append(HRFlowable(width="100%", thickness=2,
-                                    color=colors.HexColor(primary_color), spaceAfter=8))
-
-        # Report content based on export type
-        now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-        elements.append(Paragraph(f"Generado: {now_str}", subtitle_style))
-
-        if export_type == "project_summary" and source_id:
-            project = db.query(Project).filter(Project.id == source_id).first()
-            if project:
-                elements.append(Paragraph(f"Resumen del proyecto: {project.name}", section_style))
-                data = [
-                    ["Campo", "Valor"],
-                    ["Código", project.code or "—"],
-                    ["Cliente", project.client_name or "—"],
-                    ["Estado", project.status or "—"],
-                    ["Presupuesto", f"{project.budget_amount:,.0f} €" if project.budget_amount else "—"],
-                    ["Inicio", str(project.start_date) if project.start_date else "—"],
-                    ["Fin previsto", str(project.end_date_planned) if project.end_date_planned else "—"],
-                ]
-                tasks = db.query(Task).filter(Task.project_id == source_id).all()
-                done = sum(1 for t in tasks if t.status == "done")
-                data.append(["Tareas", f"{done}/{len(tasks)} completadas"])
-                t = Table(data, colWidths=[60*mm, 110*mm])
-                t.setStyle(TableStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(primary_color)),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1),
-                     [colors.HexColor("#F7F9FC"), colors.white]),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
-                    ("PADDING", (0, 0), (-1, -1), 6),
-                ]))
-                elements.append(t)
-
-        elif export_type == "invoice" and source_id:
-            from app.models.billing_reports import Invoice, InvoiceLine
-            invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
-            if invoice:
-                elements.append(Paragraph(f"Factura {invoice.number}", section_style))
-                data = [
-                    ["Cliente", invoice.client_name or "—"],
-                    ["Fecha emisión", str(invoice.issue_date) if invoice.issue_date else "—"],
-                    ["Vencimiento", str(invoice.due_date) if invoice.due_date else "—"],
-                    ["Estado", invoice.status or "—"],
-                ]
-                t = Table(data, colWidths=[60*mm, 110*mm])
-                t.setStyle(TableStyle([
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
-                    ("PADDING", (0, 0), (-1, -1), 6),
-                ]))
-                elements.append(t)
-                elements.append(Spacer(1, 10*mm))
-
-                lines = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == source_id).all()
-                if lines:
-                    line_data = [["Concepto", "Horas", "Tarifa", "Total"]]
-                    for l in lines:
-                        line_data.append([
-                            l.description or "—",
-                            f"{l.quantity:.1f}h" if l.quantity else "—",
-                            f"{l.unit_price:.2f}€" if l.unit_price else "—",
-                            f"{l.total:.2f}€" if l.total else "—",
-                        ])
-                    line_data.append(["", "", "TOTAL", f"{invoice.total:.2f}€" if invoice.total else "—"])
-                    t2 = Table(line_data, colWidths=[90*mm, 25*mm, 25*mm, 30*mm])
-                    t2.setStyle(TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(primary_color)),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 9),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D0D7E0")),
-                        ("PADDING", (0, 0), (-1, -1), 5),
-                        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-                    ]))
-                    elements.append(t2)
-
-        else:
-            # Generic report
-            elements.append(Paragraph(f"Tipo: {export_type}", section_style))
-            elements.append(Paragraph("Exportación generada por Clarive v15.", body_style))
-
-        # Footer note
-        elements.append(Spacer(1, 15*mm))
-        elements.append(HRFlowable(width="100%", thickness=0.5,
-                                    color=colors.HexColor("#D0D7E0")))
-        elements.append(Paragraph(
-            f"<font color='#95A5A6' size=8>Generado por Clarive v15 · {now_str} · Documento confidencial</font>",
-            body_style
-        ))
-
-        doc.build(elements)
-        return buf.getvalue()
-
-    except ImportError:
-        # reportlab not available — generate minimal valid PDF
-        content = f"""%PDF-1.4
-1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
-4 0 obj<</Length 120>>
-stream
-BT /F1 14 Tf 50 780 Td (Clarive v15 - {export_type}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
-endstream
-endobj
-5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
-xref
-0 6
-0000000000 65535 f
-0000000009 00000 n
-0000000058 00000 n
-0000000115 00000 n
-0000000266 00000 n
-0000000438 00000 n
-trailer<</Size 6/Root 1 0 R>>
-startxref
-521
-%%EOF"""
-        return content.encode()
-
 
 @router.post("/pdf/export", summary="Exportar informe o factura a PDF con logo")
 def export_pdf(
-
     background_tasks: BackgroundTasks,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     export_type = payload.get("export_type", "generic")
-    source_id   = payload.get("source_id")
-    params      = {
-        "company_name":  payload.get("company_name", "Clarive"),
+    source_id = payload.get("source_id")
+    params = {
+        "company_name": payload.get("company_name", "Clarive"),
         "primary_color": payload.get("primary_color", "#1C2833"),
-        "logo_b64":      payload.get("logo_b64"),
+        "logo_b64": payload.get("logo_b64"),
     }
 
     job = PDFExportJob(
@@ -1383,7 +697,6 @@ def export_pdf(
     )
     db.add(job); db.commit(); db.refresh(job)
 
-    # Generate synchronously (small PDFs)
     try:
         pdf_bytes = _generate_pdf(export_type, source_id, params, db)
         job.status = "ready"
@@ -1423,7 +736,7 @@ def list_pdf_jobs(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# BI CONNECTOR (Power BI / Tableau / Metabase)
+# BI CONNECTOR
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/bi/tokens", summary="Listar tokens BI")
@@ -1489,25 +802,6 @@ def revoke_bi_token(
     return {"ok": True}
 
 
-# BI data endpoints — read-only, authenticated by BI token
-def _verify_bi_token(token: str, db: Session) -> Optional[BIToken]:
-    if not token or not token.startswith("bi_"): return None
-    import bcrypt
-    prefix = token[:10]
-    candidates = db.query(BIToken).filter(
-        BIToken.token_prefix == prefix,
-        BIToken.is_active == True,
-    ).all()
-    for bt in candidates:
-        if bcrypt.checkpw(token.encode(), bt.token_hash.encode()):
-            bt_exp = bt.expires_at.replace(tzinfo=timezone.utc) if bt.expires_at and not bt.expires_at.tzinfo else bt.expires_at
-            if bt_exp and bt_exp < datetime.now(timezone.utc): return None
-            bt.last_used_at = datetime.now(timezone.utc)
-            bt.requests_today = (bt.requests_today or 0) + 1
-            return bt
-    return None
-
-
 @router.get("/bi/data/projects", summary="Datos de proyectos para BI")
 def bi_data_projects(
     request: Request,
@@ -1515,7 +809,6 @@ def bi_data_projects(
     token: Optional[str] = Query(None),
     current_user: Optional[User] = Depends(lambda db=Depends(get_db): None),
 ):
-    # Accept BI token or regular JWT
     auth_header = request.headers.get("Authorization", "")
     raw_token = token or (auth_header.replace("Bearer bi_", "bi_") if "bi_" in auth_header else None)
     if raw_token:
@@ -1558,7 +851,7 @@ def bi_data_timesheets(
         joinedload(Imputation.user), joinedload(Imputation.project)
     )
     if date_from: q = q.filter(Imputation.date >= date.fromisoformat(date_from))
-    if date_to:   q = q.filter(Imputation.date <= date.fromisoformat(date_to))
+    if date_to: q = q.filter(Imputation.date <= date.fromisoformat(date_to))
     imputations = (
         q.order_by(Imputation.date.desc())
         .offset((page - 1) * page_size)
@@ -1598,7 +891,7 @@ def bi_data_kpis(
         Imputation.date >= this_week_start
     ).scalar() or 0
     total_budget = db.query(func.sum(Project.budget_amount)).filter(
-        Project.status.in_(["active","planning"])
+        Project.status.in_(["active", "planning"])
     ).scalar() or 0
 
     return {
