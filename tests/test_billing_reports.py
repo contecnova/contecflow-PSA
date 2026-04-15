@@ -710,3 +710,23 @@ def test_openapi_contract_for_smartmatch(client, db):
     spec = app.openapi()
     schema_ref = spec["paths"]["/api/v1/smartmatch"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert "$ref" in schema_ref
+
+
+def test_openapi_contract_for_report_catalog_dynamic_json(client, db):
+    spec = app.openapi()
+    catalog_schema = spec["paths"]["/api/v1/report-catalog/catalog"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    data_sources_schema = spec["paths"]["/api/v1/report-catalog/data-sources"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    run_schema = spec["paths"]["/api/v1/report-catalog/run"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
+
+    assert catalog_schema.get("type") == "object"
+    assert data_sources_schema.get("type") == "object"
+    assert run_schema.get("type") == "object"
+
+
+def test_openapi_contract_for_pdf_endpoints(client, db):
+    spec = app.openapi()
+    invoice_pdf_content = spec["paths"]["/api/v1/invoices/{invoice_id}/pdf"]["get"]["responses"]["200"]["content"]
+    preview_pdf_content = spec["paths"]["/api/v1/scheduled-reports/{report_id}/preview-pdf"]["get"]["responses"]["200"]["content"]
+
+    assert "application/pdf" in invoice_pdf_content
+    assert "application/pdf" in preview_pdf_content

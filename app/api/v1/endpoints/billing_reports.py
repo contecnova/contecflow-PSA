@@ -84,7 +84,7 @@ router = APIRouter()
 # Report catalog/data sources are now centralized in report_catalog_service.
 
 
-@router.get("/report-catalog/catalog", summary="Catálogo de informes disponibles")
+@router.get("/report-catalog/catalog", response_model=Dict[str, Any], summary="Catálogo de informes disponibles")
 def report_catalog(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
@@ -93,12 +93,12 @@ def report_catalog(
     return build_report_catalog(db, current_user)
 
 
-@router.get("/report-catalog/data-sources", summary="Fuentes de datos disponibles")
+@router.get("/report-catalog/data-sources", response_model=Dict[str, Any], summary="Fuentes de datos disponibles")
 def report_data_sources(current_user: User = Depends(require_any_manager)):
     return get_data_sources()
 
 
-@router.post("/report-catalog/run", summary="Ejecutar un informe con filtros")
+@router.post("/report-catalog/run", response_model=Dict[str, Any], summary="Ejecutar un informe con filtros")
 def run_report(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
@@ -832,7 +832,11 @@ def update_invoice_status(
     return {"ok": True, "status": inv.status}
 
 
-@router.get("/invoices/{invoice_id}/pdf", summary="Descargar factura en PDF")
+@router.get(
+    "/invoices/{invoice_id}/pdf",
+    summary="Descargar factura en PDF",
+    responses={200: {"content": {"application/pdf": {}}}},
+)
 def download_invoice_pdf(
     invoice_id: str,
     db: Session = Depends(get_db),
@@ -1608,7 +1612,11 @@ def run_scheduled_report(
     return result
 
 
-@router.get("/scheduled-reports/{report_id}/preview-pdf", summary="Previsualizar PDF del informe")
+@router.get(
+    "/scheduled-reports/{report_id}/preview-pdf",
+    summary="Previsualizar PDF del informe",
+    responses={200: {"content": {"application/pdf": {}}}},
+)
 def preview_report_pdf(
     report_id: str,
     db: Session = Depends(get_db),
