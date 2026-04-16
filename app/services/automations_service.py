@@ -401,3 +401,108 @@ def get_automation_templates() -> list:
             "actions": [{"type": "create_alert", "params": {"alert_type": "risk_critical", "message": "⚠ Riesgo de alto impacto detectado en el proyecto", "severity": "critical"}}],
         },
     ]
+
+
+# ── Router-extracted CRUD helpers ─────────────────────────────────────────────
+
+def list_rules_for_user(db: Session, current_user, project_id, is_active):
+    from app.models.project import Project
+    from sqlalchemy import or_
+    from sqlalchemy.orm import joinedload
+    q = db.query(AutomationRule).options(joinedload(AutomationRule.project))
+    if not current_user.is_superadmin and current_user.organization_id:
+        org_user_ids = db.query(User.id).filter(
+            User.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        org_project_ids = db.query(Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(
+            or_(
+                AutomationRule.project_id.in_(org_project_ids),
+                AutomationRule.created_by.in_(org_user_ids),
+            )
+        )
+    if project_id:
+        q = q.filter(
+            (AutomationRule.project_id == project_id) | (AutomationRule.is_global == True)  # noqa
+        )
+    if is_active is not None:
+        q = q.filter(AutomationRule.is_active == is_active)
+    return [serialize_rule(r) for r in q.order_by(AutomationRule.created_at.desc()).all()]
+
+
+def create_rule_db(payload, db: Session, current_user_id: str) -> dict:
+    from sqlalchemy.orm import joinedload
+    rule = AutomationRule(
+        name=payload.name,
+        description=payload.description,
+        project_id=payload.project_id,
+        is_global=payload.is_global,
+        trigger_type=payload.trigger_type,
+        trigger_conditions=json.dumps(payload.trigger_conditions) if payload.trigger_conditions else None,
+        actions=json.dumps(payload.actions),
+        created_by=current_user_id,
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    rule = db.query(AutomationRule).options(joinedload(AutomationRule.project)).filter(
+        AutomationRule.id == rule.id
+    ).first()
+    return serialize_rule(rule)
+
+
+def update_rule_db(rule_id: str, payload, db: Session) -> dict:
+    from fastapi import HTTPException
+    from sqlalchemy.orm import joinedload
+    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(404, "Regla no encontrada")
+    data = payload.model_dump(exclude_unset=True)
+    if "trigger_conditions" in data:
+        data["trigger_conditions"] = json.dumps(data["trigger_conditions"]) if data["trigger_conditions"] else None
+    if "actions" in data:
+        data["actions"] = json.dumps(data["actions"])
+    for k, v in data.items():
+        setattr(rule, k, v)
+    db.commit()
+    rule = db.query(AutomationRule).options(joinedload(AutomationRule.project)).filter(
+        AutomationRule.id == rule_id
+    ).first()
+    return serialize_rule(rule)
+
+
+def delete_rule_db(rule_id: str, db: Session) -> dict:
+    from fastapi import HTTPException
+    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(404)
+    db.delete(rule)
+    db.commit()
+    return {"ok": True}
+
+
+def get_executions_db(rule_id: str, limit: int, db: Session) -> list:
+    executions = db.query(AutomationExecution).filter(
+        AutomationExecution.rule_id == rule_id
+    ).order_by(AutomationExecution.executed_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": e.id,
+            "trigger_context": json.loads(e.trigger_context) if e.trigger_context else None,
+            "actions_taken": json.loads(e.actions_taken) if e.actions_taken else None,
+            "success": e.success,
+            "error": e.error,
+            "executed_at": str(e.executed_at)[:16],
+        }
+        for e in executions
+    ]
+
+
+def test_rule_by_id(rule_id: str, user_id: str, db: Session) -> dict:
+    from fastapi import HTTPException
+    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(404)
+    return test_automation_rule(rule, user_id, db)

@@ -126,16 +126,7 @@ def list_conversations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    convs = db.query(AIConversation).filter(
-        AIConversation.user_id == current_user.id,
-        AIConversation.is_archived == False,
-    ).order_by(AIConversation.updated_at.desc()).limit(50).all()
-    return [{
-        "id": c.id, "title": c.title or "Nueva conversación",
-        "context_type": c.context_type,
-        "message_count": len(c.messages),
-        "updated_at": str(c.updated_at or c.created_at)[:16],
-    } for c in convs]
+    return _svc.list_conversations(db, current_user.id)
 
 
 @router.get("/ai/conversations/{conv_id}", summary="Detalle de conversación")
@@ -144,19 +135,10 @@ def get_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    conv = db.query(AIConversation).options(joinedload(AIConversation.messages)).filter(
-        AIConversation.id == conv_id,
-        AIConversation.user_id == current_user.id,
-    ).first()
-    if not conv: raise HTTPException(404)
-    return {
-        "id": conv.id, "title": conv.title,
-        "context_type": conv.context_type,
-        "messages": [{
-            "id": m.id, "role": m.role, "content": m.content,
-            "created_at": str(m.created_at)[:19],
-        } for m in conv.messages],
-    }
+    try:
+        return _svc.get_conversation(db, conv_id, current_user.id)
+    except ValueError:
+        raise HTTPException(404)
 
 
 def _kb_rag_context(db: Session, message: str) -> str:
@@ -189,48 +171,12 @@ def chat(
         raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
     effective_message = gr.redacted_text if gr.redacted_text else payload.message
 
-    # Obtener o crear conversación
-    conv = None
-    if payload.conversation_id:
-        conv = db.query(AIConversation).filter(
-            AIConversation.id == payload.conversation_id,
-            AIConversation.user_id == current_user.id,
-        ).first()
-
-    if not conv:
-        conv = AIConversation(
-            user_id=current_user.id,
-            context_type=payload.context_type,
-            context_id=payload.context_id,
-        )
-        db.add(conv); db.flush()
-
-    # Guardar mensaje del usuario
-    user_msg = AIMessage(
-        conversation_id=conv.id, role="user", content=effective_message
+    # Obtener o crear conversación, persistir mensaje y construir historial
+    conv, messages, system = _svc.prepare_chat(
+        db, payload.conversation_id, current_user.id,
+        context_type=payload.context_type, context_id=payload.context_id,
+        effective_message=effective_message, system_template=NEXUSASSIST_SYSTEM,
     )
-    db.add(user_msg); db.flush()
-
-    # Contexto del tenant
-    ctx = _tenant_context(db, current_user)
-
-    # RAG: buscar artículos relevantes en la KB (vector similarity + LIKE fallback)
-    kb_context = _kb_rag_context(db, effective_message)
-
-    # Cargar prompt activo (DB) o usar el hardcoded por defecto
-    system = _get_prompt(db, "nexusassist", NEXUSASSIST_SYSTEM).format(
-        context=json.dumps(ctx, ensure_ascii=False)
-    ) + kb_context
-
-    # Construir historial (últimos 10 mensajes)
-    history = db.query(AIMessage).filter(
-        AIMessage.conversation_id == conv.id,
-        AIMessage.id != user_msg.id,
-    ).order_by(AIMessage.created_at.desc()).limit(10).all()
-    history.reverse()
-
-    messages = [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": effective_message})
 
     # Llamada al proveedor configurado (multi-proveedor vía call_ai)
     try:
@@ -250,19 +196,7 @@ def chat(
 
     # Guardar respuesta
     latency = int((time.time() - t0) * 1000)
-    ai_msg = AIMessage(
-        conversation_id=conv.id, role="assistant",
-        content=assistant_text, tokens_used=0, latency_ms=latency,
-    )
-    db.add(ai_msg)
-
-    # Actualizar título de la conversación si es nueva
-    if not conv.title:
-        conv.title = payload.message[:60] + ("..." if len(payload.message) > 60 else "")
-
-    _log_action(db, current_user.id, "nexusassist", "chat",
-                payload.message[:200], assistant_text[:200], latency=latency)
-    db.commit()
+    _svc.persist_chat_response(db, conv.id, current_user.id, payload.message, assistant_text, latency)
 
     return {
         "conversation_id": conv.id,
@@ -309,46 +243,15 @@ async def chat_stream(
         raise HTTPException(400, f"Mensaje bloqueado por política de gobernanza: {gr.blocked_by}")
     effective_message = gr.redacted_text if gr.redacted_text else payload.message
 
-    # Obtain or create conversation (sync DB operations done before streaming)
-    conv = None
-    if payload.conversation_id:
-        conv = db.query(AIConversation).filter(
-            AIConversation.id == payload.conversation_id,
-            AIConversation.user_id == current_user.id,
-        ).first()
-    if not conv:
-        conv = AIConversation(
-            user_id=current_user.id,
-            context_type=payload.context_type,
-            context_id=payload.context_id,
-        )
-        db.add(conv); db.flush()
-
-    user_msg = AIMessage(conversation_id=conv.id, role="user", content=effective_message)
-    db.add(user_msg); db.flush()
-
-    if not conv.title:
-        conv.title = effective_message[:60] + ("..." if len(effective_message) > 60 else "")
-    db.commit()
+    # Obtain or create conversation, persist user message, build history
+    conv, messages, system = _svc.prepare_chat(
+        db, payload.conversation_id, current_user.id,
+        context_type=payload.context_type, context_id=payload.context_id,
+        effective_message=effective_message, system_template=NEXUSASSIST_SYSTEM,
+        commit=True,
+    )
 
     conv_id = conv.id
-    ctx = _tenant_context(db, current_user)
-
-    # RAG: vector similarity + LIKE fallback (same as non-streaming endpoint)
-    kb_context = _kb_rag_context(db, effective_message)
-
-    system = _get_prompt(db, "nexusassist", NEXUSASSIST_SYSTEM).format(
-        context=json.dumps(ctx, ensure_ascii=False)
-    ) + kb_context
-
-    history = db.query(AIMessage).filter(
-        AIMessage.conversation_id == conv_id,
-        AIMessage.id != user_msg.id,
-    ).order_by(AIMessage.created_at.desc()).limit(10).all()
-    history.reverse()
-
-    messages = [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": effective_message})
 
     # Detect whether the active provider is Anthropic (supports native SSE)
     active_provider = get_default_provider(db)
@@ -429,23 +332,10 @@ async def chat_stream(
         from app.db.session import SessionLocal
         _db = SessionLocal()
         try:
-            _conv = _db.query(AIConversation).filter(AIConversation.id == conv_id).first()
-            ai_msg = AIMessage(
-                conversation_id=conv_id, role="assistant",
-                content=collected.get("text", ""),
-                latency_ms=collected.get("latency", 0),
+            _svc.persist_chat_response(
+                _db, conv_id, current_user.id, payload.message,
+                collected.get("text", ""), collected.get("latency", 0),
             )
-            _db.add(ai_msg)
-            if _conv:
-                _conv.total_tokens = (_conv.total_tokens or 0)
-            _db.add(AIActionLog(
-                user_id=current_user.id, module="nexusassist", action_type="chat_stream",
-                input_summary=payload.message[:300],
-                output_summary=collected.get("text", "")[:300],
-                latency_ms=collected.get("latency", 0),
-                status="success",
-            ))
-            _db.commit()
         except Exception as exc:
             _logger.error(f"Failed to persist streamed response: {exc}")
             _db.rollback()
@@ -471,14 +361,10 @@ def archive_conversation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    conv = db.query(AIConversation).filter(
-        AIConversation.id == conv_id,
-        AIConversation.user_id == current_user.id,
-    ).first()
-    if not conv: raise HTTPException(404)
-    conv.is_archived = True
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.archive_conversation(db, conv_id, current_user.id)
+    except ValueError:
+        raise HTTPException(404)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -515,12 +401,7 @@ def run_agent(
         raise HTTPException(429, limit_err)
 
     # Create execution record immediately and return; worker runs the loop async
-    execution = AIAgentExecution(
-        user_id=current_user.id,
-        instruction=payload.instruction,
-        status="queued",
-    )
-    db.add(execution); db.commit(); db.refresh(execution)
+    execution = _svc.create_agent_execution(db, current_user.id, payload.instruction)
 
     from app.worker import run_agent_task
     run_agent_task.delay(
@@ -543,20 +424,10 @@ def agent_status(
     current_user: User = Depends(get_current_user),
 ):
     """Lightweight polling endpoint. Returns status, result, and step count."""
-    ex = db.query(AIAgentExecution).filter(
-        AIAgentExecution.id == exec_id,
-        AIAgentExecution.user_id == current_user.id,
-    ).first()
-    if not ex:
-        raise HTTPException(404, "Ejecución no encontrada")
-    return {
-        "execution_id": ex.id,
-        "status": ex.status,
-        "result": ex.result,
-        "steps_count": ex.steps_count,
-        "completed_at": str(ex.completed_at)[:16] if ex.completed_at else None,
-        "error": ex.error,
-    }
+    try:
+        return _svc.get_agent_status(db, exec_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
 
 
 @router.post("/ai/agent/stream", summary="NexusAgent — streaming SSE de pasos")
@@ -718,15 +589,7 @@ def agent_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    execs = db.query(AIAgentExecution).filter(
-        AIAgentExecution.user_id == current_user.id
-    ).order_by(AIAgentExecution.created_at.desc()).limit(limit).all()
-    return [{
-        "id": e.id, "instruction": e.instruction[:80],
-        "status": e.status, "steps_count": e.steps_count,
-        "result": (e.result or "")[:150],
-        "created_at": str(e.created_at)[:16],
-    } for e in execs]
+    return _svc.list_agent_executions(db, current_user.id, limit)
 
 
 @router.get("/ai/agent/{exec_id}", summary="Detalle de ejecución del agente")
@@ -735,22 +598,10 @@ def agent_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ex = db.query(AIAgentExecution).options(
-        joinedload(AIAgentExecution.steps)
-    ).filter(AIAgentExecution.id == exec_id).first()
-    if not ex: raise HTTPException(404)
-    return {
-        "id": ex.id, "instruction": ex.instruction,
-        "status": ex.status, "result": ex.result,
-        "created_at": str(ex.created_at)[:16],
-        "completed_at": str(ex.completed_at)[:16] if ex.completed_at else None,
-        "steps": [{
-            "step_number": s.step_number, "tool_name": s.tool_name,
-            "tool_input": json.loads(s.tool_input or "{}"),
-            "tool_output": json.loads(s.tool_output or "{}"),
-            "status": s.status,
-        } for s in ex.steps],
-    }
+    try:
+        return _svc.get_agent_detail_with_steps(db, exec_id)
+    except ValueError:
+        raise HTTPException(404)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -762,25 +613,7 @@ def get_governance_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    configs = db.query(AIGovernanceConfig).all()
-    # Ensure default configs exist
-    DEFAULT_MODULES = [
-        "nexusassist", "nexusagent", "nexusoracle",
-        "meeting_assistant", "contract_intelligence", "knowledge_base", "voice",
-    ]
-    existing = {c.module for c in configs}
-    for mod in DEFAULT_MODULES:
-        if mod not in existing:
-            db.add(AIGovernanceConfig(module=mod, is_enabled=True))
-    db.commit()
-    configs = db.query(AIGovernanceConfig).all()
-    return [{
-        "id": c.id, "module": c.module, "is_enabled": c.is_enabled,
-        "requires_approval_for": json.loads(c.requires_approval_for or "[]"),
-        "max_actions_per_day": c.max_actions_per_day,
-        "allowed_roles": json.loads(c.allowed_roles or '["admin","pm"]'),
-        "model_override": c.model_override,
-    } for c in configs]
+    return _svc.get_governance_config(db)
 
 
 @router.patch("/governance/config/{module}", summary="Actualizar configuración de módulo IA")
@@ -790,19 +623,7 @@ def update_governance_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    config = db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == module).first()
-    if not config:
-        config = AIGovernanceConfig(module=module)
-        db.add(config)
-    for field in ["is_enabled", "max_actions_per_day", "model_override"]:
-        if field in payload: setattr(config, field, payload[field])
-    if "requires_approval_for" in payload:
-        config.requires_approval_for = json.dumps(payload["requires_approval_for"])
-    if "allowed_roles" in payload:
-        config.allowed_roles = json.dumps(payload["allowed_roles"])
-    config.updated_by = current_user.id
-    db.commit()
-    return {"ok": True}
+    return _svc.update_governance_config(db, module, payload, current_user.id)
 
 
 @router.get("/governance/logs", summary="Audit log de acciones IA")
@@ -814,19 +635,7 @@ def governance_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    q = db.query(AIActionLog).filter(AIActionLog.created_at >= since)
-    if module: q = q.filter(AIActionLog.module == module)
-    if status: q = q.filter(AIActionLog.status == status)
-    logs = q.order_by(AIActionLog.created_at.desc()).limit(limit).all()
-    return [{
-        "id": l.id, "module": l.module, "action_type": l.action_type,
-        "user_id": l.user_id,
-        "input_summary": l.input_summary, "output_summary": l.output_summary,
-        "tokens_used": l.tokens_used, "latency_ms": l.latency_ms,
-        "status": l.status,
-        "created_at": str(l.created_at)[:16],
-    } for l in logs]
+    return _svc.get_governance_logs(db, module=module, status=status, days=days, limit=limit)
 
 
 @router.get("/governance/stats", summary="Estadísticas de uso de IA")
@@ -835,34 +644,7 @@ def governance_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    logs  = db.query(AIActionLog).filter(AIActionLog.created_at >= since).all()
-
-    by_module = {}
-    for l in logs:
-        if l.module not in by_module:
-            by_module[l.module] = {"calls": 0, "tokens": 0, "errors": 0, "avg_latency": 0}
-        by_module[l.module]["calls"] += 1
-        by_module[l.module]["tokens"] += l.tokens_used or 0
-        if l.status == "failed": by_module[l.module]["errors"] += 1
-        by_module[l.module]["avg_latency"] += l.latency_ms or 0
-
-    for m in by_module:
-        calls = by_module[m]["calls"]
-        if calls > 0:
-            by_module[m]["avg_latency"] = round(by_module[m]["avg_latency"] / calls)
-
-    total_tokens = sum(l.tokens_used or 0 for l in logs)
-    est_cost_usd = round(total_tokens / 1_000_000 * 0.25, 4)  # ~$0.25/M tokens (Haiku)
-
-    return {
-        "period_days": days,
-        "total_calls": len(logs),
-        "total_tokens": total_tokens,
-        "estimated_cost_usd": est_cost_usd,
-        "success_rate_pct": round(sum(1 for l in logs if l.status == "success") / max(len(logs), 1) * 100, 1),
-        "by_module": by_module,
-    }
+    return _svc.get_governance_stats(db, days=days)
 
 
 #
@@ -875,16 +657,7 @@ def list_prompts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    q = db.query(AIPromptTemplate)
-    if module:
-        q = q.filter(AIPromptTemplate.module == module)
-    templates = q.order_by(AIPromptTemplate.module, AIPromptTemplate.version.desc()).all()
-    return [{
-        "id": t.id, "module": t.module, "name": t.name,
-        "version": t.version, "is_active": t.is_active,
-        "content_preview": (t.content or "")[:200],
-        "created_at": str(t.created_at)[:16],
-    } for t in templates]
+    return _svc.list_prompts(db, module=module)
 
 
 @router.get("/governance/prompts/{prompt_id}", summary="Detalle de plantilla de prompt")
@@ -893,13 +666,10 @@ def get_prompt_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
-    if not tpl: raise HTTPException(404)
-    return {
-        "id": tpl.id, "module": tpl.module, "name": tpl.name,
-        "content": tpl.content, "version": tpl.version, "is_active": tpl.is_active,
-        "created_at": str(tpl.created_at)[:16],
-    }
+    try:
+        return _svc.get_prompt_detail(db, prompt_id)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.post("/governance/prompts", summary="Crear nueva versinnn de prompt IA", status_code=201)
@@ -908,31 +678,7 @@ def create_prompt(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    # Bump version automatically: find current max version for this module
-    max_version = db.query(func.max(AIPromptTemplate.version)).filter(
-        AIPromptTemplate.module == payload.module,
-    ).scalar() or 0
-
-    # Deactivate older templates for this module if new one is active
-    if payload.is_active:
-        db.query(AIPromptTemplate).filter(
-            AIPromptTemplate.module == payload.module,
-            AIPromptTemplate.is_active == True,
-        ).update({"is_active": False})
-
-    tpl = AIPromptTemplate(
-        module=payload.module,
-        name=payload.name,
-        content=payload.content,
-        version=max_version + 1,
-        is_active=payload.is_active,
-        created_by=current_user.id,
-    )
-    db.add(tpl); db.commit(); db.refresh(tpl)
-    return {
-        "id": tpl.id, "module": tpl.module, "version": tpl.version,
-        "is_active": tpl.is_active,
-    }
+    return _svc.create_prompt_template(db, payload, current_user.id)
 
 
 @router.patch("/governance/prompts/{prompt_id}", summary="Activar/desactivar plantilla de prompt")
@@ -942,21 +688,10 @@ def toggle_prompt(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
-    if not tpl: raise HTTPException(404)
-    if "is_active" in payload:
-        if payload["is_active"]:
-            # Deactivate other templates for same module first
-            db.query(AIPromptTemplate).filter(
-                AIPromptTemplate.module == tpl.module,
-                AIPromptTemplate.id != prompt_id,
-                AIPromptTemplate.is_active == True,
-            ).update({"is_active": False})
-        tpl.is_active = payload["is_active"]
-    if "name" in payload:
-        tpl.name = payload["name"]
-    db.commit()
-    return {"ok": True, "version": tpl.version, "is_active": tpl.is_active}
+    try:
+        return _svc.toggle_prompt_template(db, prompt_id, payload)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.delete("/governance/prompts/{prompt_id}", summary="Eliminar plantilla de prompt")
@@ -965,7 +700,7 @@ def delete_prompt(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
-    if not tpl: raise HTTPException(404)
-    db.delete(tpl); db.commit()
-    return {"ok": True}
+    try:
+        return _svc.delete_prompt_template(db, prompt_id)
+    except ValueError:
+        raise HTTPException(404)

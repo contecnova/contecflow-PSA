@@ -268,3 +268,517 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
             for w in weeks_data
         ],
     }
+
+
+# ── RACI Matrix CRUD ──────────────────────────────────────────────────────────
+
+def get_project_raci(project_id: str, db: Session) -> dict:
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    entries = (
+        db.query(RACIEntry)
+        .filter(RACIEntry.project_id == project_id)
+        .order_by(RACIEntry.item_type, RACIEntry.item_label)
+        .all()
+    )
+    items: dict = {}
+    for e in entries:
+        key = (e.item_type, e.item_label, e.item_id or "")
+        if key not in items:
+            items[key] = {"item_type": e.item_type, "item_label": e.item_label,
+                          "item_id": e.item_id, "assignments": []}
+        items[key]["assignments"].append({
+            "entry_id": e.id, "user_id": e.user_id, "role": e.role.value,
+            "user": serialize_user(e.user) if e.user else None,
+        })
+    return {
+        "project_id": project_id,
+        "project_name": project.name,
+        "items": list(items.values()),
+        "raw_entries": [serialize_raci_entry(e) for e in entries],
+        "total": len(entries),
+    }
+
+
+def upsert_raci(project_id: str, entries_in: list, db: Session) -> dict:
+    import json as _json
+    from app.models.project import Project
+    from app.models.user import User as _User
+    from app.models.raci import RACIRole
+    from datetime import datetime, timezone
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    created, updated = 0, 0
+    for entry_in in entries_in:
+        try:
+            role_enum = RACIRole(entry_in.role.upper())
+        except ValueError:
+            raise ValueError(f"422:Rol RACI inválido: '{entry_in.role}'. Usa R, A, C o I.")
+        user = db.query(_User).filter(_User.id == entry_in.user_id).first()
+        if not user:
+            raise ValueError(f"Usuario {entry_in.user_id} no encontrado")
+        existing = (
+            db.query(RACIEntry)
+            .filter(
+                RACIEntry.project_id == project_id,
+                RACIEntry.item_label == entry_in.item_label,
+                RACIEntry.user_id == entry_in.user_id,
+            )
+            .first()
+        )
+        if existing:
+            existing.role = role_enum
+            existing.item_type = entry_in.item_type
+            existing.item_id = entry_in.item_id
+            existing.updated_at = datetime.now(timezone.utc)
+            updated += 1
+        else:
+            db.add(RACIEntry(
+                project_id=project_id,
+                item_type=entry_in.item_type,
+                item_label=entry_in.item_label,
+                item_id=entry_in.item_id,
+                user_id=entry_in.user_id,
+                role=role_enum,
+            ))
+            created += 1
+    db.commit()
+    return {"created": created, "updated": updated}
+
+
+def delete_raci_entry(project_id: str, entry_id: str, db: Session) -> None:
+    entry = db.query(RACIEntry).filter(
+        RACIEntry.id == entry_id, RACIEntry.project_id == project_id
+    ).first()
+    if not entry:
+        raise ValueError("Entrada RACI no encontrada")
+    db.delete(entry)
+    db.commit()
+
+
+# ── Sprint Retrospective ──────────────────────────────────────────────────────
+
+def get_sprint_retrospective(project_id: str, sprint_id: str, db: Session) -> dict:
+    import json as _json
+    from app.models.sprints import Sprint as _Sprint
+    from app.models.raci import SprintRetroNote
+    sprint = db.query(_Sprint).filter(
+        _Sprint.id == sprint_id, _Sprint.project_id == project_id
+    ).first()
+    if not sprint:
+        raise ValueError("Sprint no encontrado")
+    insights = compute_retro_insights(sprint, db)
+    saved = db.query(SprintRetroNote).filter(SprintRetroNote.sprint_id == sprint_id).first()
+    return {
+        "sprint_id": sprint_id,
+        "sprint_name": sprint.name,
+        "sprint_status": sprint.status.value if sprint.status else None,
+        "start_date": sprint.start_date.isoformat() if sprint.start_date else None,
+        "end_date": sprint.end_date.isoformat() if sprint.end_date else None,
+        "computed_insights": insights,
+        "saved_notes": {
+            "id": saved.id,
+            "manual_notes": saved.manual_notes,
+            "action_items": _json.loads(saved.action_items) if saved and saved.action_items else [],
+            "updated_at": saved.updated_at.isoformat() if saved and saved.updated_at else None,
+        } if saved else None,
+    }
+
+
+def save_sprint_retrospective(
+    project_id: str, sprint_id: str, payload, current_user_id: str, db: Session
+) -> dict:
+    import json as _json
+    from datetime import datetime, timezone
+    from app.models.sprints import Sprint as _Sprint
+    from app.models.raci import SprintRetroNote
+    sprint = db.query(_Sprint).filter(
+        _Sprint.id == sprint_id, _Sprint.project_id == project_id
+    ).first()
+    if not sprint:
+        raise ValueError("Sprint no encontrado")
+    insights = compute_retro_insights(sprint, db)
+    m = insights["metrics"]
+    saved = db.query(SprintRetroNote).filter(SprintRetroNote.sprint_id == sprint_id).first()
+    if saved:
+        saved.manual_notes = payload.manual_notes
+        if payload.action_items is not None:
+            saved.action_items = _json.dumps(payload.action_items)
+        saved.updated_at = datetime.now(timezone.utc)
+    else:
+        saved = SprintRetroNote(
+            sprint_id=sprint_id,
+            project_id=project_id,
+            velocity_completed=m["completed_hours"],
+            velocity_planned=m["planned_hours"],
+            completion_rate_pct=m["completion_rate_pct"],
+            blocked_count=m["blocked"],
+            added_mid_sprint=m["added_mid_sprint"],
+            carryover_count=m["carryover"],
+            went_well_items=_json.dumps(insights["went_well"]),
+            improve_items=_json.dumps(insights["improve"]),
+            action_items=_json.dumps(payload.action_items or insights["actions"]),
+            risk_flags=_json.dumps(insights["risks"]),
+            manual_notes=payload.manual_notes,
+            facilitated_by_id=current_user_id,
+        )
+        db.add(saved)
+    db.commit()
+    db.refresh(saved)
+    return {"id": saved.id, "sprint_id": sprint_id, "updated_at": saved.updated_at.isoformat()}
+
+
+# ── Burnout Risk ──────────────────────────────────────────────────────────────
+
+def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]", db: Session) -> dict:
+    from datetime import date, datetime, timezone
+    from app.models.user import User as _User, UserStatus
+    today = date.today()
+    q = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active)
+    if department:
+        q = q.filter(_User.department == department)
+    users = q.all()
+    results = [compute_user_burnout_risk(u, db, today) for u in users]
+    if min_risk_level:
+        order = [BurnoutRiskLevel.green.value, BurnoutRiskLevel.yellow.value,
+                 BurnoutRiskLevel.orange.value, BurnoutRiskLevel.red.value]
+        try:
+            min_idx = order.index(min_risk_level)
+            results = [r for r in results if order.index(r["risk_level"]) >= min_idx]
+        except ValueError:
+            pass
+    results.sort(key=lambda r: r["risk_score"], reverse=True)
+    level_counts = {v.value: 0 for v in BurnoutRiskLevel}
+    for r in results:
+        level_counts[r["risk_level"]] += 1
+    return {
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "total_analyzed": len(results),
+        "summary": level_counts,
+        "team_avg_load": round(sum(r["current_load_pct"] for r in results) / len(results), 1) if results else 0,
+        "members": results,
+    }
+
+
+def compute_and_save_burnout_snapshots(db: Session) -> dict:
+    import json as _json
+    from datetime import date, timedelta
+    from app.models.user import User as _User, UserStatus
+    from app.models.raci import BurnoutRiskSnapshot
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    users = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active).all()
+    saved_count = 0
+    for user in users:
+        risk_data = compute_user_burnout_risk(user, db, today)
+        existing = db.query(BurnoutRiskSnapshot).filter(
+            BurnoutRiskSnapshot.user_id == user.id,
+            BurnoutRiskSnapshot.week_start == week_start,
+        ).first()
+        level = BurnoutRiskLevel(risk_data["risk_level"])
+        if existing:
+            existing.load_pct = risk_data["current_load_pct"]
+            existing.overload_weeks_streak = risk_data["overload_weeks_streak"]
+            existing.avg_load_4w = risk_data["avg_load_4w"]
+            existing.risk_level = level
+            existing.risk_score = risk_data["risk_score"]
+            existing.factors = _json.dumps(risk_data["factors"])
+        else:
+            db.add(BurnoutRiskSnapshot(
+                user_id=user.id,
+                week_start=week_start,
+                load_pct=risk_data["current_load_pct"],
+                overload_weeks_streak=risk_data["overload_weeks_streak"],
+                avg_load_4w=risk_data["avg_load_4w"],
+                risk_level=level,
+                risk_score=risk_data["risk_score"],
+                factors=_json.dumps(risk_data["factors"]),
+            ))
+            saved_count += 1
+    db.commit()
+    return {"week_start": week_start.isoformat(), "processed": len(users), "new_snapshots": saved_count}
+
+
+# ── Project Changelog ─────────────────────────────────────────────────────────
+
+def get_project_changelog(
+    project_id: str, entry_type: "Optional[str]", since: "Optional[date]", db: Session
+) -> dict:
+    from app.models.project import Project
+    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    q = db.query(PCE).filter(PCE.project_id == project_id)
+    if entry_type:
+        try:
+            q = q.filter(PCE.entry_type == ChangelogEntryType(entry_type))
+        except ValueError:
+            pass
+    if since:
+        q = q.filter(PCE.entry_date >= since)
+    entries = q.order_by(PCE.entry_date.desc()).all()
+    return {
+        "project_id": project_id,
+        "project_name": project.name,
+        "total": len(entries),
+        "entries": [serialize_changelog_entry(e) for e in entries],
+    }
+
+
+def create_changelog_entry(project_id: str, payload, author_id: str, db: Session) -> dict:
+    from app.models.project import Project
+    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    try:
+        entry_type = ChangelogEntryType(payload.entry_type)
+    except ValueError:
+        raise ValueError(f"422:Tipo de entrada inválido: '{payload.entry_type}'")
+    entry = PCE(
+        project_id=project_id,
+        version_tag=payload.version_tag,
+        entry_date=payload.entry_date,
+        entry_type=entry_type,
+        title=payload.title,
+        description=payload.description,
+        is_auto_generated=False,
+        author_id=author_id,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    entry = db.query(PCE).filter(PCE.id == entry.id).first()
+    return serialize_changelog_entry(entry)
+
+
+def generate_changelog(
+    project_id: str, weeks: int, version_tag: "Optional[str]", author_id: str, db: Session
+) -> dict:
+    import json as _json
+    from datetime import date, datetime, timedelta
+    from app.models.project import Project
+    from app.models.task import Task as _Task, TaskStatus, TaskPriority
+    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    since = date.today() - timedelta(weeks=weeks)
+    since_dt = datetime.combine(since, datetime.min.time())
+    completed_tasks = (
+        db.query(_Task)
+        .filter(
+            _Task.project_id == project_id,
+            _Task.status == TaskStatus.done,
+            (_Task.updated_at >= since_dt) | (_Task.updated_at == None),
+        )
+        .order_by(_Task.priority, _Task.updated_at.desc())
+        .limit(100)
+        .all()
+    )
+    if not completed_tasks:
+        return {"generated": 0, "message": "No hay tareas completadas en el período indicado"}
+
+    def _guess_type(task) -> ChangelogEntryType:
+        title_lower = (task.title or "").lower()
+        if any(kw in title_lower for kw in ["bug", "fix", "error", "fallo", "corrección"]):
+            return ChangelogEntryType.bugfix
+        if any(kw in title_lower for kw in ["mejora", "optimiz", "refactor", "perf"]):
+            return ChangelogEntryType.improvement
+        if any(kw in title_lower for kw in ["roto", "breaking", "elimina", "depreca"]):
+            return ChangelogEntryType.breaking
+        if task.priority == TaskPriority.critical:
+            return ChangelogEntryType.feature
+        return ChangelogEntryType.feature
+
+    created_entries = []
+    for task in completed_tasks:
+        existing = db.query(PCE).filter(
+            PCE.project_id == project_id,
+            PCE.source_task_ids.contains(f'"{task.id}"'),
+        ).first()
+        if existing:
+            continue
+        entry = PCE(
+            project_id=project_id,
+            version_tag=version_tag,
+            entry_date=(task.updated_at or task.created_at).date() if (task.updated_at or task.created_at) else date.today(),
+            entry_type=_guess_type(task),
+            title=task.title,
+            description=task.description,
+            is_auto_generated=True,
+            source_task_ids=_json.dumps([task.id]),
+            author_id=author_id,
+        )
+        db.add(entry)
+        created_entries.append(task.id)
+    db.commit()
+    return {
+        "generated": len(created_entries),
+        "version_tag": version_tag,
+        "period_weeks": weeks,
+        "task_ids": created_entries,
+    }
+
+
+def update_changelog_entry(project_id: str, entry_id: str, payload, db: Session) -> dict:
+    from datetime import datetime, timezone
+    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
+    entry = db.query(PCE).filter(
+        PCE.id == entry_id, PCE.project_id == project_id
+    ).first()
+    if not entry:
+        raise ValueError("Entrada no encontrada")
+    if payload.version_tag is not None:
+        entry.version_tag = payload.version_tag
+    if payload.entry_date is not None:
+        entry.entry_date = payload.entry_date
+    if payload.entry_type is not None:
+        try:
+            entry.entry_type = ChangelogEntryType(payload.entry_type)
+        except ValueError:
+            raise ValueError(f"422:Tipo inválido: '{payload.entry_type}'")
+    if payload.title is not None:
+        entry.title = payload.title
+    if payload.description is not None:
+        entry.description = payload.description
+    entry.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(entry)
+    entry = db.query(PCE).filter(PCE.id == entry.id).first()
+    return serialize_changelog_entry(entry)
+
+
+def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
+    from app.models.raci import ProjectChangelogEntry as PCE
+    entry = db.query(PCE).filter(
+        PCE.id == entry_id, PCE.project_id == project_id
+    ).first()
+    if not entry:
+        raise ValueError("Entrada no encontrada")
+    db.delete(entry)
+    db.commit()
+
+
+# ── UAT Cases ─────────────────────────────────────────────────────────────────
+
+def list_uat_cases(
+    project_id: str, status: "Optional[str]", task_id: "Optional[str]", db: Session
+) -> dict:
+    from app.models.raci import UATCase, UATStatus
+    q = db.query(UATCase).filter(UATCase.project_id == project_id)
+    if status:
+        try:
+            q = q.filter(UATCase.status == UATStatus(status))
+        except ValueError:
+            pass
+    if task_id:
+        q = q.filter(UATCase.task_id == task_id)
+    cases = q.order_by(UATCase.created_at.desc()).all()
+    stats = {
+        "total": len(cases),
+        "pending": sum(1 for c in cases if c.status == UATStatus.pending),
+        "passed": sum(1 for c in cases if c.status == UATStatus.passed),
+        "failed": sum(1 for c in cases if c.status == UATStatus.failed),
+        "blocked": sum(1 for c in cases if c.status == UATStatus.blocked),
+    }
+    return {"cases": [serialize_uat_case(c) for c in cases], "stats": stats}
+
+
+def create_uat_case(project_id: str, payload, db: Session) -> dict:
+    from app.models.raci import UATCase, UATStatus
+    case = UATCase(
+        project_id=project_id,
+        task_id=payload.task_id or None,
+        title=payload.title,
+        description=payload.description,
+        expected_result=payload.expected_result,
+        actual_result=payload.actual_result,
+        status=UATStatus(payload.status) if payload.status else UATStatus.pending,
+        priority=payload.priority or "medium",
+        assigned_to_id=payload.assigned_to_id or None,
+        notes=payload.notes,
+    )
+    db.add(case)
+    db.commit()
+    db.refresh(case)
+    return serialize_uat_case(case)
+
+
+def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict:
+    from datetime import datetime, timezone
+    from app.models.raci import UATCase, UATStatus
+    case = db.query(UATCase).filter(
+        UATCase.id == case_id, UATCase.project_id == project_id
+    ).first()
+    if not case:
+        raise ValueError("Caso UAT no encontrado")
+    for field, val in payload.model_dump(exclude_unset=True).items():
+        if field == "status" and val:
+            setattr(case, field, UATStatus(val))
+        elif field in ("task_id", "assigned_to_id"):
+            setattr(case, field, val or None)
+        else:
+            setattr(case, field, val)
+    if payload.status in ("passed", "failed", "blocked"):
+        case.executed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(case)
+    return serialize_uat_case(case)
+
+
+def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
+    from app.models.raci import UATCase
+    case = db.query(UATCase).filter(
+        UATCase.id == case_id, UATCase.project_id == project_id
+    ).first()
+    if not case:
+        raise ValueError("Caso UAT no encontrado")
+    db.delete(case)
+    db.commit()
+
+
+def export_uat_report(project_id: str, db: Session) -> dict:
+    from datetime import datetime, timezone
+    from app.models.project import Project
+    from app.models.raci import UATCase, UATStatus
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    cases = db.query(UATCase).filter(UATCase.project_id == project_id).order_by(UATCase.created_at).all()
+    STATUS_EMOJI = {"pending": "⏳", "passed": "✅", "failed": "❌", "blocked": "🔒", "skipped": "⏭"}
+    PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    sorted_cases = sorted(cases, key=lambda c: PRIORITY_ORDER.get(c.priority, 2))
+    lines = [
+        f"# Plan de Pruebas UAT — {project.name}",
+        f"Generado: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
+        "",
+        f"Total: {len(cases)} casos | "
+        f"Pendientes: {sum(1 for c in cases if c.status == UATStatus.pending)} | "
+        f"Pasados: {sum(1 for c in cases if c.status == UATStatus.passed)} | "
+        f"Fallidos: {sum(1 for c in cases if c.status == UATStatus.failed)}",
+        "",
+        "---",
+    ]
+    for i, c in enumerate(sorted_cases, 1):
+        st = STATUS_EMOJI.get(c.status.value, "?")
+        lines += [
+            "",
+            f"## {i}. {c.title}  {st}",
+            f"**Prioridad:** {c.priority.upper()}  |  **Estado:** {c.status.value}",
+        ]
+        if c.task_title:
+            lines.append(f"**Tarea vinculada:** {c.task_title}")
+        if c.description:
+            lines += ["", "**Pasos a ejecutar:**", c.description]
+        if c.expected_result:
+            lines += ["", "**Resultado esperado:**", c.expected_result]
+        if c.actual_result:
+            lines += ["", "**Resultado obtenido:**", c.actual_result]
+        if c.notes:
+            lines += ["", "**Notas:**", c.notes]
+    return {"project_name": project.name, "text": "\n".join(lines), "cases_count": len(cases)}

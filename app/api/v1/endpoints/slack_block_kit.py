@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db, require_any_manager
 from app.models.user import User
+import app.services.integrations as _svc
 
 router = APIRouter(tags=["Notifications", "Slack"])
 
@@ -72,7 +73,6 @@ def send_slack_block_kit(
     current_user: User = Depends(require_any_manager),
 ):
     import httpx
-    from app.models.mfa import SlackConfig
 
     event_type = payload.get("event_type", "custom")
     data = payload.get("data", {})
@@ -84,11 +84,7 @@ def send_slack_block_kit(
     webhook_url = payload.get("webhook_url")
     if not webhook_url:
         org_id = getattr(current_user, "organization_id", None)
-        cfg_q = db.query(SlackConfig)
-        if org_id and hasattr(SlackConfig, "organization_id"):
-            cfg_q = cfg_q.filter(SlackConfig.organization_id == org_id)
-        slack_cfg = cfg_q.first()
-        webhook_url = slack_cfg.webhook_url if slack_cfg and hasattr(slack_cfg, "webhook_url") else None
+        webhook_url = _svc.get_slack_webhook_url(db, org_id)
 
     if not webhook_url:
         raise HTTPException(

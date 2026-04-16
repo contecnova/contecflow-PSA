@@ -41,8 +41,10 @@ def serialize_announcements(announcements: List[Announcement]) -> list[dict]:
     ]
 
 
-def build_announcement(payload: AnnouncementIn, created_by: str) -> Announcement:
-    return Announcement(created_by=created_by, **payload.model_dump())
+def build_announcement(db, payload: AnnouncementIn, created_by: str) -> Announcement:
+    a = Announcement(created_by=created_by, **payload.model_dump())
+    db.add(a)
+    return a
 
 
 def get_announcement_by_id(db: Session, ann_id: str) -> Optional[Announcement]:

@@ -16,6 +16,7 @@ from app.services.psa_flows import (
     submit_timesheet_flow,
     sync_timesheet_from_imputations_flow,
 )
+import app.services.timesheet_service as _tsvc
 
 router = APIRouter()
 
@@ -101,26 +102,7 @@ def get_timesheet_lines(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    week_end = week_start + timedelta(days=6)
-    imps = db.query(Imputation).options(
-        joinedload(Imputation.project)
-    ).filter(
-        Imputation.user_id == current_user.id,
-        Imputation.date >= week_start,
-        Imputation.date <= week_end,
-    ).order_by(Imputation.date).all()
-
-    return [{
-        "id": i.id,
-        "date": str(i.date),
-        "hours": i.hours,
-        "project_name": i.project.name if i.project else "—",
-        "project_code": i.project.code if i.project else "—",
-        "description": i.description,
-        "is_billable": i.is_billable,
-        "is_approved": i.is_approved,
-        "cost": i.cost_amount or 0,
-    } for i in imps]
+    return _tsvc.get_timesheet_lines(db, current_user.id, week_start)
 
 
 @router.post("/my/{week_start}/submit", summary="Enviar timesheet para aprobación")
@@ -138,24 +120,7 @@ def get_pending_timesheets(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    ts_list = db.query(Timesheet).options(
-        joinedload(Timesheet.user)
-    ).filter(
-        Timesheet.status == TimesheetStatus.submitted
-    ).order_by(Timesheet.week_start.desc()).all()
-
-    return [{
-        "id": ts.id,
-        "user_id": ts.user_id,
-        "week_start": ts.week_start,
-        "week_end": ts.week_end,
-        "status": ts.status,
-        "total_hours": ts.total_hours,
-        "billable_hours": ts.billable_hours,
-        "total_cost": ts.total_cost,
-        "user_name": ts.user.full_name if ts.user else "—",
-        "submitted_at": ts.submitted_at,
-    } for ts in ts_list]
+    return _tsvc.list_pending_timesheets(db)
 
 
 @router.get("/team", response_model=List[TimesheetOut], summary="Todos los timesheets del equipo")
@@ -167,29 +132,7 @@ def get_team_timesheets(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "timesheet", action="read")
-    q = db.query(Timesheet).options(joinedload(Timesheet.user))
-    if week_start:
-        q = q.filter(Timesheet.week_start == week_start)
-    if user_id:
-        q = q.filter(Timesheet.user_id == user_id)
-    if status:
-        q = q.filter(Timesheet.status == status)
-    ts_list = q.order_by(Timesheet.week_start.desc()).limit(200).all()
-
-    return [{
-        "id": ts.id,
-        "user_id": ts.user_id,
-        "week_start": ts.week_start,
-        "week_end": ts.week_end,
-        "status": ts.status,
-        "total_hours": ts.total_hours,
-        "billable_hours": ts.billable_hours,
-        "total_cost": ts.total_cost,
-        "user_name": ts.user.full_name if ts.user else "—",
-        "submitted_at": ts.submitted_at,
-        "reviewed_at": ts.reviewed_at,
-        "review_notes": ts.review_notes,
-    } for ts in ts_list]
+    return _tsvc.list_team_timesheets(db, week_start, user_id, status)
 
 
 @router.post("/{timesheet_id}/review", summary="Aprobar o rechazar timesheet")

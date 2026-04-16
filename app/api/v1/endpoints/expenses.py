@@ -22,6 +22,18 @@ from app.services.expense_service import (
     review_expense as svc_review_expense,
     export_expenses_excel,
     ocr_receipt as svc_ocr_receipt,
+    list_my_expenses as svc_list_my_expenses,
+    list_pending_expenses as svc_list_pending_expenses,
+    list_all_expenses as svc_list_all_expenses,
+    list_team_expenses as svc_list_team_expenses,
+    list_project_expenses as svc_list_project_expenses,
+    create_expense_record as svc_create_expense,
+    admin_update_expense as svc_admin_update_expense,
+    update_my_expense as svc_update_my_expense,
+    submit_expense_record as svc_submit_expense,
+    recall_expense_record as svc_recall_expense,
+    reimburse_expense_record as svc_reimburse_expense,
+    delete_my_expense as svc_delete_my_expense,
 )
 
 router = APIRouter()
@@ -115,14 +127,9 @@ def my_expenses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Expense).options(
-        joinedload(Expense.project), joinedload(Expense.reviewer)
-    ).filter(Expense.user_id == current_user.id)
-    if status:      q = q.filter(Expense.status == status)
-    if project_id:  q = q.filter(Expense.project_id == project_id)
-    if date_from:   q = q.filter(Expense.expense_date >= date_from)
-    if date_to:     q = q.filter(Expense.expense_date <= date_to)
-    return [_expense_out(e) for e in q.order_by(Expense.expense_date.desc()).all()]
+    return [_expense_out(e) for e in svc_list_my_expenses(
+        db, current_user.id, status, project_id, date_from, date_to
+    )]
 
 
 @router.get("/pending", summary="Gastos pendientes de aprobación (PM/admin)")
@@ -132,12 +139,7 @@ def pending_expenses(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", action="read")
-    q = db.query(Expense).options(
-        joinedload(Expense.user), joinedload(Expense.project)
-    ).filter(Expense.status == ExpenseStatus.submitted)
-    if project_id:
-        q = q.filter(Expense.project_id == project_id)
-    return [_expense_out(e) for e in q.order_by(Expense.submitted_at).all()]
+    return [_expense_out(e) for e in svc_list_pending_expenses(db, project_id)]
 
 
 @router.get("", summary="Listar todos los gastos (admin/PM) — alias de /team")
@@ -147,26 +149,7 @@ def list_all_expenses_alias(
     status: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),
 ):
-    q = db.query(Expense)
-    if cu.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
-        q = q.filter(Expense.user_id == cu.id)
-    elif not cu.is_superadmin and cu.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == cu.organization_id
-        ).scalar_subquery()
-        org_project_ids = db.query(Project.id).filter(
-            Project.organization_id == cu.organization_id
-        ).scalar_subquery()
-        q = q.filter(
-            or_(
-                Expense.user_id.in_(org_user_ids),
-                Expense.project_id.in_(org_project_ids),
-            )
-        )
-    if status: q = q.filter(Expense.status == status)
-    if user_id: q = q.filter(Expense.user_id == user_id)
-    items = q.order_by(Expense.created_at.desc()).limit(200).all()
-    return [_expense_out(e) for e in items]
+    return [_expense_out(e) for e in svc_list_all_expenses(db, cu, status, user_id)]
 
 @router.get("/team", summary="Todos los gastos del equipo (admin/PM)")
 def team_expenses(
@@ -179,36 +162,14 @@ def team_expenses(
     current_user: User = Depends(require_any_manager),
 ):
     enforce_abac(db, current_user, "expense", action="read")
-    q = db.query(Expense).options(
-        joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
+    expenses = svc_list_team_expenses(
+        db, current_user, status, project_id, user_id, date_from, date_to
     )
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        org_project_ids = db.query(Project.id).filter(
-            Project.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(
-            or_(
-                Expense.user_id.in_(org_user_ids),
-                Expense.project_id.in_(org_project_ids),
-            )
-        )
-    if status:      q = q.filter(Expense.status == status)
-    if project_id:  q = q.filter(Expense.project_id == project_id)
-    if user_id:     q = q.filter(Expense.user_id == user_id)
-    if date_from:   q = q.filter(Expense.expense_date >= date_from)
-    if date_to:     q = q.filter(Expense.expense_date <= date_to)
-    expenses = q.order_by(Expense.expense_date.desc()).all()
-
     total = sum(e.amount for e in expenses)
     billable = sum(e.amount for e in expenses if e.is_billable)
-    by_category = {}
+    by_category: dict = {}
     for e in expenses:
-        cat = e.category
-        by_category[cat] = by_category.get(cat, 0) + e.amount
-
+        by_category[e.category] = by_category.get(e.category, 0) + e.amount
     return {
         "expenses": [_expense_out(e) for e in expenses],
         "total": round(total, 2),
@@ -223,13 +184,10 @@ def project_expense_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    expenses = db.query(Expense).options(joinedload(Expense.user)).filter(
-        Expense.project_id == project_id,
-        Expense.status.in_(["approved", "reimbursed"])
-    ).all()
+    expenses = svc_list_project_expenses(db, project_id)
     total = sum(e.amount for e in expenses)
     billable = sum(e.amount for e in expenses if e.is_billable)
-    by_cat = {}
+    by_cat: dict = {}
     for e in expenses:
         by_cat[e.category] = by_cat.get(e.category, 0) + e.amount
     return {
@@ -248,26 +206,7 @@ def create_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if payload.project_id:
-        project = db.query(Project).filter(Project.id == payload.project_id).first()
-        if not project:
-            raise HTTPException(404, "Proyecto no encontrado")
-        if project.status in [ProjectStatus.completed, ProjectStatus.closed, ProjectStatus.cancelled, ProjectStatus.archived]:
-            raise HTTPException(400, "No se pueden generar gastos facturables en proyectos cerrados")
-
-    expense = Expense(
-        code=_next_code(db),
-        user_id=current_user.id,
-        **payload.model_dump(),
-    )
-
-    if expense.is_billable and expense.project_id:
-        project = db.query(Project).filter(Project.id == expense.project_id).first()
-        if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
-
-    db.add(expense); db.commit(); db.refresh(expense)
-    expense = db.query(Expense).options(joinedload(Expense.project)).filter(Expense.id == expense.id).first()
+    expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
     return _expense_out(expense)
 
 
@@ -278,18 +217,7 @@ def update_expense_admin(
     db: Session = Depends(get_db),
     cu: User = Depends(require_admin_or_pm),
 ):
-    from app.models.expenses import Expense
-    e = db.query(Expense).filter(Expense.id == expense_id).first()
-    if not e: raise HTTPException(404, "Gasto no encontrado")
-
-    if payload.is_billable and e.project_id:
-        project = db.query(Project).filter(Project.id == e.project_id).first()
-        if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
-
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(e, k, v)
-    db.commit(); db.refresh(e)
+    e = svc_admin_update_expense(db, expense_id, payload)
     return _expense_out(e)
 
 @router.patch("/my/{expense_id}", summary="Editar mi gasto (solo borrador)")
@@ -299,13 +227,7 @@ def update_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(404, "Gasto no encontrado")
-    if expense.status != ExpenseStatus.draft:
-        raise HTTPException(400, "Solo se pueden editar gastos en borrador")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(expense, k, v)
-    db.commit()
+    expense = svc_update_my_expense(db, expense_id, current_user.id, payload)
     return _expense_out(expense)
 
 
@@ -315,14 +237,7 @@ def submit_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(404)
-    if expense.status != ExpenseStatus.draft:
-        raise HTTPException(400, "El gasto ya ha sido enviado")
-    expense.status = ExpenseStatus.submitted
-    expense.submitted_at = datetime.now(timezone.utc)
-    db.commit()
-    return {"ok": True}
+    return svc_submit_expense(db, expense_id, current_user.id)
 
 
 @router.post("/my/{expense_id}/recall", summary="Retirar gasto enviado")
@@ -331,14 +246,7 @@ def recall_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(404)
-    if expense.status != ExpenseStatus.submitted:
-        raise HTTPException(400, "Solo se pueden retirar gastos enviados")
-    expense.status = ExpenseStatus.draft
-    expense.submitted_at = None
-    db.commit()
-    return {"ok": True}
+    return svc_recall_expense(db, expense_id, current_user.id)
 
 
 @router.post("/{expense_id}/review", summary="Aprobar o rechazar gasto (PM/admin)")
@@ -358,14 +266,7 @@ def reimburse_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id).first()
-    if not expense: raise HTTPException(404)
-    if expense.status != ExpenseStatus.approved:
-        raise HTTPException(400, "El gasto debe estar aprobado")
-    expense.status = ExpenseStatus.reimbursed
-    expense.reimbursed_at = datetime.now(timezone.utc)
-    db.commit()
-    return {"ok": True}
+    return svc_reimburse_expense(db, expense_id)
 
 
 @router.delete("/my/{expense_id}", summary="Eliminar gasto en borrador")
@@ -374,12 +275,7 @@ def delete_expense(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    expense = db.query(Expense).filter(Expense.id == expense_id, Expense.user_id == current_user.id).first()
-    if not expense: raise HTTPException(404)
-    if expense.status not in [ExpenseStatus.draft, ExpenseStatus.rejected]:
-        raise HTTPException(400, "Solo se pueden eliminar gastos en borrador o rechazados")
-    db.delete(expense); db.commit()
-    return {"ok": True}
+    return svc_delete_my_expense(db, expense_id, current_user.id)
 
 @router.get("/export", summary="Exportar gastos a Excel")
 def export_expenses(

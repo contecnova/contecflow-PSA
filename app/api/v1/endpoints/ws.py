@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import verify_client_token
+import app.services.ws_service as _ws_svc
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
@@ -298,25 +299,13 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
     Sondea la BD cada 15s y envía notificaciones no leídas al cliente.
     En producción se reemplazaría por eventos de BD (pg_notify / Redis).
     """
-    from app.models.enterprise import Notification
-    from sqlalchemy import func
-
     last_count = None
     while True:
         try:
-            count = db.query(func.count(Notification.id)).filter(
-                Notification.user_id == user_id,
-                Notification.is_read  == False,
-            ).scalar() or 0
+            count, notifs = _ws_svc.get_unread_notifications(db, user_id)
 
             if count != last_count:
                 last_count = count
-                # Obtener las nuevas notificaciones
-                notifs = db.query(Notification).filter(
-                    Notification.user_id == user_id,
-                    Notification.is_read  == False,
-                ).order_by(Notification.created_at.desc()).limit(10).all()
-
                 await websocket.send_text(json.dumps({
                     "type":  "notifications",
                     "count": count,
@@ -346,29 +335,10 @@ async def _poll_and_send_client(websocket: WebSocket, client_id: str, db):
     from app.models.client_portal import ClientMessage
     from app.models.service_desk import Ticket, TicketComment
     from sqlalchemy import func
-
-    last_snapshot = None
-    while True:
-        try:
-            unread_messages = db.query(func.count(ClientMessage.id)).filter(
-                ClientMessage.sender_client_id.is_(None),
-                ClientMessage.is_read_by_client == False,
-                ClientMessage.is_internal == False,
-                ClientMessage.project_id.in_(
-                    db.query(Ticket.project_id).filter(Ticket.requester_client_id == client_id)
-                ),
-            ).scalar() or 0
-
-            open_tickets = db.query(func.count(Ticket.id)).filter(
-                Ticket.requester_client_id == client_id,
-                Ticket.status.notin_(["resolved", "closed", "cancelled"]),
-            ).scalar() or 0
-
-            recent_public_comments = db.query(TicketComment).join(Ticket, Ticket.id == TicketComment.ticket_id).filter(
-                Ticket.requester_client_id == client_id,
-                TicketComment.is_public == True,
-                TicketComment.author_user_id.isnot(None),
-            ).order_by(TicketComment.created_at.desc()).limit(5).all()
+        poll_data = _ws_svc.get_portal_poll_data(db, client_id)
+            unread_messages = poll_data["unread_messages"]
+            open_tickets = poll_data["open_tickets"]
+            recent_public_comments = poll_data["recent_public_comments"]
 
             snapshot = (unread_messages, open_tickets, len(recent_public_comments))
             if snapshot != last_snapshot:
@@ -489,11 +459,7 @@ async def ws_notifications(
                     if msg.get("type") == "ping":
                         await websocket.send_text(json.dumps({"type": "pong"}))
                     elif msg.get("type") == "mark_read" and msg.get("id"):
-                        from app.models.enterprise import Notification
-                        n = db.query(Notification).filter(Notification.id == msg["id"]).first()
-                        if n and n.user_id == user_id:
-                            n.is_read = True
-                            db.commit()
+                        _ws_svc.mark_notification_read(db, msg["id"], user_id)
                 except (json.JSONDecodeError, KeyError, TypeError) as e:
                     logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                 except Exception as e:

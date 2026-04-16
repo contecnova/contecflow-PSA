@@ -20,7 +20,6 @@ import hmac
 import json
 import os
 import secrets
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -29,9 +28,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from sqlalchemy import func as sa_func
-from app.models.oauth_apps import OAuthApp, OAuthToken
 from app.models.user import User, UserRole
+from app.services import developer_portal_service as svc
 
 router = APIRouter(prefix="/developer", tags=["Developer Portal"])
 
@@ -88,7 +86,7 @@ def _verify_secret(secret: str, hashed: str) -> bool:
     return hmac.compare_digest(candidate, dk)
 
 
-def _app_out(app: OAuthApp, include_secret: str = None) -> dict:
+def _app_out(app, include_secret: str = None) -> dict:
     out = {
         "id": app.id,
         "name": app.name,
@@ -111,7 +109,7 @@ def _app_out(app: OAuthApp, include_secret: str = None) -> dict:
 
 @router.get("/apps", summary="Listar mis aplicaciones OAuth")
 def list_apps(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    apps = db.query(OAuthApp).filter(OAuthApp.owner_id == current_user.id).all()
+    apps = svc.list_apps_for_user(db, current_user.id)
     return [_app_out(a) for a in apps]
 
 
@@ -121,31 +119,27 @@ def create_app(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    app_count = db.query(sa_func.count(OAuthApp.id)).filter(OAuthApp.owner_id == current_user.id).scalar() or 0
+    app_count = svc.count_apps_for_user(db, current_user.id)
     if app_count >= _MAX_APPS_PER_USER:
         raise HTTPException(400, f"Límite máximo de {_MAX_APPS_PER_USER} aplicaciones por usuario alcanzado")
 
     raw_secret = secrets.token_urlsafe(32)
-    app = OAuthApp(
-        id=str(uuid.uuid4()),
+    app = svc.create_app(
+        db,
         name=payload.name,
         description=payload.description,
         homepage_url=payload.homepage_url,
-        client_id=f"nxpm_{secrets.token_urlsafe(16)}",
-        client_secret_hash=_hash_secret(raw_secret),
-        redirect_uris=json.dumps(payload.redirect_uris),
-        scopes=json.dumps(payload.scopes),
+        redirect_uris=payload.redirect_uris,
+        scopes=payload.scopes,
         owner_id=current_user.id,
+        secret_hash=_hash_secret(raw_secret),
     )
-    db.add(app)
-    db.commit()
-    db.refresh(app)
     return _app_out(app, include_secret=raw_secret)
 
 
 @router.get("/apps/{app_id}", summary="Detalle de aplicación")
 def get_app(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    app = db.query(OAuthApp).filter(OAuthApp.id == app_id).first()
+    app = svc.get_app_by_id(db, app_id)
     if not app:
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
@@ -160,42 +154,34 @@ def update_app(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    app = db.query(OAuthApp).filter(OAuthApp.id == app_id).first()
+    app = svc.get_app_by_id(db, app_id)
     if not app:
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
-    for field, value in payload.model_dump(exclude_none=True).items():
-        if field in ("redirect_uris", "scopes"):
-            setattr(app, field, json.dumps(value))
-        else:
-            setattr(app, field, value)
-    db.commit()
-    db.refresh(app)
+    app = svc.update_app(db, app, payload.model_dump(exclude_none=True))
     return _app_out(app)
 
 
 @router.delete("/apps/{app_id}", summary="Eliminar aplicación", status_code=204)
 def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    app = db.query(OAuthApp).filter(OAuthApp.id == app_id).first()
+    app = svc.get_app_by_id(db, app_id)
     if not app:
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
-    db.delete(app)
-    db.commit()
+    svc.delete_app(db, app)
 
 
 @router.post("/apps/{app_id}/rotate-secret", summary="Rotar secreto de cliente")
 def rotate_secret(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    app = db.query(OAuthApp).filter(OAuthApp.id == app_id).first()
+    app = svc.get_app_by_id(db, app_id)
     if not app:
         raise HTTPException(404, "Aplicación no encontrada")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(403, "Acceso denegado")
     raw_secret = secrets.token_urlsafe(32)
-    app.client_secret_hash = _hash_secret(raw_secret)
-    db.commit()
+    svc.rotate_app_secret(db, app, _hash_secret(raw_secret))
     return {"client_id": app.client_id, "client_secret": raw_secret}
 
 
@@ -206,10 +192,7 @@ def oauth_token(
     payload: TokenRequestIn,
     db: Session = Depends(get_db),
 ):
-    app = db.query(OAuthApp).filter(
-        OAuthApp.client_id == payload.client_id,
-        OAuthApp.is_active == True,
-    ).first()
+    app = svc.get_app_by_client_id(db, payload.client_id)
     if not app or not _verify_secret(payload.client_secret, app.client_secret_hash):
         raise HTTPException(401, "client_id o client_secret inválido")
 
@@ -228,16 +211,15 @@ def oauth_token(
 
         raw_token = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-        token = OAuthToken(
-            id=str(uuid.uuid4()),
+        scopes_list = payload.scope.split() if payload.scope else ["read"]
+        svc.create_token(
+            db,
             app_id=app.id,
             user_id=owner_id,
-            access_token_hash=_hash_secret(raw_token),
-            scopes=json.dumps(payload.scope.split() if payload.scope else ["read"]),
+            token_hash=_hash_secret(raw_token),
+            scopes=scopes_list,
             expires_at=expires_at,
         )
-        db.add(token)
-        db.commit()
 
         return {
             "access_token": raw_token,
@@ -260,10 +242,9 @@ def revoke_token(
         raise HTTPException(401, "Token requerido en cabecera Authorization: Bearer <token>")
     raw_token = auth.removeprefix("Bearer ").strip()
     hashed = _hash_secret(raw_token)
-    token = db.query(OAuthToken).filter(OAuthToken.access_token_hash == hashed).first()
+    token = svc.get_token_by_hash(db, hashed)
     if token:
-        token.revoked = True
-        db.commit()
+        svc.revoke_token(db, token)
     return {"ok": True}
 
 
@@ -278,16 +259,13 @@ def oauth_userinfo(
         raise HTTPException(401, "Token requerido")
     raw_token = auth.removeprefix("Bearer ").strip()
     hashed = _hash_secret(raw_token)
-    token_obj = db.query(OAuthToken).filter(
-        OAuthToken.access_token_hash == hashed,
-        OAuthToken.revoked == False,
-    ).first()
+    token_obj = svc.get_active_token_by_hash(db, hashed)
     if not token_obj:
         raise HTTPException(401, "Token inválido o revocado")
     if token_obj.expires_at and token_obj.expires_at < datetime.now(timezone.utc):
         raise HTTPException(401, "Token expirado")
 
-    user = db.query(User).filter(User.id == token_obj.user_id).first()
+    user = svc.get_user_by_id(db, token_obj.user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
 

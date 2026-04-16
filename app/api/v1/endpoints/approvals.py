@@ -5,10 +5,8 @@ Soporta: timesheets, gastos, change requests, milestones, compras.
 Flujo: request → step 1 → step 2 → ... → step N → decision final
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timezone
 from pydantic import BaseModel
 import logging
 
@@ -16,13 +14,21 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User, UserRole
 from app.services.approval_engine import (
-    log_financial_approval_event,
-    scope_request_query,
-    find_default_workflow,
-    notify_approver,
     create_approval_request,
     decide_approval_request,
     get_pending_for_user,
+    list_workflows,
+    create_workflow,
+    get_workflow,
+    update_workflow,
+    delete_workflow,
+    add_workflow_step,
+    update_workflow_step,
+    delete_workflow_step,
+    list_approval_requests,
+    cancel_approval_request,
+    get_financial_audit_entries,
+    get_approval_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -126,74 +132,57 @@ def _request_out(r) -> dict:
 
 # ── CRUD Workflows ─────────────────────────────────────────────────────────────
 @router.get("/workflows", summary="Listar flujos de aprobación")
-def list_workflows(
+def list_workflows_endpoint(
     entity_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.billing_reports import ApprovalWorkflow
-    q = db.query(ApprovalWorkflow)
-    if entity_type:
-        q = q.filter(ApprovalWorkflow.entity_type == entity_type)
-    return [_workflow_out(w, include_steps=True) for w in q.order_by(ApprovalWorkflow.entity_type).all()]
+    return [_workflow_out(w, include_steps=True) for w in list_workflows(db, entity_type=entity_type)]
 
 
 @router.post("/workflows", summary="Crear flujo de aprobación")
-def create_workflow(
+def create_workflow_endpoint(
     payload: WorkflowIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalWorkflow
-    import uuid
-    if payload.is_default:
-        db.query(ApprovalWorkflow).filter(
-            ApprovalWorkflow.entity_type == payload.entity_type
-        ).update({"is_default": False})
-    w = ApprovalWorkflow(id=str(uuid.uuid4()), **payload.model_dump())
-    db.add(w); db.commit(); db.refresh(w)
+    w = create_workflow(db, payload.model_dump())
     return _workflow_out(w, include_steps=True)
 
 
 @router.get("/workflows/{workflow_id}", summary="Detalle de flujo")
-def get_workflow(
+def get_workflow_endpoint(
     workflow_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.billing_reports import ApprovalWorkflow
-    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
-    if not w: raise HTTPException(404)
+    w = get_workflow(db, workflow_id)
+    if not w:
+        raise HTTPException(404)
     return _workflow_out(w, include_steps=True)
 
 
 @router.patch("/workflows/{workflow_id}", summary="Actualizar flujo")
-def update_workflow(
+def update_workflow_endpoint(
     workflow_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalWorkflow
-    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
-    if not w: raise HTTPException(404)
-    allowed = ["name", "description", "is_active", "is_default", "trigger_conditions"]
-    for k, v in payload.items():
-        if k in allowed: setattr(w, k, v)
-    db.commit()
+    w = update_workflow(db, workflow_id, payload)
+    if not w:
+        raise HTTPException(404)
     return _workflow_out(w, include_steps=True)
 
 
 @router.delete("/workflows/{workflow_id}", summary="Eliminar flujo")
-def delete_workflow(
+def delete_workflow_endpoint(
     workflow_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalWorkflow
-    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
-    if not w: raise HTTPException(404)
-    db.delete(w); db.commit()
+    if not delete_workflow(db, workflow_id):
+        raise HTTPException(404)
     return {"ok": True}
 
 
@@ -205,12 +194,9 @@ def add_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalWorkflow, ApprovalStep
-    import uuid
-    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
-    if not w: raise HTTPException(404)
-    s = ApprovalStep(id=str(uuid.uuid4()), workflow_id=workflow_id, **payload.model_dump())
-    db.add(s); db.commit(); db.refresh(s)
+    s = add_workflow_step(db, workflow_id, payload.model_dump())
+    if not s:
+        raise HTTPException(404)
     return _step_out(s)
 
 
@@ -221,19 +207,9 @@ def update_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalStep
-    s = db.query(ApprovalStep).filter(
-        ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
-    ).first()
-    if not s: raise HTTPException(404)
-    allowed = ["name", "approver_type", "approver_role", "approver_user_id",
-               "is_optional", "timeout_hours", "on_timeout", "step_order", "escalate_to_user_id"]
-    _fk_fields = {"approver_user_id", "escalate_to_user_id"}
-    for k, v in payload.items():
-        if k in allowed:
-            # Convert empty strings to None for FK fields
-            setattr(s, k, None if (k in _fk_fields and v == "") else v)
-    db.commit()
+    s = update_workflow_step(db, workflow_id, step_id, payload)
+    if not s:
+        raise HTTPException(404)
     return _step_out(s)
 
 
@@ -243,37 +219,24 @@ def delete_step(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import ApprovalStep
-    s = db.query(ApprovalStep).filter(
-        ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
-    ).first()
-    if not s: raise HTTPException(404)
-    db.delete(s); db.commit()
+    if not delete_workflow_step(db, workflow_id, step_id):
+        raise HTTPException(404)
     return {"ok": True}
 
 
 # ── Requests ───────────────────────────────────────────────────────────────────
 @router.get("/requests", summary="Solicitudes de aprobación — mis pendientes")
-def list_requests(
+def list_requests_endpoint(
     status:      Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     mine:        bool           = Query(True),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.billing_reports import ApprovalRequest
     # Non-managers can only query their own requests
     if not mine and current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
         raise HTTPException(403, "Acceso denegado: solo managers pueden ver todas las solicitudes")
-    q = db.query(ApprovalRequest).options(
-        joinedload(ApprovalRequest.requester),
-        joinedload(ApprovalRequest.decisions),
-    )
-    q = scope_request_query(q, db, current_user)
-    if status:      q = q.filter(ApprovalRequest.status == status)
-    if entity_type: q = q.filter(ApprovalRequest.entity_type == entity_type)
-    if mine:        q = q.filter(ApprovalRequest.requested_by == current_user.id)
-    return [_request_out(r) for r in q.order_by(ApprovalRequest.created_at.desc()).limit(100).all()]
+    return [_request_out(r) for r in list_approval_requests(db, current_user, status=status, entity_type=entity_type, mine=mine)]
 
 
 @router.get("/requests/pending-my-action", summary="Solicitudes que yo debo aprobar ahora")
@@ -320,23 +283,7 @@ def cancel_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.billing_reports import ApprovalRequest
-    req = scope_request_query(db.query(ApprovalRequest), db, current_user).filter(ApprovalRequest.id == request_id).first()
-    if not req: raise HTTPException(404)
-    if req.requested_by != current_user.id and current_user.role.value not in ("admin", "pm"):
-        raise HTTPException(403)
-    req.status = "cancelled"
-    req.completed_at = datetime.now(timezone.utc)
-    log_financial_approval_event(
-        db=db,
-        request_id=req.id,
-        entity_type=req.entity_type,
-        entity_id=req.entity_id,
-        action="cancelled",
-        actor_user_id=current_user.id,
-        step_order=req.current_step,
-    )
-    db.commit()
+    cancel_approval_request(db, request_id, current_user)
     return {"ok": True}
 
 
@@ -350,11 +297,7 @@ def get_financial_audit_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ApprovalRequest, FinancialApprovalAuditLog
-
-    req = scope_request_query(
-        db.query(ApprovalRequest), db, current_user
-    ).filter(ApprovalRequest.id == request_id).first()
+    req, entries = get_financial_audit_entries(db, request_id, current_user)
     if not req:
         raise HTTPException(404, "Solicitud no encontrada")
     if req.entity_type not in _FINANCIAL_ENTITY_TYPES:
@@ -363,13 +306,6 @@ def get_financial_audit_log(
             f"Esta solicitud es de tipo '{req.entity_type}', que no es una entidad financiera. "
             "El audit log financiero sólo existe para: " + ", ".join(sorted(_FINANCIAL_ENTITY_TYPES)),
         )
-
-    entries = (
-        db.query(FinancialApprovalAuditLog)
-        .filter(FinancialApprovalAuditLog.request_id == request_id)
-        .order_by(FinancialApprovalAuditLog.created_at.asc())
-        .all()
-    )
     return {
         "request_id": request_id,
         "entity_type": req.entity_type,
@@ -395,15 +331,4 @@ def approval_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import ApprovalRequest
-    q = scope_request_query(db.query(ApprovalRequest), db, current_user)
-    total     = q.count()
-    pending   = q.filter(ApprovalRequest.status == "pending").count()
-    approved  = q.filter(ApprovalRequest.status == "approved").count()
-    rejected  = q.filter(ApprovalRequest.status == "rejected").count()
-    by_entity = q.with_entities(ApprovalRequest.entity_type, func.count(ApprovalRequest.id)).group_by(ApprovalRequest.entity_type).all()
-    return {
-        "total": total, "pending": pending,
-        "approved": approved, "rejected": rejected,
-        "by_entity_type": {e: c for e, c in by_entity},
-    }
+    return get_approval_stats(db, current_user)

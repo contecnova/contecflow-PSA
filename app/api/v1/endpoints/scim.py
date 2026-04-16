@@ -1,23 +1,27 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.user import User, UserRole
 from app.services.scim_service import (
     ensure_org as _ensure_org,
     to_scim_user as _to_scim_user,
     to_scim_group as _to_scim_group,
     parse_role as _parse_role,
     create_scim_user as _create_scim_user,
-    update_scim_user as _update_scim_user,
-    deactivate_scim_user as _deactivate_scim_user,
     require_scim_token,
-    process_bulk_operation,
+    list_scim_users_filtered as _list_scim_users_filtered,
+    get_user_by_id_and_org as _get_user_by_id_and_org,
+    put_scim_user_record as _put_scim_user_record,
+    patch_scim_user_record as _patch_scim_user_record,
+    delete_scim_user_record as _delete_scim_user_record,
+    list_role_groups as _list_role_groups,
+    get_role_group_members as _get_role_group_members,
+    patch_role_group as _patch_role_group,
+    process_bulk_operations as _process_bulk_operations,
 )
 
 router = APIRouter(prefix="/scim/v2/{org_id}", tags=["SCIM"])
@@ -100,28 +104,7 @@ def list_scim_users(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    q = db.query(User).filter(User.organization_id == org_id)
-    # SCIM 2.0 filter grammar (RFC 7644 §3.4.2) — support common Okta filter patterns
-    if filter:
-        f = filter.strip()
-        if "userName eq " in f:
-            val = f.split("userName eq ", 1)[1].strip().strip('"\'')
-            q = q.filter(User.username == val)
-        elif "emails.value eq " in f or "emails[value eq " in f:
-            val = f.split(" eq ", 1)[1].strip().strip('"]\'')
-            q = q.filter(User.email == val)
-        elif "externalId eq " in f:
-            val = f.split("externalId eq ", 1)[1].strip().strip('"\'')
-            q = q.filter(User.scim_external_id == val)
-        elif "active eq " in f:
-            val = f.split("active eq ", 1)[1].strip().lower()
-            is_active = val not in ("false", "0")
-            q = q.filter(User.is_active == is_active)
-        elif "userName sw " in f:
-            val = f.split("userName sw ", 1)[1].strip().strip('"\'')
-            q = q.filter(User.username.ilike(f"{val}%"))
-    total = q.count()
-    users = q.offset(startIndex - 1).limit(count).all()
+    total, users = _list_scim_users_filtered(db, org_id, filter, startIndex, count)
     return {
         "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
         "totalResults": total,
@@ -151,7 +134,7 @@ def get_scim_user(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
+    user = _get_user_by_id_and_org(db, user_id, org_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return _to_scim_user(user)
@@ -166,12 +149,9 @@ def put_scim_user(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
+    user = _put_scim_user_record(db, user_id, org_id, payload)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    _update_scim_user(user, payload, "PUT")
-    db.commit()
-    db.refresh(user)
     return _to_scim_user(user)
 
 
@@ -184,12 +164,9 @@ def patch_scim_user(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
+    user = _patch_scim_user_record(db, user_id, org_id, payload)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    _update_scim_user(user, payload, "PATCH")
-    db.commit()
-    db.refresh(user)
     return _to_scim_user(user)
 
 
@@ -201,11 +178,7 @@ def delete_scim_user(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
-    if not user:
-        return None
-    _deactivate_scim_user(user, db)
-    db.commit()
+    _delete_scim_user_record(db, user_id, org_id)
     return None
 
 
@@ -216,10 +189,7 @@ def list_scim_groups(
     _auth: None = Depends(_require_scim_token),
 ):
     _ensure_org(db, org_id)
-    groups = []
-    for role in UserRole:
-        members = db.query(User).filter(User.organization_id == org_id, User.role == role, User.is_active == True).all()
-        groups.append(_to_scim_group(role.value, members))
+    groups = _list_role_groups(db, org_id)
     return {
         "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
         "totalResults": len(groups),
@@ -239,24 +209,7 @@ def patch_scim_group(
 ):
     _ensure_org(db, org_id)
     target_role = _parse_role(group_id)
-    for op in payload.get("Operations", []) or []:
-        operation = (op.get("op") or "").lower()
-        value = op.get("value") or {}
-        members = value.get("members") if isinstance(value, dict) else None
-        if not isinstance(members, list):
-            continue
-        member_ids = [m.get("value") for m in members if isinstance(m, dict) and m.get("value")]
-        if not member_ids:
-            continue
-        users = db.query(User).filter(User.organization_id == org_id, User.id.in_(member_ids)).all()
-        for user in users:
-            if operation in ("add", "replace"):
-                user.role = target_role
-            elif operation == "remove" and user.role == target_role:
-                user.role = UserRole.employee
-            user.scim_last_synced_at = datetime.now(timezone.utc)
-    db.commit()
-    members = db.query(User).filter(User.organization_id == org_id, User.role == target_role, User.is_active == True).all()
+    members = _patch_role_group(db, org_id, target_role, payload.get("Operations", []) or [])
     return _to_scim_group(target_role.value, members)
 
 
@@ -274,29 +227,7 @@ def scim_bulk(
     fail_on_errors = payload.get("failOnErrors")
     if len(operations) > 100:
         raise HTTPException(status_code=400, detail="Maximum 100 operations per Bulk request")
-
-    responses = []
-    error_count = 0
-
-    for op in operations:
-        try:
-            responses.append(process_bulk_operation(org_id, op, db))
-        except Exception as exc:
-            error_count += 1
-            responses.append({
-                "method": (op.get("method") or "").upper(),
-                "bulkId": op.get("bulkId"),
-                "status": "400",
-                "response": {
-                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
-                    "status": "400",
-                    "detail": str(exc),
-                },
-            })
-            if fail_on_errors and error_count >= fail_on_errors:
-                break
-
-    db.commit()
+    responses = _process_bulk_operations(org_id, operations, fail_on_errors, db)
     return {
         "schemas": ["urn:ietf:params:scim:api:messages:2.0:BulkResponse"],
         "Operations": responses,
@@ -312,9 +243,5 @@ def get_scim_group(
 ):
     _ensure_org(db, org_id)
     target_role = _parse_role(group_id)
-    members = db.query(User).filter(
-        User.organization_id == org_id,
-        User.role == target_role,
-        User.is_active == True,
-    ).all()
+    members = _get_role_group_members(db, org_id, target_role)
     return _to_scim_group(target_role.value, members)

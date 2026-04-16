@@ -276,6 +276,137 @@ def call_provider(provider, messages: list, system: str = None,
         raise ValueError(f"Proveedor no soportado: {provider.provider}")
 
 
+# ── CRUD service functions ────────────────────────────────────────────────────
+
+def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list:
+    from app.models.ai_providers import AIProvider
+    q = db.query(AIProvider)
+    if not is_superadmin and organization_id:
+        q = q.filter(AIProvider.organization_id == organization_id)
+    return q.order_by(AIProvider.is_default.desc(), AIProvider.name).all()
+
+
+def _clear_default(db: Session, *, is_superadmin: bool, organization_id) -> None:
+    from app.models.ai_providers import AIProvider
+    q = db.query(AIProvider)
+    if not is_superadmin and organization_id:
+        q = q.filter(AIProvider.organization_id == organization_id)
+    q.update({"is_default": False})
+
+
+def create_provider(db: Session, *, organization_id, created_by, data: dict,
+                    is_superadmin: bool) -> object:
+    from app.models.ai_providers import AIProvider
+    count_q = db.query(AIProvider)
+    if not is_superadmin and organization_id:
+        count_q = count_q.filter(AIProvider.organization_id == organization_id)
+    count = count_q.count()
+    raw_key = data.get("api_key") or None
+    p = AIProvider(
+        organization_id=organization_id,
+        name=data.get("name", ""),
+        provider=data.get("provider", "anthropic"),
+        api_key=encrypt_value(raw_key) if raw_key else None,
+        api_base_url=data.get("api_base_url") or None,
+        default_model=data.get("default_model"),
+        available_models=",".join(data.get("available_models", [])) if data.get("available_models") else None,
+        is_default=data.get("is_default", count == 0),
+        max_tokens=data.get("max_tokens", 2000),
+        temperature=data.get("temperature", 0.7),
+        created_by=created_by,
+    )
+    if p.is_default:
+        _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+
+def get_provider(db: Session, pid: str, *, is_superadmin: bool, organization_id) -> object | None:
+    from app.models.ai_providers import AIProvider
+    q = db.query(AIProvider).filter(AIProvider.id == pid)
+    if not is_superadmin and organization_id:
+        q = q.filter(AIProvider.organization_id == organization_id)
+    return q.first()
+
+
+def update_provider(db: Session, provider, data: dict, *,
+                    is_superadmin: bool, organization_id) -> object:
+    if data.get("is_default"):
+        _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
+    for k, v in data.items():
+        if k == "available_models" and isinstance(v, list):
+            v = ",".join(v)
+        if k == "api_key":
+            if not v:
+                continue
+            v = encrypt_value(v)
+        if hasattr(provider, k):
+            setattr(provider, k, v)
+    db.commit()
+    db.refresh(provider)
+    return provider
+
+
+def delete_provider(db: Session, provider) -> None:
+    db.delete(provider)
+    db.commit()
+
+
+def set_default_provider(db: Session, pid: str, *, is_superadmin: bool,
+                         organization_id) -> object | None:
+    from app.models.ai_providers import AIProvider
+    _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
+    q = db.query(AIProvider).filter(AIProvider.id == pid)
+    if not is_superadmin and organization_id:
+        q = q.filter(AIProvider.organization_id == organization_id)
+    p = q.first()
+    if p:
+        p.is_default = True
+        db.commit()
+    return p
+
+
+def update_provider_test_result(db: Session, provider, *, success: bool,
+                                error: str | None = None) -> None:
+    if success:
+        provider.status = "active"
+        provider.last_error = None
+    else:
+        provider.status = "error"
+        provider.last_error = (error or "")[:500]
+        provider.last_error_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def get_stats(db: Session, *, is_superadmin: bool, organization_id) -> dict:
+    from app.models.ai_providers import AIProvider, AIUsageLog
+    from app.models.user import User
+    from sqlalchemy import func as sqlfunc
+    p_q = db.query(AIProvider)
+    l_q = db.query(
+        AIUsageLog.module,
+        sqlfunc.count(AIUsageLog.id).label("calls"),
+        sqlfunc.sum(AIUsageLog.tokens_in + AIUsageLog.tokens_out).label("tokens"),
+        sqlfunc.sum(AIUsageLog.cost_usd).label("cost"),
+    )
+    if not is_superadmin and organization_id:
+        p_q = p_q.filter(AIProvider.organization_id == organization_id)
+        org_user_ids = db.query(User.id).filter(
+            User.organization_id == organization_id
+        ).scalar_subquery()
+        l_q = l_q.filter(AIUsageLog.user_id.in_(org_user_ids))
+    providers = p_q.all()
+    logs = l_q.group_by(AIUsageLog.module).all()
+    return {
+        "providers": providers,
+        "logs": logs,
+        "total_cost": round(sum(p.total_cost_usd for p in providers), 4),
+        "total_requests": sum(p.total_requests for p in providers),
+    }
+
+
 def get_default_provider(db: Session):
     """Return the default (or first active) provider."""
     from app.models.ai_providers import AIProvider

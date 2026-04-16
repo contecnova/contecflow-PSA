@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
 from pydantic import BaseModel
@@ -8,9 +7,9 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
-from app.models.resources import Absence, AbsenceType, AbsenceStatus
-from app.models.settings import Holiday
+from app.models.resources import AbsenceStatus
 from app.core.config import settings
+from app.services import absence_service
 
 router = APIRouter()
 
@@ -60,7 +59,7 @@ def _working_days(start: date, end: date, holidays: list) -> float:
     return float(count)
 
 
-def _absence_out(a: Absence) -> dict:
+def _absence_out(a) -> dict:
     return {
         "id": a.id,
         "user_id": a.user_id,
@@ -95,27 +94,18 @@ def list_absences(
     Lista ausencias con filtros opcionales de fecha y usuario.
     Admins/managers ven todas; empleados solo las suyas.
     """
-    q = db.query(Absence).options(joinedload(Absence.user))
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(Absence.user_id.in_(org_user_ids))
-
-    # Control de acceso
-    if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        q = q.filter(Absence.user_id == current_user.id)
-    elif user_id:
-        q = q.filter(Absence.user_id == user_id)
-
-    if date_from:
-        q = q.filter(Absence.end_date >= date_from)
-    if date_to:
-        q = q.filter(Absence.start_date <= date_to)
-    if status:
-        q = q.filter(Absence.status == status)
-
-    absences = q.order_by(Absence.start_date.desc()).limit(limit).all()
+    absences = absence_service.list_absences(
+        db,
+        is_superadmin=current_user.is_superadmin,
+        organization_id=current_user.organization_id,
+        user_role=current_user.role,
+        current_user_id=current_user.id,
+        date_from=date_from,
+        date_to=date_to,
+        user_id=user_id,
+        status=status,
+        limit=limit,
+    )
     return [_absence_out(a) for a in absences]
 
 
@@ -124,9 +114,7 @@ def get_my_absences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    absences = db.query(Absence).options(
-        joinedload(Absence.user), joinedload(Absence.approver)
-    ).filter(Absence.user_id == current_user.id).order_by(Absence.start_date.desc()).all()
+    absences = absence_service.get_my_absences(db, current_user.id)
     return [_absence_out(a) for a in absences]
 
 @router.get("/my/vacation-balance", summary="Mi balance de vacaciones del año actual")
@@ -137,51 +125,9 @@ def get_my_vacation_balance(
 ):
     """Devuelve los días de vacaciones disponibles, usados y pendientes del usuario autenticado."""
     from datetime import datetime as dt_mod
-    from app.models.resources import Absence, AbsenceStatus
     if not year:
         year = dt_mod.now().year
-
-    # Intentar leer la política asignada al usuario
-    try:
-        from app.models.advanced_config import UserVacationBalance
-        bal = db.query(UserVacationBalance).filter(
-            UserVacationBalance.user_id == current_user.id,
-            UserVacationBalance.year == year,
-        ).first()
-        entitled = bal.days_entitled if bal else settings.DEFAULT_VACATION_DAYS_PER_YEAR
-        carried  = bal.days_carried_over if bal else 0
-    except Exception:
-        entitled = settings.DEFAULT_VACATION_DAYS_PER_YEAR
-        carried  = 0
-
-    year_start = date(year, 1, 1)
-    year_end = date(year + 1, 1, 1)
-    taken = db.query(func.sum(Absence.working_days)).filter(
-        Absence.user_id == current_user.id,
-        Absence.type == AbsenceType.vacation,
-        Absence.status == AbsenceStatus.approved,
-        Absence.start_date >= year_start,
-        Absence.start_date < year_end,
-    ).scalar() or 0
-
-    pending = db.query(func.sum(Absence.working_days)).filter(
-        Absence.user_id == current_user.id,
-        Absence.type == AbsenceType.vacation,
-        Absence.status == AbsenceStatus.pending,
-        Absence.start_date >= year_start,
-        Absence.start_date < year_end,
-    ).scalar() or 0
-
-    return {
-        "year":           year,
-        "days_entitled":  entitled,
-        "days_carried":   round(carried, 1),
-        "days_taken":     round(float(taken), 1),
-        "days_pending":   round(float(pending), 1),
-        "days_remaining": round(entitled + carried - float(taken) - float(pending), 1),
-    }
-
-
+    return absence_service.get_vacation_balance(db, current_user.id, year)
 
 
 @router.post("/my", summary="Solicitar ausencia")
@@ -193,25 +139,22 @@ def request_absence(
     if payload.end_date < payload.start_date:
         raise HTTPException(400, "La fecha de fin no puede ser anterior a la de inicio")
 
-    # Check for overlapping approved absences
-    overlap = db.query(Absence).filter(
-        Absence.user_id == current_user.id,
-        Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved]),
-        Absence.start_date <= payload.end_date,
-        Absence.end_date >= payload.start_date,
-    ).first()
+    overlap = absence_service.get_overlap(db, current_user.id, payload.start_date, payload.end_date)
     if overlap:
         raise HTTPException(400, f"Ya tienes una ausencia solapada del {overlap.start_date} al {overlap.end_date}")
 
-    holidays = db.query(Holiday).all()
+    holidays = absence_service.get_holidays(db)
     days = _working_days(payload.start_date, payload.end_date, holidays)
 
-    absence = Absence(
+    absence = absence_service.create_absence(
+        db,
         user_id=current_user.id,
+        type=payload.type,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        reason=payload.reason,
         working_days=days,
-        **payload.model_dump(),
     )
-    db.add(absence); db.commit(); db.refresh(absence)
     return _absence_out(absence)
 
 
@@ -221,12 +164,12 @@ def cancel_absence(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    a = db.query(Absence).filter(Absence.id == absence_id, Absence.user_id == current_user.id).first()
-    if not a: raise HTTPException(404, "Ausencia no encontrada")
+    a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
+    if not a:
+        raise HTTPException(404, "Ausencia no encontrada")
     if a.status == AbsenceStatus.approved and a.start_date <= date.today():
         raise HTTPException(400, "No puedes cancelar una ausencia ya iniciada")
-    a.status = AbsenceStatus.cancelled
-    db.commit()
+    absence_service.cancel_absence(db, a)
     return {"ok": True}
 
 
@@ -238,10 +181,7 @@ def edit_absence(
     current_user: User = Depends(get_current_user),
 ):
     """Permite editar una ausencia propia mientras esté en estado 'pending'."""
-    a = db.query(Absence).filter(
-        Absence.id == absence_id,
-        Absence.user_id == current_user.id,
-    ).first()
+    a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
     if not a:
         raise HTTPException(404, "Ausencia no encontrada")
     if a.status != AbsenceStatus.pending:
@@ -249,26 +189,23 @@ def edit_absence(
     if payload.end_date < payload.start_date:
         raise HTTPException(400, "La fecha de fin no puede ser anterior a la de inicio")
 
-    # Verificar solapamiento (excluyendo la propia ausencia)
-    overlap = db.query(Absence).filter(
-        Absence.user_id == current_user.id,
-        Absence.id != absence_id,
-        Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved]),
-        Absence.start_date <= payload.end_date,
-        Absence.end_date >= payload.start_date,
-    ).first()
+    overlap = absence_service.get_overlap(
+        db, current_user.id, payload.start_date, payload.end_date, exclude_id=absence_id
+    )
     if overlap:
         raise HTTPException(400, f"Solapamiento con ausencia del {overlap.start_date} al {overlap.end_date}")
 
-    holidays = db.query(Holiday).all()
+    holidays = absence_service.get_holidays(db)
     days = _working_days(payload.start_date, payload.end_date, holidays)
 
-    a.type = payload.type
-    a.start_date = payload.start_date
-    a.end_date = payload.end_date
-    a.reason = payload.reason
-    a.working_days = days
-    db.commit(); db.refresh(a)
+    a = absence_service.update_absence(
+        db, a,
+        type=payload.type,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        reason=payload.reason,
+        working_days=days,
+    )
     return _absence_out(a)
 
 
@@ -280,18 +217,7 @@ def get_team_absences(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(Absence).options(joinedload(Absence.user), joinedload(Absence.approver))
-    if month:
-        year, m = int(month.split("-")[0]), int(month.split("-")[1])
-        month_start = date(year, m, 1)
-        month_end = date(year, m, 28) + timedelta(days=4)
-        month_end = month_end.replace(day=1) - timedelta(days=1)
-        q = q.filter(Absence.start_date <= month_end, Absence.end_date >= month_start)
-    if user_id:
-        q = q.filter(Absence.user_id == user_id)
-    if status:
-        q = q.filter(Absence.status == status)
-    absences = q.order_by(Absence.start_date.desc()).limit(200).all()
+    absences = absence_service.get_team_absences(db, month=month, user_id=user_id, status=status)
     return [_absence_out(a) for a in absences]
 
 
@@ -300,9 +226,7 @@ def get_pending_absences(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    absences = db.query(Absence).options(
-        joinedload(Absence.user)
-    ).filter(Absence.status == AbsenceStatus.pending).order_by(Absence.start_date).all()
+    absences = absence_service.get_pending_absences(db)
     return [_absence_out(a) for a in absences]
 
 
@@ -313,17 +237,18 @@ def review_absence(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    a = db.query(Absence).filter(Absence.id == absence_id).first()
-    if not a: raise HTTPException(404, "Ausencia no encontrada")
+    a = absence_service.get_absence_by_id(db, absence_id)
+    if not a:
+        raise HTTPException(404, "Ausencia no encontrada")
     if a.status != AbsenceStatus.pending:
         raise HTTPException(400, "Solo se pueden revisar ausencias pendientes")
 
-    from datetime import datetime, timezone
-    a.status = AbsenceStatus.approved if payload.approved else AbsenceStatus.rejected
-    a.approved_by = current_user.id
-    a.approved_at = datetime.now(timezone.utc)
-    a.rejection_reason = payload.rejection_reason
-    db.commit()
+    a = absence_service.review_absence(
+        db, a,
+        approved=payload.approved,
+        approver_id=current_user.id,
+        rejection_reason=payload.rejection_reason,
+    )
     return {"message": "Aprobada" if payload.approved else "Rechazada", "status": a.status}
 
 
@@ -335,23 +260,16 @@ def get_absence_calendar(
     current_user: User = Depends(get_current_user),
 ):
     from datetime import datetime
-    if not year: year = datetime.now().year
-    if not month: month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    if not month:
+        month = datetime.now().month
 
     month_start = date(year, month, 1)
     next_month = date(year + (month // 12), (month % 12) + 1, 1)
     month_end = next_month - timedelta(days=1)
 
-    absences = db.query(Absence).options(joinedload(Absence.user)).filter(
-        Absence.status == AbsenceStatus.approved,
-        Absence.start_date <= month_end,
-        Absence.end_date >= month_start,
-    ).all()
-
-    holidays = db.query(Holiday).filter(
-        Holiday.date >= str(month_start),
-        Holiday.date <= str(month_end),
-    ).all()
+    absences, holidays = absence_service.get_calendar_data(db, month_start, month_end)
 
     return {
         "year": year, "month": month,
@@ -368,18 +286,12 @@ def get_user_absence_summary(
     current_user: User = Depends(get_current_user),
 ):
     from datetime import datetime
-    if not year: year = datetime.now().year
+    if not year:
+        year = datetime.now().year
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
         raise HTTPException(403, "Acceso denegado")
 
-    year_start = date(year, 1, 1)
-    year_end = date(year + 1, 1, 1)
-    absences = db.query(Absence).filter(
-        Absence.user_id == user_id,
-        Absence.status == AbsenceStatus.approved,
-        Absence.start_date >= year_start,
-        Absence.start_date < year_end,
-    ).all()
+    absences = absence_service.get_user_year_absences(db, user_id, year)
 
     by_type = {}
     for a in absences:

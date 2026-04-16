@@ -329,10 +329,10 @@ def get_policy(
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
-    policy = db.query(ABACPolicy).filter(
-        ABACPolicy.id == policy_id,
-        ABACPolicy.org_id == org_id,
-    ).one_or_404()
+    service = ABACService(db, org_id)
+    policy = service.get_policy_by_id(policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
     return ABACPolicySchema.model_validate(policy)
 
 

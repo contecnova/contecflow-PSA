@@ -1,18 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, timedelta
 from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
-from app.models.user import User, UserStatus
-from app.models.project import Project
-from app.models.imputation import Imputation
+from app.models.user import User
 from app.core.config import settings
-from app.models.financial import CapacityPlan
 from app.services.psa_flows import create_capacity_plan_flow
+from app.services import capacity_service
 
 router = APIRouter()
 
@@ -45,44 +42,19 @@ def get_capacity_overview(
     current_user: User = Depends(require_any_manager),
 ):
     """
-    Returns a grid: users × weeks with planned hours, actual hours and load %.
+    Returns a grid: users x weeks with planned hours, actual hours and load %.
     """
     today = date.today()
     week_list = _get_weeks(today, weeks)
 
-    users_q = db.query(User).filter(
-        User.is_active == True,
-        User.status == UserStatus.active,
-    )
-    if current_user.organization_id:
-        users_q = users_q.filter(User.organization_id == current_user.organization_id)
-    users = users_q.order_by(User.full_name).all()
+    users = capacity_service.get_active_users(db, current_user.organization_id)
     user_ids = [u.id for u in users]
 
-    # Get all capacity plans for the period (scoped to org users)
-    plans = db.query(CapacityPlan).filter(
-        CapacityPlan.week_start >= week_list[0],
-        CapacityPlan.week_start <= week_list[-1],
-        CapacityPlan.user_id.in_(user_ids),
-    ).all()
+    plans = capacity_service.get_plans_for_period(db, week_list[0], week_list[-1], user_ids)
 
-    # Get actual hours (past weeks) grouped by week. Supports Postgres + SQLite.
-    from app.db.session import is_postgres
-
-    if is_postgres():
-        week_expr = func.date_trunc('week', Imputation.date)
-    else:
-        # SQLite: week in format YYYY-WW
-        week_expr = func.strftime('%Y-%W', Imputation.date)
-
-    actual_data = db.query(
-        Imputation.user_id,
-        week_expr.label('week'),
-        func.sum(Imputation.hours).label('hours'),
-    ).filter(
-        Imputation.date >= week_list[0],
-        Imputation.date <= week_list[-1] + timedelta(days=6),
-    ).group_by(Imputation.user_id, week_expr).all()
+    actual_data = capacity_service.get_actual_hours_by_week(
+        db, week_list[0], week_list[-1] + timedelta(days=6)
+    )
 
     # Build actual hours by user/week
     actual_by_user_week = {}
@@ -154,20 +126,7 @@ def list_plans(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(CapacityPlan).options(
-        joinedload(CapacityPlan.user),
-        joinedload(CapacityPlan.project),
-    )
-    if user_id:
-        q = q.filter(CapacityPlan.user_id == user_id)
-    if project_id:
-        q = q.filter(CapacityPlan.project_id == project_id)
-    if week_from:
-        q = q.filter(CapacityPlan.week_start >= week_from)
-    if week_to:
-        q = q.filter(CapacityPlan.week_start <= week_to)
-
-    plans = q.order_by(CapacityPlan.week_start, CapacityPlan.user_id).all()
+    plans = capacity_service.list_capacity_plans(db, user_id, project_id, week_from, week_to)
     return [{
         "id": p.id,
         "user_id": p.user_id,
@@ -192,20 +151,10 @@ def get_availability(
     today = date.today()
     week_list = _get_weeks(today, weeks)
 
-    users_q = db.query(User).filter(
-        User.is_active == True,
-        User.status == UserStatus.active,
-    )
-    if current_user.organization_id:
-        users_q = users_q.filter(User.organization_id == current_user.organization_id)
-    users = users_q.all()
+    users = capacity_service.get_active_users(db, current_user.organization_id)
     user_ids = [u.id for u in users]
 
-    plans = db.query(CapacityPlan).filter(
-        CapacityPlan.week_start >= week_list[0],
-        CapacityPlan.week_start <= week_list[-1],
-        CapacityPlan.user_id.in_(user_ids),
-    ).all()
+    plans = capacity_service.get_plans_for_period(db, week_list[0], week_list[-1], user_ids)
 
     planned_by_user_week = {}
     for p in plans:
@@ -242,8 +191,8 @@ def get_availability(
     return result
 
 
-# ── Board — vista de planificación visual ────────────────────────────────────────
-@router.get("/board", summary="Board de planificación: planes por usuario y semana")
+# -- Board - vista de planificacion visual -----------------------------------
+@router.get("/board", summary="Board de planificacion: planes por usuario y semana")
 def get_capacity_board(
     week_from: Optional[str] = Query(None),
     week_to:   Optional[str] = Query(None),
@@ -254,22 +203,13 @@ def get_capacity_board(
     Devuelve todos los CapacityPlan en el rango de semanas dado,
     con el nombre del proyecto incluido (para el planificador visual).
     """
-    from app.models.financial import CapacityPlan
+    wf = date.fromisoformat(week_from) if week_from else None
+    wt = date.fromisoformat(week_to) if week_to else None
 
-    q = db.query(CapacityPlan)
-    from datetime import date as _date
-    if week_from:
-        q = q.filter(CapacityPlan.week_start >= _date.fromisoformat(week_from))
-    if week_to:
-        q = q.filter(CapacityPlan.week_start <= _date.fromisoformat(week_to))
+    plans = capacity_service.get_plans_board(db, wf, wt)
 
-    plans = q.order_by(CapacityPlan.week_start, CapacityPlan.user_id).all()
-
-    # Pre-cargar nombres de proyectos
     project_ids = {p.project_id for p in plans if p.project_id}
-    projects = {str(p.id): p.name for p in db.query(Project).filter(
-        Project.id.in_(project_ids)
-    ).all()} if project_ids else {}
+    projects = capacity_service.get_project_names(db, project_ids)
 
     return [
         {
@@ -319,18 +259,10 @@ def update_capacity_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.financial import CapacityPlan
-    plan = db.query(CapacityPlan).filter(CapacityPlan.id == plan_id).first()
-    if not plan: raise HTTPException(404)
-    from datetime import date as _date
-    allowed = ["user_id", "project_id", "week_start", "planned_hours", "notes"]
-    for k, v in payload.items():
-        if k in allowed:
-            # Convertir week_start de string ISO a date
-            if k == "week_start" and isinstance(v, str):
-                v = _date.fromisoformat(v)
-            setattr(plan, k, v)
-    db.commit()
+    plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
+    if not plan:
+        raise HTTPException(404)
+    capacity_service.update_capacity_plan(db, plan, payload)
     return {"ok": True, "id": plan.id}
 
 
@@ -340,14 +272,14 @@ def delete_capacity_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.financial import CapacityPlan
-    plan = db.query(CapacityPlan).filter(CapacityPlan.id == plan_id).first()
-    if not plan: raise HTTPException(404)
-    db.delete(plan); db.commit()
+    plan = capacity_service.get_capacity_plan_by_id(db, plan_id)
+    if not plan:
+        raise HTTPException(404)
+    capacity_service.delete_capacity_plan(db, plan)
     return {"ok": True}
 
 
-@router.get("/leveling", summary="Nivelación de recursos — detecta conflictos y sugiere redistribución")
+@router.get("/leveling", summary="Nivelacion de recursos -- detecta conflictos y sugiere redistribucion")
 def get_resource_leveling(
     week_from: date = Query(...),
     week_to: date = Query(...),
@@ -361,21 +293,11 @@ def get_resource_leveling(
       - conflicts: list of {user, week, planned_hours, capacity, overload_hours}
       - suggestions: list of {user, from_week, to_week, hours_to_move, plan_id}
     """
-    users_q = db.query(User).filter(
-        User.is_active == True,
-        User.status == UserStatus.active,
-    )
-    if current_user.organization_id:
-        users_q = users_q.filter(User.organization_id == current_user.organization_id)
-    users = users_q.order_by(User.full_name).all()
+    users = capacity_service.get_active_users(db, current_user.organization_id)
     user_map = {u.id: u for u in users}
-    leveling_user_ids = [u.id for u in users]
+    leveling_user_ids = list(user_map.keys())
 
-    plans = db.query(CapacityPlan).filter(
-        CapacityPlan.week_start >= week_from,
-        CapacityPlan.week_start <= week_to,
-        CapacityPlan.user_id.in_(leveling_user_ids),
-    ).all()
+    plans = capacity_service.get_plans_for_leveling(db, week_from, week_to, leveling_user_ids)
 
     # Aggregate planned hours per (user, week)
     from collections import defaultdict

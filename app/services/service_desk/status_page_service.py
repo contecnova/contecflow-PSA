@@ -137,9 +137,11 @@ def build_status_component(payload: StatusComponentIn) -> StatusPageComponent:
     return StatusPageComponent(**payload.model_dump())
 
 
-def create_status_component_record(payload: StatusComponentIn) -> StatusPageComponent:
+def create_status_component_record(db, payload: StatusComponentIn) -> StatusPageComponent:
     validate_component_status(payload.status)
-    return build_status_component(payload)
+    c = build_status_component(payload)
+    db.add(c)
+    return c
 
 
 def get_status_component_or_404(db: Session, component_id: str) -> StatusPageComponent:
@@ -162,6 +164,11 @@ def update_status_component_record(db: Session, component_id: str, payload: Stat
 
 def get_status_component_for_delete(db: Session, component_id: str) -> StatusPageComponent:
     return get_status_component_or_404(db, component_id)
+
+
+def delete_status_component(db: Session, component_id: str) -> None:
+    c = get_status_component_or_404(db, component_id)
+    db.delete(c)
 
 
 def build_status_incident(component_id: str, payload: StatusIncidentIn) -> StatusPageIncident:
@@ -187,6 +194,7 @@ def create_status_incident_record(db: Session, component_id: str, payload: Statu
     component = get_status_component_or_404(db, component_id)
     incident = build_status_incident(component_id, payload)
     component.status = payload.impact
+    db.add(incident)
     return incident
 
 

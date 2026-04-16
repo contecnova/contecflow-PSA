@@ -187,14 +187,7 @@ async def fire_webhook(
     External systems POST here to trigger automations.
     Verifiable via X-Clarive-Signature HMAC header.
     """
-    trigger = db.query(WebhookTrigger).filter(
-        WebhookTrigger.slug == slug,
-        WebhookTrigger.is_active == True,
-    ).first()
-
-    if not trigger:
-        raise HTTPException(404, "Webhook trigger no encontrado")
-
+    trigger = _svc.get_active_webhook_trigger_by_slug(db, slug)
     # Read body
     body = await request.body()
     payload_str = body.decode("utf-8") if body else "{}"

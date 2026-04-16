@@ -109,21 +109,7 @@ def create_document(
 ):
     """Create new document."""
     enforce_abac(db, current_user, "document", action="create")
-    doc = Document(
-        title=payload.title,
-        description=payload.description,
-        category=payload.category,
-        project_id=payload.project_id,
-        client_id=payload.client_id,
-        milestone_id=payload.milestone_id,
-        requires_approval=payload.requires_approval,
-        created_by=current_user.id,
-    )
-    db.add(doc)
-    db.flush()
-    db.commit()
-    db.refresh(doc)
-    return serialize_document(db, doc, current_user)
+    return doc_svc.create_document(db, payload, current_user)
 
 
 @router.get("", response_model=List[DocumentListOut], summary="List documents with filters")
@@ -139,47 +125,11 @@ def list_documents(
     current_user: User = Depends(get_current_user),
 ):
     """List documents with optional filters."""
-    q = db.query(Document).filter(Document.is_archived == is_archived)
-
-    # Apply filters
-    if category:
-        q = q.filter(Document.category == category)
-    if project_id:
-        q = q.filter(Document.project_id == project_id)
-    if search:
-        q = q.filter(or_(
-            Document.title.ilike(f"%{search}%"),
-            Document.description.ilike(f"%{search}%"),
-        ))
-
-    # Role-based filtering
-    from app.models.user import UserRole
-    if current_user.role != UserRole.admin:
-        # Non-admins: only documents they created or have explicit permission
-        q = q.filter(or_(
-            Document.created_by == current_user.id,
-            Document.permissions.any(DocumentPermission.user_id == current_user.id),
-        ))
-
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(
-            or_(
-                Document.created_by.in_(org_user_ids),
-                Document.permissions.any(DocumentPermission.user_id.in_(org_user_ids)),
-            )
-        )
-
-    q = q.order_by(Document.created_at.desc()).offset(skip).limit(limit)
-    docs = q.all()
+    docs = doc_svc.list_documents(db, current_user, skip, limit, category, tags, search, project_id, is_archived)
 
     result = []
     for doc in docs:
         latest_version = doc.versions[0] if doc.versions else None
-
-        # Only include version info if there are versions
         version_data = None
         if latest_version:
             _url = file_storage.generate_presigned_url(latest_version.file_key) if latest_version.file_key else None
@@ -196,7 +146,6 @@ def list_documents(
                 download_url=_url,
                 s3_url=_url,
             )
-
         result.append(DocumentListOut(
             id=doc.id,
             title=doc.title,
@@ -223,14 +172,7 @@ def get_document(
     enforce_abac(db, current_user, "document", doc_id, action="read")
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user)
-    # Audit trail
-    db.add(DocumentAccessLog(
-        document_id=doc.id,
-        user_id=current_user.id,
-        action="view",
-        ip_address=request.client.host if request.client else None,
-    ))
-    db.commit()
+    doc_svc.log_document_view(db, doc.id, current_user.id, request.client.host if request.client else None)
     return serialize_document(db, doc, current_user)
 
 
@@ -244,16 +186,7 @@ def update_document(
     """Update document metadata (title, category, etc)."""
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
-
-    # Update fields
-    data = payload.model_dump(exclude_unset=True)
-    for field, value in data.items():
-        setattr(doc, field, value)
-
-    doc.updated_by = current_user.id
-    db.commit()
-    db.refresh(doc)
-    return serialize_document(db, doc, current_user)
+    return doc_svc.update_document(db, doc, payload, current_user)
 
 
 @router.delete("/{doc_id}", summary="Archive document (soft delete)")
@@ -265,9 +198,7 @@ def delete_document(
     """Soft delete document (mark as archived)."""
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
-
-    doc.is_archived = True
-    db.commit()
+    doc_svc.archive_document(db, doc)
     return {"status": "archived"}
 
 
@@ -311,29 +242,15 @@ def upload_version(
         raise HTTPException(status_code=500, detail=str(e))
 
     # Create version record
-    version_num = max([v.version_num for v in doc.versions], default=0) + 1
-    version = DocumentVersion(
-        document_id=doc_id,
-        version_num=version_num,
-        file_key=s3_key,
-        file_name=file.filename,
-        file_size=file_size,
-        file_mime_type=file.content_type,
-        change_note=change_note,
-        created_by=current_user.id,
-    )
-    db.add(version)
     try:
-        db.commit()
+        version = doc_svc.create_document_version(db, doc, doc_id, file, content, change_note, current_user, s3_key, file_size)
     except Exception:
-        db.rollback()
         # Prevent storage/DB split-brain when upload succeeds but DB fails.
         try:
             file_storage.delete_file(s3_key)
         except Exception:
             logger.warning("Failed to cleanup orphaned uploaded file key %s", s3_key, exc_info=True)
         raise
-    db.refresh(version)
 
     return DocumentVersionOut(
         id=version.id,
@@ -388,32 +305,7 @@ def add_permission(
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
-    # Check if user exists
-    user = db.query(User).filter(User.id == payload.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Check for duplicate permission
-    existing = db.query(DocumentPermission).filter(
-        and_(
-            DocumentPermission.document_id == doc_id,
-            DocumentPermission.user_id == payload.user_id,
-        )
-    ).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="User already has access to this document")
-
-    perm = DocumentPermission(
-        document_id=doc_id,
-        user_id=payload.user_id,
-        access_level=payload.access_level,
-        granted_by=current_user.id,
-        expires_at=payload.expires_at,
-    )
-    db.add(perm)
-    db.commit()
-    db.refresh(perm)
-
+    perm, user = doc_svc.add_document_permission(db, doc_id, payload, current_user)
     return DocumentPermissionOut(
         id=perm.id,
         user_id=perm.user_id,
@@ -436,17 +328,7 @@ def remove_permission(
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
-    perm = db.query(DocumentPermission).filter(
-        and_(
-            DocumentPermission.id == perm_id,
-            DocumentPermission.document_id == doc_id,
-        )
-    ).first()
-    if not perm:
-        raise HTTPException(status_code=404, detail="Permission not found")
-
-    db.delete(perm)
-    db.commit()
+    doc_svc.remove_document_permission(db, doc_id, perm_id)
     return {"status": "revoked"}
 
 
@@ -463,17 +345,7 @@ def approve_document(
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
-    if not doc.requires_approval:
-        raise HTTPException(status_code=400, detail="This document does not require approval")
-
-    doc.approval_status = payload.status
-    if payload.status == ApprovalStatus.approved:
-        doc.approved_by = current_user.id
-        doc.approved_at = datetime.now(timezone.utc)
-
-    db.commit()
-    db.refresh(doc)
-    return serialize_document(db, doc, current_user)
+    return doc_svc.approve_document(db, doc, payload, current_user)
 
 
 # ── Combined create + upload in one request ────────────────────────────────
@@ -510,51 +382,23 @@ def create_and_upload(
     except ValueError:
         cat_enum = DocumentCategory.other
 
-    doc = Document(
-        title=title,
-        description=description,
-        category=cat_enum,
-        project_id=project_id or None,
-        client_id=client_id or None,
-        task_id=task_id or None,
-        ticket_id=ticket_id or None,
-        requires_approval=requires_approval,
-        created_by=current_user.id,
-    )
-    db.add(doc); db.flush()
-
     # Upload file
     try:
         file_key, file_size = file_storage.upload_file(
             file_content=content,
             file_name=file.filename or "document",
-            document_id=doc.id,
+            document_id="pending",
             version_num=1,
             content_type=file.content_type or "application/octet-stream",
         )
     except Exception as exc:
-        db.rollback()
         raise HTTPException(500, f"File upload failed: {str(exc)[:200]}")
 
-    version = DocumentVersion(
-        document_id=doc.id,
-        version_num=1,
-        file_key=file_key,
-        file_name=file.filename or "document",
-        file_size=file_size,
-        file_mime_type=file.content_type,
-        change_note=change_note or "Initial version",
-        created_by=current_user.id,
+    return doc_svc.create_and_upload_document(
+        db, current_user, file, content, title, description, category,
+        project_id, client_id, task_id, ticket_id, requires_approval,
+        tags, change_note, file_key, file_size,
     )
-    db.add(version)
-
-    # Tags
-    if tags:
-        for tag in [t.strip() for t in tags.split(",") if t.strip()]:
-            db.add(DocumentTag(document_id=doc.id, tag_name=tag))
-
-    db.commit(); db.refresh(doc)
-    return serialize_document(db, doc, current_user)
 
 
 # ── Serve local files ──────────────────────────────────────────────────────
@@ -581,11 +425,7 @@ def serve_local_file(
     """
     # Fall back to query-param token when browser can't set Authorization header
     if current_user is None and token:
-        from app.core.security import decode_token
-        payload = decode_token(token)
-        if payload and payload.get("type") == "access":
-            user_id = payload.get("sub")
-            current_user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        current_user = doc_svc.resolve_user_from_token(db, token)
     if current_user is None:
         raise HTTPException(status_code=401, detail="No autenticado")
     from app.services.s3_service import LocalFileStorage
@@ -593,7 +433,7 @@ def serve_local_file(
         raise HTTPException(404, "Direct file serving only available in local-storage mode")
 
     # Verify the user has access to the document that owns this file key
-    version = db.query(DocumentVersion).filter(DocumentVersion.file_key == file_key).first()
+    version = doc_svc.get_version_by_file_key(db, file_key)
     if not version:
         raise HTTPException(404, "File not found")
     doc = get_document_or_404(db, version.document_id)
@@ -611,13 +451,7 @@ def serve_local_file(
     filename = file_key.split("/")[-1]
 
     # Audit trail for file download
-    db.add(DocumentAccessLog(
-        document_id=doc.id,
-        user_id=current_user.id,
-        action="download",
-        ip_address=request.client.host if request.client else None,
-    ))
-    db.commit()
+    doc_svc.log_document_download(db, doc.id, current_user.id, request.client.host if request.client else None)
     # SVG served inline allows JS execution (XSS); force download for SVG
     disposition = "attachment" if mime_type == "image/svg+xml" else "inline"
     return StreamingResponse(
@@ -639,11 +473,7 @@ def docs_by_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Document).filter(
-        Document.project_id == project_id,
-        Document.is_archived == archived,
-    ).order_by(Document.created_at.desc())
-    docs, _, _ = paginate_query(q, page, page_size, response)
+    docs = doc_svc.docs_by_project(db, project_id, archived)
     return _doc_list(db, docs)
 
 
@@ -653,10 +483,7 @@ def docs_by_task(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = db.query(Document).filter(
-        Document.task_id == task_id,
-        Document.is_archived == False,
-    ).order_by(Document.created_at.desc()).all()
+    docs = doc_svc.docs_by_task(db, task_id)
     return _doc_list(db, docs)
 
 
@@ -666,10 +493,7 @@ def docs_by_ticket(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = db.query(Document).filter(
-        Document.ticket_id == ticket_id,
-        Document.is_archived == False,
-    ).order_by(Document.created_at.desc()).all()
+    docs = doc_svc.docs_by_ticket(db, ticket_id)
     return _doc_list(db, docs)
 
 
@@ -692,8 +516,7 @@ def add_tag(
         raise HTTPException(400, "tag required")
     if any(t.tag_name == tag_name for t in doc.tags):
         raise HTTPException(409, "Tag already exists")
-    db.add(DocumentTag(document_id=doc_id, tag_name=tag_name))
-    db.commit()
+    doc_svc.add_tag(db, doc_id, tag_name)
     return {"ok": True}
 
 
@@ -706,13 +529,7 @@ def remove_tag(
 ):
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
-    tag = db.query(DocumentTag).filter(
-        DocumentTag.document_id == doc_id,
-        DocumentTag.tag_name == tag_name,
-    ).first()
-    if not tag:
-        raise HTTPException(404, "Tag not found")
-    db.delete(tag); db.commit()
+    doc_svc.remove_tag(db, doc_id, tag_name)
     return {"ok": True}
 
 
@@ -762,9 +579,5 @@ def ai_summary(
     except Exception as exc:
         raise HTTPException(503, f"AI summary unavailable: {str(exc)[:100]}")
 
-    # Store in description if empty
-    if not doc.description:
-        doc.description = summary_text
-        db.commit()
-
+    doc_svc.save_ai_summary(db, doc, summary_text)
     return {"document_id": doc_id, "summary": summary_text}

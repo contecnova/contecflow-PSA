@@ -244,3 +244,267 @@ def extract_document_text(file_key: str, file_name: str, file_mime_type: str) ->
     except Exception:
         logger.warning("Failed to read document file content for AI summary", exc_info=True)
     return None
+
+
+# ── CRUD service functions ────────────────────────────────────────────────────
+
+def create_document(db, payload, current_user):
+    from app.models.documents import Document
+    doc = Document(
+        title=payload.title,
+        description=payload.description,
+        category=payload.category,
+        project_id=payload.project_id,
+        client_id=payload.client_id,
+        milestone_id=payload.milestone_id,
+        requires_approval=payload.requires_approval,
+        created_by=current_user.id,
+    )
+    db.add(doc)
+    db.flush()
+    db.commit()
+    db.refresh(doc)
+    return serialize_document(db, doc, current_user)
+
+
+def list_documents(db, current_user, skip: int, limit: int, category, tags, search, project_id, is_archived: bool):
+    from sqlalchemy import or_
+    from app.models.documents import Document, DocumentPermission, DocumentAccessLevel
+    from app.models.user import User, UserRole
+    q = db.query(Document).filter(Document.is_archived == is_archived)
+    if category:
+        q = q.filter(Document.category == category)
+    if project_id:
+        q = q.filter(Document.project_id == project_id)
+    if search:
+        q = q.filter(or_(
+            Document.title.ilike(f"%{search}%"),
+            Document.description.ilike(f"%{search}%"),
+        ))
+    if current_user.role != UserRole.admin:
+        q = q.filter(or_(
+            Document.created_by == current_user.id,
+            Document.permissions.any(DocumentPermission.user_id == current_user.id),
+        ))
+    if not current_user.is_superadmin and current_user.organization_id:
+        org_user_ids = db.query(User.id).filter(
+            User.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(or_(
+            Document.created_by.in_(org_user_ids),
+            Document.permissions.any(DocumentPermission.user_id.in_(org_user_ids)),
+        ))
+    return q.order_by(Document.created_at.desc()).offset(skip).limit(limit).all()
+
+
+def log_document_view(db, doc_id: str, user_id: str, ip_address):
+    from app.models.documents import DocumentAccessLog
+    db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="view", ip_address=ip_address))
+    db.commit()
+
+
+def update_document(db, doc, payload, current_user):
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(doc, field, value)
+    doc.updated_by = current_user.id
+    db.commit()
+    db.refresh(doc)
+    return serialize_document(db, doc, current_user)
+
+
+def archive_document(db, doc):
+    doc.is_archived = True
+    db.commit()
+
+
+def create_document_version(db, doc, doc_id: str, file: object, content: bytes, change_note, current_user, s3_key: str, file_size: int):
+    from app.models.documents import DocumentVersion
+    version_num = max([v.version_num for v in doc.versions], default=0) + 1
+    version = DocumentVersion(
+        document_id=doc_id,
+        version_num=version_num,
+        file_key=s3_key,
+        file_name=file.filename,
+        file_size=file_size,
+        file_mime_type=file.content_type,
+        change_note=change_note,
+        created_by=current_user.id,
+    )
+    db.add(version)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(version)
+    return version
+
+
+def add_document_permission(db, doc_id: str, payload, current_user):
+    from sqlalchemy import and_
+    from app.models.documents import DocumentPermission
+    from app.models.user import User
+    from fastapi import HTTPException
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    existing = db.query(DocumentPermission).filter(
+        and_(
+            DocumentPermission.document_id == doc_id,
+            DocumentPermission.user_id == payload.user_id,
+        )
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="User already has access to this document")
+    perm = DocumentPermission(
+        document_id=doc_id,
+        user_id=payload.user_id,
+        access_level=payload.access_level,
+        granted_by=current_user.id,
+        expires_at=payload.expires_at,
+    )
+    db.add(perm)
+    db.commit()
+    db.refresh(perm)
+    return perm, user
+
+
+def remove_document_permission(db, doc_id: str, perm_id: str):
+    from sqlalchemy import and_
+    from app.models.documents import DocumentPermission
+    from fastapi import HTTPException
+    perm = db.query(DocumentPermission).filter(
+        and_(
+            DocumentPermission.id == perm_id,
+            DocumentPermission.document_id == doc_id,
+        )
+    ).first()
+    if not perm:
+        raise HTTPException(status_code=404, detail="Permission not found")
+    db.delete(perm)
+    db.commit()
+
+
+def approve_document(db, doc, payload, current_user):
+    from app.models.documents import ApprovalStatus
+    from fastapi import HTTPException
+    if not doc.requires_approval:
+        raise HTTPException(status_code=400, detail="This document does not require approval")
+    doc.approval_status = payload.status
+    if payload.status == ApprovalStatus.approved:
+        doc.approved_by = current_user.id
+        doc.approved_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(doc)
+    return serialize_document(db, doc, current_user)
+
+
+def create_and_upload_document(db, current_user, file, content: bytes, title: str, description, category: str,
+                                project_id, client_id, task_id, ticket_id, requires_approval: bool,
+                                tags, change_note, s3_key: str, file_size: int):
+    from app.models.documents import Document, DocumentVersion, DocumentTag, DocumentCategory
+    try:
+        cat_enum = DocumentCategory(category)
+    except ValueError:
+        cat_enum = DocumentCategory.other
+    doc = Document(
+        title=title,
+        description=description,
+        category=cat_enum,
+        project_id=project_id or None,
+        client_id=client_id or None,
+        task_id=task_id or None,
+        ticket_id=ticket_id or None,
+        requires_approval=requires_approval,
+        created_by=current_user.id,
+    )
+    db.add(doc)
+    db.flush()
+    version = DocumentVersion(
+        document_id=doc.id,
+        version_num=1,
+        file_key=s3_key,
+        file_name=file.filename or "document",
+        file_size=file_size,
+        file_mime_type=file.content_type,
+        change_note=change_note or "Initial version",
+        created_by=current_user.id,
+    )
+    db.add(version)
+    if tags:
+        for tag in [t.strip() for t in tags.split(",") if t.strip()]:
+            db.add(DocumentTag(document_id=doc.id, tag_name=tag))
+    db.commit()
+    db.refresh(doc)
+    return serialize_document(db, doc, current_user)
+
+
+def resolve_user_from_token(db, token: str):
+    from app.core.security import decode_token
+    from app.models.user import User
+    payload = decode_token(token)
+    if payload and payload.get("type") == "access":
+        user_id = payload.get("sub")
+        return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    return None
+
+
+def get_version_by_file_key(db, file_key: str):
+    from app.models.documents import DocumentVersion
+    return db.query(DocumentVersion).filter(DocumentVersion.file_key == file_key).first()
+
+
+def log_document_download(db, doc_id: str, user_id: str, ip_address):
+    from app.models.documents import DocumentAccessLog
+    db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="download", ip_address=ip_address))
+    db.commit()
+
+
+def docs_by_project(db, project_id: str, archived: bool):
+    from app.models.documents import Document
+    return db.query(Document).filter(
+        Document.project_id == project_id,
+        Document.is_archived == archived,
+    ).order_by(Document.created_at.desc()).all()
+
+
+def docs_by_task(db, task_id: str):
+    from app.models.documents import Document
+    return db.query(Document).filter(
+        Document.task_id == task_id,
+        Document.is_archived == False,
+    ).order_by(Document.created_at.desc()).all()
+
+
+def docs_by_ticket(db, ticket_id: str):
+    from app.models.documents import Document
+    return db.query(Document).filter(
+        Document.ticket_id == ticket_id,
+        Document.is_archived == False,
+    ).order_by(Document.created_at.desc()).all()
+
+
+def add_tag(db, doc_id: str, tag_name: str):
+    from app.models.documents import DocumentTag
+    db.add(DocumentTag(document_id=doc_id, tag_name=tag_name))
+    db.commit()
+
+
+def remove_tag(db, doc_id: str, tag_name: str):
+    from app.models.documents import DocumentTag
+    from fastapi import HTTPException
+    tag = db.query(DocumentTag).filter(
+        DocumentTag.document_id == doc_id,
+        DocumentTag.tag_name == tag_name,
+    ).first()
+    if not tag:
+        raise HTTPException(404, "Tag not found")
+    db.delete(tag)
+    db.commit()
+
+
+def save_ai_summary(db, doc, summary_text: str):
+    if not doc.description:
+        doc.description = summary_text
+        db.commit()

@@ -12,7 +12,14 @@ import logging
 from app.core.deps import get_db, get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.resources import ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot
-from app.services.resource_analytics import resource_analytics
+from app.services.resource_analytics import (
+    resource_analytics,
+    get_team_user_ids as _svc_get_team_user_ids,
+    get_team_health_payload as _svc_get_team_health,
+    get_utilization_history_records as _svc_get_utilization_history,
+    get_alerts_records as _svc_get_alerts,
+    acknowledge_alert_record as _svc_acknowledge_alert,
+)
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/resources", tags=["resources"])
@@ -118,29 +125,7 @@ def get_availability_matrix(
 
     Shows planned hours, actual hours, load percentage, and available capacity.
     """
-    # Get team users
-    team_user_ids = []
-    if project_id:
-        from app.models.project import ProjectMember, Project
-        # Verify project belongs to user's organization
-        project = db.query(Project).filter(
-            and_(Project.id == project_id, Project.organization_id == current_user.organization_id)
-        ).first()
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found or access denied")
-
-        members = db.query(ProjectMember).filter(
-            ProjectMember.project_id == project_id
-        ).all()
-        team_user_ids = [m.user_id for m in members]
-    else:
-        # All users in current organization only
-        team_user_ids = [
-            u.id for u in db.query(User).filter(
-                and_(User.organization_id == current_user.organization_id, User.is_active == True)
-            ).all()
-        ]
-
+    team_user_ids = _svc_get_team_user_ids(db, current_user, project_id)
     availability = resource_analytics.get_team_availability(db, team_user_ids, weeks_ahead)
 
     return [
@@ -206,41 +191,14 @@ def get_team_health(
     from app.models.imputation import Imputation
     from datetime import datetime, timedelta, timezone
 
-    scoring = resource_analytics.get_load_scoring(db)
-
-    overloaded = len([s for s in scoring if s["load_pct"] > 100])
-    at_capacity = len([s for s in scoring if 80 <= s["load_pct"] <= 100])
-    underutilized = len([s for s in scoring if s["load_pct"] < 80])
-    total = len(scoring)
-
-    avg_load = sum(s["load_pct"] for s in scoring) / total if total > 0 else 0
-
-    # Calculate actual billable percentage for current week
-    today = datetime.now(timezone.utc).date()
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
-
-    total_hours = db.query(func.sum(Imputation.hours)).filter(
-        and_(Imputation.date >= week_start, Imputation.date <= week_end)
-    ).scalar() or 0
-
-    billable_hours = db.query(func.sum(Imputation.hours)).filter(
-        and_(
-            Imputation.date >= week_start,
-            Imputation.date <= week_end,
-            Imputation.is_billable == True
-        )
-    ).scalar() or 0
-
-    billable_pct = (billable_hours / total_hours * 100) if total_hours > 0 else 0
-
+    health = _svc_get_team_health(db)
     return TeamHealthMetrics(
-        avg_load_pct=round(avg_load, 2),
-        overloaded_count=overloaded,
-        at_capacity_count=at_capacity,
-        underutilized_count=underutilized,
-        total_users=total,
-        billable_pct=round(billable_pct, 2),
+        avg_load_pct=health["avg_load_pct"],
+        overloaded_count=health["overloaded_count"],
+        at_capacity_count=health["at_capacity_count"],
+        underutilized_count=health["underutilized_count"],
+        total_users=health["total_users"],
+        billable_pct=health["billable_pct"],
     )
 
 
@@ -290,14 +248,7 @@ def get_utilization_history(
     current_user: User = Depends(require_any_manager),
 ):
     """Get historical resource utilization snapshots."""
-    q = db.query(ResourceUtilizationSnapshot)
-
-    if user_id:
-        q = q.filter(ResourceUtilizationSnapshot.user_id == user_id)
-
-    snapshots = q.order_by(
-        ResourceUtilizationSnapshot.created_at.desc()
-    ).limit(weeks_back).all()
+    snapshots = _svc_get_utilization_history(db, user_id=user_id, weeks_back=weeks_back)
 
     return [
         UtilizationSnapshotOut(
@@ -325,18 +276,7 @@ def get_alerts(
     current_user: User = Depends(get_current_user),
 ):
     """Get resource alerts (overload, skill gaps, etc)."""
-    q = db.query(ResourceAlert)
-
-    if current_user.role != UserRole.admin:
-        q = q.filter(ResourceAlert.user_id == current_user.id)
-
-    if not acknowledged:
-        q = q.filter(ResourceAlert.acknowledged_at == None)
-
-    if alert_type:
-        q = q.filter(ResourceAlert.alert_type == alert_type)
-
-    alerts = q.order_by(ResourceAlert.triggered_at.desc()).all()
+    alerts = _svc_get_alerts(db, current_user, acknowledged=acknowledged, alert_type=alert_type)
 
     return [
         ResourceAlertOut(
@@ -360,18 +300,7 @@ def acknowledge_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Acknowledge/dismiss an alert."""
-    alert = db.query(ResourceAlert).filter(ResourceAlert.id == alert_id).first()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-
-    if alert.user_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Cannot acknowledge another user's alert")
-
-    alert.acknowledged_at = datetime.now(timezone.utc)
-    alert.acknowledged_by = current_user.id
-    db.commit()
-
-    return {"status": "acknowledged"}
+    return _svc_acknowledge_alert(db, alert_id, current_user)
 
 
 # ── Forecast ───────────────────────────────────────────────────────────────

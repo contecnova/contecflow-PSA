@@ -349,3 +349,127 @@ class ResourceAnalyticsService:
 
 # Singleton instance
 resource_analytics = ResourceAnalyticsService()
+
+
+# ── resource_forecast service helpers ─────────────────────────────────────────
+
+def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
+    """Returns committed/booking/capacity/absence hours for a user in a given week."""
+    from app.models.bookings import ResourceBooking
+    from app.models.financial import CapacityPlan
+
+    week_end = week_start + timedelta(days=6)
+
+    bookings = db.query(ResourceBooking).filter(
+        ResourceBooking.user_id == user_id,
+        ResourceBooking.start_date <= week_end,
+        ResourceBooking.end_date >= week_start,
+    ).all()
+
+    booking_hours = 0.0
+    booking_projects: dict = {}
+    for b in bookings:
+        overlap_start = max(b.start_date, week_start)
+        overlap_end = min(b.end_date, week_end)
+        days = max(0, (overlap_end - overlap_start).days + 1)
+        work_days = sum(
+            1 for i in range(days)
+            if (overlap_start + timedelta(days=i)).weekday() < 5
+        )
+        h = work_days * (b.hours_per_day or 8)
+        booking_hours += h
+        pid = str(b.project_id) if b.project_id else "unassigned"
+        booking_projects[pid] = booking_projects.get(pid, 0) + h
+
+    cp = db.query(CapacityPlan).filter(
+        CapacityPlan.user_id == user_id,
+        CapacityPlan.week_start == week_start,
+    ).all()
+    capacity_hours = sum(c.planned_hours for c in cp)
+    for c in cp:
+        pid = str(c.project_id) if c.project_id else "unassigned"
+        booking_projects[pid] = booking_projects.get(pid, 0) + c.planned_hours
+
+    try:
+        from app.models.resources import Absence as AbsenceModel
+        absences = db.query(AbsenceModel).filter(
+            AbsenceModel.user_id == user_id,
+            AbsenceModel.status == "approved",
+            AbsenceModel.start_date <= week_end,
+            AbsenceModel.end_date >= week_start,
+        ).all()
+        absence_hours = 0.0
+        for a in absences:
+            ov_start = max(a.start_date, week_start)
+            ov_end = min(a.end_date, week_end)
+            days = max(0, (ov_end - ov_start).days + 1)
+            work_days = sum(
+                1 for i in range(days)
+                if (ov_start + timedelta(days=i)).weekday() < 5
+            )
+            absence_hours += work_days * 8
+    except Exception:
+        absence_hours = 0.0
+
+    total = booking_hours + capacity_hours
+    return {
+        "committed_hours": round(total, 1),
+        "booking_hours": round(booking_hours, 1),
+        "capacity_hours": round(capacity_hours, 1),
+        "absence_hours": round(absence_hours, 1),
+        "projects": {k: round(v, 1) for k, v in booking_projects.items()},
+    }
+
+
+def get_forecast_active_users(
+    db: Session,
+    department: Optional[str] = None,
+    role: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> List:
+    """Return active User objects, optionally filtered by department, role, or a specific user_id."""
+    q = db.query(User).filter(User.is_active == True)
+    if department:
+        q = q.filter(User.department == department)
+    if role:
+        q = q.filter(User.role == role)
+    if user_id:
+        q = q.filter(User.id == user_id)
+    return q.order_by(User.full_name).all()
+
+
+def get_forecast_user_by_id(db: Session, user_id: str):
+    """Return a single User by id, or None."""
+    return db.query(User).filter(User.id == user_id).first()
+
+
+def get_forecast_project_names(db: Session) -> Dict:
+    """Return {str(project_id): project_name} for all projects."""
+    from app.models.project import Project
+    return {str(p.id): p.name for p in db.query(Project).all()}
+
+
+def get_forecast_past_imputations(
+    db: Session, user_ids: List[str], date_from: date, date_to: date
+) -> List:
+    """
+    Return aggregated imputation rows (user_id, date, hours) for the given
+    users within [date_from, date_to).
+    """
+    from app.models.imputation import Imputation
+    from sqlalchemy import func as sqlfunc
+
+    return (
+        db.query(
+            Imputation.user_id,
+            Imputation.date,
+            sqlfunc.sum(Imputation.hours).label("hours"),
+        )
+        .filter(
+            Imputation.user_id.in_(user_ids),
+            Imputation.date >= date_from,
+            Imputation.date < date_to,
+        )
+        .group_by(Imputation.user_id, Imputation.date)
+        .all()
+    )

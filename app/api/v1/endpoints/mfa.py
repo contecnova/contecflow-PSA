@@ -138,8 +138,7 @@ def list_organizations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    orgs = db.query(Organization).order_by(Organization.name).limit(200).all()
-    return [_svc.serialize_organization(o, db) for o in orgs]
+    return _svc.list_organizations(db)
 
 
 class OrgCreate(BaseModel):
@@ -160,14 +159,10 @@ def create_organization(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    existing = db.query(Organization).filter(Organization.slug == payload.slug).first()
-    if existing:
-        raise HTTPException(400, f"Slug '{payload.slug}' ya está en uso")
-    org = Organization(**payload.model_dump())
-    db.add(org); db.commit(); db.refresh(org)
-    audit_log(db, current_user, "ORG_CREATED", "organizations", org.id, org.name)
-    db.commit()
-    return {"ok": True, "id": org.id, "slug": org.slug}
+    try:
+        return _svc.create_organization(payload.model_dump(), current_user, db)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/organizations/{org_id}", summary="Detalle de organización")
@@ -176,17 +171,10 @@ def get_organization(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org: raise HTTPException(404)
-    users = db.query(User).filter(User.organization_id == org_id).all()
-    return {
-        "id": org.id, "name": org.name, "slug": org.slug,
-        "plan": org.plan, "is_active": org.is_active,
-        "max_users": org.max_users, "max_projects": org.max_projects,
-        "admin_email": org.admin_email, "timezone": org.timezone,
-        "locale": org.locale, "primary_color": org.primary_color,
-        "users": [{"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role} for u in users],
-    }
+    try:
+        return _svc.get_organization(org_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.patch("/organizations/{org_id}", summary="Actualizar organización")
@@ -196,14 +184,10 @@ def update_organization(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org: raise HTTPException(404)
-    allowed = {"name", "plan", "max_users", "max_projects", "is_active", "admin_email",
-               "timezone", "locale", "primary_color", "logo_url"}
-    for k, v in payload.items():
-        if k in allowed: setattr(org, k, v)
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.update_organization(org_id, payload, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.post("/organizations/{org_id}/assign-user", summary="Asignar usuario a organización")
@@ -213,17 +197,13 @@ def assign_user_to_org(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org: raise HTTPException(404, "Organización no encontrada")
-    user = db.query(User).filter(User.id == payload.get("user_id")).first()
-    if not user: raise HTTPException(404, "Usuario no encontrado")
     try:
-        _svc.check_org_user_limit(org, db)
+        return _svc.assign_user_to_org(org_id, payload.get("user_id"), db)
     except ValueError as e:
-        raise HTTPException(400, str(e))
-    user.organization_id = org_id
-    db.commit()
-    return {"ok": True, "user": user.full_name, "org": org.name}
+        msg = str(e)
+        if msg.startswith("404:"):
+            raise HTTPException(404, msg[4:])
+        raise HTTPException(400, msg)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -235,16 +215,7 @@ def get_slack_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    configs = db.query(SlackConfig).all()
-    return [{
-        "id": c.id, "platform": c.platform,
-        "workspace_name": c.workspace_name,
-        "default_channel": c.default_channel,
-        "is_active": c.is_active,
-        "has_token": bool(c.bot_token),
-        "subscriptions": json.loads(c.subscriptions or "[]"),
-        "last_ping_at": str(c.last_ping_at)[:16] if c.last_ping_at else None,
-    } for c in configs]
+    return _svc.get_slack_config(db)
 
 
 class SlackConfigCreate(BaseModel):
@@ -262,27 +233,7 @@ def create_slack_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    existing = db.query(SlackConfig).filter(SlackConfig.platform == payload.platform).first()
-    subs = json.dumps(payload.subscriptions or ["task_overdue", "budget_alert", "ticket_sla"])
-    if existing:
-        existing.workspace_name = payload.workspace_name
-        existing.bot_token = payload.bot_token
-        existing.webhook_url = payload.webhook_url
-        existing.default_channel = payload.default_channel
-        existing.subscriptions = subs
-        existing.is_active = True
-        db.commit()
-        return {"ok": True, "id": existing.id, "updated": True}
-    config = SlackConfig(
-        platform=payload.platform,
-        workspace_name=payload.workspace_name,
-        bot_token=payload.bot_token,
-        webhook_url=payload.webhook_url,
-        default_channel=payload.default_channel,
-        subscriptions=subs,
-    )
-    db.add(config); db.commit()
-    return {"ok": True, "id": config.id, "updated": False}
+    return _svc.create_or_update_slack_config(payload.model_dump(), db)
 
 
 @router.post("/slack/test", summary="Enviar mensaje de prueba a Slack/Teams")
@@ -291,28 +242,13 @@ def test_slack(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    config_id = payload.get("config_id")
-    config = db.query(SlackConfig).filter(SlackConfig.id == config_id).first()
-    if not config: raise HTTPException(404)
-
-    message = payload.get("message", "🔔 Mensaje de prueba desde Clarive v15")
-    channel = payload.get("channel", config.default_channel)
-
-    sent, error = _send_slack_message(config, message, channel)
-
-    log = SlackNotificationLog(
-        config_id=config.id,
-        channel=channel,
-        event_type="test",
-        message=message,
-        status="sent" if sent else "failed",
-        error=error,
-    )
-    db.add(log)
-    if sent:
-        config.last_ping_at = datetime.now(timezone.utc)
-    db.commit()
-    return {"ok": sent, "error": error, "platform": config.platform}
+    try:
+        config_id = payload.get("config_id")
+        message = payload.get("message", "🔔 Mensaje de prueba desde Clarive v15")
+        channel = payload.get("channel", "#clarive-alerts")
+        return _svc.test_slack_config(config_id, message, channel, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.post("/slack/notify", summary="Enviar notificación de evento Slack")
@@ -321,27 +257,16 @@ def slack_notify(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    event_type = payload.get("event_type", "manual")
-    message = payload.get("message", "Notificación de Clarive")
-    channel = payload.get("channel")
-    source_id = payload.get("source_id")
-
-    config = db.query(SlackConfig).filter(SlackConfig.is_active == True).first()
-    if not config:
-        raise HTTPException(400, "No hay integración Slack/Teams activa")
-
-    subs = json.loads(config.subscriptions or "[]")
-    if event_type not in subs and event_type != "manual":
-        return {"ok": True, "skipped": True, "reason": f"Event '{event_type}' not subscribed"}
-
-    sent, error = _send_slack_message(config, message, channel or config.default_channel)
-    db.add(SlackNotificationLog(
-        config_id=config.id, channel=channel or config.default_channel,
-        event_type=event_type, message=message[:500],
-        status="sent" if sent else "failed", error=error, source_id=source_id,
-    ))
-    db.commit()
-    return {"ok": sent, "error": error}
+    try:
+        return _svc.notify_slack(
+            payload.get("event_type", "manual"),
+            payload.get("message", "Notificación de Clarive"),
+            payload.get("channel"),
+            payload.get("source_id"),
+            db,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/slack/logs", summary="Historial de notificaciones Slack")
@@ -350,16 +275,7 @@ def slack_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    logs = db.query(SlackNotificationLog).order_by(
-        SlackNotificationLog.sent_at.desc()
-    ).limit(limit).all()
-    return [{
-        "id": l.id, "platform": l.config.platform if l.config else "—",
-        "channel": l.channel, "event_type": l.event_type,
-        "status": l.status, "error": l.error,
-        "sent_at": str(l.sent_at)[:16] if l.sent_at else None,
-        "message": (l.message or "")[:80],
-    } for l in logs]
+    return _svc.get_slack_logs(limit, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -373,25 +289,7 @@ def list_budgets(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(Budget).options(joinedload(Budget.entries))
-    if year: q = q.filter(Budget.year == year)
-    if department: q = q.filter(Budget.department == department)
-    budgets = q.order_by(Budget.year.desc(), Budget.name).limit(200).all()
-    return [{
-        "id": b.id, "name": b.name, "year": b.year,
-        "department": b.department,
-        "total_amount": b.total_amount, "currency": b.currency,
-        "is_approved": b.is_approved,
-        "planned_total": sum(e.planned for e in b.entries),
-        "actual_total": sum(e.actual for e in b.entries),
-        "deviation": sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries),
-        "deviation_pct": round((sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries)) / max(b.total_amount, 1) * 100, 1),
-        "entries": [{
-            "month": e.month, "planned": e.planned,
-            "actual": e.actual, "committed": e.committed,
-            "is_locked": e.is_locked,
-        } for e in sorted(b.entries, key=lambda x: x.month)],
-    } for b in budgets]
+    return _svc.list_budgets(year, department, db)
 
 
 class BudgetCreate(BaseModel):
@@ -411,24 +309,7 @@ def create_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    b = Budget(
-        name=payload.name, year=payload.year,
-        department=payload.department, project_id=payload.project_id,
-        total_amount=payload.total_amount, currency=payload.currency,
-        notes=payload.notes, created_by=current_user.id,
-    )
-    db.add(b); db.flush()
-
-    monthly = payload.monthly_planned or []
-    if not monthly:
-        monthly = [round(payload.total_amount / 12, 2)] * 12
-
-    for month in range(1, 13):
-        planned = monthly[month - 1] if month <= len(monthly) else 0
-        db.add(BudgetEntry(budget_id=b.id, month=month, planned=planned))
-
-    db.commit()
-    return {"ok": True, "id": b.id}
+    return _svc.create_budget(payload.model_dump(), current_user.id, db)
 
 
 @router.patch("/budgets/{budget_id}/entry", summary="Actualizar entrada mensual de presupuesto")
@@ -438,17 +319,13 @@ def update_budget_entry(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    month = payload.get("month")
-    entry = db.query(BudgetEntry).filter(
-        BudgetEntry.budget_id == budget_id,
-        BudgetEntry.month == month,
-    ).first()
-    if not entry: raise HTTPException(404)
-    if entry.is_locked: raise HTTPException(400, "Mes cerrado contablemente")
-    for field in ["planned", "actual", "committed", "notes"]:
-        if field in payload: setattr(entry, field, payload[field])
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.update_budget_entry(budget_id, payload, db)
+    except ValueError as e:
+        msg = str(e)
+        if msg == "not_found":
+            raise HTTPException(404)
+        raise HTTPException(400, msg)
 
 
 @router.post("/budgets/{budget_id}/approve", summary="Aprobar presupuesto")
@@ -457,14 +334,10 @@ def approve_budget(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    b = db.query(Budget).filter(Budget.id == budget_id).first()
-    if not b: raise HTTPException(404)
-    b.is_approved = True
-    b.approved_by = current_user.id
-    b.approved_at = datetime.now(timezone.utc)
-    audit_log(db, current_user, "BUDGET_APPROVED", "budgets", b.id, b.name)
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.approve_budget(budget_id, current_user, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.get("/budgets/summary", summary="Resumen anual de presupuestos")
@@ -473,30 +346,7 @@ def budget_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    yr = year or datetime.now().year
-    budgets = db.query(Budget).options(joinedload(Budget.entries)).filter(
-        Budget.year == yr
-    ).all()
-    total_planned = sum(e.planned for b in budgets for e in b.entries)
-    total_actual = sum(e.actual for b in budgets for e in b.entries)
-    by_month = {}
-    for b in budgets:
-        for e in b.entries:
-            if e.month not in by_month:
-                by_month[e.month] = {"month": e.month, "planned": 0, "actual": 0}
-            by_month[e.month]["planned"] += e.planned
-            by_month[e.month]["actual"] += e.actual
-    return {
-        "year": yr,
-        "total_planned": round(total_planned, 2),
-        "total_actual": round(total_actual, 2),
-        "deviation": round(total_actual - total_planned, 2),
-        "deviation_pct": round((total_actual - total_planned) / max(total_planned, 1) * 100, 1),
-        "budgets_count": len(budgets),
-        "approved_count": sum(1 for b in budgets if b.is_approved),
-        "by_month": [by_month[m] for m in sorted(by_month.keys())],
-        "by_department": _budget_by_dept(budgets),
-    }
+    return _svc.get_budget_summary(year, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -566,19 +416,7 @@ def list_scenarios(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    scenarios = db.query(ScenarioModel).options(
-        joinedload(ScenarioModel.projects),
-        joinedload(ScenarioModel.creator),
-    ).order_by(ScenarioModel.created_at.desc()).all()
-    return [{
-        "id": s.id, "name": s.name, "description": s.description,
-        "status": s.status, "horizon_weeks": s.horizon_weeks,
-        "project_count": len(s.projects),
-        "creator": s.creator.full_name if s.creator else None,
-        "created_at": str(s.created_at)[:10] if s.created_at else None,
-        "computed_at": str(s.computed_at)[:16] if s.computed_at else None,
-        "has_results": bool(s.results),
-    } for s in scenarios]
+    return _svc.list_scenarios(db)
 
 
 class ScenarioCreate(BaseModel):
@@ -595,28 +433,7 @@ def create_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    s = ScenarioModel(
-        name=payload.name,
-        description=payload.description,
-        base_date=payload.base_date or date.today(),
-        horizon_weeks=payload.horizon_weeks,
-        created_by=current_user.id,
-    )
-    db.add(s); db.flush()
-
-    for p in (payload.projects or []):
-        db.add(ScenarioProject(
-            scenario_id=s.id,
-            name=p.get("name", "Proyecto hipotético"),
-            project_id=p.get("project_id"),
-            start_date=date.fromisoformat(p["start_date"]) if p.get("start_date") else None,
-            end_date=date.fromisoformat(p["end_date"]) if p.get("end_date") else None,
-            total_hours=p.get("total_hours", 0),
-            skill_demand=json.dumps(p.get("skill_demand", {})),
-            is_existing=bool(p.get("project_id")),
-        ))
-    db.commit()
-    return {"ok": True, "id": s.id}
+    return _svc.create_scenario(payload.model_dump(), current_user.id, db)
 
 
 @router.post("/scenarios/{scenario_id}/compute", summary="Calcular impacto del escenario")
@@ -637,24 +454,10 @@ def get_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    s = db.query(ScenarioModel).options(
-        joinedload(ScenarioModel.projects)
-    ).filter(ScenarioModel.id == scenario_id).first()
-    if not s: raise HTTPException(404)
-    return {
-        "id": s.id, "name": s.name, "description": s.description,
-        "status": s.status, "horizon_weeks": s.horizon_weeks,
-        "base_date": str(s.base_date) if s.base_date else None,
-        "computed_at": str(s.computed_at)[:16] if s.computed_at else None,
-        "results": json.loads(s.results) if s.results else None,
-        "projects": [{
-            "id": p.id, "name": p.name,
-            "start_date": str(p.start_date) if p.start_date else None,
-            "end_date": str(p.end_date) if p.end_date else None,
-            "total_hours": p.total_hours,
-            "is_existing": p.is_existing,
-        } for p in s.projects],
-    }
+    try:
+        return _svc.get_scenario(scenario_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.delete("/scenarios/{scenario_id}", summary="Eliminar escenario")
@@ -663,10 +466,10 @@ def delete_scenario(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    s = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id).first()
-    if not s: raise HTTPException(404)
-    db.delete(s); db.commit()
-    return {"ok": True}
+    try:
+        return _svc.delete_scenario(scenario_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -688,33 +491,17 @@ def export_pdf(
         "logo_b64": payload.get("logo_b64"),
     }
 
-    job = PDFExportJob(
-        export_type=export_type,
-        source_id=source_id,
-        status="generating",
-        params=json.dumps(params),
-        requested_by=current_user.id,
-    )
-    db.add(job); db.commit(); db.refresh(job)
-
     try:
-        pdf_bytes = _generate_pdf(export_type, source_id, params, db)
-        job.status = "ready"
-        job.file_size = len(pdf_bytes)
-        job.completed_at = datetime.now(timezone.utc)
-        db.commit()
-
-        filename = f"clarive_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        pdf_bytes, filename = _svc.create_and_run_pdf_export(
+            export_type, source_id, params, current_user.id, db
+        )
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-    except Exception as e:
-        job.status = "failed"
-        job.error = str(e)[:500]
-        db.commit()
-        raise HTTPException(500, f"Error generando PDF: {str(e)}")
+    except ValueError as e:
+        raise HTTPException(500, str(e))
 
 
 @router.get("/pdf/jobs", summary="Historial de exportaciones PDF")
@@ -722,17 +509,7 @@ def list_pdf_jobs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    jobs = db.query(PDFExportJob).filter(
-        PDFExportJob.requested_by == current_user.id
-    ).order_by(PDFExportJob.created_at.desc()).limit(50).all()
-    return [{
-        "id": j.id, "export_type": j.export_type,
-        "source_id": j.source_id, "status": j.status,
-        "file_size": j.file_size,
-        "error": j.error,
-        "created_at": str(j.created_at)[:16] if j.created_at else None,
-        "completed_at": str(j.completed_at)[:16] if j.completed_at else None,
-    } for j in jobs]
+    return _svc.list_pdf_jobs(current_user.id, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -744,17 +521,7 @@ def list_bi_tokens(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    tokens = db.query(BIToken).options(joinedload(BIToken.creator)).all()
-    return [{
-        "id": t.id, "name": t.name, "tool": t.tool,
-        "token_prefix": t.token_prefix,
-        "scopes": json.loads(t.scopes or '["read"]'),
-        "is_active": t.is_active,
-        "expires_at": str(t.expires_at)[:10] if t.expires_at else None,
-        "last_used_at": str(t.last_used_at)[:16] if t.last_used_at else None,
-        "requests_today": t.requests_today or 0,
-        "created_by": t.creator.full_name if t.creator else None,
-    } for t in tokens]
+    return _svc.list_bi_tokens(db)
 
 
 class BITokenCreate(BaseModel):
@@ -770,23 +537,7 @@ def create_bi_token(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    import bcrypt
-    raw_token = "bi_" + secrets.token_hex(24)
-    prefix = raw_token[:10]
-    hashed = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
-    expires_at = None
-    if payload.expires_days:
-        expires_at = datetime.now(timezone.utc) + timedelta(days=payload.expires_days)
-
-    t = BIToken(
-        name=payload.name, tool=payload.tool,
-        token_hash=hashed, token_prefix=prefix,
-        scopes=json.dumps(payload.scopes or ["read"]),
-        expires_at=expires_at, created_by=current_user.id,
-    )
-    db.add(t); db.commit()
-    return {"ok": True, "id": t.id, "token": raw_token,
-            "warning": "Guarda este token. No se mostrará de nuevo."}
+    return _svc.create_bi_token(payload.model_dump(), current_user.id, db)
 
 
 @router.delete("/bi/tokens/{token_id}", summary="Revocar token BI")
@@ -795,11 +546,10 @@ def revoke_bi_token(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    t = db.query(BIToken).filter(BIToken.id == token_id).first()
-    if not t: raise HTTPException(404)
-    t.is_active = False
-    db.commit()
-    return {"ok": True}
+    try:
+        return _svc.revoke_bi_token(token_id, db)
+    except ValueError:
+        raise HTTPException(404)
 
 
 @router.get("/bi/data/projects", summary="Datos de proyectos para BI")
@@ -807,27 +557,13 @@ def bi_data_projects(
     request: Request,
     db: Session = Depends(get_db),
     token: Optional[str] = Query(None),
-    current_user: Optional[User] = Depends(lambda db=Depends(get_db): None),
 ):
     auth_header = request.headers.get("Authorization", "")
     raw_token = token or (auth_header.replace("Bearer bi_", "bi_") if "bi_" in auth_header else None)
-    if raw_token:
-        bt = _verify_bi_token(raw_token, db)
-        if not bt: raise HTTPException(401, "Token BI inválido o caducado")
-        db.commit()
-    else:
-        raise HTTPException(401, "Se requiere autenticación: token BI o JWT")
-
-    projects = db.query(Project).filter(Project.status != "archived").all()
-    return [{
-        "id": p.id, "code": p.code, "name": p.name,
-        "client_name": p.client_name, "status": p.status,
-        "start_date": str(p.start_date) if p.start_date else None,
-        "end_date_planned": str(p.end_date_planned) if p.end_date_planned else None,
-        "budget_amount": p.budget_amount, "billing_rate": p.billing_rate,
-        "total_hours_logged": db.query(func.sum(Imputation.hours)).filter(
-            Imputation.project_id == p.id).scalar() or 0,
-    } for p in projects]
+    try:
+        return _svc.bi_data_projects(raw_token, db)
+    except ValueError:
+        raise HTTPException(401, "Token BI inválido o caducado")
 
 
 @router.get("/bi/data/timesheets", summary="Datos de imputaciones para BI")
@@ -842,33 +578,10 @@ def bi_data_timesheets(
 ):
     auth_header = request.headers.get("Authorization", "")
     raw_token = token or (auth_header if "bi_" in auth_header else None)
-    if raw_token:
-        bt = _verify_bi_token(raw_token, db)
-        if not bt: raise HTTPException(401, "Token BI inválido")
-        db.commit()
-
-    q = db.query(Imputation).options(
-        joinedload(Imputation.user), joinedload(Imputation.project)
-    )
-    if date_from: q = q.filter(Imputation.date >= date.fromisoformat(date_from))
-    if date_to: q = q.filter(Imputation.date <= date.fromisoformat(date_to))
-    imputations = (
-        q.order_by(Imputation.date.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
-
-    return [{
-        "date": str(i.date),
-        "user_name": i.user.full_name if i.user else "—",
-        "user_role": i.user.role if i.user else "—",
-        "project_code": i.project.code if i.project else "—",
-        "project_name": i.project.name if i.project else "—",
-        "hours": i.hours,
-        "is_billable": i.is_billable,
-        "description": i.description,
-    } for i in imputations]
+    try:
+        return _svc.bi_data_timesheets(raw_token, date_from, date_to, page, page_size, db)
+    except ValueError:
+        raise HTTPException(401, "Token BI inválido")
 
 
 @router.get("/bi/data/kpis", summary="KPIs globales para BI")
@@ -879,25 +592,9 @@ def bi_data_kpis(
 ):
     auth_header = request.headers.get("Authorization", "")
     raw_token = token or (auth_header if "bi_" in auth_header else None)
-    if raw_token:
-        bt = _verify_bi_token(raw_token, db)
-        if not bt: raise HTTPException(401, "Token BI inválido")
-        db.commit()
+    try:
+        return _svc.bi_data_kpis(raw_token, db)
+    except ValueError:
+        raise HTTPException(401, "Token BI inválido")
 
-    active_projects = db.query(func.count(Project.id)).filter(Project.status == "active").scalar()
-    total_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar()
-    this_week_start = date.today() - timedelta(days=date.today().weekday())
-    hours_this_week = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.date >= this_week_start
-    ).scalar() or 0
-    total_budget = db.query(func.sum(Project.budget_amount)).filter(
-        Project.status.in_(["active", "planning"])
-    ).scalar() or 0
 
-    return {
-        "active_projects": active_projects,
-        "total_users": total_users,
-        "hours_this_week": round(hours_this_week, 1),
-        "total_budget_active": round(total_budget, 2),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }

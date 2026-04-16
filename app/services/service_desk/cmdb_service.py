@@ -71,7 +71,9 @@ def enforce_ci_org_constraints(db: Session, current_user: User, payload: CIIn, *
 
 
 def build_ci(db: Session, payload: CIIn) -> ConfigurationItem:
-    return ConfigurationItem(code=_next_ci_number(db), **payload.model_dump())
+    ci = ConfigurationItem(code=_next_ci_number(db), **payload.model_dump())
+    db.add(ci)
+    return ci
 
 
 def get_scoped_ci_by_id(

@@ -253,3 +253,252 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
     except Exception as exc:
         logger.error("OCR receipt error: %s", exc, exc_info=True)
         raise HTTPException(500, "Error al procesar el recibo. Por favor, inténtalo de nuevo.")
+
+
+# ── List / query helpers ───────────────────────────────────────────────────────
+
+def list_my_expenses(
+    db: Session,
+    user_id: str,
+    status: Optional[str] = None,
+    project_id: Optional[str] = None,
+    date_from=None,
+    date_to=None,
+):
+    from sqlalchemy.orm import joinedload
+    from app.models.expenses import Expense
+
+    q = db.query(Expense).options(
+        joinedload(Expense.project), joinedload(Expense.reviewer)
+    ).filter(Expense.user_id == user_id)
+    if status:      q = q.filter(Expense.status == status)
+    if project_id:  q = q.filter(Expense.project_id == project_id)
+    if date_from:   q = q.filter(Expense.expense_date >= date_from)
+    if date_to:     q = q.filter(Expense.expense_date <= date_to)
+    return q.order_by(Expense.expense_date.desc()).all()
+
+
+def list_pending_expenses(db: Session, project_id: Optional[str] = None):
+    from sqlalchemy.orm import joinedload
+    from app.models.expenses import Expense, ExpenseStatus
+
+    q = db.query(Expense).options(
+        joinedload(Expense.user), joinedload(Expense.project)
+    ).filter(Expense.status == ExpenseStatus.submitted)
+    if project_id:
+        q = q.filter(Expense.project_id == project_id)
+    return q.order_by(Expense.submitted_at).all()
+
+
+def list_all_expenses(
+    db: Session,
+    current_user,
+    status: Optional[str] = None,
+    user_id: Optional[str] = None,
+):
+    from sqlalchemy import or_
+    from app.models.expenses import Expense
+    from app.models.project import Project
+    from app.models.user import User as UserModel, UserRole
+
+    q = db.query(Expense)
+    if current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
+        q = q.filter(Expense.user_id == current_user.id)
+    elif not current_user.is_superadmin and current_user.organization_id:
+        org_user_ids = db.query(UserModel.id).filter(
+            UserModel.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        org_project_ids = db.query(Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(or_(
+            Expense.user_id.in_(org_user_ids),
+            Expense.project_id.in_(org_project_ids),
+        ))
+    if status:   q = q.filter(Expense.status == status)
+    if user_id:  q = q.filter(Expense.user_id == user_id)
+    return q.order_by(Expense.created_at.desc()).limit(200).all()
+
+
+def list_team_expenses(
+    db: Session,
+    current_user,
+    status=None,
+    project_id=None,
+    user_id=None,
+    date_from=None,
+    date_to=None,
+):
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import or_
+    from app.models.expenses import Expense
+    from app.models.project import Project
+    from app.models.user import User as UserModel
+
+    q = db.query(Expense).options(
+        joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
+    )
+    if not current_user.is_superadmin and current_user.organization_id:
+        org_user_ids = db.query(UserModel.id).filter(
+            UserModel.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        org_project_ids = db.query(Project.id).filter(
+            Project.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(or_(
+            Expense.user_id.in_(org_user_ids),
+            Expense.project_id.in_(org_project_ids),
+        ))
+    if status:      q = q.filter(Expense.status == status)
+    if project_id:  q = q.filter(Expense.project_id == project_id)
+    if user_id:     q = q.filter(Expense.user_id == user_id)
+    if date_from:   q = q.filter(Expense.expense_date >= date_from)
+    if date_to:     q = q.filter(Expense.expense_date <= date_to)
+    return q.order_by(Expense.expense_date.desc()).all()
+
+
+def list_project_expenses(db: Session, project_id: str):
+    from sqlalchemy.orm import joinedload
+    from app.models.expenses import Expense
+
+    return db.query(Expense).options(joinedload(Expense.user)).filter(
+        Expense.project_id == project_id,
+        Expense.status.in_(["approved", "reimbursed"]),
+    ).all()
+
+
+# ── Create / update / delete ───────────────────────────────────────────────────
+
+def create_expense_record(db: Session, payload, user_id: str, code: str):
+    from fastapi import HTTPException
+    from sqlalchemy.orm import joinedload
+    from app.models.expenses import Expense
+    from app.models.project import Project, ProjectStatus
+
+    if payload.project_id:
+        project = db.query(Project).filter(Project.id == payload.project_id).first()
+        if not project:
+            raise HTTPException(404, "Proyecto no encontrado")
+        if project.status in [
+            ProjectStatus.completed, ProjectStatus.closed,
+            ProjectStatus.cancelled, ProjectStatus.archived,
+        ]:
+            raise HTTPException(400, "No se pueden generar gastos facturables en proyectos cerrados")
+
+    expense = Expense(code=code, user_id=user_id, **payload.model_dump())
+
+    if expense.is_billable and expense.project_id:
+        project = db.query(Project).filter(Project.id == expense.project_id).first()
+        if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
+            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
+
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
+    expense = db.query(Expense).options(joinedload(Expense.project)).filter(
+        Expense.id == expense.id
+    ).first()
+    return expense
+
+
+def admin_update_expense(db: Session, expense_id: str, payload):
+    from fastapi import HTTPException
+    from app.models.expenses import Expense
+    from app.models.project import Project, ProjectStatus
+
+    e = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not e:
+        raise HTTPException(404, "Gasto no encontrado")
+
+    if payload.is_billable and e.project_id:
+        project = db.query(Project).filter(Project.id == e.project_id).first()
+        if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
+            raise HTTPException(400, "No se puede marcar gasto como facturable en proyecto no activo")
+
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(e, k, v)
+    db.commit()
+    db.refresh(e)
+    return e
+
+
+def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
+    from fastapi import HTTPException
+    from app.models.expenses import Expense, ExpenseStatus
+
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == user_id
+    ).first()
+    if not expense:
+        raise HTTPException(404, "Gasto no encontrado")
+    if expense.status != ExpenseStatus.draft:
+        raise HTTPException(400, "Solo se pueden editar gastos en borrador")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(expense, k, v)
+    db.commit()
+    return expense
+
+
+def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
+    from fastapi import HTTPException
+    from app.models.expenses import Expense, ExpenseStatus
+
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == user_id
+    ).first()
+    if not expense:
+        raise HTTPException(404)
+    if expense.status != ExpenseStatus.draft:
+        raise HTTPException(400, "El gasto ya ha sido enviado")
+    expense.status = ExpenseStatus.submitted
+    expense.submitted_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
+    from fastapi import HTTPException
+    from app.models.expenses import Expense, ExpenseStatus
+
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == user_id
+    ).first()
+    if not expense:
+        raise HTTPException(404)
+    if expense.status != ExpenseStatus.submitted:
+        raise HTTPException(400, "Solo se pueden retirar gastos enviados")
+    expense.status = ExpenseStatus.draft
+    expense.submitted_at = None
+    db.commit()
+    return {"ok": True}
+
+
+def reimburse_expense_record(db: Session, expense_id: str) -> dict:
+    from fastapi import HTTPException
+    from app.models.expenses import Expense, ExpenseStatus
+
+    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not expense:
+        raise HTTPException(404)
+    if expense.status != ExpenseStatus.approved:
+        raise HTTPException(400, "El gasto debe estar aprobado")
+    expense.status = ExpenseStatus.reimbursed
+    expense.reimbursed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
+    from fastapi import HTTPException
+    from app.models.expenses import Expense, ExpenseStatus
+
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id, Expense.user_id == user_id
+    ).first()
+    if not expense:
+        raise HTTPException(404)
+    if expense.status not in [ExpenseStatus.draft, ExpenseStatus.rejected]:
+        raise HTTPException(400, "Solo se pueden eliminar gastos en borrador o rechazados")
+    db.delete(expense)
+    db.commit()
+    return {"ok": True}

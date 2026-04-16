@@ -64,8 +64,10 @@ def apply_ticket_template_update(template: TicketTemplate, payload: dict) -> Non
         template.custom_fields = json.dumps(payload["custom_fields"])
 
 
-def create_ticket_template_record(payload: dict) -> TicketTemplate:
-    return build_ticket_template(payload)
+def create_ticket_template_record(db, payload: dict) -> TicketTemplate:
+    tmpl = build_ticket_template(payload)
+    db.add(tmpl)
+    return tmpl
 
 
 def update_ticket_template_record(db: Session, template_id: str, payload: dict) -> TicketTemplate:
@@ -76,3 +78,8 @@ def update_ticket_template_record(db: Session, template_id: str, payload: dict) 
 
 def get_ticket_template_for_delete_or_404(db: Session, template_id: str) -> TicketTemplate:
     return get_ticket_template_or_404(db, template_id, detail="Plantilla no encontrada")
+
+
+def delete_ticket_template(db: Session, template_id: str) -> None:
+    t = get_ticket_template_or_404(db, template_id, detail="Plantilla no encontrada")
+    db.delete(t)

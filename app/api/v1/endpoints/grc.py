@@ -11,9 +11,7 @@ Expone:
 La GRC es la columna vertebral de seguridad de la plataforma.
 Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 """
-import uuid
 import json
-from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
@@ -24,6 +22,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
+import app.services.grc_service as grc_svc
 
 router = APIRouter(prefix="/grc", tags=["GRC"])
 
@@ -133,54 +132,15 @@ DEFAULT_SOD_RULES = [
 def _log_grc(db: Session, user_id: Optional[str], action_type: str,
              resource_type: Optional[str] = None, resource_id: Optional[str] = None,
              detail=None, ip: Optional[str] = None, severity: str = "info"):
-    from app.models.billing_reports import GrcAuditLog
-    entry = GrcAuditLog(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        action_type=action_type,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        detail=json.dumps(detail) if detail is not None else None,
-        ip_address=ip,
-        severity=severity,
-    )
-    db.add(entry)
+    grc_svc.log_grc_entry(db, user_id, action_type, resource_type, resource_id, detail, ip, severity)
 
 
 def _ensure_matrix_seeded(db: Session):
-    """Seed DEFAULT_MATRIX into DB if grc_role_permissions is empty."""
-    from app.models.billing_reports import RolePermission
-    count = db.query(RolePermission).count()
-    if count == 0:
-        rows = []
-        for role, modules in DEFAULT_MATRIX.items():
-            for module, actions in modules.items():
-                for action, allowed in actions.items():
-                    rows.append(RolePermission(
-                        id=str(uuid.uuid4()), role=role, module=module,
-                        action=action, allowed=allowed,
-                    ))
-        db.bulk_save_objects(rows)
-        db.commit()
+    grc_svc.ensure_matrix_seeded(db, DEFAULT_MATRIX)
 
 
 def _ensure_sod_seeded(db: Session):
-    """Seed DEFAULT_SOD_RULES into DB if grc_sod_rules is empty."""
-    from app.models.billing_reports import SodRule
-    count = db.query(SodRule).count()
-    if count == 0:
-        rows = [
-            SodRule(
-                id=str(uuid.uuid4()),
-                module_a=r["module_a"], action_a=r["action_a"],
-                module_b=r["module_b"], action_b=r["action_b"],
-                risk=r["risk"], description=r["description"],
-                roles_conflict=json.dumps(r["roles_conflict"]),
-            )
-            for r in DEFAULT_SOD_RULES
-        ]
-        db.bulk_save_objects(rows)
-        db.commit()
+    grc_svc.ensure_sod_seeded(db, DEFAULT_SOD_RULES)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -209,9 +169,8 @@ def get_permissions(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import RolePermission
     _ensure_matrix_seeded(db)
-    rows = db.query(RolePermission).all()
+    rows = grc_svc.get_all_permissions(db)
 
     # Build nested dict: role -> module -> action -> allowed
     matrix: dict = {}
@@ -228,32 +187,14 @@ def update_permission(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import RolePermission
     _ensure_matrix_seeded(db)
-    row = db.query(RolePermission).filter(
-        RolePermission.role == role,
-        RolePermission.module == module,
-        RolePermission.action == action,
-    ).first()
-
-    old_val = None
-    if row:
-        old_val = row.allowed
-        row.allowed = body.allowed
-        row.updated_by = current_user.id
-    else:
-        row = RolePermission(
-            id=str(uuid.uuid4()), role=role, module=module, action=action,
-            allowed=body.allowed, updated_by=current_user.id,
-        )
-        db.add(row)
-
+    row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id)
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
              f"{role}/{module}/{action}",
              {"old": old_val, "new": body.allowed, "role": role, "module": module, "action": action},
              ip=request.client.host if request.client else None,
              severity="warning")
-    db.commit()
+    grc_svc.commit_db(db)
     return {"role": role, "module": module, "action": action, "allowed": body.allowed}
 
 
@@ -263,12 +204,9 @@ def seed_permissions(
     current_user: User = Depends(require_admin),
 ):
     """Borra todos los permisos y los recrea con la matriz por defecto."""
-    from app.models.billing_reports import RolePermission
-    db.query(RolePermission).delete()
-    db.commit()
-    _ensure_matrix_seeded(db)
+    grc_svc.reset_permission_matrix(db, DEFAULT_MATRIX)
     _log_grc(db, current_user.id, "permission_matrix_reset", severity="critical")
-    db.commit()
+    grc_svc.commit_db(db)
     return {"ok": True, "message": "Matriz de permisos restaurada a valores por defecto"}
 
 
@@ -279,9 +217,8 @@ def list_sod_rules(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import SodRule
     _ensure_sod_seeded(db)
-    rules = db.query(SodRule).order_by(SodRule.risk).all()
+    rules = grc_svc.list_sod_rules_db(db)
     return [_rule_out(r) for r in rules]
 
 
@@ -304,21 +241,19 @@ def create_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import SodRule
-    rule = SodRule(
-        id=str(uuid.uuid4()),
+    rule = grc_svc.create_sod_rule_db(
+        db,
         module_a=payload.module_a, action_a=payload.action_a,
         module_b=payload.module_b, action_b=payload.action_b,
         risk=payload.risk, description=payload.description,
-        roles_conflict=json.dumps(payload.roles_conflict),
-        mitigated_by_workflow_id=payload.mitigated_by_workflow_id or None,
+        roles_conflict=payload.roles_conflict,
+        mitigated_by_workflow_id=payload.mitigated_by_workflow_id,
         created_by=current_user.id,
     )
-    db.add(rule)
     _log_grc(db, current_user.id, "sod_rule_created", "sod_rule", rule.id,
              payload.model_dump(), ip=request.client.host if request.client else None,
              severity="warning")
-    db.commit()
+    grc_svc.commit_db(db)
     db.refresh(rule)
     return _rule_out(rule)
 
@@ -330,17 +265,8 @@ def update_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import SodRule
-    rule = db.query(SodRule).filter(SodRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(404)
-    allowed = ["risk", "description", "is_active", "roles_conflict", "mitigated_by_workflow_id"]
-    for k, v in payload.items():
-        if k in allowed:
-            if k == "roles_conflict":
-                v = json.dumps(v) if isinstance(v, list) else v
-            setattr(rule, k, v)
-    db.commit()
+    rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    grc_svc.update_sod_rule_db(db, rule, payload)
     return _rule_out(rule)
 
 
@@ -350,12 +276,8 @@ def delete_sod_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import SodRule
-    rule = db.query(SodRule).filter(SodRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(404)
-    db.delete(rule)
-    db.commit()
+    rule = grc_svc.get_sod_rule_or_404(db, rule_id)
+    grc_svc.delete_sod_rule_db(db, rule)
     return {"ok": True}
 
 
@@ -370,28 +292,17 @@ def sod_check(
     Para cada regla SoD activa, determina qué roles tienen AMBAS acciones permitidas
     (es decir, tienen el conflicto potencial) y lo devuelve como lista de violaciones.
     """
-    from app.models.billing_reports import SodRule, RolePermission
     _ensure_matrix_seeded(db)
     _ensure_sod_seeded(db)
 
-    rules = db.query(SodRule).filter(SodRule.is_active == True).all()
+    rules = grc_svc.get_active_sod_rules(db)
     violations = []
     for rule in rules:
         # Check each role
         for role in ["admin", "pm", "team_lead", "employee", "hr", "client"]:
-            perm_a = db.query(RolePermission).filter(
-                RolePermission.role == role,
-                RolePermission.module == rule.module_a,
-                RolePermission.action == rule.action_a,
-                RolePermission.allowed == True,
-            ).first()
-            perm_b = db.query(RolePermission).filter(
-                RolePermission.role == role,
-                RolePermission.module == rule.module_b,
-                RolePermission.action == rule.action_b,
-                RolePermission.allowed == True,
-            ).first()
-            if perm_a and perm_b:
+            perm_a = grc_svc.get_role_permission(db, role, rule.module_a, rule.action_a)
+            perm_b = grc_svc.get_role_permission(db, role, rule.module_b, rule.action_b)
+            if perm_a and perm_a.allowed and perm_b and perm_b.allowed:
                 violations.append({
                     "rule_id": rule.id,
                     "rule_description": rule.description,
@@ -413,11 +324,7 @@ def list_violations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.billing_reports import SodViolation
-    q = db.query(SodViolation)
-    if resolved is not None:
-        q = q.filter(SodViolation.resolved == resolved)
-    rows = q.order_by(SodViolation.detected_at.desc()).limit(limit).all()
+    rows = grc_svc.list_violations_db(db, resolved, limit)
     return [_violation_out(v) for v in rows]
 
 
@@ -442,16 +349,10 @@ def resolve_violation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import SodViolation
-    v = db.query(SodViolation).filter(SodViolation.id == violation_id).first()
-    if not v:
-        raise HTTPException(404)
-    v.resolved = True
-    v.resolved_at = datetime.now(timezone.utc)
-    v.resolution_note = payload.resolution_note
+    v = grc_svc.get_violation_or_404(db, violation_id)
     _log_grc(db, current_user.id, "sod_violation_resolved", "sod_violation", violation_id,
              {"note": payload.resolution_note}, severity="info")
-    db.commit()
+    grc_svc.resolve_violation_db(db, v, payload.resolution_note)
     return _violation_out(v)
 
 
@@ -465,13 +366,7 @@ def get_audit_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    from app.models.billing_reports import GrcAuditLog
-    q = db.query(GrcAuditLog)
-    if severity:
-        q = q.filter(GrcAuditLog.severity == severity)
-    if action_type:
-        q = q.filter(GrcAuditLog.action_type == action_type)
-    rows = q.order_by(GrcAuditLog.timestamp.desc()).limit(limit).all()
+    rows = grc_svc.list_audit_log_db(db, severity, action_type, limit)
     return [
         {
             "id": e.id,
@@ -496,16 +391,7 @@ def check_permission(db: Session, role: str, module: str, action: str) -> bool:
     Falls back to DEFAULT_MATRIX if DB has no data yet.
     Used by other API endpoints to enforce GRC.
     """
-    from app.models.billing_reports import RolePermission
-    row = db.query(RolePermission).filter(
-        RolePermission.role == role,
-        RolePermission.module == module,
-        RolePermission.action == action,
-    ).first()
-    if row is not None:
-        return row.allowed
-    # Fallback to default
-    return DEFAULT_MATRIX.get(role, {}).get(module, {}).get(action, False)
+    return grc_svc.check_permission_db(db, role, module, action, DEFAULT_MATRIX)
 
 
 def record_sod_violation(

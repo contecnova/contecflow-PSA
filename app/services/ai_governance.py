@@ -346,6 +346,155 @@ class AIGuardrailEngine:
             logger.warning("Guardrail audit write failed: %s", exc)
 
 
+# ── Policy & Audit CRUD service functions ────────────────────────────────────
+
+def create_policy(
+    db: Session,
+    org_id: str,
+    created_by: str,
+    name: str,
+    description: Optional[str],
+    applies_to_modules: List[str],
+    applies_to_roles: List[str],
+    scope: str,
+    action: str,
+    pii_entity_types: List[str],
+    redact_strategy: str,
+    forbidden_keywords: List[str],
+    max_prompt_tokens: int,
+    priority: int,
+    is_active: bool,
+):
+    from app.models.ai_governance import AIGuardrailPolicyModel
+    policy = AIGuardrailPolicyModel(
+        id                  = str(uuid.uuid4()),
+        org_id              = org_id,
+        name                = name,
+        description         = description,
+        applies_to_modules  = applies_to_modules,
+        applies_to_roles    = applies_to_roles,
+        scope               = scope,
+        action              = action,
+        pii_entity_types    = pii_entity_types,
+        redact_strategy     = redact_strategy,
+        forbidden_keywords  = forbidden_keywords,
+        max_prompt_tokens   = max_prompt_tokens,
+        priority            = priority,
+        is_active           = is_active,
+        created_by          = created_by,
+    )
+    db.add(policy)
+    db.commit()
+    db.refresh(policy)
+    return policy
+
+
+def list_policies(db: Session, org_id: str, active_only: bool = False):
+    from app.models.ai_governance import AIGuardrailPolicyModel
+    q = db.query(AIGuardrailPolicyModel).filter(
+        AIGuardrailPolicyModel.org_id == org_id
+    )
+    if active_only:
+        q = q.filter(AIGuardrailPolicyModel.is_active == True)  # noqa
+    return q.order_by(AIGuardrailPolicyModel.priority.desc(),
+                      AIGuardrailPolicyModel.created_at.desc()).all()
+
+
+def get_policy(db: Session, policy_id: str, org_id: str):
+    from app.models.ai_governance import AIGuardrailPolicyModel
+    return db.query(AIGuardrailPolicyModel).filter(
+        AIGuardrailPolicyModel.id     == policy_id,
+        AIGuardrailPolicyModel.org_id == org_id,
+    ).first()
+
+
+def update_policy(db: Session, policy, updates: Dict[str, Any]):
+    for field, val in updates.items():
+        setattr(policy, field, val)
+    db.commit()
+    db.refresh(policy)
+    return policy
+
+
+def deactivate_policy(db: Session, policy) -> None:
+    policy.is_active = False
+    db.commit()
+
+
+def get_audit_log(
+    db: Session,
+    org_id: str,
+    since: datetime,
+    module: Optional[str] = None,
+    scope: Optional[str] = None,
+    action_taken: Optional[str] = None,
+    was_blocked: Optional[bool] = None,
+    user_id: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+) -> Tuple[int, list]:
+    from app.models.ai_governance import AIGuardrailAuditLog
+    q = db.query(AIGuardrailAuditLog).filter(
+        AIGuardrailAuditLog.org_id       == org_id,
+        AIGuardrailAuditLog.evaluated_at >= since,
+    )
+    if module:       q = q.filter(AIGuardrailAuditLog.module       == module)
+    if scope:        q = q.filter(AIGuardrailAuditLog.scope        == scope)
+    if action_taken: q = q.filter(AIGuardrailAuditLog.action_taken == action_taken)
+    if was_blocked is not None:
+        q = q.filter(AIGuardrailAuditLog.was_blocked == was_blocked)
+    if user_id:      q = q.filter(AIGuardrailAuditLog.user_id      == user_id)
+    total = q.count()
+    items = q.order_by(AIGuardrailAuditLog.evaluated_at.desc()) \
+             .offset((page - 1) * page_size).limit(page_size).all()
+    return total, items
+
+
+def get_audit_stats(
+    db: Session,
+    org_id: str,
+    since: datetime,
+) -> Dict[str, Any]:
+    from app.models.ai_governance import AIGuardrailAuditLog
+    base = db.query(AIGuardrailAuditLog).filter(
+        AIGuardrailAuditLog.org_id       == org_id,
+        AIGuardrailAuditLog.evaluated_at >= since,
+    )
+    total          = base.count()
+    total_blocked  = base.filter(AIGuardrailAuditLog.was_blocked == True).count()  # noqa
+    total_redacted = base.filter(AIGuardrailAuditLog.action_taken == "redacted").count()
+    total_warned   = base.filter(AIGuardrailAuditLog.action_taken == "warned").count()
+
+    rows = db.query(
+        AIGuardrailAuditLog.module, func.count(AIGuardrailAuditLog.id)
+    ).filter(
+        AIGuardrailAuditLog.org_id == org_id,
+        AIGuardrailAuditLog.evaluated_at >= since,
+    ).group_by(AIGuardrailAuditLog.module).all()
+    by_module = {module: cnt for module, cnt in rows}
+
+    pii_counter: Dict[str, int] = {}
+    all_pii = db.query(AIGuardrailAuditLog.pii_types_found).filter(
+        AIGuardrailAuditLog.org_id       == org_id,
+        AIGuardrailAuditLog.evaluated_at >= since,
+        AIGuardrailAuditLog.pii_types_found.isnot(None),
+    ).all()
+    for (types_list,) in all_pii:
+        if isinstance(types_list, list):
+            for t in types_list:
+                pii_counter[t] = pii_counter.get(t, 0) + 1
+
+    top_pii = sorted(pii_counter.items(), key=lambda x: -x[1])[:10]
+    return {
+        "total":          total,
+        "total_blocked":  total_blocked,
+        "total_redacted": total_redacted,
+        "total_warned":   total_warned,
+        "by_module":      by_module,
+        "top_pii":        top_pii,
+    }
+
+
 # ── Convenience wrappers used from ai_chat endpoints ─────────────────────────
 
 def check_prompt(

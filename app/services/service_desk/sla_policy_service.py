@@ -30,7 +30,9 @@ def list_sla_policies_payload(db: Session) -> list[dict]:
 def create_sla_policy_record(db: Session, payload) -> SLAPolicy:
     if payload.is_default:
         db.query(SLAPolicy).update({"is_default": False})
-    return SLAPolicy(**payload.model_dump())
+    p = SLAPolicy(**payload.model_dump())
+    db.add(p)
+    return p
 
 
 def get_sla_policy_or_404(db: Session, policy_id: str) -> SLAPolicy:

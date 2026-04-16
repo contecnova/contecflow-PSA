@@ -1,15 +1,14 @@
 """Training & Certificaciones."""
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 from datetime import date
-import uuid as _uuid
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
-from app.models.user import User
-from app.models.training import Course, CourseEnrollment, Certification
+from app.models.user import User, UserRole
+from app.services import training_service
 
 router = APIRouter(prefix="/training", tags=["Training"])
 
@@ -43,13 +42,13 @@ class CertificationIn(BaseModel):
     notes: Optional[str] = None
 
 
-def _ser_course(c: Course) -> dict:
+def _ser_course(c) -> dict:
     return {"id": c.id, "title": c.title, "description": c.description,
             "provider": c.provider, "category": c.category,
             "duration_h": c.duration_h, "url": c.url, "cost": c.cost,
             "enrolled": len(c.enrollments)}
 
-def _ser_enrollment(e: CourseEnrollment) -> dict:
+def _ser_enrollment(e) -> dict:
     return {"id": e.id,
             "course_id": e.course_id,
             "course_title": e.course.title if e.course else None,
@@ -60,7 +59,7 @@ def _ser_enrollment(e: CourseEnrollment) -> dict:
             "end_date": str(e.end_date) if e.end_date else None,
             "score": e.score, "notes": e.notes}
 
-def _ser_cert(c: Certification) -> dict:
+def _ser_cert(c) -> dict:
     from datetime import date as dt_date
     today = dt_date.today()
     days_left = (c.expires_at - today).days if c.expires_at else None
@@ -78,36 +77,33 @@ def _ser_cert(c: Certification) -> dict:
 @router.get("/courses", summary="Catálogo de cursos")
 def list_courses(category: Optional[str] = None, db: Session = Depends(get_db),
                  cu: User = Depends(get_current_user)):
-    q = db.query(Course).options(joinedload(Course.enrollments)).filter(Course.is_active == True)
-    if category: q = q.filter(Course.category == category)
-    return [_ser_course(c) for c in q.order_by(Course.title).all()]
+    return [_ser_course(c) for c in training_service.list_courses(db, category=category)]
 
 
 @router.post("/courses", summary="Crear curso", status_code=201)
 def create_course(payload: CourseIn, db: Session = Depends(get_db),
                   cu: User = Depends(require_admin_or_hr)):
-    c = Course(id=str(_uuid.uuid4()), **payload.model_dump())
-    db.add(c); db.commit(); db.refresh(c)
+    c = training_service.create_course(db, payload.model_dump())
     return {"id": c.id, "title": c.title}
 
 
 @router.patch("/courses/{course_id}", summary="Editar curso")
 def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_db),
                   cu: User = Depends(require_admin_or_hr)):
-    c = db.query(Course).filter(Course.id == course_id).first()
-    if not c: raise HTTPException(404, "Curso no encontrado")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(c, k, v)
-    db.commit()
+    c = training_service.get_course(db, course_id)
+    if not c:
+        raise HTTPException(404, "Curso no encontrado")
+    training_service.update_course(db, c, payload.model_dump(exclude_unset=True))
     return {"id": c.id}
 
 
 @router.delete("/courses/{course_id}", summary="Eliminar curso")
 def delete_course(course_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(require_admin_or_hr)):
-    c = db.query(Course).filter(Course.id == course_id).first()
-    if not c: raise HTTPException(404, "Curso no encontrado")
-    c.is_active = False; db.commit()
+    c = training_service.get_course(db, course_id)
+    if not c:
+        raise HTTPException(404, "Curso no encontrado")
+    training_service.soft_delete_course(db, c)
     return {"deleted": True}
 
 
@@ -115,48 +111,41 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
 def list_enrollments(user_id: Optional[str] = None, course_id: Optional[str] = None,
                      status: Optional[str] = None, db: Session = Depends(get_db),
                      cu: User = Depends(get_current_user)):
-    q = db.query(CourseEnrollment).options(
-        joinedload(CourseEnrollment.course), joinedload(CourseEnrollment.user))
-    if user_id:   q = q.filter(CourseEnrollment.user_id == user_id)
-    if course_id: q = q.filter(CourseEnrollment.course_id == course_id)
-    if status:    q = q.filter(CourseEnrollment.status == status)
-    return [_ser_enrollment(e) for e in q.order_by(CourseEnrollment.created_at.desc()).all()]
+    return [_ser_enrollment(e) for e in training_service.list_enrollments(
+        db, user_id=user_id, course_id=course_id, status=status)]
 
 
 @router.post("/enrollments", summary="Inscribir usuario a curso", status_code=201)
 def create_enrollment(payload: EnrollmentIn, db: Session = Depends(get_db),
                       cu: User = Depends(require_any_manager)):
-    e = CourseEnrollment(id=str(_uuid.uuid4()), **payload.model_dump())
-    db.add(e); db.commit(); db.refresh(e)
+    e = training_service.create_enrollment(db, payload.model_dump())
     return {"id": e.id}
 
 
 @router.patch("/enrollments/{enroll_id}", summary="Actualizar inscripción")
 def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depends(get_db),
                       cu: User = Depends(require_any_manager)):
-    e = db.query(CourseEnrollment).filter(CourseEnrollment.id == enroll_id).first()
-    if not e: raise HTTPException(404, "Inscripción no encontrada")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(e, k, v)
-    db.commit()
+    e = training_service.get_enrollment(db, enroll_id)
+    if not e:
+        raise HTTPException(404, "Inscripción no encontrada")
+    training_service.update_enrollment(db, e, payload.model_dump(exclude_unset=True))
     return {"id": e.id}
 
 
 @router.delete("/enrollments/{enroll_id}", summary="Eliminar inscripción")
 def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
                       cu: User = Depends(require_any_manager)):
-    e = db.query(CourseEnrollment).filter(CourseEnrollment.id == enroll_id).first()
-    if not e: raise HTTPException(404, "Inscripción no encontrada")
-    db.delete(e); db.commit()
+    e = training_service.get_enrollment(db, enroll_id)
+    if not e:
+        raise HTTPException(404, "Inscripción no encontrada")
+    training_service.delete_enrollment(db, e)
     return {"deleted": True}
 
 
 @router.get("/certifications", summary="Certificaciones de usuarios")
 def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[int] = None,
                         db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    q = db.query(Certification).options(joinedload(Certification.user))
-    if user_id: q = q.filter(Certification.user_id == user_id)
-    certs = [_ser_cert(c) for c in q.order_by(Certification.expires_at).all()]
+    certs = [_ser_cert(c) for c in training_service.list_certifications(db, user_id=user_id)]
     if expiring_days is not None:
         certs = [c for c in certs if c["days_until_expiry"] is not None
                  and 0 <= c["days_until_expiry"] <= expiring_days]
@@ -166,34 +155,29 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
 @router.post("/certifications", summary="Añadir certificación", status_code=201)
 def create_certification(payload: CertificationIn, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user)):
-    c = Certification(id=str(_uuid.uuid4()), **payload.model_dump())
-    db.add(c); db.commit(); db.refresh(c)
+    c = training_service.create_certification(db, payload.model_dump())
     return {"id": c.id}
 
 
 @router.patch("/certifications/{cert_id}", summary="Editar certificación")
 def update_certification(cert_id: str, payload: CertificationIn, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user)):
-    c = db.query(Certification).filter(Certification.id == cert_id).first()
-    if not c: raise HTTPException(404, "Certificación no encontrada")
-    # Solo el propio usuario, admin o HR pueden editar
-    from app.models.user import UserRole
+    c = training_service.get_certification(db, cert_id)
+    if not c:
+        raise HTTPException(404, "Certificación no encontrada")
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
         raise HTTPException(403, "Solo puedes editar tus propias certificaciones")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(c, k, v)
-    db.commit()
+    training_service.update_certification(db, c, payload.model_dump(exclude_unset=True))
     return {"id": c.id}
 
 
 @router.delete("/certifications/{cert_id}", summary="Eliminar certificación")
 def delete_certification(cert_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user)):
-    c = db.query(Certification).filter(Certification.id == cert_id).first()
-    if not c: raise HTTPException(404, "Certificación no encontrada")
-    # Solo el propio usuario, admin o HR pueden borrar
-    from app.models.user import UserRole
+    c = training_service.get_certification(db, cert_id)
+    if not c:
+        raise HTTPException(404, "Certificación no encontrada")
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
         raise HTTPException(403, "Solo puedes eliminar tus propias certificaciones")
-    db.delete(c); db.commit()
+    training_service.delete_certification(db, c)
     return {"deleted": True}

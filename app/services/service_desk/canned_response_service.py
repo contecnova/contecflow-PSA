@@ -78,8 +78,10 @@ def apply_canned_response_update(canned: CannedResponse, payload: CannedResponse
         setattr(canned, k, v)
 
 
-def create_canned_response_record(payload: CannedResponseIn, created_by: str) -> CannedResponse:
-    return build_canned_response(payload, created_by)
+def create_canned_response_record(db, payload: CannedResponseIn, created_by: str) -> CannedResponse:
+    c = build_canned_response(payload, created_by)
+    db.add(c)
+    return c
 
 
 def update_canned_response_record(db: Session, canned_id: str, payload: CannedResponseIn) -> CannedResponse:
@@ -90,3 +92,8 @@ def update_canned_response_record(db: Session, canned_id: str, payload: CannedRe
 
 def get_canned_response_for_delete(db: Session, canned_id: str) -> CannedResponse:
     return get_canned_response_by_id(db, canned_id)
+
+
+def delete_canned_response(db: Session, canned_id: str) -> None:
+    c = get_canned_response_by_id(db, canned_id)
+    db.delete(c)

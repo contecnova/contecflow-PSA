@@ -33,8 +33,10 @@ def list_groups_payload(db: Session) -> list[dict]:
     return [serialize_group(group) for group in groups]
 
 
-def create_group_record(payload) -> AgentGroup:
-    return AgentGroup(**payload.model_dump())
+def create_group_record(db, payload) -> AgentGroup:
+    g = AgentGroup(**payload.model_dump())
+    db.add(g)
+    return g
 
 
 def get_group_or_404(db: Session, group_id: str) -> AgentGroup:
@@ -73,11 +75,11 @@ def add_group_member_record(db: Session, group_id: str, user_id: str, is_lead: b
     db.add(AgentGroupMember(group_id=group_id, user_id=user_id, is_lead=is_lead))
 
 
-def remove_group_member_record(db: Session, group_id: str, user_id: str) -> AgentGroupMember:
+def remove_group_member_record(db: Session, group_id: str, user_id: str) -> None:
     member = db.query(AgentGroupMember).filter(
         AgentGroupMember.group_id == group_id,
         AgentGroupMember.user_id == user_id,
     ).first()
     if not member:
         raise HTTPException(404)
-    return member
+    db.delete(member)

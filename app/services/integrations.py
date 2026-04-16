@@ -503,10 +503,184 @@ def test_xero_connection(config_dict: dict) -> dict:
     return result
 
 
-def test_quickbooks_connection(config_dict: dict) -> dict:
+def get_slack_webhook_url(db, org_id: str | None) -> str | None:
+    """Return the Slack webhook URL for the given org, or None if not configured."""
+    try:
+        from app.models.slack import SlackConfig
+    except ImportError:
+        return None
+    q = db.query(SlackConfig)
+    if org_id and hasattr(SlackConfig, "organization_id"):
+        q = q.filter(SlackConfig.organization_id == org_id)
+    cfg = q.first()
+    return cfg.webhook_url if cfg and hasattr(cfg, "webhook_url") else None
     """Verifica la conexión con QuickBooks."""
     result = _qb_request(config_dict, "GET", "/companyinfo/" + config_dict.get("realm_id", ""))
     if result["ok"]:
         info = result["data"].get("CompanyInfo", {})
         return {"ok": True, "company": info.get("CompanyName"), "country": info.get("Country")}
     return result
+
+
+# ── Hub service helpers (used by integrations_hub router) ─────────────────────
+
+def get_active_integration(db, integration_id: str):
+    """Return active IntegrationConfig by id, or None."""
+    from app.models.cab import IntegrationConfig
+    return db.query(IntegrationConfig).filter(
+        IntegrationConfig.id == integration_id,
+        IntegrationConfig.is_active == True,
+    ).first()
+
+
+def link_jira_to_task(db, task_id: str, jira_key: str) -> None:
+    """Update task.jira_issue_key if the field exists, then commit."""
+    from app.models.task import Task
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task and hasattr(task, "jira_issue_key"):
+        task.jira_issue_key = jira_key
+        db.commit()
+
+
+def find_user_by_slack_name(db, user_name: str):
+    """Find a Clarive user by Slack username or partial email match."""
+    from app.models.user import User
+    return db.query(User).filter(
+        (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
+    ).first()
+
+
+def find_user_by_teams_name(db, teams_name: str):
+    """Find a Clarive user by Teams display name (full then first-name fallback)."""
+    from app.models.user import User
+    user = db.query(User).filter(User.full_name.ilike(f"%{teams_name}%")).first()
+    if not user:
+        name_parts = teams_name.split()
+        if name_parts:
+            user = db.query(User).filter(User.full_name.ilike(f"%{name_parts[0]}%")).first()
+    return user
+
+
+def slack_create_task_from_text(db, text: str, user) -> dict:
+    """Parse text, create a Task in the db, and return a Slack response dict."""
+    from app.models.task import Task, TaskStatus, TaskPriority
+    from app.models.project import Project
+    import re
+    import uuid
+
+    project_match = re.search(r'#(\S+)', text)
+    title = re.sub(r'#\S+', '', text).strip() or "Tarea creada desde Slack"
+    project_id = None
+    proj = None
+    if project_match:
+        code = project_match.group(1).upper()
+        proj = db.query(Project).filter(Project.code.ilike(code)).first()
+        if proj:
+            project_id = proj.id
+
+    task = Task(
+        id=str(uuid.uuid4()), title=title, status=TaskStatus.todo,
+        priority=TaskPriority.medium, project_id=project_id,
+        assignee_id=user.id if user else None,
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    location = f" en {proj.name}" if project_id and proj else ""
+    return {
+        "response_type": "in_channel",
+        "text": f"✅ Tarea creada: *{task.title}* (`{task.code}`){location}",
+    }
+
+
+def slack_log_time_from_text(db, text: str, user) -> dict:
+    """Parse text, create an Imputation in the db, and return a Slack response dict."""
+    from app.models.imputation import Imputation
+    from app.models.project import Project
+    import re
+    import uuid
+    from datetime import date as _date
+
+    if not user:
+        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Clarive. Contacta con el admin."}
+
+    hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
+    if not hours_match:
+        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/clarive tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
+
+    hours = float(hours_match.group(1).replace(',', '.'))
+    project_match = re.search(r'#(\S+)', text)
+    description = re.sub(r'\d+(?:[.,]\d+)?', '', re.sub(r'#\S+', '', text)).strip() or "Imputación desde Slack"
+    project_id = None
+    if project_match:
+        proj = db.query(Project).filter(Project.code.ilike(project_match.group(1).upper())).first()
+        if proj:
+            project_id = proj.id
+
+    imp = Imputation(
+        id=str(uuid.uuid4()), user_id=user.id, project_id=project_id,
+        hours=hours, date=_date.today(), description=description,
+    )
+    db.add(imp)
+    db.commit()
+    return {
+        "response_type": "in_channel",
+        "text": f"⏱ *{hours}h* registradas para {user.full_name} — {description}",
+    }
+
+
+def slack_create_ticket_from_text(db, text: str, user) -> dict:
+    """Create a Service Desk incident ticket and return a Slack response dict."""
+    from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
+    from sqlalchemy import func, cast, Integer
+    import uuid
+
+    prefix = "INC"
+    last_num = db.query(
+        func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer))
+    ).filter(Ticket.ticket_type == TicketType.incident).scalar() or 0
+    number = f"{prefix}-{(last_num + 1):04d}"
+    ticket = Ticket(
+        id=str(uuid.uuid4()),
+        number=number,
+        ticket_type=TicketType.incident,
+        title=(text or "Ticket desde Slack")[:255],
+        description=text or "Ticket creado desde Slack",
+        status=TicketStatus.new,
+        priority=TicketPriority.p3_medium,
+        support_level=SupportLevel.l1,
+        requester_user_id=user.id if user else None,
+        requester_name=user.full_name if user else None,
+        source="slack",
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+    return {
+        "response_type": "in_channel",
+        "text": f"🎫 Ticket creado: *{ticket.title}* (`{ticket.number}`)",
+    }
+
+
+def slack_get_status_by_code(db, code: str) -> dict:
+    """Query task or project by code and return a Slack response dict."""
+    from app.models.task import Task
+    from app.models.project import Project
+
+    task = db.query(Task).filter(Task.code.ilike(code.upper())).first()
+    if task:
+        return {
+            "response_type": "ephemeral",
+            "text": f"📋 *{task.code}* — {task.title}\nEstado: `{task.status}` · Prioridad: `{task.priority}`",
+        }
+    proj = db.query(Project).filter(Project.code.ilike(code.upper())).first()
+    if proj:
+        return {
+            "response_type": "ephemeral",
+            "text": (
+                f"📁 *{proj.code}* — {proj.name}\n"
+                f"Estado: `{proj.status}` · PM: {proj.project_manager.full_name if proj.project_manager else '—'}"
+            ),
+        }
+    return {"response_type": "ephemeral", "text": f"❌ No encontré ningún elemento con código `{code}`"}

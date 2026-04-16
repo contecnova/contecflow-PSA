@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 from pydantic import BaseModel
@@ -8,38 +7,12 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
-from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig
-from app.models.project import Project
-from app.services.numbering import next_numbered_code
+from app.services import pipeline_service
+from app.services.pipeline_service import STAGE_LABELS, STAGE_PROB
 
 router = APIRouter()
 
-
-def _scope_opportunity_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin or not current_user.organization_id:
-        return q
-    org_user_ids = db.query(User.id).filter(
-        User.organization_id == current_user.organization_id
-    ).scalar_subquery()
-    return q.filter(Opportunity.owner_id.in_(org_user_ids))
-
 STAGE_ORDER = ["lead", "qualification", "proposal", "negotiation", "won", "lost", "cancelled"]
-STAGE_LABELS = {
-    "lead": "Lead", "qualification": "Cualificación", "proposal": "Propuesta",
-    "negotiation": "Negociación", "won": "Ganada", "lost": "Perdida", "cancelled": "Cancelada"
-}
-STAGE_PROB = {"lead": 10, "qualification": 25, "proposal": 50, "negotiation": 75, "won": 100, "lost": 0, "cancelled": 0}
-
-# Allowed stage transitions
-_STAGE_VALID_TRANSITIONS: dict = {
-    "lead":          {"qualification", "proposal", "lost", "cancelled"},
-    "qualification": {"proposal", "lost", "cancelled", "lead"},
-    "proposal":      {"negotiation", "lost", "cancelled", "qualification"},
-    "negotiation":   {"won", "lost", "cancelled", "proposal"},
-    "won":           set(),          # Terminal
-    "lost":          {"lead"},       # Allow re-opening a lost deal
-    "cancelled":     set(),          # Terminal
-}
 
 
 class OpportunityIn(BaseModel):
@@ -80,11 +53,7 @@ class StageConfigIn(BaseModel):
     is_won: bool = False
 
 
-def _next_code(db: Session) -> str:
-    return next_numbered_code(db, "opportunity", prefix="OPP", padding=4)
-
-
-def _opp_out(opp: Opportunity) -> dict:
+def _opp_out(opp) -> dict:
     weighted = (opp.expected_revenue or 0) * (opp.probability / 100)
     return {
         "id": opp.id, "code": opp.code, "name": opp.name,
@@ -114,13 +83,7 @@ def list_opportunities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Opportunity).options(joinedload(Opportunity.owner))
-    q = _scope_opportunity_query(q, db, current_user)
-    if stage:
-        q = q.filter(Opportunity.stage == stage)
-    if owner_id:
-        q = q.filter(Opportunity.owner_id == owner_id)
-    opps = q.order_by(Opportunity.created_at.desc()).all()
+    opps = pipeline_service.get_opportunities(db, current_user, stage=stage, owner_id=owner_id)
     return [_opp_out(o) for o in opps]
 
 
@@ -129,9 +92,7 @@ def get_pipeline(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Opportunity).options(joinedload(Opportunity.owner))
-    q = _scope_opportunity_query(q, db, current_user)
-    opps = q.all()
+    opps = pipeline_service.get_pipeline_opps(db, current_user)
     stages = {}
     for s in STAGE_ORDER:
         stage_opps = [_opp_out(o) for o in opps if o.stage == s]
@@ -161,14 +122,7 @@ def create_opportunity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    opp = Opportunity(code=_next_code(db), **payload.model_dump())
-    if not opp.owner_id:
-        opp.owner_id = current_user.id
-    db.add(opp); db.commit(); db.refresh(opp)
-
-    # Auto-add activity
-    act = OpportunityActivity(opportunity_id=opp.id, user_id=current_user.id, type="note", content=f"Oportunidad creada en etapa {STAGE_LABELS.get(opp.stage, opp.stage)}")
-    db.add(act); db.commit()
+    opp = pipeline_service.create_opportunity(db, current_user, payload.model_dump())
     return _opp_out(opp)
 
 
@@ -179,37 +133,13 @@ def update_opportunity(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    opp = _scope_opportunity_query(db.query(Opportunity), db, current_user).filter(Opportunity.id == opp_id).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
-
-    old_stage = opp.stage
     new_stage = payload.stage if "stage" in payload.model_fields_set else None
-
-    # Validate stage transition before applying any changes
-    if new_stage and new_stage != old_stage:
-        allowed = _STAGE_VALID_TRANSITIONS.get(old_stage, set())
-        if new_stage not in allowed:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Transición de etapa no permitida: '{STAGE_LABELS.get(old_stage, old_stage)}' → '{STAGE_LABELS.get(new_stage, new_stage)}'",
-            )
-
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(opp, k, v)
-
-    # Log stage change after applying it
-    if new_stage and new_stage != old_stage:
-        act = OpportunityActivity(
-            opportunity_id=opp.id, user_id=current_user.id, type="stage_change",
-            content=f"Etapa cambiada: {STAGE_LABELS.get(old_stage, old_stage)} → {STAGE_LABELS.get(new_stage, new_stage)}"
-        )
-        db.add(act)
-        # Auto-update probability if not explicitly provided
-        if new_stage in STAGE_PROB and not payload.probability:
-            opp.probability = STAGE_PROB[new_stage]
-
-    db.commit(); db.refresh(opp)
+    opp = pipeline_service.update_opportunity(
+        db, current_user, opp_id,
+        data=payload.model_dump(exclude_unset=True),
+        new_stage=new_stage,
+        explicit_probability=payload.probability,
+    )
     return _opp_out(opp)
 
 
@@ -219,11 +149,7 @@ def delete_opportunity(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    opp = _scope_opportunity_query(db.query(Opportunity), db, current_user).filter(Opportunity.id == opp_id).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
-    db.delete(opp); db.commit()
-    return {"ok": True}
+    return pipeline_service.delete_opportunity(db, current_user, opp_id)
 
 
 @router.get("/{opp_id}/activities", summary="Actividades de una oportunidad")
@@ -232,9 +158,7 @@ def get_activities(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    acts = db.query(OpportunityActivity).options(
-        joinedload(OpportunityActivity.user)
-    ).filter(OpportunityActivity.opportunity_id == opp_id).order_by(OpportunityActivity.created_at.desc()).all()
+    acts = pipeline_service.list_activities(db, opp_id)
     return [{
         "id": a.id, "type": a.type, "content": a.content,
         "user_name": a.user.full_name if a.user else "Sistema",
@@ -249,8 +173,7 @@ def add_activity(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    act = OpportunityActivity(opportunity_id=opp_id, user_id=current_user.id, **payload.model_dump())
-    db.add(act); db.commit(); db.refresh(act)
+    act = pipeline_service.add_activity(db, current_user, opp_id, payload.type, payload.content)
     return {"id": act.id, "message": "Actividad añadida"}
 
 @router.post("/{opp_id}/convert", summary="Convertir oportunidad ganada a proyecto")
@@ -260,57 +183,7 @@ def convert_opportunity_to_project(
     current_user: User = Depends(require_any_manager),
 ):
     """Crea un proyecto a partir de los datos de la oportunidad y vincula ambos."""
-    import uuid as _uuid
-    from app.models.project import ProjectStatus, ProjectType
-
-    opp = _scope_opportunity_query(db.query(Opportunity), db, current_user).filter(Opportunity.id == opp_id).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
-    if opp.project_id:
-        raise HTTPException(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
-
-    code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
-
-    project = Project(
-        id=str(_uuid.uuid4()),
-        code=code,
-        name=opp.name,
-        description=opp.description,
-        status=ProjectStatus.planning,
-        project_type=ProjectType.consulting,
-        billing_type="time_material",
-        client_name=opp.client_name,
-        client_id=opp.client_id,
-        budget_amount=opp.expected_revenue,
-        start_date=opp.expected_start_date,
-        end_date_planned=opp.expected_close_date,
-        pm_id=opp.owner_id or current_user.id,
-        billing_rate=opp.hourly_rate if hasattr(opp, 'hourly_rate') else None,
-    )
-    db.add(project)
-
-    # Marcar oportunidad como ganada y vincular proyecto
-    opp.stage = OpportunityStage.won
-    opp.project_id = project.id
-
-    # Registrar actividad
-    act = OpportunityActivity(
-        id=str(_uuid.uuid4()),
-        opportunity_id=opp.id,
-        user_id=current_user.id,
-        type="note",
-        content=f"Oportunidad convertida a proyecto {code} por {current_user.full_name}",
-    )
-    db.add(act)
-    db.commit()
-    db.refresh(project)
-
-    return {
-        "project_id":   project.id,
-        "project_code": project.code,
-        "project_name": project.name,
-        "message":      f"Proyecto {code} creado correctamente",
-    }
+    return pipeline_service.convert_opportunity_to_project(db, current_user, opp_id)
 
 
 # ── Weighted Forecast ─────────────────────────────────────────────────────────
@@ -329,9 +202,7 @@ def get_weighted_forecast(
     from datetime import date as _date, timedelta
 
     today = _date.today()
-    opps = db.query(Opportunity).filter(
-        Opportunity.stage.notin_(["won", "lost", "cancelled"]),
-    ).all()
+    opps = pipeline_service.get_active_opportunities_for_forecast(db)
 
     # Build month buckets
     buckets: dict = {}
@@ -386,9 +257,7 @@ def list_stage_configs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    configs = db.query(PipelineStageConfig).filter(
-        PipelineStageConfig.is_active == True
-    ).order_by(PipelineStageConfig.order).all()
+    configs = pipeline_service.list_stage_configs(db)
     return [{
         "id": c.id, "stage_key": c.stage_key, "label": c.label,
         "description": c.description, "color": c.color, "order": c.order,
@@ -403,13 +272,7 @@ def create_stage_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    existing = db.query(PipelineStageConfig).filter(
-        PipelineStageConfig.stage_key == payload.stage_key
-    ).first()
-    if existing:
-        raise HTTPException(400, f"La etapa '{payload.stage_key}' ya existe")
-    stage = PipelineStageConfig(**payload.model_dump())
-    db.add(stage); db.commit(); db.refresh(stage)
+    stage = pipeline_service.create_stage_config(db, payload.model_dump())
     return {"ok": True, "id": stage.id, "stage_key": stage.stage_key}
 
 
@@ -420,12 +283,7 @@ def update_stage_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    stage = db.query(PipelineStageConfig).filter(PipelineStageConfig.id == stage_id).first()
-    if not stage:
-        raise HTTPException(404, "Etapa no encontrada")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(stage, k, v)
-    db.commit()
+    stage = pipeline_service.update_stage_config(db, stage_id, payload.model_dump(exclude_unset=True))
     return {"ok": True, "id": stage.id}
 
 
@@ -435,9 +293,5 @@ def delete_stage_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    stage = db.query(PipelineStageConfig).filter(PipelineStageConfig.id == stage_id).first()
-    if not stage:
-        raise HTTPException(404, "Etapa no encontrada")
-    stage.is_active = False  # Soft delete
-    db.commit()
+    pipeline_service.delete_stage_config(db, stage_id)
     return {"ok": True}

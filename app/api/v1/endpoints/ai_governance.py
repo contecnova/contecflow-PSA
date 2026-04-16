@@ -21,15 +21,20 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
-from app.models.ai_governance import AIGuardrailPolicyModel, AIGuardrailAuditLog
 from app.services.ai_governance import (
     check_prompt, check_output, _PII_PATTERNS,
+    create_policy as svc_create_policy,
+    list_policies as svc_list_policies,
+    get_policy as svc_get_policy,
+    update_policy as svc_update_policy,
+    deactivate_policy as svc_deactivate_policy,
+    get_audit_log as svc_get_audit_log,
+    get_audit_stats as svc_get_audit_stats,
 )
 
 router = APIRouter(prefix="/ai-governance", tags=["AI Governance"])
@@ -127,9 +132,10 @@ def create_policy(
 ):
     verify_admin_or_governance_role(current_user)
     _validate_policy(body)
-    policy = AIGuardrailPolicyModel(
-        id                  = str(uuid.uuid4()),
+    policy = svc_create_policy(
+        db,
         org_id              = _org(current_user),
+        created_by          = str(current_user.id),
         name                = body.name,
         description         = body.description,
         applies_to_modules  = body.applies_to_modules,
@@ -142,11 +148,7 @@ def create_policy(
         max_prompt_tokens   = body.max_prompt_tokens,
         priority            = body.priority,
         is_active           = body.is_active,
-        created_by          = str(current_user.id),
     )
-    db.add(policy)
-    db.commit()
-    db.refresh(policy)
     return PolicyOut.model_validate(policy)
 
 
@@ -157,13 +159,7 @@ def list_policies(
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    q = db.query(AIGuardrailPolicyModel).filter(
-        AIGuardrailPolicyModel.org_id == _org(current_user)
-    )
-    if active_only:
-        q = q.filter(AIGuardrailPolicyModel.is_active == True)  # noqa
-    policies = q.order_by(AIGuardrailPolicyModel.priority.desc(),
-                          AIGuardrailPolicyModel.created_at.desc()).all()
+    policies = svc_list_policies(db, org_id=_org(current_user), active_only=active_only)
     return [PolicyOut.model_validate(p) for p in policies]
 
 
@@ -174,10 +170,7 @@ def get_policy(
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    p = db.query(AIGuardrailPolicyModel).filter(
-        AIGuardrailPolicyModel.id     == policy_id,
-        AIGuardrailPolicyModel.org_id == _org(current_user),
-    ).first()
+    p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise HTTPException(404, "Policy not found")
     return PolicyOut.model_validate(p)
@@ -191,16 +184,10 @@ def update_policy(
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    p = db.query(AIGuardrailPolicyModel).filter(
-        AIGuardrailPolicyModel.id     == policy_id,
-        AIGuardrailPolicyModel.org_id == _org(current_user),
-    ).first()
+    p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise HTTPException(404, "Policy not found")
-    for field, val in body.model_dump(exclude_unset=True).items():
-        setattr(p, field, val)
-    db.commit()
-    db.refresh(p)
+    p = svc_update_policy(db, p, body.model_dump(exclude_unset=True))
     return PolicyOut.model_validate(p)
 
 
@@ -211,14 +198,10 @@ def deactivate_policy(
     current_user: User = Depends(get_current_user),
 ):
     verify_admin_or_governance_role(current_user)
-    p = db.query(AIGuardrailPolicyModel).filter(
-        AIGuardrailPolicyModel.id     == policy_id,
-        AIGuardrailPolicyModel.org_id == _org(current_user),
-    ).first()
+    p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
         raise HTTPException(404, "Policy not found")
-    p.is_active = False
-    db.commit()
+    svc_deactivate_policy(db, p)
     return {"ok": True, "deactivated": policy_id}
 
 
@@ -239,21 +222,12 @@ def get_audit_log(
 ):
     verify_admin_or_governance_role(current_user)
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
-
-    q = db.query(AIGuardrailAuditLog).filter(
-        AIGuardrailAuditLog.org_id       == _org(current_user),
-        AIGuardrailAuditLog.evaluated_at >= since,
+    total, items = svc_get_audit_log(
+        db, org_id=_org(current_user), since=since,
+        module=module, scope=scope, action_taken=action_taken,
+        was_blocked=was_blocked, user_id=user_id,
+        page=page, page_size=page_size,
     )
-    if module:       q = q.filter(AIGuardrailAuditLog.module       == module)
-    if scope:        q = q.filter(AIGuardrailAuditLog.scope        == scope)
-    if action_taken: q = q.filter(AIGuardrailAuditLog.action_taken == action_taken)
-    if was_blocked is not None:
-        q = q.filter(AIGuardrailAuditLog.was_blocked == was_blocked)
-    if user_id:      q = q.filter(AIGuardrailAuditLog.user_id      == user_id)
-
-    total = q.count()
-    items = q.order_by(AIGuardrailAuditLog.evaluated_at.desc()) \
-             .offset((page - 1) * page_size).limit(page_size).all()
     return {
         "total":     total,
         "page":      page,
@@ -270,51 +244,17 @@ def audit_stats(
 ):
     verify_admin_or_governance_role(current_user)
     since = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
-    org = _org(current_user)
-
-    base = db.query(AIGuardrailAuditLog).filter(
-        AIGuardrailAuditLog.org_id       == org,
-        AIGuardrailAuditLog.evaluated_at >= since,
-    )
-    total          = base.count()
-    total_blocked  = base.filter(AIGuardrailAuditLog.was_blocked == True).count()  # noqa
-    total_redacted = base.filter(AIGuardrailAuditLog.action_taken == "redacted").count()
-    total_warned   = base.filter(AIGuardrailAuditLog.action_taken == "warned").count()
-
-    # By module
-    by_module = {}
-    rows = db.query(
-        AIGuardrailAuditLog.module, func.count(AIGuardrailAuditLog.id)
-    ).filter(
-        AIGuardrailAuditLog.org_id == org,
-        AIGuardrailAuditLog.evaluated_at >= since,
-    ).group_by(AIGuardrailAuditLog.module).all()
-    for module, cnt in rows:
-        by_module[module] = cnt
-
-    # Most common PII types (from JSON arrays — computed in Python for SQLite compat)
-    pii_counter: Dict[str, int] = {}
-    all_pii = db.query(AIGuardrailAuditLog.pii_types_found).filter(
-        AIGuardrailAuditLog.org_id       == org,
-        AIGuardrailAuditLog.evaluated_at >= since,
-        AIGuardrailAuditLog.pii_types_found.isnot(None),
-    ).all()
-    for (types_list,) in all_pii:
-        if isinstance(types_list, list):
-            for t in types_list:
-                pii_counter[t] = pii_counter.get(t, 0) + 1
-
-    top_pii = sorted(pii_counter.items(), key=lambda x: -x[1])[:10]
-
+    stats = svc_get_audit_stats(db, org_id=_org(current_user), since=since)
+    total = stats["total"]
     return {
         "window_days":        days,
         "total_evaluations":  total,
-        "total_blocked":      total_blocked,
-        "total_redacted":     total_redacted,
-        "total_warned":       total_warned,
-        "block_rate":         round(total_blocked / total, 4) if total else 0,
-        "by_module":          by_module,
-        "top_pii_types":      [{"type": t, "count": c} for t, c in top_pii],
+        "total_blocked":      stats["total_blocked"],
+        "total_redacted":     stats["total_redacted"],
+        "total_warned":       stats["total_warned"],
+        "block_rate":         round(stats["total_blocked"] / total, 4) if total else 0,
+        "by_module":          stats["by_module"],
+        "top_pii_types":      [{"type": t, "count": c} for t, c in stats["top_pii"]],
     }
 
 

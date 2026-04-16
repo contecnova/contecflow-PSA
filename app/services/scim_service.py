@@ -252,3 +252,155 @@ def process_bulk_operation(
 
     else:
         raise ValueError(f"Unsupported bulk operation: {method} {path}")
+
+
+# ── Higher-level service helpers (used by router) ────────────────────────────
+
+def list_scim_users_filtered(
+    db: Session,
+    org_id: str,
+    filter_str: Optional[str],
+    start_index: int,
+    count: int,
+) -> tuple[int, list[User]]:
+    """Return (total, users) applying SCIM 2.0 filter grammar."""
+    q = db.query(User).filter(User.organization_id == org_id)
+    if filter_str:
+        f = filter_str.strip()
+        if "userName eq " in f:
+            val = f.split("userName eq ", 1)[1].strip().strip("\"'")
+            q = q.filter(User.username == val)
+        elif "emails.value eq " in f or "emails[value eq " in f:
+            val = f.split(" eq ", 1)[1].strip().strip('"\']')
+            q = q.filter(User.email == val)
+        elif "externalId eq " in f:
+            val = f.split("externalId eq ", 1)[1].strip().strip("\"'")
+            q = q.filter(User.scim_external_id == val)
+        elif "active eq " in f:
+            val = f.split("active eq ", 1)[1].strip().lower()
+            is_active = val not in ("false", "0")
+            q = q.filter(User.is_active == is_active)
+        elif "userName sw " in f:
+            val = f.split("userName sw ", 1)[1].strip().strip("\"'")
+            q = q.filter(User.username.ilike(f"{val}%"))
+    total = q.count()
+    users = q.offset(start_index - 1).limit(count).all()
+    return total, users
+
+
+def get_user_by_id_and_org(db: Session, user_id: str, org_id: str) -> Optional[User]:
+    return (
+        db.query(User)
+        .filter(User.id == user_id, User.organization_id == org_id)
+        .first()
+    )
+
+
+def put_scim_user_record(db: Session, user_id: str, org_id: str, payload: dict) -> Optional[User]:
+    user = get_user_by_id_and_org(db, user_id, org_id)
+    if not user:
+        return None
+    update_scim_user(user, payload, "PUT")
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def patch_scim_user_record(db: Session, user_id: str, org_id: str, payload: dict) -> Optional[User]:
+    user = get_user_by_id_and_org(db, user_id, org_id)
+    if not user:
+        return None
+    update_scim_user(user, payload, "PATCH")
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def delete_scim_user_record(db: Session, user_id: str, org_id: str) -> bool:
+    user = get_user_by_id_and_org(db, user_id, org_id)
+    if not user:
+        return False
+    deactivate_scim_user(user, db)
+    db.commit()
+    return True
+
+
+def list_role_groups(db: Session, org_id: str) -> list[dict]:
+    groups = []
+    for role in UserRole:
+        members = (
+            db.query(User)
+            .filter(User.organization_id == org_id, User.role == role, User.is_active == True)
+            .all()
+        )
+        groups.append(to_scim_group(role.value, members))
+    return groups
+
+
+def get_role_group_members(db: Session, org_id: str, role: UserRole) -> list[User]:
+    return (
+        db.query(User)
+        .filter(User.organization_id == org_id, User.role == role, User.is_active == True)
+        .all()
+    )
+
+
+def patch_role_group(
+    db: Session,
+    org_id: str,
+    target_role: UserRole,
+    operations: list,
+) -> list[User]:
+    for op in operations or []:
+        operation = (op.get("op") or "").lower()
+        value = op.get("value") or {}
+        members = value.get("members") if isinstance(value, dict) else None
+        if not isinstance(members, list):
+            continue
+        member_ids = [
+            m.get("value") for m in members if isinstance(m, dict) and m.get("value")
+        ]
+        if not member_ids:
+            continue
+        users = (
+            db.query(User)
+            .filter(User.organization_id == org_id, User.id.in_(member_ids))
+            .all()
+        )
+        for user in users:
+            if operation in ("add", "replace"):
+                user.role = target_role
+            elif operation == "remove" and user.role == target_role:
+                user.role = UserRole.employee
+            user.scim_last_synced_at = datetime.now(timezone.utc)
+    db.commit()
+    return get_role_group_members(db, org_id, target_role)
+
+
+def process_bulk_operations(
+    org_id: str,
+    operations: list,
+    fail_on_errors,
+    db: Session,
+) -> list[dict]:
+    responses = []
+    error_count = 0
+    for op in operations:
+        try:
+            responses.append(process_bulk_operation(org_id, op, db))
+        except Exception as exc:
+            error_count += 1
+            responses.append({
+                "method": (op.get("method") or "").upper(),
+                "bulkId": op.get("bulkId"),
+                "status": "400",
+                "response": {
+                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+                    "status": "400",
+                    "detail": str(exc),
+                },
+            })
+            if fail_on_errors and error_count >= fail_on_errors:
+                break
+    db.commit()
+    return responses

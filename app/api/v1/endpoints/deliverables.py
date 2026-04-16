@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 from pydantic import BaseModel
@@ -8,9 +7,8 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
-from app.models.project import Project
-from app.models.resources import Deliverable, DeliverableStatus
-from app.services.numbering import next_numbered_code
+from app.models.resources import DeliverableStatus
+from app.services import deliverable_service
 
 router = APIRouter()
 
@@ -52,11 +50,7 @@ class DeliverableUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
-def _next_code(project_id: str, db: Session) -> str:
-    return next_numbered_code(db, "deliverable", prefix="DEL", padding=3)
-
-
-def _del_out(d: Deliverable) -> dict:
+def _del_out(d) -> dict:
     cfg = STATUS_CFG.get(d.status, STATUS_CFG["planned"])
     on_time = None
     if d.planned_date and d.delivered_date:
@@ -88,17 +82,12 @@ def _del_out(d: Deliverable) -> dict:
     }
 
 
-
 @router.get("/all/overview", summary="Vista global de entregables")
 def get_all_deliverables(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    deliverables = db.query(Deliverable).options(
-        joinedload(Deliverable.owner),
-        joinedload(Deliverable.project),
-    ).filter(Deliverable.status.notin_(["accepted"])).order_by(Deliverable.planned_date).all()
-
+    deliverables = deliverable_service.list_all_deliverables(db)
     result = []
     for d in deliverables:
         row = _del_out(d)
@@ -107,6 +96,7 @@ def get_all_deliverables(
         result.append(row)
     return result
 
+
 @router.get("/{project_id}", summary="Entregables de un proyecto")
 def get_deliverables(
     project_id: str,
@@ -114,12 +104,7 @@ def get_deliverables(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Deliverable).options(joinedload(Deliverable.owner)).filter(
-        Deliverable.project_id == project_id
-    )
-    if status:
-        q = q.filter(Deliverable.status == status)
-    deliverables = q.order_by(Deliverable.sort_order, Deliverable.planned_date).all()
+    deliverables = deliverable_service.list_project_deliverables(db, project_id, status)
     result = [_del_out(d) for d in deliverables]
 
     return {
@@ -129,7 +114,9 @@ def get_deliverables(
             "accepted": sum(1 for d in result if d["status"] == "accepted"),
             "delivered": sum(1 for d in result if d["status"] == "delivered"),
             "overdue": sum(1 for d in result if d["overdue"]),
-            "completion_pct": round(sum(1 for d in result if d["status"] in ["delivered", "accepted"]) / max(len(result), 1) * 100, 1),
+            "completion_pct": round(
+                sum(1 for d in result if d["status"] in ["delivered", "accepted"]) / max(len(result), 1) * 100, 1
+            ),
         }
     }
 
@@ -143,12 +130,7 @@ def create_deliverable(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    d = Deliverable(
-        project_id=project_id,
-        code=_next_code(project_id, db),
-        **payload.model_dump(),
-    )
-    db.add(d); db.commit(); db.refresh(d)
+    d = deliverable_service.create_deliverable(db, project_id, **payload.model_dump())
     return _del_out(d)
 
 
@@ -160,21 +142,12 @@ def update_deliverable(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    d = db.query(Deliverable).filter(Deliverable.id == del_id, Deliverable.project_id == project_id).first()
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Solo administradores y PMs pueden actualizar entreables")
-    if not d: raise HTTPException(404, "Entregable no encontrado")
-
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(d, k, v)
-
-    # Auto-set dates on status change
-    if payload.status == "delivered" and not d.delivered_date:
-        d.delivered_date = date.today()
-    if payload.status == "accepted" and not d.accepted_date:
-        d.accepted_date = date.today()
-
-    db.commit(); db.refresh(d)
+    d = deliverable_service.get_deliverable(db, del_id, project_id)
+    if not d:
+        raise HTTPException(404, "Entregable no encontrado")
+    d = deliverable_service.update_deliverable(db, d, payload.model_dump(exclude_unset=True))
     return _del_out(d)
 
 
@@ -186,12 +159,10 @@ def deliver(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    d = db.query(Deliverable).filter(Deliverable.id == del_id, Deliverable.project_id == project_id).first()
-    if not d: raise HTTPException(404, "No encontrado")
-    d.status = DeliverableStatus.delivered
-    d.delivered_date = date.today()
-    if document_url: d.document_url = document_url
-    db.commit()
+    d = deliverable_service.get_deliverable(db, del_id, project_id)
+    if not d:
+        raise HTTPException(404, "No encontrado")
+    d = deliverable_service.mark_delivered(db, d, document_url)
     return _del_out(d)
 
 
@@ -202,12 +173,12 @@ def accept(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    d = db.query(Deliverable).filter(Deliverable.id == del_id, Deliverable.project_id == project_id).first()
-    if not d: raise HTTPException(404, "No encontrado")
-    if d.status != "delivered": raise HTTPException(400, "Solo se pueden aceptar entregables entregados")
-    d.status = DeliverableStatus.accepted
-    d.accepted_date = date.today()
-    db.commit()
+    d = deliverable_service.get_deliverable(db, del_id, project_id)
+    if not d:
+        raise HTTPException(404, "No encontrado")
+    if d.status != "delivered":
+        raise HTTPException(400, "Solo se pueden aceptar entregables entregados")
+    d = deliverable_service.mark_accepted(db, d)
     return _del_out(d)
 
 
@@ -219,11 +190,10 @@ def reject(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    d = db.query(Deliverable).filter(Deliverable.id == del_id).first()
-    if not d: raise HTTPException(404, "No encontrado")
-    d.status = DeliverableStatus.rejected
-    d.rejection_reason = reason
-    db.commit()
+    d = deliverable_service.get_deliverable(db, del_id)
+    if not d:
+        raise HTTPException(404, "No encontrado")
+    d = deliverable_service.mark_rejected(db, d, reason)
     return _del_out(d)
 
 
@@ -234,8 +204,8 @@ def delete_deliverable(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    d = db.query(Deliverable).filter(Deliverable.id == del_id).first()
-    if not d: raise HTTPException(404, "No encontrado")
-    db.delete(d); db.commit()
+    d = deliverable_service.get_deliverable(db, del_id)
+    if not d:
+        raise HTTPException(404, "No encontrado")
+    deliverable_service.delete_deliverable(db, d)
     return {"ok": True}
-

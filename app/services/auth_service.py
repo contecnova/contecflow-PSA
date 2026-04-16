@@ -28,8 +28,9 @@ from app.core.security import (
     decode_token,
 )
 from app.db.session import is_postgres
-from app.models.mfa import MFAChallenge, Organization
-from app.models.user import User, UserRole
+from app.models.mfa import MFAChallenge, Organization, WebAuthnCredential
+from app.models.sessions import UserSession
+from app.models.user import User, UserRole, UserStatus
 from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
 from app.services.security_observability import SecurityEventService
 
@@ -487,3 +488,273 @@ def send_password_reset_email(recipient: str, reset_link: str) -> None:
         return
 
     logger.info("Password reset link for %s: %s", recipient, reset_link)
+
+
+# ── DB helpers ────────────────────────────────────────────────────────────────
+
+def commit_db(db: Session) -> None:
+    """Commit the current DB transaction."""
+    db.commit()
+
+
+# ── User lookups ──────────────────────────────────────────────────────────────
+
+def lookup_user_by_id_active(db: Session, user_id: str):
+    """Return an active User by id, or None."""
+    return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+
+
+def lookup_user_by_credentials(db: Session, username: str):
+    """Return an active User matching username or email, or None."""
+    return db.query(User).filter(
+        (User.username == username) | (User.email == username),
+        User.is_active == True,
+    ).first()
+
+
+def lookup_user_by_identifier(db: Session, identifier: str):
+    """Return an active User matching email or username, or None. Used by password reset."""
+    return db.query(User).filter(
+        (User.email == identifier) | (User.username == identifier),
+        User.is_active == True,
+    ).first()
+
+
+# ── Session helpers ───────────────────────────────────────────────────────────
+
+def lookup_active_refresh_session(db: Session, user_id: str, token_jti: str):
+    """Return the active UserSession matching the given JTI, or None."""
+    now = datetime.now(timezone.utc)
+    return db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.refresh_token_jti == token_jti,
+        UserSession.revoked_at.is_(None),
+        UserSession.expires_at > now,
+    ).first()
+
+
+def get_active_user_sessions(db: Session, user_id: str, now):
+    """Return all non-expired, non-revoked sessions for user ordered by last activity."""
+    return (
+        db.query(UserSession)
+        .filter(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+            UserSession.expires_at > now,
+        )
+        .order_by(UserSession.last_seen_at.desc())
+        .all()
+    )
+
+
+def revoke_one_session(db: Session, session_id: str, user_id: str):
+    """Revoke a specific session. Raises 404 if not found or not owned by user."""
+    session = db.query(UserSession).filter(
+        UserSession.id == session_id,
+        UserSession.user_id == user_id,
+    ).first()
+    if not session:
+        raise HTTPException(404, "Sesión no encontrada")
+    session.revoked_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True, "revoked": session_id}
+
+
+def revoke_all_user_sessions_except_current(db: Session, user_id: str, current_jti) -> int:
+    """Revoke all active sessions except the current one. Returns count revoked."""
+    now = datetime.now(timezone.utc)
+    q = db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.revoked_at.is_(None),
+    )
+    if current_jti:
+        q = q.filter(UserSession.refresh_token_jti != current_jti)
+    sessions = q.all()
+    for s in sessions:
+        s.revoked_at = now
+    db.commit()
+    return len(sessions)
+
+
+# ── Password reset ────────────────────────────────────────────────────────────
+
+def complete_password_reset(db: Session, user: User, new_hash: str) -> None:
+    """Update user password hash and commit."""
+    user.hashed_password = new_hash
+    db.commit()
+
+
+# ── SSO helpers ───────────────────────────────────────────────────────────────
+
+def get_active_sso_providers(db: Session):
+    """Return list of active SSO provider dicts."""
+    from app.models.enterprise import SSOConfig
+    configs = db.query(SSOConfig).filter(SSOConfig.is_active == True).all()
+    return [
+        {
+            "id":       c.id,
+            "provider": c.provider,
+            "name":     c.name or c.provider.replace("_", " ").title(),
+            "icon":     {"azure_ad": "🔵", "okta": "🟠", "google": "🔴", "saml": "🔐", "oidc": "🔑"}.get(c.provider, "🔑"),
+        }
+        for c in configs
+    ]
+
+
+def get_saml_health(db: Session):
+    """Return SAML config health list."""
+    from app.models.enterprise import SSOConfig
+    configs = db.query(SSOConfig).filter(SSOConfig.provider == "saml").all()
+    out = []
+    for c in configs:
+        issues = []
+        if not c.saml_entity_id:
+            issues.append("missing_entity_id")
+        if not c.saml_sso_url:
+            issues.append("missing_sso_url")
+        if not c.saml_certificate:
+            issues.append("missing_certificate")
+        cert = (c.saml_certificate or "").strip()
+        if cert and "BEGIN CERTIFICATE" not in cert:
+            issues.append("certificate_not_pem")
+        if c.allowed_domains:
+            for domain in (c.allowed_domains or []):
+                if not isinstance(domain, str) or "." not in domain:
+                    issues.append(f"invalid_domain:{domain}")
+        out.append({
+            "id":        c.id,
+            "name":      c.name,
+            "is_active": c.is_active,
+            "issues":    issues,
+            "status":    "ok" if not issues else "warning",
+        })
+    return out
+
+
+def get_sso_config_or_404(db: Session, config_id: str):
+    """Return an active SSOConfig or raise 404."""
+    from app.models.enterprise import SSOConfig
+    config = db.query(SSOConfig).filter(
+        SSOConfig.id == config_id, SSOConfig.is_active == True
+    ).first()
+    if not config:
+        raise HTTPException(404, "SSO no encontrado")
+    return config
+
+
+def create_or_update_sso_user(db: Session, config, email: str, name, claims: dict):
+    """Find or create a user from SSO claims. Returns User."""
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        if not config.auto_create_users:
+            raise HTTPException(403, "El proveedor SSO no permite autocrear usuarios")
+        user = User(
+            id=str(uuid.uuid4()),
+            email=email,
+            full_name=name or email.split("@")[0],
+            username=email.split("@")[0],
+            role=resolve_sso_role(config.default_role),
+            status=UserStatus.active,
+            is_active=True,
+            organization_id=resolve_sso_organization_id(db, config, email),
+            sso_provider=config.provider,
+            sso_subject=claims.get("sub"),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif not user.is_active:
+        raise HTTPException(403, "Usuario desactivado")
+    return user
+
+
+# ── WebAuthn helpers ──────────────────────────────────────────────────────────
+
+def user_has_passkeys(db: Session, user_id: str) -> bool:
+    """Return True if user has at least one active WebAuthn credential."""
+    return (
+        db.query(WebAuthnCredential.id)
+        .filter(WebAuthnCredential.user_id == user_id, WebAuthnCredential.is_active == True)
+        .first()
+        is not None
+    )
+
+
+def get_active_user_credentials(db: Session, user_id: str):
+    """Return all active WebAuthn credentials for a user, newest first."""
+    return (
+        db.query(WebAuthnCredential)
+        .filter(WebAuthnCredential.user_id == user_id, WebAuthnCredential.is_active == True)
+        .order_by(WebAuthnCredential.created_at.desc())
+        .all()
+    )
+
+
+def get_active_webauthn_credential(db: Session, pk_id: str, user_id: str):
+    """Find active WebAuthnCredential by pk UUID and user_id."""
+    return db.query(WebAuthnCredential).filter(
+        WebAuthnCredential.id == pk_id,
+        WebAuthnCredential.user_id == user_id,
+        WebAuthnCredential.is_active == True,
+    ).first()
+
+
+def has_remaining_active_credentials(db: Session, user_id: str, exclude_pk_id: str) -> bool:
+    """Return True if user has other active credentials besides exclude_pk_id."""
+    return (
+        db.query(WebAuthnCredential.id)
+        .filter(
+            WebAuthnCredential.user_id == user_id,
+            WebAuthnCredential.is_active == True,
+            WebAuthnCredential.id != exclude_pk_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def get_webauthn_credential_for_auth(db: Session, user_id: str, credential_id: str):
+    """Find active WebAuthnCredential by user_id and webauthn credential_id for authentication."""
+    return db.query(WebAuthnCredential).filter(
+        WebAuthnCredential.user_id == user_id,
+        WebAuthnCredential.credential_id == credential_id,
+        WebAuthnCredential.is_active == True,
+    ).first()
+
+
+def get_credential_by_credential_id(db: Session, credential_id: str):
+    """Find a WebAuthnCredential by its webauthn credential_id (any user)."""
+    return db.query(WebAuthnCredential).filter(
+        WebAuthnCredential.credential_id == credential_id,
+    ).first()
+
+
+def upsert_webauthn_credential(
+    db: Session,
+    current_user_id: str,
+    credential_id: str,
+    public_key: str,
+    sign_count: int,
+    transports: str,
+    nickname,
+) -> None:
+    """Add or update a WebAuthn credential. Raises 409 if credential belongs to another user."""
+    existing = get_credential_by_credential_id(db, credential_id)
+    if existing and existing.user_id != current_user_id:
+        raise HTTPException(409, "La passkey ya está registrada para otro usuario")
+    if existing:
+        existing.public_key = public_key
+        existing.sign_count = sign_count
+        existing.is_active = True
+        if nickname:
+            existing.name = nickname
+    else:
+        db.add(WebAuthnCredential(
+            user_id=current_user_id,
+            credential_id=credential_id,
+            public_key=public_key,
+            sign_count=sign_count,
+            transports=transports,
+            name=nickname,
+            is_active=True,
+        ))

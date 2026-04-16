@@ -322,6 +322,188 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
     return result
 
 
+# ── Workflow CRUD ──────────────────────────────────────────────────────────────
+
+def list_workflows(db: Session, entity_type: Optional[str] = None):
+    from app.models.billing_reports import ApprovalWorkflow
+    q = db.query(ApprovalWorkflow)
+    if entity_type:
+        q = q.filter(ApprovalWorkflow.entity_type == entity_type)
+    return q.order_by(ApprovalWorkflow.entity_type).all()
+
+
+def create_workflow(db: Session, payload_dict: dict):
+    from app.models.billing_reports import ApprovalWorkflow
+    if payload_dict.get("is_default"):
+        db.query(ApprovalWorkflow).filter(
+            ApprovalWorkflow.entity_type == payload_dict["entity_type"]
+        ).update({"is_default": False})
+    w = ApprovalWorkflow(id=str(uuid.uuid4()), **payload_dict)
+    db.add(w)
+    db.commit()
+    db.refresh(w)
+    return w
+
+
+def get_workflow(db: Session, workflow_id: str):
+    from app.models.billing_reports import ApprovalWorkflow
+    return db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+
+
+def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
+    from app.models.billing_reports import ApprovalWorkflow
+    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+    if not w:
+        return None
+    allowed = ["name", "description", "is_active", "is_default", "trigger_conditions"]
+    for k, v in payload_dict.items():
+        if k in allowed:
+            setattr(w, k, v)
+    db.commit()
+    return w
+
+
+def delete_workflow(db: Session, workflow_id: str) -> bool:
+    from app.models.billing_reports import ApprovalWorkflow
+    w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
+    if not w:
+        return False
+    db.delete(w)
+    db.commit()
+    return True
+
+
+# ── Step CRUD ──────────────────────────────────────────────────────────────────
+
+def add_workflow_step(db: Session, workflow_id: str, payload_dict: dict):
+    from app.models.billing_reports import ApprovalStep
+    w = get_workflow(db, workflow_id)
+    if not w:
+        return None
+    s = ApprovalStep(id=str(uuid.uuid4()), workflow_id=workflow_id, **payload_dict)
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def update_workflow_step(db: Session, workflow_id: str, step_id: str, payload_dict: dict):
+    from app.models.billing_reports import ApprovalStep
+    _fk_fields = {"approver_user_id", "escalate_to_user_id"}
+    s = db.query(ApprovalStep).filter(
+        ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
+    ).first()
+    if not s:
+        return None
+    allowed = ["name", "approver_type", "approver_role", "approver_user_id",
+               "is_optional", "timeout_hours", "on_timeout", "step_order", "escalate_to_user_id"]
+    for k, v in payload_dict.items():
+        if k in allowed:
+            setattr(s, k, None if (k in _fk_fields and v == "") else v)
+    db.commit()
+    return s
+
+
+def delete_workflow_step(db: Session, workflow_id: str, step_id: str):
+    from app.models.billing_reports import ApprovalStep
+    s = db.query(ApprovalStep).filter(
+        ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
+    ).first()
+    if not s:
+        return None
+    db.delete(s)
+    db.commit()
+    return s
+
+
+# ── Request queries ────────────────────────────────────────────────────────────
+
+def list_approval_requests(
+    db: Session,
+    current_user: User,
+    status: Optional[str] = None,
+    entity_type: Optional[str] = None,
+    mine: bool = True,
+):
+    from app.models.billing_reports import ApprovalRequest
+    q = db.query(ApprovalRequest).options(
+        joinedload(ApprovalRequest.requester),
+        joinedload(ApprovalRequest.decisions),
+    )
+    q = scope_request_query(q, db, current_user)
+    if status:
+        q = q.filter(ApprovalRequest.status == status)
+    if entity_type:
+        q = q.filter(ApprovalRequest.entity_type == entity_type)
+    if mine:
+        q = q.filter(ApprovalRequest.requested_by == current_user.id)
+    return q.order_by(ApprovalRequest.created_at.desc()).limit(100).all()
+
+
+def cancel_approval_request(db: Session, request_id: str, current_user: User):
+    from datetime import datetime, timezone
+    from fastapi import HTTPException
+    from app.models.billing_reports import ApprovalRequest
+    req = scope_request_query(
+        db.query(ApprovalRequest), db, current_user
+    ).filter(ApprovalRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(404)
+    if req.requested_by != current_user.id and current_user.role.value not in ("admin", "pm"):
+        raise HTTPException(403)
+    req.status = "cancelled"
+    req.completed_at = datetime.now(timezone.utc)
+    log_financial_approval_event(
+        db=db,
+        request_id=req.id,
+        entity_type=req.entity_type,
+        entity_id=req.entity_id,
+        action="cancelled",
+        actor_user_id=current_user.id,
+        step_order=req.current_step,
+    )
+    db.commit()
+    return req
+
+
+def get_financial_audit_entries(db: Session, request_id: str, current_user: User):
+    from app.models.billing_reports import ApprovalRequest, FinancialApprovalAuditLog
+    req = scope_request_query(
+        db.query(ApprovalRequest), db, current_user
+    ).filter(ApprovalRequest.id == request_id).first()
+    if not req:
+        return None, None
+    entries = (
+        db.query(FinancialApprovalAuditLog)
+        .filter(FinancialApprovalAuditLog.request_id == request_id)
+        .order_by(FinancialApprovalAuditLog.created_at.asc())
+        .all()
+    )
+    return req, entries
+
+
+def get_approval_stats(db: Session, current_user: User) -> dict:
+    from sqlalchemy import func
+    from app.models.billing_reports import ApprovalRequest
+    q = scope_request_query(db.query(ApprovalRequest), db, current_user)
+    total    = q.count()
+    pending  = q.filter(ApprovalRequest.status == "pending").count()
+    approved = q.filter(ApprovalRequest.status == "approved").count()
+    rejected = q.filter(ApprovalRequest.status == "rejected").count()
+    by_entity = (
+        q.with_entities(ApprovalRequest.entity_type, func.count(ApprovalRequest.id))
+        .group_by(ApprovalRequest.entity_type)
+        .all()
+    )
+    return {
+        "total": total,
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
+        "by_entity_type": {e: c for e, c in by_entity},
+    }
+
+
 # ── Private helpers ────────────────────────────────────────────────────────────
 
 def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> bool:

@@ -49,8 +49,10 @@ def list_catalog_payload(db: Session, public_only: bool = False) -> list[dict]:
     return result
 
 
-def create_category_record(payload) -> ServiceCategory:
-    return ServiceCategory(**payload.model_dump())
+def create_category_record(db: Session, payload) -> ServiceCategory:
+    c = ServiceCategory(**payload.model_dump())
+    db.add(c)
+    return c
 
 
 def get_category_or_404(db: Session, cat_id: str) -> ServiceCategory:
@@ -72,8 +74,10 @@ def deactivate_category_record(db: Session, cat_id: str) -> None:
     category.is_active = False
 
 
-def create_service_record(payload) -> ServiceItem:
-    return ServiceItem(**payload.model_dump())
+def create_service_record(db: Session, payload) -> ServiceItem:
+    s = ServiceItem(**payload.model_dump())
+    db.add(s)
+    return s
 
 
 def get_service_or_404(db: Session, service_id: str) -> ServiceItem:

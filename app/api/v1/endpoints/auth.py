@@ -231,10 +231,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
             detail=f"Demasiados intentos fallidos. Intenta de nuevo en {lock_ttl}s.",
         )
 
-    user = db.query(User).filter(
-        (User.username == payload.username) | (User.email == payload.username),
-        User.is_active == True,
-    ).first()
+    user = _svc.lookup_user_by_credentials(db, payload.username)
 
     if not user or not user.hashed_password:
         lock_for = _register_login_failure(bucket)
@@ -304,19 +301,14 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     # Enforce MFA: users with TOTP or registered passkeys must complete
     # a second factor challenge before receiving auth tokens.
     has_totp = bool(user.mfa_enabled and user.mfa_secret)
-    has_passkeys = (
-        db.query(WebAuthnCredential.id)
-        .filter(WebAuthnCredential.user_id == user.id, WebAuthnCredential.is_active == True)
-        .first()
-        is not None
-    )
+    has_passkeys = _svc.user_has_passkeys(db, user.id)
     if has_totp or has_passkeys:
         methods = []
         if has_totp:
             methods.append("totp")
         if has_passkeys:
             methods.append("webauthn")
-        db.commit()
+        _svc.commit_db(db)
         return TokenResponse(
             user=UserPublic.model_validate(user),
             mfa_required=True,
@@ -335,7 +327,7 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
         auth_method="password",
     )
     try:
-        db.commit()
+        _svc.commit_db(db)
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al iniciar sesión. Inténtalo de nuevo.")
@@ -362,7 +354,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not token_data or token_data.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Refresh token inválido")
 
-    user = db.query(User).filter(User.id == token_data["sub"], User.is_active == True).first()
+    user = _svc.lookup_user_by_id_active(db, token_data["sub"])
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
 
@@ -371,15 +363,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not token_jti:
         raise HTTPException(status_code=401, detail="Refresh token inválido")
 
-    active_session = (
-        db.query(UserSession)
-        .filter(
-            UserSession.user_id == user.id,
-            UserSession.refresh_token_jti == token_jti,
-            UserSession.revoked_at.is_(None),
-        )
-        .first()
-    )
+    active_session = _svc.lookup_active_refresh_session(db, user.id, token_jti)
     if active_session is None:
         raise HTTPException(status_code=401, detail="Refresh token ya fue utilizado o es inválido. Por seguridad, debes iniciar sesión de nuevo.")
 
@@ -394,7 +378,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
         previous_refresh_token_jti=token_jti,
         auth_method="refresh",
     )
-    db.commit()
+    _svc.commit_db(db)
 
     _set_auth_cookies(response, access_token, new_refresh_token)
 
@@ -418,7 +402,7 @@ def logout(
         refresh_token_jti=_current_refresh_jti(request),
         reason="logout",
     )
-    db.commit()
+    _svc.commit_db(db)
     response.delete_cookie("access_token", **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh", **_COOKIE_OPTS)
     return {"detail": "Sesión cerrada correctamente"}
@@ -437,17 +421,14 @@ def password_forgot(request: Request, payload: PasswordForgotRequest, db: Sessio
             )
 
     if identifier:
-        user = db.query(User).filter(
-            ((User.email == identifier) | (User.username == identifier)),
-            User.is_active == True,
-        ).first()
+        user = _svc.lookup_user_by_identifier(db, identifier)
         if user and user.email and user.hashed_password:
             try:
                 token = _issue_password_reset_token(user)
                 reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
                 _send_password_reset_email(user.email, reset_link)
                 audit_log(db, user, "PASSWORD_RESET_REQUEST", "users", user.id, user.full_name)
-                db.commit()
+                _svc.commit_db(db)
             except Exception as exc:
                 logger.warning("Password reset email send failed for user_id=%s: %s", user.id, exc)
 
@@ -466,7 +447,7 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
     if not user_id:
         raise HTTPException(401, "Token de restablecimiento inválido o expirado")
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
         raise HTTPException(401, "Token de restablecimiento inválido o expirado")
 
@@ -474,21 +455,8 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
     if not ok:
         raise HTTPException(400, reason or "La contraseña no cumple la política de seguridad")
 
-    user.hashed_password = get_password_hash(payload.new_password)
-
-    now = datetime.now(timezone.utc)
-    db.query(UserSession).filter(
-        UserSession.user_id == user.id,
-        UserSession.revoked_at.is_(None),
-    ).update(
-        {
-            "revoked_at": now,
-            "revoke_reason": "password_reset",
-        },
-        synchronize_session=False,
-    )
     audit_log(db, user, "PASSWORD_RESET_COMPLETE", "users", user.id, user.full_name)
-    db.commit()
+    _svc.complete_password_reset(db, user, get_password_hash(payload.new_password))
 
     return {"ok": True, "message": "Contraseña actualizada correctamente"}
 
@@ -501,16 +469,7 @@ def list_active_sessions(
 ):
     current_jti = _current_refresh_jti(request)
     now = datetime.now(timezone.utc)
-    sessions = (
-        db.query(UserSession)
-        .filter(
-            UserSession.user_id == current_user.id,
-            UserSession.revoked_at.is_(None),
-            UserSession.expires_at > now,
-        )
-        .order_by(UserSession.last_seen_at.desc())
-        .all()
-    )
+    sessions = _svc.get_active_user_sessions(db, current_user.id, now)
     return [
         ActiveSessionOut(
             id=s.id,
@@ -541,21 +500,7 @@ def revoke_session(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    session = (
-        db.query(UserSession)
-        .filter(
-            UserSession.id == session_id,
-            UserSession.user_id == current_user.id,
-            UserSession.revoked_at.is_(None),
-        )
-        .first()
-    )
-    if not session:
-        raise HTTPException(404, "Sesión no encontrada")
-    session.revoked_at = datetime.now(timezone.utc)
-    session.revoke_reason = "user_revoked"
-    db.commit()
-    return {"ok": True}
+    return _svc.revoke_one_session(db, session_id, current_user.id)
 
 
 @router.post("/sessions/revoke-all", summary="Revocar todas las sesiones activas del usuario")
@@ -565,23 +510,7 @@ def revoke_all_sessions(
     current_user: User = Depends(get_current_user),
 ):
     current_jti = _current_refresh_jti(request)
-    now = datetime.now(timezone.utc)
-    active_sessions = (
-        db.query(UserSession)
-        .filter(
-            UserSession.user_id == current_user.id,
-            UserSession.revoked_at.is_(None),
-        )
-        .all()
-    )
-    revoked = 0
-    for s in active_sessions:
-        if current_jti and s.refresh_token_jti == current_jti:
-            continue
-        s.revoked_at = now
-        s.revoke_reason = "user_revoke_all"
-        revoked += 1
-    db.commit()
+    revoked = _svc.revoke_all_user_sessions_except_current(db, current_user.id, current_jti)
     return {"ok": True, "revoked": revoked}
 
 
@@ -594,17 +523,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 def list_sso_providers(db: Session = Depends(get_db)):
     """Devuelve los proveedores SSO activos para mostrar botones en el login."""
     try:
-        from app.models.enterprise import SSOConfig
-        configs = db.query(SSOConfig).filter(SSOConfig.is_active == True).all()
-        return [
-            {
-                "id":       c.id,
-                "provider": c.provider,
-                "name":     c.name or c.provider.replace("_", " ").title(),
-                "icon":     {"azure_ad": "🔵", "okta": "🟠", "google": "🔴", "saml": "🔐", "oidc": "🔑"}.get(c.provider, "🔑"),
-            }
-            for c in configs
-        ]
+        return _svc.get_active_sso_providers(db)
     except Exception:
         logger.warning("Failed to load SSO providers", exc_info=True)
         return []
@@ -629,34 +548,10 @@ def saml_metadata():
 
 @router.get("/saml/health", summary="Health de configuración SAML")
 def saml_health(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    from app.models.enterprise import SSOConfig
-
-    configs = db.query(SSOConfig).filter(SSOConfig.provider == "saml").all()
-    out = []
-    for c in configs:
-        issues = []
-        if not c.saml_entity_id:
-            issues.append("missing_entity_id")
-        if not c.saml_sso_url:
-            issues.append("missing_sso_url")
-        if not c.saml_certificate:
-            issues.append("missing_certificate")
-        cert = (c.saml_certificate or "").strip()
-        if cert and "BEGIN CERTIFICATE" not in cert:
-            issues.append("certificate_not_pem")
-        if c.allowed_domains:
-            domains = [d.strip().lower() for d in c.allowed_domains.split(",") if d.strip()]
-            if any("*" in d for d in domains):
-                issues.append("wildcard_domain_not_recommended")
-        out.append({
-            "id": c.id,
-            "is_active": c.is_active,
-            "issues": issues,
-            "healthy": len(issues) == 0,
-        })
+    saml_configs = _svc.get_saml_health(db)
     return {
         "metadata_url": f"{settings.BASE_URL}/api/v1/auth/saml/metadata",
-        "configs": out,
+        "configs": saml_configs,
     }
 
 
@@ -671,11 +566,10 @@ def sso_authorize(
     El frontend redirige al usuario a esta URL.
     """
     try:
-        from app.models.enterprise import SSOConfig
         import secrets
         import urllib.parse
-        config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_active == True).first()
-        if not config: raise HTTPException(404, "SSO no encontrado")
+
+        config = _svc.get_sso_config_or_404(db, config_id)
 
         # Security: validate redirect_uri against the allowed origins whitelist to
         # prevent open redirect attacks. The redirect_uri must start with one of the
@@ -685,45 +579,29 @@ def sso_authorize(
             raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
 
         state_raw = secrets.token_urlsafe(32)
-        # Firmar el state con HMAC para prevenir CSRF (validado en el callback)
-        import hmac
-        import hashlib
-        state_sig = hmac.new(
-            settings.SECRET_KEY.encode(),
-            state_raw.encode(),
-            hashlib.sha256,
-        ).hexdigest()
-        state = f"{state_raw}.{state_sig}"
-        _register_sso_state(state_raw)  # store for one-time use with TTL
+        import hmac as _hmac
+        import hashlib as _hashlib
+        sig = _hmac.new(settings.SECRET_KEY.encode(), state_raw.encode(), _hashlib.sha256).hexdigest()
+        state = f"{state_raw}.{sig}"
+        _register_sso_state(state_raw)
 
-        # Determinar authorization_endpoint según el proveedor
-        if config.provider == "azure_ad":
-            tenant = config.oidc_discovery_url.split("/")[3] if config.oidc_discovery_url else "common"
-            auth_url = f"{settings.MICROSOFT_OAUTH_BASE}/{tenant}/oauth2/v2.0/authorize"
-            scope = "openid profile email"
-        elif config.provider == "okta":
-            base = config.oidc_discovery_url.replace("/.well-known/openid-configuration", "") if config.oidc_discovery_url else ""
-            auth_url = f"{base}/v1/authorize"
-            scope = "openid profile email"
-        elif config.provider == "google":
-            auth_url = f"{settings.GOOGLE_OAUTH_BASE}/o/oauth2/v2/auth"
-            scope = "openid profile email"
+        # Determine authorization endpoint via OIDC discovery document
+        if config.oidc_discovery_url:
+            try:
+                import urllib.request
+                import json as _json
+                discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
+                with urllib.request.urlopen(discovery_url, timeout=5) as resp:
+                    disc = _json.loads(resp.read())
+                    auth_url = disc.get("authorization_endpoint", "")
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(500, "No se pudo obtener el discovery document")
         else:
-            # OIDC genérico: descubrir desde discovery_url
-            if config.oidc_discovery_url:
-                try:
-                    import urllib.request
-                    discovery_url = _validate_https_discovery_url(config.oidc_discovery_url)
-                    with urllib.request.urlopen(discovery_url, timeout=5) as resp:
-                        import json as _json
-                        disc = _json.loads(resp.read())
-                        auth_url = disc.get("authorization_endpoint", "")
-                except Exception:
-                    raise HTTPException(500, "No se pudo obtener el discovery document")
-            else:
-                raise HTTPException(400, "Falta oidc_discovery_url para proveedor OIDC genérico")
-            scope = "openid profile email"
+            raise HTTPException(400, "Falta oidc_discovery_url para proveedor OIDC genérico")
 
+        scope = "openid profile email"
         params = {
             "client_id":     config.oidc_client_id,
             "response_type": "code",
@@ -754,14 +632,11 @@ def sso_callback(
     lo intercambia por tokens, extrae el email, y crea/autentica al usuario.
     """
     try:
-        from app.models.enterprise import SSOConfig
-        from app.models.user import User as UserModel, UserRole, UserStatus
         import urllib.request
         import urllib.parse
         import json as _json
 
-        config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_active == True).first()
-        if not config: raise HTTPException(404, "SSO no encontrado")
+        config = _svc.get_sso_config_or_404(db, config_id)
 
         code         = payload.get("code")
         redirect_uri = payload.get("redirect_uri")
@@ -802,6 +677,8 @@ def sso_callback(
                     with urllib.request.urlopen(discovery_url, timeout=5) as resp:
                         disc = _json.loads(resp.read())
                         token_url = disc.get("token_endpoint", "")
+                except HTTPException:
+                    raise
                 except Exception:
                     raise HTTPException(500, "No se pudo obtener el token_endpoint")
             else:
@@ -862,6 +739,8 @@ def sso_callback(
                     status_code=502,
                     detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
                 )
+        except HTTPException:
+            raise
         except Exception as jwt_err:
             raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
 
@@ -884,35 +763,11 @@ def sso_callback(
             )
 
         # Buscar o crear usuario
-        user = db.query(UserModel).filter(UserModel.email == email).first()
-        if not user:
-            if not config.auto_create_users:
-                raise HTTPException(403, "El proveedor SSO no permite autocrear usuarios")
-            # Crear usuario automáticamente desde SSO
-            user = UserModel(
-                id=str(uuid.uuid4()),
-                email=email,
-                full_name=name or email.split("@")[0],
-                username=email.split("@")[0],
-                role=_resolve_sso_role(config.default_role),
-                status=UserStatus.active,
-                is_active=True,
-                organization_id=_resolve_sso_organization_id(db, config, email),
-                sso_provider=config.provider,
-                sso_subject=claims.get("sub"),
-            )
-            db.add(user); db.commit(); db.refresh(user)
-        elif not user.is_active:
-            raise HTTPException(403, "Usuario desactivado")
+        user = _svc.create_or_update_sso_user(db, config, email, name, claims)
 
         # Enforce MFA for SSO users too (TOTP or WebAuthn passkeys).
-        has_totp = bool(user.mfa_enabled and user.mfa_secret)
-        has_passkeys = (
-            db.query(WebAuthnCredential.id)
-            .filter(WebAuthnCredential.user_id == user.id, WebAuthnCredential.is_active == True)
-            .first()
-            is not None
-        )
+        has_totp    = bool(user.mfa_enabled and user.mfa_secret)
+        has_passkeys = _svc.user_has_passkeys(db, user.id)
         if has_totp or has_passkeys:
             methods = []
             if has_totp:
@@ -920,18 +775,17 @@ def sso_callback(
             if has_passkeys:
                 methods.append("webauthn")
             return {
-                "token_type": "bearer",
-                "mfa_required": True,
+                "token_type":         "bearer",
+                "mfa_required":       True,
                 "mfa_challenge_token": _issue_mfa_challenge(db, user),
-                "mfa_methods": methods,
+                "mfa_methods":        methods,
                 "user": {
                     "id": user.id, "email": user.email,
                     "full_name": user.full_name,
                     "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-                }
+                },
             }
 
-        # Emitir JWT propio con rotación de refresh token
         access_token = create_access_token(subject=user.id, extra={"role": user.role})
         new_refresh_token, new_jti = create_refresh_token(subject=user.id)
         register_or_rotate_user_session(
@@ -941,10 +795,8 @@ def sso_callback(
             refresh_token_jti=new_jti,
             auth_method="sso",
         )
-        db.commit()
-
+        _svc.commit_db(db)
         _set_auth_cookies(response, access_token, new_refresh_token)
-
         return {
             "access_token":  access_token,
             "refresh_token": new_refresh_token,
@@ -953,7 +805,7 @@ def sso_callback(
                 "id": user.id, "email": user.email,
                 "full_name": user.full_name,
                 "role": user.role.value if hasattr(user.role, "value") else str(user.role),
-            }
+            },
         }
 
     except HTTPException:
@@ -1005,7 +857,7 @@ def mfa_setup(
     # Guardar secreto temporal cifrado (aún no activado)
     current_user.mfa_secret = encrypt_value(secret)
     current_user.mfa_enabled = False
-    db.commit()
+    _svc.commit_db(db)
 
     return {
         "secret":           secret,
@@ -1049,7 +901,7 @@ def mfa_verify_setup(
         raise HTTPException(400, "Código incorrecto o expirado. Asegúrate de que la hora del dispositivo es correcta.")
 
     current_user.mfa_enabled = True
-    db.commit()
+    _svc.commit_db(db)
 
     return {"ok": True, "message": "Autenticación de dos factores activada correctamente"}
 
@@ -1079,7 +931,7 @@ def mfa_validate(
     challenge_data, challenge_row = _read_mfa_challenge(db, challenge_token)
     user_id = challenge_data.get("sub")
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     if not user.mfa_enabled or not user.mfa_secret:
@@ -1117,7 +969,7 @@ def mfa_validate(
             )
     except Exception:  # noqa: BLE001
         pass
-    db.commit()
+    _svc.commit_db(db)
 
     _set_auth_cookies(response, access_token, new_refresh_token)
 
@@ -1146,10 +998,7 @@ def webauthn_register_start(
     except ImportError:
         raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
 
-    existing = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.user_id == current_user.id,
-        WebAuthnCredential.is_active == True,
-    ).all()
+    existing = _svc.get_active_user_credentials(db, current_user.id)
     exclude_credentials = [
         PublicKeyCredentialDescriptor(id=_b64url_decode(c.credential_id)) for c in existing
     ]
@@ -1209,28 +1058,17 @@ def webauthn_register_finish(
         raise HTTPException(400, f"Registro WebAuthn inválido: {exc}")
 
     credential_id = _b64url_encode(verification.credential_id)
-    existing = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.credential_id == credential_id
-    ).first()
-    if existing and existing.user_id != current_user.id:
-        raise HTTPException(409, "La passkey ya está registrada para otro usuario")
-    if existing:
-        existing.public_key = _b64url_encode(verification.credential_public_key)
-        existing.sign_count = int(verification.sign_count)
-        existing.is_active = True
-        existing.name = nickname or existing.name
-    else:
-        db.add(WebAuthnCredential(
-            user_id=current_user.id,
-            credential_id=credential_id,
-            public_key=_b64url_encode(verification.credential_public_key),
-            sign_count=int(verification.sign_count),
-            transports=json.dumps(credential.get("response", {}).get("transports", [])),
-            name=nickname,
-            is_active=True,
-        ))
+    _svc.upsert_webauthn_credential(
+        db=db,
+        current_user_id=current_user.id,
+        credential_id=credential_id,
+        public_key=_b64url_encode(verification.credential_public_key),
+        sign_count=int(verification.sign_count),
+        transports=json.dumps(credential.get("response", {}).get("transports", [])),
+        nickname=nickname,
+    )
     current_user.mfa_enabled = True
-    db.commit()
+    _svc.commit_db(db)
     return {"ok": True, "message": "Passkey registrada correctamente"}
 
 
@@ -1239,10 +1077,7 @@ def webauthn_list_credentials(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    creds = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.user_id == current_user.id,
-        WebAuthnCredential.is_active == True,
-    ).order_by(WebAuthnCredential.created_at.desc()).all()
+    creds = _svc.get_active_user_credentials(db, current_user.id)
     return [
         {
             "id": c.id,
@@ -1260,22 +1095,14 @@ def webauthn_delete_credential(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    cred = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.id == credential_id,
-        WebAuthnCredential.user_id == current_user.id,
-        WebAuthnCredential.is_active == True,
-    ).first()
+    cred = _svc.get_active_webauthn_credential(db, credential_id, current_user.id)
     if not cred:
         raise HTTPException(404, "Passkey no encontrada")
     cred.is_active = False
-    remaining = db.query(WebAuthnCredential.id).filter(
-        WebAuthnCredential.user_id == current_user.id,
-        WebAuthnCredential.is_active == True,
-        WebAuthnCredential.id != credential_id,
-    ).first()
+    remaining = _svc.has_remaining_active_credentials(db, current_user.id, credential_id)
     if not remaining and not current_user.mfa_secret:
         current_user.mfa_enabled = False
-    db.commit()
+    _svc.commit_db(db)
     return {"ok": True}
 
 
@@ -1297,14 +1124,11 @@ def webauthn_auth_start(
         raise HTTPException(400, "mfa_challenge_token requerido")
     mfa_data, _ = _read_mfa_challenge(db, mfa_challenge_token)
     user_id = mfa_data.get("sub")
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
 
-    creds = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.user_id == user.id,
-        WebAuthnCredential.is_active == True,
-    ).all()
+    creds = _svc.get_active_user_credentials(db, user.id)
     if not creds:
         raise HTTPException(400, "El usuario no tiene passkeys registradas")
 
@@ -1360,11 +1184,7 @@ def webauthn_auth_finish(
     if not credential_id:
         raise HTTPException(400, "Credential inválida")
 
-    cred = db.query(WebAuthnCredential).filter(
-        WebAuthnCredential.user_id == user_id,
-        WebAuthnCredential.credential_id == credential_id,
-        WebAuthnCredential.is_active == True,
-    ).first()
+    cred = _svc.get_webauthn_credential_for_auth(db, user_id, credential_id)
     if not cred:
         raise HTTPException(401, "Passkey no reconocida")
 
@@ -1381,7 +1201,7 @@ def webauthn_auth_finish(
     except Exception as exc:
         raise HTTPException(401, f"Autenticación WebAuthn inválida: {exc}")
 
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
 
@@ -1398,7 +1218,7 @@ def webauthn_auth_finish(
         refresh_token_jti=new_jti,
         auth_method="webauthn",
     )
-    db.commit()
+    _svc.commit_db(db)
 
     _set_auth_cookies(response, access_token, new_refresh_token)
     return {
@@ -1438,12 +1258,9 @@ def mfa_disable(
         raise HTTPException(401, "Código incorrecto")
 
     current_user.mfa_secret = None
-    has_passkeys = db.query(WebAuthnCredential.id).filter(
-        WebAuthnCredential.user_id == current_user.id,
-        WebAuthnCredential.is_active == True,
-    ).first() is not None
+    has_passkeys = _svc.user_has_passkeys(db, current_user.id)
     current_user.mfa_enabled = bool(has_passkeys)
-    db.commit()
+    _svc.commit_db(db)
     if has_passkeys:
         return {"ok": True, "message": "TOTP desactivado. Tu cuenta mantiene protección con passkeys."}
     return {"ok": True, "message": "2FA desactivado"}
@@ -1467,6 +1284,6 @@ def change_password(
     if not verify_password(current_pw, current_user.hashed_password):
         raise HTTPException(403, "Contraseña actual incorrecta")
     current_user.hashed_password = get_password_hash(new_pw)
-    db.commit()
+    _svc.commit_db(db)
     return {"ok": True, "message": "Contraseña actualizada correctamente"}
 

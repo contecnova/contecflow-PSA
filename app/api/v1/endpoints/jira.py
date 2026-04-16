@@ -17,99 +17,24 @@ Endpoints:
 from __future__ import annotations
 
 import base64
-import hashlib
 import datetime
-import json
 import logging
 from typing import Optional, List
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.models.user import User
-from app.models.settings import AppSetting
-from app.models.task import Task
-from app.models.project import Project
 from app.services.pagination_service import paginate_query
+from app.services import jira_service
+from app.services.jira_service import JIRA_STATUS_MAP, JIRA_PRIORITY_MAP
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jira", tags=["Jira Integration"])
-
-# ── helpers ────────────────────────────────────────────────────────────────────
-
-def _get_setting(key: str, db: Session, org_id: Optional[str] = None) -> Optional[str]:
-    """Return the tenant-specific setting first, then fall back to the global row."""
-    if org_id:
-        row = db.query(AppSetting).filter(
-            AppSetting.key == key, AppSetting.organization_id == org_id
-        ).first()
-        if row:
-            return row.value
-    # Fall back to global (org_id IS NULL) — TenantSession already includes these.
-    row = db.query(AppSetting).filter(
-        AppSetting.key == key, AppSetting.organization_id.is_(None)
-    ).first()
-    return row.value if row else None
-
-def _set_setting(key: str, value: str, db: Session, org_id: Optional[str] = None):
-    """Upsert a setting, scoped to *org_id* when provided."""
-    q = db.query(AppSetting).filter(AppSetting.key == key)
-    if org_id:
-        q = q.filter(AppSetting.organization_id == org_id)
-    else:
-        q = q.filter(AppSetting.organization_id.is_(None))
-    row = q.first()
-    if row:
-        row.value = value
-    else:
-        db.add(AppSetting(key=key, value=value, organization_id=org_id,
-                          description=f"Jira integration: {key}"))
-    db.flush()
-
-def _jira_headers(email: str, token: str) -> dict:
-    creds = base64.b64encode(f"{email}:{token}".encode()).decode()
-    return {
-        "Authorization": f"Basic {creds}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-
-def _get_jira_config(db: Session, org_id: Optional[str] = None) -> dict:
-    return {
-        "jira_url":         _get_setting("jira_url",         db, org_id),
-        "jira_email":       _get_setting("jira_email",       db, org_id),
-        "jira_api_token":   _get_setting("jira_api_token",   db, org_id),
-        "jira_project_key": _get_setting("jira_project_key", db, org_id),
-    }
-
-# Jira issue status → NexusPM task status mapping
-JIRA_STATUS_MAP = {
-    "to do":        "todo",
-    "open":         "todo",
-    "backlog":      "backlog",
-    "in progress":  "in_progress",
-    "in review":    "in_review",
-    "done":         "done",
-    "closed":       "done",
-    "resolved":     "done",
-    "cancelled":    "cancelled",
-    "won't fix":    "cancelled",
-}
-
-JIRA_PRIORITY_MAP = {
-    "blocker":   "critical",
-    "critical":  "critical",
-    "highest":   "critical",
-    "high":      "high",
-    "medium":    "medium",
-    "low":       "low",
-    "lowest":    "low",
-    "trivial":   "low",
-}
 
 # NexusPM → Jira status mapping
 NM_TO_JIRA_STATUS = {
@@ -136,18 +61,29 @@ class JiraConfigIn(BaseModel):
 
 
 class JiraSyncIn(BaseModel):
-    project_key:    Optional[str] = None   # override default project key
-    project_id:     Optional[str] = None   # NexusPM project to link tasks to
+    project_key:    Optional[str] = None
+    project_id:     Optional[str] = None
     max_results:    int = 100
-    since_days:     int = 30               # only sync issues updated in last N days
+    since_days:     int = 30
     dry_run:        bool = False
 
 
 class JiraPushIn(BaseModel):
-    project_id:     str                    # NexusPM project to push
+    project_id:       str
     jira_project_key: Optional[str] = None
-    statuses:       List[str] = ["todo", "backlog", "in_progress", "in_review"]
-    dry_run:        bool = False
+    statuses:         List[str] = ["todo", "backlog", "in_progress", "in_review"]
+    dry_run:          bool = False
+
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+def _jira_headers(email: str, token: str) -> dict:
+    creds = base64.b64encode(f"{email}:{token}".encode()).decode()
+    return {
+        "Authorization": f"Basic {creds}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────
@@ -157,11 +93,10 @@ def get_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    cfg = _get_jira_config(db, current_user.organization_id)
+    cfg = jira_service.get_jira_config(db, current_user.organization_id)
     safe = {k: v for k, v in cfg.items() if k != "jira_api_token"}
     safe["configured"] = bool(cfg.get("jira_url") and cfg.get("jira_api_token"))
     if cfg.get("jira_api_token"):
-        # Return masked token (last 4 chars)
         safe["jira_api_token_hint"] = "••••" + cfg["jira_api_token"][-4:]
     return safe
 
@@ -172,12 +107,14 @@ def save_jira_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    org_id = current_user.organization_id
-    _set_setting("jira_url",         payload.jira_url,         db, org_id)
-    _set_setting("jira_email",       payload.jira_email,       db, org_id)
-    _set_setting("jira_api_token",   payload.jira_api_token,   db, org_id)
-    _set_setting("jira_project_key", payload.jira_project_key, db, org_id)
-    db.commit()
+    jira_service.save_jira_config(
+        db,
+        org_id=current_user.organization_id,
+        jira_url=payload.jira_url,
+        jira_email=payload.jira_email,
+        jira_api_token=payload.jira_api_token,
+        jira_project_key=payload.jira_project_key,
+    )
     return {"ok": True, "message": "Configuración Jira guardada"}
 
 
@@ -186,7 +123,7 @@ def test_jira_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    cfg = _get_jira_config(db, current_user.organization_id)
+    cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado. Ve a /jira/config primero.")
     try:
@@ -218,7 +155,7 @@ def list_jira_issues(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    cfg = _get_jira_config(db, current_user.organization_id)
+    cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
     key = project_key or cfg["jira_project_key"]
@@ -269,7 +206,7 @@ def sync_jira_to_nexus(
     Pulls issues from Jira and creates or updates corresponding NexusPM Tasks.
     Matching is done by jira_issue_key on the Task model.
     """
-    cfg = _get_jira_config(db, current_user.organization_id)
+    cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
 
@@ -297,73 +234,19 @@ def sync_jira_to_nexus(
         raise HTTPException(502, f"Error Jira: {str(e)[:200]}")
 
     issues = resp.json().get("issues", [])
-    created = updated = skipped = 0
-
-    for iss in issues:
-        f = iss.get("fields", {})
-        jira_key = iss["key"]
-        jira_id  = iss["id"]
-        title    = f.get("summary") or jira_key
-        raw_status   = (f.get("status", {}).get("name") or "").lower()
-        raw_priority = (f.get("priority", {}).get("name") or "").lower()
-        nm_status    = JIRA_STATUS_MAP.get(raw_status, "todo")
-        nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority, "medium")
-        due_date     = f.get("duedate")
-
-        # Description: Jira uses Atlassian Document Format (ADF) — extract plain text
-        desc_adf = f.get("description")
-        desc_text = None
-        if desc_adf and isinstance(desc_adf, dict):
-            # Best-effort plain text extraction from ADF
-            parts = []
-            def _extract_text(node):
-                if isinstance(node, dict):
-                    if node.get("type") == "text":
-                        parts.append(node.get("text", ""))
-                    for child in node.get("content", []):
-                        _extract_text(child)
-            _extract_text(desc_adf)
-            desc_text = " ".join(parts).strip() or None
-
-        # Find existing task by jira_issue_key
-        existing = db.query(Task).filter(Task.jira_issue_key == jira_key).first()
-
-        if existing:
-            if not payload.dry_run:
-                existing.status         = nm_status
-                existing.priority       = nm_priority
-                existing.jira_issue_id  = jira_id
-                existing.jira_synced_at = datetime.datetime.now(datetime.timezone.utc)
-                if due_date:
-                    existing.due_date = due_date
-            updated += 1
-        else:
-            if not payload.dry_run:
-                task = Task(
-                    title=title,
-                    description=desc_text,
-                    status=nm_status,
-                    priority=nm_priority,
-                    due_date=due_date,
-                    project_id=payload.project_id,
-                    jira_issue_key=jira_key,
-                    jira_issue_id=jira_id,
-                    jira_synced_at=datetime.datetime.now(datetime.timezone.utc),
-                    created_by_user_id=current_user.id,
-                )
-                db.add(task)
-            created += 1
-
-    if not payload.dry_run:
-        db.commit()
+    stats = jira_service.sync_jira_issues(
+        db,
+        issues=issues,
+        project_id=payload.project_id,
+        current_user_id=current_user.id,
+        dry_run=payload.dry_run,
+    )
 
     return {
         "ok": True,
         "dry_run": payload.dry_run,
         "issues_fetched": len(issues),
-        "created": created,
-        "updated": updated,
-        "skipped": skipped,
+        **stats,
     }
 
 
@@ -377,7 +260,7 @@ def push_nexus_to_jira(
     For each NexusPM task in the project that has no jira_issue_key,
     creates a new Jira issue and stores the returned key back on the task.
     """
-    cfg = _get_jira_config(db, current_user.organization_id)
+    cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
         raise HTTPException(400, "Jira no configurado.")
 
@@ -385,27 +268,22 @@ def push_nexus_to_jira(
     if not proj_key:
         raise HTTPException(400, "Proporciona jira_project_key.")
 
-    tasks = (
-        db.query(Task)
-        .filter(
-            Task.project_id == payload.project_id,
-            Task.status.in_(payload.statuses),
-            Task.jira_issue_key == None,  # noqa: E711
-        )
-        .all()
-    )
+    tasks = jira_service.get_tasks_for_push(db, payload.project_id, payload.statuses)
 
-    NEXUS_PRIORITY_TO_JIRA = {"critical": "Highest", "high": "High", "medium": "Medium", "low": "Low", "none": "Medium"}
+    NEXUS_PRIORITY_TO_JIRA = {
+        "critical": "Highest", "high": "High",
+        "medium": "Medium", "low": "Low", "none": "Medium",
+    }
     created = skipped = errors = 0
     errs = []
 
     for task in tasks:
         jira_payload = {
             "fields": {
-                "project": {"key": proj_key},
-                "summary": task.title,
+                "project":   {"key": proj_key},
+                "summary":   task.title,
                 "issuetype": {"name": "Task"},
-                "priority": {"name": NEXUS_PRIORITY_TO_JIRA.get(task.priority or "medium", "Medium")},
+                "priority":  {"name": NEXUS_PRIORITY_TO_JIRA.get(task.priority or "medium", "Medium")},
             }
         }
         if task.description:
@@ -438,7 +316,7 @@ def push_nexus_to_jira(
             errs.append({"task_id": task.id, "error": str(e)[:100]})
 
     if not payload.dry_run:
-        db.commit()
+        jira_service.commit_db(db)
 
     return {
         "ok": True,
@@ -471,32 +349,17 @@ def jira_webhook(
     if not jira_key:
         return {"ok": True, "ignored": True}
 
-    fields = issue.get("fields", {})
+    fields       = issue.get("fields", {})
     raw_status   = (fields.get("status", {}).get("name") or "").lower()
     raw_priority = (fields.get("priority", {}).get("name") or "").lower()
+    nm_status    = JIRA_STATUS_MAP.get(raw_status)
+    nm_priority  = JIRA_PRIORITY_MAP.get(raw_priority)
 
-    nm_status   = JIRA_STATUS_MAP.get(raw_status)
-    nm_priority = JIRA_PRIORITY_MAP.get(raw_priority)
-
-    task = db.query(Task).filter(Task.jira_issue_key == jira_key).first()
+    task = jira_service.get_task_by_jira_key(db, jira_key)
     if not task:
         return {"ok": True, "message": f"No task linked to {jira_key}"}
 
-    changed = False
-    if nm_status and task.status != nm_status:
-        task.status = nm_status
-        changed = True
-    if nm_priority and task.priority != nm_priority:
-        task.priority = nm_priority
-        changed = True
-    if event in ("jira:issue_deleted",):
-        task.jira_issue_key = None
-        task.jira_issue_id  = None
-        changed = True
-    if changed:
-        task.jira_synced_at = datetime.datetime.now(datetime.timezone.utc)
-        db.commit()
-
+    changed = jira_service.update_task_from_webhook(db, task, nm_status, nm_priority, event)
     return {"ok": True, "jira_key": jira_key, "updated": changed}
 
 
@@ -508,11 +371,10 @@ def get_linked_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(Task).filter(Task.jira_issue_key != None)  # noqa: E711
-    if project_id:
-        q = q.filter(Task.project_id == project_id)
-    tasks, _, _ = paginate_query(q.order_by(Task.updated_at.desc()), page, page_size)
-    jira_url = _get_setting("jira_url", db, current_user.organization_id)
+    q = jira_service.get_linked_tasks_query(db, project_id)
+    from app.models.task import Task as TaskModel
+    tasks, _, _ = paginate_query(q.order_by(TaskModel.updated_at.desc()), page, page_size)
+    jira_url = jira_service.get_setting(db, "jira_url", current_user.organization_id)
     return [
         {
             "id": t.id, "title": t.title, "status": t.status,

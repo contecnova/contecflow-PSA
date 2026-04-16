@@ -27,6 +27,13 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.core.config import settings
+from app.services.resource_analytics import (
+    get_user_week_hours as _svc_user_week_hours,
+    get_forecast_active_users,
+    get_forecast_user_by_id,
+    get_forecast_project_names,
+    get_forecast_past_imputations,
+)
 
 router = APIRouter(prefix="/resource-forecast", tags=["resource-forecast"])
 
@@ -43,77 +50,8 @@ def _week_label(d: date) -> str:
 
 
 def _compute_user_week_hours(user_id: str, week_start: date, db: Session) -> dict:
-    """
-    Calcula las horas comprometidas de un usuario en una semana concreta.
-    Suma: bookings + capacity_plans + vacaciones.
-    """
-    from app.models.bookings import ResourceBooking
-    from app.models.financial import CapacityPlan
-
-    week_end = week_start + timedelta(days=6)
-
-    # 1. ResourceBookings que solapan con la semana
-    bookings = db.query(ResourceBooking).filter(
-        ResourceBooking.user_id == user_id,
-        ResourceBooking.start_date <= week_end,
-        ResourceBooking.end_date   >= week_start,
-    ).all()
-
-    booking_hours = 0.0
-    booking_projects = {}
-    for b in bookings:
-        # Días de solapamiento
-        overlap_start = max(b.start_date, week_start)
-        overlap_end   = min(b.end_date,   week_end)
-        days = max(0, (overlap_end - overlap_start).days + 1)
-        # Solo días laborables (lun-vie)
-        work_days = sum(1 for i in range(days)
-                        if (overlap_start + timedelta(days=i)).weekday() < 5)
-        h = work_days * (b.hours_per_day or 8)
-        booking_hours += h
-        pid = str(b.project_id) if b.project_id else "unassigned"
-        booking_projects[pid] = booking_projects.get(pid, 0) + h
-
-    # 2. CapacityPlan para esa semana
-    cp = db.query(CapacityPlan).filter(
-        CapacityPlan.user_id    == user_id,
-        CapacityPlan.week_start == week_start,
-    ).all()
-    capacity_hours = sum(c.planned_hours for c in cp)
-    for c in cp:
-        pid = str(c.project_id) if c.project_id else "unassigned"
-        booking_projects[pid] = booking_projects.get(pid, 0) + c.planned_hours
-
-    # 3. Ausencias aprobadas — solo días que solapan con la semana consultada
-    try:
-        from app.models.resources import Absence as AbsenceModel
-        absences = db.query(AbsenceModel).filter(
-            AbsenceModel.user_id == user_id,
-            AbsenceModel.status  == "approved",
-            AbsenceModel.start_date <= week_end,
-            AbsenceModel.end_date   >= week_start,
-        ).all()
-        absence_hours = 0.0
-        for a in absences:
-            overlap_start = max(a.start_date, week_start)
-            overlap_end   = min(a.end_date, week_end)
-            days = max(0, (overlap_end - overlap_start).days + 1)
-            work_days = sum(1 for i in range(days)
-                            if (overlap_start + timedelta(days=i)).weekday() < 5)
-            absence_hours += work_days * 8  # 8h por día laborable
-    except Exception:
-        absence_hours = 0
-
-    # Horas comprometidas = bookings + capacity plans (fuentes independientes de planificación)
-    # Las ausencias reducen la capacidad disponible, no se suman a la carga comprometida
-    total = booking_hours + capacity_hours
-    return {
-        "committed_hours":  round(total, 1),
-        "booking_hours":    round(booking_hours, 1),
-        "capacity_hours":   round(capacity_hours, 1),
-        "absence_hours":    round(absence_hours, 1),
-        "projects":         {k: round(v, 1) for k, v in booking_projects.items()},
-    }
+    """Delegate to the service layer."""
+    return _svc_user_week_hours(db, user_id, week_start)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -138,10 +76,7 @@ def forecast_heatmap(
     week_dates = _weeks_range(start, weeks)
 
     # Usuarios activos
-    q = db.query(User).filter(User.is_active == True)
-    if department:
-        q = q.filter(User.department == department)
-    users = q.order_by(User.full_name).all()
+    users = get_forecast_active_users(db, department=department)
 
     # Proyectos pipeline (won/negotiation) para incluir carga futura estimada
     try:
@@ -210,7 +145,7 @@ def forecast_user_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    u = db.query(User).filter(User.id == user_id).first()
+    u = get_forecast_user_by_id(db, user_id)
     if not u:
         from fastapi import HTTPException
         raise HTTPException(404)
@@ -220,8 +155,7 @@ def forecast_user_detail(
     capacity   = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
 
     # Nombres de proyectos
-    from app.models.project import Project
-    project_names = {str(p.id): p.name for p in db.query(Project).all()}
+    project_names = get_forecast_project_names(db)
 
     weeks_detail = []
     for w in week_dates:
@@ -277,10 +211,7 @@ def find_available(
         week_dates.append(w)
         w += timedelta(weeks=1)
 
-    q = db.query(User).filter(User.is_active == True)
-    if department: q = q.filter(User.department == department)
-    if role:       q = q.filter(User.role == role)
-    users = q.all()
+    users = get_forecast_active_users(db, department=department, role=role)
 
     result = []
     for u in users:
@@ -326,9 +257,7 @@ def forecast_summary(
     start      = _monday(date.today())
     week_dates = _weeks_range(start, weeks)
 
-    q = db.query(User).filter(User.is_active == True)
-    if department: q = q.filter(User.department == department)
-    users = q.all()
+    users = get_forecast_active_users(db, department=department)
 
     if not users:
         return {"total_users": 0, "weeks": weeks}
@@ -395,10 +324,6 @@ def utilization_trend(
         users: [{user_id, user_name, series: [{week, pct, hours, capacity, is_future}]}]
     }
     """
-    from app.models.imputation import Imputation
-    from app.models.bookings import ResourceBooking
-    from sqlalchemy import func as sqlfunc
-
     today = date.today()
     past_start  = _monday(today) - timedelta(weeks=weeks_past)
     future_end  = _monday(today) + timedelta(weeks=weeks_future)
@@ -411,12 +336,7 @@ def utilization_trend(
         w += timedelta(weeks=1)
 
     # Resolve users
-    user_q = db.query(User).filter(User.is_active == True)
-    if user_id:
-        user_q = user_q.filter(User.id == user_id)
-    if department:
-        user_q = user_q.filter(User.department == department)
-    users = user_q.all()
+    users = get_forecast_active_users(db, department=department, user_id=user_id)
 
     if not users:
         return {"weeks": [_week_label(w) for w in all_weeks], "team": [], "users": []}
@@ -426,16 +346,7 @@ def utilization_trend(
     # ── Past: aggregate actual hours from Imputation per user per week ─────────
     #   We bucket each imputation date into its ISO week (monday).
     #   SQLite/Postgres agnostic: fetch raw rows and group in Python for portability.
-    past_imputations = (
-        db.query(Imputation.user_id, Imputation.date, sqlfunc.sum(Imputation.hours).label("hours"))
-        .filter(
-            Imputation.user_id.in_(user_ids),
-            Imputation.date >= past_start,
-            Imputation.date < today,
-        )
-        .group_by(Imputation.user_id, Imputation.date)
-        .all()
-    )
+    past_imputations = get_forecast_past_imputations(db, user_ids, past_start, today)
 
     # {user_id: {week_monday: actual_hours}}
     actual: dict = {}

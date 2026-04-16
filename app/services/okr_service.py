@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import uuid as _uuid
+from typing import Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.okrs import Objective, KeyResult, KRCheckin
+from app.models.project import Project
 from app.models.task import Task, TaskStatus
+from app.models.user import User
 
 
 def calc_progress(kr: KeyResult) -> float:
@@ -143,3 +147,114 @@ def sync_kr_from_tasks(
         "project_progress_pct": progress_pct,
         "synced_from_project": obj.project_id,
     }
+
+
+# ── CRUD helpers ──────────────────────────────────────────────────────────────
+
+def list_objectives(
+    db: Session,
+    year: int,
+    period: Optional[str] = None,
+    status: Optional[str] = None,
+    owner_id: Optional[str] = None,
+    is_superadmin: bool = False,
+    organization_id: Optional[str] = None,
+) -> list:
+    q = db.query(Objective).options(
+        joinedload(Objective.key_results).joinedload(KeyResult.owner),
+        joinedload(Objective.owner),
+    ).filter(Objective.year == year)
+    if not is_superadmin and organization_id:
+        org_user_ids = db.query(User.id).filter(
+            User.organization_id == organization_id
+        ).scalar_subquery()
+        org_project_ids = db.query(Project.id).filter(
+            Project.organization_id == organization_id
+        ).scalar_subquery()
+        q = q.filter(
+            or_(
+                Objective.owner_id.in_(org_user_ids),
+                Objective.project_id.in_(org_project_ids),
+            )
+        )
+    if period:
+        q = q.filter(Objective.period == period)
+    if status:
+        q = q.filter(Objective.status == status)
+    if owner_id:
+        q = q.filter(Objective.owner_id == owner_id)
+    return q.order_by(Objective.created_at.desc()).all()
+
+
+def create_objective(db: Session, data: dict) -> Objective:
+    obj = Objective(id=str(_uuid.uuid4()), **data)
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_objective(db: Session, obj_id: str) -> Optional[Objective]:
+    return db.query(Objective).filter(Objective.id == obj_id).first()
+
+
+def update_objective(db: Session, obj: Objective, data: dict) -> Objective:
+    for k, v in data.items():
+        setattr(obj, k, v)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def delete_objective(db: Session, obj: Objective) -> None:
+    db.delete(obj)
+    db.commit()
+
+
+def get_key_result(db: Session, kr_id: str) -> Optional[KeyResult]:
+    return db.query(KeyResult).filter(KeyResult.id == kr_id).first()
+
+
+def create_kr(db: Session, data: dict) -> KeyResult:
+    kr = KeyResult(id=str(_uuid.uuid4()), **data)
+    db.add(kr)
+    db.commit()
+    db.refresh(kr)
+    return kr
+
+
+def update_kr(db: Session, kr: KeyResult, data: dict) -> KeyResult:
+    for k, v in data.items():
+        setattr(kr, k, v)
+    kr.progress = calc_progress(kr)
+    propagate_to_objective(db, kr)
+    db.commit()
+    db.refresh(kr)
+    return kr
+
+
+def delete_kr(db: Session, kr: KeyResult) -> None:
+    db.delete(kr)
+    db.commit()
+
+
+def checkin_kr(
+    db: Session,
+    kr: KeyResult,
+    value: float,
+    note: Optional[str],
+    author_id: str,
+) -> KeyResult:
+    c = KRCheckin(
+        id=str(_uuid.uuid4()),
+        kr_id=kr.id,
+        value=value,
+        note=note,
+        author_id=author_id,
+    )
+    db.add(c)
+    kr.current_value = value
+    kr.progress = calc_progress(kr)
+    propagate_to_objective(db, kr)
+    db.commit()
+    return kr

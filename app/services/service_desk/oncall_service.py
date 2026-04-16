@@ -51,8 +51,10 @@ def build_oncall_schedule(payload: OnCallScheduleIn) -> OnCallSchedule:
     return OnCallSchedule(**payload.model_dump())
 
 
-def create_oncall_schedule_record(payload: OnCallScheduleIn) -> OnCallSchedule:
-    return build_oncall_schedule(payload)
+def create_oncall_schedule_record(db, payload: OnCallScheduleIn) -> OnCallSchedule:
+    s = build_oncall_schedule(payload)
+    db.add(s)
+    return s
 
 
 def get_oncall_schedule_by_id(db: Session, schedule_id: str) -> OnCallSchedule:
@@ -77,6 +79,11 @@ def get_oncall_schedule_for_delete(db: Session, schedule_id: str) -> OnCallSched
     return get_oncall_schedule_by_id(db, schedule_id)
 
 
+def delete_oncall_schedule(db: Session, schedule_id: str) -> None:
+    s = get_oncall_schedule_by_id(db, schedule_id)
+    db.delete(s)
+
+
 def validate_oncall_entry_dates(payload: OnCallEntryIn) -> None:
     if payload.start_dt >= payload.end_dt:
         raise HTTPException(400, "start_dt must be before end_dt")
@@ -89,7 +96,9 @@ def build_oncall_entry(schedule_id: str, payload: OnCallEntryIn) -> OnCallEntry:
 def create_oncall_entry_record(db: Session, schedule_id: str, payload: OnCallEntryIn) -> OnCallEntry:
     get_oncall_schedule_by_id(db, schedule_id)
     validate_oncall_entry_dates(payload)
-    return build_oncall_entry(schedule_id, payload)
+    entry = build_oncall_entry(schedule_id, payload)
+    db.add(entry)
+    return entry
 
 
 def get_oncall_entry_by_id(db: Session, entry_id: str) -> OnCallEntry:
@@ -101,6 +110,11 @@ def get_oncall_entry_by_id(db: Session, entry_id: str) -> OnCallEntry:
 
 def get_oncall_entry_for_delete(db: Session, entry_id: str) -> OnCallEntry:
     return get_oncall_entry_by_id(db, entry_id)
+
+
+def delete_oncall_entry(db: Session, entry_id: str) -> None:
+    entry = get_oncall_entry_by_id(db, entry_id)
+    db.delete(entry)
 
 
 def list_current_oncall_entries_query(db: Session, group_id: Optional[str] = None):

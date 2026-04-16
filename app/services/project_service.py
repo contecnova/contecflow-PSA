@@ -478,18 +478,23 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
     project.status = ProjectStatus.cancelled
+    db.commit()
     return {"message": "Proyecto cancelado"}
 
 
 def add_project_phase_record(db: Session, project_id: str, payload):
-    """Return a new ProjectPhase after verifying the project exists."""
+    """Create, persist, and return a new ProjectPhase after verifying the project exists."""
     from app.models.project import Project, ProjectPhase
     from fastapi import HTTPException
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
-    return ProjectPhase(**payload.model_dump(), project_id=project_id)
+    phase = ProjectPhase(**payload.model_dump(), project_id=project_id)
+    db.add(phase)
+    db.commit()
+    db.refresh(phase)
+    return phase
 
 
 # ── Team / Members ─────────────────────────────────────────────────────────────
@@ -535,7 +540,7 @@ def list_members_payload(db: Session, project_id: str) -> list:
 
 
 def add_member_record(db: Session, project_id: str, data: dict):
-    """Validate and return a new ProjectMember (does NOT flush/commit). Raises on duplicate."""
+    """Validate, persist, commit, and return a new ProjectMember. Raises on duplicate."""
     from app.models.project import ProjectMember
     from fastapi import HTTPException
 
@@ -547,7 +552,7 @@ def add_member_record(db: Session, project_id: str, data: dict):
     ).first()
     if existing:
         raise HTTPException(409, "El usuario ya es miembro del proyecto")
-    return ProjectMember(
+    m = ProjectMember(
         project_id=project_id,
         user_id=data["user_id"],
         role=data.get("role", "developer"),
@@ -556,6 +561,10 @@ def add_member_record(db: Session, project_id: str, data: dict):
         end_date=data.get("end_date"),
         notes=data.get("notes"),
     )
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
 
 
 def get_member_or_404(db: Session, project_id: str, member_id: str):
@@ -569,3 +578,50 @@ def get_member_or_404(db: Session, project_id: str, member_id: str):
     if not m:
         raise HTTPException(404, "Miembro no encontrado")
     return m
+
+
+# ── Thin wrappers used by the router (all DB side-effects live here) ───────────
+
+def get_projects_base_query(db: Session):
+    """Return a base Project query with project_manager joinedload."""
+    from app.models.project import Project
+    from sqlalchemy.orm import joinedload
+    return db.query(Project).options(joinedload(Project.project_manager))
+
+
+def get_project_by_id(db: Session, project_id: str):
+    """Fetch a project by id without org scoping."""
+    from app.models.project import Project
+    return db.query(Project).filter(Project.id == project_id).first()
+
+
+def save_new_project(db: Session, payload, current_user):
+    """Create, commit, refresh and return a new Project."""
+    project = create_project_record(db, payload, current_user)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def update_and_save_project(db: Session, project, data: dict):
+    """Apply field updates, commit, refresh, and return the updated project."""
+    apply_project_update(db, project, data)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+def update_member_record(db: Session, m, data: dict):
+    """Apply field updates to a ProjectMember, commit, refresh, return it."""
+    for k, v in data.items():
+        if hasattr(m, k):
+            setattr(m, k, v)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def remove_member_record(db: Session, m) -> None:
+    """Delete a ProjectMember and commit."""
+    db.delete(m)
+    db.commit()

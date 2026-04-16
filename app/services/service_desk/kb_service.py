@@ -94,6 +94,7 @@ def build_kb_article(db: Session, payload, author_id: str) -> KBArticle:
     article = KBArticle(number=_next_kb_number(db), author_id=author_id, **payload.model_dump())
     if payload.status == "published":
         article.published_at = datetime.now(timezone.utc)
+    db.add(article)
     return article
 
 
@@ -102,6 +103,11 @@ def get_scoped_kb_article_or_404(db: Session, current_user: User, article_id: st
     if not article:
         raise HTTPException(404)
     return article
+
+
+def delete_kb_article(db: Session, current_user, article_id: str) -> None:
+    a = get_scoped_kb_article_or_404(db, current_user, article_id)
+    db.delete(a)
 
 
 def apply_kb_article_update(article: KBArticle, payload) -> None:

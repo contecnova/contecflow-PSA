@@ -2,10 +2,9 @@
 Sprints endpoint — full Scrum/Agile sprint management.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pydantic import BaseModel
 
 from app.db.session import get_db
@@ -13,8 +12,8 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.models.task import Task
 from app.models.sprints import Sprint, SprintTask, SprintStatus
-from app.models.project import Project
 from app.services.psa_flows import close_sprint_flow
+import app.services.sprint_service as svc
 
 router = APIRouter()
 
@@ -131,15 +130,13 @@ def list_all_sprints(
     """
     Lista sprints cross-proyecto. Útil para el calendario global.
     """
-    q = db.query(Sprint).options(joinedload(Sprint.project))
-    if not current_user.is_superadmin and current_user.organization_id:
-        org_project_ids = db.query(Project.id).filter(
-            Project.organization_id == current_user.organization_id
-        ).scalar_subquery()
-        q = q.filter(Sprint.project_id.in_(org_project_ids))
-    if status:
-        q = q.filter(Sprint.status == status)
-    sprints = q.order_by(Sprint.start_date.desc()).limit(limit).all()
+    sprints = svc.list_all_sprints(
+        db,
+        organization_id=current_user.organization_id,
+        is_superadmin=current_user.is_superadmin,
+        status=status,
+        limit=limit,
+    )
     return [
         {
             "id":           s.id,
@@ -163,12 +160,7 @@ def list_sprints(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task).joinedload(Task.assignee)
-    ).filter(Sprint.project_id == project_id)
-    if status:
-        q = q.filter(Sprint.status == status)
-    sprints = q.order_by(Sprint.number.desc()).all()
+    sprints = svc.list_sprints_for_project(db, project_id, status)
     return [_sprint_out(s, include_tasks=True) for s in sprints]
 
 
@@ -180,17 +172,18 @@ def create_sprint(
     current_user: User = Depends(require_any_manager),
 ):
     # Auto-number
-    max_num = db.query(func.max(Sprint.number)).filter(Sprint.project_id == project_id).scalar() or 0
+    number = svc.get_next_sprint_number(db, project_id)
     sprint = Sprint(
         project_id=project_id,
-        number=max_num + 1,
+        number=number,
         name=payload.name,
         goal=payload.goal,
         start_date=payload.start_date,
         end_date=payload.end_date,
         created_by=current_user.id,
     )
-    db.add(sprint); db.commit(); db.refresh(sprint)
+    svc.create_sprint(db, sprint)
+    db.refresh(sprint)
     return _sprint_out(sprint)
 
 
@@ -202,19 +195,17 @@ def update_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    sprint = db.query(Sprint).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
+    sprint = svc.get_sprint_simple(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(sprint, k, v)
 
-    db.commit()
+    svc.commit_db(db)
     db.refresh(sprint)
 
     # Reload with tasks
-    sprint = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task).joinedload(Task.assignee)
-    ).filter(Sprint.id == sprint_id).first()
+    sprint = svc.get_sprint_with_tasks_by_id(db, sprint_id)
     return _sprint_out(sprint, include_tasks=True)
 
 
@@ -225,15 +216,11 @@ def start_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    sprint = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task)
-    ).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
+    sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
     # Only one active sprint per project
-    active = db.query(Sprint).filter(
-        Sprint.project_id == project_id, Sprint.status == SprintStatus.active
-    ).first()
+    active = svc.get_active_sprint_for_project(db, project_id)
     if active and active.id != sprint_id:
         raise HTTPException(400, f"Ya hay un sprint activo: {active.name}")
 
@@ -244,7 +231,7 @@ def start_sprint(
     # Calculate planned points
     sprint.planned_points = sum(st.task.story_points or 0 for st in sprint.sprint_tasks if st.task)
 
-    db.commit()
+    svc.commit_db(db)
     return {"ok": True, "sprint": _sprint_out(sprint)}
 
 
@@ -266,21 +253,10 @@ def add_tasks_to_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    sprint = db.query(Sprint).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
+    sprint = svc.get_sprint_simple(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404, "Sprint no encontrado")
 
-    added = 0
-    for task_id in payload.task_ids:
-        task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()
-        if not task: continue
-        existing = db.query(SprintTask).filter(SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id).first()
-        if existing: continue
-
-        max_order = db.query(func.max(SprintTask.backlog_order)).filter(SprintTask.sprint_id == sprint_id).scalar() or 0
-        db.add(SprintTask(sprint_id=sprint_id, task_id=task_id, backlog_order=max_order + 1))
-        added += 1
-
-    db.commit()
+    added = svc.add_tasks_to_sprint(db, sprint_id, project_id, payload.task_ids)
     return {"ok": True, "added": added}
 
 
@@ -292,9 +268,9 @@ def remove_task_from_sprint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    st = db.query(SprintTask).filter(SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id).first()
+    st = svc.get_sprint_task(db, sprint_id, task_id)
     if not st: raise HTTPException(404)
-    db.delete(st); db.commit()
+    svc.delete_sprint_task(db, st)
     return {"ok": True}
 
 
@@ -306,11 +282,7 @@ def reorder_sprint_backlog(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    for i, task_id in enumerate(payload.task_ids):
-        st = db.query(SprintTask).filter(SprintTask.sprint_id == sprint_id, SprintTask.task_id == task_id).first()
-        if st:
-            st.backlog_order = i
-    db.commit()
+    svc.reorder_sprint_backlog(db, sprint_id, payload.task_ids)
     return {"ok": True}
 
 
@@ -321,9 +293,7 @@ def get_burndown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    sprint = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task)
-    ).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
+    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id)
     if not sprint: raise HTTPException(404)
     return {"burndown": _compute_burndown(sprint, db)}
 
@@ -340,9 +310,7 @@ def get_burnup(
       - scope: total story points in the sprint by that date (shows scope creep)
       - completed: cumulative story points marked done by that date
     """
-    sprint = db.query(Sprint).options(
-        joinedload(Sprint.sprint_tasks).joinedload(SprintTask.task)
-    ).filter(Sprint.id == sprint_id, Sprint.project_id == project_id).first()
+    sprint = svc.get_sprint_for_charts(db, sprint_id, project_id)
     if not sprint:
         raise HTTPException(404)
 
@@ -387,21 +355,7 @@ def get_project_backlog(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Tasks in this project not assigned to any non-completed sprint
-    # Usar scalar_subquery() para evitar SAWarning con notin_()
-    sprint_task_ids = db.query(SprintTask.task_id).join(Sprint).filter(
-        Sprint.project_id == project_id,
-        Sprint.status.in_([SprintStatus.planning, SprintStatus.active])
-    ).scalar_subquery()
-
-    tasks = db.query(Task).options(
-        joinedload(Task.assignee)
-    ).filter(
-        Task.project_id == project_id,
-        Task.status.notin_(["done", "cancelled"]),
-        Task.id.notin_(sprint_task_ids),
-    ).order_by(Task.priority.desc(), Task.created_at).all()
-
+    tasks = svc.get_project_backlog_tasks(db, project_id)
     return [_task_out(t) for t in tasks]
 
 
@@ -411,10 +365,7 @@ def get_velocity_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    sprints = db.query(Sprint).filter(
-        Sprint.project_id == project_id,
-        Sprint.status == SprintStatus.completed,
-    ).order_by(Sprint.number).all()
+    sprints = svc.get_velocity_sprints(db, project_id)
 
     data = [{
         "sprint": f"Sprint {s.number}",

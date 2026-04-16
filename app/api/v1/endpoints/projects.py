@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.db.session import get_db
@@ -20,14 +20,18 @@ from app.services.project_service import (
     scope_projects_query,
     list_milestones_payload,
     get_project_scoped_or_404,
-    create_project_record,
-    apply_project_update,
+    get_projects_base_query,
+    get_project_by_id,
+    save_new_project,
+    update_and_save_project,
     cancel_project_record,
     add_project_phase_record,
     get_project_team_users,
     list_members_payload,
     add_member_record,
     get_member_or_404,
+    update_member_record,
+    remove_member_record,
 )
 
 router = APIRouter()
@@ -45,7 +49,7 @@ def list_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Project).options(joinedload(Project.project_manager))
+    q = get_projects_base_query(db)
     q = scope_projects_query(q, db, current_user)
 
     if status:
@@ -133,9 +137,7 @@ def create_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    project = create_project_record(db, payload, current_user)
-    db.commit()
-    db.refresh(project)
+    project = save_new_project(db, payload, current_user)
     return ProjectOut.model_validate(project)
 
 
@@ -146,16 +148,14 @@ def update_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin_or_pm),
 ):
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = get_project_by_id(db, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
 
     if current_user.role == UserRole.pm and project.pm_id is not None and project.pm_id != current_user.id:
         raise HTTPException(status_code=403, detail="Solo puedes editar tus proyectos")
 
-    apply_project_update(db, project, payload.model_dump(exclude_unset=True))
-    db.commit()
-    db.refresh(project)
+    project = update_and_save_project(db, project, payload.model_dump(exclude_unset=True))
     return ProjectOut.model_validate(project)
 
 
@@ -166,7 +166,6 @@ def delete_project(
     _: User = Depends(require_admin),
 ):
     result = cancel_project_record(db, project_id)
-    db.commit()
     return result
 
 
@@ -178,9 +177,6 @@ def add_phase(
     _: User = Depends(require_admin_or_pm),
 ):
     phase = add_project_phase_record(db, project_id, payload)
-    db.add(phase)
-    db.commit()
-    db.refresh(phase)
     return phase
 
 
@@ -205,7 +201,6 @@ def list_members(project_id: str, db: Session = Depends(get_db),
 def add_member(project_id: str, data: dict, db: Session = Depends(get_db),
                current_user: User = Depends(require_admin_or_pm)):
     m = add_member_record(db, project_id, data)
-    db.add(m); db.commit(); db.refresh(m)
     return {"id": m.id, "user_id": m.user_id, "role": m.role,
             "allocation_pct": m.allocation_pct}
 
@@ -215,9 +210,7 @@ def update_member(project_id: str, member_id: str, data: dict,
                   db: Session = Depends(get_db),
                   current_user: User = Depends(require_admin_or_pm)):
     m = get_member_or_404(db, project_id, member_id)
-    for k, v in data.items():
-        if hasattr(m, k): setattr(m, k, v)
-    db.commit(); db.refresh(m)
+    m = update_member_record(db, m, data)
     return {"id": m.id, "role": m.role, "allocation_pct": m.allocation_pct}
 
 
@@ -225,7 +218,7 @@ def update_member(project_id: str, member_id: str, data: dict,
 def remove_member(project_id: str, member_id: str, db: Session = Depends(get_db),
                   current_user: User = Depends(require_admin_or_pm)):
     m = get_member_or_404(db, project_id, member_id)
-    db.delete(m); db.commit()
+    remove_member_record(db, m)
     return {"ok": True}
 
 

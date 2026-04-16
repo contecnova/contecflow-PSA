@@ -26,16 +26,18 @@ def serialize_routing_rule(rule: RoutingRule) -> dict:
     }
 
 
-def build_routing_rule(payload: dict) -> RoutingRule:
+def build_routing_rule(db, payload: dict) -> RoutingRule:
     if not payload.get("name"):
         raise HTTPException(422, "name es obligatorio")
-    return RoutingRule(
+    rule = RoutingRule(
         name=payload["name"],
         is_active=payload.get("is_active", True),
         priority=payload.get("priority", 100),
         conditions=json.dumps(payload.get("conditions", {})),
         actions=json.dumps(payload.get("actions", {})),
     )
+    db.add(rule)
+    return rule
 
 
 def get_routing_rule_or_404(db: Session, rule_id: str) -> RoutingRule:
@@ -43,6 +45,11 @@ def get_routing_rule_or_404(db: Session, rule_id: str) -> RoutingRule:
     if not rule:
         raise HTTPException(404)
     return rule
+
+
+def delete_routing_rule(db: Session, rule_id: str) -> None:
+    rule = get_routing_rule_or_404(db, rule_id)
+    db.delete(rule)
 
 
 def apply_routing_rule_update(rule: RoutingRule, payload: dict) -> None:

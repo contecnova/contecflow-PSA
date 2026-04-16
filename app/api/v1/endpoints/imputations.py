@@ -24,6 +24,9 @@ from app.services.imputation_service import (
     lockout_status_payload,
     list_alerts_payload,
     dismiss_alert_record,
+    list_imputations_query,
+    get_imputation_by_id,
+    delete_imputation_record,
 )
 
 router = APIRouter()
@@ -42,29 +45,7 @@ def list_imputations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Imputation).options(
-        joinedload(Imputation.user),
-        joinedload(Imputation.task),
-        joinedload(Imputation.project),
-    )
-
-    # Employees and subcontractors can only see their own
-    if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        q = q.filter(Imputation.user_id == current_user.id)
-    elif user_id:
-        q = q.filter(Imputation.user_id == user_id)
-
-    if project_id:
-        q = q.filter(Imputation.project_id == project_id)
-    if task_id:
-        q = q.filter(Imputation.task_id == task_id)
-    if date_from:
-        q = q.filter(Imputation.date >= date_from)
-    if date_to:
-        q = q.filter(Imputation.date <= date_to)
-
-    total = q.count()
-    items = q.order_by(Imputation.date.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    total, items = list_imputations_query(db, current_user, user_id, project_id, task_id, date_from, date_to, page, page_size)
     if response is not None:
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
@@ -97,7 +78,7 @@ def update_imputation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
+    imp = get_imputation_by_id(db, imputation_id)
     if not imp:
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
@@ -111,14 +92,13 @@ def delete_imputation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
+    imp = get_imputation_by_id(db, imputation_id)
     if not imp:
         raise HTTPException(status_code=404, detail="Imputación no encontrada")
 
     validate_imputation_edit_allowed(imp, current_user, db)
 
-    db.delete(imp)
-    db.commit()
+    delete_imputation_record(db, imp)
     return {"message": "Imputación eliminada"}
 
 

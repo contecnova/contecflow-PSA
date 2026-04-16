@@ -579,6 +579,17 @@ def log_webhook_fire(trigger, payload_str: str, headers_str: str, db: Session) -
     db.commit()
 
 
+def get_active_webhook_trigger_by_slug(db: Session, slug: str) -> WebhookTrigger:
+    from fastapi import HTTPException
+    trigger = db.query(WebhookTrigger).filter(
+        WebhookTrigger.slug == slug,
+        WebhookTrigger.is_active == True,
+    ).first()
+    if not trigger:
+        raise HTTPException(404, "Webhook trigger no encontrado")
+    return trigger
+
+
 def get_webhook_logs(trigger_id: str, db: Session) -> list:
     logs = db.query(WebhookTriggerLog).filter(
         WebhookTriggerLog.trigger_id == trigger_id

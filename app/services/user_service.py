@@ -339,6 +339,85 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
     }
 
 
+# ── Paged user list ────────────────────────────────────────────────────────────
+
+def list_users_paged(
+    db: Session,
+    current_user,
+    department: Optional[str] = None,
+    role=None,
+    status=None,
+    search: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+):
+    from app.models.user import User
+    q = scope_users_query(db.query(User), current_user)
+    if department:
+        q = q.filter(User.department == department)
+    if role:
+        q = q.filter(User.role == role)
+    if status:
+        q = q.filter(User.status == status)
+    if search:
+        q = q.filter(
+            (User.full_name.ilike(f"%{search}%"))
+            | (User.username.ilike(f"%{search}%"))
+            | (User.email.ilike(f"%{search}%"))
+        )
+    total = q.count()
+    users = q.offset((page - 1) * page_size).limit(page_size).all()
+    return users, total
+
+
+def list_active_users_with_rates(db: Session, current_user):
+    from app.models.user import User
+    return scope_users_query(
+        db.query(User).filter(User.is_active == True),
+        current_user,
+    ).all()
+
+
+# ── Single user lookup ─────────────────────────────────────────────────────────
+
+def get_user_by_id(db: Session, user_id: str):
+    from app.models.user import User
+    return db.query(User).filter(User.id == user_id).first()
+
+
+# ── Self-profile update ────────────────────────────────────────────────────────
+
+def update_self_profile(user, update_data: dict, db: Session):
+    allowed_fields = {"first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
+    for field, value in update_data.items():
+        if field in allowed_fields:
+            setattr(user, field, value)
+            if field in ("first_name", "last_name"):
+                fn = user.first_name or ""
+                ln = user.last_name or ""
+                if fn or ln:
+                    user.full_name = f"{fn} {ln}".strip()
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+# ── Deactivate / delete user ───────────────────────────────────────────────────
+
+def deactivate_user_record(user, db: Session) -> None:
+    from app.models.user import UserStatus
+    user.is_active = False
+    user.status = UserStatus.inactive
+    db.commit()
+
+
+def delete_user_record(user, db: Session) -> None:
+    db.delete(user)
+    db.commit()
+
+
+# ── Preferences ────────────────────────────────────────────────────────────────
+
 def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
     from app.models.user import UserPreference
     pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()

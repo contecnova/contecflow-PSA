@@ -55,19 +55,13 @@ def get_ticket_watcher_for_user(db: Session, ticket_id: str, user_id: str):
 def watch_ticket_command(db: Session, ticket_id: str, user_id: str):
     watcher, already_watching = get_or_build_ticket_watcher(db, ticket_id, user_id)
     if already_watching:
-        return {
-            "watcher": None,
-            "response": {"ok": True, "already_watching": True},
-        }
-    return {
-        "watcher": watcher,
-        "response": {"ok": True, "id": watcher.id},
-    }
+        return {"ok": True, "already_watching": True}
+    db.add(watcher)
+    return {"ok": True, "id": watcher.id}
 
 
 def unwatch_ticket_command(db: Session, ticket_id: str, user_id: str):
     watcher = get_ticket_watcher_for_user(db, ticket_id, user_id)
-    return {
-        "watcher": watcher,
-        "response": {"ok": True},
-    }
+    if watcher:
+        db.delete(watcher)
+    return {"ok": True}

@@ -62,12 +62,14 @@ def build_ci_relation(db: Session, current_user: User, payload: dict) -> CIRelat
     _get_scoped_ci_or_404(db, current_user, src_id, "CI origen no encontrado")
     _get_scoped_ci_or_404(db, current_user, tgt_id, "CI destino no encontrado")
 
-    return CIRelation(
+    rel = CIRelation(
         source_ci_id=src_id,
         target_ci_id=tgt_id,
         relation_type=payload.get("relation_type", "depends_on"),
         notes=payload.get("notes"),
     )
+    db.add(rel)
+    return rel
 
 
 def get_ci_impact_payload(

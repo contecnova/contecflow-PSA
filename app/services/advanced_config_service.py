@@ -261,3 +261,619 @@ def apply_template_to_project(
     except Exception:
         db.rollback()
         raise
+
+
+# ── Custom exceptions ─────────────────────────────────────────────────────────
+
+class NotFoundError(ValueError):
+    pass
+
+
+# ── Roles ─────────────────────────────────────────────────────────────────────
+
+def list_roles(db: Session) -> list:
+    from app.models.advanced_config import CustomRole
+    seed_system_roles(db)
+    roles = (
+        db.query(CustomRole)
+        .filter(CustomRole.is_active == True)
+        .order_by(CustomRole.is_system.desc(), CustomRole.name)
+        .all()
+    )
+    return [
+        {
+            "id": r.id, "name": r.name, "description": r.description, "color": r.color,
+            "is_system": r.is_system,
+            "module_access": json.loads(r.module_access) if r.module_access else {},
+            "permissions": json.loads(r.permissions) if r.permissions else {},
+        }
+        for r in roles
+    ]
+
+
+def create_role(data: dict, db: Session) -> dict:
+    from app.models.advanced_config import CustomRole
+    r = CustomRole(
+        name=data["name"],
+        description=data.get("description"),
+        color=data.get("color", "#7a8aaa"),
+        module_access=json.dumps(data.get("module_access") or {}),
+        permissions=json.dumps(data.get("permissions") or {}),
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return {"id": r.id, "name": r.name}
+
+
+def update_role(role_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import CustomRole
+    r = db.query(CustomRole).filter(CustomRole.id == role_id).first()
+    if not r:
+        raise NotFoundError("Rol no encontrado")
+    if "name" in data and r.is_system and data["name"] != r.name:
+        raise ValueError("No se puede renombrar un rol del sistema")
+    for k, v in data.items():
+        if k == "module_access" and v is not None:
+            r.module_access = json.dumps(v)
+        elif k == "permissions" and v is not None:
+            r.permissions = json.dumps(v)
+        elif hasattr(r, k):
+            setattr(r, k, v)
+    db.commit()
+    db.refresh(r)
+    return {"id": r.id, "name": r.name}
+
+
+def delete_role(role_id: str, db: Session) -> dict:
+    from app.models.advanced_config import CustomRole
+    r = db.query(CustomRole).filter(CustomRole.id == role_id).first()
+    if not r:
+        raise NotFoundError("Rol no encontrado")
+    if r.is_system:
+        raise ValueError("No se pueden eliminar roles del sistema")
+    r.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Task types ────────────────────────────────────────────────────────────────
+
+def list_task_types(db: Session) -> list:
+    from app.models.advanced_config import TaskType
+    seed_task_types(db)
+    types = (
+        db.query(TaskType)
+        .filter(TaskType.is_active == True)
+        .order_by(TaskType.sort_order)
+        .all()
+    )
+    return [
+        {
+            "id": t.id, "name": t.name, "value": t.value, "icon": t.icon,
+            "color": t.color, "is_billable_default": t.is_billable_default,
+            "is_active": t.is_active, "sort_order": t.sort_order,
+        }
+        for t in types
+    ]
+
+
+def create_task_type(data: dict, db: Session):
+    from app.models.advanced_config import TaskType
+    if db.query(TaskType).filter(TaskType.value == data["value"]).first():
+        raise ValueError("Ya existe un tipo con ese valor")
+    t = TaskType(**data)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return t
+
+
+def update_task_type(type_id: str, data: dict, db: Session):
+    from app.models.advanced_config import TaskType
+    t = db.query(TaskType).filter(TaskType.id == type_id).first()
+    if not t:
+        raise NotFoundError("No encontrado")
+    for k, v in data.items():
+        setattr(t, k, v)
+    db.commit()
+    db.refresh(t)
+    return t
+
+
+def delete_task_type(type_id: str, db: Session) -> dict:
+    from app.models.advanced_config import TaskType
+    t = db.query(TaskType).filter(TaskType.id == type_id).first()
+    if not t:
+        raise NotFoundError("No encontrado")
+    t.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Alert configs ─────────────────────────────────────────────────────────────
+
+def list_alert_configs(db: Session) -> list:
+    from app.models.advanced_config import AlertConfig
+    seed_alert_configs(db)
+    configs = db.query(AlertConfig).order_by(AlertConfig.alert_type).all()
+    return [
+        {
+            "id": c.id, "alert_type": c.alert_type, "label": c.label,
+            "description": c.description, "is_enabled": c.is_enabled,
+            "threshold_value": c.threshold_value, "threshold_unit": c.threshold_unit,
+            "notify_admin": c.notify_admin, "notify_pm": c.notify_pm,
+            "notify_hr": c.notify_hr, "notify_employee": c.notify_employee,
+            "notify_email": c.notify_email, "severity": c.severity,
+        }
+        for c in configs
+    ]
+
+
+def update_alert_config(alert_type: str, data: dict, db: Session):
+    from app.models.advanced_config import AlertConfig
+    cfg = db.query(AlertConfig).filter(AlertConfig.alert_type == alert_type).first()
+    if not cfg:
+        raise NotFoundError("Configuración no encontrada")
+    for k, v in data.items():
+        setattr(cfg, k, v)
+    db.commit()
+    db.refresh(cfg)
+    return cfg
+
+
+# ── Rate tables ───────────────────────────────────────────────────────────────
+
+def list_rate_tables(db: Session) -> list:
+    from app.models.advanced_config import RateTable
+    tables = (
+        db.query(RateTable)
+        .options(joinedload(RateTable.entries))
+        .filter(RateTable.is_active == True)
+        .all()
+    )
+    return [
+        {
+            "id": t.id, "name": t.name, "description": t.description,
+            "is_default": t.is_default, "is_active": t.is_active, "applies_to": t.applies_to,
+            "entries": [
+                {
+                    "id": e.id, "label": e.label, "cost_rate": e.cost_rate,
+                    "billing_rate": e.billing_rate,
+                    "currency": getattr(e, "currency", settings.DEFAULT_CURRENCY),
+                }
+                for e in (t.entries or [])
+            ],
+        }
+        for t in tables
+    ]
+
+
+def create_rate_table(data: dict, db: Session) -> dict:
+    from app.models.advanced_config import RateTable
+    if data.get("is_default"):
+        db.query(RateTable).filter(RateTable.is_default == True).update({"is_default": False})
+    t = RateTable(**data)
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return {"id": t.id, "name": t.name}
+
+
+def add_rate_entry(table_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import RateEntry
+    e = RateEntry(table_id=table_id, **data)
+    db.add(e)
+    db.commit()
+    db.refresh(e)
+    return {"id": e.id}
+
+
+def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import RateEntry
+    e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
+    if not e:
+        raise NotFoundError("No encontrado")
+    for k, v in data.items():
+        setattr(e, k, v)
+    db.commit()
+    db.refresh(e)
+    return {"id": e.id}
+
+
+def delete_rate_entry(table_id: str, entry_id: str, db: Session) -> dict:
+    from app.models.advanced_config import RateEntry
+    e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
+    if not e:
+        raise NotFoundError("No encontrado")
+    db.delete(e)
+    db.commit()
+    return {"ok": True}
+
+
+def delete_rate_table(table_id: str, db: Session) -> dict:
+    from app.models.advanced_config import RateTable
+    t = db.query(RateTable).filter(RateTable.id == table_id).first()
+    if not t:
+        raise NotFoundError("No encontrado")
+    t.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Vacation policies ─────────────────────────────────────────────────────────
+
+def list_vacation_policies(db: Session) -> list:
+    from app.models.advanced_config import VacationPolicy
+    policies = db.query(VacationPolicy).filter(VacationPolicy.is_active == True).all()
+    return [
+        {
+            "id": p.id, "name": p.name, "description": p.description,
+            "days_per_year": p.days_per_year, "carries_over": p.carries_over,
+            "max_carryover_days": p.max_carryover_days,
+            "carryover_expiry_months": p.carryover_expiry_months,
+            "applies_to_roles": p.applies_to_roles, "is_default": p.is_default,
+            "is_active": p.is_active,
+        }
+        for p in policies
+    ]
+
+
+def create_vacation_policy(data: dict, db: Session) -> dict:
+    from app.models.advanced_config import VacationPolicy
+    if data.get("is_default"):
+        db.query(VacationPolicy).filter(VacationPolicy.is_default == True).update({"is_default": False})
+    p = VacationPolicy(**{**data, "applies_to_roles": json.dumps(data.get("applies_to_roles") or [])})
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return {"id": p.id, "name": p.name}
+
+
+def update_vacation_policy(policy_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import VacationPolicy
+    p = db.query(VacationPolicy).filter(VacationPolicy.id == policy_id).first()
+    if not p:
+        raise NotFoundError("No encontrado")
+    for k, v in data.items():
+        setattr(p, k, json.dumps(v) if k == "applies_to_roles" else v)
+    db.commit()
+    db.refresh(p)
+    return {"id": p.id}
+
+
+def delete_vacation_policy(policy_id: str, db: Session) -> dict:
+    from app.models.advanced_config import VacationPolicy
+    p = db.query(VacationPolicy).filter(VacationPolicy.id == policy_id).first()
+    if not p:
+        raise NotFoundError("No encontrado")
+    p.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Offices ───────────────────────────────────────────────────────────────────
+
+def list_offices(db: Session) -> list:
+    from app.models.advanced_config import Office
+    offices = db.query(Office).filter(Office.is_active == True).order_by(Office.name).all()
+    return [
+        {"id": o.id, "name": o.name, "country": o.country, "city": o.city,
+         "timezone": o.timezone, "is_active": o.is_active}
+        for o in offices
+    ]
+
+
+def create_office(data: dict, db: Session) -> dict:
+    from app.models.advanced_config import Office
+    o = Office(**data)
+    db.add(o)
+    db.commit()
+    db.refresh(o)
+    return {"id": o.id, "name": o.name}
+
+
+def update_office(office_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import Office
+    o = db.query(Office).filter(Office.id == office_id).first()
+    if not o:
+        raise NotFoundError("No encontrado")
+    for k, v in data.items():
+        setattr(o, k, v)
+    db.commit()
+    db.refresh(o)
+    return {"id": o.id}
+
+
+def delete_office(office_id: str, db: Session) -> dict:
+    from app.models.advanced_config import Office
+    o = db.query(Office).filter(Office.id == office_id).first()
+    if not o:
+        raise NotFoundError("No encontrado")
+    o.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Numbering sequences ───────────────────────────────────────────────────────
+
+def list_numbering(db: Session) -> list:
+    from app.models.advanced_config import NumberingSequence
+    seed_numbering(db)
+    seqs = db.query(NumberingSequence).order_by(NumberingSequence.entity).all()
+    result = []
+    for s in seqs:
+        year = datetime.now().year
+        next_val = s.current_value + 1
+        year_part = f"{year}{s.separator}" if s.include_year else ""
+        padded = str(next_val).zfill(s.padding)
+        preview = (
+            f"{s.prefix}{s.separator}{year_part}{padded}{s.suffix}"
+            if s.prefix
+            else f"{year_part}{padded}{s.suffix}"
+        )
+        result.append({
+            "id": s.id, "entity": s.entity, "prefix": s.prefix, "suffix": s.suffix,
+            "separator": s.separator, "include_year": s.include_year, "padding": s.padding,
+            "reset_yearly": s.reset_yearly, "current_value": s.current_value,
+            "example": s.example, "next_preview": preview,
+        })
+    return result
+
+
+def update_numbering_seq(entity: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import NumberingSequence
+    s = db.query(NumberingSequence).filter(NumberingSequence.entity == entity).first()
+    if not s:
+        s = NumberingSequence(entity=entity, **data)
+        db.add(s)
+    else:
+        for k, v in data.items():
+            setattr(s, k, v)
+    year = datetime.now().year
+    year_part = f"{year}{data['separator']}" if data.get("include_year") else ""
+    padded = "1".zfill(data.get("padding", 4))
+    prefix = data.get("prefix", "")
+    sep = data.get("separator", "-")
+    suffix = data.get("suffix", "")
+    s.example = (
+        f"{prefix}{sep}{year_part}{padded}{suffix}"
+        if prefix
+        else f"{year_part}{padded}"
+    )
+    db.commit()
+    db.refresh(s)
+    return {"ok": True, "example": s.example}
+
+
+def reset_numbering_seq(entity: str, db: Session) -> dict:
+    from app.models.advanced_config import NumberingSequence
+    s = db.query(NumberingSequence).filter(NumberingSequence.entity == entity).first()
+    if not s:
+        raise NotFoundError("No encontrado")
+    s.current_value = 0
+    db.commit()
+    return {"ok": True}
+
+
+# ── Custom fields ─────────────────────────────────────────────────────────────
+
+def list_custom_fields(entity: Optional[str], db: Session) -> list:
+    from app.models.advanced_config import CustomField
+    q = db.query(CustomField).filter(CustomField.is_active == True)
+    if entity:
+        q = q.filter(CustomField.entity == entity)
+    fields = q.order_by(CustomField.entity, CustomField.sort_order).all()
+    return [
+        {
+            "id": f.id, "entity": f.entity, "name": f.name, "field_key": f.field_key,
+            "field_type": f.field_type,
+            "options": json.loads(f.options) if f.options else None,
+            "is_required": f.is_required, "placeholder": f.placeholder,
+            "default_value": f.default_value,
+            "visible_to_roles": json.loads(f.visible_to_roles) if f.visible_to_roles else None,
+            "sort_order": f.sort_order,
+        }
+        for f in fields
+    ]
+
+
+def create_custom_field(data: dict, db: Session) -> dict:
+    from app.models.advanced_config import CustomField
+    if db.query(CustomField).filter(
+        CustomField.entity == data["entity"],
+        CustomField.field_key == data["field_key"],
+    ).first():
+        raise ValueError("Ya existe un campo con esa clave para esa entidad")
+    f = CustomField(**{
+        **data,
+        "options": json.dumps(data["options"]) if data.get("options") else None,
+        "visible_to_roles": json.dumps(data["visible_to_roles"]) if data.get("visible_to_roles") else None,
+    })
+    db.add(f)
+    db.commit()
+    db.refresh(f)
+    return {"id": f.id}
+
+
+def update_custom_field(field_id: str, data: dict, db: Session) -> dict:
+    from app.models.advanced_config import CustomField
+    f = db.query(CustomField).filter(CustomField.id == field_id).first()
+    if not f:
+        raise NotFoundError("No encontrado")
+    for k, v in data.items():
+        setattr(f, k, json.dumps(v) if k in ("options", "visible_to_roles") and v else v)
+    db.commit()
+    db.refresh(f)
+    return {"id": f.id}
+
+
+def delete_custom_field(field_id: str, db: Session) -> dict:
+    from app.models.advanced_config import CustomField
+    f = db.query(CustomField).filter(CustomField.id == field_id).first()
+    if not f:
+        raise NotFoundError("No encontrado")
+    f.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+def get_custom_field_values(entity_id: str, db: Session) -> dict:
+    from app.models.advanced_config import CustomFieldValue
+    values = (
+        db.query(CustomFieldValue)
+        .options(joinedload(CustomFieldValue.field))
+        .filter(CustomFieldValue.entity_id == entity_id)
+        .all()
+    )
+    return {v.field.field_key: v.value for v in values if v.field}
+
+
+def save_custom_field_values(entity_id: str, values: dict, db: Session) -> dict:
+    from app.models.advanced_config import CustomField, CustomFieldValue
+    try:
+        for field_key, value in values.items():
+            field = db.query(CustomField).filter(
+                CustomField.field_key == field_key,
+                CustomField.is_active == True,
+            ).first()
+            if not field:
+                continue
+            existing = db.query(CustomFieldValue).filter(
+                CustomFieldValue.field_id == field.id,
+                CustomFieldValue.entity_id == entity_id,
+            ).first()
+            if existing:
+                existing.value = str(value) if value is not None else None
+            else:
+                db.add(CustomFieldValue(
+                    field_id=field.id,
+                    entity_id=entity_id,
+                    value=str(value) if value is not None else None,
+                ))
+        db.commit()
+        return {"ok": True}
+    except Exception:
+        db.rollback()
+        raise
+
+
+# ── Templates ─────────────────────────────────────────────────────────────────
+
+def list_templates(db: Session) -> list:
+    from app.models.advanced_config import ProjectTemplate, TemplatePhase
+    templates = (
+        db.query(ProjectTemplate)
+        .options(
+            joinedload(ProjectTemplate.phases).joinedload(TemplatePhase.tasks),
+            joinedload(ProjectTemplate.risks),
+            joinedload(ProjectTemplate.deliverables),
+        )
+        .filter(ProjectTemplate.is_active == True)
+        .all()
+    )
+    return [
+        {
+            "id": t.id, "name": t.name, "description": t.description,
+            "project_type": t.project_type, "estimated_weeks": t.estimated_weeks,
+            "estimated_hours": t.estimated_hours,
+            "phase_count": len(t.phases),
+            "task_count": sum(len(p.tasks) for p in t.phases),
+            "risk_count": len(t.risks),
+            "deliverable_count": len(t.deliverables),
+            "phases": [
+                {
+                    "id": p.id, "name": p.name, "order": p.order,
+                    "estimated_weeks": p.estimated_weeks, "estimated_hours": p.estimated_hours,
+                    "tasks": [
+                        {"id": tk.id, "title": tk.title, "estimated_hours": tk.estimated_hours,
+                         "skill_required": tk.skill_required}
+                        for tk in p.tasks
+                    ],
+                }
+                for p in sorted(t.phases, key=lambda x: x.order)
+            ],
+            "risks": [
+                {"id": r.id, "title": r.title, "category": r.category,
+                 "probability": r.probability, "impact": r.impact}
+                for r in t.risks
+            ],
+            "deliverables": [
+                {"id": d.id, "name": d.name, "format": d.format,
+                 "week_offset": d.week_offset, "billing_pct": d.billing_pct}
+                for d in t.deliverables
+            ],
+        }
+        for t in templates
+    ]
+
+
+def create_template(data: dict, user_id: str, user_role: str, db: Session) -> dict:
+    from app.models.advanced_config import (
+        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
+    )
+    from fastapi import HTTPException as _HTTPException
+    if user_role not in ("admin", "pm"):
+        raise _HTTPException(403, "Acceso denegado")
+    try:
+        t = ProjectTemplate(
+            name=data["name"],
+            description=data.get("description"),
+            project_type=data.get("project_type"),
+            estimated_weeks=data.get("estimated_weeks"),
+            estimated_hours=data.get("estimated_hours"),
+            created_by=user_id,
+        )
+        db.add(t)
+        db.flush()
+        for i, ph in enumerate(data.get("phases") or []):
+            phase = TemplatePhase(
+                template_id=t.id,
+                name=ph["name"],
+                description=ph.get("description"),
+                order=ph.get("order") or i,
+                estimated_weeks=ph.get("estimated_weeks"),
+                estimated_hours=ph.get("estimated_hours"),
+            )
+            db.add(phase)
+            db.flush()
+            for j, tk in enumerate(ph.get("tasks") or []):
+                db.add(TemplateTask(
+                    phase_id=phase.id,
+                    title=tk.get("title", ""),
+                    estimated_hours=tk.get("estimated_hours"),
+                    skill_required=tk.get("skill_required"),
+                    order=j,
+                ))
+        for r in data.get("risks") or []:
+            db.add(TemplateRisk(
+                template_id=t.id,
+                title=r.get("title", ""),
+                category=r.get("category"),
+                probability=r.get("probability", "medium"),
+                impact=r.get("impact", "moderate"),
+                mitigation_plan=r.get("mitigation_plan"),
+            ))
+        for d in data.get("deliverables") or []:
+            db.add(TemplateDeliverable(
+                template_id=t.id,
+                name=d.get("name", ""),
+                format=d.get("format"),
+                billing_pct=d.get("billing_pct"),
+                week_offset=d.get("week_offset"),
+            ))
+        db.commit()
+        return {"id": t.id, "name": t.name}
+    except Exception:
+        db.rollback()
+        raise
+
+
+def delete_template(template_id: str, db: Session) -> dict:
+    from app.models.advanced_config import ProjectTemplate
+    t = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
+    if not t:
+        raise NotFoundError("No encontrado")
+    t.is_active = False
+    db.commit()
+    return {"ok": True}

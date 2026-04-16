@@ -6,10 +6,8 @@ POST /portfolios/{portfolio_id}/projects
 DELETE /portfolios/{portfolio_id}/projects/{project_id}
 GET /portfolios/{portfolio_id}/dashboard
 """
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import Optional
 from pydantic import BaseModel
 from datetime import date
@@ -17,11 +15,8 @@ from datetime import date
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
-from app.models.portfolio import Portfolio, PortfolioProject
 from app.models.project import Project
-from app.models.task import Task, TaskStatus
-from app.models.imputation import Imputation
-from app.models.financial import ProjectMilestone
+from app.services import portfolio_service
 
 router = APIRouter()
 
@@ -42,46 +37,8 @@ class PortfolioProjectIn(BaseModel):
     display_order: Optional[float]= 0.0
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def _evm_quick(project_id: str, db: Session) -> dict:
-    """Fast EVM snapshot for a project — replicates project EVM logic."""
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        return {"cpi": None, "spi": None, "pct_complete": 0, "health": "grey", "ac": 0, "bac": 0}
-
-    bac = proj.budget_amount or 0.0
-    ac  = db.query(func.sum(Imputation.cost_amount)).filter(
-        Imputation.project_id == project_id,
-        Imputation.cost_amount.isnot(None),
-    ).scalar() or 0.0
-
-    total_est = db.query(func.sum(Task.estimated_hours)).filter(Task.project_id == project_id).scalar() or 0.0
-    done_est  = db.query(func.sum(Task.estimated_hours)).filter(
-        Task.project_id == project_id, Task.status == TaskStatus.done
-    ).scalar() or 0.0
-    pct = (done_est / total_est) if total_est > 0 else 0.0
-    ev  = bac * pct
-
-    today = date.today()
-    s, e  = proj.start_date, proj.end_date_planned
-    pct_t = min((today - s).days / (e - s).days, 1.0) if s and e and e > s else pct
-    pv    = bac * max(pct_t, 0)
-
-    cpi = round(ev / ac, 3) if ac > 0 else None
-    spi = round(ev / pv, 3) if pv > 0 else None
-
-    def _h(c, s):
-        if c is None or s is None: return "grey"
-        if c >= 0.9 and s >= 0.9:  return "green"
-        if c < 0.85 or s < 0.85:   return "red"
-        return "yellow"
-
-    return {"cpi": cpi, "spi": spi, "pct_complete": round(pct * 100, 1),
-            "health": _h(cpi, spi), "ac": round(ac, 2), "bac": round(bac, 2),
-            "ev": round(ev, 2)}
-
-
-def _serialize_portfolio(p: Portfolio):
+# ── Serializers ───────────────────────────────────────────────────────────────
+def _serialize_portfolio(p):
     return {
         "id": p.id, "name": p.name, "description": p.description,
         "status": p.status, "budget_total": p.budget_total,
@@ -97,29 +54,29 @@ def _serialize_portfolio(p: Portfolio):
 @router.get("", summary="Listar carteras")
 def list_portfolios(db: Session = Depends(get_db),
                     cu: User = Depends(get_current_user)):
-    q = db.query(Portfolio)
-    if not cu.is_superadmin and cu.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == cu.organization_id
-        ).scalar_subquery()
-        q = q.filter(Portfolio.owner_id.in_(org_user_ids))
-    rows = q.order_by(Portfolio.name).all()
+    rows = portfolio_service.list_portfolios(
+        db,
+        is_superadmin=cu.is_superadmin,
+        organization_id=cu.organization_id,
+    )
     return [_serialize_portfolio(r) for r in rows]
 
 
 @router.post("", summary="Crear cartera", status_code=201)
 def create_portfolio(payload: PortfolioIn, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
-    p = Portfolio(id=str(uuid.uuid4()), owner_id=cu.id, **payload.model_dump())
-    db.add(p); db.commit(); db.refresh(p)
+    p = portfolio_service.create_portfolio(
+        db, owner_id=cu.id, data=payload.model_dump()
+    )
     return _serialize_portfolio(p)
 
 
 @router.get("/{portfolio_id}", summary="Detalle de cartera")
 def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(get_current_user)):
-    p = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not p: raise HTTPException(404, "Cartera no encontrada")
+    p = portfolio_service.get_portfolio(db, portfolio_id)
+    if not p:
+        raise HTTPException(404, "Cartera no encontrada")
     return _serialize_portfolio(p)
 
 
@@ -127,20 +84,20 @@ def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
 def update_portfolio(portfolio_id: str, payload: PortfolioIn,
                      db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
-    p = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not p: raise HTTPException(404, "Cartera no encontrada")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(p, k, v)
-    db.commit(); db.refresh(p)
+    p = portfolio_service.get_portfolio(db, portfolio_id)
+    if not p:
+        raise HTTPException(404, "Cartera no encontrada")
+    p = portfolio_service.update_portfolio(db, p, payload.model_dump(exclude_unset=True))
     return _serialize_portfolio(p)
 
 
 @router.delete("/{portfolio_id}", summary="Eliminar cartera")
 def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
-    p = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not p: raise HTTPException(404, "Cartera no encontrada")
-    db.delete(p); db.commit()
+    p = portfolio_service.get_portfolio(db, portfolio_id)
+    if not p:
+        raise HTTPException(404, "Cartera no encontrada")
+    portfolio_service.delete_portfolio(db, p)
     return {"deleted": True}
 
 
@@ -149,17 +106,22 @@ def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
 def add_project(portfolio_id: str, payload: PortfolioProjectIn,
                 db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
-    p = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not p: raise HTTPException(404, "Cartera no encontrada")
-    proj = db.query(Project).filter(Project.id == payload.project_id).first()
-    if not proj: raise HTTPException(404, "Proyecto no encontrado")
-    existing = db.query(PortfolioProject).filter(
-        PortfolioProject.portfolio_id == portfolio_id,
-        PortfolioProject.project_id   == payload.project_id,
-    ).first()
-    if existing: raise HTTPException(409, "El proyecto ya pertenece a esta cartera")
-    pp = PortfolioProject(id=str(uuid.uuid4()), portfolio_id=portfolio_id, **payload.model_dump())
-    db.add(pp); db.commit()
+    p = portfolio_service.get_portfolio(db, portfolio_id)
+    if not p:
+        raise HTTPException(404, "Cartera no encontrada")
+    proj = portfolio_service.get_project(db, payload.project_id)
+    if not proj:
+        raise HTTPException(404, "Proyecto no encontrado")
+    existing = portfolio_service.get_portfolio_project(db, portfolio_id, payload.project_id)
+    if existing:
+        raise HTTPException(409, "El proyecto ya pertenece a esta cartera")
+    portfolio_service.add_project_to_portfolio(
+        db,
+        portfolio_id=portfolio_id,
+        project_id=payload.project_id,
+        rag_override=payload.rag_override,
+        display_order=payload.display_order or 0.0,
+    )
     return {"ok": True}
 
 
@@ -167,27 +129,26 @@ def add_project(portfolio_id: str, payload: PortfolioProjectIn,
 def remove_project(portfolio_id: str, project_id: str,
                    db: Session = Depends(get_db),
                    cu: User = Depends(require_admin_or_pm)):
-    pp = db.query(PortfolioProject).filter(
-        PortfolioProject.portfolio_id == portfolio_id,
-        PortfolioProject.project_id   == project_id,
-    ).first()
-    if not pp: raise HTTPException(404, "El proyecto no está en esta cartera")
-    db.delete(pp); db.commit()
+    pp = portfolio_service.get_portfolio_project(db, portfolio_id, project_id)
+    if not pp:
+        raise HTTPException(404, "El proyecto no está en esta cartera")
+    portfolio_service.remove_project_from_portfolio(db, pp)
     return {"deleted": True}
 
 
 # ── Portfolio Dashboard ────────────────────────────────────────────────────────
 @router.get("/{portfolio_id}/dashboard", summary="Dashboard de cartera — RAG, EVM, hitos")
 def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
-                         cu: User = Depends(get_current_user)):
+                        cu: User = Depends(get_current_user)):
     """
     Returns a full portfolio dashboard:
     - Per-project health (RAG), EVM snapshot, upcoming milestones
     - Budget summary (total envelope vs. actual spend)
     - Cross-project milestone timeline (for Gantt-style view)
     """
-    port = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
-    if not port: raise HTTPException(404, "Cartera no encontrada")
+    port = portfolio_service.get_portfolio(db, portfolio_id)
+    if not port:
+        raise HTTPException(404, "Cartera no encontrada")
 
     projects_data = []
     total_budget  = 0.0
@@ -199,17 +160,13 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
         if not proj:
             continue
 
-        evm = _evm_quick(proj.id, db)
+        evm = portfolio_service.get_evm_quick(db, proj.id)
 
         # RAG: use manual override if set, else EVM health
         rag = pp.rag_override or evm["health"]
 
         # Upcoming milestones (next 60 days)
-        milestones = db.query(ProjectMilestone).filter(
-            ProjectMilestone.project_id == proj.id,
-            ProjectMilestone.due_date   >= today,
-        ).order_by(ProjectMilestone.due_date).limit(5).all()
-
+        milestones = portfolio_service.get_upcoming_milestones(db, proj.id, today, limit=5)
         ms_list = [{
             "id": m.id, "title": m.title,
             "due_date": m.due_date.isoformat() if m.due_date else None,

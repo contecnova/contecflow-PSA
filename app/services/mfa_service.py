@@ -826,3 +826,507 @@ def verify_bi_token(token: str, db: Session) -> Optional[BIToken]:
             bt.requests_today = (bt.requests_today or 0) + 1
             return bt
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ORGANIZATIONS — CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def list_organizations(db: Session) -> list:
+    orgs = db.query(Organization).order_by(Organization.name).limit(200).all()
+    return [serialize_organization(o, db) for o in orgs]
+
+
+def create_organization(payload_dict: dict, current_user: User, db: Session) -> dict:
+    existing = db.query(Organization).filter(Organization.slug == payload_dict["slug"]).first()
+    if existing:
+        raise ValueError(f"Slug '{payload_dict['slug']}' ya está en uso")
+    org = Organization(**payload_dict)
+    db.add(org); db.commit(); db.refresh(org)
+    audit_log(db, current_user, "ORG_CREATED", "organizations", org.id, org.name)
+    db.commit()
+    return {"ok": True, "id": org.id, "slug": org.slug}
+
+
+def get_organization(org_id: str, db: Session) -> dict:
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise ValueError("not_found")
+    users = db.query(User).filter(User.organization_id == org_id).all()
+    return {
+        "id": org.id, "name": org.name, "slug": org.slug,
+        "plan": org.plan, "is_active": org.is_active,
+        "max_users": org.max_users, "max_projects": org.max_projects,
+        "admin_email": org.admin_email, "timezone": org.timezone,
+        "locale": org.locale, "primary_color": org.primary_color,
+        "users": [{"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role} for u in users],
+    }
+
+
+def update_organization(org_id: str, payload: dict, db: Session) -> dict:
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise ValueError("not_found")
+    allowed = {"name", "plan", "max_users", "max_projects", "is_active", "admin_email",
+               "timezone", "locale", "primary_color", "logo_url"}
+    for k, v in payload.items():
+        if k in allowed:
+            setattr(org, k, v)
+    db.commit()
+    return {"ok": True}
+
+
+def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise ValueError("404:Organización no encontrada")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise ValueError("404:Usuario no encontrado")
+    check_org_user_limit(org, db)
+    user.organization_id = org_id
+    db.commit()
+    return {"ok": True, "user": user.full_name, "org": org.name}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SLACK / TEAMS — CRUD & NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_slack_config(db: Session) -> list:
+    configs = db.query(SlackConfig).all()
+    return [{
+        "id": c.id, "platform": c.platform,
+        "workspace_name": c.workspace_name,
+        "default_channel": c.default_channel,
+        "is_active": c.is_active,
+        "has_token": bool(c.bot_token),
+        "subscriptions": json.loads(c.subscriptions or "[]"),
+        "last_ping_at": str(c.last_ping_at)[:16] if c.last_ping_at else None,
+    } for c in configs]
+
+
+def create_or_update_slack_config(payload_dict: dict, db: Session) -> dict:
+    platform = payload_dict.get("platform", "slack")
+    subs = json.dumps(payload_dict.get("subscriptions") or ["task_overdue", "budget_alert", "ticket_sla"])
+    existing = db.query(SlackConfig).filter(SlackConfig.platform == platform).first()
+    if existing:
+        existing.workspace_name = payload_dict.get("workspace_name")
+        existing.bot_token = payload_dict.get("bot_token")
+        existing.webhook_url = payload_dict.get("webhook_url")
+        existing.default_channel = payload_dict.get("default_channel", "#clarive-alerts")
+        existing.subscriptions = subs
+        existing.is_active = True
+        db.commit()
+        return {"ok": True, "id": existing.id, "updated": True}
+    config = SlackConfig(
+        platform=platform,
+        workspace_name=payload_dict.get("workspace_name"),
+        bot_token=payload_dict.get("bot_token"),
+        webhook_url=payload_dict.get("webhook_url"),
+        default_channel=payload_dict.get("default_channel", "#clarive-alerts"),
+        subscriptions=subs,
+    )
+    db.add(config); db.commit()
+    return {"ok": True, "id": config.id, "updated": False}
+
+
+def test_slack_config(config_id: str, message: str, channel: str, db: Session) -> dict:
+    config = db.query(SlackConfig).filter(SlackConfig.id == config_id).first()
+    if not config:
+        raise ValueError("not_found")
+    sent, error = send_slack_message(config, message, channel)
+    log = SlackNotificationLog(
+        config_id=config.id,
+        channel=channel,
+        event_type="test",
+        message=message,
+        status="sent" if sent else "failed",
+        error=error,
+    )
+    db.add(log)
+    if sent:
+        config.last_ping_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": sent, "error": error, "platform": config.platform}
+
+
+def notify_slack(event_type: str, message: str, channel: Optional[str], source_id: Optional[str], db: Session) -> dict:
+    config = db.query(SlackConfig).filter(SlackConfig.is_active == True).first()
+    if not config:
+        raise ValueError("No hay integración Slack/Teams activa")
+    subs = json.loads(config.subscriptions or "[]")
+    if event_type not in subs and event_type != "manual":
+        return {"ok": True, "skipped": True, "reason": f"Event '{event_type}' not subscribed"}
+    sent, error = send_slack_message(config, message, channel or config.default_channel)
+    db.add(SlackNotificationLog(
+        config_id=config.id, channel=channel or config.default_channel,
+        event_type=event_type, message=message[:500],
+        status="sent" if sent else "failed", error=error, source_id=source_id,
+    ))
+    db.commit()
+    return {"ok": sent, "error": error}
+
+
+def get_slack_logs(limit: int, db: Session) -> list:
+    logs = db.query(SlackNotificationLog).order_by(
+        SlackNotificationLog.sent_at.desc()
+    ).limit(limit).all()
+    return [{
+        "id": l.id, "platform": l.config.platform if l.config else "—",
+        "channel": l.channel, "event_type": l.event_type,
+        "status": l.status, "error": l.error,
+        "sent_at": str(l.sent_at)[:16] if l.sent_at else None,
+        "message": (l.message or "")[:80],
+    } for l in logs]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUDGETS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def list_budgets(year: Optional[int], department: Optional[str], db: Session) -> list:
+    from sqlalchemy.orm import joinedload as jl
+    q = db.query(Budget).options(jl(Budget.entries))
+    if year:
+        q = q.filter(Budget.year == year)
+    if department:
+        q = q.filter(Budget.department == department)
+    budgets = q.order_by(Budget.year.desc(), Budget.name).limit(200).all()
+    return [{
+        "id": b.id, "name": b.name, "year": b.year,
+        "department": b.department,
+        "total_amount": b.total_amount, "currency": b.currency,
+        "is_approved": b.is_approved,
+        "planned_total": sum(e.planned for e in b.entries),
+        "actual_total": sum(e.actual for e in b.entries),
+        "deviation": sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries),
+        "deviation_pct": round((sum(e.actual for e in b.entries) - sum(e.planned for e in b.entries)) / max(b.total_amount, 1) * 100, 1),
+        "entries": [{
+            "month": e.month, "planned": e.planned,
+            "actual": e.actual, "committed": e.committed,
+            "is_locked": e.is_locked,
+        } for e in sorted(b.entries, key=lambda x: x.month)],
+    } for b in budgets]
+
+
+def create_budget(payload_dict: dict, created_by: str, db: Session) -> dict:
+    b = Budget(
+        name=payload_dict["name"], year=payload_dict["year"],
+        department=payload_dict.get("department"), project_id=payload_dict.get("project_id"),
+        total_amount=payload_dict.get("total_amount", 0),
+        currency=payload_dict.get("currency", settings.DEFAULT_CURRENCY),
+        notes=payload_dict.get("notes"), created_by=created_by,
+    )
+    db.add(b); db.flush()
+    monthly = payload_dict.get("monthly_planned") or []
+    if not monthly:
+        monthly = [round(b.total_amount / 12, 2)] * 12
+    for month in range(1, 13):
+        planned = monthly[month - 1] if month <= len(monthly) else 0
+        db.add(BudgetEntry(budget_id=b.id, month=month, planned=planned))
+    db.commit()
+    return {"ok": True, "id": b.id}
+
+
+def update_budget_entry(budget_id: str, payload: dict, db: Session) -> dict:
+    month = payload.get("month")
+    entry = db.query(BudgetEntry).filter(
+        BudgetEntry.budget_id == budget_id,
+        BudgetEntry.month == month,
+    ).first()
+    if not entry:
+        raise ValueError("not_found")
+    if entry.is_locked:
+        raise ValueError("Mes cerrado contablemente")
+    for field in ["planned", "actual", "committed", "notes"]:
+        if field in payload:
+            setattr(entry, field, payload[field])
+    db.commit()
+    return {"ok": True}
+
+
+def approve_budget(budget_id: str, current_user: User, db: Session) -> dict:
+    b = db.query(Budget).filter(Budget.id == budget_id).first()
+    if not b:
+        raise ValueError("not_found")
+    b.is_approved = True
+    b.approved_by = current_user.id
+    b.approved_at = datetime.now(timezone.utc)
+    audit_log(db, current_user, "BUDGET_APPROVED", "budgets", b.id, b.name)
+    db.commit()
+    return {"ok": True}
+
+
+def get_budget_summary(year: Optional[int], db: Session) -> dict:
+    from sqlalchemy.orm import joinedload as jl
+    yr = year or datetime.now().year
+    budgets = db.query(Budget).options(jl(Budget.entries)).filter(Budget.year == yr).all()
+    total_planned = sum(e.planned for b in budgets for e in b.entries)
+    total_actual = sum(e.actual for b in budgets for e in b.entries)
+    by_month: dict = {}
+    for b in budgets:
+        for e in b.entries:
+            if e.month not in by_month:
+                by_month[e.month] = {"month": e.month, "planned": 0, "actual": 0}
+            by_month[e.month]["planned"] += e.planned
+            by_month[e.month]["actual"] += e.actual
+    return {
+        "year": yr,
+        "total_planned": round(total_planned, 2),
+        "total_actual": round(total_actual, 2),
+        "deviation": round(total_actual - total_planned, 2),
+        "deviation_pct": round((total_actual - total_planned) / max(total_planned, 1) * 100, 1),
+        "budgets_count": len(budgets),
+        "approved_count": sum(1 for b in budgets if b.is_approved),
+        "by_month": [by_month[m] for m in sorted(by_month.keys())],
+        "by_department": budget_by_dept(budgets),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCENARIO PLANNING — CRUD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def list_scenarios(db: Session) -> list:
+    from sqlalchemy.orm import joinedload as jl
+    scenarios = db.query(ScenarioModel).options(
+        jl(ScenarioModel.projects),
+        jl(ScenarioModel.creator),
+    ).order_by(ScenarioModel.created_at.desc()).all()
+    return [{
+        "id": s.id, "name": s.name, "description": s.description,
+        "status": s.status, "horizon_weeks": s.horizon_weeks,
+        "project_count": len(s.projects),
+        "creator": s.creator.full_name if s.creator else None,
+        "created_at": str(s.created_at)[:10] if s.created_at else None,
+        "computed_at": str(s.computed_at)[:16] if s.computed_at else None,
+        "has_results": bool(s.results),
+    } for s in scenarios]
+
+
+def create_scenario(payload_dict: dict, created_by: str, db: Session) -> dict:
+    base_date_val = payload_dict.get("base_date")
+    if isinstance(base_date_val, str):
+        base_date_val = date.fromisoformat(base_date_val)
+    s = ScenarioModel(
+        name=payload_dict["name"],
+        description=payload_dict.get("description"),
+        base_date=base_date_val or date.today(),
+        horizon_weeks=payload_dict.get("horizon_weeks", 12),
+        created_by=created_by,
+    )
+    db.add(s); db.flush()
+    for p in (payload_dict.get("projects") or []):
+        db.add(ScenarioProject(
+            scenario_id=s.id,
+            name=p.get("name", "Proyecto hipotético"),
+            project_id=p.get("project_id"),
+            start_date=date.fromisoformat(p["start_date"]) if p.get("start_date") else None,
+            end_date=date.fromisoformat(p["end_date"]) if p.get("end_date") else None,
+            total_hours=p.get("total_hours", 0),
+            skill_demand=json.dumps(p.get("skill_demand", {})),
+            is_existing=bool(p.get("project_id")),
+        ))
+    db.commit()
+    return {"ok": True, "id": s.id}
+
+
+def get_scenario(scenario_id: str, db: Session) -> dict:
+    from sqlalchemy.orm import joinedload as jl
+    s = db.query(ScenarioModel).options(jl(ScenarioModel.projects)).filter(
+        ScenarioModel.id == scenario_id
+    ).first()
+    if not s:
+        raise ValueError("not_found")
+    return {
+        "id": s.id, "name": s.name, "description": s.description,
+        "status": s.status, "horizon_weeks": s.horizon_weeks,
+        "base_date": str(s.base_date) if s.base_date else None,
+        "computed_at": str(s.computed_at)[:16] if s.computed_at else None,
+        "results": json.loads(s.results) if s.results else None,
+        "projects": [{
+            "id": p.id, "name": p.name,
+            "start_date": str(p.start_date) if p.start_date else None,
+            "end_date": str(p.end_date) if p.end_date else None,
+            "total_hours": p.total_hours,
+            "is_existing": p.is_existing,
+        } for p in s.projects],
+    }
+
+
+def delete_scenario(scenario_id: str, db: Session) -> dict:
+    s = db.query(ScenarioModel).filter(ScenarioModel.id == scenario_id).first()
+    if not s:
+        raise ValueError("not_found")
+    db.delete(s); db.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PDF EXPORT — JOB MANAGEMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_and_run_pdf_export(
+    export_type: str, source_id: Optional[str], params: dict,
+    requested_by: str, db: Session,
+) -> tuple:
+    """Create a PDF export job, generate the PDF, and return (bytes, filename).
+    Raises ValueError on generation failure."""
+    job = PDFExportJob(
+        export_type=export_type,
+        source_id=source_id,
+        status="generating",
+        params=json.dumps(params),
+        requested_by=requested_by,
+    )
+    db.add(job); db.commit(); db.refresh(job)
+    try:
+        pdf_bytes = generate_pdf(export_type, source_id, params, db)
+        job.status = "ready"
+        job.file_size = len(pdf_bytes)
+        job.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        filename = f"clarive_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        return pdf_bytes, filename
+    except Exception as e:
+        job.status = "failed"
+        job.error = str(e)[:500]
+        db.commit()
+        raise ValueError(f"Error generando PDF: {e}")
+
+
+def list_pdf_jobs(user_id: str, db: Session) -> list:
+    jobs = db.query(PDFExportJob).filter(
+        PDFExportJob.requested_by == user_id
+    ).order_by(PDFExportJob.created_at.desc()).limit(50).all()
+    return [{
+        "id": j.id, "export_type": j.export_type,
+        "source_id": j.source_id, "status": j.status,
+        "file_size": j.file_size,
+        "error": j.error,
+        "created_at": str(j.created_at)[:16] if j.created_at else None,
+        "completed_at": str(j.completed_at)[:16] if j.completed_at else None,
+    } for j in jobs]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BI CONNECTOR — TOKEN MANAGEMENT & DATA ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def list_bi_tokens(db: Session) -> list:
+    from sqlalchemy.orm import joinedload as jl
+    tokens = db.query(BIToken).options(jl(BIToken.creator)).all()
+    return [{
+        "id": t.id, "name": t.name, "tool": t.tool,
+        "token_prefix": t.token_prefix,
+        "scopes": json.loads(t.scopes or '["read"]'),
+        "is_active": t.is_active,
+        "expires_at": str(t.expires_at)[:10] if t.expires_at else None,
+        "last_used_at": str(t.last_used_at)[:16] if t.last_used_at else None,
+        "requests_today": t.requests_today or 0,
+        "created_by": t.creator.full_name if t.creator else None,
+    } for t in tokens]
+
+
+def create_bi_token(payload_dict: dict, created_by: str, db: Session) -> dict:
+    import bcrypt
+    raw_token = "bi_" + secrets.token_hex(24)
+    prefix = raw_token[:10]
+    hashed = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
+    expires_at = None
+    if payload_dict.get("expires_days"):
+        expires_at = datetime.now(timezone.utc) + timedelta(days=payload_dict["expires_days"])
+    t = BIToken(
+        name=payload_dict["name"], tool=payload_dict.get("tool", "powerbi"),
+        token_hash=hashed, token_prefix=prefix,
+        scopes=json.dumps(payload_dict.get("scopes") or ["read"]),
+        expires_at=expires_at, created_by=created_by,
+    )
+    db.add(t); db.commit()
+    return {"ok": True, "id": t.id, "token": raw_token,
+            "warning": "Guarda este token. No se mostrará de nuevo."}
+
+
+def revoke_bi_token(token_id: str, db: Session) -> dict:
+    t = db.query(BIToken).filter(BIToken.id == token_id).first()
+    if not t:
+        raise ValueError("not_found")
+    t.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> None:
+    """Verify BI token auth; raises ValueError('unauthorized') if invalid."""
+    if not raw_token:
+        raise ValueError("unauthorized")
+    bt = verify_bi_token(raw_token, db)
+    if not bt:
+        raise ValueError("unauthorized")
+    db.commit()
+
+
+def bi_data_projects(raw_token: Optional[str], db: Session) -> list:
+    _check_bi_token_auth(raw_token, db)
+    projects = db.query(Project).filter(Project.status != "archived").all()
+    return [{
+        "id": p.id, "code": p.code, "name": p.name,
+        "client_name": p.client_name, "status": p.status,
+        "start_date": str(p.start_date) if p.start_date else None,
+        "end_date_planned": str(p.end_date_planned) if p.end_date_planned else None,
+        "budget_amount": p.budget_amount, "billing_rate": p.billing_rate,
+        "total_hours_logged": db.query(func.sum(Imputation.hours)).filter(
+            Imputation.project_id == p.id).scalar() or 0,
+    } for p in projects]
+
+
+def bi_data_timesheets(
+    raw_token: Optional[str],
+    date_from: Optional[str], date_to: Optional[str],
+    page: int, page_size: int,
+    db: Session,
+) -> list:
+    _check_bi_token_auth(raw_token, db)
+    from sqlalchemy.orm import joinedload as jl
+    q = db.query(Imputation).options(jl(Imputation.user), jl(Imputation.project))
+    if date_from:
+        q = q.filter(Imputation.date >= date.fromisoformat(date_from))
+    if date_to:
+        q = q.filter(Imputation.date <= date.fromisoformat(date_to))
+    imputations = (
+        q.order_by(Imputation.date.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return [{
+        "date": str(i.date),
+        "user_name": i.user.full_name if i.user else "—",
+        "user_role": i.user.role if i.user else "—",
+        "project_code": i.project.code if i.project else "—",
+        "project_name": i.project.name if i.project else "—",
+        "hours": i.hours,
+        "is_billable": i.is_billable,
+        "description": i.description,
+    } for i in imputations]
+
+
+def bi_data_kpis(raw_token: Optional[str], db: Session) -> dict:
+    _check_bi_token_auth(raw_token, db)
+    active_projects = db.query(func.count(Project.id)).filter(Project.status == "active").scalar()
+    total_users = db.query(func.count(User.id)).filter(User.is_active == True).scalar()
+    this_week_start = date.today() - timedelta(days=date.today().weekday())
+    hours_this_week = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.date >= this_week_start
+    ).scalar() or 0
+    total_budget = db.query(func.sum(Project.budget_amount)).filter(
+        Project.status.in_(["active", "planning"])
+    ).scalar() or 0
+    return {
+        "active_projects": active_projects,
+        "total_users": total_users,
+        "hours_this_week": round(hours_this_week, 1),
+        "total_budget_active": round(total_budget, 2),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }

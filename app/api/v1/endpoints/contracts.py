@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from datetime import date
@@ -10,18 +9,10 @@ from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
 from app.models.pipeline import Contract, WorkOrder
-from app.models.project import Project
-from app.services.numbering import next_numbered_code
+from app.services import contract_service
 
 router = APIRouter()
 
-
-def _scope_contract_query(q, db: Session, current_user: User):
-    if current_user.is_superadmin or not current_user.organization_id:
-        return q
-    return q.join(Project, Project.id == Contract.project_id).filter(
-        Project.organization_id == current_user.organization_id
-    )
 
 CONTRACT_TYPE_LABELS = {
     "fixed_price": "Precio fijo", "time_material": "Tiempo y material",
@@ -65,13 +56,6 @@ class WorkOrderIn(BaseModel):
     description: Optional[str] = None
 
 
-def _next_code(db: Session) -> str:
-    return next_numbered_code(db, "contract", prefix="CTR", padding=4)
-
-def _next_wo_code(db: Session) -> str:
-    return next_numbered_code(db, "work_order", prefix="WO", padding=4)
-
-
 def _contract_out(c: Contract) -> dict:
     hours_pct = None
     if c.hours_bag and c.hours_bag > 0:
@@ -112,15 +96,10 @@ def list_contracts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    q = db.query(Contract).options(joinedload(Contract.work_orders))
-    q = _scope_contract_query(q, db, current_user)
-    if project_id:
-        q = q.filter(Contract.project_id == project_id)
-    if client_id:
-        q = q.filter(Contract.client_id == client_id)
-    if status:
-        q = q.filter(Contract.status == status)
-    return [_contract_out(c) for c in q.order_by(Contract.created_at.desc()).all()]
+    contracts = contract_service.list_contracts(
+        db, current_user, project_id=project_id, client_id=client_id, status=status
+    )
+    return [_contract_out(c) for c in contracts]
 
 
 @router.post("", summary="Crear contrato")
@@ -130,21 +109,13 @@ def create_contract(
     current_user: User = Depends(require_any_manager),
 ):
     if not current_user.is_superadmin and current_user.organization_id:
-        project = db.query(Project).filter(
-            Project.id == payload.project_id,
-            Project.organization_id == current_user.organization_id,
-        ).first()
-        if not project:
+        if not contract_service.check_project_access(db, payload.project_id, current_user.organization_id):
             raise HTTPException(403, "No puedes crear contratos para proyectos fuera de tu organización")
 
     try:
-        c = Contract(code=_next_code(db), created_by=current_user.id, **payload.model_dump())
-        db.add(c)
-        db.commit()
+        c = contract_service.create_contract(db, current_user.id, **payload.model_dump())
     except IntegrityError:
-        db.rollback()
         raise HTTPException(status_code=409, detail="Código de contrato duplicado. Inténtalo de nuevo.")
-    db.refresh(c)
     return _contract_out(c)
 
 
@@ -155,12 +126,10 @@ def update_contract(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    c = _scope_contract_query(db.query(Contract), db, current_user).filter(Contract.id == contract_id).first()
+    c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(c, k, v)
-    db.commit(); db.refresh(c)
+    c = contract_service.update_contract(db, c, payload.model_dump(exclude_unset=True))
     return _contract_out(c)
 
 
@@ -170,10 +139,10 @@ def delete_contract(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    c = _scope_contract_query(db.query(Contract), db, current_user).filter(Contract.id == contract_id).first()
+    c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
-    db.delete(c); db.commit()
+    contract_service.delete_contract(db, c)
     return {"ok": True}
 
 
@@ -184,11 +153,12 @@ def create_work_order(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    c = _scope_contract_query(db.query(Contract), db, current_user).filter(Contract.id == contract_id).first()
+    c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
         raise HTTPException(404, "Contrato no encontrado")
-    wo = WorkOrder(code=_next_wo_code(db), contract_id=contract_id, project_id=c.project_id, **payload.model_dump())
-    db.add(wo); db.commit(); db.refresh(wo)
+    wo = contract_service.create_work_order(
+        db, contract_id=contract_id, project_id=c.project_id, **payload.model_dump()
+    )
     return {"id": wo.id, "code": wo.code, "name": wo.name, "status": wo.status}
 
 
@@ -200,17 +170,10 @@ def update_work_order(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    wo_q = db.query(WorkOrder).filter(WorkOrder.id == wo_id, WorkOrder.contract_id == contract_id)
-    if not current_user.is_superadmin and current_user.organization_id:
-        wo_q = wo_q.join(Contract, Contract.id == WorkOrder.contract_id).join(Project, Project.id == Contract.project_id).filter(
-            Project.organization_id == current_user.organization_id
-        )
-    wo = wo_q.first()
+    wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:
         raise HTTPException(404, "Orden de trabajo no encontrada")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(wo, k, v)
-    db.commit(); db.refresh(wo)
+    wo = contract_service.update_work_order(db, wo, payload.model_dump(exclude_unset=True))
     return {"id": wo.id, "code": wo.code, "status": wo.status}
 
 
@@ -222,14 +185,8 @@ def change_wo_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    wo_q = db.query(WorkOrder).filter(WorkOrder.id == wo_id, WorkOrder.contract_id == contract_id)
-    if not current_user.is_superadmin and current_user.organization_id:
-        wo_q = wo_q.join(Contract, Contract.id == WorkOrder.contract_id).join(Project, Project.id == Contract.project_id).filter(
-            Project.organization_id == current_user.organization_id
-        )
-    wo = wo_q.first()
+    wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:
         raise HTTPException(404, "OT no encontrada")
-    wo.status = status
-    db.commit()
+    contract_service.change_work_order_status(db, wo, status)
     return {"ok": True}

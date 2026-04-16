@@ -55,9 +55,11 @@ def build_escalation_rule(payload: EscalationRuleIn) -> EscalationRule:
     return EscalationRule(**payload.model_dump())
 
 
-def create_escalation_rule_record(payload: EscalationRuleIn) -> EscalationRule:
+def create_escalation_rule_record(db, payload: EscalationRuleIn) -> EscalationRule:
     validate_escalation_rule(payload)
-    return build_escalation_rule(payload)
+    rule = build_escalation_rule(payload)
+    db.add(rule)
+    return rule
 
 
 def get_escalation_rule_by_id(db: Session, rule_id: str) -> EscalationRule:
@@ -80,6 +82,11 @@ def update_escalation_rule_record(db: Session, rule_id: str, payload: Escalation
 
 def get_escalation_rule_for_delete(db: Session, rule_id: str) -> EscalationRule:
     return get_escalation_rule_by_id(db, rule_id)
+
+
+def delete_escalation_rule(db: Session, rule_id: str) -> None:
+    rule = get_escalation_rule_by_id(db, rule_id)
+    db.delete(rule)
 
 
 def _parse_priority_filter(raw_priority_filter: Optional[str]):

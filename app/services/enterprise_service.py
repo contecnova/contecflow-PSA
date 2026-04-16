@@ -259,6 +259,11 @@ def get_portfolio_forecast(db: Session, year: int) -> dict:
     }
 
 
+def get_subcontractor(db: Session, sub_id: str):
+    from app.models.enterprise import Subcontractor
+    return db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+
+
 def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
     """Create a SubcontractorWorker and its linked User record."""
     import re, secrets
@@ -324,3 +329,725 @@ def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
     result["login_username"] = linked_user.username
     result["temp_password"] = temp_password
     return result
+
+
+# ── Audit log ─────────────────────────────────────────────────────────────────
+
+def get_audit_log(db: Session, resource, resource_id, user_id, action, date_from, date_to, page, page_size) -> dict:
+    import json as _json
+    from datetime import datetime as _dt
+    from app.models.enterprise import AuditLog
+    q = db.query(AuditLog)
+    if resource:    q = q.filter(AuditLog.resource == resource)
+    if resource_id: q = q.filter(AuditLog.resource_id == resource_id)
+    if user_id:     q = q.filter(AuditLog.user_id == user_id)
+    if action:      q = q.filter(AuditLog.action == action.upper())
+    if date_from:   q = q.filter(AuditLog.created_at >= date_from)
+    if date_to:     q = q.filter(AuditLog.created_at <= _dt.combine(date_to, _dt.max.time()))
+    total = q.count()
+    logs = q.order_by(AuditLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "total": total, "page": page, "pages": -(-total // page_size),
+        "logs": [{
+            "id": l.id, "user_name": l.user_name, "ip_address": l.ip_address,
+            "action": l.action, "resource": l.resource,
+            "resource_id": l.resource_id, "resource_name": l.resource_name,
+            "old_values": _json.loads(l.old_values) if l.old_values else None,
+            "new_values": _json.loads(l.new_values) if l.new_values else None,
+            "created_at": str(l.created_at)[:19],
+        } for l in logs],
+    }
+
+
+# ── Project Permissions ───────────────────────────────────────────────────────
+
+def get_project_permissions(project_id: str, db: Session) -> list:
+    from app.models.enterprise import ProjectPermission
+    from sqlalchemy.orm import joinedload
+    perms = db.query(ProjectPermission).options(
+        joinedload(ProjectPermission.user)
+    ).filter(ProjectPermission.project_id == project_id).all()
+    return [{
+        "id": p.id, "user_id": p.user_id,
+        "user_name": p.user.full_name if p.user else None,
+        "user_email": p.user.email if p.user else None,
+        "user_role": p.user.role if p.user else None,
+        "level": p.level, "can_see_financials": p.can_see_financials,
+        "can_see_rates": p.can_see_rates, "can_export": p.can_export,
+        "granted_by": p.granted_by,
+        "granted_at": str(p.granted_at)[:10] if p.granted_at else None,
+        "expires_at": str(p.expires_at)[:10] if p.expires_at else None,
+        "note": p.note,
+    } for p in perms]
+
+
+def grant_project_permission(project_id: str, payload, current_user, db: Session) -> dict:
+    from app.models.enterprise import ProjectPermission
+    from app.models.project import Project
+    from app.models.user import User
+    from app.services.audit import audit_log
+    from app.services.notifications import notify_user
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    existing = db.query(ProjectPermission).filter(
+        ProjectPermission.project_id == project_id,
+        ProjectPermission.user_id == payload.user_id,
+    ).first()
+    if existing:
+        for k, v in payload.model_dump(exclude_unset=True).items():
+            setattr(existing, k, v)
+    else:
+        existing = ProjectPermission(project_id=project_id, granted_by=current_user.id, **payload.model_dump())
+        db.add(existing)
+    audit_log(db, current_user, "GRANT_PERMISSION", "projects", project_id, project.name,
+              new_values={"user_id": payload.user_id, "level": payload.level})
+    db.commit()
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if user:
+        notify_user(db, user.id, "system",
+                    f"Acceso concedido al proyecto {project.name}",
+                    f"{current_user.full_name} te ha dado acceso como {payload.level}",
+                    resource="projects", resource_id=project_id, action_url="/projects")
+        db.commit()
+    return {"ok": True}
+
+
+def update_project_permission(project_id: str, permission_id: str, payload, db: Session) -> dict:
+    from app.models.enterprise import ProjectPermission
+    perm = db.query(ProjectPermission).filter(
+        ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
+    ).first()
+    if not perm:
+        raise ValueError("not_found")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(perm, k, v)
+    db.commit()
+    return {"ok": True}
+
+
+def revoke_project_permission(project_id: str, permission_id: str, current_user, db: Session) -> dict:
+    from app.models.enterprise import ProjectPermission
+    from app.services.audit import audit_log
+    perm = db.query(ProjectPermission).filter(
+        ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
+    ).first()
+    if not perm:
+        raise ValueError("not_found")
+    audit_log(db, current_user, "REVOKE_PERMISSION", "projects", project_id,
+              new_values={"user_id": perm.user_id})
+    db.delete(perm)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Webhooks ──────────────────────────────────────────────────────────────────
+
+def list_webhooks(db: Session) -> list:
+    from app.models.enterprise import Webhook
+    from sqlalchemy.orm import joinedload
+    hooks = db.query(Webhook).options(joinedload(Webhook.project)).order_by(Webhook.created_at.desc()).all()
+    return [serialize_webhook(h) for h in hooks]
+
+
+def create_webhook(payload, current_user, db: Session) -> dict:
+    import json as _json
+    from app.models.enterprise import Webhook
+    from app.services.audit import audit_log
+    hook = Webhook(
+        name=payload.name, url=payload.url,
+        secret=encrypt_value(payload.secret) if payload.secret else None,
+        events=_json.dumps(payload.events),
+        project_id=payload.project_id,
+        created_by=current_user.id,
+    )
+    db.add(hook)
+    audit_log(db, current_user, "CREATE", "webhooks", hook.id, hook.name)
+    db.commit()
+    return serialize_webhook(hook)
+
+
+def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
+    import json as _json
+    from app.models.enterprise import Webhook
+    hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
+    if not hook:
+        raise ValueError("not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if "events" in data:
+        data["events"] = _json.dumps(data["events"])
+    if "secret" in data and data["secret"]:
+        data["secret"] = encrypt_value(data["secret"])
+    for k, v in data.items():
+        setattr(hook, k, v)
+    db.commit()
+    return serialize_webhook(hook)
+
+
+def delete_webhook(hook_id: str, current_user, db: Session) -> dict:
+    from app.models.enterprise import Webhook
+    from app.services.audit import audit_log
+    hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
+    if not hook:
+        raise ValueError("not_found")
+    audit_log(db, current_user, "DELETE", "webhooks", hook.id, hook.name)
+    db.delete(hook)
+    db.commit()
+    return {"ok": True}
+
+
+def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
+    from app.models.enterprise import WebhookDelivery
+    deliveries = db.query(WebhookDelivery).filter(
+        WebhookDelivery.webhook_id == hook_id
+    ).order_by(WebhookDelivery.created_at.desc()).limit(limit).all()
+    return [{
+        "id": d.id, "event": d.event, "status_code": d.status_code,
+        "success": d.success, "error": d.error, "duration_ms": d.duration_ms,
+        "created_at": str(d.created_at)[:19],
+    } for d in deliveries]
+
+
+def get_webhook_for_test(hook_id: str, db: Session):
+    from app.models.enterprise import Webhook
+    return db.query(Webhook).filter(Webhook.id == hook_id).first()
+
+
+# ── SSO ───────────────────────────────────────────────────────────────────────
+
+def list_sso_configs(db: Session) -> list:
+    from app.models.enterprise import SSOConfig
+    return [serialize_sso(c) for c in db.query(SSOConfig).all()]
+
+
+def create_sso_config(payload, current_user, db: Session) -> dict:
+    import json as _json
+    from app.models.enterprise import SSOConfig
+    from app.services.audit import audit_log
+    data = {k: (_json.dumps(v) if k == "role_mapping" and v else v) for k, v in payload.model_dump().items()}
+    if current_user.organization_id and not data.get("organization_id"):
+        data["organization_id"] = current_user.organization_id
+    if data.get("oidc_client_secret"):
+        data["oidc_client_secret"] = encrypt_value(data["oidc_client_secret"])
+    config = SSOConfig(created_by=current_user.id, **data)
+    db.add(config)
+    audit_log(db, current_user, "CREATE", "sso_configs", config.id, payload.provider)
+    db.commit()
+    return serialize_sso(config)
+
+
+def update_sso_config(config_id: str, payload, current_user, db: Session) -> dict:
+    import json as _json
+    from app.models.enterprise import SSOConfig
+    config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+    if not config:
+        raise ValueError("not_found")
+    data = payload.model_dump(exclude_unset=True)
+    if current_user.organization_id and data.get("organization_id") not in (None, current_user.organization_id):
+        raise ValueError("org_mismatch")
+    if "role_mapping" in data and data["role_mapping"] is not None:
+        data["role_mapping"] = _json.dumps(data["role_mapping"])
+    if "oidc_client_secret" in data and data["oidc_client_secret"]:
+        data["oidc_client_secret"] = encrypt_value(data["oidc_client_secret"])
+    for k, v in data.items():
+        setattr(config, k, v)
+    db.commit()
+    return serialize_sso(config)
+
+
+def delete_sso_config(config_id: str, db: Session) -> dict:
+    from app.models.enterprise import SSOConfig
+    config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+    if not config:
+        raise ValueError("not_found")
+    db.delete(config)
+    db.commit()
+    return {"ok": True}
+
+
+def get_sso_config_for_test(config_id: str, db: Session):
+    from app.models.enterprise import SSOConfig
+    return db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
+
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+
+def get_my_notifications(current_user, unread_only: bool, page: int, page_size: int, db: Session) -> dict:
+    from app.models.enterprise import Notification
+    from sqlalchemy import func as _func
+    q = db.query(Notification).filter(Notification.user_id == current_user.id)
+    if unread_only:
+        q = q.filter(Notification.is_read == False)
+    total = q.count()
+    unread_count = db.query(_func.count(Notification.id)).filter(
+        Notification.user_id == current_user.id, Notification.is_read == False
+    ).scalar()
+    items = q.order_by(Notification.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "total": total, "unread_count": unread_count, "page": page,
+        "notifications": [{
+            "id": n.id, "type": n.type, "title": n.title, "body": n.body,
+            "icon": n.icon, "color": n.color, "resource": n.resource,
+            "resource_id": n.resource_id, "action_url": n.action_url,
+            "is_read": n.is_read, "read_at": str(n.read_at)[:16] if n.read_at else None,
+            "created_at": str(n.created_at)[:16],
+        } for n in items],
+    }
+
+
+def mark_all_notifications_read(current_user, db: Session) -> dict:
+    from app.models.enterprise import Notification
+    now = datetime.now(timezone.utc)
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id, Notification.is_read == False
+    ).update({"is_read": True, "read_at": now})
+    db.commit()
+    return {"ok": True}
+
+
+def mark_notification_read(notif_id: str, current_user, db: Session) -> dict:
+    from app.models.enterprise import Notification
+    n = db.query(Notification).filter(
+        Notification.id == notif_id, Notification.user_id == current_user.id
+    ).first()
+    if not n:
+        raise ValueError("not_found")
+    n.is_read = True
+    n.read_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+def clear_old_notifications(current_user, days: int, db: Session) -> dict:
+    from app.models.enterprise import Notification
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    deleted = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.is_read == True,
+        Notification.created_at < cutoff,
+    ).delete()
+    db.commit()
+    return {"deleted": deleted}
+
+
+# ── Subcontractors ────────────────────────────────────────────────────────────
+
+def list_subcontractors(is_active, db: Session) -> list:
+    from app.models.enterprise import Subcontractor
+    from sqlalchemy.orm import joinedload
+    q = db.query(Subcontractor).options(
+        joinedload(Subcontractor.rates),
+        joinedload(Subcontractor.assignments),
+        joinedload(Subcontractor.workers),
+    )
+    if is_active is not None:
+        q = q.filter(Subcontractor.is_active == is_active)
+    return [serialize_subcontractor(s) for s in q.order_by(Subcontractor.name).all()]
+
+
+def create_subcontractor(payload, current_user, db: Session) -> dict:
+    from app.models.enterprise import Subcontractor
+    from app.services.audit import audit_log
+    sub = Subcontractor(code=next_sub_code(db), **payload.model_dump())
+    db.add(sub)
+    audit_log(db, current_user, "CREATE", "subcontractors", sub.id, sub.name)
+    db.commit()
+    db.refresh(sub)
+    return serialize_subcontractor(sub)
+
+
+def update_subcontractor(sub_id: str, payload, db: Session) -> dict:
+    from app.models.enterprise import Subcontractor
+    from sqlalchemy.orm import joinedload
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(sub, k, v)
+    db.commit()
+    sub = db.query(Subcontractor).options(
+        joinedload(Subcontractor.rates),
+        joinedload(Subcontractor.assignments),
+        joinedload(Subcontractor.workers),
+    ).filter(Subcontractor.id == sub_id).first()
+    return serialize_subcontractor(sub)
+
+
+def delete_subcontractor(sub_id: str, db: Session) -> dict:
+    from app.models.enterprise import Subcontractor
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    sub.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+def add_subcontractor_rate(sub_id: str, payload, db: Session) -> dict:
+    from app.models.enterprise import Subcontractor, SubcontractorRate
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    rate = SubcontractorRate(subcontractor_id=sub_id, **payload.model_dump())
+    db.add(rate)
+    db.commit()
+    return {"id": rate.id, "description": rate.description, "cost_rate": rate.cost_rate, "sell_rate": rate.sell_rate}
+
+
+def delete_subcontractor_rate(sub_id: str, rate_id: str, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorRate
+    rate = db.query(SubcontractorRate).filter(
+        SubcontractorRate.id == rate_id, SubcontractorRate.subcontractor_id == sub_id
+    ).first()
+    if not rate:
+        raise ValueError("not_found")
+    db.delete(rate)
+    db.commit()
+    return {"ok": True}
+
+
+def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
+    from app.models.enterprise import SubcontractorAssignment
+    from sqlalchemy.orm import joinedload
+    assignments = db.query(SubcontractorAssignment).options(
+        joinedload(SubcontractorAssignment.project),
+        joinedload(SubcontractorAssignment.rate),
+    ).filter(SubcontractorAssignment.subcontractor_id == sub_id).all()
+    return [{
+        "id": a.id, "project_id": a.project_id,
+        "project_name": a.project.name if a.project else None,
+        "project_code": a.project.code if a.project else None,
+        "rate": {"description": a.rate.description, "cost_rate": a.rate.cost_rate} if a.rate else None,
+        "po_number": a.po_number, "po_amount": a.po_amount,
+        "hours_contracted": a.hours_contracted, "hours_logged": a.hours_logged,
+        "budget_used_pct": round((a.hours_logged / a.hours_contracted) * 100, 1) if a.hours_contracted else None,
+        "start_date": str(a.start_date) if a.start_date else None,
+        "end_date": str(a.end_date) if a.end_date else None,
+        "notes": a.notes,
+    } for a in assignments]
+
+
+def create_subcontractor_assignment(sub_id: str, payload, current_user, db: Session) -> dict:
+    from app.models.enterprise import Subcontractor, SubcontractorAssignment
+    from app.services.audit import audit_log
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    assignment = SubcontractorAssignment(subcontractor_id=sub_id, **payload.model_dump())
+    db.add(assignment)
+    audit_log(db, current_user, "CREATE", "subcontractor_assignments", assignment.id, sub.name)
+    db.commit()
+    return {"ok": True, "id": assignment.id}
+
+
+# ── Subcontractor Workers ─────────────────────────────────────────────────────
+
+def list_all_workers(skill_id, is_active, db: Session) -> list:
+    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
+    from sqlalchemy.orm import joinedload
+    q = db.query(SubcontractorWorker).options(
+        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
+        joinedload(SubcontractorWorker.assignments),
+        joinedload(SubcontractorWorker.subcontractor),
+        joinedload(SubcontractorWorker.user),
+    )
+    if is_active is not None:
+        q = q.filter(SubcontractorWorker.is_active == is_active)
+    if skill_id:
+        q = q.join(SubcontractorWorkerSkill, SubcontractorWorker.id == SubcontractorWorkerSkill.worker_id).filter(
+            SubcontractorWorkerSkill.skill_id == skill_id
+        )
+    result = []
+    for w in q.order_by(SubcontractorWorker.name).all():
+        d = serialize_worker(w)
+        d["company_name"] = w.subcontractor.name if w.subcontractor else None
+        d["company_code"] = w.subcontractor.code if w.subcontractor else None
+        result.append(d)
+    return result
+
+
+def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
+    from app.models.enterprise import Subcontractor, SubcontractorWorker, SubcontractorWorkerSkill
+    from sqlalchemy.orm import joinedload
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    workers = db.query(SubcontractorWorker).options(
+        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
+        joinedload(SubcontractorWorker.assignments),
+        joinedload(SubcontractorWorker.user),
+    ).filter(SubcontractorWorker.subcontractor_id == sub_id).order_by(SubcontractorWorker.name).all()
+    return [serialize_worker(w) for w in workers]
+
+
+def update_worker(worker_id: str, payload, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
+    from app.models.user import User
+    from sqlalchemy.orm import joinedload
+    worker = db.query(SubcontractorWorker).options(
+        joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
+        joinedload(SubcontractorWorker.assignments),
+        joinedload(SubcontractorWorker.user),
+    ).filter(SubcontractorWorker.id == worker_id).first()
+    if not worker:
+        raise ValueError("not_found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for k, v in update_data.items():
+        setattr(worker, k, v)
+    if worker.user_id:
+        linked_user = db.query(User).filter(User.id == worker.user_id).first()
+        if linked_user:
+            if "name" in update_data:
+                linked_user.full_name = update_data["name"]
+                parts = update_data["name"].strip().split(" ", 1)
+                linked_user.first_name = parts[0]
+                linked_user.last_name = parts[1] if len(parts) > 1 else None
+            if "role" in update_data: linked_user.job_title = update_data["role"]
+            if "phone" in update_data: linked_user.phone = update_data["phone"]
+            if "cost_rate" in update_data: linked_user.hourly_rate = update_data["cost_rate"]
+            if "currency" in update_data: linked_user.currency = update_data["currency"]
+            if "weekly_capacity_hours" in update_data and update_data["weekly_capacity_hours"] is not None:
+                linked_user.weekly_capacity_hours = update_data["weekly_capacity_hours"]
+            if "is_active" in update_data: linked_user.is_active = update_data["is_active"]
+            if "email" in update_data and update_data["email"]:
+                conflict = db.query(User).filter(User.email == update_data["email"], User.id != linked_user.id).first()
+                if not conflict:
+                    linked_user.email = update_data["email"]
+    db.commit()
+    db.refresh(worker)
+    return serialize_worker(worker)
+
+
+def delete_worker(worker_id: str, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorWorker
+    from app.models.user import User
+    worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
+    if not worker:
+        raise ValueError("not_found")
+    worker.is_active = False
+    if worker.user_id:
+        linked_user = db.query(User).filter(User.id == worker.user_id).first()
+        if linked_user:
+            linked_user.is_active = False
+    db.commit()
+    return {"ok": True}
+
+
+def add_worker_skill(worker_id: str, payload, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
+    worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
+    if not worker:
+        raise ValueError("not_found")
+    existing = db.query(SubcontractorWorkerSkill).filter(
+        SubcontractorWorkerSkill.worker_id == worker_id,
+        SubcontractorWorkerSkill.skill_id == payload.skill_id,
+    ).first()
+    if existing:
+        for k, v in payload.model_dump(exclude_unset=True).items():
+            setattr(existing, k, v)
+        db.commit()
+        return {"ok": True, "id": existing.id, "updated": True}
+    ws = SubcontractorWorkerSkill(worker_id=worker_id, **payload.model_dump())
+    db.add(ws)
+    db.commit()
+    return {"ok": True, "id": ws.id, "updated": False}
+
+
+def remove_worker_skill(worker_id: str, skill_id: str, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorWorkerSkill
+    ws = db.query(SubcontractorWorkerSkill).filter(
+        SubcontractorWorkerSkill.worker_id == worker_id,
+        SubcontractorWorkerSkill.skill_id == skill_id,
+    ).first()
+    if not ws:
+        raise ValueError("not_found")
+    db.delete(ws)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Subcontractor Time Logs ───────────────────────────────────────────────────
+
+def get_timelogs(sub_id: str, project_id, db: Session) -> list:
+    from app.models.enterprise import SubcontractorTimeLog
+    q = db.query(SubcontractorTimeLog).filter(SubcontractorTimeLog.subcontractor_id == sub_id)
+    if project_id:
+        q = q.filter(SubcontractorTimeLog.project_id == project_id)
+    return [{
+        "id": l.id, "log_date": str(l.log_date), "hours": l.hours,
+        "description": l.description, "task_reference": l.task_reference,
+        "cost_amount": l.cost_amount, "is_invoiced": l.is_invoiced,
+        "project_id": l.project_id,
+        "project_name": l.project.name if l.project else None,
+    } for l in q.order_by(SubcontractorTimeLog.log_date.desc()).all()]
+
+
+def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
+    import uuid as _uuid
+    from app.models.enterprise import Subcontractor, SubcontractorTimeLog, SubcontractorAssignment
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    cost_amount = payload.get("cost_amount")
+    assignment_id = payload.get("assignment_id")
+    if not cost_amount and assignment_id:
+        assignment = db.query(SubcontractorAssignment).filter(SubcontractorAssignment.id == assignment_id).first()
+        if assignment and assignment.rate:
+            cost_amount = round(float(payload.get("hours", 0)) * assignment.rate.cost_rate, 2)
+    log = SubcontractorTimeLog(
+        id=str(_uuid.uuid4()), subcontractor_id=sub_id,
+        assignment_id=assignment_id, project_id=payload.get("project_id"),
+        log_date=payload.get("log_date"), hours=float(payload.get("hours", 0)),
+        description=payload.get("description"), task_reference=payload.get("task_reference"),
+        cost_amount=cost_amount,
+    )
+    db.add(log)
+    if assignment_id:
+        assignment = db.query(SubcontractorAssignment).filter(SubcontractorAssignment.id == assignment_id).first()
+        if assignment:
+            assignment.hours_logged = (assignment.hours_logged or 0) + float(payload.get("hours", 0))
+    db.commit()
+    return {"ok": True, "id": log.id, "cost_amount": cost_amount}
+
+
+def delete_timelog(sub_id: str, log_id: str, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorTimeLog
+    log = db.query(SubcontractorTimeLog).filter(
+        SubcontractorTimeLog.id == log_id, SubcontractorTimeLog.subcontractor_id == sub_id
+    ).first()
+    if not log:
+        raise ValueError("not_found")
+    if log.is_invoiced:
+        raise ValueError("already_invoiced")
+    db.delete(log)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Subcontractor Invoices ────────────────────────────────────────────────────
+
+def get_sub_invoices(sub_id: str, db: Session) -> list:
+    from app.models.enterprise import SubcontractorInvoice
+    invs = db.query(SubcontractorInvoice).filter(
+        SubcontractorInvoice.subcontractor_id == sub_id
+    ).order_by(SubcontractorInvoice.issue_date.desc()).all()
+    return [{
+        "id": i.id, "invoice_number": i.invoice_number,
+        "issue_date": str(i.issue_date), "due_date": str(i.due_date) if i.due_date else None,
+        "amount": i.amount, "tax_pct": i.tax_pct, "total": i.total,
+        "currency": i.currency, "status": i.status,
+        "paid_date": str(i.paid_date) if i.paid_date else None,
+        "description": i.description,
+    } for i in invs]
+
+
+def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) -> dict:
+    import uuid as _uuid
+    from app.models.enterprise import Subcontractor, SubcontractorInvoice, SubcontractorTimeLog
+    from app.services.audit import audit_log
+    sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
+    if not sub:
+        raise ValueError("not_found")
+    amount = float(payload.get("amount", 0))
+    tax_pct = float(payload.get("tax_pct", settings.DEFAULT_TAX_RATE))
+    total = round(amount * (1 + tax_pct / 100), 2)
+    inv = SubcontractorInvoice(
+        id=str(_uuid.uuid4()), subcontractor_id=sub_id,
+        assignment_id=payload.get("assignment_id"),
+        invoice_number=payload.get("invoice_number", f"SUB-INV-{_uuid.uuid4().hex[:6].upper()}"),
+        issue_date=payload.get("issue_date"), due_date=payload.get("due_date"),
+        amount=amount, tax_pct=tax_pct, total=total,
+        currency=payload.get("currency", sub.currency or settings.DEFAULT_CURRENCY),
+        description=payload.get("description"),
+    )
+    db.add(inv)
+    if payload.get("timelog_ids"):
+        db.query(SubcontractorTimeLog).filter(
+            SubcontractorTimeLog.id.in_(payload["timelog_ids"])
+        ).update({"is_invoiced": True, "invoice_id": inv.id}, synchronize_session=False)
+    db.commit()
+    audit_log(db, current_user, "CREATE", "subcontractor_invoices", inv.id, sub.name)
+    return {"ok": True, "id": inv.id, "total": total}
+
+
+def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session) -> dict:
+    from app.models.enterprise import SubcontractorInvoice
+    inv = db.query(SubcontractorInvoice).filter(
+        SubcontractorInvoice.id == inv_id, SubcontractorInvoice.subcontractor_id == sub_id
+    ).first()
+    if not inv:
+        raise ValueError("not_found")
+    for k in ["status", "paid_date", "description"]:
+        if k in payload:
+            setattr(inv, k, payload[k])
+    db.commit()
+    return {"ok": True}
+
+
+# ── Subcontractor Dashboard ───────────────────────────────────────────────────
+
+def get_subcontractors_dashboard(db: Session) -> dict:
+    from app.models.enterprise import (
+        Subcontractor, SubcontractorAssignment, SubcontractorInvoice, SubcontractorTimeLog
+    )
+    total_subs   = db.query(func.count(Subcontractor.id)).filter(Subcontractor.is_active == True).scalar()
+    active_assgn = db.query(func.count(SubcontractorAssignment.id)).scalar()
+    pending_invs = db.query(func.count(SubcontractorInvoice.id)).filter(SubcontractorInvoice.status == "received").scalar()
+    total_cost   = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status.in_(["approved", "paid"])).scalar() or 0
+    pending_cost = db.query(func.sum(SubcontractorInvoice.total)).filter(SubcontractorInvoice.status == "received").scalar() or 0
+    total_hours  = db.query(func.sum(SubcontractorTimeLog.hours)).scalar() or 0
+    return {
+        "total_active_subs": total_subs, "active_assignments": active_assgn,
+        "pending_invoices": pending_invs, "total_paid_cost": round(total_cost, 2),
+        "pending_approval_cost": round(pending_cost, 2), "total_hours_logged": round(total_hours, 1),
+    }
+
+
+# ── Revenue Forecast ──────────────────────────────────────────────────────────
+
+def get_project_forecast(project_id: str, year: int, db: Session) -> dict:
+    from app.models.enterprise import RevenueForecast
+    forecasts = db.query(RevenueForecast).filter(
+        RevenueForecast.project_id == project_id, RevenueForecast.year == year
+    ).order_by(RevenueForecast.month).all()
+    existing = {f.month: f for f in forecasts}
+    result = []
+    for month in range(1, 13):
+        if month in existing:
+            result.append(serialize_forecast(existing[month]))
+        else:
+            result.append({
+                "id": None, "project_id": project_id, "year": year, "month": month,
+                "revenue_planned": 0, "revenue_actual": 0, "revenue_forecast": 0,
+                "cost_planned": 0, "cost_actual": 0, "hours_planned": 0, "hours_actual": 0,
+                "margin_pct": None, "notes": None,
+            })
+    return {"year": year, "project_id": project_id, "monthly": result}
+
+
+def upsert_forecast(project_id: str, year: int, month: int, payload, db: Session) -> dict:
+    from app.models.enterprise import RevenueForecast
+    existing = db.query(RevenueForecast).filter(
+        RevenueForecast.project_id == project_id,
+        RevenueForecast.year == year,
+        RevenueForecast.month == month,
+    ).first()
+    if existing:
+        for k, v in payload.model_dump(exclude_unset=True).items():
+            setattr(existing, k, v)
+        rev = existing.revenue_forecast or existing.revenue_planned or 0
+        cost = existing.cost_actual or existing.cost_planned or 0
+        existing.margin_pct = round((rev - cost) / rev * 100, 1) if rev > 0 else None
+        db.commit()
+        return serialize_forecast(existing)
+    else:
+        data = payload.model_dump()
+        rev = data.get("revenue_forecast") or data.get("revenue_planned") or 0
+        cost = data.get("cost_actual") or data.get("cost_planned") or 0
+        margin = round((rev - cost) / rev * 100, 1) if rev > 0 else None
+        forecast = RevenueForecast(project_id=project_id, year=year, month=month, margin_pct=margin, **data)
+        db.add(forecast)
+        db.commit()
+        db.refresh(forecast)
+        return serialize_forecast(forecast)

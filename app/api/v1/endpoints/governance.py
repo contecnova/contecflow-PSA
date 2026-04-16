@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models.governance import ComplianceEvidence, TenantPolicyPack
 from app.models.user import User
 from app.services.audit import audit_log
+import app.services.governance_service as _gsvc
 
 router = APIRouter(prefix="/governance", tags=["Governance"])
 

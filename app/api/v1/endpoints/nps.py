@@ -12,17 +12,15 @@ Routes:
 """
 
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from app.models.nps import ClientNPS, ClientHealthSnapshot, NPSCategory
-from app.models.clients import Client
 from app.models.user import User, UserRole
+from app.services import nps_service
 
 router = APIRouter()
 
@@ -45,43 +43,6 @@ class HealthSnapshotCreate(BaseModel):
     note:                Optional[str] = None
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-def _nps_category(score: int) -> NPSCategory:
-    if score >= 9:
-        return NPSCategory.promoter
-    if score >= 7:
-        return NPSCategory.passive
-    return NPSCategory.detractor
-
-
-def _compute_nps(responses: List[ClientNPS]) -> Optional[float]:
-    """Standard NPS formula: %promoters - %detractors (range -100 to 100)."""
-    if not responses:
-        return None
-    total = len(responses)
-    promoters  = sum(1 for r in responses if r.category == NPSCategory.promoter)
-    detractors = sum(1 for r in responses if r.category == NPSCategory.detractor)
-    return round((promoters - detractors) / total * 100, 1)
-
-
-def _compute_health(client_id, db: Session) -> float:
-    """Compute composite health score from latest NPS + delivery/budget signals."""
-    # NPS component (last 90 days)
-    cutoff = datetime.utcnow() - timedelta(days=90)
-    responses = db.query(ClientNPS).filter(
-        ClientNPS.client_id == client_id,
-        ClientNPS.created_at >= cutoff,
-    ).all()
-    nps_score = _compute_nps(responses)
-    # Map NPS (-100..100) → 0-100
-    nps_component = ((nps_score or 0) + 100) / 2 if nps_score is not None else 50.0
-
-    # Other components: use 70 as neutral default when no data
-    health = round((nps_component * 0.4) + (70 * 0.2) + (70 * 0.2) + (70 * 0.2), 1)
-    return min(max(health, 0), 100)
-
-
 # ── NPS Routes ───────────────────────────────────────────────────────────
 
 @router.post("/{client_id}/responses", status_code=201)
@@ -91,20 +52,17 @@ def submit_nps(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    if not db.query(Client).filter(Client.id == client_id).first():
+    if not nps_service.client_exists(db, client_id):
         raise HTTPException(404, "Cliente no encontrado")
 
-    entry = ClientNPS(
+    entry = nps_service.create_nps_entry(
+        db,
         client_id  = client_id,
         score      = body.score,
-        category   = _nps_category(body.score),
         comment    = body.comment,
         respondent = body.respondent,
         source     = body.source,
     )
-    db.add(entry)
-    db.commit()
-    db.refresh(entry)
     return {
         "id":        entry.id,
         "score":     entry.score,
@@ -120,13 +78,7 @@ def list_nps_responses(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    rows = (
-        db.query(ClientNPS)
-        .filter(ClientNPS.client_id == client_id)
-        .order_by(ClientNPS.created_at.desc())
-        .limit(limit)
-        .all()
-    )
+    rows = nps_service.list_nps_responses(db, client_id, limit)
     return [
         {
             "id":        r.id,
@@ -148,39 +100,10 @@ def client_nps_summary(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    cutoff = datetime.utcnow() - timedelta(days=days)
-    responses = db.query(ClientNPS).filter(
-        ClientNPS.client_id == client_id,
-        ClientNPS.created_at >= cutoff,
-    ).order_by(ClientNPS.created_at).all()
-
-    nps = _compute_nps(responses)
-    promoters  = sum(1 for r in responses if r.category == NPSCategory.promoter)
-    passives   = sum(1 for r in responses if r.category == NPSCategory.passive)
-    detractors = sum(1 for r in responses if r.category == NPSCategory.detractor)
-
-    # Monthly breakdown for trend chart
-    monthly: dict = {}
-    for r in responses:
-        key = r.created_at.strftime("%Y-%m")
-        if key not in monthly:
-            monthly[key] = []
-        monthly[key].append(r)
-
-    trend = [
-        {"month": k, "nps": _compute_nps(v), "count": len(v)}
-        for k, v in sorted(monthly.items())
-    ]
-
-    return {
-        "nps":        nps,
-        "total":      len(responses),
-        "promoters":  promoters,
-        "passives":   passives,
-        "detractors": detractors,
-        "trend":      trend,
-        "days":       days,
-    }
+    cutoff    = datetime.utcnow() - timedelta(days=days)
+    responses = nps_service.get_nps_responses_since(db, client_id, cutoff)
+    summary   = nps_service.compute_nps_summary(responses)
+    return {**summary, "days": days}
 
 
 # ── Health Snapshot Routes ────────────────────────────────────────────────
@@ -194,10 +117,11 @@ def create_health_snapshot(
 ):
     if current_user.role not in (UserRole.admin, UserRole.pm):
         raise HTTPException(403, "Solo admins/PMs pueden crear snapshots")
-    if not db.query(Client).filter(Client.id == client_id).first():
+    if not nps_service.client_exists(db, client_id):
         raise HTTPException(404, "Cliente no encontrado")
 
-    snap = ClientHealthSnapshot(
+    snap = nps_service.create_health_snapshot(
+        db,
         client_id           = client_id,
         health_score        = body.health_score,
         nps_component       = body.nps_component,
@@ -206,9 +130,6 @@ def create_health_snapshot(
         activity_component  = body.activity_component,
         note                = body.note,
     )
-    db.add(snap)
-    db.commit()
-    db.refresh(snap)
     return {"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at}
 
 
@@ -221,14 +142,10 @@ def auto_compute_health(
     """Auto-compute health score from current data signals and save a snapshot."""
     if current_user.role not in (UserRole.admin, UserRole.pm):
         raise HTTPException(403, "Solo admins/PMs pueden computar salud")
-    if not db.query(Client).filter(Client.id == client_id).first():
+    if not nps_service.client_exists(db, client_id):
         raise HTTPException(404, "Cliente no encontrado")
 
-    score = _compute_health(client_id, db)
-    snap = ClientHealthSnapshot(client_id=client_id, health_score=score, note="Auto-computed")
-    db.add(snap)
-    db.commit()
-    db.refresh(snap)
+    snap = nps_service.compute_and_save_health(db, client_id)
     return {"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at}
 
 
@@ -239,13 +156,7 @@ def client_health_history(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    rows = (
-        db.query(ClientHealthSnapshot)
-        .filter(ClientHealthSnapshot.client_id == client_id)
-        .order_by(ClientHealthSnapshot.snapshot_at.desc())
-        .limit(limit)
-        .all()
-    )
+    rows = nps_service.get_health_history(db, client_id, limit)
     return [
         {
             "id":                 r.id,
@@ -271,19 +182,12 @@ def health_trend_all(
 ):
     """Aggregate average health score per week across all clients."""
     cutoff = datetime.utcnow() - timedelta(days=days)
-    rows = (
-        db.query(ClientHealthSnapshot)
-        .filter(ClientHealthSnapshot.snapshot_at >= cutoff)
-        .order_by(ClientHealthSnapshot.snapshot_at)
-        .all()
-    )
-    # Group by ISO week
+    rows   = nps_service.get_health_trend(db, cutoff)
+
     weekly: dict = {}
     for r in rows:
         week = r.snapshot_at.strftime("%Y-W%W")
-        if week not in weekly:
-            weekly[week] = []
-        weekly[week].append(r.health_score)
+        weekly.setdefault(week, []).append(r.health_score)
 
     return [
         {"week": k, "avg_health": round(sum(v) / len(v), 1), "count": len(v)}
@@ -297,23 +201,7 @@ def health_leaderboard(
     _: User = Depends(get_current_user),
 ):
     """Return latest health score per client, ordered best-to-worst."""
-    # Latest snapshot per client via subquery
-    subq = (
-        db.query(
-            ClientHealthSnapshot.client_id,
-            func.max(ClientHealthSnapshot.snapshot_at).label("latest"),
-        )
-        .group_by(ClientHealthSnapshot.client_id)
-        .subquery()
-    )
-    rows = (
-        db.query(ClientHealthSnapshot, Client.name)
-        .join(subq, (ClientHealthSnapshot.client_id == subq.c.client_id) &
-              (ClientHealthSnapshot.snapshot_at == subq.c.latest))
-        .join(Client, Client.id == ClientHealthSnapshot.client_id)
-        .order_by(ClientHealthSnapshot.health_score.desc())
-        .all()
-    )
+    rows = nps_service.get_health_leaderboard(db)
     return [
         {
             "client_id":    snap.client_id,

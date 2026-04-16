@@ -22,6 +22,12 @@ from app.services.user_service import (
     set_manager_record,
     get_preferences_payload,
     update_preferences_record,
+    list_users_paged,
+    list_active_users_with_rates,
+    get_user_by_id,
+    update_self_profile,
+    deactivate_user_record,
+    delete_user_record,
 )
 
 router = APIRouter()
@@ -41,22 +47,11 @@ def list_users(
 ):
     enforce_abac(db, current_user, "user", action="read")
 
-    q = _scope_users_query(db.query(User), current_user)
-    if department:
-        q = q.filter(User.department == department)
-    if role:
-        q = q.filter(User.role == role)
-    if status:
-        q = q.filter(User.status == status)
-    if search:
-        q = q.filter(
-            (User.full_name.ilike(f"%{search}%")) |
-            (User.username.ilike(f"%{search}%")) |
-            (User.email.ilike(f"%{search}%"))
-        )
-
-    total = q.count()
-    users = q.offset((page - 1) * page_size).limit(page_size).all()
+    users, total = list_users_paged(
+        db, current_user,
+        department=department, role=role, status=status, search=search,
+        page=page, page_size=page_size,
+    )
     if response is not None:
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)
@@ -70,10 +65,7 @@ def list_users_with_rates(
     current_user: User = Depends(require_admin_or_hr),
 ):
     enforce_abac(db, current_user, "user", action="read")
-    return _scope_users_query(
-        db.query(User).filter(User.is_active == True),
-        current_user,
-    ).all()
+    return list_active_users_with_rates(db, current_user)
 
 
 @router.get("/load", response_model=List[UserLoad], summary="Mapa de carga actual de todos los recursos")
@@ -136,18 +128,7 @@ def update_my_profile(
     allowed_fields = {"first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
     update_data = payload.model_dump(exclude_unset=True)
 
-    for field, value in update_data.items():
-        if field in allowed_fields:
-            setattr(current_user, field, value)
-            if field in ("first_name", "last_name"):
-                fn = current_user.first_name or ""
-                ln = current_user.last_name or ""
-                if fn or ln:
-                    current_user.full_name = f"{fn} {ln}".strip()
-
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    return update_self_profile(current_user, update_data, db)
 
 
 @router.get("/{user_id}/approval-chain", summary="Cadena de aprobación de un usuario")
@@ -156,7 +137,7 @@ def user_approval_chain(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_or_pm),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(404, "Usuario no encontrado")
     enforce_abac(db, _, "user", user_id, action="read")
@@ -181,7 +162,7 @@ def get_user(
 
     enforce_abac(db, current_user, "user", user_id, action="read")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     _ensure_same_org_user_access(user, current_user)
@@ -219,14 +200,12 @@ def deactivate_user(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    user = db.query(User).filter(User.id == user_id).first()
+    user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     _ensure_same_org_user_access(user, _)
     enforce_abac(db, _, "user", user_id, action="delete")
-    user.is_active = False
-    user.status = UserStatus.inactive
-    db.commit()
+    deactivate_user_record(user, db)
     return {"message": f"Usuario {user.username} desactivado"}
 
 
@@ -238,13 +217,12 @@ def delete_user_permanent(
 ):
     if current_user.id == user_id:
         raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
-    user = db.query(User).filter(User.id == user_id).first()
+    user = get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     _ensure_same_org_user_access(user, current_user)
     enforce_abac(db, current_user, "user", user_id, action="delete")
-    db.delete(user)
-    db.commit()
+    delete_user_record(user, db)
     return {"message": f"Usuario {user.username} eliminado permanentemente"}
 
 

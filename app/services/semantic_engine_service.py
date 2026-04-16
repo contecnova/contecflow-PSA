@@ -116,6 +116,143 @@ def auto_generate_profiles(db: Session) -> dict:
     return {"created": created, "updated": updated, "total": created + updated}
 
 
+def save_config(db: Session, cfg) -> None:
+    """Commit and refresh a config object."""
+    db.commit()
+    db.refresh(cfg)
+
+
+def enrich_suggestion(db: Session, result: dict) -> dict:
+    """Add user name fields to a suggestion result dict (mutates in place)."""
+    from app.models.user import User
+    if result.get("suggested_user_id"):
+        u = db.query(User).filter(User.id == result["suggested_user_id"]).first()
+        result["suggested_user_name"] = u.full_name if u else None
+    if result.get("top_scores"):
+        enriched = {}
+        for uid, score in result["top_scores"].items():
+            u = db.query(User).filter(User.id == uid).first()
+            enriched[uid] = {"score": score, "name": u.full_name if u else uid}
+        result["top_candidates"] = enriched
+    return result
+
+
+def get_project_member_ids(db: Session, project_id) -> list:
+    """Return user_ids of all members of a project."""
+    from app.models.project import ProjectMember
+    members = db.query(ProjectMember).filter(
+        ProjectMember.project_id == project_id).all()
+    return [m.user_id for m in members]
+
+
+def list_profiles_with_users(db: Session) -> list:
+    """Return all semantic profiles enriched with user names."""
+    from app.models.semantic_engine import SemProfile
+    from app.models.user import User
+    profiles = db.query(SemProfile).all()
+    result = []
+    for p in profiles:
+        u = db.query(User).filter(User.id == p.user_id).first()
+        result.append({
+            "id":            p.id,
+            "user_id":       p.user_id,
+            "user_name":     u.full_name if u else None,
+            "profile_text":  p.profile_text[:200] if p.profile_text else "",
+            "has_embedding": bool(p.embedding),
+            "open_tickets":  p.open_tickets,
+            "open_tasks":    p.open_tasks,
+            "max_load":      p.max_load,
+            "is_available":  p.is_available,
+        })
+    return result
+
+
+def upsert_profile(db: Session, user_id, profile_text: str,
+                   max_load=None, is_available: bool = True) -> dict:
+    """Create or update a semantic profile and return status dict."""
+    from app.models.semantic_engine import SemProfile
+    profile = db.query(SemProfile).filter(SemProfile.user_id == user_id).first()
+    if not profile:
+        profile = SemProfile(user_id=user_id)
+        db.add(profile)
+    profile.profile_text = profile_text
+    profile.max_load     = max_load if max_load is not None else (profile.max_load or 10)
+    profile.is_available = is_available
+    if profile_text:
+        assigner = get_assigner(db)
+        emb = assigner._encode_single(profile_text)
+        profile.embedding = json.dumps(emb)
+    db.commit()
+    db.refresh(profile)
+    return {"ok": True, "has_embedding": bool(profile.embedding)}
+
+
+def get_stats(db: Session) -> dict:
+    """Compute and return semantic engine statistics."""
+    from app.models.semantic_engine import (SemAssignment, SemProfile,
+                                            SemFeedback, SemEmbeddingCache)
+    from sqlalchemy import func
+    total    = db.query(func.count(SemAssignment.id)).scalar() or 0
+    accepted = db.query(func.count(SemAssignment.id)).filter(
+        SemAssignment.was_accepted == True).scalar() or 0
+    rejected = db.query(func.count(SemAssignment.id)).filter(
+        SemAssignment.was_accepted == False).scalar() or 0
+    pending  = db.query(func.count(SemAssignment.id)).filter(
+        SemAssignment.was_accepted == None).scalar() or 0
+    profiles   = db.query(func.count(SemProfile.id)).scalar() or 0
+    cache_size = db.query(func.count(SemEmbeddingCache.id)).scalar() or 0
+    feedback   = db.query(func.count(SemFeedback.id)).scalar() or 0
+    accuracy   = round(accepted / (accepted + rejected) * 100) \
+                 if (accepted + rejected) > 0 else None
+    by_mode_rows = db.query(
+        SemAssignment.engine_mode,
+        func.count(SemAssignment.id)
+    ).group_by(SemAssignment.engine_mode).all()
+    return {
+        "total_suggestions": total,
+        "accepted":          accepted,
+        "rejected":          rejected,
+        "pending":           pending,
+        "accuracy_pct":      accuracy,
+        "profiles":          profiles,
+        "cache_size":        cache_size,
+        "expert_feedback":   feedback,
+        "by_mode":           {r[0]: r[1] for r in by_mode_rows},
+    }
+
+
+def record_assignment(db: Session, data: dict, created_by_id) -> dict:
+    """Persist a SemAssignment and update the assignee's load counters."""
+    from app.models.semantic_engine import SemAssignment, SemProfile
+    sa = SemAssignment(
+        item_type         = data.get("item_type", "ticket"),
+        item_id           = data.get("item_id", ""),
+        item_title        = data.get("item_title", "")[:500],
+        suggested_user_id = data.get("suggested_user_id"),
+        accepted_user_id  = data.get("accepted_user_id"),
+        was_accepted      = data.get("was_accepted"),
+        confidence        = data.get("confidence"),
+        top_scores        = json.dumps(data.get("top_scores", {})),
+        engine_mode       = data.get("engine_mode"),
+        estimated_hours   = data.get("estimated_hours"),
+        complexity        = data.get("complexity"),
+        reasoning         = data.get("reasoning", "")[:1000],
+        needs_review      = data.get("needs_review", False),
+        created_by        = created_by_id,
+    )
+    db.add(sa)
+    if data.get("accepted_user_id"):
+        p = db.query(SemProfile).filter(
+            SemProfile.user_id == data["accepted_user_id"]).first()
+        if p:
+            if data.get("item_type") == "ticket":
+                p.open_tickets = max(0, (p.open_tickets or 0) + 1)
+            else:
+                p.open_tasks = max(0, (p.open_tasks or 0) + 1)
+    db.commit()
+    return {"ok": True}
+
+
 def estimate_sprint_backlog(tasks: list, capacity_h: float, db: Session) -> dict:
     """Estimate effort for a list of sprint tasks."""
     assigner = get_assigner(db)

@@ -35,8 +35,10 @@ def build_holiday(payload: HolidayIn) -> SDSLAHoliday:
     return SDSLAHoliday(**payload.model_dump())
 
 
-def create_holiday_record(payload: HolidayIn) -> SDSLAHoliday:
-    return build_holiday(payload)
+def create_holiday_record(db, payload: HolidayIn) -> SDSLAHoliday:
+    h = build_holiday(payload)
+    db.add(h)
+    return h
 
 
 def get_holiday_by_id(db: Session, holiday_id: str) -> SDSLAHoliday:
@@ -48,3 +50,8 @@ def get_holiday_by_id(db: Session, holiday_id: str) -> SDSLAHoliday:
 
 def get_holiday_for_delete(db: Session, holiday_id: str) -> SDSLAHoliday:
     return get_holiday_by_id(db, holiday_id)
+
+
+def delete_holiday(db: Session, holiday_id: str) -> None:
+    h = get_holiday_by_id(db, holiday_id)
+    db.delete(h)

@@ -1,15 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional, Any
-from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.models.resources import ChangeRequest, ChangeRequestStatus
-from app.services.numbering import next_numbered_code
+from app.services import change_service
 
 router = APIRouter()
 
@@ -107,19 +104,12 @@ class ChangeRequestOut(BaseModel):
         )
 
 
-def _next_code(project_id: str, db: Session) -> str:
-    return next_numbered_code(db, "change_request", prefix="CR", padding=3)
-
-
 @router.get("/all/pending", summary="Todas las CRs pendientes")
 def get_all_pending(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    crs = db.query(ChangeRequest).options(
-        joinedload(ChangeRequest.requester),
-        joinedload(ChangeRequest.project),
-    ).filter(ChangeRequest.status.in_(["submitted", "under_review"])).order_by(ChangeRequest.created_at.desc()).all()
+    crs = change_service.get_all_pending(db)
     result = [
         ChangeRequestOut.from_orm_obj(
             cr,
@@ -139,13 +129,7 @@ def get_change_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(ChangeRequest).options(
-        joinedload(ChangeRequest.requester),
-        joinedload(ChangeRequest.approver_user),
-    ).filter(ChangeRequest.project_id == project_id)
-    if status:
-        q = q.filter(ChangeRequest.status == status)
-    crs = q.order_by(ChangeRequest.created_at.desc()).all()
+    crs = change_service.list_by_project(db, project_id, status=status)
     return {
         "change_requests": [ChangeRequestOut.from_orm_obj(cr).model_dump() for cr in crs],
         "summary": {
@@ -165,13 +149,12 @@ def create_change_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    cr = ChangeRequest(
+    cr = change_service.create_change_request(
+        db,
         project_id=project_id,
-        code=_next_code(project_id, db),
         requested_by=current_user.id,
         **payload.model_dump(),
     )
-    db.add(cr); db.commit(); db.refresh(cr)
     return ChangeRequestOut.from_orm_obj(cr).model_dump()
 
 
@@ -183,13 +166,12 @@ def update_change_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id, ChangeRequest.project_id == project_id).first()
-    if not cr: raise HTTPException(404, "CR no encontrada")
+    cr = change_service.get_by_id(db, cr_id, project_id=project_id)
+    if not cr:
+        raise HTTPException(404, "CR no encontrada")
     if cr.status not in ["draft", "submitted"]:
         raise HTTPException(400, "Solo se pueden editar CRs en borrador o enviadas")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(cr, k, v)
-    db.commit(); db.refresh(cr)
+    cr = change_service.update_change_request(db, cr, **payload.model_dump(exclude_unset=True))
     return ChangeRequestOut.from_orm_obj(cr).model_dump()
 
 
@@ -200,12 +182,12 @@ def submit_cr(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
-    if not cr: raise HTTPException(404, "CR no encontrada")
-    if cr.status != "draft": raise HTTPException(400, "Solo se pueden enviar CRs en borrador")
-    cr.status = ChangeRequestStatus.submitted
-    cr.submitted_at = datetime.now(timezone.utc)
-    db.commit()
+    cr = change_service.get_by_id(db, cr_id)
+    if not cr:
+        raise HTTPException(404, "CR no encontrada")
+    if cr.status != "draft":
+        raise HTTPException(400, "Solo se pueden enviar CRs en borrador")
+    cr = change_service.submit_change_request(db, cr)
     return {"message": "CR enviada para revisión", "status": cr.status}
 
 
@@ -217,17 +199,17 @@ def review_cr(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
-    if not cr: raise HTTPException(404, "CR no encontrada")
+    cr = change_service.get_by_id(db, cr_id)
+    if not cr:
+        raise HTTPException(404, "CR no encontrada")
     if cr.status not in ["submitted", "under_review"]:
         raise HTTPException(400, "Solo se pueden revisar CRs enviadas")
-
-    cr.status = ChangeRequestStatus.approved if payload.approved else ChangeRequestStatus.rejected
-    cr.reviewed_by = current_user.id
-    cr.approved_by = current_user.id if payload.approved else None
-    cr.approved_at = datetime.now(timezone.utc) if payload.approved else None
-    cr.resolution_notes = payload.resolution_notes
-    db.commit()
+    cr = change_service.review_change_request(
+        db, cr,
+        approved=payload.approved,
+        reviewer_id=current_user.id,
+        resolution_notes=payload.resolution_notes,
+    )
     return {"message": "CR aprobada" if payload.approved else "CR rechazada", "status": cr.status}
 
 
@@ -238,12 +220,12 @@ def implement_cr(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
-    if not cr: raise HTTPException(404, "CR no encontrada")
-    if cr.status != "approved": raise HTTPException(400, "Solo se pueden implementar CRs aprobadas")
-    cr.status = ChangeRequestStatus.implemented
-    cr.implemented_at = datetime.now(timezone.utc)
-    db.commit()
+    cr = change_service.get_by_id(db, cr_id)
+    if not cr:
+        raise HTTPException(404, "CR no encontrada")
+    if cr.status != "approved":
+        raise HTTPException(400, "Solo se pueden implementar CRs aprobadas")
+    change_service.implement_change_request(db, cr)
     return {"message": "CR marcada como implementada"}
 
 
@@ -254,7 +236,8 @@ def delete_cr(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
-    if not cr: raise HTTPException(404, "CR no encontrada")
-    db.delete(cr); db.commit()
+    cr = change_service.get_by_id(db, cr_id)
+    if not cr:
+        raise HTTPException(404, "CR no encontrada")
+    change_service.delete_change_request(db, cr)
     return {"ok": True}

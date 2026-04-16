@@ -157,7 +157,9 @@ def build_asset(payload, code: str) -> Asset:
 
 def create_asset_record(db: Session, payload) -> Asset:
     validate_asset_type(payload.asset_type)
-    return build_asset(payload, code=next_asset_code(db))
+    asset = build_asset(payload, code=next_asset_code(db))
+    db.add(asset)
+    return asset
 
 
 def get_asset_for_update_or_404(db: Session, asset_id: str) -> Asset:

@@ -64,18 +64,14 @@ def notify_slack(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.cab import IntegrationConfig
+    from app.services.integrations import send_slack_message, get_active_integration
     import json
-    cfg = db.query(IntegrationConfig).filter(
-        IntegrationConfig.id == payload.get("integration_id"),
-        IntegrationConfig.is_active == True,
-    ).first()
+    cfg = get_active_integration(db, payload.get("integration_id"))
     if not cfg: raise HTTPException(404, "Integración no encontrada")
     cfg_dict     = decrypt_config_secrets(json.loads(cfg.config or "{}"))
     webhook_url  = cfg_dict.get("webhook_url", "")
     if not webhook_url: raise HTTPException(400, "Webhook URL no configurada")
 
-    from app.services.integrations import send_slack_message
     result = send_slack_message(webhook_url, payload.get("text", "Notificación de Clarive"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     return {"ok": True}
@@ -124,15 +120,10 @@ def create_jira_issue(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.cab import IntegrationConfig
-    from app.services.integrations import create_jira_issue as _create_issue
-    from app.models.task import Task
+    from app.services.integrations import create_jira_issue as _create_issue, get_active_integration, link_jira_to_task
     import json
 
-    cfg = db.query(IntegrationConfig).filter(
-        IntegrationConfig.id == payload.integration_id,
-        IntegrationConfig.is_active == True,
-    ).first()
+    cfg = get_active_integration(db, payload.integration_id)
     if not cfg: raise HTTPException(404, "Integración Jira no encontrada")
 
     cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
@@ -148,12 +139,8 @@ def create_jira_issue(
     if not result["ok"]:
         raise HTTPException(400, f"Error Jira: {result.get('error')}")
 
-    # Si se vincula con tarea Clarive, guardar la key Jira
     if payload.nexus_task_id and result.get("key"):
-        task = db.query(Task).filter(Task.id == payload.nexus_task_id).first()
-        if task and hasattr(task, "jira_issue_key"):
-            task.jira_issue_key = result["key"]
-            db.commit()
+        link_jira_to_task(db, payload.nexus_task_id, result["key"])
 
     return result
 
@@ -166,14 +153,10 @@ def search_jira(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.cab import IntegrationConfig
-    from app.services.integrations import search_jira_issues
+    from app.services.integrations import search_jira_issues, get_active_integration
     import json
 
-    cfg = db.query(IntegrationConfig).filter(
-        IntegrationConfig.id == integration_id,
-        IntegrationConfig.is_active == True,
-    ).first()
+    cfg = get_active_integration(db, integration_id)
     if not cfg: raise HTTPException(404)
     cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
     result = search_jira_issues(cfg_dict, jql, max_results)
@@ -197,14 +180,10 @@ def transition_jira(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.cab import IntegrationConfig
-    from app.services.integrations import transition_jira_issue
+    from app.services.integrations import transition_jira_issue, get_active_integration
     import json
 
-    cfg = db.query(IntegrationConfig).filter(
-        IntegrationConfig.id == payload.get("integration_id"),
-        IntegrationConfig.is_active == True,
-    ).first()
+    cfg = get_active_integration(db, payload.get("integration_id"))
     if not cfg: raise HTTPException(404)
     cfg_dict = decrypt_config_secrets(json.loads(cfg.config or "{}"))
     result = transition_jira_issue(cfg_dict, payload.get("issue_key"), payload.get("transition"))
@@ -279,9 +258,8 @@ async def slack_inbound_command(
     rest  = parts[1] if len(parts) > 1 else ""
 
     # Find Clarive user by Slack username
-    clarive_user = db.query(User).filter(
-        (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
-    ).first()
+    from app.services.integrations import find_user_by_slack_name
+    clarive_user = find_user_by_slack_name(db, user_name)
 
     try:
         if verb in ("tarea", "task"):
@@ -300,97 +278,25 @@ async def slack_inbound_command(
 
 async def _slack_create_task(text: str, user, db):
     """Parse: tarea <título> [#proyecto-code]"""
-    from app.models.task import Task, TaskStatus, TaskPriority
-    from app.models.project import Project
-    import re, uuid
-    project_match = re.search(r'#(\S+)', text)
-    title = re.sub(r'#\S+', '', text).strip() or "Tarea creada desde Slack"
-    project_id = None
-    if project_match:
-        code = project_match.group(1).upper()
-        proj = db.query(Project).filter(Project.code.ilike(code)).first()
-        if proj:
-            project_id = proj.id
-    task = Task(
-        id=str(uuid.uuid4()), title=title, status=TaskStatus.todo,
-        priority=TaskPriority.medium, project_id=project_id,
-        assignee_id=user.id if user else None,
-    )
-    db.add(task); db.commit(); db.refresh(task)
-    return {"response_type": "in_channel",
-            "text": f"✅ Tarea creada: *{task.title}* (`{task.code}`){' en ' + proj.name if project_id and (proj := db.query(Project).get(project_id)) else ''}"}
+    from app.services.integrations import slack_create_task_from_text
+    return slack_create_task_from_text(db, text, user)
 
 
 async def _slack_log_time(text: str, user, db):
     """Parse: tiempo <horas> [#proyecto-code] [descripción]"""
-    from app.models.imputation import Imputation
-    from app.models.project import Project
-    import re, uuid
-    from datetime import date as _date
-    if not user:
-        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Clarive. Contacta con el admin."}
-    hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
-    if not hours_match:
-        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/clarive tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
-    hours = float(hours_match.group(1).replace(',', '.'))
-    project_match = re.search(r'#(\S+)', text)
-    description = re.sub(r'\d+(?:[.,]\d+)?', '', re.sub(r'#\S+', '', text)).strip() or "Imputación desde Slack"
-    project_id = None
-    if project_match:
-        code = project_match.group(1).upper()
-        proj = db.query(Project).filter(Project.code.ilike(code)).first()
-        if proj:
-            project_id = proj.id
-    imp = Imputation(
-        id=str(uuid.uuid4()), user_id=user.id, project_id=project_id,
-        hours=hours, date=_date.today(), description=description,
-    )
-    db.add(imp); db.commit()
-    return {"response_type": "in_channel",
-            "text": f"⏱ *{hours}h* registradas para {user.full_name} — {description}"}
+    from app.services.integrations import slack_log_time_from_text
+    return slack_log_time_from_text(db, text, user)
 
 
 async def _slack_create_ticket(text: str, user, db):
     """Creates a Service Desk incident ticket from Slack."""
-    from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
-    from sqlalchemy import func, cast, Integer
-    import uuid
-    # Generate ticket number
-    prefix = "INC"
-    last_num = db.query(
-        func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer))
-    ).filter(Ticket.ticket_type == TicketType.incident).scalar() or 0
-    number = f"{prefix}-{(last_num + 1):04d}"
-    ticket = Ticket(
-        id=str(uuid.uuid4()),
-        number=number,
-        ticket_type=TicketType.incident,
-        title=(text or "Ticket desde Slack")[:255],
-        description=text or "Ticket creado desde Slack",
-        status=TicketStatus.new,
-        priority=TicketPriority.p3_medium,
-        support_level=SupportLevel.l1,
-        requester_user_id=user.id if user else None,
-        requester_name=user.full_name if user else None,
-        source="slack",
-    )
-    db.add(ticket); db.commit(); db.refresh(ticket)
-    return {"response_type": "in_channel",
-            "text": f"🎫 Ticket creado: *{ticket.title}* (`{ticket.number}`)"}
+    from app.services.integrations import slack_create_ticket_from_text
+    return slack_create_ticket_from_text(db, text, user)
 
 
 async def _slack_get_status(code: str, db):
-    from app.models.task import Task
-    from app.models.project import Project
-    task = db.query(Task).filter(Task.code.ilike(code.upper())).first()
-    if task:
-        return {"response_type": "ephemeral",
-                "text": f"📋 *{task.code}* — {task.title}\nEstado: `{task.status}` · Prioridad: `{task.priority}`"}
-    proj = db.query(Project).filter(Project.code.ilike(code.upper())).first()
-    if proj:
-        return {"response_type": "ephemeral",
-                "text": f"📁 *{proj.code}* — {proj.name}\nEstado: `{proj.status}` · PM: {proj.project_manager.full_name if proj.project_manager else '—'}"}
-    return {"response_type": "ephemeral", "text": f"❌ No encontré ningún elemento con código `{code}`"}
+    from app.services.integrations import slack_get_status_by_code
+    return slack_get_status_by_code(db, code)
 
 
 def _slack_help():
@@ -446,16 +352,8 @@ async def teams_inbound_command(
     teams_name = from_obj.get("name", "").strip()
 
     # Look up the Clarive user by display name (best effort)
-    clarive_user = None
-    if teams_name:
-        name_parts = teams_name.split()
-        clarive_user = db.query(User).filter(
-            User.full_name.ilike(f"%{teams_name}%")
-        ).first()
-        if not clarive_user and name_parts:
-            clarive_user = db.query(User).filter(
-                User.full_name.ilike(f"%{name_parts[0]}%")
-            ).first()
+    from app.services.integrations import find_user_by_teams_name
+    clarive_user = find_user_by_teams_name(db, teams_name) if teams_name else None
 
     parts = text.split(None, 1)
     verb  = (parts[0] if parts else "").lower()

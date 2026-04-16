@@ -201,6 +201,7 @@ def create_change_record(db: Session, current_user: User, payload: dict) -> ITSM
     number = next_change_number(db)
     change = build_change_request(payload, current_user.id, number)
     enforce_change_org_constraints(db, current_user, change)
+    db.add(change)
     return change
 
 

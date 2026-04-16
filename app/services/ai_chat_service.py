@@ -1618,3 +1618,353 @@ ESTRATEGIA DE EJECUCIÓN:
 
 Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
 Contexto inicial del sistema: {json.dumps(build_tenant_context(db, current_user))}"""
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONVERSATIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def list_conversations(db: Session, user_id: str) -> list:
+    from app.models.ai_chat import AIConversation
+    from sqlalchemy.orm import joinedload
+    convs = db.query(AIConversation).filter(
+        AIConversation.user_id == user_id,
+        AIConversation.is_archived == False,
+    ).order_by(AIConversation.updated_at.desc()).limit(50).all()
+    return [{
+        "id": c.id, "title": c.title or "Nueva conversación",
+        "context_type": c.context_type,
+        "message_count": len(c.messages),
+        "updated_at": str(c.updated_at or c.created_at)[:16],
+    } for c in convs]
+
+
+def get_conversation(db: Session, conv_id: str, user_id: str) -> dict:
+    from app.models.ai_chat import AIConversation
+    from sqlalchemy.orm import joinedload
+    conv = db.query(AIConversation).options(joinedload(AIConversation.messages)).filter(
+        AIConversation.id == conv_id,
+        AIConversation.user_id == user_id,
+    ).first()
+    if not conv:
+        raise ValueError("not_found")
+    return {
+        "id": conv.id, "title": conv.title,
+        "context_type": conv.context_type,
+        "messages": [{
+            "id": m.id, "role": m.role, "content": m.content,
+            "created_at": str(m.created_at)[:19],
+        } for m in conv.messages],
+    }
+
+
+def archive_conversation(db: Session, conv_id: str, user_id: str) -> dict:
+    from app.models.ai_chat import AIConversation
+    conv = db.query(AIConversation).filter(
+        AIConversation.id == conv_id,
+        AIConversation.user_id == user_id,
+    ).first()
+    if not conv:
+        raise ValueError("not_found")
+    conv.is_archived = True
+    db.commit()
+    return {"ok": True}
+
+
+def get_or_create_conversation(db: Session, conversation_id, user_id: str, context_type=None, context_id=None):
+    from app.models.ai_chat import AIConversation
+    conv = None
+    if conversation_id:
+        conv = db.query(AIConversation).filter(
+            AIConversation.id == conversation_id,
+            AIConversation.user_id == user_id,
+        ).first()
+    if not conv:
+        conv = AIConversation(
+            user_id=user_id,
+            context_type=context_type,
+            context_id=context_id,
+        )
+        db.add(conv); db.flush()
+    return conv
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AGENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_agent_execution(db: Session, user_id: str, instruction: str):
+    from app.models.ai_chat import AIAgentExecution
+    execution = AIAgentExecution(
+        user_id=user_id,
+        instruction=instruction,
+        status="queued",
+    )
+    db.add(execution); db.commit(); db.refresh(execution)
+    return execution
+
+
+def get_agent_status(db: Session, exec_id: str, user_id: str) -> dict:
+    from app.models.ai_chat import AIAgentExecution
+    execution = db.query(AIAgentExecution).filter(
+        AIAgentExecution.id == exec_id,
+        AIAgentExecution.user_id == user_id,
+    ).first()
+    if not execution:
+        raise ValueError("not_found")
+    return {
+        "execution_id": execution.id,
+        "status": execution.status,
+        "result": execution.result,
+        "steps_count": len(execution.steps) if hasattr(execution, "steps") else 0,
+        "created_at": str(execution.created_at)[:19],
+        "updated_at": str(execution.updated_at)[:19] if execution.updated_at else None,
+    }
+
+
+def list_agent_executions(db: Session, user_id: str, limit: int = 20) -> list:
+    from app.models.ai_chat import AIAgentExecution
+    execs = db.query(AIAgentExecution).filter(
+        AIAgentExecution.user_id == user_id,
+    ).order_by(AIAgentExecution.created_at.desc()).limit(limit).all()
+    return [{
+        "execution_id": e.id, "instruction": e.instruction[:100],
+        "status": e.status, "created_at": str(e.created_at)[:19],
+    } for e in execs]
+
+
+def get_agent_detail_with_steps(db: Session, exec_id: str) -> dict:
+    from app.models.ai_chat import AIAgentExecution
+    from sqlalchemy.orm import joinedload
+    execution = db.query(AIAgentExecution).options(
+        joinedload(AIAgentExecution.steps)
+    ).filter(AIAgentExecution.id == exec_id).first()
+    if not execution:
+        raise ValueError("not_found")
+    steps = []
+    if hasattr(execution, "steps"):
+        steps = [{
+            "step": s.step_number,
+            "tool": s.tool_name,
+            "input": json.loads(s.tool_input or "{}"),
+            "output": json.loads(s.tool_output or "{}"),
+        } for s in sorted(execution.steps, key=lambda x: x.step_number)]
+    return {
+        "execution_id": execution.id, "instruction": execution.instruction,
+        "status": execution.status, "result": execution.result,
+        "steps": steps,
+        "created_at": str(execution.created_at)[:19],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GOVERNANCE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_governance_config(db: Session) -> list:
+    DEFAULT_MODULES = [
+        "nexusassist", "nexusagent", "nexusoracle",
+        "meeting_assistant", "contract_intelligence", "knowledge_base", "voice",
+    ]
+    configs = db.query(AIGovernanceConfig).all()
+    existing = {c.module for c in configs}
+    for mod in DEFAULT_MODULES:
+        if mod not in existing:
+            db.add(AIGovernanceConfig(module=mod, is_enabled=True))
+    db.commit()
+    configs = db.query(AIGovernanceConfig).all()
+    return [{
+        "id": c.id, "module": c.module, "is_enabled": c.is_enabled,
+        "requires_approval_for": json.loads(c.requires_approval_for or "[]"),
+        "max_actions_per_day": c.max_actions_per_day,
+        "allowed_roles": json.loads(c.allowed_roles or '["admin","pm"]'),
+        "model_override": c.model_override,
+    } for c in configs]
+
+
+def update_governance_config(db: Session, module: str, payload: dict, user_id: str) -> dict:
+    config = db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == module).first()
+    if not config:
+        config = AIGovernanceConfig(module=module)
+        db.add(config)
+    for field in ["is_enabled", "max_actions_per_day", "model_override"]:
+        if field in payload: setattr(config, field, payload[field])
+    if "requires_approval_for" in payload:
+        config.requires_approval_for = json.dumps(payload["requires_approval_for"])
+    if "allowed_roles" in payload:
+        config.allowed_roles = json.dumps(payload["allowed_roles"])
+    config.updated_by = user_id
+    db.commit()
+    return {"ok": True}
+
+
+def get_governance_logs(db: Session, module=None, status=None, days: int = 7, limit: int = 100) -> list:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    q = db.query(AIActionLog).filter(AIActionLog.created_at >= since)
+    if module: q = q.filter(AIActionLog.module == module)
+    if status: q = q.filter(AIActionLog.status == status)
+    logs = q.order_by(AIActionLog.created_at.desc()).limit(limit).all()
+    return [{
+        "id": l.id, "module": l.module, "action_type": l.action_type,
+        "user_id": l.user_id,
+        "input_summary": l.input_summary, "output_summary": l.output_summary,
+        "tokens_used": l.tokens_used, "latency_ms": l.latency_ms,
+        "status": l.status,
+        "created_at": str(l.created_at)[:16],
+    } for l in logs]
+
+
+def get_governance_stats(db: Session, days: int = 30) -> dict:
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    logs  = db.query(AIActionLog).filter(AIActionLog.created_at >= since).all()
+
+    by_module = {}
+    for l in logs:
+        if l.module not in by_module:
+            by_module[l.module] = {"calls": 0, "tokens": 0, "errors": 0, "avg_latency": 0}
+        by_module[l.module]["calls"] += 1
+        by_module[l.module]["tokens"] += l.tokens_used or 0
+        if l.status == "failed": by_module[l.module]["errors"] += 1
+        by_module[l.module]["avg_latency"] += l.latency_ms or 0
+
+    for m in by_module:
+        calls = by_module[m]["calls"]
+        if calls > 0:
+            by_module[m]["avg_latency"] = round(by_module[m]["avg_latency"] / calls)
+
+    total_tokens = sum(l.tokens_used or 0 for l in logs)
+    est_cost_usd = round(total_tokens / 1_000_000 * 0.25, 4)
+
+    return {
+        "period_days": days,
+        "total_calls": len(logs),
+        "total_tokens": total_tokens,
+        "estimated_cost_usd": est_cost_usd,
+        "success_rate_pct": round(sum(1 for l in logs if l.status == "success") / max(len(logs), 1) * 100, 1),
+        "by_module": by_module,
+    }
+
+
+def list_prompts(db: Session, module=None) -> list:
+    q = db.query(AIPromptTemplate)
+    if module:
+        q = q.filter(AIPromptTemplate.module == module)
+    templates = q.order_by(AIPromptTemplate.module, AIPromptTemplate.version.desc()).all()
+    return [{
+        "id": t.id, "module": t.module, "name": t.name,
+        "version": t.version, "is_active": t.is_active,
+        "content_preview": (t.content or "")[:200],
+        "created_at": str(t.created_at)[:16],
+    } for t in templates]
+
+
+def get_prompt_detail(db: Session, prompt_id: str) -> dict:
+    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
+    if not tpl:
+        raise ValueError("not_found")
+    return {
+        "id": tpl.id, "module": tpl.module, "name": tpl.name,
+        "content": tpl.content, "version": tpl.version, "is_active": tpl.is_active,
+        "created_at": str(tpl.created_at)[:16],
+    }
+
+
+def create_prompt_template(db: Session, payload, user_id: str) -> dict:
+    max_version = db.query(func.max(AIPromptTemplate.version)).filter(
+        AIPromptTemplate.module == payload.module,
+    ).scalar() or 0
+
+    if payload.is_active:
+        db.query(AIPromptTemplate).filter(
+            AIPromptTemplate.module == payload.module,
+            AIPromptTemplate.is_active == True,
+        ).update({"is_active": False})
+
+    tpl = AIPromptTemplate(
+        module=payload.module,
+        name=payload.name,
+        content=payload.content,
+        version=max_version + 1,
+        is_active=payload.is_active,
+        created_by=user_id,
+    )
+    db.add(tpl); db.commit(); db.refresh(tpl)
+    return {"id": tpl.id, "module": tpl.module, "version": tpl.version, "is_active": tpl.is_active}
+
+
+def toggle_prompt_template(db: Session, prompt_id: str, payload: dict) -> dict:
+    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
+    if not tpl:
+        raise ValueError("not_found")
+    if "is_active" in payload:
+        if payload["is_active"]:
+            db.query(AIPromptTemplate).filter(
+                AIPromptTemplate.module == tpl.module,
+                AIPromptTemplate.id != prompt_id,
+                AIPromptTemplate.is_active == True,
+            ).update({"is_active": False})
+        tpl.is_active = payload["is_active"]
+    if "name" in payload:
+        tpl.name = payload["name"]
+    db.commit()
+    return {"ok": True, "version": tpl.version, "is_active": tpl.is_active}
+
+
+def delete_prompt_template(db: Session, prompt_id: str) -> dict:
+    tpl = db.query(AIPromptTemplate).filter(AIPromptTemplate.id == prompt_id).first()
+    if not tpl:
+        raise ValueError("not_found")
+    db.delete(tpl); db.commit()
+    return {"ok": True}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHAT CORE (DB side of /ai/chat and /ai/chat/stream)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, context_id=None,
+                  effective_message: str = "", system_template: str = "", commit: bool = False):
+    """Create/get conversation, persist user message, build history + system prompt.
+    Returns (conv, messages, system)."""
+    from app.models.ai_chat import AIConversation, AIMessage
+    conv = get_or_create_conversation(db, conversation_id, user_id, context_type, context_id)
+
+    user_msg = AIMessage(conversation_id=conv.id, role="user", content=effective_message)
+    db.add(user_msg); db.flush()
+
+    ctx = build_tenant_context(db, None)
+    kb_ctx = kb_rag_context(db, effective_message)
+    system = get_prompt(db, "nexusassist", system_template).format(
+        context=json.dumps(ctx, ensure_ascii=False)
+    ) + kb_ctx
+
+    history = db.query(AIMessage).filter(
+        AIMessage.conversation_id == conv.id,
+        AIMessage.id != user_msg.id,
+    ).order_by(AIMessage.created_at.desc()).limit(10).all()
+    history.reverse()
+
+    messages = [{"role": m.role, "content": m.content} for m in history]
+    messages.append({"role": "user", "content": effective_message})
+
+    if not conv.title:
+        conv.title = effective_message[:60] + ("..." if len(effective_message) > 60 else "")
+
+    if commit:
+        db.commit()
+
+    return conv, messages, system
+
+
+def persist_chat_response(db: Session, conv_id: str, user_id: str, original_message: str,
+                           assistant_text: str, latency: int):
+    """Persist assistant message and action log after chat call."""
+    from app.models.ai_chat import AIMessage, AIConversation
+    ai_msg = AIMessage(
+        conversation_id=conv_id, role="assistant",
+        content=assistant_text, tokens_used=0, latency_ms=latency,
+    )
+    db.add(ai_msg)
+    log_action(db, user_id, "nexusassist", "chat",
+               original_message[:200], assistant_text[:200], latency=latency)
+    db.commit()

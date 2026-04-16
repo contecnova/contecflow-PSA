@@ -1,24 +1,17 @@
 """OKRs — Objectives & Key Results."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
-from app.models.project import Project
+from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 from datetime import date
-import uuid as _uuid
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.models.okrs import Objective, KeyResult, KRCheckin
-from app.models.project import Project
+from app.services import okr_service
 from app.services.okr_service import (
-    calc_progress as _calc_progress,
     serialize_kr as _ser_kr,
     serialize_objective as _ser_objective,
-    task_progress_for_project as _task_progress_for_project,
-    propagate_to_objective as _propagate_to_objective,
     sync_kr_from_tasks as _sync_kr_from_tasks,
 )
 
@@ -72,7 +65,6 @@ class CheckinIn(BaseModel):
     note: Optional[str] = None
 
 
-
 # ── Objectives CRUD ───────────────────────────────────────────────────────────
 @router.get("", summary="Listar objetivos")
 def list_objectives(
@@ -83,54 +75,42 @@ def list_objectives(
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
 ):
-    q = db.query(Objective).options(
-        joinedload(Objective.key_results).joinedload(KeyResult.owner),
-        joinedload(Objective.owner)
-    ).filter(Objective.year == year)
-    if not cu.is_superadmin and cu.organization_id:
-        org_user_ids = db.query(User.id).filter(
-            User.organization_id == cu.organization_id
-        ).scalar_subquery()
-        org_project_ids = db.query(Project.id).filter(
-            Project.organization_id == cu.organization_id
-        ).scalar_subquery()
-        q = q.filter(
-            or_(
-                Objective.owner_id.in_(org_user_ids),
-                Objective.project_id.in_(org_project_ids),
-            )
-        )
-    if period:  q = q.filter(Objective.period == period)
-    if status:  q = q.filter(Objective.status == status)
-    if owner_id: q = q.filter(Objective.owner_id == owner_id)
-    return [_ser_objective(o) for o in q.order_by(Objective.created_at.desc()).all()]
+    objectives = okr_service.list_objectives(
+        db,
+        year=year,
+        period=period,
+        status=status,
+        owner_id=owner_id,
+        is_superadmin=cu.is_superadmin,
+        organization_id=cu.organization_id,
+    )
+    return [_ser_objective(o) for o in objectives]
 
 
 @router.post("", summary="Crear objetivo", status_code=201)
 def create_objective(payload: ObjectiveIn, db: Session = Depends(get_db),
                      cu: User = Depends(require_any_manager)):
-    obj = Objective(id=str(_uuid.uuid4()), **payload.model_dump())
-    db.add(obj); db.commit(); db.refresh(obj)
+    obj = okr_service.create_objective(db, payload.model_dump())
     return {"id": obj.id, "title": obj.title}
 
 
 @router.patch("/{obj_id}", summary="Actualizar objetivo")
 def update_objective(obj_id: str, payload: ObjectiveUpdate,
                      db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
-    obj = db.query(Objective).filter(Objective.id == obj_id).first()
-    if not obj: raise HTTPException(404, "Objetivo no encontrado")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(obj, k, v)
-    db.commit(); db.refresh(obj)
+    obj = okr_service.get_objective(db, obj_id)
+    if not obj:
+        raise HTTPException(404, "Objetivo no encontrado")
+    obj = okr_service.update_objective(db, obj, payload.model_dump(exclude_unset=True))
     return {"id": obj.id}
 
 
 @router.delete("/{obj_id}", summary="Eliminar objetivo")
 def delete_objective(obj_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_any_manager)):
-    obj = db.query(Objective).filter(Objective.id == obj_id).first()
-    if not obj: raise HTTPException(404, "Objetivo no encontrado")
-    db.delete(obj); db.commit()
+    obj = okr_service.get_objective(db, obj_id)
+    if not obj:
+        raise HTTPException(404, "Objetivo no encontrado")
+    okr_service.delete_objective(db, obj)
     return {"deleted": True}
 
 
@@ -138,32 +118,30 @@ def delete_objective(obj_id: str, db: Session = Depends(get_db),
 @router.post("/key-results", summary="Añadir Key Result", status_code=201)
 def create_kr(payload: KeyResultIn, db: Session = Depends(get_db),
               cu: User = Depends(require_any_manager)):
-    obj = db.query(Objective).filter(Objective.id == payload.objective_id).first()
-    if not obj: raise HTTPException(404, "Objetivo no encontrado")
-    kr = KeyResult(id=str(_uuid.uuid4()), **payload.model_dump())
-    db.add(kr); db.commit(); db.refresh(kr)
+    obj = okr_service.get_objective(db, payload.objective_id)
+    if not obj:
+        raise HTTPException(404, "Objetivo no encontrado")
+    kr = okr_service.create_kr(db, payload.model_dump())
     return _ser_kr(kr)
 
 
 @router.patch("/key-results/{kr_id}", summary="Actualizar Key Result")
 def update_kr(kr_id: str, payload: KeyResultUpdate,
               db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
-    kr = db.query(KeyResult).filter(KeyResult.id == kr_id).first()
-    if not kr: raise HTTPException(404, "KR no encontrado")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(kr, k, v)
-    kr.progress = _calc_progress(kr)
-    _propagate_to_objective(db, kr)
-    db.commit(); db.refresh(kr)
+    kr = okr_service.get_key_result(db, kr_id)
+    if not kr:
+        raise HTTPException(404, "KR no encontrado")
+    kr = okr_service.update_kr(db, kr, payload.model_dump(exclude_unset=True))
     return _ser_kr(kr)
 
 
 @router.delete("/key-results/{kr_id}", summary="Eliminar Key Result")
 def delete_kr(kr_id: str, db: Session = Depends(get_db),
               cu: User = Depends(require_any_manager)):
-    kr = db.query(KeyResult).filter(KeyResult.id == kr_id).first()
-    if not kr: raise HTTPException(404, "KR no encontrado")
-    db.delete(kr); db.commit()
+    kr = okr_service.get_key_result(db, kr_id)
+    if not kr:
+        raise HTTPException(404, "KR no encontrado")
+    okr_service.delete_kr(db, kr)
     return {"deleted": True}
 
 
@@ -171,20 +149,14 @@ def delete_kr(kr_id: str, db: Session = Depends(get_db),
 @router.post("/key-results/{kr_id}/checkin", summary="Registrar progreso", status_code=201)
 def checkin_kr(kr_id: str, payload: CheckinIn,
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    kr = db.query(KeyResult).filter(KeyResult.id == kr_id).first()
-    if not kr: raise HTTPException(404, "KR no encontrado")
-    c = KRCheckin(id=str(_uuid.uuid4()), kr_id=kr_id,
-                  value=payload.value, note=payload.note, author_id=cu.id)
-    db.add(c)
-    kr.current_value = payload.value
-    kr.progress = _calc_progress(kr)
-    _propagate_to_objective(db, kr)
-    db.commit()
+    kr = okr_service.get_key_result(db, kr_id)
+    if not kr:
+        raise HTTPException(404, "KR no encontrado")
+    kr = okr_service.checkin_kr(db, kr, payload.value, payload.note, cu.id)
     return {"progress": kr.progress, "current_value": kr.current_value}
 
 
 # ── Project→Task cascade sync ─────────────────────────────────────────────────
-
 @router.post(
     "/key-results/{kr_id}/sync-from-tasks",
     summary="Sincronizar KR con progreso de tareas del proyecto vinculado",

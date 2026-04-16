@@ -485,3 +485,28 @@ def bulk_update_dates_record(db: Session, updates: list) -> dict:
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
         raise HTTPException(status_code=503, detail="Database operation failed")
     return {"updated": updated, "errors": errors}
+
+
+# ── Background task helpers ────────────────────────────────────────────────────
+
+def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: str):
+    """Record reassignment as implicit negative feedback for the previous assignee."""
+    from app.db.session import SessionLocal
+
+    def _run():
+        _db = SessionLocal()
+        try:
+            from app.models.semantic_engine import SemAssignment
+            assignment = _db.query(SemAssignment).filter(
+                SemAssignment.item_id == item_id,
+                SemAssignment.item_type == item_type,
+            ).order_by(SemAssignment.created_at.desc()).first()
+            if assignment and assignment.was_accepted is None:
+                assignment.was_accepted = False
+                _db.commit()
+        except Exception:
+            pass
+        finally:
+            _db.close()
+
+    background_tasks.add_task(_run)

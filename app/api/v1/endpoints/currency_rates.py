@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin, require_any_manager
 from app.db.session import get_db
-from app.models.billing_reports import Invoice, InvoiceStatus
-from app.models.bookings import ExchangeRate
+from app.models.billing_reports import InvoiceStatus
 from app.models.user import User
+from app.services import currency_rates_service
 
 router = APIRouter()
 
@@ -29,12 +29,7 @@ def list_exchange_rates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(ExchangeRate)
-    if base_currency:
-        q = q.filter(ExchangeRate.from_currency == base_currency.upper())
-    if target_currency:
-        q = q.filter(ExchangeRate.to_currency == target_currency.upper())
-    rates = q.order_by(ExchangeRate.effective_date.desc()).limit(200).all()
+    rates = currency_rates_service.list_exchange_rates(db, base_currency, target_currency)
     return [
         {
             "id": r.id,
@@ -57,28 +52,17 @@ def upsert_exchange_rate(
     if payload.rate <= 0:
         raise HTTPException(status_code=400, detail="Rate must be positive")
     eff = payload.effective_date or date.today()
-    existing = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == payload.from_currency.upper(),
-        ExchangeRate.to_currency == payload.to_currency.upper(),
-        ExchangeRate.effective_date == eff,
-    ).first()
-    if existing:
-        existing.rate = payload.rate
-        existing.source = payload.source or "manual"
-        db.commit()
-        db.refresh(existing)
-        return {"id": existing.id, "rate": existing.rate, "updated": True}
-    rate = ExchangeRate(
+    rate_obj, created = currency_rates_service.upsert_exchange_rate(
+        db,
         from_currency=payload.from_currency.upper(),
         to_currency=payload.to_currency.upper(),
         rate=payload.rate,
         effective_date=eff,
         source=payload.source or "manual",
     )
-    db.add(rate)
-    db.commit()
-    db.refresh(rate)
-    return {"id": rate.id, "rate": rate.rate, "created": True}
+    if created:
+        return {"id": rate_obj.id, "rate": rate_obj.rate, "created": True}
+    return {"id": rate_obj.id, "rate": rate_obj.rate, "updated": True}
 
 
 @router.get("/currency/convert", summary="Convert amount between currencies")
@@ -95,17 +79,9 @@ def convert_currency(
     if from_c == to_c:
         return {"amount": amount, "from": from_c, "to": to_c, "rate": 1.0, "converted": amount}
     ref_date = as_of_date or date.today()
-    rate_obj = db.query(ExchangeRate).filter(
-        ExchangeRate.from_currency == from_c,
-        ExchangeRate.to_currency == to_c,
-        ExchangeRate.effective_date <= ref_date,
-    ).order_by(ExchangeRate.effective_date.desc()).first()
+    rate_obj = currency_rates_service.get_rate(db, from_c, to_c, ref_date)
     if not rate_obj:
-        rate_obj_inv = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == to_c,
-            ExchangeRate.to_currency == from_c,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
+        rate_obj_inv = currency_rates_service.get_rate_inverse(db, from_c, to_c, ref_date)
         if rate_obj_inv and rate_obj_inv.rate > 0:
             rate = 1.0 / rate_obj_inv.rate
             return {
@@ -137,30 +113,13 @@ def multicurrency_report(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.expenses import Expense
-
     ref_date = as_of_date or date.today()
     target = report_currency.upper()
 
     def _get_rate(from_c: str) -> float:
-        if from_c == target:
-            return 1.0
-        r = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == from_c,
-            ExchangeRate.to_currency == target,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
-        if r:
-            return r.rate
-        r2 = db.query(ExchangeRate).filter(
-            ExchangeRate.from_currency == target,
-            ExchangeRate.to_currency == from_c,
-            ExchangeRate.effective_date <= ref_date,
-        ).order_by(ExchangeRate.effective_date.desc()).first()
-        return (1.0 / r2.rate) if r2 and r2.rate else 1.0
+        return currency_rates_service.resolve_rate(db, from_c, target, ref_date)
 
-    invoices = db.query(Invoice).filter(Invoice.status != InvoiceStatus.cancelled).all()
-    expenses = db.query(Expense).all()
+    invoices, expenses = currency_rates_service.get_report_data(db, target, ref_date)
 
     inv_total = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices)
     inv_paid = sum((i.total or 0) * _get_rate(i.currency or target) for i in invoices if i.status == InvoiceStatus.paid)

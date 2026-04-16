@@ -18,7 +18,7 @@ When NO provider keys are configured:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -27,9 +27,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
-from app.models.documents import Document
-from app.models.esign import ESignEnvelope, ESignProvider, ESignSigner, ESignStatus
+from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User
+from app.services import esign_service
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ def _adobe_configured() -> bool:
     return bool(settings.ADOBE_SIGN_CLIENT_ID)
 
 
-def _create_provider_envelope(envelope: ESignEnvelope, doc: Document) -> dict:
+def _create_provider_envelope(envelope, doc) -> dict:
     """
     Attempt to create an envelope via the configured provider.
     Returns dict with {provider_envelope_id, signing_url, status} or raises.
@@ -104,8 +104,6 @@ def _create_provider_envelope(envelope: ESignEnvelope, doc: Document) -> dict:
     Real implementation would use provider SDKs / HTTP calls here.
     """
     if envelope.provider == ESignProvider.docusign and _docusign_configured():
-        # TODO: implement using DocuSign SDK (python-docusign-esign)
-        # Placeholder — logs intent but does not call external API
         _logger.info(
             f"[eSign] DocuSign envelope intent for doc {doc.id}, "
             f"subject: {envelope.subject}"
@@ -149,12 +147,14 @@ def list_envelopes(
     db:          Session       = Depends(get_db),
     current_user: User         = Depends(get_current_user),
 ):
-    q = db.query(ESignEnvelope)
-    if not current_user.is_superadmin:
-        q = q.filter(ESignEnvelope.created_by_id == current_user.id)
-    if document_id: q = q.filter(ESignEnvelope.document_id == document_id)
-    if status:      q = q.filter(ESignEnvelope.status == status)
-    return q.order_by(ESignEnvelope.created_at.desc()).limit(limit).all()
+    created_by_id = None if current_user.is_superadmin else current_user.id
+    return esign_service.list_envelopes(
+        db,
+        created_by_id=created_by_id,
+        document_id=document_id,
+        status=status,
+        limit=limit,
+    )
 
 
 @router.post("", response_model=EnvelopeOut, summary="Crear solicitud de firma")
@@ -166,45 +166,29 @@ def create_envelope(
     if not body.signers:
         raise HTTPException(400, "Al menos un firmante es obligatorio")
 
-    doc = db.query(Document).filter(Document.id == body.document_id).first()
+    doc = esign_service.get_document(db, body.document_id)
     if not doc:
         raise HTTPException(404, "Documento no encontrado")
 
-    envelope = ESignEnvelope(
-        document_id   = body.document_id,
-        created_by_id = current_user.id,
-        provider      = body.provider,
-        subject       = body.subject,
-        message       = body.message,
-        expires_at    = datetime.utcnow() + timedelta(days=body.expires_days),
+    # Build a temporary envelope object for provider helper (no db write yet)
+    _tmp = ESignEnvelope(
+        document_id=body.document_id,
+        provider=body.provider,
+        subject=body.subject,
     )
-    db.add(envelope)
-    db.flush()
+    provider_result = _create_provider_envelope(_tmp, doc)
 
-    # Add signers
-    for s in body.signers:
-        signer = ESignSigner(
-            envelope_id   = envelope.id,
-            name          = s.name,
-            email         = s.email,
-            routing_order = s.routing_order,
-            user_id       = s.user_id,
-        )
-        db.add(signer)
-
-    db.flush()
-
-    # Attempt provider envelope creation
-    provider_result = _create_provider_envelope(envelope, doc)
-    envelope.provider_envelope_id = provider_result.get("provider_envelope_id")
-    envelope.signing_url          = provider_result.get("signing_url")
-    envelope.status               = provider_result.get("status", ESignStatus.draft)
-    if envelope.status == ESignStatus.sent:
-        envelope.sent_at = datetime.utcnow()
-
-    db.commit()
-    db.refresh(envelope)
-    return envelope
+    return esign_service.create_envelope(
+        db,
+        document_id=body.document_id,
+        created_by_id=current_user.id,
+        provider=body.provider,
+        subject=body.subject,
+        message=body.message,
+        expires_days=body.expires_days,
+        signers=body.signers,
+        provider_result=provider_result,
+    )
 
 
 @router.get("/{envelope_id}", response_model=EnvelopeOut, summary="Detalle de solicitud")
@@ -213,7 +197,7 @@ def get_envelope(
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
 ):
-    env = db.query(ESignEnvelope).filter(ESignEnvelope.id == envelope_id).first()
+    env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404, "Solicitud no encontrada")
     return env
@@ -231,18 +215,11 @@ def update_status(
     except ValueError:
         raise HTTPException(400, f"Estado inválido: {status}")
 
-    env = db.query(ESignEnvelope).filter(ESignEnvelope.id == envelope_id).first()
+    env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404)
 
-    env.status     = new_status
-    env.updated_at = datetime.utcnow()
-    if new_status == ESignStatus.completed and not env.completed_at:
-        env.completed_at = datetime.utcnow()
-    if new_status == ESignStatus.sent and not env.sent_at:
-        env.sent_at = datetime.utcnow()
-
-    db.commit()
+    env = esign_service.update_envelope_status(db, env, new_status)
     return {"id": envelope_id, "status": env.status}
 
 
@@ -253,27 +230,12 @@ def mark_signer_signed(
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
 ):
-    signer = db.query(ESignSigner).filter(
-        ESignSigner.id          == signer_id,
-        ESignSigner.envelope_id == envelope_id,
-    ).first()
+    signer = esign_service.get_signer(db, signer_id, envelope_id)
     if not signer:
         raise HTTPException(404, "Firmante no encontrado")
 
-    signer.signed    = True
-    signer.signed_at = datetime.utcnow()
-
-    # Check if all signers have signed → auto-complete envelope
-    envelope = db.query(ESignEnvelope).filter(ESignEnvelope.id == envelope_id).first()
-    if envelope:
-        all_signed = all(
-            s.signed for s in db.query(ESignSigner).filter(ESignSigner.envelope_id == envelope_id).all()
-        )
-        if all_signed:
-            envelope.status       = ESignStatus.completed
-            envelope.completed_at = datetime.utcnow()
-
-    db.commit()
+    envelope = esign_service.get_envelope(db, envelope_id)
+    esign_service.mark_signer_signed(db, signer, envelope)
     return {"signer_id": signer_id, "signed": True}
 
 
@@ -283,14 +245,12 @@ def void_envelope(
     db:          Session = Depends(get_db),
     _:           User    = Depends(get_current_user),
 ):
-    env = db.query(ESignEnvelope).filter(ESignEnvelope.id == envelope_id).first()
+    env = esign_service.get_envelope(db, envelope_id)
     if not env:
         raise HTTPException(404)
     if env.status == ESignStatus.completed:
         raise HTTPException(400, "No se puede anular una solicitud ya completada")
-    env.status     = ESignStatus.voided
-    env.updated_at = datetime.utcnow()
-    db.commit()
+    esign_service.void_envelope(db, env)
     return {"id": envelope_id, "status": "voided"}
 
 
@@ -307,34 +267,28 @@ async def docusign_webhook(
     HMAC (DocuSign HMAC-SHA256) configured via DocuSign Connect console.
     """
     try:
+        import re
         body = await request.body()
         payload_str = body.decode("utf-8", errors="replace")
 
-        # Minimal XML parse — extract envelopeId and status
-        import re
-        m_id  = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
-        m_st  = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
+        m_id = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
+        m_st = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
 
         if m_id and m_st:
             provider_id = m_id.group(1).strip()
             raw_status  = m_st.group(1).strip().lower()
             status_map  = {
-                "sent": ESignStatus.sent.value,
+                "sent":      ESignStatus.sent.value,
                 "delivered": ESignStatus.delivered.value,
                 "completed": ESignStatus.completed.value,
-                "declined": ESignStatus.declined.value,
-                "voided": ESignStatus.voided.value,
+                "declined":  ESignStatus.declined.value,
+                "voided":    ESignStatus.voided.value,
             }
             new_status = status_map.get(raw_status)
             if new_status:
-                env = db.query(ESignEnvelope).filter(
-                    ESignEnvelope.provider_envelope_id == provider_id
-                ).first()
+                env = esign_service.get_envelope_by_provider_id(db, provider_id)
                 if env:
-                    env.status = new_status
-                    if new_status == ESignStatus.completed.value and not env.completed_at:
-                        env.completed_at = datetime.utcnow()
-                    db.commit()
+                    esign_service.update_envelope_from_webhook(db, env, new_status)
                     _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
     except Exception as e:
         _logger.warning(f"[eSign] DocuSign webhook parse error: {e}")
@@ -348,28 +302,23 @@ async def adobe_webhook(
     db:      Session = Depends(get_db),
 ):
     try:
-        payload = await request.json()
-        agreement  = payload.get("agreement", {})
+        payload     = await request.json()
+        agreement   = payload.get("agreement", {})
         provider_id = agreement.get("id")
         raw_status  = agreement.get("status", "").lower()
 
         status_map = {
             "out_for_signature": ESignStatus.sent.value,
-            "signed":     ESignStatus.completed.value,
-            "completed":  ESignStatus.completed.value,
-            "declined":   ESignStatus.declined.value,
-            "cancelled":  ESignStatus.voided.value,
+            "signed":            ESignStatus.completed.value,
+            "completed":         ESignStatus.completed.value,
+            "declined":          ESignStatus.declined.value,
+            "cancelled":         ESignStatus.voided.value,
         }
         new_status = status_map.get(raw_status)
         if new_status and provider_id:
-            env = db.query(ESignEnvelope).filter(
-                ESignEnvelope.provider_envelope_id == provider_id
-            ).first()
+            env = esign_service.get_envelope_by_provider_id(db, provider_id)
             if env:
-                env.status = new_status
-                if new_status == ESignStatus.completed.value and not env.completed_at:
-                    env.completed_at = datetime.utcnow()
-                db.commit()
+                esign_service.update_envelope_from_webhook(db, env, new_status)
                 _logger.info(f"[eSign] Adobe Sign webhook: agreement {provider_id} → {new_status}")
     except Exception as e:
         _logger.warning(f"[eSign] Adobe webhook parse error: {e}")
@@ -384,23 +333,11 @@ def esign_stats(
     db: Session = Depends(get_db),
     _:  User    = Depends(get_current_user),
 ):
-    from sqlalchemy import func
-    rows = (
-        db.query(ESignEnvelope.status, func.count().label("count"))
-        .group_by(ESignEnvelope.status)
-        .all()
-    )
-    total = sum(r.count for r in rows)
-    by_status = {r.status: r.count for r in rows}
+    stats = esign_service.get_stats(db)
     return {
-        "total":     total,
-        "completed": by_status.get(ESignStatus.completed, 0),
-        "pending":   by_status.get(ESignStatus.sent, 0) + by_status.get(ESignStatus.delivered, 0),
-        "draft":     by_status.get(ESignStatus.draft, 0),
-        "declined":  by_status.get(ESignStatus.declined, 0),
-        "by_status": by_status,
+        **stats,
         "providers": {
-            "docusign_configured":  _docusign_configured(),
-            "adobe_configured":     _adobe_configured(),
+            "docusign_configured": _docusign_configured(),
+            "adobe_configured":    _adobe_configured(),
         },
     }

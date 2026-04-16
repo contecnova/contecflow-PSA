@@ -100,6 +100,7 @@ from app.services.service_desk.kb_service import (  # noqa: E402
     apply_kb_article_update,
     update_kb_helpful_vote,
     create_kb_from_ticket,
+    delete_kb_article,
 )
 from app.services.service_desk.announcement_service import (  # noqa: E402
     list_active_announcements,
@@ -133,14 +134,14 @@ from app.services.service_desk.ticket_template_service import (  # noqa: E402
     list_ticket_templates_payload,
     create_ticket_template_record,
     update_ticket_template_record,
-    get_ticket_template_for_delete_or_404,
+    delete_ticket_template,
 )
 from app.services.service_desk.canned_response_service import (  # noqa: E402
     serialize_canned_response_compact,
     list_canned_responses_payload,
     create_canned_response_record,
     update_canned_response_record,
-    get_canned_response_for_delete,
+    delete_canned_response,
 )
 from app.services.service_desk.known_error_service import (  # noqa: E402
     get_known_errors,
@@ -150,9 +151,9 @@ from app.services.service_desk.oncall_service import (  # noqa: E402
     list_oncall_schedules_payload,
     create_oncall_schedule_record,
     update_oncall_schedule_record,
-    get_oncall_schedule_for_delete,
+    delete_oncall_schedule,
     create_oncall_entry_record,
-    get_oncall_entry_for_delete,
+    delete_oncall_entry,
     list_current_oncall_payload,
 )
 from app.services.service_desk.watcher_service import (  # noqa: E402
@@ -170,7 +171,7 @@ from app.services.service_desk.escalation_service import (  # noqa: E402
     list_escalation_rules_payload,
     create_escalation_rule_record,
     update_escalation_rule_record,
-    get_escalation_rule_for_delete,
+    delete_escalation_rule,
     run_escalation_rules_job,
     list_escalation_logs_payload,
 )
@@ -195,7 +196,7 @@ from app.services.service_desk.agent_group_service import (  # noqa: E402
 from app.services.service_desk.holiday_service import (  # noqa: E402
     list_holidays_payload,
     create_holiday_record,
-    get_holiday_for_delete,
+    delete_holiday,
 )
 from app.services.service_desk.workload_service import (  # noqa: E402
     get_group_workload_payload,
@@ -217,7 +218,7 @@ from app.services.service_desk.status_page_service import (  # noqa: E402
     list_status_components_payload,
     create_status_component_record,
     update_status_component_record,
-    get_status_component_for_delete,
+    delete_status_component,
     create_status_incident_record,
     add_status_incident_update_record,
 )
@@ -230,7 +231,7 @@ from app.services.service_desk.inbound_email_service import (  # noqa: E402
 from app.services.service_desk.link_service import (  # noqa: E402
     list_ticket_links_payload,
     create_ticket_link_record,
-    get_ticket_link_for_delete,
+    delete_ticket_link,
 )
 from app.services.service_desk.routing_rule_service import (  # noqa: E402
     list_routing_rules as _list_routing_rules,
@@ -238,6 +239,7 @@ from app.services.service_desk.routing_rule_service import (  # noqa: E402
     build_routing_rule,
     get_routing_rule_or_404,
     apply_routing_rule_update,
+    delete_routing_rule,
 )
 from app.services.service_desk.metrics_service import (  # noqa: E402
     priority_matrix_payload,
@@ -291,8 +293,8 @@ def get_catalog(
 
 @router.post("/catalog/categories", summary="Crear categoría")
 def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    c = create_category_record(payload)
-    db.add(c); _commit_or_rollback(db); db.refresh(c)
+    c = create_category_record(db, payload)
+    _commit_or_rollback(db); db.refresh(c)
     return {"id": c.id, "name": c.name}
 
 @router.patch("/catalog/categories/{cat_id}", summary="Actualizar categoría")
@@ -307,8 +309,8 @@ def delete_category(cat_id: str, db: Session = Depends(get_db), _: User = Depend
 
 @router.post("/catalog/services", summary="Crear servicio")
 def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    s = create_service_record(payload)
-    db.add(s); _commit_or_rollback(db); db.refresh(s)
+    s = create_service_record(db, payload)
+    _commit_or_rollback(db); db.refresh(s)
     return {"id": s.id, "name": s.name}
 
 @router.patch("/catalog/services/{service_id}", summary="Actualizar servicio")
@@ -331,7 +333,7 @@ def get_sla_policies(db: Session = Depends(get_db), _: User = Depends(get_curren
 @router.post("/sla-policies", summary="Crear política SLA")
 def create_sla_policy(payload: SLAPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     p = create_sla_policy_record(db, payload)
-    db.add(p); _commit_or_rollback(db); db.refresh(p)
+    _commit_or_rollback(db); db.refresh(p)
     return {"id": p.id, "name": p.name}
 
 
@@ -353,8 +355,8 @@ def delete_sla_policy(policy_id: str, db: Session = Depends(get_db), _: User = D
 
 @router.post("/groups", summary="Crear grupo")
 def create_group(payload: AgentGroupIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    g = create_group_record(payload)
-    db.add(g); _commit_or_rollback(db); db.refresh(g)
+    g = create_group_record(db, payload)
+    _commit_or_rollback(db); db.refresh(g)
     return {"id": g.id, "name": g.name}
 
 @router.patch("/groups/{group_id}", summary="Actualizar grupo")
@@ -375,8 +377,8 @@ def add_group_member(group_id: str, user_id: str, is_lead: bool = False, db: Ses
 
 @router.delete("/groups/{group_id}/members/{user_id}", summary="Eliminar miembro de grupo")
 def remove_group_member(group_id: str, user_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    m = remove_group_member_record(db, group_id, user_id)
-    db.delete(m); _commit_or_rollback(db); return {"ok": True}
+    remove_group_member_record(db, group_id, user_id)
+    _commit_or_rollback(db); return {"ok": True}
 
 
 # ── Tickets ───────────────────────────────────────────────────────────────────
@@ -604,7 +606,7 @@ def list_problems(
 @router.post("/problems", summary="Crear problema")
 def create_problem(payload: ProblemIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     p = create_problem_record(db, current_user, payload)
-    db.add(p); _commit_or_rollback(db); db.refresh(p)
+    _commit_or_rollback(db); db.refresh(p)
     return {"id": p.id, "number": p.number}
 
 @router.patch("/problems/{problem_id}", summary="Actualizar problema")
@@ -653,7 +655,7 @@ def get_kb_article(article_id: str, db: Session = Depends(get_db)):
 @router.post("/kb", summary="Crear artículo KB")
 def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     a = build_kb_article(db, payload, current_user.id)
-    db.add(a); _commit_or_rollback(db); db.refresh(a)
+    _commit_or_rollback(db); db.refresh(a)
     return {"id": a.id, "number": a.number}
 
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
@@ -668,8 +670,7 @@ def delete_kb_article(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    a = get_scoped_kb_article_or_404(db, current_user, article_id)
-    db.delete(a)
+    delete_kb_article(db, current_user, article_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -703,7 +704,7 @@ def list_cmdb(
 def create_ci(payload: CIIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     enforce_ci_org_constraints(db, current_user, payload, is_update=False)
     ci = build_ci(db, payload)
-    db.add(ci); _commit_or_rollback(db); db.refresh(ci)
+    _commit_or_rollback(db); db.refresh(ci)
     return {"id": ci.id, "code": ci.code}
 
 @router.patch("/cmdb/{ci_id}", summary="Actualizar CI")
@@ -728,8 +729,8 @@ def list_announcements(
 
 @router.post("/announcements", summary="Crear anuncio")
 def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-    a = build_announcement(payload, current_user.id)
-    db.add(a); _commit_or_rollback(db); db.refresh(a)
+    a = build_announcement(db, payload, current_user.id)
+    _commit_or_rollback(db); db.refresh(a)
     return {"id": a.id}
 
 @router.delete("/announcements/{ann_id}", summary="Desactivar anuncio")
@@ -773,8 +774,8 @@ def create_routing_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rule = build_routing_rule(payload)
-    db.add(rule); _commit_or_rollback(db); db.refresh(rule)
+    rule = build_routing_rule(db, payload)
+    _commit_or_rollback(db); db.refresh(rule)
     return {"id": rule.id, "name": rule.name}
 
 
@@ -797,8 +798,8 @@ def delete_routing_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rule = get_routing_rule_or_404(db, rule_id)
-    db.delete(rule); _commit_or_rollback(db)
+    delete_routing_rule(db, rule_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -831,7 +832,7 @@ def link_tickets(
     current_user: User = Depends(get_current_user),
 ):
     lk = create_ticket_link_record(db, ticket_id, payload, current_user.id)
-    db.add(lk); _commit_or_rollback(db)
+    _commit_or_rollback(db)
     return {"ok": True, "link_id": lk.id}
 
 
@@ -841,8 +842,8 @@ def delete_ticket_link(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    lk = get_ticket_link_for_delete(db, link_id)
-    db.delete(lk); _commit_or_rollback(db)
+    delete_ticket_link(db, link_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -921,7 +922,7 @@ def create_ci_relation(
     current_user: User = Depends(require_admin),
 ):
     rel = build_ci_relation(db, current_user, payload)
-    db.add(rel); _commit_or_rollback(db)
+    _commit_or_rollback(db)
     return {"id": rel.id, "ok": True}
 
 
@@ -968,8 +969,7 @@ def create_change(
     current_user: User = Depends(get_current_user),
 ):
     cr = create_change_record(db, current_user, payload)
-
-    db.add(cr); _commit_or_rollback(db); db.refresh(cr)
+    _commit_or_rollback(db); db.refresh(cr)
     return serialize_change(cr)
 
 
@@ -1052,8 +1052,8 @@ def create_ticket_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    tmpl = create_ticket_template_record(payload)
-    db.add(tmpl); _commit_or_rollback(db); db.refresh(tmpl)
+    tmpl = create_ticket_template_record(db, payload)
+    _commit_or_rollback(db); db.refresh(tmpl)
     return {"id": tmpl.id, "name": tmpl.name}
 
 
@@ -1085,8 +1085,8 @@ def list_known_errors(
 
 @router.delete("/ticket-templates/{template_id}", summary="Eliminar plantilla")
 def delete_ticket_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    t = get_ticket_template_for_delete_or_404(db, template_id)
-    db.delete(t); _commit_or_rollback(db); return {"ok": True}
+    delete_ticket_template(db, template_id)
+    _commit_or_rollback(db); return {"ok": True}
 
 @router.get("/agent/customer-context/{requester_id}", summary="Contexto 360 del solicitante")
 def get_customer_context(
@@ -1116,8 +1116,8 @@ def create_canned_response(
     db: Session = Depends(get_db),
     cu: User = Depends(require_any_manager),
 ):
-    c = create_canned_response_record(payload, cu.id)
-    db.add(c); _commit_or_rollback(db); db.refresh(c)
+    c = create_canned_response_record(db, payload, cu.id)
+    _commit_or_rollback(db); db.refresh(c)
     return serialize_canned_response_compact(c)
 
 
@@ -1139,8 +1139,8 @@ def delete_canned_response(
     db: Session = Depends(get_db),
     cu: User = Depends(require_any_manager),
 ):
-    c = get_canned_response_for_delete(db, canned_id)
-    db.delete(c); _commit_or_rollback(db)
+    delete_canned_response(db, canned_id)
+    _commit_or_rollback(db)
     return {"deleted": True}
 
 
@@ -1207,8 +1207,8 @@ def create_oncall_schedule(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    s = create_oncall_schedule_record(payload)
-    db.add(s); _commit_or_rollback(db); db.refresh(s)
+    s = create_oncall_schedule_record(db, payload)
+    _commit_or_rollback(db); db.refresh(s)
     return {"id": s.id, "name": s.name}
 
 
@@ -1230,8 +1230,8 @@ def delete_oncall_schedule(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    s = get_oncall_schedule_for_delete(db, schedule_id)
-    db.delete(s); _commit_or_rollback(db)
+    delete_oncall_schedule(db, schedule_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -1243,7 +1243,7 @@ def add_oncall_entry(
     _: User = Depends(require_any_manager),
 ):
     entry = create_oncall_entry_record(db, schedule_id, payload)
-    db.add(entry); _commit_or_rollback(db)
+    _commit_or_rollback(db)
     return {"id": entry.id}
 
 
@@ -1253,8 +1253,8 @@ def delete_oncall_entry(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    entry = get_oncall_entry_for_delete(db, entry_id)
-    db.delete(entry); _commit_or_rollback(db)
+    delete_oncall_entry(db, entry_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -1289,11 +1289,8 @@ def watch_ticket(
     current_user: User = Depends(get_current_user),
 ):
     result = watch_ticket_command(db, ticket_id, current_user.id)
-    watcher = result["watcher"]
-    if watcher is not None:
-        db.add(watcher)
-        _commit_or_rollback(db)
-    return result["response"]
+    _commit_or_rollback(db)
+    return result
 
 
 @router.delete("/tickets/{ticket_id}/watch", summary="Dejar de seguir ticket (unwatch)")
@@ -1303,11 +1300,8 @@ def unwatch_ticket(
     current_user: User = Depends(get_current_user),
 ):
     result = unwatch_ticket_command(db, ticket_id, current_user.id)
-    watcher = result["watcher"]
-    if watcher is not None:
-        db.delete(watcher)
-        _commit_or_rollback(db)
-    return result["response"]
+    _commit_or_rollback(db)
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1418,8 +1412,8 @@ def create_escalation_rule(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    rule = create_escalation_rule_record(payload)
-    db.add(rule); _commit_or_rollback(db); db.refresh(rule)
+    rule = create_escalation_rule_record(db, payload)
+    _commit_or_rollback(db); db.refresh(rule)
     return {"ok": True, "id": rule.id}
 
 
@@ -1441,8 +1435,8 @@ def delete_escalation_rule(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    rule = get_escalation_rule_for_delete(db, rule_id)
-    db.delete(rule); _commit_or_rollback(db)
+    delete_escalation_rule(db, rule_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -1493,8 +1487,8 @@ def create_holiday(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    h = create_holiday_record(payload)
-    db.add(h); _commit_or_rollback(db)
+    h = create_holiday_record(db, payload)
+    _commit_or_rollback(db)
     return {"id": h.id}
 
 
@@ -1504,8 +1498,8 @@ def delete_holiday(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    h = get_holiday_for_delete(db, holiday_id)
-    db.delete(h); _commit_or_rollback(db)
+    delete_holiday(db, holiday_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -1577,7 +1571,7 @@ def create_asset(
     current_user: User = Depends(require_any_manager),
 ):
     asset = create_asset_record(db, payload)
-    db.add(asset); _commit_or_rollback(db); db.refresh(asset)
+    _commit_or_rollback(db); db.refresh(asset)
     return _asset_out(asset)
 
 
@@ -1652,8 +1646,8 @@ def create_status_component(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    c = create_status_component_record(payload)
-    db.add(c); _commit_or_rollback(db); db.refresh(c)
+    c = create_status_component_record(db, payload)
+    _commit_or_rollback(db); db.refresh(c)
     return {"id": c.id, "name": c.name}
 
 
@@ -1675,8 +1669,8 @@ def delete_status_component(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    c = get_status_component_for_delete(db, component_id)
-    db.delete(c); _commit_or_rollback(db)
+    delete_status_component(db, component_id)
+    _commit_or_rollback(db)
     return {"ok": True}
 
 
@@ -1688,7 +1682,7 @@ def declare_status_incident(
     _: User = Depends(require_any_manager),
 ):
     inc = create_status_incident_record(db, component_id, payload)
-    db.add(inc); _commit_or_rollback(db); db.refresh(inc)
+    _commit_or_rollback(db); db.refresh(inc)
     return {"id": inc.id}
 
 
