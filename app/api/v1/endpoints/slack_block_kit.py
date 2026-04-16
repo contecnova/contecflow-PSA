@@ -63,7 +63,7 @@ def _build_block_kit_message(event_type: str, payload: dict) -> dict:
             ]
         }
 
-    return {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": f"*NexusPM Notification:* {payload.get('message', 'Event occurred')}"}}]}
+_build_block_kit_message = _svc.build_block_kit_message
 
 
 @router.post("/notifications/slack/block-kit", summary="Send rich Slack Block Kit notification")

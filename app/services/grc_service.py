@@ -275,3 +275,32 @@ def check_permission_db(
     if row is not None:
         return row.allowed
     return default_matrix.get(role, {}).get(module, {}).get(action, False)
+
+
+# ── Serialization helpers ───────────────────────────────────────────────────────────
+
+def serialize_sod_rule(r) -> dict:
+    import json as _json
+    return {
+        "id": r.id, "module_a": r.module_a, "action_a": r.action_a,
+        "module_b": r.module_b, "action_b": r.action_b,
+        "risk": r.risk, "description": r.description,
+        "is_active": r.is_active,
+        "roles_conflict": _json.loads(r.roles_conflict or "[]"),
+        "mitigated_by_workflow_id": r.mitigated_by_workflow_id,
+        "created_at": str(r.created_at)[:10] if r.created_at else None,
+    }
+
+
+def serialize_violation(v) -> dict:
+    return {
+        "id": v.id, "rule_id": v.rule_id,
+        "user_id": v.user_id,
+        "user_name": v.user.full_name if v.user else None,
+        "role": v.role,
+        "context_type": v.context_type, "context_id": v.context_id,
+        "detected_at": str(v.detected_at)[:19] if v.detected_at else None,
+        "resolved": v.resolved,
+        "resolved_at": str(v.resolved_at)[:19] if v.resolved_at else None,
+        "resolution_note": v.resolution_note,
+    }

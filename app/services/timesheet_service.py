@@ -91,3 +91,14 @@ def _enrich(timesheets) -> list:
         }
         result.append(item)
     return result
+
+
+# ── Date utilities ────────────────────────────────────────────────────────────
+
+def get_week_bounds(week_start) -> tuple:
+    """Return (week_start, week_end) for the given date, defaulting to current week."""
+    from datetime import date, timedelta
+    if not week_start:
+        today = date.today()
+        week_start = today - timedelta(days=today.weekday())
+    return week_start, week_start + timedelta(days=6)

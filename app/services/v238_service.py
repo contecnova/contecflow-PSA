@@ -858,3 +858,18 @@ def list_collab_snapshots_records(document_id: str, limit: int, db: Session) -> 
          "is_current": s.is_current, "created_at": str(s.created_at)}
         for s in snapshots
     ]
+
+
+# ── SCIM helpers ───────────────────────────────────────────────────────────────
+
+def scim_bulk_error(bulk_id, status, detail) -> dict:
+    return {
+        "method": "UNKNOWN",
+        "bulkId": bulk_id,
+        "status": str(status),
+        "response": {
+            "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+            "status": str(status),
+            "detail": detail,
+        }
+    }

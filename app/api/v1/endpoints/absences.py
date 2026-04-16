@@ -10,19 +10,13 @@ from app.models.user import User, UserRole
 from app.models.resources import AbsenceStatus
 from app.core.config import settings
 from app.services import absence_service
+from app.services.absence_service import (
+    TYPE_LABELS, STATUS_CFG, count_working_days as _working_days, serialize_absence as _absence_out,
+)
 
 router = APIRouter()
 
-TYPE_LABELS = {
-    "vacation": "Vacaciones", "sick": "Baja médica", "personal": "Asunto personal",
-    "training": "Formación", "maternity": "Maternidad", "paternity": "Paternidad", "other": "Otro"
-}
-STATUS_CFG = {
-    "pending": {"label": "Pendiente", "color": "#ffb800"},
-    "approved": {"label": "Aprobada", "color": "#00e5a0"},
-    "rejected": {"label": "Rechazada", "color": "#ff4757"},
-    "cancelled": {"label": "Cancelada", "color": "#7a8aaa"},
-}
+# Label constants and helpers delegated to absence_service
 
 
 class AbsenceIn(BaseModel):
@@ -36,48 +30,7 @@ class AbsenceReview(BaseModel):
     rejection_reason: Optional[str] = None
 
 
-def _working_days(start: date, end: date, holidays: list) -> float:
-    """Count working days between two dates excluding weekends and holidays."""
-    holiday_dates = set()
-    for h in holidays:
-        if isinstance(h, date):
-            holiday_dates.add(h)
-        elif hasattr(h, 'date'):
-            holiday_dates.add(h.date)
-        elif isinstance(h, str):
-            try:
-                holiday_dates.add(date.fromisoformat(h))
-            except Exception:
-                pass
-
-    count = 0
-    current = start
-    while current <= end:
-        if current.weekday() < 5 and current not in holiday_dates:
-            count += 1
-        current += timedelta(days=1)
-    return float(count)
-
-
-def _absence_out(a) -> dict:
-    return {
-        "id": a.id,
-        "user_id": a.user_id,
-        "user_name": a.user.full_name if a.user else "—",
-        "type": a.type,
-        "type_label": TYPE_LABELS.get(a.type, a.type),
-        "status": a.status,
-        "status_label": STATUS_CFG.get(a.status, {}).get("label", a.status),
-        "status_color": STATUS_CFG.get(a.status, {}).get("color", "#7a8aaa"),
-        "start_date": str(a.start_date),
-        "end_date": str(a.end_date),
-        "working_days": a.working_days,
-        "reason": a.reason,
-        "approved_by": a.approver.full_name if a.approver else None,
-        "approved_at": str(a.approved_at)[:10] if a.approved_at else None,
-        "rejection_reason": a.rejection_reason,
-        "created_at": str(a.created_at)[:10] if a.created_at else None,
-    }
+# _working_days and _absence_out delegated to absence_service (see imports above)
 
 
 @router.get("", summary="Listar ausencias con filtros de fecha (global)")

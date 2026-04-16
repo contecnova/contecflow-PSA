@@ -108,4 +108,5 @@ from app.models.semantic_engine import (  # noqa: F401
     SemProfile, SemEmbeddingCache, SemAssignment, SemFeedback,
     SemConfig, SemEngineMode, SemAssignmentType,
 )
+from app.models.ai_providers import AIProvider, AIUsageLog  # noqa: F401
 

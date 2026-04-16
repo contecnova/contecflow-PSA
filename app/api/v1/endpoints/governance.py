@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services.audit import audit_log
 import app.services.governance_service as _gsvc
+_org_id = _gsvc.get_org_id
 
 router = APIRouter(prefix="/governance", tags=["Governance"])
 
@@ -66,10 +67,7 @@ class EvidenceCreate(BaseModel):
     metadata: Optional[dict] = None
 
 
-def _org_id(current_user: User) -> str:
-    if not current_user.organization_id:
-        raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
-    return current_user.organization_id
+# _org_id delegated to _gsvc.get_org_id (see import above)
 
 
 @router.get("/policy-packs", summary="Listar policy packs por tenant")

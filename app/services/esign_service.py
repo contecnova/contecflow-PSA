@@ -173,3 +173,40 @@ def update_envelope_from_webhook(
     if new_status == ESignStatus.completed.value and not envelope.completed_at:
         envelope.completed_at = datetime.utcnow()
     db.commit()
+
+
+# ── Provider helpers ───────────────────────────────────────────────────────────
+
+def docusign_configured() -> bool:
+    from app.core.config import settings
+    return bool(settings.DOCUSIGN_INTEGRATION_KEY and settings.DOCUSIGN_ACCOUNT_ID)
+
+
+def adobe_configured() -> bool:
+    from app.core.config import settings
+    return bool(settings.ADOBE_SIGN_CLIENT_ID)
+
+
+def create_provider_envelope(envelope, doc) -> dict:
+    """
+    Attempt to create an envelope via the configured provider.
+    Returns dict with {provider_envelope_id, signing_url, status} or raises.
+    In this implementation provider API calls are stubbed unless keys are set.
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+    if envelope.provider == ESignProvider.docusign and docusign_configured():
+        _log.info("[eSign] DocuSign envelope intent for doc %s", doc.id)
+        return {
+            "provider_envelope_id": None, "signing_url": None,
+            "status": ESignStatus.draft, "is_stub": True,
+            "stub_note": "Integración DocuSign pendiente. El sobre se ha registrado pero no se ha enviado al proveedor.",
+        }
+    if envelope.provider == ESignProvider.adobe_sign and adobe_configured():
+        _log.info("[eSign] Adobe Sign envelope intent for doc %s", doc.id)
+        return {
+            "provider_envelope_id": None, "signing_url": None,
+            "status": ESignStatus.draft, "is_stub": True,
+            "stub_note": "Integración Adobe Sign pendiente. El sobre se ha registrado pero no se ha enviado al proveedor.",
+        }
+    return {"provider_envelope_id": None, "signing_url": None, "status": ESignStatus.draft}

@@ -231,3 +231,15 @@ def get_linked_tasks_query(db: Session, project_id: Optional[str]):
     if project_id:
         q = q.filter(Task.project_id == project_id)
     return q
+
+
+# ── HTTP helper ──────────────────────────────────────────────────────────────
+
+def jira_headers(email: str, token: str) -> dict:
+    import base64 as _b64
+    creds = _b64.b64encode(f"{email}:{token}".encode()).decode()
+    return {
+        "Authorization": f"Basic {creds}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }

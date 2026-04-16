@@ -789,3 +789,12 @@ DEFAULT_ABAC_ATTRIBUTES = [
         "operators": ["equals", "contains"],
     },
 ]
+
+
+# ── Tenant helpers ─────────────────────────────────────────────────────────
+
+def get_org_id(user) -> str:
+    from fastapi import HTTPException
+    if not user.organization_id:
+        raise HTTPException(400, "User has no organization")
+    return str(user.organization_id)

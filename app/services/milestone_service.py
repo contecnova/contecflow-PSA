@@ -359,3 +359,26 @@ def _notify_requester_rejected(m, rejection_reason: str, current_user, db: Sessi
             db.commit()
         except Exception:
             db.rollback()
+
+
+# ── Serialization helper ───────────────────────────────────────────────────
+
+def serialize_milestone(m, db=None) -> dict:
+    billing_amount = compute_billing_amount(m, db) if db else m.billing_amount
+    return {
+        "id": m.id, "project_id": m.project_id,
+        "name": m.name, "description": m.description,
+        "due_date": str(m.due_date) if m.due_date else None,
+        "sort_order": m.sort_order,
+        "billing_status": m.billing_status or "pending",
+        "is_completed": m.is_completed,
+        "completed_date": str(m.completed_date) if m.completed_date else None,
+        "billing_amount": billing_amount,
+        "billing_pct": m.billing_pct,
+        "is_billed": m.is_billed,
+        "invoice_id": m.invoice_id,
+        "approved_at": str(m.approved_at)[:16] if m.approved_at else None,
+        "rejected_at": str(m.rejected_at)[:16] if m.rejected_at else None,
+        "rejection_reason": m.rejection_reason,
+        "approval_requested_at": str(m.approval_requested_at)[:16] if m.approval_requested_at else None,
+    }

@@ -87,54 +87,11 @@ class EnvelopeOut(BaseModel):
 
 # ── Provider helpers (stub-based — real OAuth requires external setup) ─────────
 
-def _docusign_configured() -> bool:
-    return bool(settings.DOCUSIGN_INTEGRATION_KEY and settings.DOCUSIGN_ACCOUNT_ID)
-
-
-def _adobe_configured() -> bool:
-    return bool(settings.ADOBE_SIGN_CLIENT_ID)
-
-
-def _create_provider_envelope(envelope, doc) -> dict:
-    """
-    Attempt to create an envelope via the configured provider.
-    Returns dict with {provider_envelope_id, signing_url, status} or raises.
-
-    In this implementation, provider API calls are stubbed unless keys are set.
-    Real implementation would use provider SDKs / HTTP calls here.
-    """
-    if envelope.provider == ESignProvider.docusign and _docusign_configured():
-        _logger.info(
-            f"[eSign] DocuSign envelope intent for doc {doc.id}, "
-            f"subject: {envelope.subject}"
-        )
-        return {
-            "provider_envelope_id": None,
-            "signing_url": None,
-            "status": ESignStatus.draft,
-            "is_stub": True,
-            "stub_note": "Integración DocuSign pendiente de implementación. El sobre se ha registrado pero no se ha enviado al proveedor.",
-        }
-
-    if envelope.provider == ESignProvider.adobe_sign and _adobe_configured():
-        _logger.info(
-            f"[eSign] Adobe Sign envelope intent for doc {doc.id}, "
-            f"subject: {envelope.subject}"
-        )
-        return {
-            "provider_envelope_id": None,
-            "signing_url": None,
-            "status": ESignStatus.draft,
-            "is_stub": True,
-            "stub_note": "Integración Adobe Sign pendiente de implementación. El sobre se ha registrado pero no se ha enviado al proveedor.",
-        }
-
-    # Manual mode — no external provider
-    return {
-        "provider_envelope_id": None,
-        "signing_url": None,
-        "status": ESignStatus.draft,
-    }
+from app.services.esign_service import (
+    docusign_configured as _docusign_configured,
+    adobe_configured as _adobe_configured,
+    create_provider_envelope as _create_provider_envelope,
+)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────

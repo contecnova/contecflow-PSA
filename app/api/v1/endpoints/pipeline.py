@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.services import pipeline_service
-from app.services.pipeline_service import STAGE_LABELS, STAGE_PROB
+from app.services.pipeline_service import STAGE_LABELS, STAGE_PROB, serialize_opportunity as _opp_out
 
 router = APIRouter()
 
@@ -53,27 +53,7 @@ class StageConfigIn(BaseModel):
     is_won: bool = False
 
 
-def _opp_out(opp) -> dict:
-    weighted = (opp.expected_revenue or 0) * (opp.probability / 100)
-    return {
-        "id": opp.id, "code": opp.code, "name": opp.name,
-        "client_id": opp.client_id, "client_name": opp.client_name, "contact_name": opp.contact_name,
-        "stage": opp.stage, "stage_label": STAGE_LABELS.get(opp.stage, opp.stage),
-        "probability": opp.probability,
-        "expected_revenue": opp.expected_revenue,
-        "expected_margin_pct": opp.expected_margin_pct,
-        "expected_hours": opp.expected_hours,
-        "weighted_revenue": round(weighted, 0),
-        "expected_close_date": str(opp.expected_close_date) if opp.expected_close_date else None,
-        "expected_start_date": str(opp.expected_start_date) if opp.expected_start_date else None,
-        "expected_duration_weeks": opp.expected_duration_weeks,
-        "owner_id": opp.owner_id,
-        "owner_name": opp.owner.full_name if opp.owner else None,
-        "project_id": opp.project_id,
-        "notes": opp.notes, "lost_reason": opp.lost_reason,
-        "description": opp.description,
-        "created_at": str(opp.created_at)[:10] if opp.created_at else None,
-    }
+# _opp_out delegated to pipeline_service.serialize_opportunity (see imports above)
 
 
 @router.get("", summary="Listar oportunidades")

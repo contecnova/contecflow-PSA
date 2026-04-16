@@ -114,3 +114,12 @@ def get_evidences_by_framework(
         )
         .all()
     )
+
+
+# ── Tenant helpers ────────────────────────────────────────────────────────────
+
+def get_org_id(user) -> str:
+    from fastapi import HTTPException
+    if not user.organization_id:
+        raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
+    return user.organization_id

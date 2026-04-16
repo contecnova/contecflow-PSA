@@ -35,28 +35,7 @@ class ReviewIn(BaseModel):
     goals_next: Optional[str] = None
 
 
-def _avg(*scores):
-    vals = [s for s in scores if s is not None]
-    return round(sum(vals) / len(vals), 2) if vals else None
-
-def _ser_review(r) -> dict:
-    return {
-        "id": r.id, "cycle_id": r.cycle_id,
-        "reviewee_id": r.reviewee_id,
-        "reviewee_name": r.reviewee.full_name if r.reviewee else None,
-        "reviewer_id": r.reviewer_id,
-        "reviewer_name": r.reviewer.full_name if r.reviewer else None,
-        "review_type": r.review_type, "status": r.status,
-        "score_quality": r.score_quality, "score_delivery": r.score_delivery,
-        "score_teamwork": r.score_teamwork, "score_leadership": r.score_leadership,
-        "score_innovation": r.score_innovation,
-        "score_overall": r.score_overall or _avg(r.score_quality, r.score_delivery,
-                                                   r.score_teamwork, r.score_leadership,
-                                                   r.score_innovation),
-        "strengths": r.strengths, "improvements": r.improvements,
-        "goals_next": r.goals_next,
-        "submitted_at": str(r.submitted_at)[:16] if r.submitted_at else None,
-    }
+from app.services.performance_service import avg_score as _avg, serialize_review as _ser_review
 
 
 @router.get("/cycles", summary="Listar ciclos de evaluación")

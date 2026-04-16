@@ -168,3 +168,17 @@ def get_upcoming_milestones(
         .limit(limit)
         .all()
     )
+
+
+# ── Serialization helper ───────────────────────────────────────────────────
+
+def serialize_portfolio(p) -> dict:
+    return {
+        "id": p.id, "name": p.name, "description": p.description,
+        "status": p.status, "budget_total": p.budget_total,
+        "start_date": p.start_date.isoformat() if p.start_date else None,
+        "end_date": p.end_date.isoformat() if p.end_date else None,
+        "owner_id": p.owner_id,
+        "project_count": len(p.members),
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    }

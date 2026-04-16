@@ -527,3 +527,12 @@ def check_output(
     role   = user.role.value if hasattr(user.role, "value") else str(user.role or "employee")
     return engine.evaluate(text, role=role, module=module, scope="output",
                            user_id=str(user.id), request_id=request_id)
+
+
+# ── Tenant helpers ─────────────────────────────────────────────────────────
+
+def get_org_id(user) -> str:
+    from fastapi import HTTPException
+    if not user.organization_id:
+        raise HTTPException(400, "User has no organization")
+    return str(user.organization_id)

@@ -53,11 +53,7 @@ LEGACY_METRIC_IDS = [
 ]
 
 
-def _month_label(d) -> str:
-    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-    if hasattr(d, "month"):
-        return f"{months[d.month - 1]} {d.year}"
-    return str(d)
+from app.services.analytics_service import month_label as _month_label
 
 
 def run_legacy_metric(

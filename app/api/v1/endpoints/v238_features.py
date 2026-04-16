@@ -240,14 +240,4 @@ def list_collab_snapshots(
 # SCIM helpers (exported for scim.py)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _scim_bulk_error(bulk_id, status, detail):
-    return {
-        "method": "UNKNOWN",
-        "bulkId": bulk_id,
-        "status": str(status),
-        "response": {
-            "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
-            "status": str(status),
-            "detail": detail,
-        }
-    }
+_scim_bulk_error = svc.scim_bulk_error

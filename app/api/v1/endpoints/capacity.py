@@ -29,10 +29,7 @@ class CapacityPlanOut(CapacityPlanIn):
     model_config = {"from_attributes": True}
 
 
-def _get_weeks(from_date: date, num_weeks: int) -> List[date]:
-    # Start from Monday
-    monday = from_date - timedelta(days=from_date.weekday())
-    return [monday + timedelta(weeks=i) for i in range(num_weeks)]
+_get_weeks = capacity_service.get_weeks
 
 
 @router.get("/overview", summary="Vista de capacidad futura del equipo")

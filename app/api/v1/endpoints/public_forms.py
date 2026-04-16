@@ -25,6 +25,7 @@ from app.core.deps import get_current_user, get_db
 from app.core.ratelimit import limiter
 from app.models.user import User, UserRole
 from app.services import public_forms_service
+from app.services.public_forms_service import serialize_form as _form_out
 
 router = APIRouter(prefix="/forms", tags=["Public Forms"])
 log = logging.getLogger(__name__)
@@ -69,25 +70,7 @@ class SubmitFormIn(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _form_out(form) -> dict:
-    return {
-        "id": form.id,
-        "name": form.name,
-        "description": form.description,
-        "form_type": form.form_type,
-        "token": form.token,
-        "is_active": form.is_active,
-        "target_project_id": form.target_project_id,
-        "target_group_id": form.target_group_id,
-        "default_priority": form.default_priority,
-        "default_category": form.default_category,
-        "success_message": form.success_message,
-        "notify_emails": json.loads(form.notify_emails or "[]"),
-        "submission_count": form.submission_count,
-        "created_by": form.created_by,
-        "created_at": form.created_at.isoformat() if form.created_at else None,
-        "public_url": f"/intake/{form.token}",
-    }
+# _form_out delegated to public_forms_service.serialize_form (see imports above)
 
 
 # ── Authenticated endpoints ────────────────────────────────────────────────────

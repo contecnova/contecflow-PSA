@@ -39,59 +39,18 @@ if not _REDIS_URL:
         "Configura REDIS_URL para producción multi-worker."
     )
 
-# ── WS Ticket Store ────────────────────────────────────────────────────────────
-# Short-lived (60 s) one-time tickets so browser clients can authenticate the
-# WebSocket connection without reading the httpOnly access token from JS.
-# Production path uses Redis (shared across workers). In-memory is fallback-only.
-_ws_tickets: Dict[str, tuple] = {}   # ticket → (user_id, expires_at)
-_WS_TICKET_TTL = 60  # seconds
-_portal_ws_tickets: Dict[str, tuple] = {}  # ticket → (client_id, expires_at)
+# ── WS Ticket Store (delegated to ws_service) ────────────────────────────────
+_ws_tickets = _ws_svc._ws_tickets
+_WS_TICKET_TTL = _ws_svc._WS_TICKET_TTL
+_portal_ws_tickets = _ws_svc._portal_ws_tickets
 
 _WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:user:"
 _PORTAL_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:portal:"
 
-
-def _issue_ws_ticket_local(user_id: str) -> str:
-    """Create a single-use WS ticket valid for _WS_TICKET_TTL seconds."""
-    # Prune expired tickets lazily
-    now = time.monotonic()
-    expired = [t for t, (_, exp) in _ws_tickets.items() if exp < now]
-    for t in expired:
-        _ws_tickets.pop(t, None)
-    ticket = secrets.token_urlsafe(24)
-    _ws_tickets[ticket] = (user_id, now + _WS_TICKET_TTL)
-    return ticket
-
-
-def _consume_ws_ticket_local(ticket: str) -> Optional[str]:
-    """Validate and consume a WS ticket, returning user_id or None."""
-    entry = _ws_tickets.pop(ticket, None)
-    if entry is None:
-        return None
-    user_id, expires_at = entry
-    if time.monotonic() > expires_at:
-        return None
-    return user_id
-
-
-def _issue_portal_ws_ticket_local(client_id: str) -> str:
-    now = time.monotonic()
-    expired = [t for t, (_, exp) in _portal_ws_tickets.items() if exp < now]
-    for t in expired:
-        _portal_ws_tickets.pop(t, None)
-    ticket = secrets.token_urlsafe(24)
-    _portal_ws_tickets[ticket] = (client_id, now + _WS_TICKET_TTL)
-    return ticket
-
-
-def _consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
-    entry = _portal_ws_tickets.pop(ticket, None)
-    if entry is None:
-        return None
-    client_id, expires_at = entry
-    if time.monotonic() > expires_at:
-        return None
-    return client_id
+_issue_ws_ticket_local = _ws_svc.issue_ws_ticket_local
+_consume_ws_ticket_local = _ws_svc.consume_ws_ticket_local
+_issue_portal_ws_ticket_local = _ws_svc.issue_portal_ws_ticket_local
+_consume_portal_ws_ticket_local = _ws_svc.consume_portal_ws_ticket_local
 
 
 async def _issue_ws_ticket(user_id: str) -> str:

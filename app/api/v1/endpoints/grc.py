@@ -222,16 +222,7 @@ def list_sod_rules(
     return [_rule_out(r) for r in rules]
 
 
-def _rule_out(r) -> dict:
-    return {
-        "id": r.id, "module_a": r.module_a, "action_a": r.action_a,
-        "module_b": r.module_b, "action_b": r.action_b,
-        "risk": r.risk, "description": r.description,
-        "is_active": r.is_active,
-        "roles_conflict": json.loads(r.roles_conflict or "[]"),
-        "mitigated_by_workflow_id": r.mitigated_by_workflow_id,
-        "created_at": str(r.created_at)[:10] if r.created_at else None,
-    }
+_rule_out = grc_svc.serialize_sod_rule
 
 
 @router.post("/sod-rules", summary="Crear nueva regla SoD")
@@ -328,18 +319,7 @@ def list_violations(
     return [_violation_out(v) for v in rows]
 
 
-def _violation_out(v) -> dict:
-    return {
-        "id": v.id, "rule_id": v.rule_id,
-        "user_id": v.user_id,
-        "user_name": v.user.full_name if v.user else None,
-        "role": v.role,
-        "context_type": v.context_type, "context_id": v.context_id,
-        "detected_at": str(v.detected_at)[:19] if v.detected_at else None,
-        "resolved": v.resolved,
-        "resolved_at": str(v.resolved_at)[:19] if v.resolved_at else None,
-        "resolution_note": v.resolution_note,
-    }
+_violation_out = grc_svc.serialize_violation
 
 
 @router.patch("/violations/{violation_id}/resolve", summary="Marcar violación SoD como resuelta")

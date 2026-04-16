@@ -27,6 +27,7 @@ from app.services.task_service import (
     add_comment_record,
     bulk_update_dates_record,
     record_reassign_feedback_bg,
+    refresh_profile_bg as _refresh_profile_bg,
 )
 
 router = APIRouter()
@@ -149,23 +150,6 @@ def update_task(
         record_reassign_feedback_bg(background_tasks, db, task_id, "task")
 
     return task
-
-
-def _refresh_profile_bg(background_tasks: BackgroundTasks, db: Session, user_id: str):
-    """Schedule a semantic profile refresh as a background task."""
-    from app.services.semantic_classifier import SemanticAssigner
-    from app.db.session import SessionLocal
-
-    def _run():
-        _db = SessionLocal()
-        try:
-            SemanticAssigner(_db).refresh_user_profile(user_id)
-        except Exception:
-            pass
-        finally:
-            _db.close()
-
-    background_tasks.add_task(_run)
 
 
 

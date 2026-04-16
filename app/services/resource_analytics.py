@@ -594,3 +594,23 @@ def get_forecast_past_imputations(
         .all()
     )
 
+
+# ── Date utility helpers ──────────────────────────────────────────────────────
+
+def monday(d: "date") -> "date":
+    """Return the Monday of the week containing *d*."""
+    from datetime import timedelta
+    return d - timedelta(days=d.weekday())
+
+
+def weeks_range(start: "date", n: int) -> list:
+    """Return a list of *n* Monday dates starting from the week of *start*."""
+    from datetime import timedelta
+    mon = monday(start)
+    return [mon + timedelta(weeks=i) for i in range(n)]
+
+
+def week_label(d: "date") -> str:
+    """ISO week label, e.g. '2025-W22'."""
+    return d.strftime("%Y-W%V")
+

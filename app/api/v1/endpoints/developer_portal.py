@@ -67,42 +67,9 @@ _PBKDF2_ITERATIONS = 260_000
 _MAX_APPS_PER_USER = 10
 
 
-def _hash_secret(secret: str) -> str:
-    """PBKDF2-HMAC-SHA256 with a random salt — returns '<salt_hex>:<dk_hex>'."""
-    salt = os.urandom(16)
-    dk = hashlib.pbkdf2_hmac("sha256", secret.encode(), salt, _PBKDF2_ITERATIONS)
-    return salt.hex() + ":" + dk.hex()
-
-
-def _verify_secret(secret: str, hashed: str) -> bool:
-    """Constant-time comparison to prevent timing-attack leakage."""
-    try:
-        salt_hex, dk_hex = hashed.split(":", 1)
-        salt = bytes.fromhex(salt_hex)
-        dk = bytes.fromhex(dk_hex)
-    except (ValueError, AttributeError):
-        return False
-    candidate = hashlib.pbkdf2_hmac("sha256", secret.encode(), salt, _PBKDF2_ITERATIONS)
-    return hmac.compare_digest(candidate, dk)
-
-
-def _app_out(app, include_secret: str = None) -> dict:
-    out = {
-        "id": app.id,
-        "name": app.name,
-        "description": app.description,
-        "homepage_url": app.homepage_url,
-        "client_id": app.client_id,
-        "redirect_uris": json.loads(app.redirect_uris or "[]"),
-        "scopes": json.loads(app.scopes or '["read"]'),
-        "is_active": app.is_active,
-        "is_first_party": app.is_first_party,
-        "owner_id": app.owner_id,
-        "created_at": app.created_at.isoformat() if app.created_at else None,
-    }
-    if include_secret:
-        out["client_secret"] = include_secret  # Only returned on create/rotate
-    return out
+_hash_secret = svc.hash_secret
+_verify_secret = svc.verify_secret
+_app_out = svc.serialize_app
 
 
 # ── App management endpoints ────────────────────────────────────────────────────

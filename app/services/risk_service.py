@@ -61,3 +61,44 @@ def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
 def delete_risk(db: Session, risk: Risk) -> None:
     db.delete(risk)
     db.commit()
+
+
+# ── Label constants ────────────────────────────────────────────────────────────
+
+PROB_LABELS = {"very_low": "Muy baja (<10%)", "low": "Baja (10-30%)", "medium": "Media (30-60%)", "high": "Alta (60-80%)", "very_high": "Muy alta (>80%)"}
+IMPACT_LABELS = {"negligible": "Insignificante", "minor": "Menor", "moderate": "Moderado", "major": "Mayor", "critical": "Crítico"}
+STATUS_LABELS = {"identified": "Identificado", "analyzing": "Analizando", "mitigating": "Mitigando", "monitoring": "Monitorizando", "closed": "Cerrado", "materialized": "Materializado"}
+CATEGORY_LABELS = {"technical": "Técnico", "financial": "Financiero", "schedule": "Planificación", "resource": "Recursos", "external": "Externo", "quality": "Calidad"}
+
+
+# ── Serialization helper ──────────────────────────────────────────────────
+
+def serialize_risk(r) -> dict:
+    from app.services.risk_scoring import risk_score, risk_level
+    score = r.risk_score or risk_score(r.probability, r.impact)
+    return {
+        "id": r.id, "code": r.code, "project_id": r.project_id,
+        "title": r.title, "description": r.description,
+        "category": r.category,
+        "category_label": CATEGORY_LABELS.get(r.category, r.category),
+        "probability": r.probability,
+        "probability_label": PROB_LABELS.get(r.probability, r.probability),
+        "impact": r.impact,
+        "impact_label": IMPACT_LABELS.get(r.impact, r.impact),
+        "risk_score": score,
+        "risk_level": risk_level(score),
+        "status": r.status,
+        "status_label": STATUS_LABELS.get(r.status, r.status),
+        "mitigation_plan": r.mitigation_plan,
+        "contingency_plan": r.contingency_plan,
+        "response_type": r.response_type,
+        "owner_id": r.owner_id,
+        "owner_name": r.owner.full_name if r.owner else None,
+        "review_date": str(r.review_date) if r.review_date else None,
+        "closed_date": str(r.closed_date) if r.closed_date else None,
+        "identified_date": str(r.identified_date) if r.identified_date else None,
+        "cost_impact_min": r.cost_impact_min,
+        "cost_impact_max": r.cost_impact_max,
+        "schedule_impact_days": r.schedule_impact_days,
+        "notes": r.notes,
+    }

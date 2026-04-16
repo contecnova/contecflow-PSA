@@ -1006,3 +1006,12 @@ class SecurityAnalyticsService:
             return None
         vals = [(r - d).total_seconds() for d, r in rows if d and r and r >= d]
         return round(sum(vals) / len(vals), 1) if vals else None
+
+
+# ── Tenant helpers ─────────────────────────────────────────────────────────
+
+def get_org_id(user) -> str:
+    from fastapi import HTTPException
+    if not user.organization_id:
+        raise HTTPException(status_code=400, detail="User has no organization")
+    return str(user.organization_id)

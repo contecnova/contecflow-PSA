@@ -52,9 +52,6 @@ from app.core.ratelimit import limiter
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    import asyncio
-    import concurrent.futures
-
     logger.info("━" * 54)
     logger.info("  ◈  CLARIVE PSA — Iniciando servidor")
     logger.info(f"     Versión : {settings.VERSION}")
@@ -70,26 +67,42 @@ async def lifespan(_app: FastAPI):
     # In development / SQLite mode we still run them here for convenience.
     # SKIP_STARTUP_MIGRATIONS=1 lets the init-container pattern opt out.
     import os as _os
-    loop = asyncio.get_event_loop()
     _skip_migrations = _os.getenv("SKIP_STARTUP_MIGRATIONS", "0") == "1" or _os.getenv("TESTING", "0") == "1"
     if not _skip_migrations:
         logger.info("🔄 Ejecutando migraciones Alembic (startup)...")
         alembic_cfg = None
         try:
-            # Ensure baseline tables exist on fresh SQLite/dev databases.
-            # Some historical migrations are incremental ALTERs that assume
-            # the base schema is already present.
+            import asyncio as _asyncio
+            import sys as _sys
+            import subprocess as _subprocess
             from app.db.base import Base
-            from app.db.session import engine
+            from app.core.config import settings as _settings
             from alembic.config import Config as AlembicConfig
             from alembic import command as alembic_command
-            Base.metadata.create_all(bind=engine)
-            alembic_cfg = AlembicConfig(_os.path.join(_os.path.dirname(__file__), "..", "alembic.ini"))
-            with concurrent.futures.ThreadPoolExecutor() as _mig_pool:
-                await loop.run_in_executor(
-                    _mig_pool,
-                    lambda: alembic_command.upgrade(alembic_cfg, "head"),
-                )
+            from sqlalchemy import create_engine as _ce
+            from sqlalchemy.pool import NullPool as _NullPool
+
+            # create_all for fresh DBs using an isolated NullPool engine
+            _tmp_engine = _ce(_settings.DATABASE_URL, poolclass=_NullPool)
+            Base.metadata.create_all(bind=_tmp_engine)
+            _tmp_engine.dispose()
+            del _tmp_engine
+
+            # Run alembic upgrade in a subprocess so it is fully isolated from
+            # uvicorn's process/asyncio context, preventing SQLite WAL lock hangs.
+            _project_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+            _proc = await _asyncio.create_subprocess_exec(
+                _sys.executable, "-m", "alembic", "upgrade", "head",
+                cwd=_project_root,
+                stdout=_asyncio.subprocess.PIPE,
+                stderr=_asyncio.subprocess.STDOUT,
+            )
+            _out, _ = await _proc.communicate()
+            if _out:
+                for _line in _out.decode().splitlines():
+                    logger.info("   alembic: %s", _line)
+            if _proc.returncode != 0:
+                raise RuntimeError(f"alembic upgrade head exited with code {_proc.returncode}")
             logger.info("   ✅ Alembic migrations applied")
         except Exception as _ae:
             _err = str(_ae).lower()
@@ -99,14 +112,19 @@ async def lifespan(_app: FastAPI):
                 or "duplicate column" in _err
                 or "no such table" in _err
             )
-            if _is_sqlite and _known_local_schema_drift and alembic_cfg is not None:
+            if _is_sqlite and _known_local_schema_drift:
                 logger.warning(
                     "   ⚠️  Alembic detectó esquema local preexistente/inconsistente "
                     "(SQLite). Marcando head y continuando startup..."
                 )
                 try:
-                    from alembic import command as alembic_command
-                    alembic_command.stamp(alembic_cfg, "head")
+                    _stamp_proc = await _asyncio.create_subprocess_exec(
+                        _sys.executable, "-m", "alembic", "stamp", "head",
+                        cwd=_project_root,
+                        stdout=_asyncio.subprocess.PIPE,
+                        stderr=_asyncio.subprocess.STDOUT,
+                    )
+                    await _stamp_proc.communicate()
                     logger.info("   ✅ Alembic stamp head aplicado (SQLite local)")
                 except Exception as _se:
                     logger.warning(f"   ⚠️  No se pudo hacer Alembic stamp: {_se}")

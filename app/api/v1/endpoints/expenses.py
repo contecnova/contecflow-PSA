@@ -34,6 +34,7 @@ from app.services.expense_service import (
     recall_expense_record as svc_recall_expense,
     reimburse_expense_record as svc_reimburse_expense,
     delete_my_expense as svc_delete_my_expense,
+    CATEGORY_LABELS, next_expense_code as _next_code, serialize_expense as _expense_out,
 )
 
 router = APIRouter()
@@ -51,46 +52,7 @@ class ExpenseIn(BaseModel):
     status: Optional[str] = None
     is_billable: Optional[bool] = None
 
-CATEGORY_LABELS = {
-    "travel": "Viajes y transporte",
-    "accommodation": "Alojamiento",
-    "meals": "Dietas y comidas",
-    "software": "Software y licencias",
-    "hardware": "Hardware y equipamiento",
-    "training": "Formación",
-    "subcontract": "Subcontratación",
-    "other": "Otros",
-}
-
-def _next_code(db: Session) -> str:
-    return next_numbered_code(db, "expense", prefix="EXP", padding=4)
-
-def _expense_out(e: Expense) -> dict:
-    return {
-        "id": e.id, "code": e.code,
-        "user_id": e.user_id,
-        "user_name": e.user.full_name if e.user else None,
-        "project_id": e.project_id,
-        "project_name": e.project.name if e.project else None,
-        "contract_id": e.contract_id,
-        "category": e.category,
-        "category_label": CATEGORY_LABELS.get(e.category, e.category),
-        "description": e.description,
-        "amount": e.amount,
-        "currency": e.currency,
-        "expense_date": str(e.expense_date) if e.expense_date else None,
-        "is_billable": e.is_billable,
-        "receipt_url": e.receipt_url,
-        "receipt_name": e.receipt_name,
-        "status": e.status,
-        "submitted_at": str(e.submitted_at)[:16] if e.submitted_at else None,
-        "reviewed_by_name": e.reviewer.full_name if e.reviewer else None,
-        "reviewed_at": str(e.reviewed_at)[:16] if e.reviewed_at else None,
-        "rejection_reason": e.rejection_reason,
-        "reimbursed_at": str(e.reimbursed_at)[:10] if e.reimbursed_at else None,
-        "notes": e.notes,
-        "created_at": str(e.created_at)[:10] if e.created_at else None,
-    }
+# Label constants and helpers delegated to expense_service (see imports above)
 
 
 class ExpenseCreate(BaseModel):

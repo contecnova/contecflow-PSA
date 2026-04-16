@@ -197,3 +197,27 @@ def submit_form(
     db.commit()
 
     return sub, created_entity_id
+
+
+# ── Serialization helper ───────────────────────────────────────────────────
+
+def serialize_form(form) -> dict:
+    import json as _json
+    return {
+        "id": form.id,
+        "name": form.name,
+        "description": form.description,
+        "form_type": form.form_type,
+        "token": form.token,
+        "is_active": form.is_active,
+        "target_project_id": form.target_project_id,
+        "target_group_id": form.target_group_id,
+        "default_priority": form.default_priority,
+        "default_category": form.default_category,
+        "success_message": form.success_message,
+        "notify_emails": _json.loads(form.notify_emails or "[]"),
+        "submission_count": form.submission_count,
+        "created_by": form.created_by,
+        "created_at": form.created_at.isoformat() if form.created_at else None,
+        "public_url": f"/intake/{form.token}",
+    }

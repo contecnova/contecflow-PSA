@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.user import User, UserRole
 from app.services import profitability_service
+from app.services.profitability_service import get_fx_rate as _get_fx_rate, _fx_cache
 
 router = APIRouter()
 

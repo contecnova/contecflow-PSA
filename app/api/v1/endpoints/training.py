@@ -42,36 +42,11 @@ class CertificationIn(BaseModel):
     notes: Optional[str] = None
 
 
-def _ser_course(c) -> dict:
-    return {"id": c.id, "title": c.title, "description": c.description,
-            "provider": c.provider, "category": c.category,
-            "duration_h": c.duration_h, "url": c.url, "cost": c.cost,
-            "enrolled": len(c.enrollments)}
-
-def _ser_enrollment(e) -> dict:
-    return {"id": e.id,
-            "course_id": e.course_id,
-            "course_title": e.course.title if e.course else None,
-            "user_id": e.user_id,
-            "user_name": e.user.full_name if e.user else None,
-            "status": e.status,
-            "start_date": str(e.start_date) if e.start_date else None,
-            "end_date": str(e.end_date) if e.end_date else None,
-            "score": e.score, "notes": e.notes}
-
-def _ser_cert(c) -> dict:
-    from datetime import date as dt_date
-    today = dt_date.today()
-    days_left = (c.expires_at - today).days if c.expires_at else None
-    return {"id": c.id, "user_id": c.user_id,
-            "user_name": c.user.full_name if c.user else None,
-            "name": c.name, "issuer": c.issuer, "cert_id": c.cert_id,
-            "obtained_at": str(c.obtained_at) if c.obtained_at else None,
-            "expires_at": str(c.expires_at) if c.expires_at else None,
-            "days_until_expiry": days_left,
-            "is_expired": days_left is not None and days_left < 0,
-            "expiring_soon": days_left is not None and 0 <= days_left <= 60,
-            "url": c.url, "notes": c.notes}
+from app.services.training_service import (
+    serialize_course as _ser_course,
+    serialize_enrollment as _ser_enrollment,
+    serialize_certification as _ser_cert,
+)
 
 
 @router.get("/courses", summary="Catálogo de cursos")

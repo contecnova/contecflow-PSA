@@ -12,7 +12,10 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timezone, timedelta, date
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import BackgroundTasks
 
 from sqlalchemy.orm import Session
 
@@ -504,6 +507,23 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
             if assignment and assignment.was_accepted is None:
                 assignment.was_accepted = False
                 _db.commit()
+        except Exception:
+            pass
+        finally:
+            _db.close()
+
+    background_tasks.add_task(_run)
+
+
+def refresh_profile_bg(background_tasks: "BackgroundTasks", db: "Session", user_id: str) -> None:
+    """Schedule a semantic profile refresh as a background task."""
+    from app.services.semantic_classifier import SemanticAssigner
+    from app.db.session import SessionLocal
+
+    def _run():
+        _db = SessionLocal()
+        try:
+            SemanticAssigner(_db).refresh_user_profile(user_id)
         except Exception:
             pass
         finally:

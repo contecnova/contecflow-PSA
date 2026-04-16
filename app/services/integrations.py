@@ -684,3 +684,77 @@ def slack_get_status_by_code(db, code: str) -> dict:
             ),
         }
     return {"response_type": "ephemeral", "text": f"❌ No encontré ningún elemento con código `{code}`"}
+
+
+# ── Slack helpers ──────────────────────────────────────────────────────────────
+
+def slack_help_response() -> dict:
+    return {
+        "response_type": "ephemeral",
+        "text": (
+            "*Comandos disponibles de Clarive:*\n"
+            "• `/clarive tarea <título> [#PRJ-code]` — Crear tarea\n"
+            "• `/clarive tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
+            "• `/clarive ticket <asunto>` — Crear ticket en Service Desk\n"
+            "• `/clarive estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
+            "• `/clarive ayuda` — Ver esta ayuda"
+        ),
+    }
+
+
+def build_block_kit_message(event_type: str, payload: dict) -> dict:
+    from app.core.config import settings
+    base_url = settings.FRONTEND_URL or "http://localhost:3000"
+
+    if event_type == "task_overdue":
+        return {
+            "blocks": [
+                {"type": "header", "text": {"type": "plain_text", "text": "⚠️ Task Overdue"}},
+                {"type": "section", "fields": [
+                    {"type": "mrkdwn", "text": f"*Task:*\n{payload.get('task_title', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Project:*\n{payload.get('project_name', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Due Date:*\n{payload.get('due_date', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Assignee:*\n{payload.get('assignee', 'N/A')}"},
+                ]},
+                {"type": "actions", "elements": [
+                    {"type": "button", "text": {"type": "plain_text", "text": "View Task"},
+                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}",
+                     "style": "primary"},
+                    {"type": "button", "text": {"type": "plain_text", "text": "Update Status"},
+                     "url": f"{base_url}/tasks/{payload.get('task_id', '')}?action=update"},
+                ]},
+            ]
+        }
+    if event_type == "invoice_paid":
+        return {
+            "blocks": [
+                {"type": "header", "text": {"type": "plain_text", "text": "✅ Invoice Paid"}},
+                {"type": "section", "fields": [
+                    {"type": "mrkdwn", "text": f"*Invoice:*\n{payload.get('invoice_number', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Amount:*\n{payload.get('currency', 'EUR')} {payload.get('amount', 0):,.2f}"},
+                    {"type": "mrkdwn", "text": f"*Client:*\n{payload.get('client_name', 'N/A')}"},
+                    {"type": "mrkdwn", "text": f"*Paid At:*\n{payload.get('paid_at', 'N/A')}"},
+                ]},
+            ]
+        }
+    if event_type == "approval_required":
+        return {
+            "blocks": [
+                {"type": "header", "text": {"type": "plain_text", "text": "🔔 Approval Required"}},
+                {"type": "section", "text": {
+                    "type": "mrkdwn",
+                    "text": f"*{payload.get('entity_type', 'Item').title()}* submitted by "
+                            f"*{payload.get('submitter', 'Unknown')}* requires your approval.",
+                }},
+                {"type": "actions", "elements": [
+                    {"type": "button", "text": {"type": "plain_text", "text": " ✅ Approve"},
+                     "style": "primary",
+                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=approve"},
+                    {"type": "button", "text": {"type": "plain_text", "text": " ❌ Reject"},
+                     "style": "danger",
+                     "url": f"{base_url}/approvals/{payload.get('request_id', '')}?action=reject"},
+                ]},
+            ]
+        }
+
+    return {"blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": f"*NexusPM Notification:* {payload.get('message', 'Event occurred')}"}}]}

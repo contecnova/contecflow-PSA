@@ -44,3 +44,17 @@ def escalate_ticket_level(
             )
         )
     return {"ok": True, "from": old_level, "to": to_level}
+
+
+# ── Transaction helper ─────────────────────────────────────────────────────────
+
+def commit_or_rollback(db, detail: str = "Error de transacción") -> None:
+    import logging as _logging
+    from fastapi import HTTPException
+    _logger = _logging.getLogger(__name__)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        _logger.exception("Database transaction failed in service_desk")
+        raise HTTPException(500, detail)

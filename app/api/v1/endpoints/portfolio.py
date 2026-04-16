@@ -17,6 +17,7 @@ from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User
 from app.models.project import Project
 from app.services import portfolio_service
+from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
 
 router = APIRouter()
 
@@ -38,16 +39,7 @@ class PortfolioProjectIn(BaseModel):
 
 
 # ── Serializers ───────────────────────────────────────────────────────────────
-def _serialize_portfolio(p):
-    return {
-        "id": p.id, "name": p.name, "description": p.description,
-        "status": p.status, "budget_total": p.budget_total,
-        "start_date": p.start_date.isoformat() if p.start_date else None,
-        "end_date": p.end_date.isoformat() if p.end_date else None,
-        "owner_id": p.owner_id,
-        "project_count": len(p.members),
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-    }
+# _serialize_portfolio delegated to portfolio_service.serialize_portfolio (see imports above)
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────

@@ -140,3 +140,12 @@ def get_plans_for_leveling(
         CapacityPlan.week_start <= week_to,
         CapacityPlan.user_id.in_(user_ids),
     ).all()
+
+
+# ── Date helpers ──────────────────────────────────────────────────────────────
+
+def get_weeks(from_date: date, num_weeks: int) -> List[date]:
+    """Return a list of *num_weeks* Monday dates starting from the week of *from_date*."""
+    from datetime import timedelta
+    monday = from_date - timedelta(days=from_date.weekday())
+    return [monday + timedelta(weeks=i) for i in range(num_weeks)]

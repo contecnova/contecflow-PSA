@@ -35,106 +35,20 @@ from app.services import m365_service
 
 router = APIRouter()
 
-GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+GRAPH_BASE = m365_service.GRAPH_BASE
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _m365_configured() -> bool:
-    return bool(settings.AZURE_TENANT_ID and settings.AZURE_CLIENT_ID and settings.AZURE_CLIENT_SECRET)
-
-
-def _require_m365():
-    if not _m365_configured():
-        raise HTTPException(503, detail={
-            "error": "M365_NOT_CONFIGURED",
-            "message": "Configura las variables de entorno: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET",
-            "docs_url": "https://learn.microsoft.com/en-us/graph/auth-v2-service",
-        })
-
-
-async def _get_graph_token() -> str:
-    """Obtain a client-credentials OAuth token from Azure AD."""
-    url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
-    data = {
-        "grant_type":    "client_credentials",
-        "client_id":     settings.AZURE_CLIENT_ID,
-        "client_secret": settings.AZURE_CLIENT_SECRET,
-        "scope":         "https://graph.microsoft.com/.default",
-    }
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(url, data=data)
-    if resp.status_code != 200:
-        raise HTTPException(502, "Error obteniendo token de Azure AD")
-    return resp.json()["access_token"]
-
-
-def _get_graph_token_sync() -> str:
-    """Obtain a client-credentials OAuth token from Azure AD (sync version)."""
-    url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
-    data = {
-        "grant_type": "client_credentials",
-        "client_id": settings.AZURE_CLIENT_ID,
-        "client_secret": settings.AZURE_CLIENT_SECRET,
-        "scope": "https://graph.microsoft.com/.default",
-    }
-    with httpx.Client(timeout=15) as client:
-        resp = client.post(url, data=data)
-    if resp.status_code != 200:
-        raise HTTPException(502, "Error obteniendo token de Azure AD")
-    return resp.json()["access_token"]
-
-
-async def _graph_get(path: str) -> dict:
-    token = await _get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    resp.raise_for_status()
-    return resp.json()
-
-
-async def _graph_post(path: str, payload: dict) -> dict:
-    token = await _get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.post(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
-
-
-async def _graph_patch(path: str, payload: dict) -> dict:
-    token = await _get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.patch(f"{GRAPH_BASE}{path}", json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
-
-
-async def _graph_delete(path: str):
-    token = await _get_graph_token()
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.delete(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    if resp.status_code not in (200, 204):
-        resp.raise_for_status()
-
-
-def _graph_get_sync(path: str) -> dict:
-    token = _get_graph_token_sync()
-    with httpx.Client(timeout=20) as client:
-        resp = client.get(f"{GRAPH_BASE}{path}", headers={"Authorization": f"Bearer {token}"})
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _graph_post_sync(path: str, payload: dict) -> dict:
-    token = _get_graph_token_sync()
-    with httpx.Client(timeout=20) as client:
-        resp = client.post(
-            f"{GRAPH_BASE}{path}",
-            json=payload,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        )
-    resp.raise_for_status()
-    return resp.json()
+# ── Helpers (delegated to m365_service) ──────────────────────────────────────
+_m365_configured = m365_service.m365_configured
+_require_m365 = m365_service.require_m365
+_get_graph_token = m365_service.get_graph_token
+_get_graph_token_sync = m365_service.get_graph_token_sync
+_graph_get = m365_service.graph_get
+_graph_post = m365_service.graph_post
+_graph_patch = m365_service.graph_patch
+_graph_delete = m365_service.graph_delete
+_graph_get_sync = m365_service.graph_get_sync
+_graph_post_sync = m365_service.graph_post_sync
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────

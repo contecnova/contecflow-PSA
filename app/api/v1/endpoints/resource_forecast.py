@@ -39,18 +39,14 @@ router = APIRouter(prefix="/resource-forecast", tags=["resource-forecast"])
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-def _monday(d: date) -> date:
-    return d - timedelta(days=d.weekday())
-
-def _weeks_range(start: date, n: int) -> List[date]:
-    return [_monday(start) + timedelta(weeks=i) for i in range(n)]
-
-def _week_label(d: date) -> str:
-    return d.strftime("%Y-W%V")   # e.g. "2025-W22"
+from app.services.resource_analytics import (
+    monday as _monday,
+    weeks_range as _weeks_range,
+    week_label as _week_label,
+)
 
 
-def _compute_user_week_hours(user_id: str, week_start: date, db: Session) -> dict:
-    """Delegate to the service layer."""
+def _compute_user_week_hours(user_id: str, week_start: "date", db) -> dict:
     return _svc_user_week_hours(db, user_id, week_start)
 
 

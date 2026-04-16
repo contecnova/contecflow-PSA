@@ -29,6 +29,9 @@ from app.services.approval_engine import (
     cancel_approval_request,
     get_financial_audit_entries,
     get_approval_stats,
+    serialize_step as _step_out,
+    serialize_workflow as _workflow_out,
+    serialize_approval_request as _request_out,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,55 +81,8 @@ class DecisionIn(BaseModel):
     delegate_to: Optional[str] = None   # user_id si decision=delegated
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-def _step_out(s) -> dict:
-    return {
-        "id": s.id, "step_order": s.step_order, "name": s.name,
-        "approver_type": s.approver_type, "approver_role": s.approver_role,
-        "approver_user_id": s.approver_user_id,
-        "approver_user_name": s.approver.full_name if s.approver else None,
-        "is_optional": s.is_optional, "timeout_hours": s.timeout_hours,
-        "on_timeout": s.on_timeout,
-    }
-
-def _workflow_out(w, include_steps=False) -> dict:
-    d = {
-        "id": w.id, "name": w.name, "description": w.description,
-        "entity_type": w.entity_type, "is_active": w.is_active,
-        "is_default": w.is_default,
-        "trigger_conditions": w.trigger_conditions,
-        "step_count": len(w.steps or []),
-        "created_at": str(w.created_at)[:10] if w.created_at else None,
-    }
-    if include_steps:
-        d["steps"] = [_step_out(s) for s in (w.steps or [])]
-    return d
-
-def _request_out(r) -> dict:
-    return {
-        "id": r.id, "workflow_id": r.workflow_id,
-        "entity_type": r.entity_type, "entity_id": r.entity_id,
-        "entity_summary": r.entity_summary,
-        "requested_by": r.requested_by,
-        "requester_name": r.requester.full_name if r.requester else None,
-        "current_step": r.current_step,
-        "status": r.status,
-        "final_decision": r.final_decision,
-        "final_note": r.final_note,
-        "completed_at": str(r.completed_at)[:16] if r.completed_at else None,
-        "created_at": str(r.created_at)[:16] if r.created_at else None,
-        "decisions": [
-            {
-                "step_order": d.step_order,
-                "approver_id": d.approver_id,
-                "approver_name": d.approver.full_name if d.approver else None,
-                "decision": d.decision,
-                "note": d.note,
-                "decided_at": str(d.decided_at)[:16] if d.decided_at else None,
-            }
-            for d in (r.decisions or [])
-        ],
-    }
+# ── Helpers (delegated to approval_engine service) ────────────────────────────
+# _step_out, _workflow_out, _request_out imported above from approval_engine
 
 
 

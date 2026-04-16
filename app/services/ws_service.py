@@ -6,8 +6,55 @@ separando la lógica de BD del transporte WebSocket.
 """
 from __future__ import annotations
 
+import secrets
+import time
 from datetime import datetime, timezone, timedelta
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
+
+# ── WS Ticket Store ────────────────────────────────────────────────────────────
+_ws_tickets: Dict[str, tuple] = {}       # ticket → (user_id, expires_at)
+_portal_ws_tickets: Dict[str, tuple] = {}  # ticket → (client_id, expires_at)
+_WS_TICKET_TTL = 60  # seconds
+
+
+def issue_ws_ticket_local(user_id: str) -> str:
+    now = time.monotonic()
+    expired = [t for t, (_, exp) in list(_ws_tickets.items()) if exp < now]
+    for t in expired:
+        _ws_tickets.pop(t, None)
+    ticket = secrets.token_urlsafe(24)
+    _ws_tickets[ticket] = (user_id, now + _WS_TICKET_TTL)
+    return ticket
+
+
+def consume_ws_ticket_local(ticket: str) -> Optional[str]:
+    entry = _ws_tickets.pop(ticket, None)
+    if entry is None:
+        return None
+    user_id, expires_at = entry
+    if time.monotonic() > expires_at:
+        return None
+    return user_id
+
+
+def issue_portal_ws_ticket_local(client_id: str) -> str:
+    now = time.monotonic()
+    expired = [t for t, (_, exp) in list(_portal_ws_tickets.items()) if exp < now]
+    for t in expired:
+        _portal_ws_tickets.pop(t, None)
+    ticket = secrets.token_urlsafe(24)
+    _portal_ws_tickets[ticket] = (client_id, now + _WS_TICKET_TTL)
+    return ticket
+
+
+def consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
+    entry = _portal_ws_tickets.pop(ticket, None)
+    if entry is None:
+        return None
+    client_id, expires_at = entry
+    if time.monotonic() > expires_at:
+        return None
+    return client_id
 
 from sqlalchemy.orm import Session
 

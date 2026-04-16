@@ -34,6 +34,7 @@ from app.services.milestone_service import (
     update_milestone_fields as svc_update_milestone_fields,
     delete_milestone as svc_delete_milestone,
     get_pending_milestones_dashboard as svc_get_pending_milestones_dashboard,
+    serialize_milestone,
 )
 
 router = APIRouter(prefix="/milestones", tags=["milestones"])
@@ -57,25 +58,8 @@ class ApprovalDecisionIn(BaseModel):
 
 
 # ── Helper output ──────────────────────────────────────────────────────────────
-def _ms_out(m, db=None) -> dict:
-    billing_amount = compute_billing_amount(m, db) if db else m.billing_amount
-    return {
-        "id": m.id, "project_id": m.project_id,
-        "name": m.name, "description": m.description,
-        "due_date": str(m.due_date) if m.due_date else None,
-        "sort_order": m.sort_order,
-        "billing_status": m.billing_status or "pending",
-        "is_completed": m.is_completed,
-        "completed_date": str(m.completed_date) if m.completed_date else None,
-        "billing_amount": billing_amount,
-        "billing_pct": m.billing_pct,
-        "is_billed": m.is_billed,
-        "invoice_id": m.invoice_id,
-        "approved_at": str(m.approved_at)[:16] if m.approved_at else None,
-        "rejected_at": str(m.rejected_at)[:16] if m.rejected_at else None,
-        "rejection_reason": m.rejection_reason,
-        "approval_requested_at": str(m.approval_requested_at)[:16] if m.approval_requested_at else None,
-    }
+# Delegate to service
+_ms_out = serialize_milestone
 
 
 # ── CRUD básico ────────────────────────────────────────────────────────────────

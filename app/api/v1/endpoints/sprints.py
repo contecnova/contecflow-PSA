@@ -45,77 +45,9 @@ class ReorderBacklog(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _task_out(t: Task) -> dict:
-    return {
-        "id": t.id, "code": t.code, "title": t.title,
-        "status": t.status, "priority": t.priority,
-        "story_points": t.story_points,
-        "estimated_hours": t.estimated_hours,
-        "assignee_id": t.assignee_id,
-        "assignee_name": t.assignee.full_name if t.assignee else None,
-        "due_date": str(t.due_date) if t.due_date else None,
-        "tags": t.tags,
-        "blocked_reason": t.blocked_reason,
-    }
-
-
-def _sprint_out(s: Sprint, include_tasks: bool = False) -> dict:
-    duration_days = (s.end_date - s.start_date).days if s.start_date and s.end_date else 0
-    today = date.today()
-    days_remaining = (s.end_date - today).days if s.end_date and s.status == SprintStatus.active else None
-
-    result = {
-        "id": s.id, "number": s.number, "name": s.name,
-        "goal": s.goal, "status": s.status,
-        "start_date": str(s.start_date) if s.start_date else None,
-        "end_date": str(s.end_date) if s.end_date else None,
-        "duration_days": duration_days,
-        "days_remaining": days_remaining,
-        "planned_points": s.planned_points or 0,
-        "completed_points": s.completed_points or 0,
-        "velocity": s.velocity,
-        "went_well": s.went_well,
-        "to_improve": s.to_improve,
-        "action_items": s.action_items,
-        "created_at": str(s.created_at)[:10] if s.created_at else None,
-        "task_count": len(s.sprint_tasks),
-    }
-
-    if include_tasks:
-        result["tasks"] = [_task_out(st.task) for st in s.sprint_tasks if st.task]
-
-    return result
-
-
-def _compute_burndown(sprint: Sprint, db: Session):
-    """Calculate daily burndown data for a sprint."""
-    if not sprint.start_date or not sprint.end_date:
-        return []
-
-    tasks = [st.task for st in sprint.sprint_tasks if st.task]
-    total_points = sum(t.story_points or 0 for t in tasks)
-
-    today = date.today()
-    end = min(sprint.end_date, today)
-    start = sprint.start_date
-
-    burndown = []
-    current = start
-    while current <= end:
-        # Points remaining = total - points from completed tasks by this date
-        completed = sum(
-            t.story_points or 0 for t in tasks
-            if t.status == "done" and t.completed_at and t.completed_at.date() <= current
-        )
-        ideal_pct = 1 - ((current - start).days / max((sprint.end_date - start).days, 1))
-        burndown.append({
-            "date": str(current)[5:],  # MM-DD
-            "remaining": max(total_points - completed, 0),
-            "ideal": round(total_points * ideal_pct, 1),
-        })
-        current += timedelta(days=1)
-
-    return burndown
+_task_out = svc.serialize_task
+_sprint_out = svc.serialize_sprint
+_compute_burndown = svc.compute_sprint_burndown
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ from datetime import timezone, timedelta
 from datetime import datetime as _dt
 
 from app.services.security_observability import (
-    SecurityEventService, SecurityAnalyticsService,
+    SecurityEventService, SecurityAnalyticsService, get_org_id as _org,
 )
 
 router = APIRouter(prefix="/soc", tags=["Security Observability"])
@@ -165,10 +165,7 @@ class ManualEventRequest(BaseModel):
 
 # ── Helper —  resolve org_id from current user ─────────────────────────────
 
-def _org(user: User) -> str:
-    if not user.organization_id:
-        raise HTTPException(status_code=400, detail="User has no organization")
-    return str(user.organization_id)
+# _org delegated to security_observability.get_org_id (see import above)
 
 
 # ── SOC Overview ──────────────────────────────────────────────────────────────

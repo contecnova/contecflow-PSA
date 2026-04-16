@@ -299,18 +299,7 @@ async def _slack_get_status(code: str, db):
     return slack_get_status_by_code(db, code)
 
 
-def _slack_help():
-    return {
-        "response_type": "ephemeral",
-        "text": (
-            "*Comandos disponibles de Clarive:*\n"
-            "• `/clarive tarea <título> [#PRJ-code]` — Crear tarea\n"
-            "• `/clarive tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
-            "• `/clarive ticket <asunto>` — Crear ticket en Service Desk\n"
-            "• `/clarive estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
-            "• `/clarive ayuda` — Ver esta ayuda"
-        ),
-    }
+from app.services.integrations import slack_help_response as _slack_help
 
 
 # ── Inbound bot — MS Teams adaptive card actions ──────────────────────────────

@@ -253,3 +253,38 @@ def get_effective_rate(
                     }
 
     return {"billing_rate": None, "source": "not_found", "role_label": role_label}
+
+
+# ── Serialization helpers ─────────────────────────────────────────────────────────
+
+def serialize_rate_entry(e) -> dict:
+    return {
+        "id": e.id, "label": e.label,
+        "cost_rate": e.cost_rate, "billing_rate": e.billing_rate,
+        "escalation_pct": e.escalation_pct or 0.0,
+        "valid_from": e.valid_from, "valid_to": e.valid_to,
+        "notes": e.notes,
+    }
+
+
+def serialize_rate_override(o) -> dict:
+    return {
+        "id": o.id, "client_id": o.client_id, "project_id": o.project_id,
+        "role_label": o.role_label, "billing_rate": o.billing_rate,
+        "valid_from": o.valid_from, "valid_to": o.valid_to, "notes": o.notes,
+    }
+
+
+def serialize_rate_table(t, include_entries: bool = False) -> dict:
+    d = {
+        "id": t.id, "name": t.name, "description": t.description,
+        "applies_to": t.applies_to, "is_default": t.is_default,
+        "is_active": t.is_active,
+        "created_at": str(t.created_at)[:10] if t.created_at else None,
+    }
+    if include_entries:
+        d["entries"]   = [serialize_rate_entry(e) for e in (t.entries or [])]
+        d["overrides"] = [serialize_rate_override(o) for o in getattr(t, "overrides", [])]
+    else:
+        d["entry_count"] = len(t.entries or [])
+    return d

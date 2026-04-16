@@ -35,15 +35,13 @@ from app.services.ai_governance import (
     deactivate_policy as svc_deactivate_policy,
     get_audit_log as svc_get_audit_log,
     get_audit_stats as svc_get_audit_stats,
+    get_org_id as _org,
 )
 
 router = APIRouter(prefix="/ai-governance", tags=["AI Governance"])
 
 
-def _org(user: User) -> str:
-    if not user.organization_id:
-        raise HTTPException(400, "User has no organization")
-    return str(user.organization_id)
+# _org delegated to ai_governance.get_org_id (see import above)
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────

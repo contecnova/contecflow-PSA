@@ -30,15 +30,13 @@ from app.services.abac import (
     get_user_access_profile,
     get_audit_log,
     get_audit_stats,
+    get_org_id as _org,
 )
 
 router = APIRouter(prefix="/abac/admin", tags=["ABAC Admin"])
 
 
-def _org(user: User) -> str:
-    if not user.organization_id:
-        raise HTTPException(400, "User has no organization")
-    return str(user.organization_id)
+# _org delegated to abac.get_org_id (see import above)
 
 
 # ── Overview KPIs ─────────────────────────────────────────────────────────────

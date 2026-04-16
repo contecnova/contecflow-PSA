@@ -196,3 +196,73 @@ def get_velocity_sprints(db: Session, project_id: str) -> List[Sprint]:
         .order_by(Sprint.number)
         .all()
     )
+
+
+# ── Serialization helpers ───────────────────────────────────────────────────
+
+def serialize_task(t) -> dict:
+    return {
+        "id": t.id, "code": t.code, "title": t.title,
+        "status": t.status, "priority": t.priority,
+        "story_points": t.story_points,
+        "estimated_hours": t.estimated_hours,
+        "assignee_id": t.assignee_id,
+        "assignee_name": t.assignee.full_name if t.assignee else None,
+        "due_date": str(t.due_date) if t.due_date else None,
+        "tags": t.tags,
+        "blocked_reason": t.blocked_reason,
+    }
+
+
+def serialize_sprint(s, include_tasks: bool = False) -> dict:
+    from datetime import date
+    from app.models.sprints import SprintStatus
+    duration_days = (s.end_date - s.start_date).days if s.start_date and s.end_date else 0
+    today = date.today()
+    days_remaining = (s.end_date - today).days if s.end_date and s.status == SprintStatus.active else None
+    result = {
+        "id": s.id, "number": s.number, "name": s.name,
+        "goal": s.goal, "status": s.status,
+        "start_date": str(s.start_date) if s.start_date else None,
+        "end_date": str(s.end_date) if s.end_date else None,
+        "duration_days": duration_days,
+        "days_remaining": days_remaining,
+        "planned_points": s.planned_points or 0,
+        "completed_points": s.completed_points or 0,
+        "velocity": s.velocity,
+        "went_well": s.went_well,
+        "to_improve": s.to_improve,
+        "action_items": s.action_items,
+        "created_at": str(s.created_at)[:10] if s.created_at else None,
+        "task_count": len(s.sprint_tasks),
+    }
+    if include_tasks:
+        result["tasks"] = [serialize_task(st.task) for st in s.sprint_tasks if st.task]
+    return result
+
+
+def compute_sprint_burndown(sprint, db) -> list:
+    """Calculate daily burndown data for a sprint."""
+    from datetime import date, timedelta
+    if not sprint.start_date or not sprint.end_date:
+        return []
+    tasks = [st.task for st in sprint.sprint_tasks if st.task]
+    total_points = sum(t.story_points or 0 for t in tasks)
+    today = date.today()
+    end = min(sprint.end_date, today)
+    start = sprint.start_date
+    burndown = []
+    current = start
+    while current <= end:
+        completed = sum(
+            t.story_points or 0 for t in tasks
+            if t.status == "done" and t.completed_at and t.completed_at.date() <= current
+        )
+        ideal_pct = 1 - ((current - start).days / max((sprint.end_date - start).days, 1))
+        burndown.append({
+            "date": str(current)[5:],
+            "remaining": max(total_points - completed, 0),
+            "ideal": round(total_points * ideal_pct, 1),
+        })
+        current += timedelta(days=1)
+    return burndown

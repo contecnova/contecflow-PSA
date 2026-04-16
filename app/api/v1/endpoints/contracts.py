@@ -10,14 +10,12 @@ from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
 from app.models.pipeline import Contract, WorkOrder
 from app.services import contract_service
+from app.services.contract_service import CONTRACT_TYPE_LABELS, serialize_contract as _contract_out
 
 router = APIRouter()
 
 
-CONTRACT_TYPE_LABELS = {
-    "fixed_price": "Precio fijo", "time_material": "Tiempo y material",
-    "retainer": "Retainer mensual", "hourly_bag": "Bolsa de horas"
-}
+# Labels and serializer delegated to service
 
 class ContractIn(BaseModel):
     name: str
@@ -56,36 +54,7 @@ class WorkOrderIn(BaseModel):
     description: Optional[str] = None
 
 
-def _contract_out(c: Contract) -> dict:
-    hours_pct = None
-    if c.hours_bag and c.hours_bag > 0:
-        hours_pct = round(((c.hours_used or 0) / c.hours_bag) * 100, 1)
-
-    return {
-        "id": c.id, "code": c.code, "name": c.name,
-        "project_id": c.project_id,
-        "client_id": c.client_id, "client_name": c.client_name, "client_contact": c.client_contact,
-        "contract_type": c.contract_type,
-        "contract_type_label": CONTRACT_TYPE_LABELS.get(c.contract_type, c.contract_type),
-        "status": c.status,
-        "total_amount": c.total_amount,
-        "hourly_rate": c.hourly_rate,
-        "hours_bag": c.hours_bag,
-        "hours_used": c.hours_used,
-        "hours_pct": hours_pct,
-        "monthly_retainer": c.monthly_retainer,
-        "start_date": str(c.start_date) if c.start_date else None,
-        "end_date": str(c.end_date) if c.end_date else None,
-        "signed_date": str(c.signed_date) if c.signed_date else None,
-        "payment_terms": c.payment_terms,
-        "notes": c.notes,
-        "work_orders": [{
-            "id": wo.id, "code": wo.code, "name": wo.name,
-            "amount": wo.amount, "hours": wo.hours, "status": wo.status,
-            "start_date": str(wo.start_date) if wo.start_date else None,
-            "end_date": str(wo.end_date) if wo.end_date else None,
-        } for wo in (c.work_orders or [])],
-    }
+# _contract_out delegated to service (see import above)
 
 
 @router.get("", summary="Listar contratos")

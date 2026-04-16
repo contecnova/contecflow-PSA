@@ -77,13 +77,7 @@ class JiraPushIn(BaseModel):
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
-def _jira_headers(email: str, token: str) -> dict:
-    creds = base64.b64encode(f"{email}:{token}".encode()).decode()
-    return {
-        "Authorization": f"Basic {creds}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+_jira_headers = jira_service.jira_headers
 
 
 # ── endpoints ──────────────────────────────────────────────────────────────────

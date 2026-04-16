@@ -26,13 +26,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _commit_or_rollback(db: Session, detail: str = "Error de transacción") -> None:
-    try:
-        Session.commit(db)
-    except Exception:
-        db.rollback()
-        logger.exception("Database transaction failed in service_desk")
-        raise HTTPException(500, detail)
+from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 
 # ── Service layer & schemas ───────────────────────────────────────────────────
 from app.services.sla_service import (  # noqa: E402

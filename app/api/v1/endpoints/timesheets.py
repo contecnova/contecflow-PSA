@@ -56,15 +56,8 @@ class ImputationLine(BaseModel):
     is_approved: bool
 
 
-def _get_week_bounds(week_start: Optional[date]) -> tuple:
-    if not week_start:
-        today = date.today()
-        week_start = today - timedelta(days=today.weekday())
-    return week_start, week_start + timedelta(days=6)
-
-
-def _sync_timesheet(db: Session, user_id: str, week_start: date) -> Timesheet:
-    return sync_timesheet_from_imputations_flow(db, user_id, week_start)
+_get_week_bounds = _tsvc.get_week_bounds
+_sync_timesheet = sync_timesheet_from_imputations_flow
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
