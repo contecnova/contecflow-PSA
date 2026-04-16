@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.deps import require_admin
 from app.db.session import get_db
-from app.models.governance import ComplianceEvidence, TenantPolicyPack
 from app.models.user import User
 from app.services.audit import audit_log
 import app.services.governance_service as _gsvc
@@ -79,7 +78,7 @@ def list_policy_packs(
     current_user: User = Depends(require_admin),
 ):
     organization_id = _org_id(current_user)
-    rows = db.query(TenantPolicyPack).filter(TenantPolicyPack.organization_id == organization_id).all()
+    rows = _gsvc.list_tenant_policy_packs(db, organization_id)
     by_key = {r.pack_key: r for r in rows}
     out = []
     for pack_key, baseline in DEFAULT_POLICY_PACKS.items():
@@ -106,27 +105,15 @@ def upsert_policy_pack(
     if pack_key not in DEFAULT_POLICY_PACKS:
         raise HTTPException(404, "Policy pack no reconocido")
     organization_id = _org_id(current_user)
-    row = db.query(TenantPolicyPack).filter(
-        TenantPolicyPack.organization_id == organization_id,
-        TenantPolicyPack.pack_key == pack_key,
-    ).first()
-    if row is None:
-        row = TenantPolicyPack(
-            organization_id=organization_id,
-            pack_key=pack_key,
-            pack_version=payload.pack_version,
-            is_enabled=payload.is_enabled,
-            config_json=json.dumps(payload.config or {}),
-            updated_by=current_user.id,
-        )
-        db.add(row)
-    else:
-        row.pack_version = payload.pack_version
-        row.is_enabled = payload.is_enabled
-        row.config_json = json.dumps(payload.config or {})
-        row.updated_by = current_user.id
-        row.updated_at = datetime.now(timezone.utc)
-
+    row = _gsvc.upsert_policy_pack(
+        db,
+        organization_id=organization_id,
+        pack_key=pack_key,
+        pack_version=payload.pack_version,
+        is_enabled=payload.is_enabled,
+        config=payload.config,
+        updated_by=current_user.id,
+    )
     audit_log(
         db=db,
         user=current_user,
@@ -136,7 +123,6 @@ def upsert_policy_pack(
         resource_name=pack_key,
         new_values={"enabled": payload.is_enabled, "version": payload.pack_version},
     )
-    db.commit()
     return {"ok": True, "pack_key": pack_key}
 
 
@@ -155,7 +141,8 @@ def create_evidence(
     if payload.artifact_uri:
         artifact_hash = hashlib.sha256(payload.artifact_uri.encode()).hexdigest()
 
-    evidence = ComplianceEvidence(
+    evidence = _gsvc.create_compliance_evidence(
+        db,
         organization_id=organization_id,
         framework=framework,
         control_id=payload.control_id,
@@ -167,7 +154,6 @@ def create_evidence(
         metadata_json=json.dumps(payload.metadata or {}),
         created_by=current_user.id,
     )
-    db.add(evidence)
     audit_log(
         db=db,
         user=current_user,
@@ -177,8 +163,6 @@ def create_evidence(
         resource_name=payload.control_id,
         new_values={"framework": framework, "type": payload.evidence_type},
     )
-    db.commit()
-    db.refresh(evidence)
     return {"id": evidence.id, "artifact_hash": evidence.artifact_hash}
 
 
@@ -190,12 +174,12 @@ def list_evidence(
     current_user: User = Depends(require_admin),
 ):
     organization_id = _org_id(current_user)
-    q = db.query(ComplianceEvidence).filter(ComplianceEvidence.organization_id == organization_id)
-    if framework:
-        q = q.filter(ComplianceEvidence.framework == framework.upper())
-    if control_id:
-        q = q.filter(ComplianceEvidence.control_id == control_id)
-    rows = q.order_by(ComplianceEvidence.created_at.desc()).all()
+    rows = _gsvc.list_compliance_evidence(
+        db,
+        organization_id=organization_id,
+        framework=framework.upper() if framework else None,
+        control_id=control_id,
+    )
     return [
         {
             "id": r.id,
@@ -223,10 +207,7 @@ def compliance_control_status(
     if controls is None:
         raise HTTPException(400, "Framework no soportado. Usa SOC2 o ISO27001")
 
-    evidences = db.query(ComplianceEvidence).filter(
-        ComplianceEvidence.organization_id == organization_id,
-        ComplianceEvidence.framework == fw,
-    ).all()
+    evidences = _gsvc.get_evidences_by_framework(db, organization_id=organization_id, framework=fw)
     by_control: dict[str, int] = {}
     for e in evidences:
         by_control[e.control_id] = by_control.get(e.control_id, 0) + 1

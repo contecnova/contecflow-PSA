@@ -7,8 +7,22 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_any_manager
 from app.models.user import User
+from app.services import salesforce_service
 
 router = APIRouter(tags=["Integrations", "Salesforce"])
+
+STAGE_MAP = {
+    "Prospecting": "lead",
+    "Qualification": "qualification",
+    "Needs Analysis": "qualification",
+    "Value Proposition": "proposal",
+    "Id. Decision Makers": "proposal",
+    "Perception Analysis": "negotiation",
+    "Proposal/Price Quote": "proposal",
+    "Negotiation/Review": "negotiation",
+    "Closed Won": "won",
+    "Closed Lost": "lost",
+}
 
 
 @router.post(
@@ -22,22 +36,14 @@ def sync_salesforce_opportunities(
     current_user: User = Depends(require_any_manager),
 ):
     from app.core.encryption import decrypt_value
-    from app.models.marketplace import IntegrationConnector, IntegrationInstance
-    from app.models.pipeline import Opportunity
 
     org_id = getattr(current_user, "organization_id", None)
-    inst = db.query(IntegrationInstance).filter(
-        IntegrationInstance.id == instance_id,
-        IntegrationInstance.organization_id == org_id,
-        IntegrationInstance.is_enabled == True,
-    ).first()
+
+    inst = salesforce_service.get_salesforce_instance(db, instance_id, org_id)
     if not inst:
         raise HTTPException(404, "Salesforce integration instance not found or disabled")
 
-    conn = db.query(IntegrationConnector).filter(
-        IntegrationConnector.id == inst.connector_id,
-        IntegrationConnector.slug == "salesforce",
-    ).first()
+    conn = salesforce_service.get_salesforce_connector(db, inst.connector_id)
     if not conn:
         raise HTTPException(400, "This instance is not a Salesforce connector")
 
@@ -78,60 +84,20 @@ def sync_salesforce_opportunities(
             sf_opps = []
 
         for sf_opp in sf_opps:
-            sf_id = sf_opp.get("Id")
-            existing_opp = (
-                db.query(Opportunity).filter(Opportunity.external_id == sf_id).first()
-                if hasattr(Opportunity, "external_id")
-                else None
-            )
-
-            stage_map = {
-                "Prospecting": "lead",
-                "Qualification": "qualification",
-                "Needs Analysis": "qualification",
-                "Value Proposition": "proposal",
-                "Id. Decision Makers": "proposal",
-                "Perception Analysis": "negotiation",
-                "Proposal/Price Quote": "proposal",
-                "Negotiation/Review": "negotiation",
-                "Closed Won": "won",
-                "Closed Lost": "lost",
-            }
-            mapped_stage = stage_map.get(sf_opp.get("StageName", ""), "lead")
+            mapped_stage = STAGE_MAP.get(sf_opp.get("StageName", ""), "lead")
 
             try:
                 close_date = date.fromisoformat(sf_opp["CloseDate"]) if sf_opp.get("CloseDate") else None
             except ValueError:
                 close_date = None
 
-            if existing_opp:
-                existing_opp.name = sf_opp.get("Name", existing_opp.name)
-                existing_opp.expected_revenue = sf_opp.get("Amount") or existing_opp.expected_revenue
-                existing_opp.stage = mapped_stage
-                if close_date and hasattr(existing_opp, "close_date"):
-                    existing_opp.close_date = close_date
-            else:
-                new_opp = Opportunity(
-                    name=sf_opp.get("Name", "Imported from Salesforce"),
-                    client_name=sf_opp.get("AccountId", "Salesforce Account"),
-                    stage=mapped_stage,
-                    expected_revenue=sf_opp.get("Amount") or 0,
-                )
-                if hasattr(new_opp, "external_id"):
-                    new_opp.external_id = sf_id
-                if close_date and hasattr(new_opp, "close_date"):
-                    new_opp.close_date = close_date
-                db.add(new_opp)
+            salesforce_service.upsert_opportunity(db, sf_opp, mapped_stage, close_date)
             synced_in += 1
 
         if sf_opps:
-            db.commit()
+            salesforce_service.commit_opportunities(db)
 
-    inst.last_sync_at = datetime.utcnow()
-    inst.last_sync_status = "error" if errors else "ok"
-    inst.last_sync_records = synced_in + synced_out
-    inst.last_error = "; ".join(errors) if errors else None
-    db.commit()
+    salesforce_service.update_instance_sync_status(db, inst, synced_in + synced_out, errors)
 
     return {
         "ok": not errors,

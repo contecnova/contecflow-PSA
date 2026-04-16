@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
 from pydantic import BaseModel
@@ -8,8 +7,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
-from app.models.pipeline import Risk
-from app.services.numbering import next_numbered_code
+from app.services import risk_service
 from app.services.risk_scoring import risk_level, risk_score
 
 router = APIRouter()
@@ -44,11 +42,7 @@ class RiskUpdate(RiskIn):
     closed_date: Optional[date] = None
 
 
-def _next_code(project_id: str, db: Session) -> str:
-    return next_numbered_code(db, "risk", prefix="RSK", padding=3)
-
-
-def _risk_out(r: Risk) -> dict:
+def _risk_out(r) -> dict:
     score = r.risk_score or risk_score(r.probability, r.impact)
     return {
         "id": r.id, "code": r.code, "project_id": r.project_id,
@@ -83,11 +77,7 @@ def get_portfolio_risks(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    risks = db.query(Risk).options(
-        joinedload(Risk.owner),
-        joinedload(Risk.project),
-    ).filter(Risk.status.notin_(["closed"])).order_by(Risk.risk_score.desc().nullslast()).limit(50).all()
-
+    risks = risk_service.get_portfolio_risks(db)
     result = []
     for r in risks:
         d = _risk_out(r)
@@ -105,10 +95,7 @@ def get_risks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Risk).options(joinedload(Risk.owner)).filter(Risk.project_id == project_id)
-    if status:
-        q = q.filter(Risk.status == status)
-    risks = q.order_by(Risk.risk_score.desc().nullslast()).all()
+    risks = risk_service.get_risks_by_project(db, project_id, status=status)
     result = [_risk_out(r) for r in risks]
 
     # Summary
@@ -138,15 +125,12 @@ def create_risk(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    score = risk_score(payload.probability, payload.impact)
-    risk = Risk(
+    risk = risk_service.create_risk(
+        db,
         project_id=project_id,
-        code=_next_code(project_id, db),
-        risk_score=score,
         identified_by=current_user.id,
         **payload.model_dump(),
     )
-    db.add(risk); db.commit(); db.refresh(risk)
     return _risk_out(risk)
 
 
@@ -160,13 +144,10 @@ def update_risk(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    risk = db.query(Risk).filter(Risk.id == risk_id, Risk.project_id == project_id).first()
+    risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
         raise HTTPException(404, "Riesgo no encontrado")
-    for k, v in payload.model_dump(exclude_unset=True).items():
-        setattr(risk, k, v)
-    risk.risk_score = risk_score(risk.probability, risk.impact)
-    db.commit(); db.refresh(risk)
+    risk = risk_service.update_risk(db, risk, payload.model_dump(exclude_unset=True))
     return _risk_out(risk)
 
 
@@ -179,8 +160,8 @@ def delete_risk(
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
-    risk = db.query(Risk).filter(Risk.id == risk_id, Risk.project_id == project_id).first()
+    risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
         raise HTTPException(404, "Riesgo no encontrado")
-    db.delete(risk); db.commit()
+    risk_service.delete_risk(db, risk)
     return {"ok": True}

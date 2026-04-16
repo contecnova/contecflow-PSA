@@ -625,6 +625,29 @@ class SecurityEventService:
         self.db.commit()
         return inc
 
+    def get_detection_by_id(self, detection_id: str) -> Optional[SecurityDetection]:
+        return self.db.query(SecurityDetection).filter(
+            SecurityDetection.id     == detection_id,
+            SecurityDetection.org_id == self.org_id,
+        ).first()
+
+    def get_incident_by_id(self, incident_id: str) -> Optional[SecurityIncident]:
+        return self.db.query(SecurityIncident).filter(
+            SecurityIncident.id     == incident_id,
+            SecurityIncident.org_id == self.org_id,
+        ).first()
+
+    def resolve_anomaly(self, anomaly_id: str) -> Optional[LoginAnomaly]:
+        anomaly = self.db.query(LoginAnomaly).filter(
+            LoginAnomaly.id     == anomaly_id,
+            LoginAnomaly.org_id == self.org_id,
+        ).first()
+        if not anomaly:
+            return None
+        anomaly.is_resolved = True
+        self.db.commit()
+        return anomaly
+
 
 # ── Analytics query helpers ───────────────────────────────────────────────────
 
@@ -871,6 +894,86 @@ class SecurityAnalyticsService:
             }
             for r in rows
         ]
+
+    # helper calculations
+    def list_events_paginated(
+        self,
+        since: datetime,
+        category: Optional[str] = None,
+        severity: Optional[str] = None,
+        event_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        ip_address: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[int, List[SecurityEvent]]:
+        q = self.db.query(SecurityEvent).filter(
+            SecurityEvent.org_id      == self.org_id,
+            SecurityEvent.occurred_at >= since,
+        )
+        if category:   q = q.filter(SecurityEvent.category   == category)
+        if severity:   q = q.filter(SecurityEvent.severity   == severity)
+        if event_type: q = q.filter(SecurityEvent.event_type == event_type)
+        if user_id:    q = q.filter(SecurityEvent.user_id    == user_id)
+        if ip_address: q = q.filter(SecurityEvent.ip_address == ip_address)
+        total = q.count()
+        items = q.order_by(SecurityEvent.occurred_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        return total, items
+
+    def list_detections_paginated(
+        self,
+        since: datetime,
+        status: Optional[str] = None,
+        severity: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[int, List[SecurityDetection]]:
+        q = self.db.query(SecurityDetection).filter(
+            SecurityDetection.org_id      == self.org_id,
+            SecurityDetection.detected_at >= since,
+        )
+        if status:   q = q.filter(SecurityDetection.status   == status)
+        if severity: q = q.filter(SecurityDetection.severity == severity)
+        total = q.count()
+        items = q.order_by(SecurityDetection.detected_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        return total, items
+
+    def list_incidents_paginated(
+        self,
+        since: datetime,
+        status_filter: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[int, List[SecurityIncident]]:
+        q = self.db.query(SecurityIncident).filter(
+            SecurityIncident.org_id     == self.org_id,
+            SecurityIncident.started_at >= since,
+        )
+        if status_filter:
+            q = q.filter(SecurityIncident.status == status_filter)
+        total = q.count()
+        items = q.order_by(SecurityIncident.started_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        return total, items
+
+    def list_login_anomalies_paginated(
+        self,
+        since: datetime,
+        anomaly_type: Optional[str] = None,
+        severity: Optional[str] = None,
+        unresolved_only: bool = True,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[int, List[LoginAnomaly]]:
+        q = self.db.query(LoginAnomaly).filter(
+            LoginAnomaly.org_id      == self.org_id,
+            LoginAnomaly.occurred_at >= since,
+        )
+        if unresolved_only: q = q.filter(LoginAnomaly.is_resolved == False)  # noqa
+        if anomaly_type:    q = q.filter(LoginAnomaly.anomaly_type == anomaly_type)
+        if severity:        q = q.filter(LoginAnomaly.severity     == severity)
+        total = q.count()
+        items = q.order_by(LoginAnomaly.occurred_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+        return total, items
 
     # helper calculations
     def _avg_mttd(self, days: int = 30) -> Optional[float]:

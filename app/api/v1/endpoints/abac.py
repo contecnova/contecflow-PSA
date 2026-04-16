@@ -447,10 +447,9 @@ def evaluate_access_for_user(
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
 
-    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).one_or_404()
-    user_roles = [r.name for r in user.roles]
-
     service = ABACService(db, org_id)
+    user = service.get_user_by_id_and_org(user_id)
+    user_roles = [r.name for r in user.roles]
     decision, matched_policies, details = service.evaluate_access(
         user_id=user.id,
         user_roles=user_roles,
@@ -481,17 +480,12 @@ def get_audit_log(
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
 
-    from app.models.abac import PolicyAudit
-
-    query = db.query(PolicyAudit).filter(PolicyAudit.org_id == org_id)
-    if user_id:
-        query = query.filter(PolicyAudit.user_id == user_id)
-
-    total = query.count()
-    logs = query.order_by(PolicyAudit.created_at.desc()).offset(offset).limit(limit).all()
+    service = ABACService(db, org_id)
+    result = service.list_audit_log(user_id=user_id, limit=limit, offset=offset)
+    logs = result["logs"]
 
     return {
-        "total": total,
+        "total": result["total"],
         "offset": offset,
         "limit": limit,
         "logs": [

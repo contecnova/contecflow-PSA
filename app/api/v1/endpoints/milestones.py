@@ -28,6 +28,12 @@ from app.services.milestone_service import (
     request_milestone_approval,
     decide_milestone_approval,
     generate_milestone_invoice,
+    list_milestones_by_project as svc_list_milestones_by_project,
+    create_milestone as svc_create_milestone,
+    get_milestone_by_id as svc_get_milestone_by_id,
+    update_milestone_fields as svc_update_milestone_fields,
+    delete_milestone as svc_delete_milestone,
+    get_pending_milestones_dashboard as svc_get_pending_milestones_dashboard,
 )
 
 router = APIRouter(prefix="/milestones", tags=["milestones"])
@@ -79,10 +85,7 @@ def list_milestones(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.financial import ProjectMilestone
-    ms = db.query(ProjectMilestone).filter(
-        ProjectMilestone.project_id == project_id
-    ).order_by(ProjectMilestone.sort_order, ProjectMilestone.due_date).all()
+    ms = svc_list_milestones_by_project(db, project_id)
     return [_ms_out(m, db) for m in ms]
 
 
@@ -93,15 +96,7 @@ def create_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    import uuid
-    m = ProjectMilestone(
-        id=str(uuid.uuid4()),
-        project_id=project_id,
-        billing_status="pending",
-        **payload.model_dump()
-    )
-    db.add(m); db.commit(); db.refresh(m)
+    m = svc_create_milestone(db, project_id, **payload.model_dump())
     return _ms_out(m, db)
 
 
@@ -112,13 +107,10 @@ def update_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = svc_get_milestone_by_id(db, milestone_id)
     if not m: raise HTTPException(404)
     allowed = ["name", "description", "due_date", "billing_amount", "billing_pct", "sort_order"]
-    for k, v in payload.items():
-        if k in allowed: setattr(m, k, v)
-    db.commit()
+    m = svc_update_milestone_fields(db, m, {k: v for k, v in payload.items() if k in allowed})
     return _ms_out(m, db)
 
 
@@ -128,12 +120,11 @@ def delete_milestone(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+    m = svc_get_milestone_by_id(db, milestone_id)
     if not m: raise HTTPException(404)
     if m.invoice_id:
         raise HTTPException(400, "No se puede eliminar un milestone ya facturado")
-    db.delete(m); db.commit()
+    svc_delete_milestone(db, m)
     return {"ok": True}
 
 
@@ -192,12 +183,8 @@ def generate_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
-    if not m:
-        raise HTTPException(404)
     invoice_data = generate_milestone_invoice(milestone_id, current_user, db)
-    db.refresh(m)
+    m = svc_get_milestone_by_id(db, milestone_id)
     return {
         **_ms_out(m, db),
         "invoice": {
@@ -217,19 +204,7 @@ def pending_milestones_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    from app.models.financial import ProjectMilestone
-    from app.models.project import Project
-
-    # Milestones que requieren acción
-    ms = db.query(ProjectMilestone).filter(
-        ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"])
-    ).order_by(ProjectMilestone.due_date).all()
-
-    # Pre-load all projects in one query (avoids N+1)
-    proj_ids = list({m.project_id for m in ms if m.project_id})
-    projects_map = {
-        p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()
-    } if proj_ids else {}
+    ms, projects_map = svc_get_pending_milestones_dashboard(db)
 
     result = []
     for m in ms:

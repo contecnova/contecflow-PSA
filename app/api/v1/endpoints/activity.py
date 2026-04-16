@@ -51,8 +51,9 @@ from app.services.activity_service import (
     add_vendor_score_record,
     vendor_scorecard_ranking_payload,
     simulate_project_payload,
+    get_new_notifications,
+    get_new_activity_events,
 )
-from app.models.activity import ActivityEvent
 
 router = APIRouter()
 
@@ -109,7 +110,6 @@ def parse_mentions(
         db, payload.content, current_user,
         payload.entity_type, payload.entity_id, payload.action_url,
     )
-    db.commit()
     return {"mentioned_user_ids": ids, "count": len(ids)}
 
 
@@ -279,10 +279,7 @@ async def sse_stream(
             if await request.is_disconnected():
                 break
 
-            new_notifs = db.query(Notification).filter(
-                Notification.user_id == user_id,
-                Notification.created_at > last_check,
-            ).order_by(Notification.created_at).all()
+            new_notifs = get_new_notifications(db, user_id, last_check)
 
             for n in new_notifs:
                 payload = json.dumps({
@@ -296,10 +293,7 @@ async def sse_stream(
                 })
                 yield f"event: notification\ndata: {payload}\n\n"
 
-            new_events = db.query(ActivityEvent).filter(
-                ActivityEvent.created_at > last_check,
-                ActivityEvent.actor_id != user_id,
-            ).limit(20).all()
+            new_events = get_new_activity_events(db, user_id, last_check)
 
             for ev in new_events:
                 payload = json.dumps({

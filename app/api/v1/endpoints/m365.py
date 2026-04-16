@@ -31,6 +31,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user, get_db
 from app.models.task import Task
 from app.models.user import User
+from app.services import m365_service
 
 router = APIRouter()
 
@@ -248,16 +249,10 @@ def sync_milestones_to_calendar(
 ):
     """Push upcoming project milestones as Microsoft 365 calendar events."""
     _require_m365()
-    from app.models.financial import ProjectMilestone
     from datetime import date
 
     cutoff = date.today() + timedelta(days=req.days_ahead)
-    milestones = (
-        db.query(ProjectMilestone)
-        .filter(ProjectMilestone.due_date <= cutoff)
-        .limit(50)
-        .all()
-    )
+    milestones = m365_service.get_upcoming_milestones(db, cutoff, limit=50)
 
     created = []
     errors  = []
@@ -419,12 +414,7 @@ def sync_to_planner(
     """
     _require_m365()
 
-    tasks = (
-        db.query(Task)
-        .filter(Task.project_id == project_id, Task.status.notin_(["done", "cancelled", "closed"]))
-        .limit(200)
-        .all()
-    )
+    tasks = m365_service.get_active_tasks_for_project(db, project_id, limit=200)
     if not tasks:
         return {"plan_id": plan_id, "created": 0, "skipped": 0, "errors": 0, "message": "No active tasks"}
 

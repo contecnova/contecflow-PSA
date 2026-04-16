@@ -126,7 +126,33 @@ def parse_and_store_mentions(
             action_url=action_url,
         )
 
+    if mentioned_ids:
+        db.commit()
     return mentioned_ids
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SSE LIVE UPDATES HELPERS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_new_notifications(db: Session, user_id: str, since: datetime) -> list:
+    from app.models.enterprise import Notification
+    return (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id, Notification.created_at > since)
+        .order_by(Notification.created_at)
+        .all()
+    )
+
+
+def get_new_activity_events(db: Session, user_id: str, since: datetime) -> list:
+    from app.models.activity import ActivityEvent
+    return (
+        db.query(ActivityEvent)
+        .filter(ActivityEvent.created_at > since, ActivityEvent.actor_id != user_id)
+        .limit(20)
+        .all()
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

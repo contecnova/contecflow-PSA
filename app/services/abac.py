@@ -449,6 +449,25 @@ class ABACService:
             query = query.filter(AttributeDefinition.is_active == True)
         return query.all()
 
+    def get_user_by_id_and_org(self, user_id: str):
+        """Return a User in this org or raise 404."""
+        from app.models.user import User
+        return (
+            self.db.query(User)
+            .filter(User.id == user_id, User.organization_id == self.org_id)
+            .one_or_404()
+        )
+
+    def list_audit_log(self, user_id: Optional[str], limit: int, offset: int) -> dict:
+        """Return paginated ABAC audit log entries for this org."""
+        from app.models.abac import PolicyAudit
+        query = self.db.query(PolicyAudit).filter(PolicyAudit.org_id == self.org_id)
+        if user_id:
+            query = query.filter(PolicyAudit.user_id == user_id)
+        total = query.count()
+        logs = query.order_by(PolicyAudit.created_at.desc()).offset(offset).limit(limit).all()
+        return {"total": total, "logs": logs}
+
 
 # ── Admin analytics helpers ───────────────────────────────────────────────────
 

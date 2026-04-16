@@ -24,6 +24,66 @@ from app.core.config import settings
 from app.models.user import User
 
 
+# ── CRUD helpers ──────────────────────────────────────────────────────────────
+
+def list_milestones_by_project(db: Session, project_id: str):
+    from app.models.financial import ProjectMilestone
+    return (
+        db.query(ProjectMilestone)
+        .filter(ProjectMilestone.project_id == project_id)
+        .order_by(ProjectMilestone.sort_order, ProjectMilestone.due_date)
+        .all()
+    )
+
+
+def create_milestone(db: Session, project_id: str, **kwargs):
+    from app.models.financial import ProjectMilestone
+    m = ProjectMilestone(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        billing_status="pending",
+        **kwargs,
+    )
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def get_milestone_by_id(db: Session, milestone_id: str):
+    from app.models.financial import ProjectMilestone
+    return db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
+
+
+def update_milestone_fields(db: Session, m, fields: dict):
+    for k, v in fields.items():
+        setattr(m, k, v)
+    db.commit()
+    return m
+
+
+def delete_milestone(db: Session, m) -> None:
+    db.delete(m)
+    db.commit()
+
+
+def get_pending_milestones_dashboard(db: Session):
+    from app.models.financial import ProjectMilestone
+    from app.models.project import Project
+    ms = (
+        db.query(ProjectMilestone)
+        .filter(ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"]))
+        .order_by(ProjectMilestone.due_date)
+        .all()
+    )
+    proj_ids = list({m.project_id for m in ms if m.project_id})
+    projects_map = (
+        {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
+        if proj_ids else {}
+    )
+    return ms, projects_map
+
+
 # ── Amount helper ──────────────────────────────────────────────────────────────
 
 def compute_billing_amount(milestone, db: Session) -> Optional[float]:

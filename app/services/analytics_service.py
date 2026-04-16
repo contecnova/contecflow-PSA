@@ -7,9 +7,12 @@ from __future__ import annotations
 import json
 import time
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from threading import Lock
-from typing import Optional
+from typing import List, Optional
+
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.core.config import settings
 
@@ -361,3 +364,66 @@ def get_filter_options_data(current_user, db) -> dict:
         "project_types": project_types,
         "clients": [{"id": c.id, "label": c.name} for c in clients],
     }
+
+
+# ── analytics_extended service functions ─────────────────────────────────────
+
+def get_imputations_for_analytics(db: Session, user_id: str, cutoff_date: date):
+    """Fetch imputations for a user on or after cutoff_date."""
+    from app.models.imputation import Imputation
+    return (
+        db.query(Imputation)
+        .filter(and_(Imputation.user_id == user_id, Imputation.date >= cutoff_date))
+        .all()
+    )
+
+
+def get_documents_for_analytics(db: Session, cutoff_dt: datetime):
+    """Fetch non-archived documents created on or after cutoff_dt."""
+    from app.models.documents import Document
+    return (
+        db.query(Document)
+        .filter(Document.created_at >= cutoff_dt, Document.is_archived == False)
+        .all()
+    )
+
+
+def get_active_users(db: Session):
+    """Return all active users."""
+    from app.models.user import User
+    return db.query(User).filter(User.is_active == True).all()
+
+
+def get_resource_snapshots_for_user(db: Session, user_id: str, limit: int):
+    """Return ordered resource utilization snapshots for a user up to limit rows."""
+    from app.models.resources import ResourceUtilizationSnapshot
+    return (
+        db.query(ResourceUtilizationSnapshot)
+        .filter(ResourceUtilizationSnapshot.user_id == user_id)
+        .order_by(ResourceUtilizationSnapshot.week_iso)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_imputations_for_export(
+    db: Session, user_id: str, date_from: Optional[date], date_to: Optional[date]
+):
+    """Fetch imputations for CSV export with optional date filters."""
+    from app.models.imputation import Imputation
+    q = db.query(Imputation).filter(Imputation.user_id == user_id)
+    if date_from:
+        q = q.filter(Imputation.date >= date_from)
+    if date_to:
+        q = q.filter(Imputation.date <= date_to)
+    return q.order_by(Imputation.date.desc()).all()
+
+
+def get_all_resource_snapshots(db: Session):
+    """Return all resource utilization snapshots ordered by week descending."""
+    from app.models.resources import ResourceUtilizationSnapshot
+    return (
+        db.query(ResourceUtilizationSnapshot)
+        .order_by(ResourceUtilizationSnapshot.week_iso.desc())
+        .all()
+    )

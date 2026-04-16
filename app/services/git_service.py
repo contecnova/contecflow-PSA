@@ -246,6 +246,80 @@ def handle_gitlab_deployment(db: Session, payload: dict) -> None:
     ))
 
 
+def process_github_webhook(db: Session, event: str, payload: dict) -> None:
+    """Dispatch a GitHub webhook event and commit."""
+    if event == "pull_request":
+        handle_github_pr(db, payload)
+    elif event == "deployment_status":
+        handle_github_deployment(db, payload)
+    db.commit()
+
+
+def process_gitlab_webhook(db: Session, event: str, payload: dict) -> None:
+    """Dispatch a GitLab webhook event and commit."""
+    event_type = payload.get("object_kind", "")
+    if event_type == "merge_request":
+        handle_gitlab_mr(db, payload)
+    elif event_type == "deployment":
+        handle_gitlab_deployment(db, payload)
+    db.commit()
+
+
+def list_pull_requests(
+    db: Session,
+    task_id: Optional[int] = None,
+    project_id: Optional[int] = None,
+    status: Optional[str] = None,
+    provider: Optional[str] = None,
+    limit: int = 50,
+):
+    q = db.query(GitPullRequest)
+    if task_id:    q = q.filter(GitPullRequest.task_id == task_id)
+    if project_id: q = q.filter(GitPullRequest.project_id == project_id)
+    if status:     q = q.filter(GitPullRequest.status == status)
+    if provider:   q = q.filter(GitPullRequest.provider == provider)
+    return q.order_by(GitPullRequest.created_at.desc()).limit(limit).all()
+
+
+def get_pull_request(db: Session, pr_id: int) -> Optional[GitPullRequest]:
+    return db.query(GitPullRequest).filter(GitPullRequest.id == pr_id).first()
+
+
+def list_deployments(
+    db: Session,
+    task_id: Optional[int] = None,
+    project_id: Optional[int] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+):
+    q = db.query(GitDeployment)
+    if task_id:    q = q.filter(GitDeployment.task_id == task_id)
+    if project_id: q = q.filter(GitDeployment.project_id == project_id)
+    if status:     q = q.filter(GitDeployment.status == status)
+    return q.order_by(GitDeployment.created_at.desc()).limit(limit).all()
+
+
+def get_task(db: Session, task_id: int) -> Optional[Task]:
+    return db.query(Task).filter(Task.id == task_id).first()
+
+
+def get_task_pr_status(db: Session, task_id: int):
+    """Return (latest_pr, latest_deployment) for the given task."""
+    pr = (
+        db.query(GitPullRequest)
+        .filter(GitPullRequest.task_id == task_id)
+        .order_by(GitPullRequest.updated_at.desc())
+        .first()
+    )
+    dep = (
+        db.query(GitDeployment)
+        .filter(GitDeployment.task_id == task_id)
+        .order_by(GitDeployment.created_at.desc())
+        .first()
+    )
+    return pr, dep
+
+
 def suggest_branch_name(task) -> dict:
     """Generate a canonical branch name for a task following {type}/{code}-{slug} convention."""
     issue_type = getattr(task, "issue_type", None) or ""

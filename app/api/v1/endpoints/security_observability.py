@@ -32,9 +32,11 @@ from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.models.security_observability import (
-    SecurityEvent, SecurityDetection, SecurityIncident, LoginAnomaly,
     EventCategory, EventSeverity, IncidentStatus,
 )
+from datetime import timezone, timedelta
+from datetime import datetime as _dt
+
 from app.services.security_observability import (
     SecurityEventService, SecurityAnalyticsService,
 )
@@ -197,23 +199,12 @@ def list_events(
     db: Session               = Depends(get_db),
     current_user: User        = Depends(get_current_user),
 ):
-    from datetime import timezone, timedelta
-    from datetime import datetime as _dt
     since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
-
-    q = db.query(SecurityEvent).filter(
-        SecurityEvent.org_id      == _org(current_user),
-        SecurityEvent.occurred_at >= since,
+    svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
+    total, items = svc.list_events_paginated(
+        since=since, category=category, severity=severity, event_type=event_type,
+        user_id=user_id, ip_address=ip_address, page=page, page_size=page_size,
     )
-    if category:   q = q.filter(SecurityEvent.category    == category)
-    if severity:   q = q.filter(SecurityEvent.severity    == severity)
-    if event_type: q = q.filter(SecurityEvent.event_type  == event_type)
-    if user_id:    q = q.filter(SecurityEvent.user_id     == user_id)
-    if ip_address: q = q.filter(SecurityEvent.ip_address  == ip_address)
-
-    total = q.count()
-    items = q.order_by(SecurityEvent.occurred_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-
     return {
         "total":     total,
         "page":      page,
@@ -234,19 +225,11 @@ def list_detections(
     db: Session             = Depends(get_db),
     current_user: User      = Depends(get_current_user),
 ):
-    from datetime import timezone, datetime as _dt, timedelta
     since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
-
-    q = db.query(SecurityDetection).filter(
-        SecurityDetection.org_id      == _org(current_user),
-        SecurityDetection.detected_at >= since,
+    svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
+    total, items = svc.list_detections_paginated(
+        since=since, status=status, severity=severity, page=page, page_size=page_size,
     )
-    if status:   q = q.filter(SecurityDetection.status   == status)
-    if severity: q = q.filter(SecurityDetection.severity == severity)
-
-    total = q.count()
-    items = q.order_by(SecurityDetection.detected_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-
     return {
         "total":     total,
         "page":      page,
@@ -261,10 +244,8 @@ def get_detection(
     db: Session  = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    det = db.query(SecurityDetection).filter(
-        SecurityDetection.id     == detection_id,
-        SecurityDetection.org_id == _org(current_user),
-    ).first()
+    svc = SecurityEventService(db=db, org_id=_org(current_user))
+    det = svc.get_detection_by_id(detection_id)
     if not det:
         raise HTTPException(status_code=404, detail="Detection not found")
     return DetectionOut.model_validate(det)
@@ -333,19 +314,11 @@ def list_incidents(
     db: Session     = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from datetime import timezone, datetime as _dt, timedelta
     since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
-
-    q = db.query(SecurityIncident).filter(
-        SecurityIncident.org_id     == _org(current_user),
-        SecurityIncident.started_at >= since,
+    svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
+    total, items = svc.list_incidents_paginated(
+        since=since, status_filter=status_filter, page=page, page_size=page_size,
     )
-    if status_filter:
-        q = q.filter(SecurityIncident.status == status_filter)
-
-    total = q.count()
-    items = q.order_by(SecurityIncident.started_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-
     return {
         "total":     total,
         "page":      page,
@@ -360,10 +333,8 @@ def get_incident(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    inc = db.query(SecurityIncident).filter(
-        SecurityIncident.id     == incident_id,
-        SecurityIncident.org_id == _org(current_user),
-    ).first()
+    svc = SecurityEventService(db=db, org_id=_org(current_user))
+    inc = svc.get_incident_by_id(incident_id)
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
     return IncidentOut.model_validate(inc)
@@ -403,20 +374,12 @@ def list_login_anomalies(
     db: Session                    = Depends(get_db),
     current_user: User             = Depends(get_current_user),
 ):
-    from datetime import timezone, datetime as _dt, timedelta
     since = _dt.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
-
-    q = db.query(LoginAnomaly).filter(
-        LoginAnomaly.org_id      == _org(current_user),
-        LoginAnomaly.occurred_at >= since,
+    svc = SecurityAnalyticsService(db=db, org_id=_org(current_user))
+    total, items = svc.list_login_anomalies_paginated(
+        since=since, anomaly_type=anomaly_type, severity=severity,
+        unresolved_only=unresolved_only, page=page, page_size=page_size,
     )
-    if unresolved_only: q = q.filter(LoginAnomaly.is_resolved == False)  # noqa
-    if anomaly_type:    q = q.filter(LoginAnomaly.anomaly_type == anomaly_type)
-    if severity:        q = q.filter(LoginAnomaly.severity     == severity)
-
-    total = q.count()
-    items = q.order_by(LoginAnomaly.occurred_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-
     return {
         "total":     total,
         "page":      page,
@@ -434,14 +397,10 @@ def resolve_anomaly(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    anomaly = db.query(LoginAnomaly).filter(
-        LoginAnomaly.id     == anomaly_id,
-        LoginAnomaly.org_id == _org(current_user),
-    ).first()
+    svc = SecurityEventService(db=db, org_id=_org(current_user))
+    anomaly = svc.resolve_anomaly(anomaly_id)
     if not anomaly:
         raise HTTPException(status_code=404, detail="Anomaly not found")
-    anomaly.is_resolved = True
-    db.commit()
     return {"id": anomaly_id, "is_resolved": True}
 
 

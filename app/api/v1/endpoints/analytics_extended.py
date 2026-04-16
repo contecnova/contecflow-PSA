@@ -4,7 +4,6 @@ Statistics, summaries, and bulk downloads.
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional, Dict
 import logging
@@ -14,9 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from app.core.deps import get_db, get_current_user, require_any_manager
 from app.models.user import User
-from app.models.imputation import Imputation
-from app.models.documents import Document
-from app.models.resources import ResourceUtilizationSnapshot
+from app.services import analytics_service
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -99,12 +96,7 @@ def get_imputation_analytics(
 
     cutoff_date = date.today() - timedelta(days=days_back)
 
-    imputations = db.query(Imputation).filter(
-        and_(
-            Imputation.user_id == query_user_id,
-            Imputation.date >= cutoff_date,
-        )
-    ).all()
+    imputations = analytics_service.get_imputations_for_analytics(db, query_user_id, cutoff_date)
 
     if not imputations:
         return ImputationStats(
@@ -211,10 +203,7 @@ def get_document_analytics(
     """Get document management statistics."""
     cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_back)
 
-    docs = db.query(Document).filter(
-        Document.created_at >= cutoff_date,
-        Document.is_archived == False,
-    ).all()
+    docs = analytics_service.get_documents_for_analytics(db, cutoff_date)
 
     # By category
     category_counts = {}
@@ -257,14 +246,12 @@ def get_advanced_forecast(
     current_user: User = Depends(require_any_manager),
 ):
     """Get advanced forecast with risk assessment."""
-    users = db.query(User).filter(User.is_active == True).all()
+    users = analytics_service.get_active_users(db)
     forecasts = []
 
     for user in users:
         # Get snapshots for next N weeks
-        snapshots = db.query(ResourceUtilizationSnapshot).filter(
-            ResourceUtilizationSnapshot.user_id == user.id,
-        ).order_by(ResourceUtilizationSnapshot.week_iso).limit(weeks_ahead).all()
+        snapshots = analytics_service.get_resource_snapshots_for_user(db, user.id, weeks_ahead)
 
         if not snapshots:
             continue
@@ -310,13 +297,7 @@ def export_imputations_csv(
     """Export imputations to CSV."""
     query_user_id = user_id if user_id and current_user.role.value in ["admin"] else current_user.id
 
-    q = db.query(Imputation).filter(Imputation.user_id == query_user_id)
-    if date_from:
-        q = q.filter(Imputation.date >= date_from)
-    if date_to:
-        q = q.filter(Imputation.date <= date_to)
-
-    imputations = q.order_by(Imputation.date.desc()).all()
+    imputations = analytics_service.get_imputations_for_export(db, query_user_id, date_from, date_to)
 
     # Create CSV
     output = io.StringIO()
@@ -353,9 +334,7 @@ def export_resources_csv(
     current_user: User = Depends(require_any_manager),
 ):
     """Export resource utilization data to CSV."""
-    snapshots = db.query(ResourceUtilizationSnapshot).order_by(
-        ResourceUtilizationSnapshot.week_iso.desc()
-    ).all()
+    snapshots = analytics_service.get_all_resource_snapshots(db)
 
     # Create CSV
     output = io.StringIO()
