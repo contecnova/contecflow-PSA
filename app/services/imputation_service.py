@@ -546,3 +546,56 @@ def get_week_summary(week_start: Optional[date], current_user: User, db: Session
         by_project=list(by_project.values()),
         by_day=sorted(by_day.values(), key=lambda x: x["date"]),
     )
+
+
+def list_imputations_query(
+    db: Session,
+    current_user: User,
+    user_id: Optional[str],
+    project_id: Optional[str],
+    task_id: Optional[str],
+    date_from: Optional[date],
+    date_to: Optional[date],
+    page: int,
+    page_size: int,
+):
+    from app.models.imputation import Imputation
+
+    q = db.query(Imputation)
+
+    # Scope: employees and subcontractors only see their own imputations
+    if current_user.role in ("employee", "subcontractor"):
+        q = q.filter(Imputation.user_id == current_user.id)
+    elif user_id:
+        q = q.filter(Imputation.user_id == user_id)
+
+    if project_id:
+        q = q.filter(Imputation.project_id == project_id)
+    if task_id:
+        q = q.filter(Imputation.task_id == task_id)
+    if date_from:
+        q = q.filter(Imputation.date >= date_from)
+    if date_to:
+        q = q.filter(Imputation.date <= date_to)
+
+    # Org scoping for non-superadmins
+    if current_user.organization_id:
+        from app.models.user import User as UserModel
+        org_user_ids = db.query(UserModel.id).filter(
+            UserModel.organization_id == current_user.organization_id
+        ).scalar_subquery()
+        q = q.filter(Imputation.user_id.in_(org_user_ids))
+
+    total = q.count()
+    items = q.order_by(Imputation.date.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return total, items
+
+
+def get_imputation_by_id(db: Session, imputation_id: str):
+    from app.models.imputation import Imputation
+    return db.query(Imputation).filter(Imputation.id == imputation_id).first()
+
+
+def delete_imputation_record(db: Session, imp) -> None:
+    db.delete(imp)
+    db.commit()

@@ -351,7 +351,127 @@ class ResourceAnalyticsService:
 resource_analytics = ResourceAnalyticsService()
 
 
-# ── resource_forecast service helpers ─────────────────────────────────────────
+def get_team_user_ids(db: Session, current_user: User, project_id: Optional[str] = None) -> List[str]:
+    """
+    Devuelve los IDs de usuarios del equipo visibles para current_user.
+    Si se proporciona project_id, filtra a los miembros de ese proyecto.
+    """
+    q = db.query(User.id).filter(User.is_active == True)  # noqa: E712
+
+    if current_user.organization_id:
+        q = q.filter(User.organization_id == current_user.organization_id)
+
+    if project_id:
+        member_user_ids = (
+            db.query(ProjectMember.user_id)
+            .filter(ProjectMember.project_id == project_id)
+            .scalar_subquery()
+        )
+        q = q.filter(User.id.in_(member_user_ids))
+
+    return [row[0] for row in q.all()]
+
+
+def get_team_health_payload(db: Session) -> Dict:
+    """Devuelve métricas de salud del equipo: cargas promedio, recuentos por estado."""
+    scores = resource_analytics.get_load_scoring(db)
+    total = len(scores)
+    if total == 0:
+        return {
+            "avg_load_pct": 0.0,
+            "overloaded_count": 0,
+            "at_capacity_count": 0,
+            "underutilized_count": 0,
+            "total_users": 0,
+            "billable_pct": 0.0,
+        }
+    overloaded = sum(1 for s in scores if s.get("load_pct", 0) > 100)
+    at_capacity = sum(1 for s in scores if 80 <= s.get("load_pct", 0) <= 100)
+    underutilized = sum(1 for s in scores if s.get("load_pct", 0) < 50)
+    avg_load = sum(s.get("load_pct", 0) for s in scores) / total
+
+    # billable_pct: fraction of users whose billable_hours > 0
+    billable_count = sum(1 for s in scores if s.get("billable_hours", 0) > 0)
+    billable_pct = round((billable_count / total) * 100, 1)
+
+    return {
+        "avg_load_pct": round(avg_load, 1),
+        "overloaded_count": overloaded,
+        "at_capacity_count": at_capacity,
+        "underutilized_count": underutilized,
+        "total_users": total,
+        "billable_pct": billable_pct,
+    }
+
+
+def get_utilization_history_records(
+    db: Session,
+    user_id: Optional[str] = None,
+    weeks_back: int = 12,
+) -> List:
+    """Devuelve snapshots históricos de utilización."""
+    from app.models.resources import ResourceUtilizationSnapshot
+
+    # Calcular el week_iso más antiguo a incluir
+    cutoff = date.today() - timedelta(weeks=weeks_back)
+    cutoff_iso = f"{cutoff.isocalendar()[0]}-W{cutoff.isocalendar()[1]:02d}"
+
+    q = db.query(ResourceUtilizationSnapshot).filter(
+        ResourceUtilizationSnapshot.week_iso >= cutoff_iso
+    )
+    if user_id:
+        q = q.filter(ResourceUtilizationSnapshot.user_id == user_id)
+
+    return q.order_by(ResourceUtilizationSnapshot.week_iso.desc()).all()
+
+
+def get_alerts_records(
+    db: Session,
+    current_user: User,
+    acknowledged: bool = False,
+    alert_type=None,
+) -> List:
+    """Devuelve alertas de recursos filtradas por estado y tipo."""
+    from app.models.resources import ResourceAlert
+
+    q = db.query(ResourceAlert)
+
+    if current_user.organization_id:
+        org_user_ids = (
+            db.query(User.id)
+            .filter(User.organization_id == current_user.organization_id)
+            .scalar_subquery()
+        )
+        q = q.filter(ResourceAlert.user_id.in_(org_user_ids))
+
+    if acknowledged:
+        q = q.filter(ResourceAlert.acknowledged_at.isnot(None))
+    else:
+        q = q.filter(ResourceAlert.acknowledged_at.is_(None))
+
+    if alert_type is not None:
+        q = q.filter(ResourceAlert.alert_type == alert_type)
+
+    return q.order_by(ResourceAlert.triggered_at.desc()).all()
+
+
+def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> Dict:
+    """Marca una alerta como reconocida."""
+    from app.models.resources import ResourceAlert
+    from fastapi import HTTPException
+    from datetime import timezone
+
+    alert = db.query(ResourceAlert).filter(ResourceAlert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada")
+
+    alert.acknowledged_at = datetime.now(timezone.utc)
+    alert.acknowledged_by = str(current_user.id)
+    db.commit()
+    return {"status": "acknowledged", "alert_id": alert_id}
+
+
+
 
 def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
     """Returns committed/booking/capacity/absence hours for a user in a given week."""
@@ -473,3 +593,4 @@ def get_forecast_past_imputations(
         .group_by(Imputation.user_id, Imputation.date)
         .all()
     )
+

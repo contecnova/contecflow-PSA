@@ -193,7 +193,7 @@ def test_profitability_avoids_n_plus_one_queries(client, admin_token, pm_token, 
 
     event.listen(db.bind, "before_cursor_execute", _before_cursor_execute)
     try:
-        data = get_profitability(db=db, _=admin)
+        data = get_profitability(None, None, db=db)
     finally:
         event.remove(db.bind, "before_cursor_execute", _before_cursor_execute)
 

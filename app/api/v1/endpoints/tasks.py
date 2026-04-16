@@ -16,9 +16,6 @@ from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
 from app.services.task_service import (
-    TASK_VALID_TRANSITIONS,
-    validate_task_transition,
-    apply_status_side_effects,
     cascade_reschedule as svc_cascade_reschedule,
     bulk_update_tasks as svc_bulk_update_tasks,
     task_query_for_user,

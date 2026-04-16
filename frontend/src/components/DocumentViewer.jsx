@@ -5,7 +5,7 @@
  */
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAppT } from '../i18n/AppLangContext';
 import {
@@ -85,7 +85,7 @@ const DocumentViewer = ({ documentId }) => {
   const { data: doc, isLoading } = useQuery({
     queryKey: ['document', documentId],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/documents/${documentId}`);
+      const res = await api.get(`/documents/${documentId}`);
       const d = res.data;
       if (d.versions) d.versions = d.versions.map(v => ({ ...v, download_url: v.download_url || v.s3_url }));
       return d;
@@ -98,7 +98,7 @@ const DocumentViewer = ({ documentId }) => {
       const fd = new FormData();
       fd.append('file', file);
       if (changeNote) fd.append('change_note', changeNote);
-      return axios.post(`/api/v1/documents/${documentId}/versions`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return api.post(`/documents/${documentId}/versions`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
     onSuccess: () => {
       toast.success(t('document_viewer.uploaded_version'));
@@ -109,7 +109,7 @@ const DocumentViewer = ({ documentId }) => {
   });
 
   const approveMutation = useMutation({
-    mutationFn: status => axios.post(`/api/v1/documents/${documentId}/approve`, { status }),
+    mutationFn: status => api.post(`/documents/${documentId}/approve`, { status }),
     onSuccess: (_, s) => {
       toast.success(s === 'approved' ? t('document_viewer.approve_success') : t('document_viewer.reject_success'));
       qc.invalidateQueries({ queryKey: ['document', documentId] });
@@ -118,7 +118,7 @@ const DocumentViewer = ({ documentId }) => {
   });
 
   const summaryMutation = useMutation({
-    mutationFn: () => axios.post(`/api/v1/documents/${documentId}/ai-summary`),
+    mutationFn: () => api.post(`/documents/${documentId}/ai-summary`),
     onSuccess: () => { toast.success(t('document_viewer.ai_summary_success')); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
     onError: e => toast.error(e.response?.data?.detail || t('document_viewer.ai_error')),
   });

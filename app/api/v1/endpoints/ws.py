@@ -312,10 +312,10 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
                     "items": [{
                         "id":           n.id,
                         "title":        n.title,
-                        "message":      n.message,
+                        "message":      n.body,
                         "type":         n.type,
-                        "entity_type":  n.entity_type,
-                        "entity_id":    n.entity_id,
+                        "entity_type":  n.resource,
+                        "entity_id":    n.resource_id,
                         "created_at":   str(n.created_at)[:16] if n.created_at else None,
                     } for n in notifs],
                     "ts": datetime.now(timezone.utc).isoformat(),
@@ -335,7 +335,10 @@ async def _poll_and_send_client(websocket: WebSocket, client_id: str, db):
     from app.models.client_portal import ClientMessage
     from app.models.service_desk import Ticket, TicketComment
     from sqlalchemy import func
-        poll_data = _ws_svc.get_portal_poll_data(db, client_id)
+    last_snapshot = None
+    while True:
+        try:
+            poll_data = _ws_svc.get_portal_poll_data(db, client_id)
             unread_messages = poll_data["unread_messages"]
             open_tickets = poll_data["open_tickets"]
             recent_public_comments = poll_data["recent_public_comments"]
