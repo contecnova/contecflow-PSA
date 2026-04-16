@@ -390,3 +390,1175 @@ def sync_jira(db: Session, config, payload: dict):
         elif "error" in result:
             errors.append(f"{task.jira_issue_key}: {result['error'][:100]}")
     return synced, errors[:5]
+
+
+# ─── CAB Vote helpers ─────────────────────────────────────────────────────────
+
+def get_cab_pending_changes(db: Session, current_user_id: str) -> list:
+    from collections import defaultdict
+    from app.models.cab import CABVote, ChangeRequestWindow
+    crs = db.query(ChangeRequest).options(
+        joinedload(ChangeRequest.project),
+        joinedload(ChangeRequest.requester),
+    ).filter(
+        ChangeRequest.status.in_(["submitted", "under_review"])
+    ).order_by(ChangeRequest.created_at.desc()).all()
+
+    cr_ids = [cr.id for cr in crs]
+    if cr_ids:
+        all_votes = db.query(CABVote).filter(CABVote.change_request_id.in_(cr_ids)).all()
+        all_windows = db.query(ChangeRequestWindow).filter(
+            ChangeRequestWindow.change_request_id.in_(cr_ids)
+        ).all()
+    else:
+        all_votes, all_windows = [], []
+
+    votes_by_cr: dict = defaultdict(list)
+    for _v in all_votes:
+        votes_by_cr[_v.change_request_id].append(_v)
+    windows_by_cr: dict = defaultdict(list)
+    for _w in all_windows:
+        windows_by_cr[_w.change_request_id].append(_w)
+
+    result = []
+    for cr in crs:
+        votes = votes_by_cr[cr.id]
+        approvals = sum(1 for v in votes if v.vote == "approve")
+        rejections = sum(1 for v in votes if v.vote == "reject")
+        windows = windows_by_cr[cr.id]
+        my_vote = next((v.vote for v in votes if v.voter_id == current_user_id), None)
+        result.append({
+            "id": cr.id, "code": cr.code, "title": cr.title,
+            "status": cr.status,
+            "impact": cr.impact,
+            "cost_impact": cr.cost_impact,
+            "schedule_impact_days": cr.schedule_impact_days,
+            "project_name": cr.project.name if cr.project else None,
+            "project_code": cr.project.code if cr.project else None,
+            "requester": cr.requester.full_name if cr.requester else None,
+            "created_at": str(cr.created_at)[:10] if cr.created_at else None,
+            "votes": {"approve": approvals, "reject": rejections, "total": len(votes)},
+            "my_vote": my_vote,
+            "has_window": len(windows) > 0,
+            "rollback_plan": windows[0].rollback_plan if windows else None,
+        })
+    return result
+
+
+def cast_cab_vote(cr_id: str, vote: str, comment: Optional[str], current_user, db: Session) -> dict:
+    from app.models.cab import CABVote
+    from app.services.audit import audit_log
+    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
+    if not cr:
+        raise ValueError("CR no encontrada")
+    if cr.status not in ["submitted", "under_review"]:
+        raise ValueError(f"No se puede votar en estado '{cr.status}'")
+    if vote not in ["approve", "reject", "abstain"]:
+        raise ValueError("Voto debe ser: approve, reject o abstain")
+
+    existing = db.query(CABVote).filter(
+        CABVote.change_request_id == cr_id,
+        CABVote.voter_id == current_user.id,
+    ).first()
+    if existing:
+        existing.vote = vote
+        existing.comment = comment
+    else:
+        db.add(CABVote(
+            change_request_id=cr_id,
+            voter_id=current_user.id,
+            vote=vote,
+            comment=comment,
+        ))
+
+    if cr.status == "submitted":
+        cr.status = "under_review"
+
+    audit_log(db, current_user, "CAB_VOTE", "change_requests", cr_id, cr.code,
+              new_values={"vote": vote})
+    db.commit()
+
+    votes = db.query(CABVote).filter(CABVote.change_request_id == cr_id).all()
+    approvals = sum(1 for v in votes if v.vote == "approve")
+    rejections = sum(1 for v in votes if v.vote == "reject")
+    return {"ok": True, "vote": vote, "approvals": approvals, "rejections": rejections}
+
+
+def close_cab_vote(cr_id: str, decision: str, reason: Optional[str], current_user, db: Session) -> dict:
+    from app.services.audit import audit_log
+    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
+    if not cr:
+        raise ValueError("CR no encontrada")
+    if decision not in ["approved", "rejected"]:
+        raise ValueError("decision debe ser approved o rejected")
+    cr.status = decision
+    audit_log(db, current_user, "CAB_CLOSE", "change_requests", cr_id, cr.code,
+              new_values={"decision": decision, "reason": reason})
+    db.commit()
+    return {"ok": True, "new_status": cr.status}
+
+
+# ─── Maintenance windows ──────────────────────────────────────────────────────
+
+def list_maintenance_windows(upcoming_only: bool, db: Session) -> list:
+    from app.models.cab import MaintenanceWindow
+    q = db.query(MaintenanceWindow).options(joinedload(MaintenanceWindow.creator))
+    if upcoming_only:
+        q = q.filter(MaintenanceWindow.start_dt >= datetime.now(timezone.utc))
+    windows = q.order_by(MaintenanceWindow.start_dt).limit(50).all()
+    return [{
+        "id": w.id, "name": w.name, "description": w.description,
+        "start_dt": str(w.start_dt)[:16], "end_dt": str(w.end_dt)[:16],
+        "environment": w.environment,
+        "is_recurring": w.is_recurring,
+        "creator": w.creator.full_name if w.creator else None,
+        "created_at": str(w.created_at)[:10] if w.created_at else None,
+    } for w in windows]
+
+
+def create_maintenance_window(payload, current_user_id: str, db: Session) -> dict:
+    from app.models.cab import MaintenanceWindow
+    w = MaintenanceWindow(**payload.model_dump(), created_by=current_user_id)
+    db.add(w); db.commit(); db.refresh(w)
+    return {"ok": True, "id": w.id}
+
+
+def schedule_cr_in_window(cr_id: str, window_id: str, rollback_plan: Optional[str], test_plan: Optional[str], db: Session) -> dict:
+    from app.models.cab import MaintenanceWindow, ChangeRequestWindow
+    cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
+    if not cr:
+        raise ValueError("CR no encontrada")
+    if not db.query(MaintenanceWindow).filter(MaintenanceWindow.id == window_id).first():
+        raise ValueError("Ventana de mantenimiento no encontrada")
+    crw = ChangeRequestWindow(
+        change_request_id=cr_id,
+        window_id=window_id,
+        rollback_plan=rollback_plan,
+        test_plan=test_plan,
+    )
+    db.add(crw); db.commit()
+    return {"ok": True}
+
+
+# ─── Webhook CRUD ─────────────────────────────────────────────────────────────
+
+def list_webhook_triggers(db: Session) -> list:
+    triggers = db.query(WebhookTrigger).options(joinedload(WebhookTrigger.workflow)).all()
+    return [trigger_out(t) for t in triggers]
+
+
+def create_webhook_trigger(payload, current_user_id: str, db: Session) -> dict:
+    import secrets as _secrets
+    existing = db.query(WebhookTrigger).filter(WebhookTrigger.slug == payload.slug).first()
+    if existing:
+        raise ValueError(f"Slug '{payload.slug}' ya está en uso")
+    secret = payload.secret or _secrets.token_hex(32)
+    t = WebhookTrigger(
+        name=payload.name, slug=payload.slug,
+        secret=secret,
+        workflow_id=payload.workflow_id,
+        rule_id=payload.rule_id,
+        field_mapping=json.dumps(payload.field_mapping) if payload.field_mapping else None,
+        created_by=current_user_id,
+    )
+    db.add(t); db.commit()
+    return {"ok": True, "id": t.id, "secret": secret,
+            "endpoint": f"/api/v1/webhooks/fire/{t.slug}"}
+
+
+def log_webhook_fire(trigger, payload_str: str, headers_str: str, db: Session) -> None:
+    log = WebhookTriggerLog(
+        trigger_id=trigger.id,
+        payload=payload_str[:2000],
+        headers=headers_str[:1000],
+        status="ok",
+    )
+    db.add(log)
+    trigger.fire_count = (trigger.fire_count or 0) + 1
+    trigger.last_fired_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+def get_webhook_logs(trigger_id: str, db: Session) -> list:
+    logs = db.query(WebhookTriggerLog).filter(
+        WebhookTriggerLog.trigger_id == trigger_id
+    ).order_by(WebhookTriggerLog.received_at.desc()).limit(50).all()
+    return [{
+        "id": l.id, "status": l.status, "error": l.error,
+        "received_at": str(l.received_at)[:16],
+        "payload_preview": (l.payload or "")[:200],
+    } for l in logs]
+
+
+def delete_webhook_trigger(trigger_id: str, db: Session) -> dict:
+    t = db.query(WebhookTrigger).filter(WebhookTrigger.id == trigger_id).first()
+    if not t:
+        raise ValueError("Trigger no encontrado")
+    db.delete(t); db.commit()
+    return {"ok": True}
+
+
+# ─── Email templates + send ───────────────────────────────────────────────────
+
+def list_email_templates(db: Session) -> dict:
+    from app.models.cab import EmailTemplate
+    custom = db.query(EmailTemplate).options(joinedload(EmailTemplate.creator)).all()
+    return {
+        "system": SYSTEM_EMAIL_TEMPLATES,
+        "custom": [{
+            "id": t.id, "name": t.name, "subject": t.subject,
+            "category": t.category,
+            "variables": json.loads(t.variables) if t.variables else [],
+            "is_system": False,
+            "created_by": t.creator.full_name if t.creator else None,
+        } for t in custom],
+    }
+
+
+def create_email_template(payload, current_user_id: str, db: Session) -> dict:
+    from app.models.cab import EmailTemplate
+    t = EmailTemplate(
+        name=payload.name, subject=payload.subject,
+        body_html=payload.body_html, body_text=payload.body_text,
+        category=payload.category,
+        variables=json.dumps(payload.variables) if payload.variables else None,
+        created_by=current_user_id,
+    )
+    db.add(t); db.commit()
+    return {"ok": True, "id": t.id}
+
+
+def send_email_action(payload, db: Session) -> dict:
+    from app.models.cab import EmailTemplate, EmailLog
+    subject = payload.subject or "Notificación Clarive"
+    body_html = payload.body_html or "<p>Notificación de Clarive</p>"
+    template_id_ref = payload.template_id
+
+    if payload.template_id:
+        custom_tpl = db.query(EmailTemplate).filter(
+            EmailTemplate.id == payload.template_id
+        ).first()
+        if custom_tpl:
+            subject = render_template(custom_tpl.subject, payload.variables or {})
+            body_html = render_template(custom_tpl.body_html, payload.variables or {})
+        else:
+            sys_tpl = next((t for t in SYSTEM_EMAIL_TEMPLATES if t["id"] == payload.template_id), None)
+            if sys_tpl:
+                subject = render_template(sys_tpl["subject"], payload.variables or {})
+                body_html = f"<p>{subject}</p>"
+
+    sent = send_email_smtp(payload.to, subject, body_html, payload.cc)
+
+    resolved_template_id = template_id_ref if db.query(EmailTemplate).filter(
+        EmailTemplate.id == template_id_ref
+    ).first() else None
+
+    for addr in payload.to:
+        log = EmailLog(
+            to_address=addr,
+            cc_addresses=json.dumps(payload.cc) if payload.cc else None,
+            subject=subject[:500],
+            template_id=resolved_template_id,
+            body_preview=body_html[:500],
+            status="sent" if sent else "failed",
+            sent_at=datetime.now(timezone.utc) if sent else None,
+            source=payload.source,
+            source_id=payload.source_id,
+        )
+        db.add(log)
+    db.commit()
+    return {"ok": True, "sent": sent, "to": payload.to, "subject": subject}
+
+
+def get_email_logs(limit: int, status: Optional[str], db: Session) -> list:
+    from app.models.cab import EmailLog
+    q = db.query(EmailLog).order_by(EmailLog.created_at.desc())
+    if status:
+        q = q.filter(EmailLog.status == status)
+    logs = q.limit(limit).all()
+    return [{
+        "id": l.id, "to": l.to_address, "subject": l.subject[:80],
+        "status": l.status, "source": l.source,
+        "sent_at": str(l.sent_at)[:16] if l.sent_at else None,
+        "created_at": str(l.created_at)[:16] if l.created_at else None,
+    } for l in logs]
+
+
+# ─── GDPR ─────────────────────────────────────────────────────────────────────
+
+def list_gdpr_requests(db: Session) -> list:
+    from app.models.cab import GDPRRequest
+    requests = db.query(GDPRRequest).options(
+        joinedload(GDPRRequest.subject_user),
+        joinedload(GDPRRequest.processor),
+    ).order_by(GDPRRequest.created_at.desc()).all()
+    return [{
+        "id": r.id, "request_type": r.request_type, "status": r.status,
+        "subject_email": r.subject_email or (r.subject_user.email if r.subject_user else None),
+        "subject_name": r.subject_user.full_name if r.subject_user else "Usuario eliminado",
+        "deadline": str(r.deadline) if r.deadline else None,
+        "completed_at": str(r.completed_at)[:10] if r.completed_at else None,
+        "processor": r.processor.full_name if r.processor else None,
+        "created_at": str(r.created_at)[:10] if r.created_at else None,
+        "notes": r.notes,
+    } for r in requests]
+
+
+def create_gdpr_request(payload, current_user, db: Session) -> dict:
+    from app.models.cab import GDPRRequest
+    from app.services.audit import audit_log
+    deadline = date.today() + timedelta(days=30)
+    req = GDPRRequest(
+        request_type=payload.request_type,
+        subject_user_id=payload.subject_user_id,
+        subject_email=payload.subject_email,
+        requestor_id=current_user.id,
+        notes=payload.notes,
+        deadline=deadline,
+    )
+    db.add(req)
+    audit_log(db, current_user, "GDPR_REQUEST", "users",
+              payload.subject_user_id or "unknown",
+              payload.subject_email or "",
+              new_values={"type": payload.request_type})
+    db.commit()
+    return {"ok": True, "id": req.id, "deadline": str(deadline)}
+
+
+def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
+    import secrets as _secrets
+    from app.models.cab import GDPRRequest, GDPRRequestType, GDPRRequestStatus
+    from app.models.user import User as UserModel
+    from app.services.audit import audit_log
+    req = db.query(GDPRRequest).filter(GDPRRequest.id == request_id).first()
+    if not req:
+        raise ValueError("Solicitud no encontrada")
+    if req.status == GDPRRequestStatus.completed:
+        raise ValueError("Solicitud ya procesada")
+
+    req.status = GDPRRequestStatus.processing
+    req.processed_by = current_user.id
+    db.commit()
+
+    user = db.query(UserModel).filter(UserModel.id == req.subject_user_id).first() if req.subject_user_id else None
+    export_data = {}
+
+    if req.request_type == GDPRRequestType.erasure and user:
+        original_email = user.email
+        anon_id = _secrets.token_hex(8)
+        export_data["anonymised"] = {
+            "username": f"deleted_{anon_id}",
+            "email": f"deleted_{anon_id}@anonymised.clarive",
+            "full_name": f"Usuario Eliminado ({anon_id[:6]})",
+            "first_name": None, "last_name": None,
+            "phone": None, "job_title": None,
+        }
+        for field, value in export_data["anonymised"].items():
+            if hasattr(user, field):
+                setattr(user, field, value)
+        user.is_active = False
+        user.hashed_password = None
+        export_data["original_email"] = original_email
+        export_data["records_kept"] = ["imputations", "timesheets", "expenses"]
+
+    elif req.request_type == GDPRRequestType.portability and user:
+        from app.models.imputation import Imputation as Imp
+        imputations = db.query(Imp).filter(Imp.user_id == user.id).count()
+        export_data = {
+            "user": {
+                "email": user.email, "full_name": user.full_name,
+                "username": user.username, "role": user.role,
+                "department": user.department, "created_at": str(user.created_at)[:10] if user.created_at else None,
+            },
+            "data_summary": {"imputations": imputations},
+            "export_date": str(date.today()),
+            "format": "JSON",
+            "note": "Solicite el fichero completo al administrador del sistema.",
+        }
+
+    req.status = GDPRRequestStatus.completed
+    req.completed_at = datetime.now(timezone.utc)
+    req.export_data = json.dumps(export_data)
+    audit_log(db, current_user, "GDPR_PROCESS", "users",
+              req.subject_user_id or "unknown", "",
+              new_values={"type": req.request_type, "result": req.status})
+    db.commit()
+    return {"ok": True, "status": req.status, "data": export_data}
+
+
+# ─── Global Search ────────────────────────────────────────────────────────────
+
+def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict:
+    from sqlalchemy import or_ as _or
+    from app.models.service_desk import Ticket
+    from app.models.pipeline import Opportunity
+    from app.models.billing_reports import Invoice as Inv
+    from app.models.user import User as UserModel
+
+    search_types = types.split(",") if types else ["projects", "tasks", "tickets", "users", "invoices", "opportunities"]
+    q_lower = f"%{q.lower()}%"
+    results = {}
+
+    if "projects" in search_types:
+        projects = db.query(Project).filter(
+            _or(
+                func.lower(Project.name).like(q_lower),
+                func.lower(Project.code).like(q_lower),
+                func.lower(Project.client_name).like(q_lower),
+            )
+        ).limit(limit // 3).all()
+        results["projects"] = [{
+            "id": p.id, "type": "project",
+            "title": p.name, "subtitle": f"{p.code} · {p.client_name or '—'}",
+            "status": p.status, "url": "/projects",
+            "icon": "⬡",
+        } for p in projects]
+
+    if "tasks" in search_types:
+        tasks = db.query(Task).options(joinedload(Task.project)).filter(
+            _or(
+                func.lower(Task.title).like(q_lower),
+                func.lower(Task.code).like(q_lower),
+                func.lower(Task.description).like(q_lower),
+            )
+        ).limit(limit // 3).all()
+        results["tasks"] = [{
+            "id": t.id, "type": "task",
+            "title": t.title,
+            "subtitle": f"{t.project.code if t.project else '—'} · {t.status}",
+            "status": t.status, "url": "/tasks",
+            "icon": "▦",
+        } for t in tasks]
+
+    if "tickets" in search_types:
+        tickets = db.query(Ticket).filter(
+            _or(
+                func.lower(Ticket.title).like(q_lower),
+                func.lower(Ticket.number).like(q_lower),
+                func.lower(Ticket.requester_name).like(q_lower),
+            )
+        ).limit(limit // 4).all()
+        results["tickets"] = [{
+            "id": t.id, "type": "ticket",
+            "title": t.title,
+            "subtitle": f"#{t.number} · {t.status} · {t.priority}",
+            "status": t.status, "url": "/service-desk",
+            "icon": "🎫",
+        } for t in tickets]
+
+    if "users" in search_types:
+        users = db.query(UserModel).filter(
+            UserModel.is_active == True,
+            _or(
+                func.lower(UserModel.full_name).like(q_lower),
+                func.lower(UserModel.email).like(q_lower),
+                func.lower(UserModel.username).like(q_lower),
+            )
+        ).limit(limit // 4).all()
+        results["users"] = [{
+            "id": u.id, "type": "user",
+            "title": u.full_name,
+            "subtitle": f"{u.role} · {u.email}",
+            "url": "/resources",
+            "icon": "👤",
+        } for u in users]
+
+    if "invoices" in search_types:
+        invoices = db.query(Inv).filter(
+            _or(
+                func.lower(Inv.number).like(q_lower),
+                func.lower(Inv.client_name).like(q_lower),
+            )
+        ).limit(10).all()
+        results["invoices"] = [{
+            "id": i.id, "type": "invoice",
+            "title": i.number,
+            "subtitle": f"{i.client_name or '—'} · {i.total}€ · {i.status}",
+            "status": i.status, "url": "/invoices",
+            "icon": "🧾",
+        } for i in invoices]
+
+    if "opportunities" in search_types:
+        from app.models.pipeline import Opportunity as Opp
+        opps = db.query(Opp).filter(
+            _or(
+                func.lower(Opp.name).like(q_lower),
+                func.lower(Opp.client_name).like(q_lower),
+            )
+        ).limit(10).all()
+        results["opportunities"] = [{
+            "id": o.id, "type": "opportunity",
+            "title": o.name,
+            "subtitle": f"{o.client_name or '—'} · {o.stage}",
+            "url": "/pipeline",
+            "icon": "🎪",
+        } for o in opps]
+
+    all_results = []
+    for items in results.values():
+        all_results.extend(items)
+    return {
+        "query": q,
+        "total": sum(len(v) for v in results.values()),
+        "grouped": results,
+        "flat": all_results[:limit],
+    }
+
+
+# ─── Dashboard Widgets ────────────────────────────────────────────────────────
+
+def get_user_widgets(current_user, db: Session) -> list:
+    from app.models.cab import DashboardWidget
+    widgets = db.query(DashboardWidget).filter(
+        DashboardWidget.user_id == current_user.id,
+        DashboardWidget.is_visible == True,
+    ).order_by(DashboardWidget.position_y, DashboardWidget.position_x).all()
+
+    if not widgets:
+        return default_widget_layout(current_user.role)
+
+    return [{
+        "id": w.id, "widget_type": w.widget_type,
+        "title": w.title,
+        "position_x": w.position_x, "position_y": w.position_y,
+        "width": w.width, "height": w.height,
+        "config": json.loads(w.config) if w.config else {},
+    } for w in widgets]
+
+
+def save_widget_layout(payload: list, current_user_id: str, db: Session) -> dict:
+    from app.models.cab import DashboardWidget
+    db.query(DashboardWidget).filter(DashboardWidget.user_id == current_user_id).delete()
+    db.flush()
+    for item in payload:
+        widget_type = item.get("widget_type")
+        if not widget_type:
+            continue
+        w = DashboardWidget(
+            user_id=current_user_id,
+            widget_type=widget_type,
+            title=item.get("title"),
+            position_x=item.get("position_x", 0),
+            position_y=item.get("position_y", 0),
+            width=item.get("width", 1),
+            height=item.get("height", 1),
+            config=json.dumps(item.get("config", {})),
+        )
+        db.add(w)
+    db.commit()
+    return {"ok": True, "count": len(payload)}
+
+
+def reset_widgets(current_user_id: str, db: Session) -> dict:
+    from app.models.cab import DashboardWidget
+    db.query(DashboardWidget).filter(DashboardWidget.user_id == current_user_id).delete()
+    db.commit()
+    return {"ok": True}
+
+
+# ─── Onboarding ───────────────────────────────────────────────────────────────
+
+ONBOARDING_STEPS = [
+    {"id": "create_project",  "title": "Crea tu primer proyecto",      "description": "Configura el nombre, cliente y fechas de tu primer proyecto.",      "action": "/projects", "icon": "⬡"},
+    {"id": "invite_team",     "title": "Invita a tu equipo",           "description": "Añade los miembros del equipo que van a trabajar en el proyecto.",   "action": "/settings", "icon": "👥"},
+    {"id": "configure_sla",   "title": "Configura el SLA",             "description": "Define el horario laboral y los festivos para el cálculo de SLAs.",  "action": "/settings", "icon": "🎯"},
+    {"id": "create_sprint",   "title": "Lanza tu primer sprint",       "description": "Crea un sprint con tareas y fija las fechas de inicio y fin.",       "action": "/sprints",  "icon": "⚡"},
+    {"id": "first_timesheet", "title": "Imputa tus primeras horas",    "description": "Registra las horas trabajadas hoy en el proyecto que acabas de crear.", "action": "/imputar", "icon": "⏱"},
+]
+
+
+def get_onboarding(current_user, db: Session) -> dict:
+    from app.models.cab import OnboardingState
+    state = db.query(OnboardingState).filter(
+        OnboardingState.user_id == current_user.id
+    ).first()
+    if not state:
+        state = OnboardingState(user_id=current_user.id, completed_steps="[]")
+        db.add(state); db.commit(); db.refresh(state)
+
+    completed = json.loads(state.completed_steps or "[]")
+    return {
+        "is_complete": state.is_complete,
+        "is_dismissed": state.dismissed_at is not None,
+        "current_step": state.current_step,
+        "completed_steps": completed,
+        "progress_pct": round(len(completed) / len(ONBOARDING_STEPS) * 100),
+        "steps": [{**step, "completed": step["id"] in completed} for step in ONBOARDING_STEPS],
+    }
+
+
+def complete_onboarding_step(step_id: str, current_user, db: Session) -> dict:
+    from app.models.cab import OnboardingState
+    if step_id not in [s["id"] for s in ONBOARDING_STEPS]:
+        raise ValueError(f"Step '{step_id}' no existe")
+    state = db.query(OnboardingState).filter(
+        OnboardingState.user_id == current_user.id
+    ).first()
+    if not state:
+        state = OnboardingState(user_id=current_user.id, completed_steps="[]")
+        db.add(state); db.flush()
+
+    completed = json.loads(state.completed_steps or "[]")
+    if step_id not in completed:
+        completed.append(step_id)
+    state.completed_steps = json.dumps(completed)
+    state.current_step = len(completed)
+    if len(completed) >= len(ONBOARDING_STEPS):
+        state.is_complete = True
+        state.completed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {
+        "ok": True, "completed_steps": completed,
+        "is_complete": state.is_complete,
+        "progress_pct": round(len(completed) / len(ONBOARDING_STEPS) * 100),
+    }
+
+
+def dismiss_onboarding(current_user, db: Session) -> dict:
+    from app.models.cab import OnboardingState
+    state = db.query(OnboardingState).filter(
+        OnboardingState.user_id == current_user.id
+    ).first()
+    if not state:
+        state = OnboardingState(user_id=current_user.id, completed_steps="[]")
+        db.add(state); db.flush()
+    state.dismissed_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
+# ─── Integrations ─────────────────────────────────────────────────────────────
+
+def list_integrations(db: Session) -> list:
+    from app.models.cab import IntegrationConfig
+    configs = db.query(IntegrationConfig).options(
+        joinedload(IntegrationConfig.creator)
+    ).all()
+    return [{
+        "id": c.id, "integration_type": c.integration_type,
+        "name": c.name, "is_active": c.is_active,
+        "last_sync_at": str(c.last_sync_at)[:16] if c.last_sync_at else None,
+        "sync_errors": c.sync_errors or 0,
+        "last_error": c.last_error,
+        "config": decrypt_config_secrets(json.loads(c.config)) if c.config else {},
+        "has_token": bool(c.access_token),
+        "created_by": c.creator.full_name if c.creator else None,
+    } for c in configs]
+
+
+def create_integration(payload, current_user_id: str, db: Session) -> dict:
+    from app.models.cab import IntegrationConfig
+    from app.core.encryption import encrypt_value
+    from app.core.secret_utils import encrypt_config_secrets
+    existing = db.query(IntegrationConfig).filter(
+        IntegrationConfig.integration_type == payload.integration_type
+    ).first()
+    if existing:
+        existing.name = payload.name
+        existing.access_token = encrypt_value(payload.access_token) if payload.access_token else None
+        existing.refresh_token = encrypt_value(payload.refresh_token) if payload.refresh_token else None
+        existing.config = json.dumps(encrypt_config_secrets(payload.config)) if payload.config else None
+        existing.is_active = True
+        db.commit()
+        return {"ok": True, "id": existing.id, "updated": True}
+
+    c = IntegrationConfig(
+        integration_type=payload.integration_type,
+        name=payload.name,
+        access_token=encrypt_value(payload.access_token) if payload.access_token else None,
+        refresh_token=encrypt_value(payload.refresh_token) if payload.refresh_token else None,
+        config=json.dumps(encrypt_config_secrets(payload.config)) if payload.config else None,
+        created_by=current_user_id,
+    )
+    db.add(c); db.commit()
+    return {"ok": True, "id": c.id, "updated": False}
+
+
+def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dict:
+    from app.models.cab import IntegrationConfig
+    config = db.query(IntegrationConfig).filter(IntegrationConfig.id == integration_id).first()
+    if not config:
+        raise ValueError("Integración no encontrada")
+    if not config.is_active:
+        raise ValueError("Integración inactiva")
+
+    synced = 0
+    errors = []
+    if config.integration_type in ["github", "gitlab"]:
+        synced, errors = sync_git_commits(db, config, payload)
+    elif config.integration_type in ["google_calendar", "outlook"]:
+        synced, errors = sync_calendar(db, config, payload)
+    elif config.integration_type in ["quickbooks", "xero"]:
+        synced, errors = sync_accounting(db, config, payload)
+    elif config.integration_type == "jira":
+        synced, errors = sync_jira(db, config, payload)
+
+    config.last_sync_at = datetime.now(timezone.utc)
+    config.sync_errors = len(errors)
+    config.last_error = errors[0] if errors else None
+    db.commit()
+    return {"ok": True, "synced": synced, "errors": errors[:5]}
+
+
+def get_calendar_events(user_id: str, from_date, to_date, db: Session) -> list:
+    from app.models.cab import CalendarEvent as CE
+    from app.models.project import Project as Proj
+    q = db.query(CE).options(joinedload(CE.project))
+    q = q.filter(CE.user_id == user_id)
+    if from_date:
+        q = q.filter(CE.start_dt >= datetime.combine(from_date, datetime.min.time()))
+    if to_date:
+        q = q.filter(CE.start_dt <= datetime.combine(to_date, datetime.max.time()))
+    events = q.order_by(CE.start_dt).limit(100).all()
+    return [{
+        "id": e.id, "title": e.title,
+        "start_dt": str(e.start_dt)[:16], "end_dt": str(e.end_dt)[:16],
+        "all_day": e.all_day, "description": e.description,
+        "project_name": e.project.name if e.project else None,
+        "sprint_id": e.sprint_id, "milestone_id": e.milestone_id,
+    } for e in events]
+
+
+def get_commit_links(integration_id: str, task_id: Optional[str], db: Session) -> list:
+    from app.models.cab import CommitLink as CL, IntegrationConfig
+    q = db.query(CL).options(
+        joinedload(CL.task).joinedload(Task.project)
+    ).filter(CL.integration_id == integration_id)
+    if task_id:
+        q = q.filter(CL.task_id == task_id)
+    links = q.order_by(CL.created_at_ext.desc()).limit(50).all()
+    return [{
+        "id": l.id, "link_type": l.link_type,
+        "task_id": l.task_id,
+        "task_code": l.task.code if l.task else None,
+        "task_title": l.task.title if l.task else None,
+        "project_code": l.task.project.code if l.task and l.task.project else None,
+        "external_id": l.external_id,
+        "title": l.title, "url": l.url, "author": l.author,
+        "state": l.state,
+        "synced_at": str(l.synced_at)[:16] if l.synced_at else None,
+    } for l in links]
+
+
+# ─── Revenue Recognition ──────────────────────────────────────────────────────
+
+def list_revenue_rules(db: Session) -> list:
+    from app.models.cab import RevenueRecognitionRule
+    rules = db.query(RevenueRecognitionRule).options(
+        joinedload(RevenueRecognitionRule.project),
+        joinedload(RevenueRecognitionRule.entries),
+    ).all()
+    return [{
+        "id": r.id, "project_id": r.project_id,
+        "project_name": r.project.name if r.project else None,
+        "project_code": r.project.code if r.project else None,
+        "method": r.method,
+        "contract_value": r.contract_value,
+        "start_date": str(r.start_date) if r.start_date else None,
+        "end_date": str(r.end_date) if r.end_date else None,
+        "total_recognised": sum(e.amount_actual for e in r.entries),
+        "total_deferred": sum(e.amount_deferred for e in r.entries),
+        "entry_count": len(r.entries),
+    } for r in rules]
+
+
+def create_revenue_rule(payload, current_user_id: str, db: Session) -> dict:
+    from app.models.cab import RevenueRecognitionRule
+    existing = db.query(RevenueRecognitionRule).filter(
+        RevenueRecognitionRule.project_id == payload.project_id
+    ).first()
+    if existing:
+        raise ValueError("Ya existe una regla para este proyecto")
+    rule = RevenueRecognitionRule(**payload.model_dump(), created_by=current_user_id)
+    db.add(rule); db.commit()
+    return {"ok": True, "id": rule.id}
+
+
+def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
+    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry, RecognitionMethod
+    rule = db.query(RevenueRecognitionRule).options(
+        joinedload(RevenueRecognitionRule.project),
+        joinedload(RevenueRecognitionRule.entries),
+    ).filter(RevenueRecognitionRule.id == rule_id).first()
+    if not rule:
+        raise ValueError("Regla no encontrada")
+
+    period = date.fromisoformat(period_str)
+
+    existing = db.query(RevenueRecognitionEntry).filter(
+        RevenueRecognitionEntry.rule_id == rule_id,
+        RevenueRecognitionEntry.period_date == period,
+    ).first()
+    if existing and existing.is_locked:
+        raise ValueError("El período ya está cerrado contablemente")
+
+    project = rule.project
+    contract_val = rule.contract_value or 0
+    pct_complete = 0.0
+    amount_planned = 0.0
+
+    if rule.method == RecognitionMethod.percentage_complete:
+        total_tasks = db.query(func.count(Task.id)).filter(Task.project_id == project.id).scalar() or 1
+        done_tasks = db.query(func.count(Task.id)).filter(
+            Task.project_id == project.id, Task.status == "done"
+        ).scalar() or 0
+        pct_complete = round(done_tasks / total_tasks * 100, 1)
+        amount_to_date = round(contract_val * pct_complete / 100, 2)
+        prev_recognized = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+        amount_planned = round(max(amount_to_date - prev_recognized, 0), 2)
+
+    elif rule.method == RecognitionMethod.time_and_material:
+        month_start = period
+        month_end = period.replace(day=28) + timedelta(days=4)
+        month_end = month_end - timedelta(days=month_end.day)
+        hours = db.query(func.sum(Imputation.hours)).filter(
+            Imputation.project_id == project.id,
+            Imputation.is_billable == True,
+            Imputation.date >= month_start,
+            Imputation.date <= month_end,
+        ).scalar() or 0
+        rate = project.billing_rate or 100
+        amount_planned = round(hours * rate, 2)
+        pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
+
+    elif rule.method == RecognitionMethod.straight_line:
+        if rule.start_date and rule.end_date and rule.end_date >= rule.start_date:
+            business_days = 0
+            current = rule.start_date
+            while current <= rule.end_date:
+                if current.weekday() < 5:
+                    business_days += 1
+                current += timedelta(days=1)
+            total_months = max(round(business_days / 22, 1), 1)
+            amount_planned = round(contract_val / total_months, 2)
+            prev_total = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+            pct_complete = round((prev_total + amount_planned) / max(contract_val, 1) * 100, 1)
+
+    prev_cumulative = sum(e.amount_actual for e in rule.entries if e.period_date < period)
+    cumulative = round(prev_cumulative + amount_planned, 2)
+    deferred = round(max(contract_val - cumulative, 0), 2)
+
+    if existing:
+        existing.pct_complete = pct_complete
+        existing.amount_planned = amount_planned
+        existing.amount_actual = amount_planned
+        existing.cumulative_amount = cumulative
+        existing.cumulative_pct = round((cumulative / max(contract_val, 1)) * 100, 1)
+        existing.amount_deferred = deferred
+    else:
+        db.add(RevenueRecognitionEntry(
+            rule_id=rule_id,
+            project_id=project.id,
+            period_date=period,
+            pct_complete=pct_complete,
+            amount_planned=amount_planned,
+            amount_actual=amount_planned,
+            amount_deferred=deferred,
+            cumulative_amount=cumulative,
+            cumulative_pct=round((cumulative / max(contract_val, 1)) * 100, 1),
+        ))
+    db.commit()
+    return {
+        "ok": True, "period": str(period),
+        "method": rule.method,
+        "pct_complete": pct_complete,
+        "amount_recognised": amount_planned,
+        "cumulative": cumulative,
+        "deferred": deferred,
+        "contract_value": contract_val,
+    }
+
+
+def auto_compute_revenue(period_str: str, db: Session) -> dict:
+    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
+    rules = db.query(RevenueRecognitionRule).filter(
+        RevenueRecognitionRule.is_active == True
+    ).all()
+    results = []
+    period_date = date.fromisoformat(period_str)
+    for rule in rules:
+        try:
+            project = rule.project
+            if not project or project.status in ("completed", "cancelled"):
+                continue
+            contract_val = rule.contract_value or 0
+            amount_planned = 0
+            pct_complete = 0
+
+            if rule.method.value == "milestone_billing":
+                from app.models.financial import ProjectMilestone
+                approved_ms = db.query(ProjectMilestone).filter(
+                    ProjectMilestone.project_id == project.id,
+                    ProjectMilestone.billing_status.in_(["approved", "invoiced"]),
+                ).all()
+                amount_planned = sum(m.billing_amount or 0 for m in approved_ms)
+                pct_complete = round(amount_planned / max(contract_val, 1) * 100, 1)
+
+            prev_cumulative = db.query(func.sum(RevenueRecognitionEntry.amount_actual)).filter(
+                RevenueRecognitionEntry.rule_id == rule.id,
+                RevenueRecognitionEntry.period_date < period_date,
+            ).scalar() or 0
+            amount_delta = round(max(amount_planned - prev_cumulative, 0), 2)
+            cumulative = round(prev_cumulative + amount_delta, 2)
+            deferred = round(max(contract_val - cumulative, 0), 2)
+
+            if amount_planned > 0:
+                existing = db.query(RevenueRecognitionEntry).filter(
+                    RevenueRecognitionEntry.rule_id == rule.id,
+                    RevenueRecognitionEntry.period_date == period_date,
+                ).first()
+                if existing and not existing.is_locked:
+                    existing.amount_actual = amount_delta
+                    existing.cumulative_amount = cumulative
+                elif not existing and amount_delta > 0:
+                    db.add(RevenueRecognitionEntry(
+                        rule_id=rule.id, project_id=project.id,
+                        period_date=period_date,
+                        pct_complete=pct_complete,
+                        amount_planned=amount_delta, amount_actual=amount_delta,
+                        amount_deferred=deferred,
+                        cumulative_amount=cumulative,
+                        cumulative_pct=round((cumulative / max(contract_val, 1)) * 100, 1),
+                    ))
+            results.append({"rule_id": rule.id, "project": project.name, "amount": amount_delta, "status": "ok"})
+        except Exception as e:
+            results.append({"rule_id": rule.id, "status": "error", "error": str(e)})
+
+    db.commit()
+    total = sum(r.get("amount", 0) for r in results if r["status"] == "ok")
+    return {"period": period_str, "processed": len(results),
+            "total_recognised": round(total, 2), "results": results}
+
+
+def get_revenue_summary(db: Session) -> dict:
+    from app.models.cab import RevenueRecognitionEntry
+    entries = db.query(RevenueRecognitionEntry).options(
+        joinedload(RevenueRecognitionEntry.project)
+    ).order_by(RevenueRecognitionEntry.period_date.desc()).all()
+
+    by_month: dict = {}
+    for e in entries:
+        m = str(e.period_date)[:7]
+        if m not in by_month:
+            by_month[m] = {"month": m, "recognised": 0, "deferred": 0}
+        by_month[m]["recognised"] += e.amount_actual or 0
+        by_month[m]["deferred"] += e.amount_deferred or 0
+
+    total_recognised = sum(e.amount_actual or 0 for e in entries)
+    total_deferred = sum(e.amount_deferred or 0 for e in entries)
+    return {
+        "total_recognised": round(total_recognised, 2),
+        "total_deferred": round(total_deferred, 2),
+        "by_month": sorted(by_month.values(), key=lambda x: x["month"]),
+        "entry_count": len(entries),
+    }
+
+
+# ─── Risk scores ──────────────────────────────────────────────────────────────
+
+def get_risk_scores(refresh: bool, db: Session) -> dict:
+    from app.models.cab import ProjectRiskScore
+    projects = db.query(Project).filter(
+        Project.status.in_(["active", "planning"])
+    ).all()
+    results = []
+    for project in projects:
+        cached = db.query(ProjectRiskScore).filter(
+            ProjectRiskScore.project_id == project.id
+        ).order_by(ProjectRiskScore.computed_at.desc()).first()
+        if cached and not refresh and cached.computed_at:
+            age_minutes = (datetime.now(timezone.utc) - cached.computed_at).total_seconds() / 60
+            if age_minutes < 60:
+                results.append({
+                    "project_id": project.id,
+                    "project_name": project.name,
+                    "project_code": project.code,
+                    "overall_score": cached.overall_score,
+                    "level": cached.level,
+                    "schedule_risk": cached.schedule_risk,
+                    "budget_risk": cached.budget_risk,
+                    "scope_risk": cached.scope_risk,
+                    "resource_risk": cached.resource_risk,
+                    "delay_probability_pct": cached.delay_probability_pct,
+                    "predicted_delay_weeks": cached.predicted_delay_weeks,
+                    "recommendation": cached.recommendation,
+                    "computed_at": str(cached.computed_at)[:16],
+                    "cached": True,
+                })
+                continue
+        score_data = compute_risk_score(db, project)
+        score_obj = ProjectRiskScore(
+            project_id=project.id,
+            **{k: v for k, v in score_data.items() if k in [
+                "schedule_risk", "budget_risk", "scope_risk", "resource_risk",
+                "overall_score", "level", "delay_probability_pct",
+                "predicted_delay_weeks", "recommendation",
+            ]}
+        )
+        db.add(score_obj)
+        results.append({
+            "project_id": project.id,
+            "project_name": project.name,
+            "project_code": project.code,
+            **score_data,
+            "computed_at": datetime.now(timezone.utc).isoformat()[:16],
+            "cached": False,
+        })
+    db.commit()
+    results.sort(key=lambda x: -(x.get("overall_score") or 0))
+    return {
+        "projects": results,
+        "summary": {
+            "critical": sum(1 for r in results if r.get("level") == "critical"),
+            "high": sum(1 for r in results if r.get("level") == "high"),
+            "medium": sum(1 for r in results if r.get("level") == "medium"),
+            "low": sum(1 for r in results if r.get("level") == "low"),
+        }
+    }
+
+
+def get_project_risk_score(project_id: str, db: Session) -> dict:
+    from app.models.cab import ProjectRiskScore
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+    score_data = compute_risk_score(db, project)
+    score_obj = ProjectRiskScore(
+        project_id=project_id,
+        **{k: v for k, v in score_data.items() if k in [
+            "schedule_risk", "budget_risk", "scope_risk", "resource_risk",
+            "overall_score", "level", "delay_probability_pct",
+            "predicted_delay_weeks", "recommendation",
+        ]}
+    )
+    db.add(score_obj); db.commit()
+    return {
+        "project_id": project_id,
+        "project_name": project.name,
+        "project_code": project.code,
+        "client_name": project.client_name,
+        **score_data,
+        "history": [],
+    }
+
+
+def get_revenue_journal(project_id: str, db: Session) -> dict:
+    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError("Proyecto no encontrado")
+
+    rule = db.query(RevenueRecognitionRule).filter(
+        RevenueRecognitionRule.project_id == project_id
+    ).first()
+    if not rule:
+        raise ValueError("No hay regla de reconocimiento de ingresos para este proyecto. Configura una en /revenue.")
+
+    entries = (
+        db.query(RevenueRecognitionEntry)
+        .filter(RevenueRecognitionEntry.project_id == project_id)
+        .order_by(RevenueRecognitionEntry.period_date)
+        .all()
+    )
+
+    if not entries:
+        return {
+            "project_id":    project_id,
+            "project_name":  project.name,
+            "method":        rule.method.value if rule.method else None,
+            "journal_lines": [],
+            "summary": {"total_recognised": 0, "total_deferred": 0, "entry_count": 0},
+        }
+
+    journal_lines = []
+    total_recognised = 0.0
+    total_deferred   = 0.0
+
+    for entry in entries:
+        period = str(entry.period_date)
+        recognised = float(entry.amount_actual or 0)
+        deferred   = float(entry.amount_deferred or 0)
+
+        if recognised > 0:
+            journal_lines.append({
+                "date":           period,
+                "period":         period[:7],
+                "journal_ref":    f"REV-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
+                "line":           "DR",
+                "account_code":   "1100",
+                "account_name":   "Cuentas por cobrar / Accounts Receivable",
+                "description":    f"Reconocimiento ingresos — {project.name} ({period[:7]})",
+                "debit":          round(recognised, 2),
+                "credit":         0.0,
+                "currency":       getattr(project, "currency", "EUR"),
+                "method":         rule.method.value if rule.method else "N/A",
+                "pct_complete":   round(float(entry.pct_complete or 0), 2),
+                "is_locked":      entry.is_locked,
+            })
+            journal_lines.append({
+                "date":           period,
+                "period":         period[:7],
+                "journal_ref":    f"REV-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
+                "line":           "CR",
+                "account_code":   "4000",
+                "account_name":   "Ingresos reconocidos / Revenue",
+                "description":    f"Reconocimiento ingresos — {project.name} ({period[:7]})",
+                "debit":          0.0,
+                "credit":         round(recognised, 2),
+                "currency":       getattr(project, "currency", "EUR"),
+                "method":         rule.method.value if rule.method else "N/A",
+                "pct_complete":   round(float(entry.pct_complete or 0), 2),
+                "is_locked":      entry.is_locked,
+            })
+            total_recognised += recognised
+
+        if deferred > 0:
+            journal_lines.append({
+                "date":           period,
+                "period":         period[:7],
+                "journal_ref":    f"DEF-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
+                "line":           "DR",
+                "account_code":   "1000",
+                "account_name":   "Tesorería / Cash",
+                "description":    f"Cobro diferido — {project.name} ({period[:7]})",
+                "debit":          round(deferred, 2),
+                "credit":         0.0,
+                "currency":       getattr(project, "currency", "EUR"),
+                "method":         rule.method.value if rule.method else "N/A",
+                "pct_complete":   round(float(entry.pct_complete or 0), 2),
+                "is_locked":      entry.is_locked,
+            })
+            journal_lines.append({
+                "date":           period,
+                "period":         period[:7],
+                "journal_ref":    f"DEF-{project.code or project_id[:8].upper()}-{period[:7].replace('-','')}",
+                "line":           "CR",
+                "account_code":   "2400",
+                "account_name":   "Ingresos diferidos / Deferred Revenue",
+                "description":    f"Cobro diferido — {project.name} ({period[:7]})",
+                "debit":          0.0,
+                "credit":         round(deferred, 2),
+                "currency":       getattr(project, "currency", "EUR"),
+                "method":         rule.method.value if rule.method else "N/A",
+                "pct_complete":   round(float(entry.pct_complete or 0), 2),
+                "is_locked":      entry.is_locked,
+            })
+            total_deferred += deferred
+
+    return {
+        "project_id":     project_id,
+        "project_name":   project.name,
+        "project_code":   project.code,
+        "currency":       getattr(project, "currency", "EUR"),
+        "method":         rule.method.value if rule.method else None,
+        "contract_value": float(rule.contract_value or 0),
+        "standard":       "ASC 606 / IFRS 15",
+        "journal_lines":  journal_lines,
+        "summary": {
+            "total_recognised":   round(total_recognised, 2),
+            "total_deferred":     round(total_deferred, 2),
+            "entry_count":        len(entries),
+            "journal_line_count": len(journal_lines),
+        },
+    }
