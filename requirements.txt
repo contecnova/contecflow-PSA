@@ -18,7 +18,7 @@ pydantic==2.12.5
 pydantic-settings==2.13.1
 annotated-types==0.7.0
 email_validator==2.1.1
-python-multipart==0.0.22
+python-multipart==0.0.26
 
 # ── Auth & security ────────────────────────────────────────────────────────────
 python-jose[cryptography]==3.5.0
@@ -75,7 +75,7 @@ python-dateutil==2.9.0.post0
 openpyxl==3.1.2
 et_xmlfile==2.0.0
 reportlab==4.4.10
-pillow==12.1.1
+pillow==12.2.0
 
 # ── Semantic embeddings / ML (opcional; instálalo solo si lo necesitas con requirements-ml.txt) ─────
 # scikit-learn==1.8.0
@@ -122,7 +122,7 @@ shellingham==1.5.4
 typer==0.24.1
 
 # ── Testing ────────────────────────────────────────────────────────────────────
-pytest==9.0.2
+pytest==9.0.3
 pytest-cov==7.1.0
 coverage==7.13.5
 trio==0.33.0
