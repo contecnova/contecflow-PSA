@@ -13,34 +13,108 @@ export {
 export { useSort, SortableTH, ViewToggle, FilterSelect, SearchInput, ActiveFilters } from './TableControls'
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
-export function Badge({ label, _color }) {
+/** Human-readable labels for common status/priority enum values. */
+const BADGE_DISPLAY = {
+  // Task / project statuses
+  in_progress:  'In Progress',
+  todo:         'To Do',
+  backlog:      'Backlog',
+  done:         'Done',
+  blocked:      'Blocked',
+  review:       'In Review',
+  in_review:    'In Review',
+  planning:     'Planning',
+  active:       'Active',
+  paused:       'Paused',
+  closed:       'Closed',
+  cancelled:    'Cancelled',
+  on_hold:      'On Hold',
+  // Priority
+  low:          'Low',
+  medium:       'Medium',
+  high:         'High',
+  critical:     'Critical',
+  p1_critical:  'P1 Critical',
+  p2_high:      'P2 High',
+  p3_medium:    'P3 Medium',
+  p4_low:       'P4 Low',
+  // Deliverables
+  planned:      'Planned',
+  delivered:    'Delivered',
+  accepted:     'Accepted',
+  rejected:     'Rejected',
+  // Approvals / expenses
+  draft:        'Draft',
+  submitted:    'Submitted',
+  approved:     'Approved',
+  pending:      'Pending',
+  // Risk
+  identified:   'Identified',
+  analyzing:    'Analyzing',
+  mitigating:   'Mitigating',
+  monitoring:   'Monitoring',
+  materialized: 'Materialized',
+  // Service desk
+  open:         'Open',
+  new:          'New',
+  resolved:     'Resolved',
+  // Tickets support level
+  l1: 'L1', l2: 'L2', l3: 'L3',
+  // Boolean-like
+  normal:       'Normal',
+}
+
+/** Convert snake_case to Title Case as fallback for unknown values. */
+function humanize(str) {
+  if (!str) return str
+  return String(str).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+export function Badge({ label, display, _color }) {
   const presets = {
     low:         { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     medium:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     high:        { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
     critical:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    p1_critical: { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    p2_high:     { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    p3_medium:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
+    p4_low:      { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     active:      { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'rgba(79,142,247,0.25)' },
     planning:    { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
     paused:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     closed:      { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    cancelled:   { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
     done:        { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
+    accepted:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
+    approved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
+    cancelled:   { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
     in_progress: { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'rgba(79,142,247,0.25)' },
+    in_review:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     blocked:     { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    rejected:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
+    materialized:{ bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
     review:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
     todo:        { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
     backlog:     { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
+    draft:       { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
+    submitted:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
+    pending:     { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
+    resolved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
     normal:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
   }
   const c = presets[label] || presets.normal
+  const shown = display || BADGE_DISPLAY[label] || humanize(label)
   return (
-    <span style={{
-      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-full)',
-      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
-      textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
-      display: 'inline-block',
-    }}>
-      {label}
+    <span
+      style={{
+        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-full)',
+        background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+        textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+        display: 'inline-block',
+      }}
+      aria-label={shown}
+    >
+      {shown}
     </span>
   )
 }

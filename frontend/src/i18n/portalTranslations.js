@@ -2844,16 +2844,6 @@ const zh = {
   no_data: '暂无数据',
   error_load: '加载数据出错',
   last_updated: '最后更新',
-}
-
-export const PORTAL_TRANSLATIONS = { es, en, fr, de, pt, it, pl, zh }
-
-// Compatibilidad con código antiguo
-export const T = PORTAL_TRANSLATIONS
-
-/** Obtener todas las claves con su valor ES base */
-export function getPortalKeys() {
-  return Object.entries(es).map(([key, base_es]) => ({ key, base_es }))
   dashboard_loading: '正在加载仪表板...',
   dashboard_choose_project_cta: '您可以访问 {{count}} 个项目。请选择一个继续。',
   dashboard_change_project: '切换项目',
@@ -3106,6 +3096,16 @@ export function getPortalKeys() {
   doc_confirm_sign: '✍️ 确认签署',
   doc_signing: '⟳ 签署中...',
   doc_download_btn: '⬇ 下载',
+}
+
+export const PORTAL_TRANSLATIONS = { es, en, fr, de, pt, it, pl, zh }
+
+// Compatibilidad con código antiguo
+export const T = PORTAL_TRANSLATIONS
+
+/** Obtener todas las claves con su valor ES base */
+export function getPortalKeys() {
+  return Object.entries(es).map(([key, base_es]) => ({ key, base_es }))
 }
 
 export default PORTAL_TRANSLATIONS

@@ -438,7 +438,7 @@ class TestCustomerHealthComposite:
 
     def test_health_composite_score_formula(self, db, sample_client):
         """Verify the composite formula weights sum to 1.0."""
-        from app.api.v1.endpoints.v239_features import compute_composite_health
+        from app.services.customer_health_service import compute_composite_health  # noqa: F401
         weights = [0.40, 0.20, 0.15, 0.15, 0.10]
         assert abs(sum(weights) - 1.0) < 1e-9
 

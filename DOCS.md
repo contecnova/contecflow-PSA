@@ -3091,3 +3091,44 @@ logger.error(f"Error: {e}", exc_info=True)
 ---
 
 *Documentación generada: Abril 2026 — Clarive PSA v23.9.8*
+
+---
+
+## Novedades técnicas (sesión 2025-07 — Fase 5)
+
+### Tests de flujo completo de plataforma
+
+Se ha creado `tests/test_platform_flows.py` con **17 tests de flujo de extremo a extremo** que prueban ciclos de vida completos (no unitarios). Todos los tests pasan en el pipeline.
+
+Flujos cubiertos:
+- **Gastos** — creación → envío → aprobación → rechazo → recall → re-envío
+- **Service Desk** — crear ticket → comentar → registrar tiempo → escalar (L2) → resolver → cerrar
+- **Cola de agente** — asignación y lectura de `my-queue`
+- **Control de cambios** — propuesta → envío → revisión → rechazo → implementación
+- **Entregable** — aprobación cliente vía portal
+- **Proyecto** — CRUD completo + métricas de rentabilidad
+- **Riesgos** — identificar → mitigar → cerrar; puntuación y ordenación multi-riesgo
+- **Portal cliente** — feature request completo + rechazo por el cliente
+- **OKRs** — objetivo → key result → check-in → lectura de progreso
+- **Ausencias** — solicitud → aprobación → bloqueo de capacidad
+- **Seguridad** — 17 endpoints verificados con `401` sin auth; restricciones de rol admin
+
+Suite total tras esta sesión: **1047 passed, 11 skipped**.
+
+### Corrección de bug: `TimeLogIn.description` (Service Desk)
+
+- `app/api/v1/endpoints/service_desk.py` línea ~556: `payload.note` → `payload.description` (coincide con el schema `TimeLogIn`)
+- `app/services/service_desk/ticket_ops_service.py`: `add_ticket_time()` ahora usa el parámetro `description` en lugar de `note` al crear `TicketTimeLog`
+
+### Eliminación de deuda técnica
+
+- Eliminados `scripts/_thin_auth.py`, `scripts/_thin_cab.py`, `scripts/_thin_client_portal.py` (scripts de refactorización de un solo uso, ya aplicados)
+- Corregida la importación de `compute_composite_health` en `tests/test_business_logic_v239.py`: ahora importa desde `app.services.customer_health_service` en lugar del módulo de endpoint
+- `app/.DS_Store` desregistrado del repositorio git
+
+### Mejoras de UX
+
+- **`Badge` (componente global):** los valores de enum en bruto (`in_progress`, `todo`, `backlog`, etc.) ahora se muestran como etiquetas legibles («In Progress», «To Do», «Backlog»). Compatibilidad total hacia atrás mediante prop `display` y fallback `humanize()`. Añadido `aria-label` para accesibilidad. Nuevo soporte de colores para `p1_critical`–`p4_low`, `in_review`, `approved`, `rejected`, `submitted`, `pending`, `resolved`, `draft`.
+- **`ImputarPage` (página principal de empleados):** 100% internacionalizada. Todos los textos ahora usan `t('imputa_page.*')`. Nuevas secciones `imputa_page` en ES, EN y FR. Botones de editar/eliminar enriquecidos con `aria-label` y `title`.
+- **`PipelinePage`:** añadido `EmptyState` cuando no hay oportunidades en el pipeline (guía al nuevo tenant).
+- **`ExecutiveDashboardPage`:** añadido spinner de carga durante la carga de datos; KPI grid cambiado de `repeat(5, 1fr)` a `repeat(auto-fit, minmax(180px, 1fr))` para adaptarse a pantallas más pequeñas.

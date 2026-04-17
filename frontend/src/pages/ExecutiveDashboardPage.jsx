@@ -8,6 +8,7 @@ import api, { dashboardApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { fmtCurrency } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { Spinner } from '../components/ui'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid
@@ -43,11 +44,11 @@ export default function ExecutiveDashboardPage() {
   const _t = useAppT()
   const [period, _setPeriod] = useState('month')
 
-  const { data: kpis } = useQuery({
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['exec-kpis'],
     queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => ({})),
   })
-  const { data: health = [] } = useQuery({
+  const { data: health = [], isLoading: healthLoading } = useQuery({
     queryKey: ['exec-health'],
     queryFn: () => api.get('/dashboard/projects-health').then(r => r.data).catch(() => []),
   })
@@ -105,6 +106,11 @@ export default function ExecutiveDashboardPage() {
 
   return (
     <div style={{ padding:32 }}>
+      {(kpisLoading || healthLoading) && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+          <Spinner />
+        </div>
+      )}
       <PageHeader
         title="Dashboard Ejecutivo"
         subtitle="Vista C-Level — métricas estratégicas en tiempo real"
@@ -116,7 +122,7 @@ export default function ExecutiveDashboardPage() {
       />
 
       {/* KPI Row */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12, marginBottom:24 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:12, marginBottom:24 }}>
         <KpiCard icon="⬡" label="Proyectos activos" value={activeProjects}
           sub={`${onTrackPct}% en tiempo`} color="var(--accent)" />
         <KpiCard icon="💰" label="Presupuesto consumido" value={`${budgetPct}%`}

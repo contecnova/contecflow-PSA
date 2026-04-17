@@ -171,7 +171,7 @@ class Settings(BaseSettings):
     SLA_P4_RESOLUTION_HOURS: float = Field(default=72.0, env="SLA_P4_RESOLUTION_HOURS")
 
     # ── Redis (Celery broker + KPI cache) ────────────────────────────────────
-    REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
+    REDIS_URL: Optional[str] = Field(default=None, env="REDIS_URL")
     RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION: bool = Field(
         default=True,
         env="RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION",

@@ -377,7 +377,7 @@ function ShortcutsModal({ onClose, text }) {
   )
 }
 
-function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text }) {
+function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }) {
   const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
   const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
   const displayLabel = getNavLabel(item.to, item.label, t)
@@ -392,13 +392,16 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
       <NavLink to={item.to} title={displayLabel} aria-label={displayLabel}
         style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: collapsed ? '7px 9px' : '5px 8px 5px 14px',
+          paddingTop: collapsed ? 7 : 5,
+          paddingBottom: collapsed ? 7 : 5,
+          paddingLeft: collapsed ? 9 : 14,
+          paddingRight: (!collapsed && hover && onPin) ? 28 : (collapsed ? 9 : 8),
           borderRadius: 6, textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
           background: isActive ? 'var(--accent-muted)' : 'transparent',
           color: isActive ? 'var(--accent)' : 'var(--text-2)',
           border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
           transition: 'background 0.1s, color 0.1s', whiteSpace: 'nowrap',
-          minHeight: 28, paddingRight: (!collapsed && hover && onPin) ? 28 : undefined,
+          minHeight: 28,
         })}
       >
         <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -564,7 +567,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
         {displayItems.map(item => (
           <NavItem key={item.to} item={item} collapsed={collapsed}
             alertCount={alertCount} approvalCount={approvalCount}
-            t={t} pinned={pinned} onPin={onPin} />
+            t={t} pinned={pinned} onPin={onPin} text={text} />
         ))}
       </div>
       <div style={{ height: 1, background: 'var(--surface-4)', margin: collapsed ? '5px 0' : '5px 3px' }} />

@@ -553,7 +553,7 @@ def log_time(
     current_user: User = Depends(get_current_user),
 ):
     ticket = get_scoped_ticket_for_ops_or_404(db, current_user, ticket_id)
-    result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.note)
+    result = add_ticket_time(db, ticket, ticket_id, current_user.id, payload.minutes, payload.description)
     _commit_or_rollback(db)
     return result
 

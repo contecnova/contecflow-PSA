@@ -16,8 +16,8 @@ def get_scoped_ticket_or_404(db: Session, current_user: User, ticket_id: str) ->
     return ticket
 
 
-def add_ticket_time(db: Session, ticket: Ticket, ticket_id: str, user_id: str, minutes: int, note: Optional[str] = None) -> dict:
-    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user_id, minutes=minutes, note=note)
+def add_ticket_time(db: Session, ticket: Ticket, ticket_id: str, user_id: str, minutes: int, description: Optional[str] = None) -> dict:
+    time_log = TicketTimeLog(ticket_id=ticket_id, user_id=user_id, minutes=minutes, description=description)
     db.add(time_log)
     ticket.time_spent_minutes = (ticket.time_spent_minutes or 0) + minutes
     return {"ok": True, "total_minutes": ticket.time_spent_minutes}

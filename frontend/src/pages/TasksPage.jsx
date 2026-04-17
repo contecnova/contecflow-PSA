@@ -127,7 +127,7 @@ function TaskDetailModal({ task, open, onClose }) {
     queryFn: () => api.get(`/custom-fields/${task.project_id}`).then(r => r.data),
     enabled: !!task?.project_id,
   })
-  const { data: rawCustomValues = [] } = useQuery({
+  const { data: rawCustomValues } = useQuery({
     queryKey: ['custom-field-values', task?.id],
     queryFn: () => api.get(`/custom-fields/${task.project_id}/values/${task.id}`).then(r => r.data),
     enabled: !!task?.id && !!task?.project_id,
@@ -135,7 +135,7 @@ function TaskDetailModal({ task, open, onClose }) {
   const [customValues, setCustomValues] = useState({})
   useEffect(() => {
     const map = {}
-    rawCustomValues.forEach(v => { map[v.field_id] = v.value ?? '' })
+    ;(rawCustomValues ?? []).forEach(v => { map[v.field_id] = v.value ?? '' })
     setCustomValues(map)
   }, [rawCustomValues])
 

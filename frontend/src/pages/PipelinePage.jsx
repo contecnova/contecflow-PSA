@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
-import { Button, Modal, Spinner, ClientSelect } from '../components/ui'
+import { Button, Modal, Spinner, ClientSelect, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Megaphone } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
@@ -386,7 +386,9 @@ export default function PipelinePage() {
         ))}
       </div>
 
-      {isLoading ? <Spinner /> : view === 'kanban' ? (
+      {isLoading ? <Spinner /> : !isLoading && summary.open_opportunities === 0 && !Object.values(stages).some(s => s.count > 0) ? (
+        <EmptyState icon="📣" title="No hay oportunidades en el pipeline" description="Crea tu primera oportunidad para comenzar a gestionar el proceso de ventas." ctaLabel="Nueva oportunidad" onCta={() => document.querySelector('[data-action=new-opp]')?.click()} />
+      ) : view === 'kanban' ? (
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16 }}>
           {ACTIVE_STAGES.map(stage => {
             const s = stages[stage.id] || { opportunities: [], count: 0, total_revenue: 0, weighted_revenue: 0 }
