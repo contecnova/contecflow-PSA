@@ -40,7 +40,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0   # Full history for thorough scanning
 
@@ -57,7 +57,7 @@ jobs:
     name: Dependency audit (pip-audit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -100,7 +100,7 @@ jobs:
     name: Validate exception registry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v5
         with:
@@ -122,7 +122,7 @@ jobs:
       matrix:
         language: [python, javascript-typescript]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
