@@ -795,6 +795,7 @@ export default function Layout({ children }) {
   const { prefs, save } = useUserPreferences()
   const { t, lang } = useAppLang()
   const text = LAYOUT_TEXT[lang] || LAYOUT_TEXT.es
+  const { alertCount, approvalCount } = useNotificationBadges()
 
   useEffect(() => {
     const density = prefs?.ui_density || 'normal'
