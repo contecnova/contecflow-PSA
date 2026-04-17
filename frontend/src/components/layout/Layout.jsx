@@ -156,6 +156,9 @@ const LAYOUT_TEXT = {
     workspace_analytics: 'Analitica',
     workspace_ai: 'IA',
     workspace_settings: 'Config',
+    global_search_title: 'Búsqueda global (⌘K)',
+    open_global_search: 'Abrir búsqueda global',
+    search_placeholder: 'Buscar...',
   },
   en: {
     shortcuts: 'Shortcuts',
@@ -175,6 +178,9 @@ const LAYOUT_TEXT = {
     workspace_analytics: 'Analytics',
     workspace_ai: 'AI',
     workspace_settings: 'Settings',
+    global_search_title: 'Global search (⌘K)',
+    open_global_search: 'Open global search',
+    search_placeholder: 'Search...',
   },
 }
 
@@ -1094,6 +1100,7 @@ export default function Layout({ children }) {
           approvalCount={approvalCount}
           t={t}
           allNavItems={allNavItems}
+          text={text}
         />
         {children}
       </main>
