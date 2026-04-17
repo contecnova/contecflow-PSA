@@ -31,6 +31,8 @@ from app.models.mfa import (
     PDFExportJob, BIToken,
 )
 from app.services.audit import audit_log
+from sqlalchemy import or_ as sql_or
+from sqlalchemy.orm import joinedload as jl
 
 _logger = logging.getLogger(__name__)
 
@@ -289,7 +291,6 @@ def budget_by_dept(budgets) -> list:
 
 def estimate_task_hours(task_id: str, db: Session) -> dict:
     """Estimate task hours using historical similar tasks or heuristics + optional Claude API."""
-    from sqlalchemy import or_ as sql_or
 
     task = db.query(Task).options(__import__('sqlalchemy.orm', fromlist=['joinedload']).joinedload(Task.project)).filter(Task.id == task_id).first()
     if not task:
@@ -558,7 +559,6 @@ def accept_ticket_triage(ticket_id: str, accepted: bool, current_user_id: str, d
 
 def compute_scenario(scenario_id: str, db: Session) -> dict:
     """Simulate capacity impact of scenario projects against current team capacity."""
-    from sqlalchemy.orm import joinedload as jl
 
     scenario = db.query(ScenarioModel).options(
         jl(ScenarioModel.projects)
@@ -986,7 +986,6 @@ def get_slack_logs(limit: int, db: Session) -> list:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_budgets(year: Optional[int], department: Optional[str], db: Session) -> list:
-    from sqlalchemy.orm import joinedload as jl
     q = db.query(Budget).options(jl(Budget.entries))
     if year:
         q = q.filter(Budget.year == year)
@@ -1059,7 +1058,6 @@ def approve_budget(budget_id: str, current_user: User, db: Session) -> dict:
 
 
 def get_budget_summary(year: Optional[int], db: Session) -> dict:
-    from sqlalchemy.orm import joinedload as jl
     yr = year or datetime.now().year
     budgets = db.query(Budget).options(jl(Budget.entries)).filter(Budget.year == yr).all()
     total_planned = sum(e.planned for b in budgets for e in b.entries)
@@ -1089,7 +1087,6 @@ def get_budget_summary(year: Optional[int], db: Session) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_scenarios(db: Session) -> list:
-    from sqlalchemy.orm import joinedload as jl
     scenarios = db.query(ScenarioModel).options(
         jl(ScenarioModel.projects),
         jl(ScenarioModel.creator),
@@ -1133,7 +1130,6 @@ def create_scenario(payload_dict: dict, created_by: str, db: Session) -> dict:
 
 
 def get_scenario(scenario_id: str, db: Session) -> dict:
-    from sqlalchemy.orm import joinedload as jl
     s = db.query(ScenarioModel).options(jl(ScenarioModel.projects)).filter(
         ScenarioModel.id == scenario_id
     ).first()
@@ -1215,7 +1211,6 @@ def list_pdf_jobs(user_id: str, db: Session) -> list:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_bi_tokens(db: Session) -> list:
-    from sqlalchemy.orm import joinedload as jl
     tokens = db.query(BIToken).options(jl(BIToken.creator)).all()
     return [{
         "id": t.id, "name": t.name, "tool": t.tool,
@@ -1288,7 +1283,6 @@ def bi_data_timesheets(
     db: Session,
 ) -> list:
     _check_bi_token_auth(raw_token, db)
-    from sqlalchemy.orm import joinedload as jl
     q = db.query(Imputation).options(jl(Imputation.user), jl(Imputation.project))
     if date_from:
         q = q.filter(Imputation.date >= date.fromisoformat(date_from))

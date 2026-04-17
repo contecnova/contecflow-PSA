@@ -14,6 +14,15 @@ import json
 import urllib.request
 import urllib.parse
 from typing import Optional
+from app.models.cab import IntegrationConfig
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
+from app.models.task import Task
+from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.user import User
+from datetime import date as _date
+from sqlalchemy import func, cast, Integer
 
 
 # ── Slack ──────────────────────────────────────────────────────────────────────
@@ -526,7 +535,6 @@ def get_slack_webhook_url(db, org_id: str | None) -> str | None:
 
 def get_active_integration(db, integration_id: str):
     """Return active IntegrationConfig by id, or None."""
-    from app.models.cab import IntegrationConfig
     return db.query(IntegrationConfig).filter(
         IntegrationConfig.id == integration_id,
         IntegrationConfig.is_active == True,
@@ -535,7 +543,6 @@ def get_active_integration(db, integration_id: str):
 
 def link_jira_to_task(db, task_id: str, jira_key: str) -> None:
     """Update task.jira_issue_key if the field exists, then commit."""
-    from app.models.task import Task
     task = db.query(Task).filter(Task.id == task_id).first()
     if task and hasattr(task, "jira_issue_key"):
         task.jira_issue_key = jira_key
@@ -544,7 +551,6 @@ def link_jira_to_task(db, task_id: str, jira_key: str) -> None:
 
 def find_user_by_slack_name(db, user_name: str):
     """Find a Clarive user by Slack username or partial email match."""
-    from app.models.user import User
     return db.query(User).filter(
         (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
     ).first()
@@ -552,7 +558,6 @@ def find_user_by_slack_name(db, user_name: str):
 
 def find_user_by_teams_name(db, teams_name: str):
     """Find a Clarive user by Teams display name (full then first-name fallback)."""
-    from app.models.user import User
     user = db.query(User).filter(User.full_name.ilike(f"%{teams_name}%")).first()
     if not user:
         name_parts = teams_name.split()
@@ -563,8 +568,6 @@ def find_user_by_teams_name(db, teams_name: str):
 
 def slack_create_task_from_text(db, text: str, user) -> dict:
     """Parse text, create a Task in the db, and return a Slack response dict."""
-    from app.models.task import Task, TaskStatus, TaskPriority
-    from app.models.project import Project
     import re
     import uuid
 
@@ -596,11 +599,8 @@ def slack_create_task_from_text(db, text: str, user) -> dict:
 
 def slack_log_time_from_text(db, text: str, user) -> dict:
     """Parse text, create an Imputation in the db, and return a Slack response dict."""
-    from app.models.imputation import Imputation
-    from app.models.project import Project
     import re
     import uuid
-    from datetime import date as _date
 
     if not user:
         return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Clarive. Contacta con el admin."}
@@ -632,8 +632,6 @@ def slack_log_time_from_text(db, text: str, user) -> dict:
 
 def slack_create_ticket_from_text(db, text: str, user) -> dict:
     """Create a Service Desk incident ticket and return a Slack response dict."""
-    from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
-    from sqlalchemy import func, cast, Integer
     import uuid
 
     prefix = "INC"
@@ -665,8 +663,6 @@ def slack_create_ticket_from_text(db, text: str, user) -> dict:
 
 def slack_get_status_by_code(db, code: str) -> dict:
     """Query task or project by code and return a Slack response dict."""
-    from app.models.task import Task
-    from app.models.project import Project
 
     task = db.query(Task).filter(Task.code.ilike(code.upper())).first()
     if task:
@@ -703,7 +699,6 @@ def slack_help_response() -> dict:
 
 
 def build_block_kit_message(event_type: str, payload: dict) -> dict:
-    from app.core.config import settings
     base_url = settings.FRONTEND_URL or "http://localhost:3000"
 
     if event_type == "task_overdue":

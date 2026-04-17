@@ -20,6 +20,16 @@ from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.user import User, UserRole
+from app.models.billing_reports import FinancialApprovalAuditLog
+from app.models.billing_reports import ApprovalRequest
+from app.models.billing_reports import ApprovalWorkflow
+from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow
+from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow, ApprovalDecision
+from app.models.billing_reports import ApprovalStep
+from app.models.billing_reports import ApprovalRequest, FinancialApprovalAuditLog
+from datetime import timedelta
+from fastapi import HTTPException
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +52,6 @@ def log_financial_approval_event(
 ) -> None:
     if entity_type not in _FINANCIAL_ENTITY_TYPES:
         return
-    from app.models.billing_reports import FinancialApprovalAuditLog
     db.add(FinancialApprovalAuditLog(
         id=str(uuid.uuid4()),
         request_id=request_id,
@@ -60,7 +69,6 @@ def log_financial_approval_event(
 # ── Scope / helpers ────────────────────────────────────────────────────────────
 
 def scope_request_query(q, db: Session, current_user: User):
-    from app.models.billing_reports import ApprovalRequest
     if current_user.is_superadmin or not current_user.organization_id:
         return q
     org_user_ids = db.query(User.id).filter(
@@ -70,7 +78,6 @@ def scope_request_query(q, db: Session, current_user: User):
 
 
 def find_default_workflow(entity_type: str, db: Session):
-    from app.models.billing_reports import ApprovalWorkflow
     return db.query(ApprovalWorkflow).filter(
         ApprovalWorkflow.entity_type == entity_type,
         ApprovalWorkflow.is_default == True,
@@ -123,8 +130,6 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
     Returns serialised ApprovalRequest dict (caller should use _request_out).
     Raises HTTPException if no workflow found.
     """
-    from fastapi import HTTPException
-    from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow
 
     wf_id = payload.workflow_id
     if not wf_id:
@@ -186,12 +191,6 @@ def decide_approval_request(
     Returns the updated ApprovalRequest ORM object.
     Raises HTTPException on validation failures.
     """
-    from fastapi import HTTPException
-    from app.models.billing_reports import (
-        ApprovalRequest,
-        ApprovalWorkflow,
-        ApprovalDecision,
-    )
 
     req = db.query(ApprovalRequest).options(
         joinedload(ApprovalRequest.decisions)
@@ -288,7 +287,6 @@ def decide_approval_request(
 
 def get_pending_for_user(db: Session, current_user: User) -> list:
     """Return all pending ApprovalRequests where the current user is the step approver."""
-    from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow
 
     pending_q = db.query(ApprovalRequest).filter(
         ApprovalRequest.status == "pending"
@@ -325,7 +323,6 @@ def get_pending_for_user(db: Session, current_user: User) -> list:
 # ── Workflow CRUD ──────────────────────────────────────────────────────────────
 
 def list_workflows(db: Session, entity_type: Optional[str] = None):
-    from app.models.billing_reports import ApprovalWorkflow
     q = db.query(ApprovalWorkflow)
     if entity_type:
         q = q.filter(ApprovalWorkflow.entity_type == entity_type)
@@ -333,7 +330,6 @@ def list_workflows(db: Session, entity_type: Optional[str] = None):
 
 
 def create_workflow(db: Session, payload_dict: dict):
-    from app.models.billing_reports import ApprovalWorkflow
     if payload_dict.get("is_default"):
         db.query(ApprovalWorkflow).filter(
             ApprovalWorkflow.entity_type == payload_dict["entity_type"]
@@ -346,12 +342,10 @@ def create_workflow(db: Session, payload_dict: dict):
 
 
 def get_workflow(db: Session, workflow_id: str):
-    from app.models.billing_reports import ApprovalWorkflow
     return db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
 
 
 def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
-    from app.models.billing_reports import ApprovalWorkflow
     w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
     if not w:
         return None
@@ -364,7 +358,6 @@ def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
 
 
 def delete_workflow(db: Session, workflow_id: str) -> bool:
-    from app.models.billing_reports import ApprovalWorkflow
     w = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
     if not w:
         return False
@@ -376,7 +369,6 @@ def delete_workflow(db: Session, workflow_id: str) -> bool:
 # ── Step CRUD ──────────────────────────────────────────────────────────────────
 
 def add_workflow_step(db: Session, workflow_id: str, payload_dict: dict):
-    from app.models.billing_reports import ApprovalStep
     w = get_workflow(db, workflow_id)
     if not w:
         return None
@@ -388,7 +380,6 @@ def add_workflow_step(db: Session, workflow_id: str, payload_dict: dict):
 
 
 def update_workflow_step(db: Session, workflow_id: str, step_id: str, payload_dict: dict):
-    from app.models.billing_reports import ApprovalStep
     _fk_fields = {"approver_user_id", "escalate_to_user_id"}
     s = db.query(ApprovalStep).filter(
         ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
@@ -405,7 +396,6 @@ def update_workflow_step(db: Session, workflow_id: str, step_id: str, payload_di
 
 
 def delete_workflow_step(db: Session, workflow_id: str, step_id: str):
-    from app.models.billing_reports import ApprovalStep
     s = db.query(ApprovalStep).filter(
         ApprovalStep.id == step_id, ApprovalStep.workflow_id == workflow_id
     ).first()
@@ -425,7 +415,6 @@ def list_approval_requests(
     entity_type: Optional[str] = None,
     mine: bool = True,
 ):
-    from app.models.billing_reports import ApprovalRequest
     q = db.query(ApprovalRequest).options(
         joinedload(ApprovalRequest.requester),
         joinedload(ApprovalRequest.decisions),
@@ -441,9 +430,6 @@ def list_approval_requests(
 
 
 def cancel_approval_request(db: Session, request_id: str, current_user: User):
-    from datetime import datetime, timezone
-    from fastapi import HTTPException
-    from app.models.billing_reports import ApprovalRequest
     req = scope_request_query(
         db.query(ApprovalRequest), db, current_user
     ).filter(ApprovalRequest.id == request_id).first()
@@ -467,7 +453,6 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
 
 
 def get_financial_audit_entries(db: Session, request_id: str, current_user: User):
-    from app.models.billing_reports import ApprovalRequest, FinancialApprovalAuditLog
     req = scope_request_query(
         db.query(ApprovalRequest), db, current_user
     ).filter(ApprovalRequest.id == request_id).first()
@@ -483,8 +468,6 @@ def get_financial_audit_entries(db: Session, request_id: str, current_user: User
 
 
 def get_approval_stats(db: Session, current_user: User) -> dict:
-    from sqlalchemy import func
-    from app.models.billing_reports import ApprovalRequest
     q = scope_request_query(db.query(ApprovalRequest), db, current_user)
     total    = q.count()
     pending  = q.filter(ApprovalRequest.status == "pending").count()
@@ -618,4 +601,155 @@ def serialize_approval_request(r) -> dict:
             }
             for d in (r.decisions or [])
         ],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIMEOUT PROCESSING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def process_approval_timeouts(db: Session) -> dict:
+    """Process timed-out approval steps: escalate, auto-approve or reject."""
+
+    now = datetime.now(timezone.utc)
+    pending = db.query(ApprovalRequest).filter(
+        ApprovalRequest.status == "pending",
+        ApprovalRequest.step_started_at.isnot(None),
+    ).all()
+
+    processed = escalated = auto_approved = rejected = 0
+
+    for req in pending:
+        step = (
+            db.query(ApprovalStep)
+            .filter(
+                ApprovalStep.workflow_id == req.workflow_id,
+                ApprovalStep.step_order == req.current_step,
+            )
+            .first()
+        )
+        if not step:
+            continue
+
+        timeout_hours = step.timeout_hours or 72
+        deadline = req.step_started_at + timedelta(hours=timeout_hours)
+        if now < deadline:
+            continue
+
+        processed += 1
+        on_timeout = step.on_timeout or "escalate"
+
+        if on_timeout == "auto_approve":
+            req.status = "approved"
+            req.final_decision = "approved"
+            req.final_note = f"Auto-aprobado por timeout ({timeout_hours}h)"
+            req.completed_at = now
+            auto_approved += 1
+        elif on_timeout == "reject":
+            req.status = "rejected"
+            req.final_decision = "rejected"
+            req.final_note = f"Rechazado por timeout ({timeout_hours}h)"
+            req.completed_at = now
+            rejected += 1
+        else:
+            if step.escalate_to_user_id:
+                req.step_started_at = now
+                try:
+                    notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
+                except Exception:
+                    pass
+            escalated += 1
+
+    db.commit()
+    return {"processed": processed, "escalated": escalated, "auto_approved": auto_approved, "rejected": rejected}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIMEOUT PROCESSING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def process_approval_timeouts(db: Session) -> dict:
+    """
+    Scan all pending ApprovalRequests and apply the configured on_timeout action
+    (escalate | auto_approve | reject) for every step that has exceeded its
+    timeout_hours budget.  Returns a summary dict.
+    """
+
+    now = datetime.now(timezone.utc)
+    pending = (
+        db.query(ApprovalRequest)
+        .filter(
+            ApprovalRequest.status == "pending",
+            ApprovalRequest.step_started_at.isnot(None),
+        )
+        .all()
+    )
+
+    processed = escalated = auto_approved = rejected = 0
+
+    for req in pending:
+        step = (
+            db.query(ApprovalStep)
+            .filter(
+                ApprovalStep.workflow_id == req.workflow_id,
+                ApprovalStep.step_order == req.current_step,
+            )
+            .first()
+        )
+        if not step:
+            continue
+
+        timeout_hours = step.timeout_hours or 72
+        deadline = req.step_started_at + timedelta(hours=timeout_hours)
+        if now < deadline:
+            continue
+
+        processed += 1
+        action = step.on_timeout or "escalate"
+
+        if action == "auto_approve":
+            wf = db.query(ApprovalWorkflow).options(
+                joinedload(ApprovalWorkflow.steps)
+            ).filter(ApprovalWorkflow.id == req.workflow_id).first()
+            next_steps = []
+            if wf:
+                next_steps = sorted(
+                    [s for s in wf.steps if s.step_order > req.current_step and not s.is_optional],
+                    key=lambda s: s.step_order,
+                )
+            if next_steps:
+                req.current_step = next_steps[0].step_order
+                req.step_started_at = now
+            else:
+                req.status = "approved"
+                req.final_decision = "approved"
+                req.completed_at = now
+            auto_approved += 1
+
+        elif action == "reject":
+            req.status = "rejected"
+            req.final_decision = "rejected"
+            req.final_note = f"Auto-rejected: step {req.current_step} timed out after {timeout_hours}h"
+            req.completed_at = now
+            rejected += 1
+
+        else:  # escalate (default)
+            if step.escalate_to_user_id:
+                req.step_started_at = now
+                notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
+            else:
+                req.status = "rejected"
+                req.final_decision = "rejected"
+                req.final_note = (
+                    f"Auto-rejected: step {req.current_step} timed out and no escalatee configured"
+                )
+                req.completed_at = now
+            escalated += 1
+
+    db.commit()
+    return {
+        "processed": processed,
+        "escalated": escalated,
+        "auto_approved": auto_approved,
+        "rejected": rejected,
     }

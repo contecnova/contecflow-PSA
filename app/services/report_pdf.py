@@ -4,6 +4,12 @@ report_pdf.py — Generación de PDF de informes con ReportLab
 import io
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 
 def generate_report_pdf(
@@ -17,15 +23,6 @@ def generate_report_pdf(
     """
     Genera un PDF de informe y devuelve los bytes.
     """
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-    from reportlab.lib import colors
-    from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        HRFlowable
-    )
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(

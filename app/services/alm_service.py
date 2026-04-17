@@ -11,13 +11,23 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from app.models.alm import ALMContract, ALMLicense, ALMAsset, ALMVendor
+from app.models.alm import ALMVendor
+from app.models.alm import ALMContract
+from app.models.alm import ALMLicense
+from app.models.alm import ALMLicense, ALMLicenseAssignment
+from app.models.alm import ALMLicenseAssignment
+from app.models.alm import ALMAsset
+from app.models.alm import ALMCostCenter
+from app.models.alm import ALMSoftwareInstall
+from datetime import date as _date
+from datetime import date as d_
 
 
 # ── Input cleaner ─────────────────────────────────────────────────────────────
 
 def clean_input(data: dict, model_cls, date_fields=None, int_fields=None, float_fields=None) -> dict:
     """Limpia el dict del frontend: '' → None, tipos correctos, ignora campos sin columna."""
-    from datetime import date as _date
 
     date_fields  = date_fields  or []
     int_fields   = int_fields   or []
@@ -193,7 +203,6 @@ def serialize_asset(a) -> dict:
 # ── Dashboard / KPIs ─────────────────────────────────────────────────────────
 
 def get_alm_dashboard(db: Session) -> dict:
-    from app.models.alm import ALMContract, ALMLicense, ALMAsset, ALMVendor
 
     today = date.today()
     in_60 = today + timedelta(days=60)
@@ -252,7 +261,6 @@ def get_alm_dashboard(db: Session) -> dict:
 # ── Vendor record operations ──────────────────────────────────────────────────
 
 def list_vendors_records(q: Optional[str], category: Optional[str], db: Session) -> list:
-    from app.models.alm import ALMVendor
 
     query = db.query(ALMVendor)
     if q:
@@ -263,7 +271,6 @@ def list_vendors_records(q: Optional[str], category: Optional[str], db: Session)
 
 
 def create_vendor_record(data: dict, db: Session) -> dict:
-    from app.models.alm import ALMVendor
 
     clean = clean_input(data, ALMVendor)
     v = ALMVendor(**clean)
@@ -274,7 +281,6 @@ def create_vendor_record(data: dict, db: Session) -> dict:
 
 
 def get_vendor_record(vid: str, db: Session) -> dict:
-    from app.models.alm import ALMVendor
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid).first()
     if not v:
@@ -283,7 +289,6 @@ def get_vendor_record(vid: str, db: Session) -> dict:
 
 
 def update_vendor_record(vid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMVendor
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid).first()
     if not v:
@@ -297,7 +302,6 @@ def update_vendor_record(vid: str, data: dict, db: Session) -> dict:
 
 
 def delete_vendor_record(vid: str, db: Session) -> dict:
-    from app.models.alm import ALMVendor
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid).first()
     if not v:
@@ -315,7 +319,6 @@ def list_contracts_records(
     expiring_days: Optional[int],
     db: Session,
 ) -> list:
-    from app.models.alm import ALMContract
 
     query = db.query(ALMContract)
     if vendor_id:
@@ -333,7 +336,6 @@ def list_contracts_records(
 
 
 def create_contract_record(data: dict, created_by_id: str, db: Session) -> dict:
-    from app.models.alm import ALMContract
 
     clean = clean_input(
         data, ALMContract,
@@ -350,7 +352,6 @@ def create_contract_record(data: dict, created_by_id: str, db: Session) -> dict:
 
 
 def get_contract_record(cid: str, db: Session) -> dict:
-    from app.models.alm import ALMContract
 
     c = db.query(ALMContract).filter(ALMContract.id == cid).first()
     if not c:
@@ -359,8 +360,6 @@ def get_contract_record(cid: str, db: Session) -> dict:
 
 
 def update_contract_record(cid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMContract
-    from datetime import date as d_
 
     c = db.query(ALMContract).filter(ALMContract.id == cid).first()
     if not c:
@@ -380,7 +379,6 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
 
 
 def delete_contract_record(cid: str, db: Session) -> dict:
-    from app.models.alm import ALMContract
 
     c = db.query(ALMContract).filter(ALMContract.id == cid).first()
     if not c:
@@ -399,7 +397,6 @@ def list_licenses_records(
     compliance_only: bool,
     db: Session,
 ) -> list:
-    from app.models.alm import ALMLicense
 
     query = db.query(ALMLicense)
     if vendor_id:
@@ -418,7 +415,6 @@ def list_licenses_records(
 
 
 def create_license_record(data: dict, db: Session) -> dict:
-    from app.models.alm import ALMLicense
 
     clean = clean_input(
         data, ALMLicense,
@@ -434,7 +430,6 @@ def create_license_record(data: dict, db: Session) -> dict:
 
 
 def get_license_record(lid: str, db: Session) -> dict:
-    from app.models.alm import ALMLicense
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid).first()
     if not lic:
@@ -458,7 +453,6 @@ def get_license_record(lid: str, db: Session) -> dict:
 
 
 def update_license_record(lid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMLicense
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid).first()
     if not lic:
@@ -477,7 +471,6 @@ def update_license_record(lid: str, data: dict, db: Session) -> dict:
 
 
 def delete_license_record(lid: str, db: Session) -> dict:
-    from app.models.alm import ALMLicense
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid).first()
     if not lic:
@@ -488,7 +481,6 @@ def delete_license_record(lid: str, db: Session) -> dict:
 
 
 def assign_license_record(lid: str, data: dict, assigned_by_id: str, db: Session) -> dict:
-    from app.models.alm import ALMLicense, ALMLicenseAssignment
 
     lic = db.query(ALMLicense).filter(ALMLicense.id == lid).first()
     if not lic:
@@ -522,7 +514,6 @@ def assign_license_record(lid: str, data: dict, assigned_by_id: str, db: Session
 
 
 def revoke_assignment_record(lid: str, aid: str, db: Session) -> dict:
-    from app.models.alm import ALMLicenseAssignment
 
     a = db.query(ALMLicenseAssignment).filter(
         ALMLicenseAssignment.id == aid,
@@ -544,7 +535,6 @@ def list_assets_records(
     q: Optional[str],
     db: Session,
 ) -> list:
-    from app.models.alm import ALMAsset
 
     query = db.query(ALMAsset)
     if type:
@@ -564,7 +554,6 @@ def list_assets_records(
 
 
 def create_asset_record(data: dict, db: Session) -> dict:
-    from app.models.alm import ALMAsset
 
     clean = clean_input(
         data, ALMAsset,
@@ -580,7 +569,6 @@ def create_asset_record(data: dict, db: Session) -> dict:
 
 
 def get_asset_record(aid: str, db: Session) -> dict:
-    from app.models.alm import ALMAsset
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid).first()
     if not a:
@@ -594,7 +582,6 @@ def get_asset_record(aid: str, db: Session) -> dict:
 
 
 def update_asset_record(aid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMAsset
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid).first()
     if not a:
@@ -613,7 +600,6 @@ def update_asset_record(aid: str, data: dict, db: Session) -> dict:
 
 
 def delete_asset_record(aid: str, db: Session) -> dict:
-    from app.models.alm import ALMAsset
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid).first()
     if not a:
@@ -624,7 +610,6 @@ def delete_asset_record(aid: str, db: Session) -> dict:
 
 
 def assign_asset_record(aid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMAsset
 
     a = db.query(ALMAsset).filter(ALMAsset.id == aid).first()
     if not a:
@@ -641,7 +626,6 @@ def assign_asset_record(aid: str, data: dict, db: Session) -> dict:
 # ── Cost center record operations ─────────────────────────────────────────────
 
 def list_cost_centers_records(db: Session) -> list:
-    from app.models.alm import ALMCostCenter
 
     return [
         {
@@ -654,7 +638,6 @@ def list_cost_centers_records(db: Session) -> list:
 
 
 def create_cost_center_record(data: dict, db: Session) -> dict:
-    from app.models.alm import ALMCostCenter
 
     clean = clean_input(data, ALMCostCenter, float_fields=["budget_annual"])
     c = ALMCostCenter(**clean)
@@ -665,7 +648,6 @@ def create_cost_center_record(data: dict, db: Session) -> dict:
 
 
 def update_cost_center_record(cid: str, data: dict, db: Session) -> dict:
-    from app.models.alm import ALMCostCenter
 
     c = db.query(ALMCostCenter).filter(ALMCostCenter.id == cid).first()
     if not c:
@@ -678,7 +660,6 @@ def update_cost_center_record(cid: str, data: dict, db: Session) -> dict:
 
 
 def delete_cost_center_record(cid: str, db: Session) -> dict:
-    from app.models.alm import ALMCostCenter
 
     c = db.query(ALMCostCenter).filter(ALMCostCenter.id == cid).first()
     if not c:
@@ -691,7 +672,6 @@ def delete_cost_center_record(cid: str, db: Session) -> dict:
 # ── Software install record operations ────────────────────────────────────────
 
 def add_install_record(aid: str, data: dict, installed_by_id: str, db: Session) -> dict:
-    from app.models.alm import ALMSoftwareInstall
 
     license_id = data.get("license_id")
     if not license_id:
@@ -709,7 +689,6 @@ def add_install_record(aid: str, data: dict, installed_by_id: str, db: Session) 
 
 
 def remove_install_record(aid: str, iid: str, db: Session) -> dict:
-    from app.models.alm import ALMSoftwareInstall
 
     inst = db.query(ALMSoftwareInstall).filter(
         ALMSoftwareInstall.id == iid,
@@ -725,7 +704,6 @@ def remove_install_record(aid: str, iid: str, db: Session) -> dict:
 # ── Compliance report ─────────────────────────────────────────────────────────
 
 def get_compliance_report(db: Session) -> dict:
-    from app.models.alm import ALMLicense
 
     today = date.today()
     issues = []

@@ -13,6 +13,7 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User
 from . import register_metric
+from app.models.clients import Client
 
 
 def _month_label(d) -> str:
@@ -373,7 +374,6 @@ def metric_revenue_by_client(
         q = q.filter(Project.id.in_(project_ids))
 
     # Get client names
-    from app.models.clients import Client
     client_q = db.query(Client.id, Client.name)
     client_names = {c.id: c.name for c in client_q.all()}
 

@@ -22,6 +22,12 @@ from app.models.pipeline import PipelineStageConfig, Opportunity
 from app.models.billing_reports import Invoice
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
+from app.models.custom_fields import ProjectCustomField, ProjectCustomFieldValue
+from app.models.expenses import Expense
+from app.models.imputation import Imputation
+from app.models.service_desk import Ticket
+from app.models.task import Task
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +168,6 @@ def get_booking_conflicts(
     threshold_pct: float,
     db: Session,
 ) -> dict:
-    from collections import defaultdict
 
     q = db.query(Booking)
     if user_id:
@@ -216,7 +221,6 @@ def get_gantt_leveling(
     end_date: Optional[date],
     db: Session,
 ) -> dict:
-    from collections import defaultdict
 
     q = db.query(Booking)
     if project_id:
@@ -366,7 +370,6 @@ def list_action_types_data() -> dict:
 
 
 def test_custom_field_trigger_record(payload: dict, db: Session) -> dict:
-    from app.models.custom_fields import ProjectCustomField, ProjectCustomFieldValue
 
     field_key = payload.get("field_key")
     entity_type = payload.get("entity_type", "task")
@@ -429,11 +432,6 @@ def run_adhoc_query(
     limit: int,
     db: Session,
 ) -> dict:
-    from app.models.imputation import Imputation
-    from app.models.task import Task
-    from app.models.billing_reports import Invoice
-    from app.models.expenses import Expense
-    from app.models.service_desk import Ticket
 
     results = []
 
@@ -551,9 +549,6 @@ def run_analytics_drilldown(
     page_size: int,
     db: Session,
 ) -> dict:
-    from app.models.imputation import Imputation
-    from app.models.task import Task
-    from app.models.billing_reports import Invoice
 
     offset = (page - 1) * page_size
     rows = []
@@ -617,8 +612,6 @@ def run_analytics_drilldown(
 
 
 def run_analytics_cross_filter(payload: dict, db: Session) -> dict:
-    from app.models.imputation import Imputation
-    from app.models.task import Task
 
     active = payload.get("active_filters", {})
     metrics = payload.get("metrics", ["task_count"])

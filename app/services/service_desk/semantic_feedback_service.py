@@ -1,9 +1,10 @@
 from fastapi import BackgroundTasks
+from app.db.session import SessionLocal
+from app.models.semantic_engine import SemAssignment
+from app.services.semantic_classifier import SemanticAssigner
 
 
 def enqueue_profile_refresh(background_tasks: BackgroundTasks, user_id: str) -> None:
-    from app.db.session import SessionLocal
-    from app.services.semantic_classifier import SemanticAssigner
 
     def _run():
         db = SessionLocal()
@@ -18,8 +19,6 @@ def enqueue_profile_refresh(background_tasks: BackgroundTasks, user_id: str) -> 
 
 
 def enqueue_reassign_feedback(background_tasks: BackgroundTasks, item_id: str, item_type: str) -> None:
-    from app.db.session import SessionLocal
-    from app.models.semantic_engine import SemAssignment
 
     def _run():
         db = SessionLocal()

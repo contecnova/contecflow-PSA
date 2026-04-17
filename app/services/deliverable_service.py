@@ -116,7 +116,6 @@ STATUS_CFG = {
 # ── Serialization helper ──────────────────────────────────────────────────
 
 def serialize_deliverable(d) -> dict:
-    from datetime import date
     cfg = STATUS_CFG.get(d.status, STATUS_CFG["planned"])
     on_time = None
     if d.planned_date and d.delivered_date:

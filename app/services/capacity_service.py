@@ -10,6 +10,8 @@ from app.models.financial import CapacityPlan
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User, UserStatus
+from app.db.session import is_postgres
+from datetime import timedelta
 
 
 # ── User helpers ─────────────────────────────────────────────────────────────
@@ -48,7 +50,6 @@ def get_actual_hours_by_week(
     date_to: date,
 ):
     """Return rows of (user_id, week_label, hours) for the given date range."""
-    from app.db.session import is_postgres
 
     if is_postgres():
         week_expr = func.date_trunc("week", Imputation.date)
@@ -146,6 +147,5 @@ def get_plans_for_leveling(
 
 def get_weeks(from_date: date, num_weeks: int) -> List[date]:
     """Return a list of *num_weeks* Monday dates starting from the week of *from_date*."""
-    from datetime import timedelta
     monday = from_date - timedelta(days=from_date.weekday())
     return [monday + timedelta(weeks=i) for i in range(num_weeks)]

@@ -352,6 +352,8 @@ class ApprovalRequest(Base):
     requested_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     current_step = Column(Integer, default=1)
     status       = Column(String(30), default="pending")  # pending | approved | rejected | cancelled
+    # Timeout tracking: set when a step becomes active, reset on step advance
+    step_started_at = Column(DateTime(timezone=True), nullable=True)
     # Resultado final
     final_decision = Column(String(20), nullable=True)
     final_note     = Column(Text, nullable=True)

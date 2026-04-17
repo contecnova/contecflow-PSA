@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.documents import Document
 from app.models.esign import ESignEnvelope, ESignProvider, ESignSigner, ESignStatus
+from app.core.config import settings
 
 
 # ── Read helpers ──────────────────────────────────────────────────────────────
@@ -178,12 +179,10 @@ def update_envelope_from_webhook(
 # ── Provider helpers ───────────────────────────────────────────────────────────
 
 def docusign_configured() -> bool:
-    from app.core.config import settings
     return bool(settings.DOCUSIGN_INTEGRATION_KEY and settings.DOCUSIGN_ACCOUNT_ID)
 
 
 def adobe_configured() -> bool:
-    from app.core.config import settings
     return bool(settings.ADOBE_SIGN_CLIENT_ID)
 
 

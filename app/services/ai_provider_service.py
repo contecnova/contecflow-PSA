@@ -19,6 +19,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.encryption import encrypt_value, decrypt_value
+from app.models.ai_providers import AIProvider
+from app.models.ai_providers import AIProvider, AIUsageLog
+from app.models.user import User
+from sqlalchemy import func as sqlfunc
 
 _logger = logging.getLogger("ai_provider_service")
 
@@ -279,7 +283,6 @@ def call_provider(provider, messages: list, system: str = None,
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list:
-    from app.models.ai_providers import AIProvider
     q = db.query(AIProvider)
     if not is_superadmin and organization_id:
         q = q.filter(AIProvider.organization_id == organization_id)
@@ -287,7 +290,6 @@ def list_providers(db: Session, *, is_superadmin: bool, organization_id) -> list
 
 
 def _clear_default(db: Session, *, is_superadmin: bool, organization_id) -> None:
-    from app.models.ai_providers import AIProvider
     q = db.query(AIProvider)
     if not is_superadmin and organization_id:
         q = q.filter(AIProvider.organization_id == organization_id)
@@ -296,7 +298,6 @@ def _clear_default(db: Session, *, is_superadmin: bool, organization_id) -> None
 
 def create_provider(db: Session, *, organization_id, created_by, data: dict,
                     is_superadmin: bool) -> object:
-    from app.models.ai_providers import AIProvider
     count_q = db.query(AIProvider)
     if not is_superadmin and organization_id:
         count_q = count_q.filter(AIProvider.organization_id == organization_id)
@@ -324,7 +325,6 @@ def create_provider(db: Session, *, organization_id, created_by, data: dict,
 
 
 def get_provider(db: Session, pid: str, *, is_superadmin: bool, organization_id) -> object | None:
-    from app.models.ai_providers import AIProvider
     q = db.query(AIProvider).filter(AIProvider.id == pid)
     if not is_superadmin and organization_id:
         q = q.filter(AIProvider.organization_id == organization_id)
@@ -356,7 +356,6 @@ def delete_provider(db: Session, provider) -> None:
 
 def set_default_provider(db: Session, pid: str, *, is_superadmin: bool,
                          organization_id) -> object | None:
-    from app.models.ai_providers import AIProvider
     _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
     q = db.query(AIProvider).filter(AIProvider.id == pid)
     if not is_superadmin and organization_id:
@@ -381,9 +380,6 @@ def update_provider_test_result(db: Session, provider, *, success: bool,
 
 
 def get_stats(db: Session, *, is_superadmin: bool, organization_id) -> dict:
-    from app.models.ai_providers import AIProvider, AIUsageLog
-    from app.models.user import User
-    from sqlalchemy import func as sqlfunc
     p_q = db.query(AIProvider)
     l_q = db.query(
         AIUsageLog.module,
@@ -409,7 +405,6 @@ def get_stats(db: Session, *, is_superadmin: bool, organization_id) -> dict:
 
 def get_default_provider(db: Session):
     """Return the default (or first active) provider."""
-    from app.models.ai_providers import AIProvider
     p = db.query(AIProvider).filter(
         AIProvider.is_default == True, AIProvider.status != "error"
     ).first()
@@ -433,7 +428,6 @@ def call_ai(
     Selects configured provider (or default), makes the call, logs usage.
     Returns the response text.
     """
-    from app.models.ai_providers import AIProvider, AIUsageLog
 
     if provider_id:
         p = db.query(AIProvider).filter(AIProvider.id == provider_id).first()

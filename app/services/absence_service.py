@@ -12,6 +12,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.resources import Absence, AbsenceStatus, AbsenceType
 from app.models.settings import Holiday
 from app.models.user import User
+from app.core.config import settings as app_settings
+from app.models.user import UserRole
+from datetime import timedelta
+from datetime import date, timedelta
 
 
 # ── Queries ────────────────────────────────────────────────────────────────────
@@ -29,7 +33,6 @@ def list_absences(
     status: Optional[str] = None,
     limit: int = 50,
 ) -> list[Absence]:
-    from app.models.user import UserRole
 
     q = db.query(Absence).options(joinedload(Absence.user))
     if not is_superadmin and organization_id:
@@ -64,7 +67,6 @@ def get_my_absences(db: Session, user_id: str) -> list[Absence]:
 
 
 def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
-    from app.core.config import settings as app_settings
 
     try:
         from app.models.advanced_config import UserVacationBalance
@@ -154,7 +156,6 @@ def get_team_absences(
     user_id: Optional[str] = None,
     status: Optional[str] = None,
 ) -> list[Absence]:
-    from datetime import timedelta
 
     q = db.query(Absence).options(joinedload(Absence.user), joinedload(Absence.approver))
     if month:
@@ -293,7 +294,6 @@ STATUS_CFG = {
 
 def count_working_days(start, end, holidays: list) -> float:
     """Count working days between two dates excluding weekends and holidays."""
-    from datetime import date, timedelta
     holiday_dates = set()
     for h in holidays:
         if isinstance(h, date):

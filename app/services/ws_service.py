@@ -57,13 +57,15 @@ def consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
     return client_id
 
 from sqlalchemy.orm import Session
+from app.models.client_portal import ClientMessage
+from app.models.enterprise import Notification
+from app.models.service_desk import Ticket, TicketComment, TicketStatus
 
 
 def get_unread_notifications(
     db: Session, user_id: str
 ) -> Tuple[int, List[Any]]:
     """Devuelve (count, notifs) de notificaciones no leídas del usuario."""
-    from app.models.enterprise import Notification
 
     q = (
         db.query(Notification)
@@ -77,7 +79,6 @@ def get_unread_notifications(
 
 def mark_notification_read(db: Session, notification_id: str, user_id: str) -> None:
     """Marca una notificación como leída si pertenece al usuario."""
-    from app.models.enterprise import Notification
 
     notif = (
         db.query(Notification)
@@ -97,8 +98,6 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
       - open_tickets: tickets abiertos del cliente
       - recent_public_comments: respuestas públicas recientes en sus tickets
     """
-    from app.models.client_portal import ClientMessage
-    from app.models.service_desk import Ticket, TicketComment, TicketStatus
 
     # Mensajes no leídos por el cliente (enviados por el equipo interno)
     unread_messages: int = (

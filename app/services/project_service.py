@@ -18,14 +18,27 @@ from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from app.db.session import is_postgres
+from app.models.clients import Client
+from app.models.financial import ProjectMilestone
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.project import ProjectMember
+from app.models.project import Project, ProjectStatus
+from app.models.project import Project, ProjectPhase
+from app.models.task import Task, TaskStatus
+from app.models.task import Task as _Task
+from app.models.user import UserRole
+from app.models.user import User as UserModel
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 
 # ── Code generation ────────────────────────────────────────────────────────────
 
 def build_project_code(db: Session) -> str:
     """Generate a unique project code (PRJ-NNNN) with optimistic locking on Postgres."""
-    from app.models.project import Project
-    from app.db.session import is_postgres
 
     if is_postgres():
         row = db.execute(
@@ -60,9 +73,6 @@ def empty_enrichment() -> dict:
 
 def enrich_projects_batch(project_ids: list, db: Session) -> dict:
     """Return enrichment metrics for multiple projects in a minimal set of queries."""
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.models.project import ProjectMember
 
     if not project_ids:
         return {}
@@ -150,9 +160,6 @@ def calculate_evm(project_id: str, db: Session) -> dict:
     Calcula indicadores EVM completos para un proyecto:
     BAC, PV, EV, AC, CPI, SPI, CV, SV, EAC, ETC, VAC, TCPI.
     """
-    from app.models.project import Project
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
 
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -246,9 +253,6 @@ def calculate_evm(project_id: str, db: Session) -> dict:
 
 def calculate_evm_portfolio(db: Session) -> list:
     """EVM summary for all active/on-hold projects."""
-    from app.models.project import Project, ProjectStatus
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
 
     active = db.query(Project).filter(
         Project.status.in_([ProjectStatus.active, ProjectStatus.on_hold])
@@ -314,10 +318,6 @@ def calculate_evm_portfolio(db: Session) -> list:
 
 def scope_projects_query(q, db: Session, current_user):
     """Apply org isolation and role-based visibility rules to a Project query."""
-    from app.models.project import Project
-    from app.models.imputation import Imputation
-    from app.models.task import Task as _Task
-    from app.models.user import UserRole
 
     if not current_user.is_superadmin and current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
@@ -346,7 +346,6 @@ def list_milestones_payload(
     date_to: Optional[str],
     status: Optional[str],
 ) -> list:
-    from app.models.financial import ProjectMilestone
 
     q = db.query(ProjectMilestone)
     if project_id:
@@ -384,9 +383,6 @@ def list_milestones_payload(
 
 def get_project_scoped_or_404(db: Session, project_id: str, current_user):
     """Fetch project with joinedloads + org isolation. Raises 404 on cross-tenant access."""
-    from app.models.project import Project
-    from fastapi import HTTPException
-    from sqlalchemy.orm import joinedload
 
     project = (
         db.query(Project)
@@ -408,9 +404,6 @@ def get_project_scoped_or_404(db: Session, project_id: str, current_user):
 
 def create_project_record(db: Session, payload, current_user):
     """Build, flush, and return a new Project (with phases, code generation, org isolation, retry on code clash)."""
-    from app.models.project import Project, ProjectPhase
-    from app.models.user import UserRole
-    from sqlalchemy.exc import IntegrityError
 
     phases_data = payload.phases or []
     project_data = payload.model_dump(exclude={"phases"})
@@ -447,7 +440,6 @@ def create_project_record(db: Session, payload, current_user):
 
 def apply_project_update(db: Session, project, data: dict) -> None:
     """Apply update data to a project instance — handles optimistic locking and client_name sync."""
-    from fastapi import HTTPException
 
     if "version" in data:
         client_version = data.pop("version")
@@ -460,7 +452,6 @@ def apply_project_update(db: Session, project, data: dict) -> None:
             )
 
     if "client_id" in data and data["client_id"] and data["client_id"] != project.client_id:
-        from app.models.clients import Client
         new_client = db.query(Client).filter(Client.id == data["client_id"]).first()
         if new_client and "client_name" not in data:
             data["client_name"] = new_client.name
@@ -471,8 +462,6 @@ def apply_project_update(db: Session, project, data: dict) -> None:
 
 
 def cancel_project_record(db: Session, project_id: str) -> dict:
-    from app.models.project import Project, ProjectStatus
-    from fastapi import HTTPException
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -484,8 +473,6 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
 
 def add_project_phase_record(db: Session, project_id: str, payload):
     """Create, persist, and return a new ProjectPhase after verifying the project exists."""
-    from app.models.project import Project, ProjectPhase
-    from fastapi import HTTPException
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -501,8 +488,6 @@ def add_project_phase_record(db: Session, project_id: str, payload):
 
 def get_project_team_users(db: Session, project_id: str) -> list:
     """Return distinct User objects with imputations on the project."""
-    from app.models.user import User as UserModel
-    from app.models.imputation import Imputation
 
     return (
         db.query(UserModel)
@@ -514,8 +499,6 @@ def get_project_team_users(db: Session, project_id: str) -> list:
 
 
 def list_members_payload(db: Session, project_id: str) -> list:
-    from app.models.project import ProjectMember
-    from sqlalchemy.orm import joinedload
 
     members = (
         db.query(ProjectMember)
@@ -541,8 +524,6 @@ def list_members_payload(db: Session, project_id: str) -> list:
 
 def add_member_record(db: Session, project_id: str, data: dict):
     """Validate, persist, commit, and return a new ProjectMember. Raises on duplicate."""
-    from app.models.project import ProjectMember
-    from fastapi import HTTPException
 
     if not data.get("user_id"):
         raise HTTPException(422, "user_id es obligatorio")
@@ -568,8 +549,6 @@ def add_member_record(db: Session, project_id: str, data: dict):
 
 
 def get_member_or_404(db: Session, project_id: str, member_id: str):
-    from app.models.project import ProjectMember
-    from fastapi import HTTPException
 
     m = db.query(ProjectMember).filter(
         ProjectMember.id == member_id,
@@ -584,14 +563,11 @@ def get_member_or_404(db: Session, project_id: str, member_id: str):
 
 def get_projects_base_query(db: Session):
     """Return a base Project query with project_manager joinedload."""
-    from app.models.project import Project
-    from sqlalchemy.orm import joinedload
     return db.query(Project).options(joinedload(Project.project_manager))
 
 
 def get_project_by_id(db: Session, project_id: str):
     """Fetch a project by id without org scoping."""
-    from app.models.project import Project
     return db.query(Project).filter(Project.id == project_id).first()
 
 

@@ -25,6 +25,7 @@ from app.models.cmdb import (
     SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday,
 )
+from app.models.sprints import SprintTask
 
 logger = logging.getLogger(__name__)
 
@@ -504,7 +505,6 @@ def get_kanban_board(
 
     q = db.query(Task).filter(Task.project_id == project_id)
     if sprint_id:
-        from app.models.sprints import SprintTask
         sids = {st.task_id for st in db.query(SprintTask).filter(
             SprintTask.sprint_id == sprint_id).all()}
         q = q.filter(Task.id.in_(sids))

@@ -18,6 +18,15 @@ from app.models.epics import (
     Epic, EpicTask, EpicDependency,
     SavedFilter, TaskStateSnapshot, Mention, ThreadedComment,
 )
+from app.models.epics import WikiTemplate as _WT
+from app.models.project import Project
+from app.models.task import Task
+from datetime import date
+from datetime import date, timedelta
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload as _jl
 
 
 # ── Wiki page serialisers ─────────────────────────────────────────────────────
@@ -111,7 +120,6 @@ def parse_nql(nql: str) -> dict:
 # ── Wiki Spaces ───────────────────────────────────────────────────────────────
 
 def list_wiki_spaces(project_id, db) -> list:
-    from sqlalchemy.orm import joinedload
     q = db.query(WikiSpace).options(joinedload(WikiSpace.pages))
     if project_id:
         q = q.filter(WikiSpace.project_id == project_id)
@@ -125,7 +133,6 @@ def list_wiki_spaces(project_id, db) -> list:
 
 
 def create_wiki_space(data: dict, created_by_id, db) -> dict:
-    from fastapi import HTTPException
     if db.query(WikiSpace).filter(WikiSpace.slug == data["slug"]).first():
         raise HTTPException(400, f"Ya existe un espacio con slug '{data['slug']}'")
     s = WikiSpace(**data, created_by=created_by_id)
@@ -134,7 +141,6 @@ def create_wiki_space(data: dict, created_by_id, db) -> dict:
 
 
 def update_wiki_space(space_id: str, data: dict, db) -> dict:
-    from fastapi import HTTPException
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id).first()
     if not s: raise HTTPException(404, "Espacio no encontrado")
     for k, v in data.items(): setattr(s, k, v)
@@ -143,7 +149,6 @@ def update_wiki_space(space_id: str, data: dict, db) -> dict:
 
 
 def delete_wiki_space(space_id: str, db) -> dict:
-    from fastapi import HTTPException
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id).first()
     if not s: raise HTTPException(404, "Espacio no encontrado")
     db.delete(s); db.commit()
@@ -162,7 +167,6 @@ def list_wiki_pages(space_id: str, db) -> list:
 def create_wiki_page(space_id: str, title: str, slug: str, content,
                      parent_id, is_published: bool, sort_order: int,
                      created_by_id, db) -> dict:
-    from fastapi import HTTPException
     if not db.query(WikiSpace).filter(WikiSpace.id == space_id).first():
         raise HTTPException(404, "Espacio no encontrado")
     content_json = json.dumps(content or [])
@@ -185,7 +189,6 @@ def create_wiki_page(space_id: str, title: str, slug: str, content,
 
 
 def get_wiki_page(page_id: str, db) -> dict:
-    from fastapi import HTTPException
     page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
     if not page: raise HTTPException(404, "Página no encontrada")
     return serialize_page_full(page)
@@ -194,8 +197,6 @@ def get_wiki_page(page_id: str, db) -> dict:
 def update_wiki_page(page_id: str, title: str, slug: str, content,
                      parent_id, sort_order: int, is_published: bool,
                      change_note: str, updated_by_id, db) -> dict:
-    from sqlalchemy import func
-    from fastapi import HTTPException
     page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
     if not page: raise HTTPException(404, "Página no encontrada")
     content_json = json.dumps(content or [])
@@ -220,7 +221,6 @@ def update_wiki_page(page_id: str, title: str, slug: str, content,
 
 
 def delete_wiki_page(page_id: str, db) -> dict:
-    from fastapi import HTTPException
     page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
     if not page: raise HTTPException(404, "Página no encontrada")
     kids = db.query(WikiPage).filter(WikiPage.parent_id == page_id).count()
@@ -241,8 +241,6 @@ def list_page_versions(page_id: str, db) -> list:
 
 
 def restore_wiki_version(page_id: str, version_num: int, restored_by_id, db) -> dict:
-    from sqlalchemy import func
-    from fastapi import HTTPException
     ver = db.query(WikiVersion).filter(
         WikiVersion.page_id == page_id,
         WikiVersion.version_num == version_num).first()
@@ -275,14 +273,12 @@ def search_wiki_pages(q: str, space_id, db) -> list:
 # ── Wiki Templates ────────────────────────────────────────────────────────────
 
 def list_wiki_templates(db) -> list:
-    from app.models.epics import WikiTemplate as _WT
     ts = db.query(_WT).order_by(_WT.is_system.desc(), _WT.name).all()
     return [{"id": t.id, "name": t.name, "description": t.description,
              "icon": t.icon, "is_system": t.is_system} for t in ts]
 
 
 def create_wiki_template(name: str, description, icon, content, created_by_id, db) -> dict:
-    from app.models.epics import WikiTemplate as _WT
     t = _WT(name=name, description=description, icon=icon,
             content=json.dumps(content or []), created_by=created_by_id)
     db.add(t); db.commit(); db.refresh(t)
@@ -292,7 +288,6 @@ def create_wiki_template(name: str, description, icon, content, created_by_id, d
 # ── Wiki Comments ─────────────────────────────────────────────────────────────
 
 def list_wiki_page_comments(page_id: str, db) -> list:
-    from sqlalchemy.orm import joinedload as _jl
     def _ser(c):
         return {"id": c.id, "content": c.content, "created_by": c.created_by,
                 "is_resolved": c.is_resolved,
@@ -314,7 +309,6 @@ def add_wiki_page_comment(page_id: str, content: str, parent_id, created_by_id, 
 
 
 def resolve_wiki_page_comment(comment_id: str, db) -> dict:
-    from fastapi import HTTPException
     c = db.query(WikiComment).filter(WikiComment.id == comment_id).first()
     if not c: raise HTTPException(404, "Comentario no encontrado")
     c.is_resolved = True; db.commit()
@@ -324,7 +318,6 @@ def resolve_wiki_page_comment(comment_id: str, db) -> dict:
 # ── Epics CRUD ────────────────────────────────────────────────────────────────
 
 def list_epics_records(project_id: str, db) -> list:
-    from sqlalchemy.orm import joinedload as _jl
     epics = (db.query(Epic)
              .options(_jl(Epic.epic_tasks))
              .filter(Epic.project_id == project_id)
@@ -333,8 +326,6 @@ def list_epics_records(project_id: str, db) -> list:
 
 
 def create_epic_record(data: dict, project_id: str, created_by_id, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.project import Project
     if not db.query(Project).filter(Project.id == project_id).first():
         raise HTTPException(404, "Proyecto no encontrado")
     e = Epic(**data, project_id=project_id, created_by=created_by_id)
@@ -343,9 +334,6 @@ def create_epic_record(data: dict, project_id: str, created_by_id, db) -> dict:
 
 
 def get_epic_record(epic_id: str, db) -> dict:
-    from sqlalchemy.orm import joinedload as _jl
-    from fastapi import HTTPException
-    from app.models.task import Task
     e = (db.query(Epic)
          .options(_jl(Epic.epic_tasks), _jl(Epic.dependencies))
          .filter(Epic.id == epic_id).first())
@@ -363,7 +351,6 @@ def get_epic_record(epic_id: str, db) -> dict:
 
 
 def update_epic_record(epic_id: str, data: dict, db) -> dict:
-    from fastapi import HTTPException
     e = db.query(Epic).filter(Epic.id == epic_id).first()
     if not e: raise HTTPException(404, "Épica no encontrada")
     for k, v in data.items(): setattr(e, k, v)
@@ -372,7 +359,6 @@ def update_epic_record(epic_id: str, data: dict, db) -> dict:
 
 
 def delete_epic_record(epic_id: str, db) -> dict:
-    from fastapi import HTTPException
     e = db.query(Epic).filter(Epic.id == epic_id).first()
     if not e: raise HTTPException(404, "Épica no encontrada")
     db.delete(e); db.commit()
@@ -380,8 +366,6 @@ def delete_epic_record(epic_id: str, db) -> dict:
 
 
 def add_task_to_epic_record(epic_id: str, task_id: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task
     if not db.query(Epic).filter(Epic.id == epic_id).first():
         raise HTTPException(404, "Épica no encontrada")
     if not db.query(Task).filter(Task.id == task_id).first():
@@ -398,7 +382,6 @@ def remove_task_from_epic_record(epic_id: str, task_id: str, db) -> dict:
 
 
 def add_epic_dependency(epic_id: str, depends_on_id: str, db) -> dict:
-    from fastapi import HTTPException
     if epic_id == depends_on_id:
         raise HTTPException(400, "Una épica no puede depender de sí misma")
     if not db.query(EpicDependency).filter(
@@ -417,8 +400,6 @@ def remove_epic_dependency(epic_id: str, depends_on_id: str, db) -> dict:
 
 
 def get_roadmap_data(project_id: str, db) -> dict:
-    from sqlalchemy.orm import joinedload as _jl
-    from app.models.task import Task
     epics = (db.query(Epic)
              .options(_jl(Epic.epic_tasks), _jl(Epic.dependencies))
              .filter(Epic.project_id == project_id)
@@ -444,9 +425,6 @@ def get_roadmap_data(project_id: str, db) -> dict:
 # ── NQL ───────────────────────────────────────────────────────────────────────
 
 def execute_nql_search(entity_type: str, query: str, limit: int, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task
-    from app.models.project import Project
     conds = parse_nql(query)
 
     if entity_type == "task":
@@ -498,7 +476,6 @@ def create_saved_filter(data: dict, created_by_id, db) -> dict:
 
 
 def delete_saved_filter(filter_id: str, user_id, db) -> dict:
-    from fastapi import HTTPException
     f = db.query(SavedFilter).filter(
         SavedFilter.id == filter_id, SavedFilter.created_by == user_id).first()
     if not f: raise HTTPException(404, "Filtro no encontrado")
@@ -509,9 +486,6 @@ def delete_saved_filter(filter_id: str, user_id, db) -> dict:
 # ── CFD (Cumulative Flow Diagram) ─────────────────────────────────────────────
 
 def take_cfd_snapshot(project_id: str, sprint_id, db) -> dict:
-    from datetime import date
-    from sqlalchemy import func
-    from app.models.task import Task
     today = date.today().isoformat()
     db.query(TaskStateSnapshot).filter(
         TaskStateSnapshot.project_id == project_id,
@@ -529,7 +503,6 @@ def take_cfd_snapshot(project_id: str, sprint_id, db) -> dict:
 
 
 def get_cfd_data(project_id: str, sprint_id, days: int, db) -> dict:
-    from datetime import date, timedelta
     since = (date.today() - timedelta(days=days)).isoformat()
     q = db.query(TaskStateSnapshot).filter(
         TaskStateSnapshot.project_id == project_id,
@@ -571,7 +544,6 @@ def mark_all_mentions_read(user_id, db) -> dict:
 # ── Threaded Comments ─────────────────────────────────────────────────────────
 
 def list_threaded_comments(entity_type: str, entity_id: str, db) -> list:
-    from sqlalchemy.orm import joinedload as _jl
     def _ser(c):
         return {"id": c.id, "content": c.content, "created_by": c.created_by,
                 "is_resolved": c.is_resolved,
@@ -598,7 +570,6 @@ def add_threaded_comment(entity_type: str, entity_id: str, content: str,
 
 
 def edit_threaded_comment(comment_id: str, content: str, user_id, db) -> dict:
-    from fastapi import HTTPException
     c = db.query(ThreadedComment).filter(
         ThreadedComment.id == comment_id,
         ThreadedComment.created_by == user_id).first()
@@ -608,7 +579,6 @@ def edit_threaded_comment(comment_id: str, content: str, user_id, db) -> dict:
 
 
 def resolve_threaded_comment(comment_id: str, db) -> dict:
-    from fastapi import HTTPException
     c = db.query(ThreadedComment).filter(ThreadedComment.id == comment_id).first()
     if not c: raise HTTPException(404, "Comentario no encontrado")
     c.is_resolved = True; db.commit()
@@ -616,7 +586,6 @@ def resolve_threaded_comment(comment_id: str, db) -> dict:
 
 
 def delete_threaded_comment(comment_id: str, user_id, db) -> dict:
-    from fastapi import HTTPException
     c = db.query(ThreadedComment).filter(
         ThreadedComment.id == comment_id,
         ThreadedComment.created_by == user_id).first()

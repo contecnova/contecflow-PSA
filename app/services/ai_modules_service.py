@@ -13,6 +13,25 @@ from sqlalchemy import func
 
 from app.core.config import settings
 from app.services.ai_dispatch import call_ai
+from app.core.security import verify_client_token
+from app.models.ai_chat import AIActionLog
+from app.models.ai_chat import AIPrediction
+from app.models.ai_chat import AIVoiceCommand
+from app.models.ai_chat import AIMeeting
+from app.models.ai_chat import AIMeeting, AIMeetingAction
+from app.models.ai_chat import AIContract
+from app.models.ai_chat import AIContract, AIContractClause
+from app.models.ai_chat import AIKBArticle
+from app.models.ai_chat import AIClientChatSession, AIClientChatMessage
+from app.models.ai_chat import AIAgentExecution as _Exec
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.service_desk import Ticket
+from app.models.task import Task
+from app.models.user import User
+from app.worker import run_agent_task
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 _log = logging.getLogger(__name__)
 
@@ -76,7 +95,6 @@ def compute_kb_embedding(db, article_id: str, text: str):
 
 def log_action(db, user_id, module, action_type, input_s=None, output_s=None,
                entities=None, tokens=0, latency=0, status="success"):
-    from app.models.ai_chat import AIActionLog
     db.add(AIActionLog(
         user_id=user_id, module=module, action_type=action_type,
         input_summary=(input_s or "")[:300], output_summary=(output_s or "")[:300],
@@ -193,12 +211,6 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
     Runs all rule-based risk analyses and stores results as AIPrediction records.
     Returns { ok, methodology, alerts_generated, alerts, run_at }.
     """
-    from app.models.project import Project
-    from app.models.task import Task
-    from app.models.imputation import Imputation
-    from app.models.service_desk import Ticket
-    from app.models.user import User
-    from app.models.ai_chat import AIPrediction
 
     now       = datetime.now(timezone.utc)
     generated = []
@@ -431,11 +443,6 @@ def openai_key_from_db(db) -> Optional[str]:
 
 def process_voice_core(transcript: str, db, current_user) -> dict:
     """Shared voice command processing logic."""
-    from app.models.project import Project
-    from app.models.task import Task
-    from app.models.service_desk import Ticket
-    from app.models.imputation import Imputation
-    from app.models.ai_chat import AIVoiceCommand
     import re as _re
 
     t0 = time.time()
@@ -541,8 +548,6 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
             result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
 
     elif intent == "other" and len(transcript.strip()) > 20:
-        from app.models.ai_chat import AIAgentExecution as _Exec
-        from app.worker import run_agent_task
         exec_record = _Exec(
             user_id=current_user.id,
             instruction=transcript,
@@ -586,8 +591,6 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
 
 def get_client_project_data(client_user, db: Session) -> dict:
     """Get sanitized project data for client portal."""
-    from app.models.project import Project
-    from app.models.task import Task
 
     projects = db.query(Project).filter(
         Project.client_name.ilike(f"%{getattr(client_user, 'company', '')}%")
@@ -726,7 +729,6 @@ def predict_overrun_ml(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_predictions(db: Session, severity=None, prediction_type=None, only_unacked: bool = True):
-    from app.models.ai_chat import AIPrediction
     q = db.query(AIPrediction)
     if severity:        q = q.filter(AIPrediction.severity == severity)
     if prediction_type: q = q.filter(AIPrediction.prediction_type == prediction_type)
@@ -743,7 +745,6 @@ def list_predictions(db: Session, severity=None, prediction_type=None, only_unac
 
 
 def acknowledge_prediction(db: Session, pred_id: str, user_id: str) -> dict:
-    from app.models.ai_chat import AIPrediction
     pred = db.query(AIPrediction).filter(AIPrediction.id == pred_id).first()
     if not pred:
         raise ValueError("not_found")
@@ -759,8 +760,6 @@ def acknowledge_prediction(db: Session, pred_id: str, user_id: str) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_meetings(db: Session, project_id=None):
-    from app.models.ai_chat import AIMeeting
-    from sqlalchemy.orm import joinedload
     q = db.query(AIMeeting).options(joinedload(AIMeeting.actions))
     if project_id: q = q.filter(AIMeeting.project_id == project_id)
     meetings = q.order_by(AIMeeting.created_at.desc()).limit(50).all()
@@ -777,8 +776,6 @@ def list_meetings(db: Session, project_id=None):
 
 def process_meeting(db: Session, payload, current_user) -> dict:
     import re
-    from app.models.ai_chat import AIMeeting, AIMeetingAction
-    from app.models.user import User
 
     t0 = time.time()
     meeting = AIMeeting(
@@ -864,9 +861,6 @@ Responde SOLO con JSON:
 
 
 def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, current_user) -> dict:
-    from app.models.ai_chat import AIMeeting
-    from app.models.task import Task
-    from sqlalchemy.orm import joinedload
 
     meeting = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
         AIMeeting.id == meeting_id
@@ -894,8 +888,6 @@ def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, curre
 
 
 def get_meeting(db: Session, meeting_id: str) -> dict:
-    from app.models.ai_chat import AIMeeting
-    from sqlalchemy.orm import joinedload
 
     m = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
         AIMeeting.id == meeting_id
@@ -924,8 +916,6 @@ def get_meeting(db: Session, meeting_id: str) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_ai_contracts(db: Session, project_id=None):
-    from app.models.ai_chat import AIContract
-    from sqlalchemy.orm import joinedload
 
     q = db.query(AIContract).options(joinedload(AIContract.clauses))
     if project_id: q = q.filter(AIContract.project_id == project_id)
@@ -943,7 +933,6 @@ def list_ai_contracts(db: Session, project_id=None):
 
 def analyze_contract(db: Session, payload, current_user) -> dict:
     import re
-    from app.models.ai_chat import AIContract, AIContractClause
 
     t0 = time.time()
     contract = AIContract(
@@ -1035,7 +1024,6 @@ Responde SOLO con JSON:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_kb(db: Session, published_only: bool = False, category=None):
-    from app.models.ai_chat import AIKBArticle
     q = db.query(AIKBArticle)
     if published_only: q = q.filter(AIKBArticle.is_published == True)
     if category:       q = q.filter(AIKBArticle.category == category)
@@ -1052,8 +1040,6 @@ def list_kb(db: Session, published_only: bool = False, category=None):
 
 def generate_kb_from_ticket(db: Session, ticket_id: str, current_user) -> dict:
     import re
-    from app.models.ai_chat import AIKBArticle
-    from app.models.service_desk import Ticket
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
@@ -1105,8 +1091,6 @@ Responde SOLO con JSON:
 
 
 def search_kb(db: Session, query: str) -> list:
-    from app.models.ai_chat import AIKBArticle
-    from sqlalchemy import or_
 
     articles = kb_vector_search(db, query, limit=10)
     if not articles:
@@ -1130,7 +1114,6 @@ def search_kb(db: Session, query: str) -> list:
 
 
 def rebuild_kb_embeddings(db: Session) -> dict:
-    from app.models.ai_chat import AIKBArticle
     articles = db.query(AIKBArticle).all()
     count = 0
     for a in articles:
@@ -1140,7 +1123,6 @@ def rebuild_kb_embeddings(db: Session) -> dict:
 
 
 def update_kb(db: Session, article_id: str, payload: dict, current_user) -> dict:
-    from app.models.ai_chat import AIKBArticle
     article = db.query(AIKBArticle).filter(AIKBArticle.id == article_id).first()
     if not article:
         raise ValueError("not_found")
@@ -1168,8 +1150,6 @@ Datos disponibles del proyecto:
 
 
 def client_portal_chat(db: Session, payload: dict) -> dict:
-    from app.models.ai_chat import AIClientChatSession, AIClientChatMessage
-    from app.core.security import verify_client_token
 
     client_token = payload.get("client_token")
     message      = payload.get("message", "")
@@ -1229,7 +1209,6 @@ def client_portal_chat(db: Session, payload: dict) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
-    from app.models.imputation import Imputation
 
     now   = datetime.utcnow()
     start = (now.replace(day=1) - timedelta(days=365)).replace(day=1)
@@ -1310,9 +1289,6 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
 def smart_schedule(db: Session, payload, current_user) -> dict:
     import re as _re
     import json as _json
-    from app.models.task import Task
-    from app.models.user import User
-    from app.models.imputation import Imputation
 
     q = db.query(Task).filter(Task.start_date == None, Task.due_date == None)
     if payload.project_id:
@@ -1372,9 +1348,6 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_overrun_prediction_data(db: Session, project_id: str) -> dict:
-    from app.models.project import Project
-    from app.models.task import Task
-    from app.models.imputation import Imputation
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:

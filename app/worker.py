@@ -45,6 +45,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.jira_periodic_sync",
         "schedule": crontab(minute="*/30"),
     },
+    # Approval timeout escalation — check every hour
+    "process-approval-timeouts": {
+        "task": "app.worker.process_approval_timeouts",
+        "schedule": crontab(minute=0),  # every hour at :00
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -505,5 +510,24 @@ def jira_periodic_sync():
         log.error(f"Jira periodic sync failed: {exc}")
         db.rollback()
         raise
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.process_approval_timeouts")
+def process_approval_timeouts():
+    """
+    Scan all pending ApprovalRequests and fire timeout actions for overdue steps.
+
+    Runs every hour (configured in beat_schedule).  For each step that has
+    exceeded its timeout_hours, applies on_timeout: escalate | auto_approve | reject.
+    """
+    from app.db.session import SessionLocal
+    from app.services.approval_engine import process_approval_timeouts as _process
+
+    db = SessionLocal()
+    try:
+        result = _process(db)
+        return result
     finally:
         db.close()

@@ -14,6 +14,29 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.activity import ActivityEvent
+from app.models.activity import ProjectHealthSnapshot
+from app.models.activity import RecurringTask
+from app.models.activity import RecurringTask, RecurringFreqType
+from app.models.activity import ResourceDemandForecast
+from app.models.activity import VendorScore
+from app.models.alm import ALMVendor
+from app.models.bookings import TaskDependency
+from app.models.enterprise import Notification
+from app.models.enterprise import NotificationType
+from app.models.epics import Mention
+from app.models.financial import Timesheet, ProjectMilestone
+from app.models.imputation import Imputation
+from app.models.mfa import Budget
+from app.models.nps import ClientHealthSnapshot
+from app.models.pipeline import Opportunity, OpportunityStage
+from app.models.pipeline import Opportunity
+from app.models.project import Project
+from app.models.project import Project, ProjectStatus
+from app.models.task import Task
+from app.models.task import Task, TaskStatus
+from app.models.task import Task as TaskModel
+from fastapi import HTTPException
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -32,7 +55,6 @@ def emit_activity(
     target_id: Optional[str] = None,
     target_name: Optional[str] = None,
 ) -> None:
-    from app.models.activity import ActivityEvent
     event = ActivityEvent(
         organization_id=getattr(actor, "organization_id", None),
         entity_type=entity_type,
@@ -59,7 +81,6 @@ def create_notification(
     resource_id: Optional[str] = None,
     action_url: Optional[str] = None,
 ) -> None:
-    from app.models.enterprise import Notification
     n = Notification(
         user_id=user_id,
         type=notif_type,
@@ -87,8 +108,6 @@ def parse_and_store_mentions(
     and create Notifications for each mentioned user.
     Returns list of mentioned user_ids found.
     """
-    from app.models.epics import Mention
-    from app.models.enterprise import NotificationType
 
     pattern = r"@([A-Za-z0-9_\-\.]+)"
     tokens = re.findall(pattern, content)
@@ -137,7 +156,6 @@ def parse_and_store_mentions(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_new_notifications(db: Session, user_id: str, since: datetime) -> list:
-    from app.models.enterprise import Notification
     return (
         db.query(Notification)
         .filter(Notification.user_id == user_id, Notification.created_at > since)
@@ -147,7 +165,6 @@ def get_new_notifications(db: Session, user_id: str, since: datetime) -> list:
 
 
 def get_new_activity_events(db: Session, user_id: str, since: datetime) -> list:
-    from app.models.activity import ActivityEvent
     return (
         db.query(ActivityEvent)
         .filter(ActivityEvent.created_at > since, ActivityEvent.actor_id != user_id)
@@ -167,7 +184,6 @@ def activity_feed_payload(
     limit: int,
     before: Optional[str],
 ) -> list:
-    from app.models.activity import ActivityEvent
     q = db.query(ActivityEvent).filter(
         ActivityEvent.entity_type == entity_type,
         ActivityEvent.entity_id == entity_id,
@@ -192,8 +208,6 @@ def activity_feed_payload(
 
 
 def project_activity_payload(db: Session, project_id: str, limit: int) -> list:
-    from app.models.activity import ActivityEvent
-    from app.models.task import Task
     task_ids = [t.id for t in db.query(Task.id).filter(Task.project_id == project_id).all()]
     q = db.query(ActivityEvent).filter(
         ((ActivityEvent.entity_type == "project") & (ActivityEvent.entity_id == project_id)) |
@@ -222,7 +236,6 @@ def my_mentions_payload(
     unread_only: bool,
     limit: int,
 ) -> list:
-    from app.models.epics import Mention
     q = db.query(Mention).filter(Mention.mentioned_user == current_user.id)
     if unread_only:
         q = q.filter(Mention.is_read == False)
@@ -243,8 +256,6 @@ def my_mentions_payload(
 
 
 def mark_mention_read_record(db: Session, mention_id: str, current_user: User) -> dict:
-    from fastapi import HTTPException
-    from app.models.epics import Mention
     m = db.query(Mention).filter(
         Mention.id == mention_id,
         Mention.mentioned_user == current_user.id,
@@ -262,12 +273,6 @@ def mark_mention_read_record(db: Session, mention_id: str, current_user: User) -
 
 def compute_health(db: Session, project_id: str) -> dict:
     """Compute composite health score (0-100) from live signals."""
-    from app.models.task import Task, TaskStatus
-    from app.models.project import Project
-    from app.models.financial import Timesheet, ProjectMilestone
-    from app.models.imputation import Imputation
-    from app.models.mfa import Budget
-    from app.models.nps import ClientHealthSnapshot
 
     today = date.today()
 
@@ -341,9 +346,6 @@ def compute_health(db: Session, project_id: str) -> dict:
 
 
 def project_health_payload(db: Session, project_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.project import Project
-    from app.models.activity import ProjectHealthSnapshot
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404)
@@ -364,9 +366,6 @@ def project_health_payload(db: Session, project_id: str) -> dict:
 
 
 def save_health_snapshot_record(db: Session, project_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.project import Project
-    from app.models.activity import ProjectHealthSnapshot
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404)
@@ -387,7 +386,6 @@ def save_health_snapshot_record(db: Session, project_id: str) -> dict:
 
 
 def portfolio_health_payload(db: Session) -> list:
-    from app.models.project import Project, ProjectStatus
     projects = db.query(Project).filter(
         Project.status.in_([ProjectStatus.active, ProjectStatus.planning])
     ).all()
@@ -415,7 +413,6 @@ def list_recurring_tasks_payload(
     project_id: Optional[str],
     is_active: Optional[bool],
 ) -> list:
-    from app.models.activity import RecurringTask
     q = db.query(RecurringTask)
     if project_id:
         q = q.filter(RecurringTask.project_id == project_id)
@@ -433,8 +430,6 @@ def list_recurring_tasks_payload(
 
 
 def create_recurring_task_record(db: Session, payload, current_user: User) -> dict:
-    from fastapi import HTTPException
-    from app.models.activity import RecurringTask, RecurringFreqType
     try:
         RecurringFreqType(payload.freq)
     except ValueError:
@@ -457,8 +452,6 @@ def create_recurring_task_record(db: Session, payload, current_user: User) -> di
 
 
 def update_recurring_task_record(db: Session, rt_id: str, payload) -> dict:
-    from fastapi import HTTPException
-    from app.models.activity import RecurringTask
     rt = db.query(RecurringTask).filter(RecurringTask.id == rt_id).first()
     if not rt:
         raise HTTPException(404)
@@ -471,8 +464,6 @@ def update_recurring_task_record(db: Session, rt_id: str, payload) -> dict:
 
 
 def delete_recurring_task_record(db: Session, rt_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.activity import RecurringTask
     rt = db.query(RecurringTask).filter(RecurringTask.id == rt_id).first()
     if not rt:
         raise HTTPException(404)
@@ -483,8 +474,6 @@ def delete_recurring_task_record(db: Session, rt_id: str) -> dict:
 
 def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: User) -> dict:
     import re as _re
-    from app.models.activity import RecurringTask, RecurringFreqType
-    from app.models.task import Task as TaskModel
 
     def _next_task_code(session) -> str:
         max_code = session.query(func.max(TaskModel.code)).scalar()
@@ -564,9 +553,6 @@ def materialize_recurring_tasks_cmd(db: Session, dry_run: bool, current_user: Us
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def critical_path_payload(db: Session, project_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskStatus
-    from app.models.bookings import TaskDependency
 
     tasks = db.query(Task).filter(
         Task.project_id == project_id,
@@ -660,8 +646,6 @@ def critical_path_payload(db: Session, project_id: str) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def resource_demand_payload(db: Session, horizon_months: int, min_probability: float) -> dict:
-    from app.models.pipeline import Opportunity, OpportunityStage
-    from app.models.activity import ResourceDemandForecast
 
     today = date.today()
     horizon_end = date(
@@ -717,9 +701,6 @@ def resource_demand_payload(db: Session, horizon_months: int, min_probability: f
 
 
 def create_demand_line_record(db: Session, payload) -> dict:
-    from fastapi import HTTPException
-    from app.models.pipeline import Opportunity
-    from app.models.activity import ResourceDemandForecast
     opp = db.query(Opportunity).filter(Opportunity.id == payload.opportunity_id).first()
     if not opp:
         raise HTTPException(404, "Opportunity not found")
@@ -736,8 +717,6 @@ def create_demand_line_record(db: Session, payload) -> dict:
 
 
 def delete_demand_line_record(db: Session, line_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.activity import ResourceDemandForecast
     line = db.query(ResourceDemandForecast).filter(ResourceDemandForecast.id == line_id).first()
     if not line:
         raise HTTPException(404)
@@ -766,9 +745,6 @@ def score_composite(s) -> float:
 
 
 def vendor_scorecard_payload(db: Session, vendor_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.alm import ALMVendor
-    from app.models.activity import VendorScore
     vendor = db.query(ALMVendor).filter(ALMVendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(404)
@@ -802,9 +778,6 @@ def vendor_scorecard_payload(db: Session, vendor_id: str) -> dict:
 
 
 def add_vendor_score_record(db: Session, vendor_id: str, payload, current_user: User) -> dict:
-    from fastapi import HTTPException
-    from app.models.alm import ALMVendor
-    from app.models.activity import VendorScore
     vendor = db.query(ALMVendor).filter(ALMVendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(404)
@@ -826,8 +799,6 @@ def add_vendor_score_record(db: Session, vendor_id: str, payload, current_user: 
 
 
 def vendor_scorecard_ranking_payload(db: Session) -> list:
-    from app.models.alm import ALMVendor
-    from app.models.activity import VendorScore
     subq = (
         db.query(VendorScore.vendor_id, func.max(VendorScore.evaluated_at).label("last_eval"))
         .group_by(VendorScore.vendor_id)
@@ -859,9 +830,6 @@ def vendor_scorecard_ranking_payload(db: Session) -> list:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskStatus
-    from app.models.project import Project
 
     tasks = db.query(Task).filter(
         Task.project_id == project_id,

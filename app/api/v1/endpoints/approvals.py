@@ -28,6 +28,7 @@ from app.services.approval_engine import (
     cancel_approval_request,
     get_financial_audit_entries,
     get_approval_stats,
+    process_approval_timeouts,
     serialize_step as _step_out,
     serialize_workflow as _workflow_out,
     serialize_approval_request as _request_out,
@@ -235,6 +236,24 @@ def get_financial_audit_log(
             for e in entries
         ],
     }
+
+
+# ── Timeout job ───────────────────────────────────────────────────────────────
+@router.post(
+    "/process-timeouts",
+    summary="Procesar timeouts de aprobaciones vencidas (job manual/cron)",
+)
+def run_approval_timeouts(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """
+    Evalúa todas las solicitudes pendientes y aplica la acción configurada
+    (escalar, auto-aprobar o rechazar) para los pasos que superaron su timeout.
+    En producción lo ejecuta el scheduler periódicamente cada hora.
+    """
+    result = process_approval_timeouts(db)
+    return result
 
 
 # ── Stats ──────────────────────────────────────────────────────────────────────

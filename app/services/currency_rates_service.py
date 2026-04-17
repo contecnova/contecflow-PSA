@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.billing_reports import Invoice, InvoiceStatus
 from app.models.bookings import ExchangeRate
+from app.models.expenses import Expense
 
 
 def list_exchange_rates(
@@ -108,7 +109,6 @@ def get_report_data(
     ref_date: date,
 ) -> tuple:
     """Return (invoices, expenses) for the multi-currency report."""
-    from app.models.expenses import Expense
 
     invoices = db.query(Invoice).filter(Invoice.status != InvoiceStatus.cancelled).all()
     expenses = db.query(Expense).all()

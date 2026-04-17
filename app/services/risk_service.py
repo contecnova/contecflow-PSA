@@ -5,6 +5,7 @@ from datetime import date
 from app.models.pipeline import Risk
 from app.services.numbering import next_numbered_code
 from app.services.risk_scoring import risk_score
+from app.services.risk_scoring import risk_score, risk_level
 
 
 def get_portfolio_risks(db: Session) -> list:
@@ -74,7 +75,6 @@ CATEGORY_LABELS = {"technical": "Técnico", "financial": "Financiero", "schedule
 # ── Serialization helper ──────────────────────────────────────────────────
 
 def serialize_risk(r) -> dict:
-    from app.services.risk_scoring import risk_score, risk_level
     score = r.risk_score or risk_score(r.probability, r.impact)
     return {
         "id": r.id, "code": r.code, "project_id": r.project_id,

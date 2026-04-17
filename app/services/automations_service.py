@@ -10,6 +10,11 @@ from app.models.automations import AutomationRule, AutomationExecution, ActionTy
 from app.models.alert import Alert, AlertType, AlertSeverity
 from app.models.task import Task
 from app.models.user import User
+from app.models.financial import Timesheet
+from app.models.project import Project
+from fastapi import HTTPException
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 
 def serialize_rule(r: AutomationRule) -> dict:
@@ -297,7 +302,6 @@ def fire_trigger(trigger_type: str, context: dict, db: Session):
 
 def run_scheduled_automations(db: Session) -> dict:
     """Execute scheduled automations (timesheet reminders, overdue tasks)."""
-    from app.models.financial import Timesheet
 
     results = {"executed": 0, "errors": 0}
     today = date.today()
@@ -406,9 +410,6 @@ def get_automation_templates() -> list:
 # ── Router-extracted CRUD helpers ─────────────────────────────────────────────
 
 def list_rules_for_user(db: Session, current_user, project_id, is_active):
-    from app.models.project import Project
-    from sqlalchemy import or_
-    from sqlalchemy.orm import joinedload
     q = db.query(AutomationRule).options(joinedload(AutomationRule.project))
     if not current_user.is_superadmin and current_user.organization_id:
         org_user_ids = db.query(User.id).filter(
@@ -433,7 +434,6 @@ def list_rules_for_user(db: Session, current_user, project_id, is_active):
 
 
 def create_rule_db(payload, db: Session, current_user_id: str) -> dict:
-    from sqlalchemy.orm import joinedload
     rule = AutomationRule(
         name=payload.name,
         description=payload.description,
@@ -454,8 +454,6 @@ def create_rule_db(payload, db: Session, current_user_id: str) -> dict:
 
 
 def update_rule_db(rule_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from sqlalchemy.orm import joinedload
     rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
     if not rule:
         raise HTTPException(404, "Regla no encontrada")
@@ -474,7 +472,6 @@ def update_rule_db(rule_id: str, payload, db: Session) -> dict:
 
 
 def delete_rule_db(rule_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
     rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
     if not rule:
         raise HTTPException(404)
@@ -501,7 +498,6 @@ def get_executions_db(rule_id: str, limit: int, db: Session) -> list:
 
 
 def test_rule_by_id(rule_id: str, user_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
     rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
     if not rule:
         raise HTTPException(404)

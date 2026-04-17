@@ -16,6 +16,22 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
+from app.models.expenses import Expense, ExpenseStatus
+from app.models.expenses import Expense
+from app.models.project import Project
+from app.models.project import Project, ProjectStatus
+from app.models.user import User as UserModel
+from app.models.user import User as UserModel, UserRole
+from app.services.audit import audit_log
+from app.services.notifications import notify_user
+from app.services.numbering import next_numbered_code
+from datetime import datetime as _dt
+from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +66,6 @@ def review_expense(
     db: Session,
 ) -> dict:
     """Approve or reject a submitted expense. Sends notification and writes audit log."""
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
-    from app.services.audit import audit_log
-    from app.services.notifications import notify_user
 
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
@@ -106,11 +118,6 @@ def export_expenses_excel(
     Build and return a StreamingResponse with an Excel workbook of filtered expenses.
     """
     import io
-    from fastapi.responses import StreamingResponse
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill, Alignment
-    from app.models.expenses import Expense
-    from app.models.user import User as UserModel
 
     q = db.query(Expense).join(UserModel, Expense.user_id == UserModel.id, isouter=True)
     if date_from:
@@ -182,8 +189,6 @@ async def ocr_receipt(image_bytes: bytes, content_type: str) -> dict:
     import base64
     import json as _json
     import urllib.request
-    from datetime import datetime as _dt
-    from fastapi import HTTPException
 
     if not settings.ANTHROPIC_API_KEY:
         raise HTTPException(503, "API de IA no configurada (ANTHROPIC_API_KEY ausente).")
@@ -265,8 +270,6 @@ def list_my_expenses(
     date_from=None,
     date_to=None,
 ):
-    from sqlalchemy.orm import joinedload
-    from app.models.expenses import Expense
 
     q = db.query(Expense).options(
         joinedload(Expense.project), joinedload(Expense.reviewer)
@@ -279,8 +282,6 @@ def list_my_expenses(
 
 
 def list_pending_expenses(db: Session, project_id: Optional[str] = None):
-    from sqlalchemy.orm import joinedload
-    from app.models.expenses import Expense, ExpenseStatus
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project)
@@ -296,10 +297,6 @@ def list_all_expenses(
     status: Optional[str] = None,
     user_id: Optional[str] = None,
 ):
-    from sqlalchemy import or_
-    from app.models.expenses import Expense
-    from app.models.project import Project
-    from app.models.user import User as UserModel, UserRole
 
     q = db.query(Expense)
     if current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
@@ -329,11 +326,6 @@ def list_team_expenses(
     date_from=None,
     date_to=None,
 ):
-    from sqlalchemy.orm import joinedload
-    from sqlalchemy import or_
-    from app.models.expenses import Expense
-    from app.models.project import Project
-    from app.models.user import User as UserModel
 
     q = db.query(Expense).options(
         joinedload(Expense.user), joinedload(Expense.project), joinedload(Expense.reviewer)
@@ -358,8 +350,6 @@ def list_team_expenses(
 
 
 def list_project_expenses(db: Session, project_id: str):
-    from sqlalchemy.orm import joinedload
-    from app.models.expenses import Expense
 
     return db.query(Expense).options(joinedload(Expense.user)).filter(
         Expense.project_id == project_id,
@@ -370,10 +360,6 @@ def list_project_expenses(db: Session, project_id: str):
 # ── Create / update / delete ───────────────────────────────────────────────────
 
 def create_expense_record(db: Session, payload, user_id: str, code: str):
-    from fastapi import HTTPException
-    from sqlalchemy.orm import joinedload
-    from app.models.expenses import Expense
-    from app.models.project import Project, ProjectStatus
 
     if payload.project_id:
         project = db.query(Project).filter(Project.id == payload.project_id).first()
@@ -402,9 +388,6 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
 
 
 def admin_update_expense(db: Session, expense_id: str, payload):
-    from fastapi import HTTPException
-    from app.models.expenses import Expense
-    from app.models.project import Project, ProjectStatus
 
     e = db.query(Expense).filter(Expense.id == expense_id).first()
     if not e:
@@ -423,8 +406,6 @@ def admin_update_expense(db: Session, expense_id: str, payload):
 
 
 def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
 
     expense = db.query(Expense).filter(
         Expense.id == expense_id, Expense.user_id == user_id
@@ -440,8 +421,6 @@ def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
 
 
 def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
 
     expense = db.query(Expense).filter(
         Expense.id == expense_id, Expense.user_id == user_id
@@ -457,8 +436,6 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
 
 
 def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
 
     expense = db.query(Expense).filter(
         Expense.id == expense_id, Expense.user_id == user_id
@@ -474,8 +451,6 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
 
 
 def reimburse_expense_record(db: Session, expense_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
 
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
     if not expense:
@@ -489,8 +464,6 @@ def reimburse_expense_record(db: Session, expense_id: str) -> dict:
 
 
 def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
-    from fastapi import HTTPException
-    from app.models.expenses import Expense, ExpenseStatus
 
     expense = db.query(Expense).filter(
         Expense.id == expense_id, Expense.user_id == user_id
@@ -519,7 +492,6 @@ CATEGORY_LABELS = {
 
 
 def next_expense_code(db: Session) -> str:
-    from app.services.numbering import next_numbered_code
     return next_numbered_code(db, "expense", prefix="EXP", padding=4)
 
 

@@ -33,6 +33,7 @@ from app.models.sessions import UserSession
 from app.models.user import User, UserRole, UserStatus
 from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
 from app.services.security_observability import SecurityEventService
+from app.models.enterprise import SSOConfig
 
 logger = logging.getLogger(__name__)
 
@@ -588,7 +589,6 @@ def complete_password_reset(db: Session, user: User, new_hash: str) -> None:
 
 def get_active_sso_providers(db: Session):
     """Return list of active SSO provider dicts."""
-    from app.models.enterprise import SSOConfig
     configs = db.query(SSOConfig).filter(SSOConfig.is_active == True).all()
     return [
         {
@@ -603,7 +603,6 @@ def get_active_sso_providers(db: Session):
 
 def get_saml_health(db: Session):
     """Return SAML config health list."""
-    from app.models.enterprise import SSOConfig
     configs = db.query(SSOConfig).filter(SSOConfig.provider == "saml").all()
     out = []
     for c in configs:
@@ -633,7 +632,6 @@ def get_saml_health(db: Session):
 
 def get_sso_config_or_404(db: Session, config_id: str):
     """Return an active SSOConfig or raise 404."""
-    from app.models.enterprise import SSOConfig
     config = db.query(SSOConfig).filter(
         SSOConfig.id == config_id, SSOConfig.is_active == True
     ).first()

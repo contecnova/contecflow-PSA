@@ -7,6 +7,12 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from app.core.config import settings
+from app.models.billing_reports import ScheduledReport
+from app.services.report_pdf import generate_report_pdf
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 logger = logging.getLogger("clarive.scheduled_reports")
 
@@ -64,7 +70,6 @@ def run_due_reports():
 
 def _execute_report(report, db):
     """Genera el PDF y envía el email."""
-    from app.services.report_pdf import generate_report_pdf
 
     # Cargar filtros
     filters = {}
@@ -130,10 +135,6 @@ def _execute_report(report, db):
     )
 
     # Construir email con PDF adjunto
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-    from email.mime.base import MIMEBase
-    from email import encoders
     import smtplib
 
     smtp_host = settings.SMTP_HOST
@@ -188,7 +189,6 @@ def _execute_report(report, db):
 
 def execute_report_now(report_id: str, db) -> dict:
     """Ejecuta un informe inmediatamente (desde el endpoint /run)."""
-    from app.models.billing_reports import ScheduledReport
     report = db.query(ScheduledReport).filter(ScheduledReport.id == report_id).first()
     if not report:
         return {"ok": False, "error": "Informe no encontrado"}

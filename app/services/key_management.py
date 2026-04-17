@@ -20,6 +20,10 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.settings import AppSetting
+from app.core.encryption import decrypt_value, encrypt_value
+from app.models.ai_providers import AIProvider
+from app.models.cab import IntegrationConfig
+from app.models.enterprise import SSOConfig, Webhook
 
 logger = logging.getLogger("clarive.key_management")
 
@@ -238,10 +242,6 @@ def _rotate_jwt_keyring(db) -> bool:
 
 def _rotate_integration_secrets(db) -> int:
     """Re-encrypt sensitive integration secrets with current encryption policy."""
-    from app.core.encryption import decrypt_value, encrypt_value
-    from app.models.ai_providers import AIProvider
-    from app.models.cab import IntegrationConfig
-    from app.models.enterprise import SSOConfig, Webhook
 
     changed = 0
 

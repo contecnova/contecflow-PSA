@@ -11,13 +11,13 @@ from typing import Any, Dict
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.models.clients import Client
+from app.models.nps import ClientNPS
 
 logger = logging.getLogger(__name__)
 
 
 def compute_composite_health(client_id: str, db: Session) -> dict:
-    from app.models.clients import Client
-    from app.models.nps import ClientNPS
 
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:

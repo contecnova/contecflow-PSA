@@ -21,6 +21,9 @@ from dataclasses import dataclass, field
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.models.ai_governance import AIGuardrailPolicyModel
+from app.models.ai_governance import AIGuardrailAuditLog
+from fastapi import HTTPException
 
 logger = logging.getLogger("clarive.ai.governance")
 
@@ -365,7 +368,6 @@ def create_policy(
     priority: int,
     is_active: bool,
 ):
-    from app.models.ai_governance import AIGuardrailPolicyModel
     policy = AIGuardrailPolicyModel(
         id                  = str(uuid.uuid4()),
         org_id              = org_id,
@@ -390,7 +392,6 @@ def create_policy(
 
 
 def list_policies(db: Session, org_id: str, active_only: bool = False):
-    from app.models.ai_governance import AIGuardrailPolicyModel
     q = db.query(AIGuardrailPolicyModel).filter(
         AIGuardrailPolicyModel.org_id == org_id
     )
@@ -401,7 +402,6 @@ def list_policies(db: Session, org_id: str, active_only: bool = False):
 
 
 def get_policy(db: Session, policy_id: str, org_id: str):
-    from app.models.ai_governance import AIGuardrailPolicyModel
     return db.query(AIGuardrailPolicyModel).filter(
         AIGuardrailPolicyModel.id     == policy_id,
         AIGuardrailPolicyModel.org_id == org_id,
@@ -433,7 +433,6 @@ def get_audit_log(
     page: int = 1,
     page_size: int = 50,
 ) -> Tuple[int, list]:
-    from app.models.ai_governance import AIGuardrailAuditLog
     q = db.query(AIGuardrailAuditLog).filter(
         AIGuardrailAuditLog.org_id       == org_id,
         AIGuardrailAuditLog.evaluated_at >= since,
@@ -455,7 +454,6 @@ def get_audit_stats(
     org_id: str,
     since: datetime,
 ) -> Dict[str, Any]:
-    from app.models.ai_governance import AIGuardrailAuditLog
     base = db.query(AIGuardrailAuditLog).filter(
         AIGuardrailAuditLog.org_id       == org_id,
         AIGuardrailAuditLog.evaluated_at >= since,
@@ -532,7 +530,6 @@ def check_output(
 # ── Tenant helpers ─────────────────────────────────────────────────────────
 
 def get_org_id(user) -> str:
-    from fastapi import HTTPException
     if not user.organization_id:
         raise HTTPException(400, "User has no organization")
     return str(user.organization_id)

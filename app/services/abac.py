@@ -13,6 +13,10 @@ from app.models.abac import ABACPolicy, UserAttribute, AttributeDefinition, Poli
 from app.models.user import User
 from app.core.security import get_password_hash
 import uuid
+from app.models.abac import PolicyAudit
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy import func, text
 
 
 class ABACEngine:
@@ -451,7 +455,6 @@ class ABACService:
 
     def get_user_by_id_and_org(self, user_id: str):
         """Return a User in this org or raise 404."""
-        from app.models.user import User
         return (
             self.db.query(User)
             .filter(User.id == user_id, User.organization_id == self.org_id)
@@ -460,7 +463,6 @@ class ABACService:
 
     def list_audit_log(self, user_id: Optional[str], limit: int, offset: int) -> dict:
         """Return paginated ABAC audit log entries for this org."""
-        from app.models.abac import PolicyAudit
         query = self.db.query(PolicyAudit).filter(PolicyAudit.org_id == self.org_id)
         if user_id:
             query = query.filter(PolicyAudit.user_id == user_id)
@@ -472,7 +474,6 @@ class ABACService:
 # ── Admin analytics helpers ───────────────────────────────────────────────────
 
 def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dict:
-    from sqlalchemy import func
     total_policies = db.query(func.count(ABACPolicy.id)).filter(ABACPolicy.org_id == org).scalar() or 0
     active_policies = db.query(func.count(ABACPolicy.id)).filter(
         ABACPolicy.org_id == org, ABACPolicy.is_active == True  # noqa
@@ -512,7 +513,6 @@ def get_admin_overview(db: Session, org: str, since: datetime, days: int) -> dic
 
 
 def get_attribute_summary(db: Session, org: str) -> list:
-    from sqlalchemy import func
     now = datetime.utcnow()
     rows = db.query(
         UserAttribute.attribute_key,
@@ -543,7 +543,6 @@ def get_attribute_summary(db: Session, org: str) -> list:
 
 
 def get_policy_effectiveness(db: Session, org: str, since: datetime, days: int) -> list:
-    from sqlalchemy import func
     policies = db.query(ABACPolicy).filter(ABACPolicy.org_id == org).all()
     result = []
     for p in policies:
@@ -578,7 +577,6 @@ def get_policy_effectiveness(db: Session, org: str, since: datetime, days: int) 
 
 
 def get_access_patterns(db: Session, org: str, since: datetime, days: int, limit: int) -> dict:
-    from sqlalchemy import func, text
     top_denied_users = db.query(
         PolicyAudit.user_id,
         func.count(PolicyAudit.id).label("deny_count"),
@@ -621,7 +619,6 @@ def get_access_patterns(db: Session, org: str, since: datetime, days: int, limit
 
 
 def get_user_access_profile(db: Session, org: str, user_id: str, resource_type: Optional[str]) -> dict:
-    from sqlalchemy import func
     svc = ABACService(db=db, org_id=org)
     attributes = svc.get_user_attributes(user_id)
 
@@ -718,7 +715,6 @@ def get_audit_log(
 
 
 def get_audit_stats(db: Session, org: str, since: datetime, days: int) -> dict:
-    from sqlalchemy import func
     total = db.query(func.count(PolicyAudit.id)).filter(
         PolicyAudit.org_id == org, PolicyAudit.created_at >= since
     ).scalar() or 0
@@ -794,7 +790,6 @@ DEFAULT_ABAC_ATTRIBUTES = [
 # ── Tenant helpers ─────────────────────────────────────────────────────────
 
 def get_org_id(user) -> str:
-    from fastapi import HTTPException
     if not user.organization_id:
         raise HTTPException(400, "User has no organization")
     return str(user.organization_id)

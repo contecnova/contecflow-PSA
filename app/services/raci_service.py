@@ -21,6 +21,21 @@ from app.models.raci import (
     ProjectChangelogEntry,
     UATCase,
 )
+from app.models.project import Project
+from app.models.raci import RACIRole
+from app.models.raci import SprintRetroNote
+from app.models.raci import BurnoutRiskSnapshot
+from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
+from app.models.raci import ProjectChangelogEntry as PCE
+from app.models.raci import UATCase, UATStatus
+from app.models.raci import UATCase
+from app.models.sprints import Sprint as _Sprint
+from app.models.task import Task as _Task, TaskStatus, TaskPriority
+from app.models.user import User as _User
+from app.models.user import User as _User, UserStatus
+from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from datetime import date, timedelta
 
 if TYPE_CHECKING:
     pass   # avoid circular imports at runtime
@@ -273,7 +288,6 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
 # ── RACI Matrix CRUD ──────────────────────────────────────────────────────────
 
 def get_project_raci(project_id: str, db: Session) -> dict:
-    from app.models.project import Project
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -304,10 +318,6 @@ def get_project_raci(project_id: str, db: Session) -> dict:
 
 def upsert_raci(project_id: str, entries_in: list, db: Session) -> dict:
     import json as _json
-    from app.models.project import Project
-    from app.models.user import User as _User
-    from app.models.raci import RACIRole
-    from datetime import datetime, timezone
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -363,8 +373,6 @@ def delete_raci_entry(project_id: str, entry_id: str, db: Session) -> None:
 
 def get_sprint_retrospective(project_id: str, sprint_id: str, db: Session) -> dict:
     import json as _json
-    from app.models.sprints import Sprint as _Sprint
-    from app.models.raci import SprintRetroNote
     sprint = db.query(_Sprint).filter(
         _Sprint.id == sprint_id, _Sprint.project_id == project_id
     ).first()
@@ -392,9 +400,6 @@ def save_sprint_retrospective(
     project_id: str, sprint_id: str, payload, current_user_id: str, db: Session
 ) -> dict:
     import json as _json
-    from datetime import datetime, timezone
-    from app.models.sprints import Sprint as _Sprint
-    from app.models.raci import SprintRetroNote
     sprint = db.query(_Sprint).filter(
         _Sprint.id == sprint_id, _Sprint.project_id == project_id
     ).first()
@@ -434,8 +439,6 @@ def save_sprint_retrospective(
 # ── Burnout Risk ──────────────────────────────────────────────────────────────
 
 def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]", db: Session) -> dict:
-    from datetime import date, datetime, timezone
-    from app.models.user import User as _User, UserStatus
     today = date.today()
     q = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active)
     if department:
@@ -465,9 +468,6 @@ def get_burnout_risk(department: "Optional[str]", min_risk_level: "Optional[str]
 
 def compute_and_save_burnout_snapshots(db: Session) -> dict:
     import json as _json
-    from datetime import date, timedelta
-    from app.models.user import User as _User, UserStatus
-    from app.models.raci import BurnoutRiskSnapshot
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
     users = db.query(_User).filter(_User.is_active == True, _User.status == UserStatus.active).all()
@@ -507,8 +507,6 @@ def compute_and_save_burnout_snapshots(db: Session) -> dict:
 def get_project_changelog(
     project_id: str, entry_type: "Optional[str]", since: "Optional[date]", db: Session
 ) -> dict:
-    from app.models.project import Project
-    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -530,8 +528,6 @@ def get_project_changelog(
 
 
 def create_changelog_entry(project_id: str, payload, author_id: str, db: Session) -> dict:
-    from app.models.project import Project
-    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -560,10 +556,6 @@ def generate_changelog(
     project_id: str, weeks: int, version_tag: "Optional[str]", author_id: str, db: Session
 ) -> dict:
     import json as _json
-    from datetime import date, datetime, timedelta
-    from app.models.project import Project
-    from app.models.task import Task as _Task, TaskStatus, TaskPriority
-    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -626,8 +618,6 @@ def generate_changelog(
 
 
 def update_changelog_entry(project_id: str, entry_id: str, payload, db: Session) -> dict:
-    from datetime import datetime, timezone
-    from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
     entry = db.query(PCE).filter(
         PCE.id == entry_id, PCE.project_id == project_id
     ).first()
@@ -654,7 +644,6 @@ def update_changelog_entry(project_id: str, entry_id: str, payload, db: Session)
 
 
 def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
-    from app.models.raci import ProjectChangelogEntry as PCE
     entry = db.query(PCE).filter(
         PCE.id == entry_id, PCE.project_id == project_id
     ).first()
@@ -669,7 +658,6 @@ def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
 def list_uat_cases(
     project_id: str, status: "Optional[str]", task_id: "Optional[str]", db: Session
 ) -> dict:
-    from app.models.raci import UATCase, UATStatus
     q = db.query(UATCase).filter(UATCase.project_id == project_id)
     if status:
         try:
@@ -690,7 +678,6 @@ def list_uat_cases(
 
 
 def create_uat_case(project_id: str, payload, db: Session) -> dict:
-    from app.models.raci import UATCase, UATStatus
     case = UATCase(
         project_id=project_id,
         task_id=payload.task_id or None,
@@ -710,8 +697,6 @@ def create_uat_case(project_id: str, payload, db: Session) -> dict:
 
 
 def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict:
-    from datetime import datetime, timezone
-    from app.models.raci import UATCase, UATStatus
     case = db.query(UATCase).filter(
         UATCase.id == case_id, UATCase.project_id == project_id
     ).first()
@@ -732,7 +717,6 @@ def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict
 
 
 def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
-    from app.models.raci import UATCase
     case = db.query(UATCase).filter(
         UATCase.id == case_id, UATCase.project_id == project_id
     ).first()
@@ -743,9 +727,6 @@ def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
 
 
 def export_uat_report(project_id: str, db: Session) -> dict:
-    from datetime import datetime, timezone
-    from app.models.project import Project
-    from app.models.raci import UATCase, UATStatus
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")

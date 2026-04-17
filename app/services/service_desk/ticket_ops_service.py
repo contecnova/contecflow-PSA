@@ -50,7 +50,6 @@ def escalate_ticket_level(
 
 def commit_or_rollback(db, detail: str = "Error de transacción") -> None:
     import logging as _logging
-    from fastapi import HTTPException
     _logger = _logging.getLogger(__name__)
     try:
         db.commit()

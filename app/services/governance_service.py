@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.governance import ComplianceEvidence, TenantPolicyPack
+from fastapi import HTTPException
 
 
 def list_tenant_policy_packs(db: Session, organization_id: str) -> list[TenantPolicyPack]:
@@ -119,7 +120,6 @@ def get_evidences_by_framework(
 # ── Tenant helpers ────────────────────────────────────────────────────────────
 
 def get_org_id(user) -> str:
-    from fastapi import HTTPException
     if not user.organization_id:
         raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
     return user.organization_id

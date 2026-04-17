@@ -37,6 +37,42 @@ from app.models.resources import ChangeRequest
 from app.models.task import Task
 from app.models.imputation import Imputation
 from app.models.pipeline import Risk
+from app.core.encryption import encrypt_value
+from app.core.secret_utils import encrypt_config_secrets
+from app.db.session import SessionLocal
+from app.models.billing_reports import Invoice as Inv
+from app.models.bookings import WorkflowQueueItem
+from app.models.cab import CABVote, ChangeRequestWindow
+from app.models.cab import CABVote
+from app.models.cab import MaintenanceWindow
+from app.models.cab import MaintenanceWindow, ChangeRequestWindow
+from app.models.cab import EmailTemplate
+from app.models.cab import EmailTemplate, EmailLog
+from app.models.cab import EmailLog
+from app.models.cab import GDPRRequest
+from app.models.cab import GDPRRequest, GDPRRequestType, GDPRRequestStatus
+from app.models.cab import DashboardWidget
+from app.models.cab import OnboardingState
+from app.models.cab import IntegrationConfig
+from app.models.cab import CalendarEvent as CE
+from app.models.cab import CommitLink as CL, IntegrationConfig
+from app.models.cab import RevenueRecognitionRule
+from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry, RecognitionMethod
+from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
+from app.models.cab import RevenueRecognitionEntry
+from app.models.cab import ProjectRiskScore
+from app.models.imputation import Imputation as Imp
+from app.models.pipeline import Opportunity
+from app.models.pipeline import Opportunity as Opp
+from app.models.project import Project as Proj
+from app.models.service_desk import Ticket
+from app.models.sprints import Sprint
+from app.models.user import User as UserModel
+from app.services.audit import audit_log
+from app.services.integrations import get_jira_issue, update_jira_issue
+from collections import defaultdict
+from fastapi import HTTPException
+from sqlalchemy import or_ as _or
 
 logger = logging.getLogger("clarive.v14")
 
@@ -58,8 +94,6 @@ def trigger_out(t: WebhookTrigger) -> dict:
 
 def execute_workflow_from_webhook(workflow_id: str, context: dict) -> None:
     """Background task: enqueue workflow triggered by incoming webhook."""
-    from app.models.bookings import WorkflowQueueItem
-    from app.db.session import SessionLocal
     bg_db = SessionLocal()
     try:
         item = WorkflowQueueItem(
@@ -329,7 +363,6 @@ def sync_git_commits(db: Session, config, payload: dict):
 
 def sync_calendar(db: Session, config, payload: dict):
     """Simulate Google Calendar / Outlook sync."""
-    from app.models.sprints import Sprint
     sprints = db.query(Sprint).filter(
         Sprint.start_date != None,
         Sprint.end_date != None,
@@ -368,7 +401,6 @@ def sync_accounting(db: Session, config, payload: dict):
 
 def sync_jira(db: Session, config, payload: dict):
     """Sync Jira bidireccional: actualiza estados de tareas con jira_issue_key."""
-    from app.services.integrations import get_jira_issue, update_jira_issue
 
     cfg_dict = decrypt_config_secrets(json.loads(config.config or "{}"))
     tasks_with_jira = db.query(Task).filter(Task.jira_issue_key != None).limit(50).all()
@@ -395,8 +427,6 @@ def sync_jira(db: Session, config, payload: dict):
 # ─── CAB Vote helpers ─────────────────────────────────────────────────────────
 
 def get_cab_pending_changes(db: Session, current_user_id: str) -> list:
-    from collections import defaultdict
-    from app.models.cab import CABVote, ChangeRequestWindow
     crs = db.query(ChangeRequest).options(
         joinedload(ChangeRequest.project),
         joinedload(ChangeRequest.requester),
@@ -446,8 +476,6 @@ def get_cab_pending_changes(db: Session, current_user_id: str) -> list:
 
 
 def cast_cab_vote(cr_id: str, vote: str, comment: Optional[str], current_user, db: Session) -> dict:
-    from app.models.cab import CABVote
-    from app.services.audit import audit_log
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
         raise ValueError("CR no encontrada")
@@ -485,7 +513,6 @@ def cast_cab_vote(cr_id: str, vote: str, comment: Optional[str], current_user, d
 
 
 def close_cab_vote(cr_id: str, decision: str, reason: Optional[str], current_user, db: Session) -> dict:
-    from app.services.audit import audit_log
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
         raise ValueError("CR no encontrada")
@@ -501,7 +528,6 @@ def close_cab_vote(cr_id: str, decision: str, reason: Optional[str], current_use
 # ─── Maintenance windows ──────────────────────────────────────────────────────
 
 def list_maintenance_windows(upcoming_only: bool, db: Session) -> list:
-    from app.models.cab import MaintenanceWindow
     q = db.query(MaintenanceWindow).options(joinedload(MaintenanceWindow.creator))
     if upcoming_only:
         q = q.filter(MaintenanceWindow.start_dt >= datetime.now(timezone.utc))
@@ -517,14 +543,12 @@ def list_maintenance_windows(upcoming_only: bool, db: Session) -> list:
 
 
 def create_maintenance_window(payload, current_user_id: str, db: Session) -> dict:
-    from app.models.cab import MaintenanceWindow
     w = MaintenanceWindow(**payload.model_dump(), created_by=current_user_id)
     db.add(w); db.commit(); db.refresh(w)
     return {"ok": True, "id": w.id}
 
 
 def schedule_cr_in_window(cr_id: str, window_id: str, rollback_plan: Optional[str], test_plan: Optional[str], db: Session) -> dict:
-    from app.models.cab import MaintenanceWindow, ChangeRequestWindow
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
         raise ValueError("CR no encontrada")
@@ -580,7 +604,6 @@ def log_webhook_fire(trigger, payload_str: str, headers_str: str, db: Session) -
 
 
 def get_active_webhook_trigger_by_slug(db: Session, slug: str) -> WebhookTrigger:
-    from fastapi import HTTPException
     trigger = db.query(WebhookTrigger).filter(
         WebhookTrigger.slug == slug,
         WebhookTrigger.is_active == True,
@@ -612,7 +635,6 @@ def delete_webhook_trigger(trigger_id: str, db: Session) -> dict:
 # ─── Email templates + send ───────────────────────────────────────────────────
 
 def list_email_templates(db: Session) -> dict:
-    from app.models.cab import EmailTemplate
     custom = db.query(EmailTemplate).options(joinedload(EmailTemplate.creator)).all()
     return {
         "system": SYSTEM_EMAIL_TEMPLATES,
@@ -627,7 +649,6 @@ def list_email_templates(db: Session) -> dict:
 
 
 def create_email_template(payload, current_user_id: str, db: Session) -> dict:
-    from app.models.cab import EmailTemplate
     t = EmailTemplate(
         name=payload.name, subject=payload.subject,
         body_html=payload.body_html, body_text=payload.body_text,
@@ -640,7 +661,6 @@ def create_email_template(payload, current_user_id: str, db: Session) -> dict:
 
 
 def send_email_action(payload, db: Session) -> dict:
-    from app.models.cab import EmailTemplate, EmailLog
     subject = payload.subject or "Notificación Clarive"
     body_html = payload.body_html or "<p>Notificación de Clarive</p>"
     template_id_ref = payload.template_id
@@ -682,7 +702,6 @@ def send_email_action(payload, db: Session) -> dict:
 
 
 def get_email_logs(limit: int, status: Optional[str], db: Session) -> list:
-    from app.models.cab import EmailLog
     q = db.query(EmailLog).order_by(EmailLog.created_at.desc())
     if status:
         q = q.filter(EmailLog.status == status)
@@ -698,7 +717,6 @@ def get_email_logs(limit: int, status: Optional[str], db: Session) -> list:
 # ─── GDPR ─────────────────────────────────────────────────────────────────────
 
 def list_gdpr_requests(db: Session) -> list:
-    from app.models.cab import GDPRRequest
     requests = db.query(GDPRRequest).options(
         joinedload(GDPRRequest.subject_user),
         joinedload(GDPRRequest.processor),
@@ -716,8 +734,6 @@ def list_gdpr_requests(db: Session) -> list:
 
 
 def create_gdpr_request(payload, current_user, db: Session) -> dict:
-    from app.models.cab import GDPRRequest
-    from app.services.audit import audit_log
     deadline = date.today() + timedelta(days=30)
     req = GDPRRequest(
         request_type=payload.request_type,
@@ -738,9 +754,6 @@ def create_gdpr_request(payload, current_user, db: Session) -> dict:
 
 def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     import secrets as _secrets
-    from app.models.cab import GDPRRequest, GDPRRequestType, GDPRRequestStatus
-    from app.models.user import User as UserModel
-    from app.services.audit import audit_log
     req = db.query(GDPRRequest).filter(GDPRRequest.id == request_id).first()
     if not req:
         raise ValueError("Solicitud no encontrada")
@@ -773,7 +786,6 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
         export_data["records_kept"] = ["imputations", "timesheets", "expenses"]
 
     elif req.request_type == GDPRRequestType.portability and user:
-        from app.models.imputation import Imputation as Imp
         imputations = db.query(Imp).filter(Imp.user_id == user.id).count()
         export_data = {
             "user": {
@@ -800,11 +812,6 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
 # ─── Global Search ────────────────────────────────────────────────────────────
 
 def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict:
-    from sqlalchemy import or_ as _or
-    from app.models.service_desk import Ticket
-    from app.models.pipeline import Opportunity
-    from app.models.billing_reports import Invoice as Inv
-    from app.models.user import User as UserModel
 
     search_types = types.split(",") if types else ["projects", "tasks", "tickets", "users", "invoices", "opportunities"]
     q_lower = f"%{q.lower()}%"
@@ -890,7 +897,6 @@ def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict
         } for i in invoices]
 
     if "opportunities" in search_types:
-        from app.models.pipeline import Opportunity as Opp
         opps = db.query(Opp).filter(
             _or(
                 func.lower(Opp.name).like(q_lower),
@@ -919,7 +925,6 @@ def global_search(q: str, types: Optional[str], limit: int, db: Session) -> dict
 # ─── Dashboard Widgets ────────────────────────────────────────────────────────
 
 def get_user_widgets(current_user, db: Session) -> list:
-    from app.models.cab import DashboardWidget
     widgets = db.query(DashboardWidget).filter(
         DashboardWidget.user_id == current_user.id,
         DashboardWidget.is_visible == True,
@@ -938,7 +943,6 @@ def get_user_widgets(current_user, db: Session) -> list:
 
 
 def save_widget_layout(payload: list, current_user_id: str, db: Session) -> dict:
-    from app.models.cab import DashboardWidget
     db.query(DashboardWidget).filter(DashboardWidget.user_id == current_user_id).delete()
     db.flush()
     for item in payload:
@@ -961,7 +965,6 @@ def save_widget_layout(payload: list, current_user_id: str, db: Session) -> dict
 
 
 def reset_widgets(current_user_id: str, db: Session) -> dict:
-    from app.models.cab import DashboardWidget
     db.query(DashboardWidget).filter(DashboardWidget.user_id == current_user_id).delete()
     db.commit()
     return {"ok": True}
@@ -979,7 +982,6 @@ ONBOARDING_STEPS = [
 
 
 def get_onboarding(current_user, db: Session) -> dict:
-    from app.models.cab import OnboardingState
     state = db.query(OnboardingState).filter(
         OnboardingState.user_id == current_user.id
     ).first()
@@ -999,7 +1001,6 @@ def get_onboarding(current_user, db: Session) -> dict:
 
 
 def complete_onboarding_step(step_id: str, current_user, db: Session) -> dict:
-    from app.models.cab import OnboardingState
     if step_id not in [s["id"] for s in ONBOARDING_STEPS]:
         raise ValueError(f"Step '{step_id}' no existe")
     state = db.query(OnboardingState).filter(
@@ -1026,7 +1027,6 @@ def complete_onboarding_step(step_id: str, current_user, db: Session) -> dict:
 
 
 def dismiss_onboarding(current_user, db: Session) -> dict:
-    from app.models.cab import OnboardingState
     state = db.query(OnboardingState).filter(
         OnboardingState.user_id == current_user.id
     ).first()
@@ -1041,7 +1041,6 @@ def dismiss_onboarding(current_user, db: Session) -> dict:
 # ─── Integrations ─────────────────────────────────────────────────────────────
 
 def list_integrations(db: Session) -> list:
-    from app.models.cab import IntegrationConfig
     configs = db.query(IntegrationConfig).options(
         joinedload(IntegrationConfig.creator)
     ).all()
@@ -1058,9 +1057,6 @@ def list_integrations(db: Session) -> list:
 
 
 def create_integration(payload, current_user_id: str, db: Session) -> dict:
-    from app.models.cab import IntegrationConfig
-    from app.core.encryption import encrypt_value
-    from app.core.secret_utils import encrypt_config_secrets
     existing = db.query(IntegrationConfig).filter(
         IntegrationConfig.integration_type == payload.integration_type
     ).first()
@@ -1086,7 +1082,6 @@ def create_integration(payload, current_user_id: str, db: Session) -> dict:
 
 
 def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dict:
-    from app.models.cab import IntegrationConfig
     config = db.query(IntegrationConfig).filter(IntegrationConfig.id == integration_id).first()
     if not config:
         raise ValueError("Integración no encontrada")
@@ -1112,8 +1107,6 @@ def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dic
 
 
 def get_calendar_events(user_id: str, from_date, to_date, db: Session) -> list:
-    from app.models.cab import CalendarEvent as CE
-    from app.models.project import Project as Proj
     q = db.query(CE).options(joinedload(CE.project))
     q = q.filter(CE.user_id == user_id)
     if from_date:
@@ -1131,7 +1124,6 @@ def get_calendar_events(user_id: str, from_date, to_date, db: Session) -> list:
 
 
 def get_commit_links(integration_id: str, task_id: Optional[str], db: Session) -> list:
-    from app.models.cab import CommitLink as CL, IntegrationConfig
     q = db.query(CL).options(
         joinedload(CL.task).joinedload(Task.project)
     ).filter(CL.integration_id == integration_id)
@@ -1154,7 +1146,6 @@ def get_commit_links(integration_id: str, task_id: Optional[str], db: Session) -
 # ─── Revenue Recognition ──────────────────────────────────────────────────────
 
 def list_revenue_rules(db: Session) -> list:
-    from app.models.cab import RevenueRecognitionRule
     rules = db.query(RevenueRecognitionRule).options(
         joinedload(RevenueRecognitionRule.project),
         joinedload(RevenueRecognitionRule.entries),
@@ -1174,7 +1165,6 @@ def list_revenue_rules(db: Session) -> list:
 
 
 def create_revenue_rule(payload, current_user_id: str, db: Session) -> dict:
-    from app.models.cab import RevenueRecognitionRule
     existing = db.query(RevenueRecognitionRule).filter(
         RevenueRecognitionRule.project_id == payload.project_id
     ).first()
@@ -1186,7 +1176,6 @@ def create_revenue_rule(payload, current_user_id: str, db: Session) -> dict:
 
 
 def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
-    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry, RecognitionMethod
     rule = db.query(RevenueRecognitionRule).options(
         joinedload(RevenueRecognitionRule.project),
         joinedload(RevenueRecognitionRule.entries),
@@ -1281,7 +1270,6 @@ def compute_revenue_period(rule_id: str, period_str: str, db: Session) -> dict:
 
 
 def auto_compute_revenue(period_str: str, db: Session) -> dict:
-    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
     rules = db.query(RevenueRecognitionRule).filter(
         RevenueRecognitionRule.is_active == True
     ).all()
@@ -1342,7 +1330,6 @@ def auto_compute_revenue(period_str: str, db: Session) -> dict:
 
 
 def get_revenue_summary(db: Session) -> dict:
-    from app.models.cab import RevenueRecognitionEntry
     entries = db.query(RevenueRecognitionEntry).options(
         joinedload(RevenueRecognitionEntry.project)
     ).order_by(RevenueRecognitionEntry.period_date.desc()).all()
@@ -1368,7 +1355,6 @@ def get_revenue_summary(db: Session) -> dict:
 # ─── Risk scores ──────────────────────────────────────────────────────────────
 
 def get_risk_scores(refresh: bool, db: Session) -> dict:
-    from app.models.cab import ProjectRiskScore
     projects = db.query(Project).filter(
         Project.status.in_(["active", "planning"])
     ).all()
@@ -1429,7 +1415,6 @@ def get_risk_scores(refresh: bool, db: Session) -> dict:
 
 
 def get_project_risk_score(project_id: str, db: Session) -> dict:
-    from app.models.cab import ProjectRiskScore
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -1454,7 +1439,6 @@ def get_project_risk_score(project_id: str, db: Session) -> dict:
 
 
 def get_revenue_journal(project_id: str, db: Session) -> dict:
-    from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:

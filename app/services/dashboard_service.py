@@ -19,6 +19,16 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.alert import Alert
+from app.models.imputation import Imputation
+from app.models.project import Project, ProjectStatus, ProjectRisk
+from app.models.project import Project, ProjectStatus
+from app.models.task import Task, TaskStatus
+from app.models.user import User, UserStatus
+from app.models.user import User
+from app.schemas import DashboardKPIs
+from app.schemas import ProjectHealthItem
+from app.schemas import ResourceLoadItem
 
 # ── KPI cache ──────────────────────────────────────────────────────────────────
 _kpi_cache: TTLCache = TTLCache(maxsize=64, ttl=60)
@@ -28,12 +38,6 @@ _kpi_cache_lock = Lock()
 # ── KPIs ───────────────────────────────────────────────────────────────────────
 
 def get_global_kpis(db: Session):
-    from app.models.project import Project, ProjectStatus, ProjectRisk
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.models.user import User, UserStatus
-    from app.models.alert import Alert
-    from app.schemas import DashboardKPIs
 
     cache_key = date.today().isoformat()
     with _kpi_cache_lock:
@@ -165,11 +169,6 @@ def _project_health_score(
 
 
 def get_projects_health(db: Session) -> list:
-    from app.models.project import Project, ProjectStatus
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.models.alert import Alert
-    from app.schemas import ProjectHealthItem
 
     projects = db.query(Project).filter(Project.status == ProjectStatus.active).all()
     if not projects:
@@ -254,10 +253,6 @@ def get_resource_load(
     department: Optional[str],
     db: Session,
 ) -> list:
-    from app.models.user import User, UserStatus
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.schemas import ResourceLoadItem
 
     if not week_start:
         today = date.today()
@@ -326,8 +321,6 @@ def get_profitability(
     date_to: Optional[date],
     db: Session,
 ) -> list:
-    from app.models.project import Project, ProjectStatus
-    from app.models.imputation import Imputation
 
     projects = db.query(Project).filter(
         Project.status.in_([ProjectStatus.active, ProjectStatus.closed])
@@ -377,9 +370,6 @@ def get_team_productivity(
     department: Optional[str],
     db: Session,
 ) -> dict:
-    from app.models.user import User
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
 
     if not date_from:
         date_from = date.today().replace(day=1)

@@ -14,6 +14,15 @@ from app.models.imputation import Imputation
 from app.models.resources import (
     UserSkill, ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot
 )
+from app.models.bookings import ResourceBooking
+from app.models.project import Project
+from app.models.resources import ResourceUtilizationSnapshot
+from app.models.resources import ResourceAlert
+from datetime import timezone
+from datetime import timedelta
+from fastapi import HTTPException
+from sqlalchemy import func as sqlfunc
+from sqlalchemy import case as sa_case
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +116,6 @@ class ResourceAnalyticsService:
                 )
             ).scalar() or 0.0
 
-            from sqlalchemy import case as sa_case
             imputations_result = db.query(
                 func.sum(Imputation.hours),
                 func.sum(sa_case((Imputation.is_billable == True, Imputation.hours), else_=0))
@@ -410,7 +418,6 @@ def get_utilization_history_records(
     weeks_back: int = 12,
 ) -> List:
     """Devuelve snapshots históricos de utilización."""
-    from app.models.resources import ResourceUtilizationSnapshot
 
     # Calcular el week_iso más antiguo a incluir
     cutoff = date.today() - timedelta(weeks=weeks_back)
@@ -432,7 +439,6 @@ def get_alerts_records(
     alert_type=None,
 ) -> List:
     """Devuelve alertas de recursos filtradas por estado y tipo."""
-    from app.models.resources import ResourceAlert
 
     q = db.query(ResourceAlert)
 
@@ -457,9 +463,6 @@ def get_alerts_records(
 
 def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> Dict:
     """Marca una alerta como reconocida."""
-    from app.models.resources import ResourceAlert
-    from fastapi import HTTPException
-    from datetime import timezone
 
     alert = db.query(ResourceAlert).filter(ResourceAlert.id == alert_id).first()
     if not alert:
@@ -475,8 +478,6 @@ def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> 
 
 def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
     """Returns committed/booking/capacity/absence hours for a user in a given week."""
-    from app.models.bookings import ResourceBooking
-    from app.models.financial import CapacityPlan
 
     week_end = week_start + timedelta(days=6)
 
@@ -565,7 +566,6 @@ def get_forecast_user_by_id(db: Session, user_id: str):
 
 def get_forecast_project_names(db: Session) -> Dict:
     """Return {str(project_id): project_name} for all projects."""
-    from app.models.project import Project
     return {str(p.id): p.name for p in db.query(Project).all()}
 
 
@@ -576,8 +576,6 @@ def get_forecast_past_imputations(
     Return aggregated imputation rows (user_id, date, hours) for the given
     users within [date_from, date_to).
     """
-    from app.models.imputation import Imputation
-    from sqlalchemy import func as sqlfunc
 
     return (
         db.query(
@@ -599,13 +597,11 @@ def get_forecast_past_imputations(
 
 def monday(d: "date") -> "date":
     """Return the Monday of the week containing *d*."""
-    from datetime import timedelta
     return d - timedelta(days=d.weekday())
 
 
 def weeks_range(start: "date", n: int) -> list:
     """Return a list of *n* Monday dates starting from the week of *start*."""
-    from datetime import timedelta
     mon = monday(start)
     return [mon + timedelta(weeks=i) for i in range(n)]
 

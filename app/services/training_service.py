@@ -5,6 +5,7 @@ from datetime import date
 import uuid as _uuid
 
 from app.models.training import Course, CourseEnrollment, Certification
+from datetime import date as dt_date
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +157,6 @@ def serialize_enrollment(e) -> dict:
 
 
 def serialize_certification(c) -> dict:
-    from datetime import date as dt_date
     today = dt_date.today()
     days_left = (c.expires_at - today).days if c.expires_at else None
     return {

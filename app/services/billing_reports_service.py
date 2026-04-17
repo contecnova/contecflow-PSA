@@ -37,6 +37,10 @@ from app.models.advanced_config import (
 from app.services.audit import audit_log
 from app.services.numbering import next_numbered_code
 from app.schemas.billing_reports import InvoiceOut, InvoiceLineOut
+from app.core.security import get_password_hash
+from app.models.billing_reports import InvoiceLine as _InvoiceLine
+from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
+from app.services.scheduled_reports import _get_next_run
 
 _logger = logging.getLogger(__name__)
 
@@ -235,7 +239,6 @@ def run_expenses_report(db: Session, filters: dict, group_by, date_from, date_to
 
 
 def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=None) -> dict:
-    from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
 
     users_q = db.query(User).filter(User.is_active == True)
     if org_id:
@@ -272,7 +275,6 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
 
 
 def run_system_report(db: Session, report_id: str, filters: dict, date_from, date_to) -> dict:
-    from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
 
     today = date.today()
     df = date_from or str(today - timedelta(days=90))
@@ -732,7 +734,6 @@ def create_template(payload, current_user: User, db: Session) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def create_scheduled_report(payload, current_user: User, db: Session) -> dict:
-    from app.services.scheduled_reports import _get_next_run
     r = ScheduledReport(
         name=payload.name,
         metric=payload.metric,
@@ -858,7 +859,6 @@ def list_templates_all(db: Session) -> list:
 
 
 def get_invoice_for_pdf(invoice_id: str, db: Session):
-    from app.models.billing_reports import InvoiceLine as _InvoiceLine
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(404, "Factura no encontrada")
@@ -1252,7 +1252,6 @@ def execute_import_csv(entity_type: str, content: bytes, filename: str, current_
                 errors.append({"row": i, "error": str(e)[:100]})
 
     elif entity_type == "users":
-        from app.core.security import get_password_hash
         for i, row in enumerate(rows, 1):
             try:
                 existing = db.query(User).filter(User.email == row["email"]).first()

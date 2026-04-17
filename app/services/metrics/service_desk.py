@@ -46,7 +46,6 @@ def metric_tickets_by_status(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Distribución de tickets por estado."""
-    from app.models.service_desk import Ticket
     q = db.query(Ticket.status, func.count(Ticket.id).label("n")).group_by(Ticket.status)
     if project_ids is not None:
         q = q.filter(Ticket.project_id.in_(project_ids))
@@ -72,7 +71,6 @@ def metric_tickets_by_type(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Distribución de tickets por tipo."""
-    from app.models.service_desk import Ticket
     q = db.query(Ticket.ticket_type, func.count(Ticket.id).label("n")).group_by(Ticket.ticket_type)
     if project_ids is not None:
         q = q.filter(Ticket.project_id.in_(project_ids))
@@ -98,7 +96,6 @@ def metric_tickets_by_priority(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Distribución de tickets por prioridad."""
-    from app.models.service_desk import Ticket
     q = db.query(Ticket.priority, func.count(Ticket.id).label("n")).group_by(Ticket.priority)
     if project_ids is not None:
         q = q.filter(Ticket.project_id.in_(project_ids))
@@ -124,8 +121,6 @@ def metric_tickets_by_agent(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Carga de tickets por agente asignado."""
-    from app.models.service_desk import Ticket
-    from sqlalchemy import desc
 
     q = db.query(
         User.full_name,
@@ -167,8 +162,6 @@ def metric_ticket_resolution_time(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Tiempo medio de resolución por tipo de ticket."""
-    from app.models.service_desk import Ticket
-    from app.db.session import is_postgres
 
     type_labels = {
         "incident": "Incidencia",
@@ -219,7 +212,6 @@ def metric_ticket_sla_compliance(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Cumplimiento de SLA por mes."""
-    from app.models.service_desk import Ticket
 
     monthly = {}
     q = db.query(
@@ -269,7 +261,6 @@ def metric_ticket_volume_trend(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Tendencia de volumen: apertura vs cierre de tickets."""
-    from app.models.service_desk import Ticket
 
     monthly = {}
 
@@ -318,7 +309,6 @@ def metric_ticket_csat(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Satisfacción del cliente (CSAT) por agente."""
-    from app.models.service_desk import Ticket
 
     users_data = db.query(User).filter(User.is_active == True).all()
     rows = []
@@ -346,3 +336,6 @@ def metric_ticket_csat(
 
 # Import case for conditional sum
 from sqlalchemy import case
+from app.db.session import is_postgres
+from app.models.service_desk import Ticket
+from sqlalchemy import desc

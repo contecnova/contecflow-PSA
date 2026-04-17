@@ -9,13 +9,16 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.models.billing_reports import Invoice, InvoiceLine
+from app.models.billing_reports import Invoice
+from app.models.cab import IntegrationConfig
+from app.models.clients import Client
 
 logger = logging.getLogger(__name__)
 
 
 def get_accounting_config(db: Session, integration_type: str):
     """Return the active IntegrationConfig row for the given type, or None."""
-    from app.models.cab import IntegrationConfig
 
     return db.query(IntegrationConfig).filter(
         IntegrationConfig.integration_type == integration_type,
@@ -25,7 +28,6 @@ def get_accounting_config(db: Session, integration_type: str):
 
 def get_invoice_with_lines(db: Session, invoice_id: str):
     """Return (Invoice, [InvoiceLine]) tuple; invoice is None if not found."""
-    from app.models.billing_reports import Invoice, InvoiceLine
 
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if inv is None:
@@ -49,7 +51,6 @@ def mark_invoice_synced(db: Session, inv, provider: str, sync_id: str = "") -> N
 
 def get_unsent_invoices(db: Session, limit: int = 50):
     """Return sent invoices that may not yet have been pushed to accounting."""
-    from app.models.billing_reports import Invoice
 
     return db.query(Invoice).filter(Invoice.status == "sent").limit(limit).all()
 
@@ -66,7 +67,6 @@ def commit(db: Session) -> None:
 
 def import_xero_contacts(db: Session, contacts: list) -> int:
     """Create Client rows from Xero contacts; skip duplicates by name. Returns import count."""
-    from app.models.clients import Client
 
     imported = 0
     for c in contacts:
@@ -88,8 +88,6 @@ def import_xero_contacts(db: Session, contacts: list) -> int:
 
 def get_sync_status(db: Session) -> dict:
     """Return aggregated sync-status metrics and active integration configs."""
-    from app.models.billing_reports import Invoice
-    from app.models.cab import IntegrationConfig
 
     total_invoices = db.query(func.count(Invoice.id)).filter(
         Invoice.status == "sent"

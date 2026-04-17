@@ -3,6 +3,12 @@ signature_pdf.py — Genera un PDF con certificado de firma digital
 """
 import io
 from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
 
 def generate_signed_pdf(
@@ -20,12 +26,6 @@ def generate_signed_pdf(
     Genera un PDF certificado de firma digital del documento.
     Incluye: datos del firmante, timestamp, IP y un hash de evidencia.
     """
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-    from reportlab.lib.enums import TA_CENTER
     import hashlib
 
     buffer = io.BytesIO()

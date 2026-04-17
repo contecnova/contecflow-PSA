@@ -23,6 +23,7 @@ from app.models.security_observability import (
     SecurityEvent, SecurityDetection, SecurityIncident, LoginAnomaly,
     SecurityMetricSnapshot, EventCategory, EventSeverity, IncidentStatus, KillChainStage,
 )
+from fastapi import HTTPException
 
 logger = logging.getLogger("clarive.soc")
 
@@ -1011,7 +1012,6 @@ class SecurityAnalyticsService:
 # ── Tenant helpers ─────────────────────────────────────────────────────────
 
 def get_org_id(user) -> str:
-    from fastapi import HTTPException
     if not user.organization_id:
         raise HTTPException(status_code=400, detail="User has no organization")
     return str(user.organization_id)

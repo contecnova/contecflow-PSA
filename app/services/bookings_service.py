@@ -10,6 +10,34 @@ import logging
 import secrets
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
+from app.core.config import settings
+from app.core.security import create_access_token
+from app.models.billing_reports import Invoice, InvoiceLine
+from app.models.billing_reports import AutomationWorkflow
+from app.models.billing_reports import AutomationWorkflow, WorkflowExecution
+from app.models.bookings import TaskDependency
+from app.models.bookings import ResourceBooking
+from app.models.bookings import ResourceBooking, BookingType
+from app.models.bookings import ExchangeRate
+from app.models.bookings import SLASchedule
+from app.models.bookings import SLASchedule, SLAHoliday
+from app.models.bookings import SLAHoliday
+from app.models.bookings import ApiKey
+from app.models.bookings import RecurringInvoice
+from app.models.bookings import OAuthState
+from app.models.bookings import WorkflowQueueItem
+from app.models.enterprise import SSOConfig
+from app.models.pipeline import Opportunity, OpportunityStage
+from app.models.pipeline import Opportunity
+from app.models.project import Project, ProjectStatus
+from app.models.service_desk import Ticket
+from app.models.task import Task
+from app.models.user import User
+from app.services.audit import audit_log as _audit
+from datetime import time as _time
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +115,6 @@ def _verify_api_key(key: str, hashed: str) -> bool:
 # ── Task Dependencies ─────────────────────────────────────────────────────────
 
 def get_project_dependencies(project_id: str, db) -> list:
-    from sqlalchemy.orm import joinedload
-    from app.models.task import Task
-    from app.models.bookings import TaskDependency
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     task_ids = {t.id for t in tasks}
     deps = db.query(TaskDependency).options(
@@ -108,8 +133,6 @@ def get_project_dependencies(project_id: str, db) -> list:
 
 
 def create_task_dependency(payload, created_by_id, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import TaskDependency
     if payload.predecessor_id == payload.successor_id:
         raise HTTPException(400, "Una tarea no puede depender de sí misma")
     if db.query(TaskDependency).filter(
@@ -134,8 +157,6 @@ def create_task_dependency(payload, created_by_id, db) -> dict:
 
 
 def delete_task_dependency(dep_id: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import TaskDependency
     dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
     if not dep: raise HTTPException(404)
     db.delete(dep); db.commit()
@@ -145,9 +166,6 @@ def delete_task_dependency(dep_id: str, db) -> dict:
 # ── Resource Bookings ─────────────────────────────────────────────────────────
 
 def list_bookings_records(user_id, project_id, start_date, end_date, booking_type, org_id, db) -> list:
-    from sqlalchemy.orm import joinedload
-    from app.models.user import User
-    from app.models.bookings import ResourceBooking
     q = db.query(ResourceBooking).options(
         joinedload(ResourceBooking.user),
         joinedload(ResourceBooking.project),
@@ -164,9 +182,6 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
 
 
 def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
-    from app.core.config import settings
-    from app.models.user import User
-    from app.models.bookings import ResourceBooking, BookingType
     today = date.today()
     monday = today - timedelta(days=today.weekday())
     users_q = db.query(User).filter(User.is_active == True)
@@ -229,9 +244,6 @@ def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
 
 
 def create_booking_record(payload, created_by_id, db) -> dict:
-    from fastapi import HTTPException
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import ResourceBooking
     if payload.end_date < payload.start_date:
         raise HTTPException(400, "La fecha fin no puede ser anterior al inicio")
     days = (payload.end_date - payload.start_date).days + 1
@@ -255,9 +267,6 @@ def create_booking_record(payload, created_by_id, db) -> dict:
 
 
 def update_booking_record(booking_id: str, payload, db) -> dict:
-    from fastapi import HTTPException
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import ResourceBooking
     b = db.query(ResourceBooking).filter(ResourceBooking.id == booking_id).first()
     if not b: raise HTTPException(404)
     updates = payload.model_dump(exclude_unset=True)
@@ -276,8 +285,6 @@ def update_booking_record(booking_id: str, payload, db) -> dict:
 
 
 def delete_booking_record(booking_id: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import ResourceBooking
     b = db.query(ResourceBooking).filter(ResourceBooking.id == booking_id).first()
     if not b: raise HTTPException(404)
     db.delete(b); db.commit()
@@ -287,8 +294,6 @@ def delete_booking_record(booking_id: str, db) -> dict:
 # ── Exchange Rates ────────────────────────────────────────────────────────────
 
 def get_exchange_rates_data(base: str, db) -> dict:
-    from sqlalchemy import func
-    from app.models.bookings import ExchangeRate
     latest_rates = {}
     for row in db.query(
         ExchangeRate.from_currency, ExchangeRate.to_currency,
@@ -312,9 +317,6 @@ def get_exchange_rates_data(base: str, db) -> dict:
 
 
 def upsert_exchange_rate_record(payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.core.config import settings
-    from app.models.bookings import ExchangeRate
     from_currency = payload.get("from_currency", settings.DEFAULT_CURRENCY).upper()
     to_currency   = payload.get("to_currency", "USD").upper()
     rate_value    = float(payload.get("rate", 1.0))
@@ -336,9 +338,6 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
 
 
 def convert_currency_amount(payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.core.config import settings
-    from app.models.bookings import ExchangeRate
     amount    = float(payload.get("amount", 0))
     from_curr = payload.get("from", settings.DEFAULT_CURRENCY).upper()
     to_curr   = payload.get("to", settings.DEFAULT_CURRENCY).upper()
@@ -363,14 +362,10 @@ def convert_currency_amount(payload: dict, db) -> dict:
 # ── SLA Schedules ─────────────────────────────────────────────────────────────
 
 def list_sla_schedules_records(db) -> list:
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import SLASchedule
     return [serialize_schedule(s) for s in db.query(SLASchedule).options(joinedload(SLASchedule.holidays)).all()]
 
 
 def create_sla_schedule_record(payload, db) -> dict:
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import SLASchedule
     if payload.is_default:
         db.query(SLASchedule).filter(SLASchedule.is_default == True).update({"is_default": False})
     work_start = time.fromisoformat(payload.work_start) if payload.work_start else None
@@ -387,8 +382,6 @@ def create_sla_schedule_record(payload, db) -> dict:
 
 
 def calculate_sla_deadline_record(payload: dict, db) -> dict:
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import SLASchedule
     schedule_id = payload.get("schedule_id")
     start_dt = datetime.fromisoformat(payload.get("start", datetime.now(timezone.utc).isoformat()))
     hours    = float(payload.get("hours", 8))
@@ -430,8 +423,6 @@ def calculate_sla_deadline_record(payload: dict, db) -> dict:
 
 
 def add_holidays_record(schedule_id: str, payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import SLASchedule, SLAHoliday
     schedule = db.query(SLASchedule).filter(SLASchedule.id == schedule_id).first()
     if not schedule: raise HTTPException(404)
     holidays_data = payload.get("holidays", [payload])
@@ -446,8 +437,6 @@ def add_holidays_record(schedule_id: str, payload: dict, db) -> dict:
 
 
 def delete_holiday_record(schedule_id: str, holiday_id: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import SLAHoliday
     h = db.query(SLAHoliday).filter(SLAHoliday.id == holiday_id, SLAHoliday.schedule_id == schedule_id).first()
     if not h: raise HTTPException(404)
     db.delete(h); db.commit()
@@ -457,7 +446,6 @@ def delete_holiday_record(schedule_id: str, holiday_id: str, db) -> dict:
 # ── API Keys ──────────────────────────────────────────────────────────────────
 
 def list_api_keys_records(user_id, is_superadmin: bool, db) -> list:
-    from app.models.bookings import ApiKey
     q = db.query(ApiKey)
     if not is_superadmin:
         q = q.filter(ApiKey.user_id == user_id)
@@ -476,8 +464,6 @@ def list_api_keys_records(user_id, is_superadmin: bool, db) -> list:
 
 
 def create_api_key_record(payload, user_id, db) -> dict:
-    from app.models.bookings import ApiKey
-    from app.services.audit import audit_log as _audit
     raw_key    = f"nxpm_{secrets.token_hex(24)}"
     key_prefix = raw_key[:12]
     api_key = ApiKey(
@@ -504,9 +490,6 @@ def create_api_key_record(payload, user_id, db) -> dict:
 
 
 def revoke_api_key_record(key_id: str, user_id, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import ApiKey
-    from app.services.audit import audit_log as _audit
     key = db.query(ApiKey).filter(ApiKey.id == key_id, ApiKey.user_id == user_id).first()
     if not key: raise HTTPException(404)
     key.is_active = False
@@ -516,8 +499,6 @@ def revoke_api_key_record(key_id: str, user_id, db) -> dict:
 
 
 def verify_api_key_record(raw_key: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import ApiKey
     if not raw_key.startswith("nxpm_"):
         raise HTTPException(401, "API key inválida")
     prefix = raw_key[:12]
@@ -542,22 +523,17 @@ def verify_api_key_record(raw_key: str, db) -> dict:
 # ── Recurring Invoices ────────────────────────────────────────────────────────
 
 def list_recurring_records(db) -> list:
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import RecurringInvoice
     items = db.query(RecurringInvoice).options(joinedload(RecurringInvoice.project)).order_by(RecurringInvoice.next_date).all()
     return [serialize_recurring(r) for r in items]
 
 
 def create_recurring_record(payload, created_by_id, db) -> dict:
-    from app.models.bookings import RecurringInvoice
     r = RecurringInvoice(created_by=created_by_id, **payload.model_dump())
     db.add(r); db.commit(); db.refresh(r)
     return serialize_recurring(r)
 
 
 def update_recurring_record(rec_id: str, payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.bookings import RecurringInvoice
     r = db.query(RecurringInvoice).filter(RecurringInvoice.id == rec_id).first()
     if not r: raise HTTPException(404)
     for k, v in payload.items():
@@ -567,7 +543,6 @@ def update_recurring_record(rec_id: str, payload: dict, db) -> dict:
 
 
 def process_due_recurring_records(db, current_user) -> dict:
-    from app.models.bookings import RecurringInvoice
     today = date.today()
     due = db.query(RecurringInvoice).filter(
         RecurringInvoice.is_active == True,
@@ -586,11 +561,6 @@ def process_due_recurring_records(db, current_user) -> dict:
 def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
     import re as _re
     import calendar as _cal
-    from fastapi import HTTPException
-    from sqlalchemy import func
-    from sqlalchemy.orm import joinedload
-    from app.models.bookings import RecurringInvoice
-    from app.models.billing_reports import Invoice, InvoiceLine
     r = db.query(RecurringInvoice).options(joinedload(RecurringInvoice.project)).filter(RecurringInvoice.id == rec_id).first()
     if not r: raise HTTPException(404)
     if not r.is_active: raise HTTPException(400, "Factura recurrente inactiva")
@@ -655,11 +625,6 @@ def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
 # ── Pipeline Ops ──────────────────────────────────────────────────────────────
 
 def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, current_user, db) -> dict:
-    from fastapi import HTTPException
-    from app.core.config import settings
-    from app.models.pipeline import Opportunity, OpportunityStage
-    from app.models.project import Project, ProjectStatus
-    from app.services.audit import audit_log as _audit
     opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
     if not opp: raise HTTPException(404, "Oportunidad no encontrada")
     if opp.stage not in [OpportunityStage.closed_won, "closed_won"]:
@@ -698,7 +663,6 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
 
 
 def get_pipeline_revenue_forecast(db) -> dict:
-    from app.models.pipeline import Opportunity
     opps = db.query(Opportunity).filter(Opportunity.stage.notin_(["closed_won", "closed_lost"])).all()
     by_month: dict = {}
     total_weighted = 0
@@ -727,8 +691,6 @@ def get_pipeline_revenue_forecast(db) -> dict:
 # ── ITSM Aging ────────────────────────────────────────────────────────────────
 
 def get_ticket_aging_report(db) -> dict:
-    from sqlalchemy.orm import joinedload
-    from app.models.service_desk import Ticket
     open_statuses = ["new", "assigned", "in_progress", "pending_client"]
     tickets = db.query(Ticket).options(joinedload(Ticket.assignee)).filter(Ticket.status.in_(open_statuses)).all()
     now = datetime.now(timezone.utc)
@@ -768,9 +730,6 @@ def get_ticket_aging_report(db) -> dict:
 
 
 def get_wallboard_data(db) -> dict:
-    from datetime import time as _time
-    from sqlalchemy.orm import joinedload
-    from app.models.service_desk import Ticket
     now = datetime.now(timezone.utc)
     today = now.date()
     open_statuses = ["new", "assigned", "in_progress", "pending_client"]
@@ -813,10 +772,6 @@ def get_wallboard_data(db) -> dict:
 # ── SSO ───────────────────────────────────────────────────────────────────────
 
 def initiate_sso_record(config_id: str, redirect_to: str, db) -> dict:
-    from fastapi import HTTPException
-    from app.core.config import settings
-    from app.models.enterprise import SSOConfig
-    from app.models.bookings import OAuthState
     config = db.query(SSOConfig).filter(SSOConfig.id == config_id, SSOConfig.is_active == True).first()
     if not config: raise HTTPException(404, "Configuración SSO no encontrada o inactiva")
     state = secrets.token_urlsafe(32)
@@ -849,9 +804,6 @@ def initiate_sso_record(config_id: str, redirect_to: str, db) -> dict:
 
 
 def sso_create_or_login_user(db, email, name, role_from_sso, config, redirect_to) -> dict:
-    from fastapi import HTTPException
-    from app.models.user import User
-    from app.core.security import create_access_token
     user = db.query(User).filter(User.email == email).first()
     if not user:
         if not config.auto_create_users:
@@ -881,9 +833,6 @@ def sso_create_or_login_user(db, email, name, role_from_sso, config, redirect_to
 
 
 def process_saml_callback(payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.enterprise import SSOConfig
-    from app.models.bookings import OAuthState
     relay_state = payload.get("RelayState") or payload.get("state")
     state_obj = db.query(OAuthState).filter(
         OAuthState.state == relay_state,
@@ -907,9 +856,6 @@ def process_saml_callback(payload: dict, db) -> dict:
 
 
 def process_oidc_callback(payload: dict, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.enterprise import SSOConfig
-    from app.models.bookings import OAuthState
     state = payload.get("state")
     state_obj = db.query(OAuthState).filter(
         OAuthState.state == state,
@@ -929,9 +875,6 @@ def process_oidc_callback(payload: dict, db) -> dict:
 # ── Workflow Queue ────────────────────────────────────────────────────────────
 
 def enqueue_workflow_record(payload: dict, user_id, db) -> dict:
-    from fastapi import HTTPException
-    from app.models.billing_reports import AutomationWorkflow
-    from app.models.bookings import WorkflowQueueItem
     workflow_id = payload.get("workflow_id")
     wf = db.query(AutomationWorkflow).filter(AutomationWorkflow.id == workflow_id).first()
     if not wf: raise HTTPException(404, "Workflow no encontrado")
@@ -949,9 +892,6 @@ def enqueue_workflow_record(payload: dict, user_id, db) -> dict:
 
 
 def process_workflow_queue_record(db) -> dict:
-    from sqlalchemy.orm import joinedload
-    from app.models.billing_reports import AutomationWorkflow, WorkflowExecution
-    from app.models.bookings import WorkflowQueueItem
     now = datetime.now(timezone.utc)
     pending = db.query(WorkflowQueueItem).filter(
         WorkflowQueueItem.status == "pending",

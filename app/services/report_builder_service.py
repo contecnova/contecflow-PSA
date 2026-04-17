@@ -16,6 +16,11 @@ from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.models.user import User
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.project import Project as _Proj
+from app.models.settings import AppSetting
+from app.models.task import Task
 
 # ── Entity catalog (static config) ───────────────────────────────────────────
 
@@ -431,7 +436,6 @@ _TEMPLATE_KEY_PREFIX = "report_templates:"
 
 
 def load_user_templates(user_id: str, db: Session) -> List[dict]:
-    from app.models.settings import AppSetting
     row = db.query(AppSetting).filter(
         AppSetting.key == f"{_TEMPLATE_KEY_PREFIX}{user_id}"
     ).first()
@@ -444,7 +448,6 @@ def load_user_templates(user_id: str, db: Session) -> List[dict]:
 
 
 def save_user_templates(user_id: str, templates: List[dict], db: Session) -> None:
-    from app.models.settings import AppSetting
     key = f"{_TEMPLATE_KEY_PREFIX}{user_id}"
     row = db.query(AppSetting).filter(AppSetting.key == key).first()
     serialized = json.dumps(templates)
@@ -459,10 +462,6 @@ def save_user_templates(user_id: str, templates: List[dict], db: Session) -> Non
 # ── Model resolution ──────────────────────────────────────────────────────────
 
 def get_model_class(entity: str):
-    from app.models.project import Project
-    from app.models.task import Task
-    from app.models.user import User
-    from app.models.imputation import Imputation
 
     mapping: Dict[str, Any] = {
         "projects":    Project,
@@ -566,7 +565,6 @@ def execute_report(
         if hasattr(model, "organization_id"):
             db_query = db_query.filter(model.organization_id == org_id)
         elif hasattr(model, "project_id"):
-            from app.models.project import Project as _Proj
             proj_ids = db.query(_Proj.id).filter(
                 _Proj.organization_id == org_id
             ).scalar_subquery()

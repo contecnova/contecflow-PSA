@@ -3,18 +3,27 @@ Semantic engine service — business logic extracted from semantic_engine.py rou
 """
 from sqlalchemy.orm import Session
 import json
+from app.models.project import ProjectMember
+from app.models.semantic_engine import SemConfig
+from app.models.semantic_engine import SemEmbeddingCache
+from app.models.semantic_engine import SemProfile
+from app.models.semantic_engine import SemAssignment, SemProfile, SemFeedback, SemEmbeddingCache
+from app.models.semantic_engine import SemAssignment, SemProfile
+from app.models.service_desk import Ticket
+from app.models.task import Task
+from app.models.user import User
+from app.services.semantic_classifier import SemanticAssigner
+from sqlalchemy import func
 
 
 VALID_ENGINE_MODES = {"semantic", "llm", "hybrid", "rules_only"}
 
 
 def get_assigner(db: Session):
-    from app.services.semantic_classifier import SemanticAssigner
     return SemanticAssigner(db)
 
 
 def get_or_create_config(db: Session):
-    from app.models.semantic_engine import SemConfig
     cfg = db.query(SemConfig).first()
     if not cfg:
         cfg = SemConfig()
@@ -45,7 +54,6 @@ def serialize_config(cfg) -> dict:
 def cache_item_embedding(db: Session, item_id: str, item_type: str,
                          text: str, user_id: str):
     """Save the embedding of a resolved item into the cache."""
-    from app.models.semantic_engine import SemEmbeddingCache
     import hashlib
     h = hashlib.sha256(" ".join(text.strip().lower().split()).encode()).hexdigest()
     exist = db.query(SemEmbeddingCache).filter(
@@ -67,10 +75,6 @@ def cache_item_embedding(db: Session, item_id: str, item_type: str,
 
 def auto_generate_profiles(db: Session) -> dict:
     """Auto-generate semantic profiles for all active users."""
-    from app.models.semantic_engine import SemProfile
-    from app.models.service_desk import Ticket
-    from app.models.task import Task
-    from app.models.user import User
 
     users = db.query(User).filter(User.is_active == True).all()
     assigner = get_assigner(db)
@@ -124,7 +128,6 @@ def save_config(db: Session, cfg) -> None:
 
 def enrich_suggestion(db: Session, result: dict) -> dict:
     """Add user name fields to a suggestion result dict (mutates in place)."""
-    from app.models.user import User
     if result.get("suggested_user_id"):
         u = db.query(User).filter(User.id == result["suggested_user_id"]).first()
         result["suggested_user_name"] = u.full_name if u else None
@@ -139,7 +142,6 @@ def enrich_suggestion(db: Session, result: dict) -> dict:
 
 def get_project_member_ids(db: Session, project_id) -> list:
     """Return user_ids of all members of a project."""
-    from app.models.project import ProjectMember
     members = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id).all()
     return [m.user_id for m in members]
@@ -147,8 +149,6 @@ def get_project_member_ids(db: Session, project_id) -> list:
 
 def list_profiles_with_users(db: Session) -> list:
     """Return all semantic profiles enriched with user names."""
-    from app.models.semantic_engine import SemProfile
-    from app.models.user import User
     profiles = db.query(SemProfile).all()
     result = []
     for p in profiles:
@@ -170,7 +170,6 @@ def list_profiles_with_users(db: Session) -> list:
 def upsert_profile(db: Session, user_id, profile_text: str,
                    max_load=None, is_available: bool = True) -> dict:
     """Create or update a semantic profile and return status dict."""
-    from app.models.semantic_engine import SemProfile
     profile = db.query(SemProfile).filter(SemProfile.user_id == user_id).first()
     if not profile:
         profile = SemProfile(user_id=user_id)
@@ -189,9 +188,6 @@ def upsert_profile(db: Session, user_id, profile_text: str,
 
 def get_stats(db: Session) -> dict:
     """Compute and return semantic engine statistics."""
-    from app.models.semantic_engine import (SemAssignment, SemProfile,
-                                            SemFeedback, SemEmbeddingCache)
-    from sqlalchemy import func
     total    = db.query(func.count(SemAssignment.id)).scalar() or 0
     accepted = db.query(func.count(SemAssignment.id)).filter(
         SemAssignment.was_accepted == True).scalar() or 0
@@ -223,7 +219,6 @@ def get_stats(db: Session) -> dict:
 
 def record_assignment(db: Session, data: dict, created_by_id) -> dict:
     """Persist a SemAssignment and update the assignee's load counters."""
-    from app.models.semantic_engine import SemAssignment, SemProfile
     sa = SemAssignment(
         item_type         = data.get("item_type", "ticket"),
         item_id           = data.get("item_id", ""),

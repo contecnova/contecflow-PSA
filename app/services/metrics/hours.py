@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.core.config import settings
 from . import register_metric
+from sqlalchemy import extract
 
 
 def _month_label(d) -> str:
@@ -71,7 +72,6 @@ def metric_hours_by_week(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Evolución semanal de horas imputadas."""
-    from sqlalchemy import extract
     q = db.query(
         func.date_trunc('week', Imputation.date).label('week_start'),
         func.sum(Imputation.hours).label('value')
@@ -102,7 +102,6 @@ def metric_hours_by_month(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Evolución mensual de horas imputadas."""
-    from sqlalchemy import extract
     q = db.query(
         func.date_trunc('month', Imputation.date).label('month_start'),
         func.sum(Imputation.hours).label('value')

@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.models.resources import ChangeRequest
 
 
 STAGE_LABELS = {
@@ -195,7 +196,6 @@ def metric_change_requests_status(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Control de cambios: cantidad y impactos por estado."""
-    from app.models.resources import ChangeRequest
 
     q = db.query(
         ChangeRequest.status,

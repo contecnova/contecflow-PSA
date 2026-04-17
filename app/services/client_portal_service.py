@@ -10,6 +10,41 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.billing_reports import Invoice
+from app.models.billing_reports import Invoice, InvoiceStatus
+from app.models.billing_reports import ApprovalRequest
+from app.models.client_portal import ClientMessage
+from app.models.client_portal import ClientUser, client_user_projects
+from app.models.client_portal import ClientUser
+from app.models.client_portal import UATSession, UATStatus, FeatureRequest, FeatureRequestStatus, ClientMessage
+from app.models.client_portal import FeatureRequest, FeatureRequestStatus
+from app.models.client_portal import FeatureRequest, ClientUser
+from app.models.client_portal import FeatureRequest
+from app.models.client_portal import UATSession
+from app.models.client_portal import UATTestCase
+from app.models.client_portal import UATSession, UATStatus
+from app.models.client_portal import UATSession, UATIssue
+from app.models.client_portal import UATIssue
+from app.models.client_portal import ClientDocument
+from app.models.client_portal import ClientSurvey
+from app.models.client_portal import ClientUser, client_user_projects, ClientMessage, FeatureRequest, UATSession, ClientSurvey
+from app.models.clients import ClientPortalConfig, Client
+from app.models.clients import ClientPortalConfig
+from app.models.clients import Client as ClientOrg
+from app.models.epics import WikiPage
+from app.models.financial import ProjectMilestone
+from app.models.imputation import Imputation
+from app.models.project import Project as ProjectModel
+from app.models.resources import Deliverable, DeliverableStatus
+from app.models.resources import Deliverable
+from app.models.resources import ChangeRequest, ChangeRequestStatus
+from app.models.resources import ChangeRequest, ChangeRequestStatus, ChangeRequestImpact
+from app.models.resources import ChangeRequest
+from app.services.approval_workflows import find_default_workflow
+from app.services.realtime_notifications import publish_user_notification
+from datetime import date
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger("clarive.client_portal")
 
@@ -60,8 +95,6 @@ def decode_portal_share_token(token: str) -> Optional[str]:
 # ── Serializers ───────────────────────────────────────────────────────────────
 
 def get_recent_activity(project_id: str, db: Session) -> list:
-    from app.models.client_portal import ClientMessage
-    from app.models.resources import Deliverable, DeliverableStatus
 
     activity = []
     msgs = db.query(ClientMessage).filter(
@@ -107,7 +140,6 @@ def fr_out(fr) -> dict:
     }
     cr_status = cr_status_label = cr_status_color = None
     if getattr(fr, "change_request_id", None):
-        from app.models.resources import ChangeRequest
         cr = (
             fr.change_request_id
             and fr.__dict__.get("_sa_instance_state")
@@ -261,8 +293,6 @@ def survey_out(s) -> dict:
 
 def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Session) -> list:
     import sqlalchemy as sa
-    from app.models.client_portal import ClientUser, client_user_projects
-    from sqlalchemy.orm import joinedload
 
     q = db.query(ClientUser).options(joinedload(ClientUser.project), joinedload(ClientUser.projects))
     if project_id:
@@ -299,8 +329,6 @@ def list_clients(project_id: Optional[str], client_org_id: Optional[str], db: Se
 
 
 def create_client(payload, db: Session) -> dict:
-    from app.models.client_portal import ClientUser
-    from app.models.project import Project as ProjectModel
 
     all_project_ids = list(dict.fromkeys([
         *(payload.project_ids or []),
@@ -312,7 +340,6 @@ def create_client(payload, db: Session) -> dict:
         raise ValueError("Ya existe un usuario de portal con ese email")
     company = payload.company
     if payload.client_org_id and not company:
-        from app.models.clients import Client as ClientOrg
         org = db.query(ClientOrg).filter(ClientOrg.id == payload.client_org_id).first()
         if org:
             company = org.name
@@ -344,8 +371,6 @@ def create_client(payload, db: Session) -> dict:
 
 
 def update_client(client_id: str, payload: dict, db: Session) -> dict:
-    from app.models.client_portal import ClientUser
-    from app.models.project import Project as ProjectModel
 
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
@@ -377,7 +402,6 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
 
 
 def delete_client(client_id: str, db: Session) -> dict:
-    from app.models.client_portal import ClientUser
 
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
@@ -390,8 +414,6 @@ def delete_client(client_id: str, db: Session) -> dict:
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 def client_login(email: str, password: str, db: Session) -> dict:
-    from app.models.client_portal import ClientUser
-    from app.models.project import Project as ProjectModel
 
     client = db.query(ClientUser).filter(ClientUser.email == email, ClientUser.is_active == True).first()
     if not client or not client.hashed_password:
@@ -423,7 +445,6 @@ def client_login(email: str, password: str, db: Session) -> dict:
 
 
 def get_me(current_client, db: Session) -> dict:
-    from app.models.project import Project as ProjectModel
 
     project_ids = current_client.get_project_ids()
     projects_info = []
@@ -445,7 +466,6 @@ def get_me(current_client, db: Session) -> dict:
 
 
 def get_portal_branding(current_client, db: Session) -> dict:
-    from app.models.clients import ClientPortalConfig, Client
 
     cfg = None
     client_name = current_client.company
@@ -464,7 +484,6 @@ def get_portal_branding(current_client, db: Session) -> dict:
 
 
 def update_my_profile(payload: dict, current_client, db: Session, min_password_length: int = 8) -> dict:
-    from app.models.clients import ClientPortalConfig
 
     cfg = None
     if current_client.client_org_id:
@@ -511,7 +530,6 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
 # ── Invoices ──────────────────────────────────────────────────────────────────
 
 def list_client_invoices(status: Optional[str], current_client, db: Session) -> list:
-    from app.models.billing_reports import Invoice
 
     accessible = current_client.get_project_ids()
     if not accessible:
@@ -533,8 +551,6 @@ def list_client_invoices(status: Optional[str], current_client, db: Session) -> 
 
 
 def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current_client, db: Session) -> dict:
-    from app.models.billing_reports import Invoice, InvoiceStatus
-    from app.models.client_portal import ClientMessage
 
     accessible = current_client.get_project_ids()
     if not accessible:
@@ -575,7 +591,6 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
 # ── Share links ───────────────────────────────────────────────────────────────
 
 def create_public_share_link(project_id: str, db: Session) -> dict:
-    from app.models.project import Project as ProjectModel
 
     project = db.query(ProjectModel).filter(ProjectModel.id == project_id).first()
     if not project:
@@ -589,9 +604,6 @@ def create_public_share_link(project_id: str, db: Session) -> dict:
 
 
 def view_public_project_status(token: str, db: Session) -> dict:
-    from app.models.project import Project as ProjectModel
-    from app.models.financial import ProjectMilestone
-    from app.models.resources import Deliverable
 
     project_id = decode_portal_share_token(token)
     if not project_id:
@@ -628,12 +640,6 @@ def view_public_project_status(token: str, db: Session) -> dict:
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 def get_client_dashboard(project_id: Optional[str], current_client, db: Session) -> dict:
-    from sqlalchemy import func
-    from app.models.project import Project as ProjectModel
-    from app.models.imputation import Imputation
-    from app.models.financial import ProjectMilestone
-    from app.models.resources import Deliverable, DeliverableStatus
-    from app.models.client_portal import UATSession, UATStatus, FeatureRequest, FeatureRequestStatus, ClientMessage
 
     accessible_ids = current_client.get_project_ids()
     if len(accessible_ids) > 1 and not project_id:
@@ -683,7 +689,6 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         ClientMessage.is_internal == False,
     ).count()
     next_milestone = next((m for m in milestones if not m.is_completed and m.due_date), None)
-    from datetime import date
     days_elapsed = (date.today() - project.start_date).days if project.start_date else 0
     days_total = (
         (project.end_date_planned - project.start_date).days
@@ -717,7 +722,6 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
 # ── Feature Requests ──────────────────────────────────────────────────────────
 
 def list_feature_requests(status: Optional[str], current_client, db: Session) -> list:
-    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
 
     accessible = current_client.get_project_ids()
     q = db.query(FeatureRequest).filter(
@@ -743,9 +747,6 @@ def list_all_feature_requests(
     client_org_id: Optional[str], status: Optional[str],
     current_user, db: Session
 ) -> list:
-    from app.models.client_portal import FeatureRequest, ClientUser
-    from app.models.project import Project as ProjectModel
-    from sqlalchemy.orm import joinedload
 
     q = db.query(FeatureRequest).options(
         joinedload(FeatureRequest.client), joinedload(FeatureRequest.project)
@@ -771,8 +772,6 @@ def list_all_feature_requests(
 
 
 def create_feature_request(payload, current_client, db: Session) -> dict:
-    from sqlalchemy import func
-    from app.models.client_portal import FeatureRequest
     import re as _re
 
     if not current_client.can_request_changes:
@@ -806,7 +805,6 @@ def create_feature_request(payload, current_client, db: Session) -> dict:
 
 
 def update_feature_request(fr_id: str, payload, current_client, db: Session) -> dict:
-    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
 
     accessible = current_client.get_project_ids()
     fr = db.query(FeatureRequest).filter(
@@ -834,7 +832,6 @@ def update_feature_request(fr_id: str, payload, current_client, db: Session) -> 
 
 
 def withdraw_feature_request(fr_id: str, reason: Optional[str], current_client, db: Session) -> dict:
-    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
 
     accessible = current_client.get_project_ids()
     fr = db.query(FeatureRequest).filter(
@@ -856,10 +853,6 @@ def withdraw_feature_request(fr_id: str, reason: Optional[str], current_client, 
 
 
 def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
-    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
-    from app.models.resources import ChangeRequest, ChangeRequestStatus
-    from app.models.project import Project as ProjectModel
-    from app.services.realtime_notifications import publish_user_notification
 
     fr = db.query(FeatureRequest).filter(FeatureRequest.id == fr_id).first()
     if not fr:
@@ -905,11 +898,6 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
 
 
 def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
-    from sqlalchemy import func
-    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
-    from app.models.resources import ChangeRequest, ChangeRequestStatus, ChangeRequestImpact
-    from app.models.billing_reports import ApprovalRequest
-    from app.services.approval_workflows import find_default_workflow
     import uuid, re as _re
 
     accessible = current_client.get_project_ids()
@@ -985,8 +973,6 @@ def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
 # ── UAT ───────────────────────────────────────────────────────────────────────
 
 def list_uat_client(status: Optional[str], current_client, db: Session) -> list:
-    from app.models.client_portal import UATSession
-    from sqlalchemy.orm import joinedload
 
     q = db.query(UATSession).options(
         joinedload(UATSession.test_cases), joinedload(UATSession.issues)
@@ -1001,8 +987,6 @@ def list_uat_client(status: Optional[str], current_client, db: Session) -> list:
 
 
 def list_uat_team(project_id: Optional[str], db: Session) -> list:
-    from app.models.client_portal import UATSession
-    from sqlalchemy.orm import joinedload
 
     q = db.query(UATSession).options(
         joinedload(UATSession.test_cases),
@@ -1020,8 +1004,6 @@ def list_uat_team(project_id: Optional[str], db: Session) -> list:
 
 
 def create_uat_for_project(project_id: str, payload, db: Session) -> dict:
-    from sqlalchemy import func
-    from app.models.client_portal import UATSession
     import re as _re
 
     max_uat = db.query(func.max(UATSession.code)).filter(UATSession.project_id == project_id).scalar()
@@ -1038,7 +1020,6 @@ def create_uat_for_project(project_id: str, payload, db: Session) -> dict:
 
 
 def add_test_case(uat_id: str, payload, db: Session) -> dict:
-    from app.models.client_portal import UATTestCase
 
     tc = UATTestCase(session_id=uat_id, **payload.model_dump())
     db.add(tc)
@@ -1048,8 +1029,6 @@ def add_test_case(uat_id: str, payload, db: Session) -> dict:
 
 
 def submit_uat_result(uat_id: str, payload, current_client, db: Session) -> dict:
-    from app.models.client_portal import UATSession, UATStatus
-    from sqlalchemy.orm import joinedload
 
     session = db.query(UATSession).options(
         joinedload(UATSession.test_cases)
@@ -1080,7 +1059,6 @@ def submit_uat_result(uat_id: str, payload, current_client, db: Session) -> dict
 
 
 def report_uat_issue(uat_id: str, payload, current_client, db: Session) -> dict:
-    from app.models.client_portal import UATSession, UATIssue
     import sqlalchemy as sa
 
     accessible = current_client.get_project_ids()
@@ -1098,7 +1076,6 @@ def report_uat_issue(uat_id: str, payload, current_client, db: Session) -> dict:
 
 
 def update_uat_issue(issue_id: str, status: str, db: Session) -> dict:
-    from app.models.client_portal import UATIssue
 
     issue = db.query(UATIssue).filter(UATIssue.id == issue_id).first()
     if not issue:
@@ -1113,8 +1090,6 @@ def update_uat_issue(issue_id: str, status: str, db: Session) -> dict:
 # ── Messaging ─────────────────────────────────────────────────────────────────
 
 def get_client_messages(thread_id: Optional[str], current_client, db: Session) -> list:
-    from app.models.client_portal import ClientMessage
-    from sqlalchemy.orm import joinedload
 
     q = db.query(ClientMessage).options(
         joinedload(ClientMessage.sender_client),
@@ -1148,8 +1123,6 @@ def get_client_messages(thread_id: Optional[str], current_client, db: Session) -
 
 
 def get_team_messages(project_id: str, db: Session) -> list:
-    from app.models.client_portal import ClientMessage
-    from sqlalchemy.orm import joinedload
 
     msgs = db.query(ClientMessage).options(
         joinedload(ClientMessage.sender_client),
@@ -1176,7 +1149,6 @@ def get_team_messages(project_id: str, db: Session) -> list:
 
 
 def send_client_message(payload, current_client, db: Session) -> dict:
-    from app.models.client_portal import ClientMessage
     import uuid
 
     accessible = current_client.get_project_ids()
@@ -1206,7 +1178,6 @@ def send_client_message(payload, current_client, db: Session) -> dict:
 
 
 def send_team_message(payload, current_user, db: Session) -> dict:
-    from app.models.client_portal import ClientMessage
     import uuid
 
     msg = ClientMessage(
@@ -1226,11 +1197,6 @@ def send_team_message(payload, current_user, db: Session) -> dict:
 # ── Project info ──────────────────────────────────────────────────────────────
 
 def get_project_info(project_id: Optional[str], current_client, db: Session) -> dict:
-    from sqlalchemy import func
-    from app.models.project import Project as ProjectModel
-    from app.models.imputation import Imputation
-    from app.models.financial import ProjectMilestone
-    from app.models.resources import Deliverable
 
     accessible = current_client.get_project_ids()
     if not accessible:
@@ -1282,7 +1248,6 @@ def get_project_info(project_id: Optional[str], current_client, db: Session) -> 
 # ── Documents ─────────────────────────────────────────────────────────────────
 
 def get_client_documents(project_id: Optional[str], current_client, db: Session) -> list:
-    from app.models.client_portal import ClientDocument
 
     accessible = current_client.get_project_ids()
     if project_id:
@@ -1298,7 +1263,6 @@ def get_client_documents(project_id: Optional[str], current_client, db: Session)
 
 
 def get_all_documents(project_id: str, db: Session) -> list:
-    from app.models.client_portal import ClientDocument
 
     docs = db.query(ClientDocument).filter(
         ClientDocument.project_id == project_id
@@ -1307,7 +1271,6 @@ def get_all_documents(project_id: str, db: Session) -> list:
 
 
 def upload_document(payload, project_id: str, current_user, db: Session) -> dict:
-    from app.models.client_portal import ClientDocument
 
     doc = ClientDocument(project_id=project_id, uploaded_by=current_user.id, **payload.model_dump())
     db.add(doc)
@@ -1318,8 +1281,6 @@ def upload_document(payload, project_id: str, current_user, db: Session) -> dict
 
 def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
                   ip: str, signature_pdf_path_root: str, current_client, db: Session) -> dict:
-    from app.models.client_portal import ClientDocument
-    from app.models.project import Project as ProjectModel
 
     _acc = current_client.get_project_ids()
     if not _acc:
@@ -1385,7 +1346,6 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
 
 
 def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
-    from app.models.client_portal import ClientDocument
     import os
 
     _acc = current_client.get_project_ids()
@@ -1409,7 +1369,6 @@ def download_signed_pdf(doc_id: str, current_client, db: Session) -> bytes:
 # ── Wiki ──────────────────────────────────────────────────────────────────────
 
 def portal_wiki_pages(db: Session) -> list:
-    from app.models.epics import WikiPage
 
     pages = db.query(WikiPage).filter(
         WikiPage.visibility == "portal",
@@ -1420,7 +1379,6 @@ def portal_wiki_pages(db: Session) -> list:
 
 
 def portal_wiki_page_detail(page_id: str, db: Session) -> dict:
-    from app.models.epics import WikiPage
 
     page = db.query(WikiPage).filter(
         WikiPage.id == page_id, WikiPage.visibility == "portal"
@@ -1434,7 +1392,6 @@ def portal_wiki_page_detail(page_id: str, db: Session) -> dict:
 # ── Surveys ───────────────────────────────────────────────────────────────────
 
 def get_surveys(current_client, db: Session) -> list:
-    from app.models.client_portal import ClientSurvey
 
     surveys = db.query(ClientSurvey).filter(
         ClientSurvey.client_id == current_client.id
@@ -1443,7 +1400,6 @@ def get_surveys(current_client, db: Session) -> list:
 
 
 def create_survey(project_id: str, client_id: str, title: str, db: Session) -> dict:
-    from app.models.client_portal import ClientSurvey
 
     survey = ClientSurvey(project_id=project_id, client_id=client_id, title=title)
     db.add(survey)
@@ -1453,7 +1409,6 @@ def create_survey(project_id: str, client_id: str, title: str, db: Session) -> d
 
 
 def respond_survey(survey_id: str, payload, current_client, db: Session) -> dict:
-    from app.models.client_portal import ClientSurvey
 
     survey = db.query(ClientSurvey).filter(
         ClientSurvey.id == survey_id, ClientSurvey.client_id == current_client.id
@@ -1474,10 +1429,6 @@ def respond_survey(survey_id: str, payload, current_client, db: Session) -> dict
 
 def get_portal_stats(project_id: str, db: Session) -> dict:
     import sqlalchemy as sa
-    from app.models.client_portal import (
-        ClientUser, client_user_projects, ClientMessage,
-        FeatureRequest, UATSession, ClientSurvey
-    )
 
     legacy_ids = {r[0] for r in db.execute(
         sa.select(ClientUser.id).where(ClientUser.project_id == project_id)

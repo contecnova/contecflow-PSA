@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.enterprise import Webhook, WebhookDelivery
 from app.core.encryption import decrypt_value
+from datetime import datetime, timezone
 
 
 def _sign_payload(secret: str, payload: str) -> str:
@@ -109,7 +110,6 @@ def fire_webhook(
         hook.total_deliveries = (hook.total_deliveries or 0) + 1
         if not success:
             hook.failed_deliveries = (hook.failed_deliveries or 0) + 1
-        from datetime import datetime, timezone
         hook.last_triggered_at = datetime.now(timezone.utc)
 
         triggered += 1

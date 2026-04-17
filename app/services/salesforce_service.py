@@ -3,11 +3,13 @@ from datetime import date, datetime
 from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
+from app.models.marketplace import IntegrationInstance
+from app.models.marketplace import IntegrationConnector
+from app.models.pipeline import Opportunity
 
 
 def get_salesforce_instance(db: Session, instance_id: str, org_id: Optional[str]):
     """Return enabled IntegrationInstance for Salesforce, scoped to org."""
-    from app.models.marketplace import IntegrationInstance
 
     return (
         db.query(IntegrationInstance)
@@ -22,7 +24,6 @@ def get_salesforce_instance(db: Session, instance_id: str, org_id: Optional[str]
 
 def get_salesforce_connector(db: Session, connector_id: str):
     """Return IntegrationConnector with slug=='salesforce'."""
-    from app.models.marketplace import IntegrationConnector
 
     return (
         db.query(IntegrationConnector)
@@ -36,7 +37,6 @@ def get_salesforce_connector(db: Session, connector_id: str):
 
 def find_opportunity_by_external_id(db: Session, sf_id: str):
     """Return existing Opportunity matched by external_id, or None."""
-    from app.models.pipeline import Opportunity
 
     if not hasattr(Opportunity, "external_id"):
         return None
@@ -45,7 +45,6 @@ def find_opportunity_by_external_id(db: Session, sf_id: str):
 
 def upsert_opportunity(db: Session, sf_opp: dict, mapped_stage: str, close_date: Optional[date]) -> None:
     """Create or update a local Opportunity from a Salesforce record."""
-    from app.models.pipeline import Opportunity
 
     sf_id = sf_opp.get("Id")
     existing = find_opportunity_by_external_id(db, sf_id)

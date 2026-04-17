@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.resources import UserSkill
 from app.models.user import User
+from app.models.pipeline import Opportunity
 
 
 def run_skills_report(db: Session, filters: dict, org_id=None) -> dict:
@@ -35,7 +36,6 @@ def run_skills_report(db: Session, filters: dict, org_id=None) -> dict:
 
 
 def run_pipeline_report(db: Session, filters: dict, org_id=None) -> dict:
-    from app.models.pipeline import Opportunity
 
     opps_q = db.query(Opportunity)
     if org_id:

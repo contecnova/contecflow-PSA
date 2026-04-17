@@ -11,14 +11,12 @@ from typing import Optional, List
 
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from app.models.billing_reports import RolePermission, SodRule, SodViolation, GrcAuditLog
 
 
 # ── Lazy model imports (avoid circular imports at module load) ─────────────────
 
 def _models():
-    from app.models.billing_reports import (
-        RolePermission, SodRule, SodViolation, GrcAuditLog,
-    )
     return RolePermission, SodRule, SodViolation, GrcAuditLog
 
 

@@ -15,6 +15,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.core.config import settings
+from app.models.bookings import ResourceBooking, BookingType
+from app.models.clients import Client
+from app.models.documents import Document
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.resources import ResourceUtilizationSnapshot
+from app.models.user import User
+from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
+from fastapi import HTTPException
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +136,6 @@ def week_label(d) -> str:
 # ── Project filter helper ─────────────────────────────────────────────────────
 
 def get_filtered_project_ids(db, current_user, *, project_id=None, project_type=None, client_id=None):
-    from app.models.project import Project
     if not current_user.organization_id:
         return None
     scoped_q = db.query(Project.id).filter(Project.organization_id == current_user.organization_id)
@@ -166,9 +175,6 @@ def compute_summary(rows: list) -> dict:
 # ── Hours by week ─────────────────────────────────────────────────────────────
 
 def get_hours_by_week(weeks: int, current_user, db) -> dict:
-    from sqlalchemy import func
-    from app.models.project import Project
-    from app.models.imputation import Imputation
     today  = date.today()
     result = []
     for i in range(weeks - 1, -1, -1):
@@ -193,11 +199,6 @@ def get_hours_by_week(weeks: int, current_user, db) -> dict:
 # ── Advanced utilization ──────────────────────────────────────────────────────
 
 def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_id, current_user, db) -> dict:
-    from fastapi import HTTPException
-    from sqlalchemy import func
-    from app.models.user import User
-    from app.models.imputation import Imputation
-    from app.models.bookings import ResourceBooking, BookingType
     today = date.today()
     period_start = today - timedelta(days=today.weekday())
     period_end   = period_start + timedelta(days=6)
@@ -301,7 +302,6 @@ def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_
 # ── Metric breaches ───────────────────────────────────────────────────────────
 
 def get_metric_breaches(margin_threshold_pct: float, top_n: int, current_user, db) -> dict:
-    from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
     d_from, d_to = parse_date_range(None, None)
     rows = []
     if "margin_by_project" in MODULAR_METRICS_REGISTRY:
@@ -332,9 +332,6 @@ def get_metric_breaches(margin_threshold_pct: float, top_n: int, current_user, d
 # ── Filter options ────────────────────────────────────────────────────────────
 
 def get_filter_options_data(current_user, db) -> dict:
-    from app.models.project import Project
-    from app.models.user import User
-    from app.models.clients import Client
     projects = db.query(Project.id, Project.name, Project.code, Project.project_type, Project.client_id).filter(
         Project.status.in_(["active", "closed"]),
         Project.organization_id == current_user.organization_id,
@@ -370,7 +367,6 @@ def get_filter_options_data(current_user, db) -> dict:
 
 def get_imputations_for_analytics(db: Session, user_id: str, cutoff_date: date):
     """Fetch imputations for a user on or after cutoff_date."""
-    from app.models.imputation import Imputation
     return (
         db.query(Imputation)
         .filter(and_(Imputation.user_id == user_id, Imputation.date >= cutoff_date))
@@ -380,7 +376,6 @@ def get_imputations_for_analytics(db: Session, user_id: str, cutoff_date: date):
 
 def get_documents_for_analytics(db: Session, cutoff_dt: datetime):
     """Fetch non-archived documents created on or after cutoff_dt."""
-    from app.models.documents import Document
     return (
         db.query(Document)
         .filter(Document.created_at >= cutoff_dt, Document.is_archived == False)
@@ -390,13 +385,11 @@ def get_documents_for_analytics(db: Session, cutoff_dt: datetime):
 
 def get_active_users(db: Session):
     """Return all active users."""
-    from app.models.user import User
     return db.query(User).filter(User.is_active == True).all()
 
 
 def get_resource_snapshots_for_user(db: Session, user_id: str, limit: int):
     """Return ordered resource utilization snapshots for a user up to limit rows."""
-    from app.models.resources import ResourceUtilizationSnapshot
     return (
         db.query(ResourceUtilizationSnapshot)
         .filter(ResourceUtilizationSnapshot.user_id == user_id)
@@ -410,7 +403,6 @@ def get_imputations_for_export(
     db: Session, user_id: str, date_from: Optional[date], date_to: Optional[date]
 ):
     """Fetch imputations for CSV export with optional date filters."""
-    from app.models.imputation import Imputation
     q = db.query(Imputation).filter(Imputation.user_id == user_id)
     if date_from:
         q = q.filter(Imputation.date >= date_from)
@@ -421,7 +413,6 @@ def get_imputations_for_export(
 
 def get_all_resource_snapshots(db: Session):
     """Return all resource utilization snapshots ordered by week descending."""
-    from app.models.resources import ResourceUtilizationSnapshot
     return (
         db.query(ResourceUtilizationSnapshot)
         .order_by(ResourceUtilizationSnapshot.week_iso.desc())

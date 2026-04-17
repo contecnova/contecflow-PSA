@@ -20,6 +20,19 @@ if TYPE_CHECKING:
 from sqlalchemy.orm import Session
 
 from app.models.task import TaskStatus
+from app.db.session import SessionLocal
+from app.models.bookings import TaskDependency, DependencyType
+from app.models.project import Project
+from app.models.task import Task, TaskStatus, TaskComment
+from app.models.task import Task as TaskModel
+from app.models.user import UserRole
+from app.schemas import TaskOut as TaskOutSchema
+from app.services.numbering import next_numbered_code
+from app.services.semantic_classifier import SemanticAssigner
+from datetime import date as _date
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 
 # ── Transition table ───────────────────────────────────────────────────────────
@@ -38,7 +51,6 @@ TASK_VALID_TRANSITIONS: dict = {
 
 def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus) -> None:
     """Raises HTTPException(400) if the transition is not allowed."""
-    from fastapi import HTTPException
     allowed = TASK_VALID_TRANSITIONS.get(current_status, set())
     if new_status not in allowed:
         raise HTTPException(
@@ -62,9 +74,6 @@ def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
     Propagate a due-date shift to all FS successor tasks via BFS.
     Returns rescheduled task list + total count.
     """
-    from fastapi import HTTPException
-    from app.models.task import Task
-    from app.models.bookings import TaskDependency, DependencyType
 
     root_task = db.query(Task).filter(Task.id == task_id).first()
     if not root_task:
@@ -150,10 +159,6 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
     Apply status / assignee_id / priority changes to multiple tasks.
     Returns {"updated": int, "skipped": list}.
     """
-    from app.models.task import Task
-    from app.models.project import Project
-    from app.models.user import UserRole
-    from sqlalchemy.orm import joinedload
 
     task_id_list = list(set(task_ids))
     tasks = db.query(Task).options(joinedload(Task.assignee)).filter(Task.id.in_(task_id_list)).all()
@@ -202,8 +207,6 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
 # ── Query helpers (scoped to org) ──────────────────────────────────────────────
 
 def task_query_for_user(db: Session, current_user):
-    from app.models.task import Task
-    from app.models.project import Project
     q = db.query(Task).join(Project, Task.project_id == Project.id)
     if current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
@@ -211,7 +214,6 @@ def task_query_for_user(db: Session, current_user):
 
 
 def project_for_user(db: Session, project_id: str, current_user) -> Optional["Project"]:
-    from app.models.project import Project
     q = db.query(Project).filter(Project.id == project_id)
     if current_user.organization_id:
         q = q.filter(Project.organization_id == current_user.organization_id)
@@ -221,11 +223,6 @@ def project_for_user(db: Session, project_id: str, current_user) -> Optional["Pr
 # ── Kanban ─────────────────────────────────────────────────────────────────────
 
 def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskStatus, TaskOut
-    from app.models.user import UserRole
-    from app.schemas import TaskOut as TaskOutSchema
-    from sqlalchemy.orm import joinedload
 
     project = project_for_user(db, project_id, current_user)
     if not project:
@@ -258,11 +255,6 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
 # ── Create ─────────────────────────────────────────────────────────────────────
 
 def create_task_record(db: Session, payload, current_user):
-    from fastapi import HTTPException
-    from app.models.task import Task
-    from app.models.user import UserRole
-    from app.services.numbering import next_numbered_code
-    from sqlalchemy.exc import IntegrityError
 
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
         raise HTTPException(status_code=403, detail="No tienes permiso para crear tareas")
@@ -290,11 +282,6 @@ def create_task_record(db: Session, payload, current_user):
 # ── Get single ─────────────────────────────────────────────────────────────────
 
 def get_task_record(db: Session, task_id: str, current_user):
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskComment
-    from app.models.project import Project
-    from app.models.user import UserRole
-    from sqlalchemy.orm import joinedload
 
     task = task_query_for_user(db, current_user).options(
         joinedload(Task.assignee),
@@ -320,10 +307,6 @@ def get_task_record(db: Session, task_id: str, current_user):
 
 def update_task_record(db: Session, task_id: str, payload, current_user):
     import logging
-    from fastapi import HTTPException
-    from app.models.task import Task
-    from app.models.user import UserRole
-    from sqlalchemy.exc import IntegrityError
 
     logger = logging.getLogger(__name__)
 
@@ -378,9 +361,6 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
 
 def cancel_task_record(db: Session, task_id: str) -> dict:
     import logging
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskStatus
-    from sqlalchemy.exc import IntegrityError
 
     logger = logging.getLogger(__name__)
 
@@ -405,11 +385,6 @@ def cancel_task_record(db: Session, task_id: str) -> dict:
 
 def add_comment_record(db: Session, task_id: str, payload, current_user):
     import logging
-    from fastapi import HTTPException
-    from app.models.task import Task, TaskComment
-    from app.models.project import Project
-    from app.models.user import UserRole
-    from sqlalchemy.exc import IntegrityError
 
     logger = logging.getLogger(__name__)
 
@@ -448,10 +423,6 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
 
 def bulk_update_dates_record(db: Session, updates: list) -> dict:
     import logging
-    from fastapi import HTTPException
-    from app.models.task import Task as TaskModel
-    from datetime import date as _date
-    from sqlalchemy.exc import IntegrityError
 
     logger = logging.getLogger(__name__)
 
@@ -494,7 +465,6 @@ def bulk_update_dates_record(db: Session, updates: list) -> dict:
 
 def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: str):
     """Record reassignment as implicit negative feedback for the previous assignee."""
-    from app.db.session import SessionLocal
 
     def _run():
         _db = SessionLocal()
@@ -517,8 +487,6 @@ def record_reassign_feedback_bg(background_tasks, db, item_id: str, item_type: s
 
 def refresh_profile_bg(background_tasks: "BackgroundTasks", db: "Session", user_id: str) -> None:
     """Schedule a semantic profile refresh as a background task."""
-    from app.services.semantic_classifier import SemanticAssigner
-    from app.db.session import SessionLocal
 
     def _run():
         _db = SessionLocal()

@@ -11,6 +11,7 @@ from app.models.okrs import Objective, KeyResult, KRCheckin
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.models.user import User
+from fastapi import HTTPException
 
 
 def calc_progress(kr: KeyResult) -> float:
@@ -105,12 +106,10 @@ def sync_kr_from_tasks(
         .first()
     )
     if not kr:
-        from fastapi import HTTPException
         raise HTTPException(404, "KR no encontrado")
 
     obj = kr.objective
     if not obj or not obj.project_id:
-        from fastapi import HTTPException
         raise HTTPException(
             400,
             "El Objetivo vinculado al KR no tiene proyecto asociado. "

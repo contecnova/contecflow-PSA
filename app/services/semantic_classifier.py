@@ -23,6 +23,18 @@ from collections import defaultdict
 from typing import Optional
 
 from app.core.config import settings
+from app.models.resources import UserSkill
+from app.models.semantic_engine import SemConfig
+from app.models.semantic_engine import SemFeedback
+from app.models.semantic_engine import SemProfile
+from app.models.semantic_engine import SemProfile, SemFeedback
+from app.models.semantic_engine import SemEmbeddingCache
+from app.models.service_desk import Ticket
+from app.models.task import Task
+from app.models.user import User
+from app.services.resource_analytics import ResourceAnalyticsService
+from datetime import date
+from datetime import datetime, timezone
 
 logger = logging.getLogger("semantic_classifier")
 
@@ -175,7 +187,6 @@ class SemanticAssigner:
     TOP_K_HISTORY    = 3
 
     def __init__(self, db, config=None):
-        from app.models.semantic_engine import SemConfig
         self.db = db
         self.config = config or db.query(SemConfig).first()
         if not self.config:
@@ -242,7 +253,6 @@ class SemanticAssigner:
         Guarda una correccion de experto en sem_feedback.
         Equivalente a guardar en el Expert Cache de Ficosa.
         """
-        from app.models.semantic_engine import SemFeedback
         h     = _text_hash(item_text)
         emb   = self._encode_single(item_text)
         exist = self.db.query(SemFeedback).filter(
@@ -266,7 +276,6 @@ class SemanticAssigner:
         Reconstruye los embeddings de todos los perfiles de usuario.
         Llamar cuando cambian los skills o historial de un usuario.
         """
-        from app.models.semantic_engine import SemProfile
         profiles = self.db.query(SemProfile).all()
         for p in profiles:
             if p.profile_text:
@@ -281,10 +290,6 @@ class SemanticAssigner:
         Se llama en background tras completar una tarea o resolver un ticket.
         Retorna True si el perfil fue actualizado, False si no habia datos suficientes.
         """
-        from app.models.semantic_engine import SemProfile
-        from app.models.service_desk import Ticket
-        from app.models.task import Task
-        from app.models.user import User
 
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
@@ -296,7 +301,6 @@ class SemanticAssigner:
         if user.department:  parts.append(user.department)
 
         # Mejora 2: skills via relationship + etiquetas en español
-        from app.models.resources import UserSkill
         _LEVEL_ES = {
             "basic": "básico", "intermediate": "intermedio",
             "advanced": "avanzado", "expert": "experto",
@@ -344,7 +348,6 @@ class SemanticAssigner:
                  candidate_user_ids: list = None,
                  priority: str = "medium") -> dict:
         """Pipeline de 4 niveles (igual que Ficosa)."""
-        from app.models.semantic_engine import SemProfile, SemFeedback
 
         h = _text_hash(text)
 
@@ -399,8 +402,6 @@ class SemanticAssigner:
         force_review = not pth["auto"]
 
         # Bug 1 fix: real-time load from ResourceAnalyticsService
-        from app.services.resource_analytics import ResourceAnalyticsService
-        from datetime import date
         current_week = ResourceAnalyticsService.get_week_iso(date.today())
 
         # Nivel 3 — Motor semantico
@@ -459,7 +460,6 @@ class SemanticAssigner:
         Al llegar a history_decay_days días, un embedding vale exactamente
         la mitad que uno reciente.
         """
-        from datetime import datetime, timezone
         score_profile = _cosine(item_emb, profile_emb)
         if not history_tuples:
             return score_profile
@@ -490,7 +490,6 @@ class SemanticAssigner:
     def _semantic_lookup_feedback(self, text: str, item_type: str,
                                   threshold: float) -> Optional[dict]:
         """Nivel 2B: busqueda semantica en feedback de expertos."""
-        from app.models.semantic_engine import SemFeedback
         feedbacks = self.db.query(SemFeedback).filter(
             SemFeedback.item_type == item_type,
             SemFeedback.embedding.isnot(None)
@@ -513,7 +512,6 @@ class SemanticAssigner:
     def _get_history_embeddings(self, user_id: str, item_type: str) -> list:
         """Recupera embeddings del historial resuelto por este usuario.
         Bug 3 fix: returns list of (embedding, created_at) tuples for temporal decay."""
-        from app.models.semantic_engine import SemEmbeddingCache
         rows = self.db.query(SemEmbeddingCache).filter(
             SemEmbeddingCache.assigned_user_id == user_id,
             SemEmbeddingCache.item_type == item_type,

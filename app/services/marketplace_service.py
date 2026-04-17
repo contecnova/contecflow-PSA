@@ -10,6 +10,10 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.core.encryption import encrypt_value
+from app.models.marketplace import IntegrationConnector
+from app.models.marketplace import IntegrationConnector, IntegrationInstance
+from app.models.marketplace import IntegrationInstance
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +110,6 @@ CONNECTOR_CATALOG = [
 
 
 def _seed_connectors(db: Session) -> None:
-    from app.models.marketplace import IntegrationConnector
     if db.query(IntegrationConnector).count() == 0:
         for item in CONNECTOR_CATALOG:
             db.add(IntegrationConnector(**item))
@@ -119,7 +122,6 @@ def list_marketplace_connectors(
     organization_id: Optional[str],
     db: Session,
 ) -> list:
-    from app.models.marketplace import IntegrationConnector, IntegrationInstance
     _seed_connectors(db)
 
     q = db.query(IntegrationConnector).filter(IntegrationConnector.is_active == True)
@@ -158,8 +160,6 @@ def install_integration_connector(
     sync_direction: str, sync_frequency: str,
     organization_id: Optional[str], user_id: str, db: Session,
 ) -> dict:
-    from app.models.marketplace import IntegrationConnector, IntegrationInstance
-    from app.core.encryption import encrypt_value
     _seed_connectors(db)
 
     connector = db.query(IntegrationConnector).filter(
@@ -201,7 +201,6 @@ def install_integration_connector(
 
 
 def list_integration_instances(organization_id: Optional[str], db: Session) -> list:
-    from app.models.marketplace import IntegrationConnector, IntegrationInstance
     if not organization_id:
         return []
     instances = db.query(IntegrationInstance).filter(
@@ -231,7 +230,6 @@ def list_integration_instances(organization_id: Optional[str], db: Session) -> l
 def uninstall_integration_connector(
     instance_id: str, organization_id: Optional[str], db: Session,
 ) -> None:
-    from app.models.marketplace import IntegrationInstance
     inst = db.query(IntegrationInstance).filter(
         IntegrationInstance.id == instance_id,
         IntegrationInstance.organization_id == organization_id,

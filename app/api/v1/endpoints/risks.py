@@ -109,3 +109,5 @@ def delete_risk(
         raise HTTPException(404, "Riesgo no encontrado")
     risk_service.delete_risk(db, risk)
     return {"ok": True}
+_risk_level = risk_level
+_risk_score = risk_score

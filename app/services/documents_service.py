@@ -9,6 +9,25 @@ import logging
 import mimetypes
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+from app.core.security import decode_token
+from app.models.documents import Document
+from app.models.documents import DocumentAccessLevel
+from app.models.documents import Document, DocumentPermission, DocumentAccessLevel
+from app.models.documents import DocumentAccessLog
+from app.models.documents import DocumentVersion
+from app.models.documents import DocumentPermission
+from app.models.documents import ApprovalStatus
+from app.models.documents import Document, DocumentVersion, DocumentTag, DocumentCategory
+from app.models.documents import DocumentTag
+from app.models.user import UserRole
+from app.models.user import User, UserRole
+from app.models.user import User
+from app.schemas.documents import DocumentOut, DocumentVersionOut, DocumentPermissionOut
+from app.services.s3_service import file_storage
+from app.services.s3_service import file_storage, LocalFileStorage
+from fastapi import HTTPException
+from sqlalchemy import or_
+from sqlalchemy import and_
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +88,6 @@ def detect_mime_from_magic(content: bytes) -> Optional[str]:
 
 def validate_upload(file_name: str, content_type: str, content: bytes) -> None:
     import os as _os
-    from fastapi import HTTPException
     ext = _os.path.splitext(file_name or "")[1].lower()
     if ext in BLOCKED_ARCHIVE_EXTENSIONS:
         raise HTTPException(415, "Subida de archivos comprimidos bloqueada por seguridad (riesgo de fuga de secretos y payloads ocultos).")
@@ -97,8 +115,6 @@ def validate_upload(file_name: str, content_type: str, content: bytes) -> None:
 # ── Document access helpers ───────────────────────────────────────────────────
 
 def get_document_or_404(db, doc_id: str):
-    from fastapi import HTTPException
-    from app.models.documents import Document
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(404, "Document not found")
@@ -106,9 +122,6 @@ def get_document_or_404(db, doc_id: str):
 
 
 def check_document_access(doc, user, required_level=None) -> None:
-    from fastapi import HTTPException
-    from app.models.documents import DocumentAccessLevel
-    from app.models.user import UserRole
     if required_level is None:
         required_level = DocumentAccessLevel.viewer
     if user.role == UserRole.admin:
@@ -137,9 +150,6 @@ def check_document_access(doc, user, required_level=None) -> None:
 # ── Serialization ─────────────────────────────────────────────────────────────
 
 def serialize_document(db, doc, user, generate_s3_urls: bool = True):
-    from app.models.user import UserRole
-    from app.services.s3_service import file_storage
-    from app.schemas.documents import DocumentOut, DocumentVersionOut, DocumentPermissionOut
 
     visible_perms = [
         p for p in doc.permissions
@@ -200,7 +210,6 @@ def serialize_document(db, doc, user, generate_s3_urls: bool = True):
 # ── Entity-list helper ────────────────────────────────────────────────────────
 
 def build_doc_list(docs: list) -> list:
-    from app.services.s3_service import file_storage
     result = []
     for doc in docs:
         latest = doc.versions[0] if doc.versions else None
@@ -224,7 +233,6 @@ def build_doc_list(docs: list) -> list:
 
 def extract_document_text(file_key: str, file_name: str, file_mime_type: str) -> Optional[str]:
     """Try to extract text from a locally stored file for AI summarization."""
-    from app.services.s3_service import file_storage, LocalFileStorage
     if not isinstance(file_storage, LocalFileStorage):
         return None
     try:
@@ -249,7 +257,6 @@ def extract_document_text(file_key: str, file_name: str, file_mime_type: str) ->
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def create_document(db, payload, current_user):
-    from app.models.documents import Document
     doc = Document(
         title=payload.title,
         description=payload.description,
@@ -268,9 +275,6 @@ def create_document(db, payload, current_user):
 
 
 def list_documents(db, current_user, skip: int, limit: int, category, tags, search, project_id, is_archived: bool):
-    from sqlalchemy import or_
-    from app.models.documents import Document, DocumentPermission, DocumentAccessLevel
-    from app.models.user import User, UserRole
     q = db.query(Document).filter(Document.is_archived == is_archived)
     if category:
         q = q.filter(Document.category == category)
@@ -298,7 +302,6 @@ def list_documents(db, current_user, skip: int, limit: int, category, tags, sear
 
 
 def log_document_view(db, doc_id: str, user_id: str, ip_address):
-    from app.models.documents import DocumentAccessLog
     db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="view", ip_address=ip_address))
     db.commit()
 
@@ -319,7 +322,6 @@ def archive_document(db, doc):
 
 
 def create_document_version(db, doc, doc_id: str, file: object, content: bytes, change_note, current_user, s3_key: str, file_size: int):
-    from app.models.documents import DocumentVersion
     version_num = max([v.version_num for v in doc.versions], default=0) + 1
     version = DocumentVersion(
         document_id=doc_id,
@@ -342,10 +344,6 @@ def create_document_version(db, doc, doc_id: str, file: object, content: bytes, 
 
 
 def add_document_permission(db, doc_id: str, payload, current_user):
-    from sqlalchemy import and_
-    from app.models.documents import DocumentPermission
-    from app.models.user import User
-    from fastapi import HTTPException
     user = db.query(User).filter(User.id == payload.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -371,9 +369,6 @@ def add_document_permission(db, doc_id: str, payload, current_user):
 
 
 def remove_document_permission(db, doc_id: str, perm_id: str):
-    from sqlalchemy import and_
-    from app.models.documents import DocumentPermission
-    from fastapi import HTTPException
     perm = db.query(DocumentPermission).filter(
         and_(
             DocumentPermission.id == perm_id,
@@ -387,8 +382,6 @@ def remove_document_permission(db, doc_id: str, perm_id: str):
 
 
 def approve_document(db, doc, payload, current_user):
-    from app.models.documents import ApprovalStatus
-    from fastapi import HTTPException
     if not doc.requires_approval:
         raise HTTPException(status_code=400, detail="This document does not require approval")
     doc.approval_status = payload.status
@@ -403,7 +396,6 @@ def approve_document(db, doc, payload, current_user):
 def create_and_upload_document(db, current_user, file, content: bytes, title: str, description, category: str,
                                 project_id, client_id, task_id, ticket_id, requires_approval: bool,
                                 tags, change_note, s3_key: str, file_size: int):
-    from app.models.documents import Document, DocumentVersion, DocumentTag, DocumentCategory
     try:
         cat_enum = DocumentCategory(category)
     except ValueError:
@@ -441,8 +433,6 @@ def create_and_upload_document(db, current_user, file, content: bytes, title: st
 
 
 def resolve_user_from_token(db, token: str):
-    from app.core.security import decode_token
-    from app.models.user import User
     payload = decode_token(token)
     if payload and payload.get("type") == "access":
         user_id = payload.get("sub")
@@ -451,18 +441,15 @@ def resolve_user_from_token(db, token: str):
 
 
 def get_version_by_file_key(db, file_key: str):
-    from app.models.documents import DocumentVersion
     return db.query(DocumentVersion).filter(DocumentVersion.file_key == file_key).first()
 
 
 def log_document_download(db, doc_id: str, user_id: str, ip_address):
-    from app.models.documents import DocumentAccessLog
     db.add(DocumentAccessLog(document_id=doc_id, user_id=user_id, action="download", ip_address=ip_address))
     db.commit()
 
 
 def docs_by_project(db, project_id: str, archived: bool):
-    from app.models.documents import Document
     return db.query(Document).filter(
         Document.project_id == project_id,
         Document.is_archived == archived,
@@ -470,7 +457,6 @@ def docs_by_project(db, project_id: str, archived: bool):
 
 
 def docs_by_task(db, task_id: str):
-    from app.models.documents import Document
     return db.query(Document).filter(
         Document.task_id == task_id,
         Document.is_archived == False,
@@ -478,7 +464,6 @@ def docs_by_task(db, task_id: str):
 
 
 def docs_by_ticket(db, ticket_id: str):
-    from app.models.documents import Document
     return db.query(Document).filter(
         Document.ticket_id == ticket_id,
         Document.is_archived == False,
@@ -486,14 +471,11 @@ def docs_by_ticket(db, ticket_id: str):
 
 
 def add_tag(db, doc_id: str, tag_name: str):
-    from app.models.documents import DocumentTag
     db.add(DocumentTag(document_id=doc_id, tag_name=tag_name))
     db.commit()
 
 
 def remove_tag(db, doc_id: str, tag_name: str):
-    from app.models.documents import DocumentTag
-    from fastapi import HTTPException
     tag = db.query(DocumentTag).filter(
         DocumentTag.document_id == doc_id,
         DocumentTag.tag_name == tag_name,

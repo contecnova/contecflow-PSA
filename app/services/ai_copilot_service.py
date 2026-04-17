@@ -11,13 +11,15 @@ from typing import Dict
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.models.imputation import Imputation
+from app.models.project import Project
+from app.models.service_desk import Ticket, KBArticle
+from app.models.task import Task
 
 logger = logging.getLogger(__name__)
 
 
 def get_ai_gantt_suggestions(project_id: str, db: Session) -> dict:
-    from app.models.project import Project
-    from app.models.task import Task
 
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -73,8 +75,6 @@ def get_ai_gantt_suggestions(project_id: str, db: Session) -> dict:
 
 
 def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
-    from app.models.imputation import Imputation
-    from app.models.project import Project
 
     cutoff = date.today() - timedelta(days=30)
     entries = db.query(Imputation).filter(
@@ -133,7 +133,6 @@ def get_ai_timesheet_anomalies(user_id: str, db: Session) -> dict:
 
 
 def get_ai_ticket_kb_suggestions(ticket_id: str, db: Session) -> dict:
-    from app.models.service_desk import Ticket, KBArticle
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:

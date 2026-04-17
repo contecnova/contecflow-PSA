@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from app.core.config import settings
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,6 @@ class S3Service:
         if not self.is_available():
             raise ValueError("S3 not configured. Check AWS credentials in settings.")
 
-        from botocore.exceptions import ClientError
         ext = file_name.rsplit(".", 1)[-1] if "." in file_name else "bin"
         unique_id = str(uuid.uuid4())[:8]
         s3_key = f"documents/{document_id}/v{version_num}/{unique_id}.{ext}"
@@ -144,7 +144,6 @@ class S3Service:
         if not self.is_available():
             raise ValueError("S3 not configured")
 
-        from botocore.exceptions import ClientError
         expiration_seconds = (expiration_hours or self.url_expiration_hours) * 3600
         try:
             return self.client.generate_presigned_url(

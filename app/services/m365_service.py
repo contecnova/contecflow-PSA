@@ -7,18 +7,20 @@ from datetime import date
 from typing import List
 
 from sqlalchemy.orm import Session
+from app.core.config import settings
+from app.models.financial import ProjectMilestone
+from app.models.task import Task
+from fastapi import HTTPException
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 
 def m365_configured() -> bool:
-    from app.core.config import settings
     return bool(settings.AZURE_TENANT_ID and settings.AZURE_CLIENT_ID and settings.AZURE_CLIENT_SECRET)
 
 
 def require_m365() -> None:
     if not m365_configured():
-        from fastapi import HTTPException
         raise HTTPException(503, detail={
             "error": "M365_NOT_CONFIGURED",
             "message": "Configura las variables de entorno: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET",
@@ -27,8 +29,6 @@ def require_m365() -> None:
 
 
 async def get_graph_token() -> str:
-    from app.core.config import settings
-    from fastapi import HTTPException
     url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
     data = {
         "grant_type": "client_credentials",
@@ -44,8 +44,6 @@ async def get_graph_token() -> str:
 
 
 def get_graph_token_sync() -> str:
-    from app.core.config import settings
-    from fastapi import HTTPException
     url = f"https://login.microsoftonline.com/{settings.AZURE_TENANT_ID}/oauth2/v2.0/token"
     data = {
         "grant_type": "client_credentials",
@@ -110,7 +108,6 @@ def graph_post_sync(path: str, payload: dict) -> dict:
 
 def get_upcoming_milestones(db: Session, cutoff: date, limit: int = 50) -> list:
     """Return milestones with due_date up to cutoff."""
-    from app.models.financial import ProjectMilestone
     return (
         db.query(ProjectMilestone)
         .filter(ProjectMilestone.due_date <= cutoff)
@@ -121,7 +118,6 @@ def get_upcoming_milestones(db: Session, cutoff: date, limit: int = 50) -> list:
 
 def get_active_tasks_for_project(db: Session, project_id: str, limit: int = 200) -> list:
     """Return non-terminal tasks for a project."""
-    from app.models.task import Task
     return (
         db.query(Task)
         .filter(

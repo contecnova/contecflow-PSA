@@ -7,6 +7,11 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from app.models.advanced_config import RateTable
+from app.models.advanced_config import RateTable, RateEntry
+from app.models.advanced_config import RateEntry
+from app.models.advanced_config import RateOverride
+from app.models.advanced_config import RateTable, RateOverride
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -28,14 +33,12 @@ def _date_valid(valid_from, valid_to, today: str) -> bool:
 # ── RateTable ──────────────────────────────────────────────────────────────────
 
 def list_rate_tables(db: Session, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable
     q = db.query(RateTable)
     q = _org_filter(q, RateTable, org_id, is_superadmin)
     return q.order_by(RateTable.is_default.desc(), RateTable.name).all()
 
 
 def create_rate_table(db: Session, payload_dict: dict, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable
     if payload_dict.get("is_default"):
         q = db.query(RateTable)
         q = _org_filter(q, RateTable, org_id, is_superadmin)
@@ -48,7 +51,6 @@ def create_rate_table(db: Session, payload_dict: dict, org_id, is_superadmin: bo
 
 
 def get_rate_table_or_404(db: Session, table_id: str, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable
     q = db.query(RateTable).filter(RateTable.id == table_id)
     q = _org_filter(q, RateTable, org_id, is_superadmin)
     t = q.first()
@@ -58,7 +60,6 @@ def get_rate_table_or_404(db: Session, table_id: str, org_id, is_superadmin: boo
 
 
 def update_rate_table(db: Session, table_id: str, payload: dict, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable
     t = get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     allowed = ["name", "description", "applies_to", "is_default", "is_active"]
     if payload.get("is_default"):
@@ -73,7 +74,6 @@ def update_rate_table(db: Session, table_id: str, payload: dict, org_id, is_supe
 
 
 def delete_rate_table(db: Session, table_id: str, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable
     t = get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     db.delete(t)
     db.commit()
@@ -87,7 +87,6 @@ def duplicate_rate_table(
     org_id,
     is_superadmin: bool,
 ):
-    from app.models.advanced_config import RateTable, RateEntry
     src = get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     new_table = RateTable(
         id=str(uuid.uuid4()),
@@ -120,7 +119,6 @@ def duplicate_rate_table(
 # ── RateEntry ──────────────────────────────────────────────────────────────────
 
 def add_entry(db: Session, table_id: str, payload_dict: dict, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateTable, RateEntry
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     e = RateEntry(id=str(uuid.uuid4()), table_id=table_id, **payload_dict)
     db.add(e)
@@ -137,7 +135,6 @@ def update_entry(
     org_id,
     is_superadmin: bool,
 ):
-    from app.models.advanced_config import RateEntry
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     e = db.query(RateEntry).filter(
         RateEntry.id == entry_id, RateEntry.table_id == table_id
@@ -153,7 +150,6 @@ def update_entry(
 
 
 def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateEntry
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     e = db.query(RateEntry).filter(
         RateEntry.id == entry_id, RateEntry.table_id == table_id
@@ -167,7 +163,6 @@ def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmi
 # ── RateOverride ───────────────────────────────────────────────────────────────
 
 def add_override(db: Session, table_id: str, payload_dict: dict, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateOverride
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     if not payload_dict.get("client_id") and not payload_dict.get("project_id"):
         raise HTTPException(400, "Debe especificar client_id o project_id")
@@ -179,7 +174,6 @@ def add_override(db: Session, table_id: str, payload_dict: dict, org_id, is_supe
 
 
 def delete_override(db: Session, table_id: str, override_id: str, org_id, is_superadmin: bool):
-    from app.models.advanced_config import RateOverride
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     o = db.query(RateOverride).filter(
         RateOverride.id == override_id, RateOverride.table_id == table_id
@@ -201,7 +195,6 @@ def get_effective_rate(
     org_id,
     is_superadmin: bool,
 ) -> dict:
-    from app.models.advanced_config import RateTable, RateOverride
 
     today = as_of or str(date.today())
 

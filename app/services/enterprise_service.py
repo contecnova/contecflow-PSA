@@ -12,6 +12,37 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.encryption import encrypt_value
+from app.core.security import get_password_hash
+from app.models.enterprise import AuditLog
+from app.models.enterprise import RevenueForecast
+from app.models.enterprise import Subcontractor
+from app.models.enterprise import SubcontractorWorker
+from app.models.enterprise import ProjectPermission
+from app.models.enterprise import Webhook
+from app.models.enterprise import WebhookDelivery
+from app.models.enterprise import SSOConfig
+from app.models.enterprise import Notification
+from app.models.enterprise import Subcontractor, SubcontractorRate
+from app.models.enterprise import SubcontractorRate
+from app.models.enterprise import SubcontractorAssignment
+from app.models.enterprise import Subcontractor, SubcontractorAssignment
+from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
+from app.models.enterprise import Subcontractor, SubcontractorWorker, SubcontractorWorkerSkill
+from app.models.enterprise import SubcontractorWorkerSkill
+from app.models.enterprise import SubcontractorTimeLog
+from app.models.enterprise import Subcontractor, SubcontractorTimeLog, SubcontractorAssignment
+from app.models.enterprise import SubcontractorInvoice
+from app.models.enterprise import Subcontractor, SubcontractorInvoice, SubcontractorTimeLog
+from app.models.enterprise import Subcontractor, SubcontractorAssignment, SubcontractorInvoice, SubcontractorTimeLog
+from app.models.project import Project
+from app.models.user import User, UserRole as ModelUserRole, UserStatus
+from app.models.user import User
+from app.services.audit import audit_log
+from app.services.notifications import notify_user
+from datetime import timedelta
+from datetime import datetime as _dt
+from sqlalchemy import func as _func
+from sqlalchemy.orm import joinedload
 
 if TYPE_CHECKING:
     from app.models.enterprise import (
@@ -148,8 +179,6 @@ def next_sub_code(db: Session) -> str:
 
 
 def compute_audit_stats(db: Session, days: int) -> dict:
-    from app.models.enterprise import AuditLog
-    from datetime import timedelta
     since = datetime.now(timezone.utc) - timedelta(days=days)
     logs = db.query(AuditLog).filter(AuditLog.created_at >= since).all()
     by_action: dict = {}
@@ -216,8 +245,6 @@ def validate_sso_config(config) -> dict:
 
 def get_portfolio_forecast(db: Session, year: int) -> dict:
     """Aggregate revenue forecast across all projects for a given year."""
-    from app.models.enterprise import RevenueForecast
-    from sqlalchemy.orm import joinedload
 
     forecasts = db.query(RevenueForecast).options(
         joinedload(RevenueForecast.project)
@@ -260,17 +287,12 @@ def get_portfolio_forecast(db: Session, year: int) -> dict:
 
 
 def get_subcontractor(db: Session, sub_id: str):
-    from app.models.enterprise import Subcontractor
     return db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
 
 
 def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
     """Create a SubcontractorWorker and its linked User record."""
     import re, secrets
-    from app.models.enterprise import SubcontractorWorker
-    from app.models.user import User, UserRole as ModelUserRole, UserStatus
-    from app.core.security import get_password_hash
-    from app.services.audit import audit_log
 
     base = re.sub(r"[^a-z0-9]", ".", payload.name.lower().strip())
     base = re.sub(r"\.{2,}", ".", base).strip(".")
@@ -335,8 +357,6 @@ def create_worker_with_user(sub, payload, current_user, db: Session) -> dict:
 
 def get_audit_log(db: Session, resource, resource_id, user_id, action, date_from, date_to, page, page_size) -> dict:
     import json as _json
-    from datetime import datetime as _dt
-    from app.models.enterprise import AuditLog
     q = db.query(AuditLog)
     if resource:    q = q.filter(AuditLog.resource == resource)
     if resource_id: q = q.filter(AuditLog.resource_id == resource_id)
@@ -362,8 +382,6 @@ def get_audit_log(db: Session, resource, resource_id, user_id, action, date_from
 # ── Project Permissions ───────────────────────────────────────────────────────
 
 def get_project_permissions(project_id: str, db: Session) -> list:
-    from app.models.enterprise import ProjectPermission
-    from sqlalchemy.orm import joinedload
     perms = db.query(ProjectPermission).options(
         joinedload(ProjectPermission.user)
     ).filter(ProjectPermission.project_id == project_id).all()
@@ -382,11 +400,6 @@ def get_project_permissions(project_id: str, db: Session) -> list:
 
 
 def grant_project_permission(project_id: str, payload, current_user, db: Session) -> dict:
-    from app.models.enterprise import ProjectPermission
-    from app.models.project import Project
-    from app.models.user import User
-    from app.services.audit import audit_log
-    from app.services.notifications import notify_user
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -414,7 +427,6 @@ def grant_project_permission(project_id: str, payload, current_user, db: Session
 
 
 def update_project_permission(project_id: str, permission_id: str, payload, db: Session) -> dict:
-    from app.models.enterprise import ProjectPermission
     perm = db.query(ProjectPermission).filter(
         ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
     ).first()
@@ -427,8 +439,6 @@ def update_project_permission(project_id: str, permission_id: str, payload, db: 
 
 
 def revoke_project_permission(project_id: str, permission_id: str, current_user, db: Session) -> dict:
-    from app.models.enterprise import ProjectPermission
-    from app.services.audit import audit_log
     perm = db.query(ProjectPermission).filter(
         ProjectPermission.id == permission_id, ProjectPermission.project_id == project_id
     ).first()
@@ -444,16 +454,12 @@ def revoke_project_permission(project_id: str, permission_id: str, current_user,
 # ── Webhooks ──────────────────────────────────────────────────────────────────
 
 def list_webhooks(db: Session) -> list:
-    from app.models.enterprise import Webhook
-    from sqlalchemy.orm import joinedload
     hooks = db.query(Webhook).options(joinedload(Webhook.project)).order_by(Webhook.created_at.desc()).all()
     return [serialize_webhook(h) for h in hooks]
 
 
 def create_webhook(payload, current_user, db: Session) -> dict:
     import json as _json
-    from app.models.enterprise import Webhook
-    from app.services.audit import audit_log
     hook = Webhook(
         name=payload.name, url=payload.url,
         secret=encrypt_value(payload.secret) if payload.secret else None,
@@ -469,7 +475,6 @@ def create_webhook(payload, current_user, db: Session) -> dict:
 
 def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
     import json as _json
-    from app.models.enterprise import Webhook
     hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
     if not hook:
         raise ValueError("not_found")
@@ -485,8 +490,6 @@ def update_webhook(hook_id: str, payload, current_user, db: Session) -> dict:
 
 
 def delete_webhook(hook_id: str, current_user, db: Session) -> dict:
-    from app.models.enterprise import Webhook
-    from app.services.audit import audit_log
     hook = db.query(Webhook).filter(Webhook.id == hook_id).first()
     if not hook:
         raise ValueError("not_found")
@@ -497,7 +500,6 @@ def delete_webhook(hook_id: str, current_user, db: Session) -> dict:
 
 
 def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
-    from app.models.enterprise import WebhookDelivery
     deliveries = db.query(WebhookDelivery).filter(
         WebhookDelivery.webhook_id == hook_id
     ).order_by(WebhookDelivery.created_at.desc()).limit(limit).all()
@@ -509,21 +511,17 @@ def get_webhook_deliveries(hook_id: str, limit: int, db: Session) -> list:
 
 
 def get_webhook_for_test(hook_id: str, db: Session):
-    from app.models.enterprise import Webhook
     return db.query(Webhook).filter(Webhook.id == hook_id).first()
 
 
 # ── SSO ───────────────────────────────────────────────────────────────────────
 
 def list_sso_configs(db: Session) -> list:
-    from app.models.enterprise import SSOConfig
     return [serialize_sso(c) for c in db.query(SSOConfig).all()]
 
 
 def create_sso_config(payload, current_user, db: Session) -> dict:
     import json as _json
-    from app.models.enterprise import SSOConfig
-    from app.services.audit import audit_log
     data = {k: (_json.dumps(v) if k == "role_mapping" and v else v) for k, v in payload.model_dump().items()}
     if current_user.organization_id and not data.get("organization_id"):
         data["organization_id"] = current_user.organization_id
@@ -538,7 +536,6 @@ def create_sso_config(payload, current_user, db: Session) -> dict:
 
 def update_sso_config(config_id: str, payload, current_user, db: Session) -> dict:
     import json as _json
-    from app.models.enterprise import SSOConfig
     config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
     if not config:
         raise ValueError("not_found")
@@ -556,7 +553,6 @@ def update_sso_config(config_id: str, payload, current_user, db: Session) -> dic
 
 
 def delete_sso_config(config_id: str, db: Session) -> dict:
-    from app.models.enterprise import SSOConfig
     config = db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
     if not config:
         raise ValueError("not_found")
@@ -566,15 +562,12 @@ def delete_sso_config(config_id: str, db: Session) -> dict:
 
 
 def get_sso_config_for_test(config_id: str, db: Session):
-    from app.models.enterprise import SSOConfig
     return db.query(SSOConfig).filter(SSOConfig.id == config_id).first()
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
 def get_my_notifications(current_user, unread_only: bool, page: int, page_size: int, db: Session) -> dict:
-    from app.models.enterprise import Notification
-    from sqlalchemy import func as _func
     q = db.query(Notification).filter(Notification.user_id == current_user.id)
     if unread_only:
         q = q.filter(Notification.is_read == False)
@@ -596,7 +589,6 @@ def get_my_notifications(current_user, unread_only: bool, page: int, page_size: 
 
 
 def mark_all_notifications_read(current_user, db: Session) -> dict:
-    from app.models.enterprise import Notification
     now = datetime.now(timezone.utc)
     db.query(Notification).filter(
         Notification.user_id == current_user.id, Notification.is_read == False
@@ -606,7 +598,6 @@ def mark_all_notifications_read(current_user, db: Session) -> dict:
 
 
 def mark_notification_read(notif_id: str, current_user, db: Session) -> dict:
-    from app.models.enterprise import Notification
     n = db.query(Notification).filter(
         Notification.id == notif_id, Notification.user_id == current_user.id
     ).first()
@@ -619,8 +610,6 @@ def mark_notification_read(notif_id: str, current_user, db: Session) -> dict:
 
 
 def clear_old_notifications(current_user, days: int, db: Session) -> dict:
-    from app.models.enterprise import Notification
-    from datetime import timedelta
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     deleted = db.query(Notification).filter(
         Notification.user_id == current_user.id,
@@ -634,8 +623,6 @@ def clear_old_notifications(current_user, days: int, db: Session) -> dict:
 # ── Subcontractors ────────────────────────────────────────────────────────────
 
 def list_subcontractors(is_active, db: Session) -> list:
-    from app.models.enterprise import Subcontractor
-    from sqlalchemy.orm import joinedload
     q = db.query(Subcontractor).options(
         joinedload(Subcontractor.rates),
         joinedload(Subcontractor.assignments),
@@ -647,8 +634,6 @@ def list_subcontractors(is_active, db: Session) -> list:
 
 
 def create_subcontractor(payload, current_user, db: Session) -> dict:
-    from app.models.enterprise import Subcontractor
-    from app.services.audit import audit_log
     sub = Subcontractor(code=next_sub_code(db), **payload.model_dump())
     db.add(sub)
     audit_log(db, current_user, "CREATE", "subcontractors", sub.id, sub.name)
@@ -658,8 +643,6 @@ def create_subcontractor(payload, current_user, db: Session) -> dict:
 
 
 def update_subcontractor(sub_id: str, payload, db: Session) -> dict:
-    from app.models.enterprise import Subcontractor
-    from sqlalchemy.orm import joinedload
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -675,7 +658,6 @@ def update_subcontractor(sub_id: str, payload, db: Session) -> dict:
 
 
 def delete_subcontractor(sub_id: str, db: Session) -> dict:
-    from app.models.enterprise import Subcontractor
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -685,7 +667,6 @@ def delete_subcontractor(sub_id: str, db: Session) -> dict:
 
 
 def add_subcontractor_rate(sub_id: str, payload, db: Session) -> dict:
-    from app.models.enterprise import Subcontractor, SubcontractorRate
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -696,7 +677,6 @@ def add_subcontractor_rate(sub_id: str, payload, db: Session) -> dict:
 
 
 def delete_subcontractor_rate(sub_id: str, rate_id: str, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorRate
     rate = db.query(SubcontractorRate).filter(
         SubcontractorRate.id == rate_id, SubcontractorRate.subcontractor_id == sub_id
     ).first()
@@ -708,8 +688,6 @@ def delete_subcontractor_rate(sub_id: str, rate_id: str, db: Session) -> dict:
 
 
 def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
-    from app.models.enterprise import SubcontractorAssignment
-    from sqlalchemy.orm import joinedload
     assignments = db.query(SubcontractorAssignment).options(
         joinedload(SubcontractorAssignment.project),
         joinedload(SubcontractorAssignment.rate),
@@ -729,8 +707,6 @@ def get_subcontractor_assignments(sub_id: str, db: Session) -> list:
 
 
 def create_subcontractor_assignment(sub_id: str, payload, current_user, db: Session) -> dict:
-    from app.models.enterprise import Subcontractor, SubcontractorAssignment
-    from app.services.audit import audit_log
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -744,8 +720,6 @@ def create_subcontractor_assignment(sub_id: str, payload, current_user, db: Sess
 # ── Subcontractor Workers ─────────────────────────────────────────────────────
 
 def list_all_workers(skill_id, is_active, db: Session) -> list:
-    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
-    from sqlalchemy.orm import joinedload
     q = db.query(SubcontractorWorker).options(
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
@@ -768,8 +742,6 @@ def list_all_workers(skill_id, is_active, db: Session) -> list:
 
 
 def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
-    from app.models.enterprise import Subcontractor, SubcontractorWorker, SubcontractorWorkerSkill
-    from sqlalchemy.orm import joinedload
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -782,9 +754,6 @@ def get_workers_for_subcontractor(sub_id: str, db: Session) -> list:
 
 
 def update_worker(worker_id: str, payload, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
-    from app.models.user import User
-    from sqlalchemy.orm import joinedload
     worker = db.query(SubcontractorWorker).options(
         joinedload(SubcontractorWorker.skills).joinedload(SubcontractorWorkerSkill.skill),
         joinedload(SubcontractorWorker.assignments),
@@ -820,8 +789,6 @@ def update_worker(worker_id: str, payload, db: Session) -> dict:
 
 
 def delete_worker(worker_id: str, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorWorker
-    from app.models.user import User
     worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
     if not worker:
         raise ValueError("not_found")
@@ -835,7 +802,6 @@ def delete_worker(worker_id: str, db: Session) -> dict:
 
 
 def add_worker_skill(worker_id: str, payload, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
     worker = db.query(SubcontractorWorker).filter(SubcontractorWorker.id == worker_id).first()
     if not worker:
         raise ValueError("not_found")
@@ -855,7 +821,6 @@ def add_worker_skill(worker_id: str, payload, db: Session) -> dict:
 
 
 def remove_worker_skill(worker_id: str, skill_id: str, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorWorkerSkill
     ws = db.query(SubcontractorWorkerSkill).filter(
         SubcontractorWorkerSkill.worker_id == worker_id,
         SubcontractorWorkerSkill.skill_id == skill_id,
@@ -870,7 +835,6 @@ def remove_worker_skill(worker_id: str, skill_id: str, db: Session) -> dict:
 # ── Subcontractor Time Logs ───────────────────────────────────────────────────
 
 def get_timelogs(sub_id: str, project_id, db: Session) -> list:
-    from app.models.enterprise import SubcontractorTimeLog
     q = db.query(SubcontractorTimeLog).filter(SubcontractorTimeLog.subcontractor_id == sub_id)
     if project_id:
         q = q.filter(SubcontractorTimeLog.project_id == project_id)
@@ -885,7 +849,6 @@ def get_timelogs(sub_id: str, project_id, db: Session) -> list:
 
 def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
     import uuid as _uuid
-    from app.models.enterprise import Subcontractor, SubcontractorTimeLog, SubcontractorAssignment
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -912,7 +875,6 @@ def create_timelog(sub_id: str, payload: dict, db: Session) -> dict:
 
 
 def delete_timelog(sub_id: str, log_id: str, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorTimeLog
     log = db.query(SubcontractorTimeLog).filter(
         SubcontractorTimeLog.id == log_id, SubcontractorTimeLog.subcontractor_id == sub_id
     ).first()
@@ -928,7 +890,6 @@ def delete_timelog(sub_id: str, log_id: str, db: Session) -> dict:
 # ── Subcontractor Invoices ────────────────────────────────────────────────────
 
 def get_sub_invoices(sub_id: str, db: Session) -> list:
-    from app.models.enterprise import SubcontractorInvoice
     invs = db.query(SubcontractorInvoice).filter(
         SubcontractorInvoice.subcontractor_id == sub_id
     ).order_by(SubcontractorInvoice.issue_date.desc()).all()
@@ -944,8 +905,6 @@ def get_sub_invoices(sub_id: str, db: Session) -> list:
 
 def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) -> dict:
     import uuid as _uuid
-    from app.models.enterprise import Subcontractor, SubcontractorInvoice, SubcontractorTimeLog
-    from app.services.audit import audit_log
     sub = db.query(Subcontractor).filter(Subcontractor.id == sub_id).first()
     if not sub:
         raise ValueError("not_found")
@@ -972,7 +931,6 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
 
 
 def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session) -> dict:
-    from app.models.enterprise import SubcontractorInvoice
     inv = db.query(SubcontractorInvoice).filter(
         SubcontractorInvoice.id == inv_id, SubcontractorInvoice.subcontractor_id == sub_id
     ).first()
@@ -988,9 +946,6 @@ def update_sub_invoice(sub_id: str, inv_id: str, payload: dict, db: Session) -> 
 # ── Subcontractor Dashboard ───────────────────────────────────────────────────
 
 def get_subcontractors_dashboard(db: Session) -> dict:
-    from app.models.enterprise import (
-        Subcontractor, SubcontractorAssignment, SubcontractorInvoice, SubcontractorTimeLog
-    )
     total_subs   = db.query(func.count(Subcontractor.id)).filter(Subcontractor.is_active == True).scalar()
     active_assgn = db.query(func.count(SubcontractorAssignment.id)).scalar()
     pending_invs = db.query(func.count(SubcontractorInvoice.id)).filter(SubcontractorInvoice.status == "received").scalar()
@@ -1007,7 +962,6 @@ def get_subcontractors_dashboard(db: Session) -> dict:
 # ── Revenue Forecast ──────────────────────────────────────────────────────────
 
 def get_project_forecast(project_id: str, year: int, db: Session) -> dict:
-    from app.models.enterprise import RevenueForecast
     forecasts = db.query(RevenueForecast).filter(
         RevenueForecast.project_id == project_id, RevenueForecast.year == year
     ).order_by(RevenueForecast.month).all()
@@ -1027,7 +981,6 @@ def get_project_forecast(project_id: str, year: int, db: Session) -> dict:
 
 
 def upsert_forecast(project_id: str, year: int, month: int, payload, db: Session) -> dict:
-    from app.models.enterprise import RevenueForecast
     existing = db.query(RevenueForecast).filter(
         RevenueForecast.project_id == project_id,
         RevenueForecast.year == year,

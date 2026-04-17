@@ -3,6 +3,9 @@ import uuid
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from app.models.billing_reports import GrcAuditLog
+from app.models.billing_reports import SodViolation
+from app.models.billing_reports import SodRule
 
 
 def _log_sod_violation_event(
@@ -13,7 +16,6 @@ def _log_sod_violation_event(
     context_id: Optional[str],
 ) -> None:
     """Persist an audit trail entry for a detected SoD violation."""
-    from app.models.billing_reports import GrcAuditLog
     import json
 
     entry = GrcAuditLog(
@@ -43,7 +45,6 @@ def record_sod_violation(
     context_id: Optional[str],
 ) -> None:
     """Create a SoD violation record plus its associated audit log entry."""
-    from app.models.billing_reports import SodViolation
 
     violation = SodViolation(
         id=str(uuid.uuid4()),
@@ -73,7 +74,6 @@ def record_self_approval_violation_for_request(
     if requested_by != actor_id:
         return False
 
-    from app.models.billing_reports import SodRule
 
     matching = db.query(SodRule).filter(
         SodRule.module_a == entity_type,

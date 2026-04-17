@@ -34,7 +34,7 @@ def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:
             "task_id": imp.task_id,
             "task_title": imp.task.title if imp.task else None,
             "description": imp.description,
-            "billable": imp.billable,
+            "billable": imp.is_billable,
         }
         for imp in imputations
     ]
@@ -97,7 +97,6 @@ def _enrich(timesheets) -> list:
 
 def get_week_bounds(week_start) -> tuple:
     """Return (week_start, week_end) for the given date, defaulting to current week."""
-    from datetime import date, timedelta
     if not week_start:
         today = date.today()
         week_start = today - timedelta(days=today.weekday())

@@ -24,6 +24,23 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.models.user import User, UserRole
+from app.models.financial import Timesheet, TimesheetStatus
+from app.models.imputation import Imputation
+from app.models.imputation import TimerSession
+from app.models.imputation import Imputation, TimerSession
+from app.models.imputation import ImputationAlert
+from app.models.mfa import Organization
+from app.models.project import ProjectMember
+from app.models.project import Project, ProjectStatus as _PS
+from app.models.project import Project
+from app.models.task import Task, TaskStatus
+from app.models.task import Task
+from app.models.user import User as UserModel
+from app.schemas import WeekSummary
+from app.schemas.time_tracking import TimerSessionOut
+from app.schemas.time_tracking import LockoutStatusOut
+from app.schemas.time_tracking import ImputationAlertOut
+from fastapi import HTTPException
 
 
 # ── Cost ───────────────────────────────────────────────────────────────────────
@@ -36,7 +53,6 @@ def compute_cost(user: User, hours: float) -> float:
 # ── Lockout ────────────────────────────────────────────────────────────────────
 
 def get_lockout_cutoff(current_user: User, db: Session) -> date:
-    from app.models.mfa import Organization
     org = None
     if current_user.organization_id:
         org = db.query(Organization).filter(
@@ -63,8 +79,6 @@ def _assert_project_membership(project, task, current_user: User, db: Session) -
     """
     if current_user.role == UserRole.admin:
         return
-    from fastapi import HTTPException
-    from app.models.project import ProjectMember
 
     is_pm = project.pm_id == current_user.id
     is_member = db.query(ProjectMember.id).filter(
@@ -87,10 +101,6 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     Returns the newly created Imputation ORM object.
     Raises HTTPException on any violation.
     """
-    from fastapi import HTTPException
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.models.project import Project, ProjectStatus as _PS
 
     # Lockout enforcement
     if current_user.role != UserRole.admin:
@@ -223,8 +233,6 @@ def validate_imputation_edit_allowed(imp, current_user: User, db: Session) -> No
     Validates that an existing imputation can be edited/deleted.
     Raises HTTPException on any violation.
     """
-    from fastapi import HTTPException
-    from app.models.financial import Timesheet, TimesheetStatus
 
     if imp.user_id != current_user.id and current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="No puedes editar imputaciones de otros")
@@ -271,10 +279,6 @@ def compute_timer_elapsed(timer) -> int:
 
 
 def start_timer_session(payload, current_user: User, db: Session):
-    from fastapi import HTTPException
-    from app.models.imputation import TimerSession
-    from app.models.task import Task
-    from app.models.project import Project
 
     existing = db.query(TimerSession).filter(
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
@@ -320,8 +324,6 @@ def start_timer_session(payload, current_user: User, db: Session):
 
 
 def pause_timer_session(current_user: User, db: Session):
-    from fastapi import HTTPException
-    from app.models.imputation import TimerSession
 
     timer = db.query(TimerSession).filter(
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
@@ -336,8 +338,6 @@ def pause_timer_session(current_user: User, db: Session):
 
 
 def resume_timer_session(current_user: User, db: Session):
-    from fastapi import HTTPException
-    from app.models.imputation import TimerSession
 
     timer = db.query(TimerSession).filter(
         and_(
@@ -362,8 +362,6 @@ def resume_timer_session(current_user: User, db: Session):
 
 def stop_timer_session(payload, current_user: User, db: Session):
     """Stop timer and create the resulting Imputation. Returns the Imputation."""
-    from fastapi import HTTPException
-    from app.models.imputation import Imputation, TimerSession
 
     timer = db.query(TimerSession).filter(
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
@@ -418,7 +416,6 @@ def stop_timer_session(payload, current_user: User, db: Session):
 
 def timer_out(timer) -> "TimerSessionOut":
     """Serialize a TimerSession to TimerSessionOut."""
-    from app.schemas.time_tracking import TimerSessionOut
     elapsed = compute_timer_elapsed(timer)
     started = timer.started_at
     if started.tzinfo is None:
@@ -438,7 +435,6 @@ def timer_out(timer) -> "TimerSessionOut":
 
 def get_current_timer_record(db: Session, current_user: User):
     """Return the active (non-ended) TimerSession for the user, or None."""
-    from app.models.imputation import TimerSession
     return db.query(TimerSession).filter(
         and_(
             TimerSession.user_id == current_user.id,
@@ -462,7 +458,6 @@ def update_imputation_fields(imp, payload, db: Session):
 
 def lockout_status_payload(current_user: User, db: Session):
     """Return LockoutStatusOut for the current user."""
-    from app.schemas.time_tracking import LockoutStatusOut
     lockout_cutoff = get_lockout_cutoff(current_user, db)
     today = date.today()
     lockout_days = (today - lockout_cutoff).days
@@ -477,9 +472,6 @@ def lockout_status_payload(current_user: User, db: Session):
 
 def list_alerts_payload(db: Session, current_user: User, acknowledged: bool) -> list:
     """Return ImputationAlertOut list for the current user."""
-    from fastapi import HTTPException  # noqa: F401 (unused — kept for consistency)
-    from app.models.imputation import ImputationAlert
-    from app.schemas.time_tracking import ImputationAlertOut
     q = db.query(ImputationAlert).filter(ImputationAlert.user_id == current_user.id)
     if not acknowledged:
         q = q.filter(ImputationAlert.dismissed_at == None)
@@ -499,8 +491,6 @@ def list_alerts_payload(db: Session, current_user: User, acknowledged: bool) -> 
 
 def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict:
     """Dismiss an imputation alert. Raises 404/403 on violations."""
-    from fastapi import HTTPException
-    from app.models.imputation import ImputationAlert
     alert = db.query(ImputationAlert).filter(ImputationAlert.id == alert_id).first()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -512,8 +502,6 @@ def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict
 
 
 def get_week_summary(week_start: Optional[date], current_user: User, db: Session) -> dict:
-    from app.models.imputation import Imputation
-    from app.schemas import WeekSummary
 
     if not week_start:
         today = date.today()
@@ -573,7 +561,6 @@ def list_imputations_query(
     page: int,
     page_size: int,
 ):
-    from app.models.imputation import Imputation
 
     q = db.query(Imputation)
 
@@ -594,7 +581,6 @@ def list_imputations_query(
 
     # Org scoping for non-superadmins
     if current_user.organization_id:
-        from app.models.user import User as UserModel
         org_user_ids = db.query(UserModel.id).filter(
             UserModel.organization_id == current_user.organization_id
         ).scalar_subquery()
@@ -606,7 +592,6 @@ def list_imputations_query(
 
 
 def get_imputation_by_id(db: Session, imputation_id: str):
-    from app.models.imputation import Imputation
     return db.query(Imputation).filter(Imputation.id == imputation_id).first()
 
 

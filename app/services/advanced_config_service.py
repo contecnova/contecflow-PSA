@@ -13,6 +13,34 @@ from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.models.advanced_config import AlertConfig
+from app.models.advanced_config import TaskType
+from app.models.advanced_config import NumberingSequence
+from app.models.advanced_config import CustomRole
+from app.models.advanced_config import UserVacationBalance
+from app.models.advanced_config import ProjectTemplate, TemplatePhase
+from app.models.advanced_config import RateTable
+from app.models.advanced_config import RateEntry
+from app.models.advanced_config import VacationPolicy
+from app.models.advanced_config import Office
+from app.models.advanced_config import CustomField
+from app.models.advanced_config import CustomFieldValue
+from app.models.advanced_config import CustomField, CustomFieldValue
+from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable
+from app.models.advanced_config import ProjectTemplate
+from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk
+from app.models.marketplace import TemplateDocument
+from app.models.marketplace import TemplateRole
+from app.models.marketplace import TemplateDocument, TemplateRole
+from app.models.pipeline import Risk as RiskModel
+from app.models.project import Project, ProjectPhase
+from app.models.project import Project
+from app.models.resources import Absence, AbsenceStatus, AbsenceType
+from app.models.resources import Deliverable
+from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.task import Task
+from app.models.user import User as UserModel
+from fastapi import HTTPException as _HTTPException
 
 DEFAULT_ALERT_CONFIGS = [
     ("overload", "Sobrecarga de recursos", "Recurso supera el % de capacidad configurado", 100, "%", True, True, False, False, "critical"),
@@ -64,7 +92,6 @@ DEFAULT_SYSTEM_ROLES = [
 # ── Seeders ───────────────────────────────────────────────────────────────────
 
 def seed_alert_configs(db: Session):
-    from app.models.advanced_config import AlertConfig
     if db.query(AlertConfig).count() > 0:
         return
     for at, label, desc, threshold, unit, notify_admin, notify_pm, notify_hr, notify_emp, severity in DEFAULT_ALERT_CONFIGS:
@@ -79,7 +106,6 @@ def seed_alert_configs(db: Session):
 
 
 def seed_task_types(db: Session):
-    from app.models.advanced_config import TaskType
     if db.query(TaskType).count() > 0:
         return
     for i, (value, name, icon, color, billable) in enumerate(DEFAULT_TASK_TYPES):
@@ -91,7 +117,6 @@ def seed_task_types(db: Session):
 
 
 def seed_numbering(db: Session):
-    from app.models.advanced_config import NumberingSequence
     if db.query(NumberingSequence).count() > 0:
         return
     for entity, prefix, suffix, sep, year, padding, reset, example in DEFAULT_NUMBERING:
@@ -103,7 +128,6 @@ def seed_numbering(db: Session):
 
 
 def seed_system_roles(db: Session):
-    from app.models.advanced_config import CustomRole
     if db.query(CustomRole).filter(CustomRole.is_system == True).count() > 0:
         return
     all_modules = {m: True for m in DEFAULT_MODULES}
@@ -118,9 +142,6 @@ def seed_system_roles(db: Session):
 # ── Vacation balances ─────────────────────────────────────────────────────────
 
 def get_vacation_balances(year: Optional[int], db: Session) -> list:
-    from app.models.user import User as UserModel
-    from app.models.advanced_config import UserVacationBalance
-    from app.models.resources import Absence, AbsenceStatus, AbsenceType
 
     if not year:
         year = datetime.now().year
@@ -163,7 +184,6 @@ def get_vacation_balances(year: Optional[int], db: Session) -> list:
 def update_vacation_balance(
     user_id: str, year: int, days_entitled: float, db: Session,
 ) -> dict:
-    from app.models.advanced_config import UserVacationBalance
     bal = db.query(UserVacationBalance).filter(
         UserVacationBalance.user_id == user_id,
         UserVacationBalance.year == year,
@@ -185,10 +205,6 @@ def apply_template_to_project(
     template_id: str, project_id: str,
     start_date: Optional[str], user_id: str, user_role: str, db: Session,
 ) -> dict:
-    from app.models.advanced_config import ProjectTemplate, TemplatePhase
-    from app.models.project import Project, ProjectPhase
-    from app.models.task import Task, TaskStatus, TaskPriority
-    from app.models.resources import Deliverable
 
     if user_role not in ("admin", "pm"):
         raise HTTPException(403, "Acceso denegado")
@@ -272,7 +288,6 @@ class NotFoundError(ValueError):
 # ── Roles ─────────────────────────────────────────────────────────────────────
 
 def list_roles(db: Session) -> list:
-    from app.models.advanced_config import CustomRole
     seed_system_roles(db)
     roles = (
         db.query(CustomRole)
@@ -292,7 +307,6 @@ def list_roles(db: Session) -> list:
 
 
 def create_role(data: dict, db: Session) -> dict:
-    from app.models.advanced_config import CustomRole
     r = CustomRole(
         name=data["name"],
         description=data.get("description"),
@@ -307,7 +321,6 @@ def create_role(data: dict, db: Session) -> dict:
 
 
 def update_role(role_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import CustomRole
     r = db.query(CustomRole).filter(CustomRole.id == role_id).first()
     if not r:
         raise NotFoundError("Rol no encontrado")
@@ -326,7 +339,6 @@ def update_role(role_id: str, data: dict, db: Session) -> dict:
 
 
 def delete_role(role_id: str, db: Session) -> dict:
-    from app.models.advanced_config import CustomRole
     r = db.query(CustomRole).filter(CustomRole.id == role_id).first()
     if not r:
         raise NotFoundError("Rol no encontrado")
@@ -340,7 +352,6 @@ def delete_role(role_id: str, db: Session) -> dict:
 # ── Task types ────────────────────────────────────────────────────────────────
 
 def list_task_types(db: Session) -> list:
-    from app.models.advanced_config import TaskType
     seed_task_types(db)
     types = (
         db.query(TaskType)
@@ -359,7 +370,6 @@ def list_task_types(db: Session) -> list:
 
 
 def create_task_type(data: dict, db: Session):
-    from app.models.advanced_config import TaskType
     if db.query(TaskType).filter(TaskType.value == data["value"]).first():
         raise ValueError("Ya existe un tipo con ese valor")
     t = TaskType(**data)
@@ -370,7 +380,6 @@ def create_task_type(data: dict, db: Session):
 
 
 def update_task_type(type_id: str, data: dict, db: Session):
-    from app.models.advanced_config import TaskType
     t = db.query(TaskType).filter(TaskType.id == type_id).first()
     if not t:
         raise NotFoundError("No encontrado")
@@ -382,7 +391,6 @@ def update_task_type(type_id: str, data: dict, db: Session):
 
 
 def delete_task_type(type_id: str, db: Session) -> dict:
-    from app.models.advanced_config import TaskType
     t = db.query(TaskType).filter(TaskType.id == type_id).first()
     if not t:
         raise NotFoundError("No encontrado")
@@ -394,7 +402,6 @@ def delete_task_type(type_id: str, db: Session) -> dict:
 # ── Alert configs ─────────────────────────────────────────────────────────────
 
 def list_alert_configs(db: Session) -> list:
-    from app.models.advanced_config import AlertConfig
     seed_alert_configs(db)
     configs = db.query(AlertConfig).order_by(AlertConfig.alert_type).all()
     return [
@@ -411,7 +418,6 @@ def list_alert_configs(db: Session) -> list:
 
 
 def update_alert_config(alert_type: str, data: dict, db: Session):
-    from app.models.advanced_config import AlertConfig
     cfg = db.query(AlertConfig).filter(AlertConfig.alert_type == alert_type).first()
     if not cfg:
         raise NotFoundError("Configuración no encontrada")
@@ -425,7 +431,6 @@ def update_alert_config(alert_type: str, data: dict, db: Session):
 # ── Rate tables ───────────────────────────────────────────────────────────────
 
 def list_rate_tables(db: Session) -> list:
-    from app.models.advanced_config import RateTable
     tables = (
         db.query(RateTable)
         .options(joinedload(RateTable.entries))
@@ -450,7 +455,6 @@ def list_rate_tables(db: Session) -> list:
 
 
 def create_rate_table(data: dict, db: Session) -> dict:
-    from app.models.advanced_config import RateTable
     if data.get("is_default"):
         db.query(RateTable).filter(RateTable.is_default == True).update({"is_default": False})
     t = RateTable(**data)
@@ -461,7 +465,6 @@ def create_rate_table(data: dict, db: Session) -> dict:
 
 
 def add_rate_entry(table_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import RateEntry
     e = RateEntry(table_id=table_id, **data)
     db.add(e)
     db.commit()
@@ -470,7 +473,6 @@ def add_rate_entry(table_id: str, data: dict, db: Session) -> dict:
 
 
 def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import RateEntry
     e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
     if not e:
         raise NotFoundError("No encontrado")
@@ -482,7 +484,6 @@ def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> 
 
 
 def delete_rate_entry(table_id: str, entry_id: str, db: Session) -> dict:
-    from app.models.advanced_config import RateEntry
     e = db.query(RateEntry).filter(RateEntry.id == entry_id, RateEntry.table_id == table_id).first()
     if not e:
         raise NotFoundError("No encontrado")
@@ -492,7 +493,6 @@ def delete_rate_entry(table_id: str, entry_id: str, db: Session) -> dict:
 
 
 def delete_rate_table(table_id: str, db: Session) -> dict:
-    from app.models.advanced_config import RateTable
     t = db.query(RateTable).filter(RateTable.id == table_id).first()
     if not t:
         raise NotFoundError("No encontrado")
@@ -504,7 +504,6 @@ def delete_rate_table(table_id: str, db: Session) -> dict:
 # ── Vacation policies ─────────────────────────────────────────────────────────
 
 def list_vacation_policies(db: Session) -> list:
-    from app.models.advanced_config import VacationPolicy
     policies = db.query(VacationPolicy).filter(VacationPolicy.is_active == True).all()
     return [
         {
@@ -520,7 +519,6 @@ def list_vacation_policies(db: Session) -> list:
 
 
 def create_vacation_policy(data: dict, db: Session) -> dict:
-    from app.models.advanced_config import VacationPolicy
     if data.get("is_default"):
         db.query(VacationPolicy).filter(VacationPolicy.is_default == True).update({"is_default": False})
     p = VacationPolicy(**{**data, "applies_to_roles": json.dumps(data.get("applies_to_roles") or [])})
@@ -531,7 +529,6 @@ def create_vacation_policy(data: dict, db: Session) -> dict:
 
 
 def update_vacation_policy(policy_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import VacationPolicy
     p = db.query(VacationPolicy).filter(VacationPolicy.id == policy_id).first()
     if not p:
         raise NotFoundError("No encontrado")
@@ -543,7 +540,6 @@ def update_vacation_policy(policy_id: str, data: dict, db: Session) -> dict:
 
 
 def delete_vacation_policy(policy_id: str, db: Session) -> dict:
-    from app.models.advanced_config import VacationPolicy
     p = db.query(VacationPolicy).filter(VacationPolicy.id == policy_id).first()
     if not p:
         raise NotFoundError("No encontrado")
@@ -555,7 +551,6 @@ def delete_vacation_policy(policy_id: str, db: Session) -> dict:
 # ── Offices ───────────────────────────────────────────────────────────────────
 
 def list_offices(db: Session) -> list:
-    from app.models.advanced_config import Office
     offices = db.query(Office).filter(Office.is_active == True).order_by(Office.name).all()
     return [
         {"id": o.id, "name": o.name, "country": o.country, "city": o.city,
@@ -565,7 +560,6 @@ def list_offices(db: Session) -> list:
 
 
 def create_office(data: dict, db: Session) -> dict:
-    from app.models.advanced_config import Office
     o = Office(**data)
     db.add(o)
     db.commit()
@@ -574,7 +568,6 @@ def create_office(data: dict, db: Session) -> dict:
 
 
 def update_office(office_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import Office
     o = db.query(Office).filter(Office.id == office_id).first()
     if not o:
         raise NotFoundError("No encontrado")
@@ -586,7 +579,6 @@ def update_office(office_id: str, data: dict, db: Session) -> dict:
 
 
 def delete_office(office_id: str, db: Session) -> dict:
-    from app.models.advanced_config import Office
     o = db.query(Office).filter(Office.id == office_id).first()
     if not o:
         raise NotFoundError("No encontrado")
@@ -598,7 +590,6 @@ def delete_office(office_id: str, db: Session) -> dict:
 # ── Numbering sequences ───────────────────────────────────────────────────────
 
 def list_numbering(db: Session) -> list:
-    from app.models.advanced_config import NumberingSequence
     seed_numbering(db)
     seqs = db.query(NumberingSequence).order_by(NumberingSequence.entity).all()
     result = []
@@ -622,7 +613,6 @@ def list_numbering(db: Session) -> list:
 
 
 def update_numbering_seq(entity: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import NumberingSequence
     s = db.query(NumberingSequence).filter(NumberingSequence.entity == entity).first()
     if not s:
         s = NumberingSequence(entity=entity, **data)
@@ -647,7 +637,6 @@ def update_numbering_seq(entity: str, data: dict, db: Session) -> dict:
 
 
 def reset_numbering_seq(entity: str, db: Session) -> dict:
-    from app.models.advanced_config import NumberingSequence
     s = db.query(NumberingSequence).filter(NumberingSequence.entity == entity).first()
     if not s:
         raise NotFoundError("No encontrado")
@@ -659,7 +648,6 @@ def reset_numbering_seq(entity: str, db: Session) -> dict:
 # ── Custom fields ─────────────────────────────────────────────────────────────
 
 def list_custom_fields(entity: Optional[str], db: Session) -> list:
-    from app.models.advanced_config import CustomField
     q = db.query(CustomField).filter(CustomField.is_active == True)
     if entity:
         q = q.filter(CustomField.entity == entity)
@@ -679,7 +667,6 @@ def list_custom_fields(entity: Optional[str], db: Session) -> list:
 
 
 def create_custom_field(data: dict, db: Session) -> dict:
-    from app.models.advanced_config import CustomField
     if db.query(CustomField).filter(
         CustomField.entity == data["entity"],
         CustomField.field_key == data["field_key"],
@@ -697,7 +684,6 @@ def create_custom_field(data: dict, db: Session) -> dict:
 
 
 def update_custom_field(field_id: str, data: dict, db: Session) -> dict:
-    from app.models.advanced_config import CustomField
     f = db.query(CustomField).filter(CustomField.id == field_id).first()
     if not f:
         raise NotFoundError("No encontrado")
@@ -709,7 +695,6 @@ def update_custom_field(field_id: str, data: dict, db: Session) -> dict:
 
 
 def delete_custom_field(field_id: str, db: Session) -> dict:
-    from app.models.advanced_config import CustomField
     f = db.query(CustomField).filter(CustomField.id == field_id).first()
     if not f:
         raise NotFoundError("No encontrado")
@@ -719,7 +704,6 @@ def delete_custom_field(field_id: str, db: Session) -> dict:
 
 
 def get_custom_field_values(entity_id: str, db: Session) -> dict:
-    from app.models.advanced_config import CustomFieldValue
     values = (
         db.query(CustomFieldValue)
         .options(joinedload(CustomFieldValue.field))
@@ -730,7 +714,6 @@ def get_custom_field_values(entity_id: str, db: Session) -> dict:
 
 
 def save_custom_field_values(entity_id: str, values: dict, db: Session) -> dict:
-    from app.models.advanced_config import CustomField, CustomFieldValue
     try:
         for field_key, value in values.items():
             field = db.query(CustomField).filter(
@@ -761,7 +744,6 @@ def save_custom_field_values(entity_id: str, values: dict, db: Session) -> dict:
 # ── Templates ─────────────────────────────────────────────────────────────────
 
 def list_templates(db: Session) -> list:
-    from app.models.advanced_config import ProjectTemplate, TemplatePhase
     templates = (
         db.query(ProjectTemplate)
         .options(
@@ -809,10 +791,6 @@ def list_templates(db: Session) -> list:
 
 
 def create_template(data: dict, user_id: str, user_role: str, db: Session) -> dict:
-    from app.models.advanced_config import (
-        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
-    )
-    from fastapi import HTTPException as _HTTPException
     if user_role not in ("admin", "pm"):
         raise _HTTPException(403, "Acceso denegado")
     try:
@@ -870,7 +848,6 @@ def create_template(data: dict, user_id: str, user_role: str, db: Session) -> di
 
 
 def delete_template(template_id: str, db: Session) -> dict:
-    from app.models.advanced_config import ProjectTemplate
     t = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
     if not t:
         raise NotFoundError("No encontrado")
@@ -884,9 +861,6 @@ def delete_template(template_id: str, db: Session) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def add_template_document(template_id: str, payload, db: Session) -> dict:
-    from app.models.advanced_config import ProjectTemplate
-    from app.models.marketplace import TemplateDocument
-    from fastapi import HTTPException
     if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
         raise HTTPException(404, "Template not found")
     doc = TemplateDocument(template_id=template_id, **payload.dict())
@@ -897,9 +871,6 @@ def add_template_document(template_id: str, payload, db: Session) -> dict:
 
 
 def add_template_role(template_id: str, payload, db: Session) -> dict:
-    from app.models.advanced_config import ProjectTemplate
-    from app.models.marketplace import TemplateRole
-    from fastapi import HTTPException
     if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
         raise HTTPException(404, "Template not found")
     role = TemplateRole(template_id=template_id, **payload.dict())
@@ -910,11 +881,6 @@ def add_template_role(template_id: str, payload, db: Session) -> dict:
 
 
 def get_full_template(template_id: str, db: Session) -> dict:
-    from app.models.advanced_config import (
-        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
-    )
-    from app.models.marketplace import TemplateDocument, TemplateRole
-    from fastapi import HTTPException
 
     tmpl = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
     if not tmpl:
@@ -971,13 +937,6 @@ def get_full_template(template_id: str, db: Session) -> dict:
 def export_project_as_template(
     project_id: str, name, description, user_id: str, db: Session,
 ) -> dict:
-    from app.models.project import Project
-    from app.models.task import Task
-    from app.models.pipeline import Risk as RiskModel
-    from app.models.advanced_config import (
-        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk,
-    )
-    from fastapi import HTTPException
 
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:

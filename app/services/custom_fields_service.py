@@ -13,6 +13,17 @@ import json
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session, joinedload
+from app.models.custom_fields import ProjectCustomField
+from app.models.custom_fields import ProjectCustomFieldValue
+from app.models.custom_fields import WorkflowState, WorkflowTransition
+from app.models.custom_fields import WorkflowState
+from app.models.custom_fields import WorkflowTransition
+from app.models.enterprise import ProjectPermission
+from app.models.enterprise import ProjectPermission, ProjectPermissionLevel
+from app.models.project import Project
+from app.models.task import Task
+from app.models.user import User
+from fastapi import HTTPException
 
 if TYPE_CHECKING:
     pass
@@ -67,8 +78,6 @@ def serialize_perm(p) -> dict:
 # ── Project helpers ───────────────────────────────────────────────────────────
 
 def get_project_or_404(project_id: str, db: Session):
-    from fastapi import HTTPException
-    from app.models.project import Project
     p = db.query(Project).filter(Project.id == project_id).first()
     if not p:
         raise HTTPException(404, f"Proyecto {project_id} no encontrado")
@@ -78,7 +87,6 @@ def get_project_or_404(project_id: str, db: Session):
 # ── Custom fields ─────────────────────────────────────────────────────────────
 
 def list_project_custom_fields(project_id: str, db: Session) -> list:
-    from app.models.custom_fields import ProjectCustomField
     get_project_or_404(project_id, db)
     fields = (
         db.query(ProjectCustomField)
@@ -90,8 +98,6 @@ def list_project_custom_fields(project_id: str, db: Session) -> list:
 
 
 def create_project_custom_field(project_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import ProjectCustomField
     get_project_or_404(project_id, db)
     existing = db.query(ProjectCustomField).filter(
         ProjectCustomField.project_id == project_id,
@@ -113,8 +119,6 @@ def create_project_custom_field(project_id: str, payload, db: Session) -> dict:
 
 
 def update_project_custom_field(project_id: str, field_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import ProjectCustomField
     f = db.query(ProjectCustomField).filter(
         ProjectCustomField.id == field_id,
         ProjectCustomField.project_id == project_id,
@@ -132,8 +136,6 @@ def update_project_custom_field(project_id: str, field_id: str, payload, db: Ses
 
 
 def delete_project_custom_field(project_id: str, field_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import ProjectCustomField
     f = db.query(ProjectCustomField).filter(
         ProjectCustomField.id == field_id,
         ProjectCustomField.project_id == project_id,
@@ -148,7 +150,6 @@ def delete_project_custom_field(project_id: str, field_id: str, db: Session) -> 
 # ── Custom field values ───────────────────────────────────────────────────────
 
 def get_task_custom_values(project_id: str, task_id: str, db: Session) -> list:
-    from app.models.custom_fields import ProjectCustomFieldValue
     values = (
         db.query(ProjectCustomFieldValue)
         .options(joinedload(ProjectCustomFieldValue.field))
@@ -166,7 +167,6 @@ def get_task_custom_values(project_id: str, task_id: str, db: Session) -> list:
 
 
 def save_task_custom_values(project_id: str, task_id: str, payload: list, db: Session) -> dict:
-    from app.models.custom_fields import ProjectCustomFieldValue
     for item in payload:
         existing = db.query(ProjectCustomFieldValue).filter(
             ProjectCustomFieldValue.field_id == item.field_id,
@@ -185,7 +185,6 @@ def save_task_custom_values(project_id: str, task_id: str, payload: list, db: Se
 # ── Workflow states ───────────────────────────────────────────────────────────
 
 def get_workflow(project_id: str, db: Session) -> dict:
-    from app.models.custom_fields import WorkflowState, WorkflowTransition
     get_project_or_404(project_id, db)
     states = (
         db.query(WorkflowState)
@@ -198,8 +197,6 @@ def get_workflow(project_id: str, db: Session) -> dict:
 
 
 def create_workflow_state(project_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowState
     get_project_or_404(project_id, db)
     existing = db.query(WorkflowState).filter(
         WorkflowState.project_id == project_id,
@@ -215,8 +212,6 @@ def create_workflow_state(project_id: str, payload, db: Session) -> dict:
 
 
 def update_workflow_state(project_id: str, state_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowState
     s = db.query(WorkflowState).filter(
         WorkflowState.id == state_id,
         WorkflowState.project_id == project_id,
@@ -231,9 +226,6 @@ def update_workflow_state(project_id: str, state_id: str, payload, db: Session) 
 
 
 def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowState
-    from app.models.task import Task
     s = db.query(WorkflowState).filter(
         WorkflowState.id == state_id,
         WorkflowState.project_id == project_id,
@@ -254,8 +246,6 @@ def delete_workflow_state(project_id: str, state_id: str, db: Session) -> dict:
 # ── Workflow transitions ──────────────────────────────────────────────────────
 
 def create_transition(project_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowState, WorkflowTransition
     for sid in [payload.from_state_id, payload.to_state_id]:
         s = db.query(WorkflowState).filter(
             WorkflowState.id == sid, WorkflowState.project_id == project_id
@@ -274,8 +264,6 @@ def create_transition(project_id: str, payload, db: Session) -> dict:
 
 
 def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowTransition
     t = db.query(WorkflowTransition).filter(
         WorkflowTransition.id == transition_id,
         WorkflowTransition.project_id == project_id,
@@ -288,8 +276,6 @@ def delete_transition(project_id: str, transition_id: str, db: Session) -> dict:
 
 
 def init_default_workflow(project_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.custom_fields import WorkflowState, WorkflowTransition
     get_project_or_404(project_id, db)
     existing = db.query(WorkflowState).filter(WorkflowState.project_id == project_id).count()
     if existing > 0:
@@ -332,9 +318,6 @@ def init_default_workflow(project_id: str, db: Session) -> dict:
 
 
 def transition_task(project_id: str, task_id: str, payload, current_user, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.task import Task
-    from app.models.custom_fields import WorkflowState, WorkflowTransition
     task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()
     if not task:
         raise HTTPException(404, "Tarea no encontrada")
@@ -376,7 +359,6 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
 # ── Project permissions ───────────────────────────────────────────────────────
 
 def get_permissions(project_id: str, db: Session) -> list:
-    from app.models.enterprise import ProjectPermission
     get_project_or_404(project_id, db)
     perms = (
         db.query(ProjectPermission)
@@ -388,9 +370,6 @@ def get_permissions(project_id: str, db: Session) -> list:
 
 
 def grant_permission(project_id: str, payload, current_user, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.user import User
-    from app.models.enterprise import ProjectPermission, ProjectPermissionLevel
     get_project_or_404(project_id, db)
     user = db.query(User).filter(User.id == payload.user_id).first()
     if not user:
@@ -430,8 +409,6 @@ def grant_permission(project_id: str, payload, current_user, db: Session) -> dic
 
 
 def update_permission(project_id: str, permission_id: str, payload, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.enterprise import ProjectPermission, ProjectPermissionLevel
     perm = db.query(ProjectPermission).filter(
         ProjectPermission.id == permission_id,
         ProjectPermission.project_id == project_id,
@@ -454,8 +431,6 @@ def update_permission(project_id: str, permission_id: str, payload, db: Session)
 
 
 def revoke_permission(project_id: str, permission_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.enterprise import ProjectPermission
     perm = db.query(ProjectPermission).filter(
         ProjectPermission.id == permission_id,
         ProjectPermission.project_id == project_id,

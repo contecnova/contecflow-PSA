@@ -25,19 +25,27 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import get_password_hash, validate_password_policy
+from app.models.imputation import Imputation
+from app.models.task import Task, TaskStatus
+from app.models.user import User
+from app.models.user import User, UserStatus
+from app.models.user import User, UserRole
+from app.models.user import UserPreference
+from app.models.user import UserStatus
+from app.schemas import UserLoad, UserPublic
+from fastapi import HTTPException
 
 
 # ── Query helpers ──────────────────────────────────────────────────────────────
 
 def scope_users_query(q, current_user):
-    from app.models.user import User
     if current_user.organization_id:
         q = q.filter(User.organization_id == current_user.organization_id)
     return q
 
 
 def ensure_same_org_user_access(target_user, current_user) -> None:
-    from fastapi import HTTPException
     if not current_user.organization_id:
         return
     if target_user.organization_id != current_user.organization_id:
@@ -47,10 +55,6 @@ def ensure_same_org_user_access(target_user, current_user) -> None:
 # ── Load map ───────────────────────────────────────────────────────────────────
 
 def get_load_map_payload(db: Session, current_user, week_start: Optional[date] = None) -> list:
-    from app.models.user import User, UserStatus
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
-    from app.schemas import UserLoad, UserPublic
 
     if not week_start:
         today = date.today()
@@ -119,7 +123,6 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
 # ── Org chart ──────────────────────────────────────────────────────────────────
 
 def get_org_chart_payload(db: Session, current_user) -> dict:
-    from app.models.user import User
     users = scope_users_query(db.query(User).filter(User.is_active == True), current_user).all()
     user_map = {u.id: {
         "id": u.id, "full_name": u.full_name, "job_title": u.job_title,
@@ -146,7 +149,6 @@ def approval_chain_for_user(user, db: Session, requesting_user) -> list:
     visited = set()
     while current.manager_id and current.manager_id not in visited:
         visited.add(current.id)
-        from app.models.user import User
         manager = db.query(User).filter(User.id == current.manager_id).first()
         if not manager:
             break
@@ -168,9 +170,6 @@ def approval_chain_for_user(user, db: Session, requesting_user) -> list:
 # ── Create user ────────────────────────────────────────────────────────────────
 
 def create_user_record(payload, current_user, db: Session):
-    from fastapi import HTTPException
-    from app.models.user import User
-    from app.core.security import get_password_hash, validate_password_policy
 
     if db.query(User).filter(User.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username ya existe")
@@ -202,8 +201,6 @@ def create_user_record(payload, current_user, db: Session):
 # ── Update user ────────────────────────────────────────────────────────────────
 
 def update_user_record(user_id: str, payload, current_user, db: Session):
-    from fastapi import HTTPException
-    from app.models.user import User, UserRole
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -237,10 +234,6 @@ def get_user_productivity_payload(
     current_user,
     db: Session,
 ) -> dict:
-    from fastapi import HTTPException
-    from app.models.user import User, UserRole
-    from app.models.imputation import Imputation
-    from app.models.task import Task, TaskStatus
 
     if current_user.role == UserRole.employee and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Acceso denegado")
@@ -289,8 +282,6 @@ def get_user_productivity_payload(
 # ── Set manager ────────────────────────────────────────────────────────────────
 
 def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.user import User
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -320,7 +311,6 @@ def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db
 # ── Preferences ────────────────────────────────────────────────────────────────
 
 def get_preferences_payload(user_id: str, db: Session) -> dict:
-    from app.models.user import UserPreference
     pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
     if not pref:
         return {
@@ -351,7 +341,6 @@ def list_users_paged(
     page: int = 1,
     page_size: int = 50,
 ):
-    from app.models.user import User
     q = scope_users_query(db.query(User), current_user)
     if department:
         q = q.filter(User.department == department)
@@ -371,7 +360,6 @@ def list_users_paged(
 
 
 def list_active_users_with_rates(db: Session, current_user):
-    from app.models.user import User
     return scope_users_query(
         db.query(User).filter(User.is_active == True),
         current_user,
@@ -381,7 +369,6 @@ def list_active_users_with_rates(db: Session, current_user):
 # ── Single user lookup ─────────────────────────────────────────────────────────
 
 def get_user_by_id(db: Session, user_id: str):
-    from app.models.user import User
     return db.query(User).filter(User.id == user_id).first()
 
 
@@ -405,7 +392,6 @@ def update_self_profile(user, update_data: dict, db: Session):
 # ── Deactivate / delete user ───────────────────────────────────────────────────
 
 def deactivate_user_record(user, db: Session) -> None:
-    from app.models.user import UserStatus
     user.is_active = False
     user.status = UserStatus.inactive
     db.commit()
@@ -419,7 +405,6 @@ def delete_user_record(user, db: Session) -> None:
 # ── Preferences ────────────────────────────────────────────────────────────────
 
 def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
-    from app.models.user import UserPreference
     pref = db.query(UserPreference).filter(UserPreference.user_id == user_id).first()
     if not pref:
         pref = UserPreference(id=str(uuid.uuid4()), user_id=user_id)

@@ -1,5 +1,31 @@
 ## Novedades técnicas recientes
 
+### Approval workflows — timeout y escalación reales (2026-04-17)
+
+**Problema resuelto:** `timeout_hours` y `on_timeout` existían en el modelo y el schema pero nunca se evaluaban. No había ningún job que comprobara solicitudes vencidas, por lo que los workflows con timeout configurado nunca escalaban.
+
+**Cambios:**
+
+- **`app/models/billing_reports.py` — `ApprovalRequest`:** nueva columna `step_started_at` (`DateTime(timezone=True)`, nullable). Registra cuándo el paso activo empezó; es la referencia para calcular el tiempo transcurrido.
+- **`app/services/approval_engine.py`:**
+  - `create_approval_request`: establece `step_started_at = now` al crear la solicitud.
+  - `decide_approval_request`: resetea `step_started_at = now` cada vez que se avanza al siguiente paso.
+  - Nueva función exportada `process_approval_timeouts(db)`: escanea todas las solicitudes `pending`, calcula si `(now − step_started_at) ≥ timeout_hours` y aplica la acción configurada:
+    - `auto_approve` → registra una decisión automática, avanza al siguiente paso (o marca la solicitud como aprobada) y notifica.
+    - `reject` → rechaza la solicitud con nota de timeout.
+    - `escalate` → notifica al `escalate_to_user_id` si está configurado (o re-notifica al aprobador original) y resetea el reloj para evitar re-fires inmediatos.
+  - Todos los timeouts quedan trazados en `FinancialApprovalAuditLog` con `action="timeout"`.
+- **`app/api/v1/endpoints/approvals.py`:** nuevo endpoint `POST /approvals/process-timeouts` (solo admin) para disparo manual del job, siguiendo el mismo patrón que `POST /sd/escalation-rules/run`.
+- **`app/worker.py`:** nueva tarea Celery `process_approval_timeouts` programada cada hora en `beat_schedule` (`crontab(minute=0)`).
+- **`alembic/versions/027_approval_step_started_at.py`:** migración que añade la columna y hace backfill de `created_at` en solicitudes pendientes existentes (conservador — evita falsos timeouts inmediatos en el primer deploy).
+
+**Uso:**
+- Configura `timeout_hours` y `on_timeout` en cada paso del workflow desde el UI de Aprobaciones.
+- En producción, Celery Beat ejecuta `process_approval_timeouts` cada hora automáticamente.
+- Para lanzarlo manualmente: `POST /api/v1/approvals/process-timeouts` (requiere rol admin).
+
+---
+
 ### Multi-tenancy — aislamiento real entre tenants (2026-04-17)
 
 **Problema resuelto:** usuarios con `organization_id=NULL` podían ver datos de todos los tenants porque `TenantSession` interpretaba `NULL` como «sin filtro», igual que el superadmin.

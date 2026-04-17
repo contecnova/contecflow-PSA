@@ -40,6 +40,11 @@ from app.models.task import Task
 from app.models.user import User, UserRole
 from app.models.ai_chat import AIActionLog, AIGovernanceConfig, AIKBArticle, AIPromptTemplate
 from app.services.ai_chat.context_service import build_tenant_context
+from app.models.ai_chat import AIConversation
+from app.models.ai_chat import AIAgentExecution
+from app.models.ai_chat import AIConversation, AIMessage
+from app.models.ai_chat import AIMessage, AIConversation
+from sqlalchemy.orm import joinedload
 
 _logger = logging.getLogger("v16_core")
 
@@ -1625,8 +1630,6 @@ Contexto inicial del sistema: {json.dumps(build_tenant_context(db, current_user)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def list_conversations(db: Session, user_id: str) -> list:
-    from app.models.ai_chat import AIConversation
-    from sqlalchemy.orm import joinedload
     convs = db.query(AIConversation).filter(
         AIConversation.user_id == user_id,
         AIConversation.is_archived == False,
@@ -1640,8 +1643,6 @@ def list_conversations(db: Session, user_id: str) -> list:
 
 
 def get_conversation(db: Session, conv_id: str, user_id: str) -> dict:
-    from app.models.ai_chat import AIConversation
-    from sqlalchemy.orm import joinedload
     conv = db.query(AIConversation).options(joinedload(AIConversation.messages)).filter(
         AIConversation.id == conv_id,
         AIConversation.user_id == user_id,
@@ -1659,7 +1660,6 @@ def get_conversation(db: Session, conv_id: str, user_id: str) -> dict:
 
 
 def archive_conversation(db: Session, conv_id: str, user_id: str) -> dict:
-    from app.models.ai_chat import AIConversation
     conv = db.query(AIConversation).filter(
         AIConversation.id == conv_id,
         AIConversation.user_id == user_id,
@@ -1672,7 +1672,6 @@ def archive_conversation(db: Session, conv_id: str, user_id: str) -> dict:
 
 
 def get_or_create_conversation(db: Session, conversation_id, user_id: str, context_type=None, context_id=None):
-    from app.models.ai_chat import AIConversation
     conv = None
     if conversation_id:
         conv = db.query(AIConversation).filter(
@@ -1694,7 +1693,6 @@ def get_or_create_conversation(db: Session, conversation_id, user_id: str, conte
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def create_agent_execution(db: Session, user_id: str, instruction: str):
-    from app.models.ai_chat import AIAgentExecution
     execution = AIAgentExecution(
         user_id=user_id,
         instruction=instruction,
@@ -1705,7 +1703,6 @@ def create_agent_execution(db: Session, user_id: str, instruction: str):
 
 
 def get_agent_status(db: Session, exec_id: str, user_id: str) -> dict:
-    from app.models.ai_chat import AIAgentExecution
     execution = db.query(AIAgentExecution).filter(
         AIAgentExecution.id == exec_id,
         AIAgentExecution.user_id == user_id,
@@ -1723,7 +1720,6 @@ def get_agent_status(db: Session, exec_id: str, user_id: str) -> dict:
 
 
 def list_agent_executions(db: Session, user_id: str, limit: int = 20) -> list:
-    from app.models.ai_chat import AIAgentExecution
     execs = db.query(AIAgentExecution).filter(
         AIAgentExecution.user_id == user_id,
     ).order_by(AIAgentExecution.created_at.desc()).limit(limit).all()
@@ -1734,8 +1730,6 @@ def list_agent_executions(db: Session, user_id: str, limit: int = 20) -> list:
 
 
 def get_agent_detail_with_steps(db: Session, exec_id: str) -> dict:
-    from app.models.ai_chat import AIAgentExecution
-    from sqlalchemy.orm import joinedload
     execution = db.query(AIAgentExecution).options(
         joinedload(AIAgentExecution.steps)
     ).filter(AIAgentExecution.id == exec_id).first()
@@ -1926,7 +1920,6 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
                   effective_message: str = "", system_template: str = "", commit: bool = False):
     """Create/get conversation, persist user message, build history + system prompt.
     Returns (conv, messages, system)."""
-    from app.models.ai_chat import AIConversation, AIMessage
     conv = get_or_create_conversation(db, conversation_id, user_id, context_type, context_id)
 
     user_msg = AIMessage(conversation_id=conv.id, role="user", content=effective_message)
@@ -1959,7 +1952,6 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
 def persist_chat_response(db: Session, conv_id: str, user_id: str, original_message: str,
                            assistant_text: str, latency: int):
     """Persist assistant message and action log after chat call."""
-    from app.models.ai_chat import AIMessage, AIConversation
     ai_msg = AIMessage(
         conversation_id=conv_id, role="assistant",
         content=assistant_text, tokens_used=0, latency_ms=latency,

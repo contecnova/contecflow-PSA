@@ -21,12 +21,30 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
+from app.models.alm import ALMLicense
+from app.models.billing_reports import Invoice
+from app.models.client_portal import ClientUser
+from app.models.clients import Client
+from app.models.clients import Client, ClientPortalConfig
+from app.models.clients import ClientContact, ClientPortalConfig, ClientLicenseLink, ClientContractLink
+from app.models.clients import ClientPortalConfig
+from app.models.clients import Client, ClientLicenseLink, ClientContractLink
+from app.models.clients import ClientContact
+from app.models.clients import Client, ClientContact
+from app.models.clients import ClientLicenseLink
+from app.models.clients import Client, ClientLicenseLink
+from app.models.clients import ClientContractLink
+from app.models.clients import Client, ClientContractLink
+from app.models.pipeline import Contract
+from app.models.project import Project
+from app.models.service_desk import Ticket
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 
 # ── Scoped query helpers ───────────────────────────────────────────────────────
 
 def scoped_client_query(db: Session, current_user: User):
-    from app.models.clients import Client
     q = db.query(Client)
     if current_user.is_superadmin or not current_user.organization_id:
         return q
@@ -42,7 +60,6 @@ def scoped_client_query(db: Session, current_user: User):
 
 
 def get_scoped_client_or_404(db: Session, current_user: User, client_id: str):
-    from fastapi import HTTPException
     c = scoped_client_query(db, current_user).filter_by(id=client_id).first()
     if not c:
         raise HTTPException(404, "Cliente no encontrado")
@@ -57,7 +74,6 @@ def list_clients(
     industry: "Optional[str]" = None,
     limit: "Optional[int]" = None,
 ) -> list:
-    from app.models.clients import Client
     query = scoped_client_query(db, current_user)
     if q:
         query = query.filter(
@@ -78,8 +94,6 @@ def list_clients(
 # ── Create client ──────────────────────────────────────────────────────────────
 
 def create_client_record(data: dict, current_user: User, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientPortalConfig
 
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Solo admin o PM pueden crear clientes")
@@ -102,10 +116,6 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
 # ── Summary serializer ─────────────────────────────────────────────────────────
 
 def get_client_summary(client, db: Session) -> dict:
-    from app.models.project import Project
-    from app.models.service_desk import Ticket
-    from app.models.client_portal import ClientUser
-    from app.models.billing_reports import Invoice
 
     projects_count = db.query(func.count(Project.id)).filter(Project.client_id == client.id).scalar() or 0
     tickets_count = db.query(func.count(Ticket.id)).filter(Ticket.client_id == client.id).scalar() or 0
@@ -135,12 +145,6 @@ def get_client_summary(client, db: Session) -> dict:
 
 def get_client_detail(client, db: Session) -> dict:
     """Full client detail with all related entities (360 queries batched)."""
-    from app.models.project import Project
-    from app.models.pipeline import Contract
-    from app.models.alm import ALMLicense
-    from app.models.service_desk import Ticket
-    from app.models.client_portal import ClientUser
-    from app.models.clients import ClientContact, ClientPortalConfig, ClientLicenseLink, ClientContractLink
 
     out = get_client_summary(client, db)
 
@@ -262,10 +266,6 @@ def create_portal_user(
     """
     import secrets
     import bcrypt
-    from fastapi import HTTPException
-    from sqlalchemy.exc import IntegrityError
-    from app.models.clients import ClientPortalConfig
-    from app.models.client_portal import ClientUser
 
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == client_id).first()
 
@@ -284,7 +284,6 @@ def create_portal_user(
     hashed = bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
 
     # Look up client name for company field
-    from app.models.clients import Client
     client = db.query(Client).filter(Client.id == client_id).first()
 
     u = ClientUser(
@@ -321,13 +320,6 @@ def create_portal_user(
 
 def get_client_360(client_id: str, db: Session) -> dict:
     """Executive 360 summary: KPIs, health score, recent alerts."""
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientLicenseLink, ClientContractLink
-    from app.models.project import Project
-    from app.models.service_desk import Ticket
-    from app.models.client_portal import ClientUser
-    from app.models.pipeline import Contract
-    from app.models.alm import ALMLicense
 
     c = db.query(Client).filter(Client.id == client_id).first()
     if not c:
@@ -412,8 +404,6 @@ def get_client_360(client_id: str, db: Session) -> dict:
 # ── Client CRUD ───────────────────────────────────────────────────────────────
 
 def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Solo admin o PM pueden editar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
@@ -426,8 +416,6 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
 
 
 def delete_client(cid: str, current_user: User, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.project import Project
     if current_user.role not in ('admin', 'pm') and not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
@@ -440,7 +428,6 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
 # ── Contacts ──────────────────────────────────────────────────────────────────
 
 def list_contacts(cid: str, db: Session) -> list:
-    from app.models.clients import ClientContact
     return [
         {"id": ct.id, "full_name": ct.full_name, "email": ct.email,
          "phone": ct.phone, "job_title": ct.job_title, "role": ct.role,
@@ -452,8 +439,6 @@ def list_contacts(cid: str, db: Session) -> list:
 
 
 def add_contact(cid: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientContact
     c = db.query(Client).filter(Client.id == cid).first()
     if not c:
         raise HTTPException(404)
@@ -467,8 +452,6 @@ def add_contact(cid: str, data: dict, db: Session) -> dict:
 
 
 def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import ClientContact
     ct = db.query(ClientContact).filter(
         ClientContact.id == contact_id, ClientContact.client_id == cid
     ).first()
@@ -483,8 +466,6 @@ def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
 
 
 def delete_contact(cid: str, contact_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import ClientContact
     ct = db.query(ClientContact).filter(
         ClientContact.id == contact_id, ClientContact.client_id == cid
     ).first()
@@ -498,8 +479,6 @@ def delete_contact(cid: str, contact_id: str, db: Session) -> dict:
 # ── Licenses ──────────────────────────────────────────────────────────────────
 
 def list_client_licenses(cid: str, db: Session) -> list:
-    from app.models.clients import ClientLicenseLink
-    from app.models.alm import ALMLicense
     links = db.query(ClientLicenseLink).filter(ClientLicenseLink.client_id == cid).all()
     result = []
     for ll in links:
@@ -516,9 +495,6 @@ def list_client_licenses(cid: str, db: Session) -> list:
 
 
 def link_license(cid: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientLicenseLink
-    from app.models.alm import ALMLicense
     if not db.query(Client).filter(Client.id == cid).first():
         raise HTTPException(404, "Cliente no encontrado")
     lic_id = data.get("license_id")
@@ -537,8 +513,6 @@ def link_license(cid: str, data: dict, db: Session) -> dict:
 
 
 def unlink_license(cid: str, link_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import ClientLicenseLink
     ll = db.query(ClientLicenseLink).filter(
         ClientLicenseLink.id == link_id, ClientLicenseLink.client_id == cid
     ).first()
@@ -552,8 +526,6 @@ def unlink_license(cid: str, link_id: str, db: Session) -> dict:
 # ── Contracts ─────────────────────────────────────────────────────────────────
 
 def list_client_contracts(cid: str, db: Session) -> list:
-    from app.models.clients import ClientContractLink
-    from app.models.pipeline import Contract
     links = db.query(ClientContractLink).filter(ClientContractLink.client_id == cid).all()
     linked_ids: set = set()
     result = []
@@ -589,9 +561,6 @@ def list_client_contracts(cid: str, db: Session) -> list:
 
 
 def link_contract(cid: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientContractLink
-    from app.models.pipeline import Contract
     if not db.query(Client).filter(Client.id == cid).first():
         raise HTTPException(404, "Cliente no encontrado")
     con_id = data.get("contract_id")
@@ -610,8 +579,6 @@ def link_contract(cid: str, data: dict, db: Session) -> dict:
 
 
 def unlink_contract(cid: str, link_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import ClientContractLink
     cl = db.query(ClientContractLink).filter(
         ClientContractLink.id == link_id, ClientContractLink.client_id == cid
     ).first()
@@ -625,7 +592,6 @@ def unlink_contract(cid: str, link_id: str, db: Session) -> dict:
 # ── Portal config ─────────────────────────────────────────────────────────────
 
 def get_portal_config(cid: str, db: Session) -> dict:
-    from app.models.clients import ClientPortalConfig
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
     if not cfg:
         return {"client_id": cid, "enabled_modules": ["service_desk", "projects"], "sd_without_project": True}
@@ -645,8 +611,6 @@ def get_portal_config(cid: str, db: Session) -> dict:
 
 
 def update_portal_config(cid: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client, ClientPortalConfig
     if not db.query(Client).filter(Client.id == cid).first():
         raise HTTPException(404)
     cfg = db.query(ClientPortalConfig).filter(ClientPortalConfig.client_id == cid).first()
@@ -666,8 +630,6 @@ def update_portal_config(cid: str, data: dict, db: Session) -> dict:
 # ── Invoices ──────────────────────────────────────────────────────────────────
 
 def list_client_invoices(cid: str, db: Session) -> list:
-    from app.models.billing_reports import Invoice
-    from app.models.project import Project
     direct = db.query(Invoice).filter(Invoice.client_id == cid).all()
     seen_ids = {inv.id for inv in direct}
     client_projects = db.query(Project).filter(Project.client_id == cid).all()
@@ -698,7 +660,6 @@ def list_client_invoices(cid: str, db: Session) -> list:
 # ── Tickets ───────────────────────────────────────────────────────────────────
 
 def list_client_tickets(cid: str, status: "Optional[str]", db: Session) -> list:
-    from app.models.service_desk import Ticket
     q = db.query(Ticket).filter(Ticket.client_id == cid)
     if status:
         q = q.filter(Ticket.status == status)
@@ -717,7 +678,6 @@ def list_client_tickets(cid: str, status: "Optional[str]", db: Session) -> list:
 # ── Portal users ──────────────────────────────────────────────────────────────
 
 def list_portal_users(cid: str, db: Session) -> list:
-    from app.models.client_portal import ClientUser
     users = db.query(ClientUser).filter(ClientUser.client_org_id == cid).all()
     return [
         {"id": u.id, "full_name": u.full_name, "email": u.email,
@@ -731,8 +691,6 @@ def list_portal_users(cid: str, db: Session) -> list:
 
 
 def update_portal_user(cid: str, uid: str, data: dict, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.client_portal import ClientUser
     u = db.query(ClientUser).filter(
         ClientUser.id == uid, ClientUser.client_org_id == cid
     ).first()
@@ -748,7 +706,6 @@ def update_portal_user(cid: str, uid: str, data: dict, db: Session) -> dict:
 # ── Client-project linking ────────────────────────────────────────────────────
 
 def list_client_projects(cid: str, db: Session) -> list:
-    from app.models.project import Project
     projects = db.query(Project).filter(Project.client_id == cid).order_by(Project.name).all()
     return [
         {"id": p.id, "code": p.code, "name": p.name, "status": str(p.status),
@@ -761,7 +718,6 @@ def list_client_projects(cid: str, db: Session) -> list:
 
 
 def list_available_projects(cid: str, db: Session) -> list:
-    from app.models.project import Project
     all_projects = db.query(Project).order_by(Project.name).all()
     projects = []
     for p in all_projects:
@@ -788,9 +744,6 @@ def list_available_projects(cid: str, db: Session) -> list:
 
 
 def link_project(cid: str, project_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.clients import Client
-    from app.models.project import Project
     client = db.query(Client).filter(Client.id == cid).first()
     if not client:
         raise HTTPException(404, "Cliente no encontrado")
@@ -807,8 +760,6 @@ def link_project(cid: str, project_id: str, db: Session) -> dict:
 
 
 def unlink_project(cid: str, project_id: str, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.project import Project
     project = db.query(Project).filter(
         Project.id == project_id, Project.client_id == cid
     ).first()

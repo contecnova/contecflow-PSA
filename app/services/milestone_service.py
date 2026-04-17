@@ -22,12 +22,18 @@ from app.services.numbering import next_numbered_code
 
 from app.core.config import settings
 from app.models.user import User
+from app.models.billing_reports import Invoice, InvoiceLine
+from app.models.financial import ProjectMilestone
+from app.models.pipeline import Contract
+from app.models.project import Project
+from app.models.project import Project as Proj
+from app.services.notifications import notify_user
+from fastapi import HTTPException
 
 
 # ── CRUD helpers ──────────────────────────────────────────────────────────────
 
 def list_milestones_by_project(db: Session, project_id: str):
-    from app.models.financial import ProjectMilestone
     return (
         db.query(ProjectMilestone)
         .filter(ProjectMilestone.project_id == project_id)
@@ -37,7 +43,6 @@ def list_milestones_by_project(db: Session, project_id: str):
 
 
 def create_milestone(db: Session, project_id: str, **kwargs):
-    from app.models.financial import ProjectMilestone
     m = ProjectMilestone(
         id=str(uuid.uuid4()),
         project_id=project_id,
@@ -51,7 +56,6 @@ def create_milestone(db: Session, project_id: str, **kwargs):
 
 
 def get_milestone_by_id(db: Session, milestone_id: str):
-    from app.models.financial import ProjectMilestone
     return db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
 
 
@@ -68,8 +72,6 @@ def delete_milestone(db: Session, m) -> None:
 
 
 def get_pending_milestones_dashboard(db: Session):
-    from app.models.financial import ProjectMilestone
-    from app.models.project import Project
     ms = (
         db.query(ProjectMilestone)
         .filter(ProjectMilestone.billing_status.in_(["completed", "pending_approval", "approved"]))
@@ -90,8 +92,6 @@ def compute_billing_amount(milestone, db: Session) -> Optional[float]:
     if milestone.billing_amount:
         return milestone.billing_amount
     if milestone.billing_pct:
-        from app.models.project import Project
-        from app.models.pipeline import Contract
         proj = db.query(Project).filter(Project.id == milestone.project_id).first()
         if proj:
             total = (
@@ -108,8 +108,6 @@ def compute_billing_amount(milestone, db: Session) -> Optional[float]:
 # ── Complete ───────────────────────────────────────────────────────────────────
 
 def complete_milestone(milestone_id: str, current_user: User, db: Session):
-    from fastapi import HTTPException
-    from app.models.financial import ProjectMilestone
 
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
     if not m:
@@ -126,8 +124,6 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
 
 
 def uncomplete_milestone(milestone_id: str, current_user: User, db: Session):
-    from fastapi import HTTPException
-    from app.models.financial import ProjectMilestone
 
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
     if not m:
@@ -151,8 +147,6 @@ def request_milestone_approval(
     current_user: User,
     db: Session,
 ):
-    from fastapi import HTTPException
-    from app.models.financial import ProjectMilestone
 
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
     if not m:
@@ -181,8 +175,6 @@ def decide_milestone_approval(
     current_user: User,
     db: Session,
 ):
-    from fastapi import HTTPException
-    from app.models.financial import ProjectMilestone
 
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
     if not m:
@@ -215,10 +207,6 @@ def decide_milestone_approval(
 # ── Generate invoice ───────────────────────────────────────────────────────────
 
 def generate_milestone_invoice(milestone_id: str, current_user: User, db: Session) -> dict:
-    from fastapi import HTTPException
-    from app.models.financial import ProjectMilestone
-    from app.models.billing_reports import Invoice, InvoiceLine
-    from app.models.project import Project
 
     m = db.query(ProjectMilestone).filter(ProjectMilestone.id == milestone_id).first()
     if not m:
@@ -299,8 +287,6 @@ def _next_invoice_number(db: Session) -> str:
 
 
 def _notify_pm_approval_requested(m, message, current_user, db: Session) -> None:
-    from app.services.notifications import notify_user
-    from app.models.project import Project as Proj
 
     try:
         proj = db.query(Proj).filter(Proj.id == m.project_id).first()
@@ -324,7 +310,6 @@ def _notify_pm_approval_requested(m, message, current_user, db: Session) -> None
 
 
 def _notify_requester_approved(m, current_user, db: Session) -> None:
-    from app.services.notifications import notify_user
 
     if m.approval_requested_by:
         try:
@@ -343,7 +328,6 @@ def _notify_requester_approved(m, current_user, db: Session) -> None:
 
 
 def _notify_requester_rejected(m, rejection_reason: str, current_user, db: Session) -> None:
-    from app.services.notifications import notify_user
 
     if m.approval_requested_by:
         try:

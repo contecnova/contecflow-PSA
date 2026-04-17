@@ -5,6 +5,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import register_metric
+from app.core.config import settings
+from app.models.imputation import Imputation
+from app.models.user import User
+from datetime import timedelta
 
 
 @register_metric("sprint_velocity")
@@ -202,10 +206,6 @@ def metric_load_by_person(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Carga por persona (% sobre su capacidad)."""
-    from app.models.imputation import Imputation
-    from app.models.user import User
-    from app.core.config import settings
-    from datetime import timedelta
 
     total_days = (d_to - d_from).days + 1
     working_days = sum(1 for i in range(total_days) if (d_from + timedelta(i)).weekday() < 5)

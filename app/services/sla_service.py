@@ -15,6 +15,14 @@ from sqlalchemy import cast, func, Integer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.client_portal import ClientUser
+from app.models.service_desk import Ticket
+from app.models.service_desk import Problem
+from app.models.service_desk import KBArticle
+from app.models.service_desk import ConfigurationItem
+from app.models.service_desk import SDSLAHoliday
+from app.models.service_desk import TicketHistory
+from jose import jwt, JWTError
 
 if TYPE_CHECKING:
     from app.models.service_desk import SLAPolicy, Ticket, TicketHistory, TicketPriority
@@ -214,7 +222,6 @@ def calculate_sla_due(
 
     holidays: set = set()
     if db is not None and policy is not None:
-        from app.models.service_desk import SDSLAHoliday
         rows = db.query(SDSLAHoliday).filter(
             (SDSLAHoliday.sla_policy_id == policy.id)
             | (SDSLAHoliday.sla_policy_id == None)  # noqa: E711
@@ -232,7 +239,6 @@ def calculate_sla_due(
 
 def next_ticket_number(ticket_type: str, db: Session) -> str:
     """Generate the next sequential ticket number (advisory-locked on PostgreSQL)."""
-    from app.models.service_desk import Ticket
     prefix = TICKET_PREFIXES.get(ticket_type, "TKT")
     try:
         lock_key = advisory_lock_key(f"ticket_number_{ticket_type}")
@@ -248,7 +254,6 @@ def next_ticket_number(ticket_type: str, db: Session) -> str:
 
 
 def next_problem_number(db: Session) -> str:
-    from app.models.service_desk import Problem
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("problem_number")))
     except Exception:
@@ -258,7 +263,6 @@ def next_problem_number(db: Session) -> str:
 
 
 def next_kb_number(db: Session) -> str:
-    from app.models.service_desk import KBArticle
     try:
         db.execute(func.pg_advisory_xact_lock(advisory_lock_key("kb_number")))
     except Exception:
@@ -268,7 +272,6 @@ def next_kb_number(db: Session) -> str:
 
 
 def next_ci_number(db: Session) -> str:
-    from app.models.service_desk import ConfigurationItem
     last = db.query(func.max(cast(func.substr(ConfigurationItem.code, 4), Integer))).scalar() or 0
     return f"CI-{(last + 1):04d}"
 
@@ -278,7 +281,6 @@ def log_history(
 ) -> None:
     """Add a TicketHistory row when a field value changes."""
     if str(old_val or "") != str(new_val or ""):
-        from app.models.service_desk import TicketHistory
         db.add(TicketHistory(
             ticket_id=ticket_id,
             field_name=field,
@@ -302,8 +304,6 @@ def get_client_from_token(authorization: Optional[str], db: Session) -> "Optiona
     if not token:
         return None
 
-    from jose import jwt, JWTError
-    from app.models.client_portal import ClientUser
 
     try:
         payload = jwt.decode(

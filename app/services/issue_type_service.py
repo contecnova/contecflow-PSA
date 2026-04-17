@@ -18,6 +18,7 @@ from app.models.issue_types import (
     EpicDependencyMeta, EpicDepType,
     FTSEntry,
 )
+from app.models.epics import WikiSpace, WikiPage
 
 
 SYSTEM_ISSUE_TYPES = [
@@ -336,7 +337,6 @@ def index_entity(payload_dict: dict, db: Session) -> dict:
 
 
 def bulk_index(project_id: str, db: Session) -> dict:
-    from app.models.epics import WikiSpace, WikiPage
     count = 0
     for t in db.query(Task).filter(Task.project_id == project_id).all():
         _upsert_fts(
