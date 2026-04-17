@@ -1,5 +1,24 @@
 ## Novedades técnicas recientes
 
+### Correcciones e internacionalización (i18n) — sesión 2025-07
+
+- **Backend — arranque estabilizado:**
+  - Añadida importación faltante de `AIProvider` y `AIUsageLog` en `app/models/__init__.py`.
+  - Creada migración Alembic `025_merge_multitenancy_heads.py` para resolver dos cabeceras divergentes.
+  - El servidor arranca correctamente: "Clarive PSA listo — 1290 endpoints".
+- **Traducciones back-office (`frontend/src/i18n/appTranslations.js`):**
+  - Completadas todas las claves faltantes del bloque EN (459 claves en 40 módulos).
+  - Módulos ampliados: `alm` (+200 claves), `approvals` (+93), `absences` (+60), `agent_dashboard`, `cumulative_flow`, `alerts`, `common`, y ~35 módulos con `subtitle` y otras claves puntuales.
+  - FR/DE/PT/IT/PL/ZH siguen con fallback a ES/EN (funciona correctamente por diseño).
+- **Traducciones portal cliente (`frontend/src/i18n/portalTranslations.js`):**
+  - **Todas las lenguas ahora completas: 0 claves faltantes en ES/EN/FR/DE/PT/IT/PL/ZH.**
+  - EN: añadidas 5 claves de dashboard.
+  - FR/DE/PT/IT/PL/ZH: añadidas 252 claves por idioma (dashboard, KPIs, facturas, roadmap, perfil, soporte, encuestas, documentos, etc.).
+
+---
+
+## Novedades técnicas recientes (sesiones anteriores)
+
 - Descomposición progresiva de endpoints legacy:
   - Se extrajeron routers de dominio para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`.
   - `v238_features` y `v239_features` quedan como routers de compatibilidad temporal.

@@ -2061,6 +2061,8 @@ const en = {
     hour: 'hour', hours: 'hours', day: 'day', days: 'days', week: 'week',
     month: 'month', year: 'year', minutes: 'minutes', created_at: 'Created',
     updated_at: 'Updated', assigned_to: 'Assigned to', created_by: 'Created by',
+    searching: 'Searching...', write_at_least_2: 'Write at least 2 characters',
+    navigate: 'Navigate', open: 'Open',
   },
   nav: {
     dashboard: 'Dashboard', projects: 'Projects', tasks: 'Tasks',
@@ -2173,6 +2175,7 @@ const en = {
     sync_complete: 'Sync completed:', created: 'created', updated: 'updated', sync_error: 'Sync error',
     push_complete: 'Export completed:', tasks_pushed: 'tasks pushed', push_error: 'Error pushing tasks',
     required_fields_error: 'URL, email and project key are required',
+    completada: 'Completed',
   },
 
   project_templates: {
@@ -2414,15 +2417,219 @@ const en = {
     license_name: 'License name', total_seats: 'Total seats',
     used_seats: 'Used seats', expiry_date: 'Expiry date',
     assigned_to: 'Assigned to', assign_license: 'Assign license', assign_asset: 'Assign asset',
+    serial_number: 'Serial number', asset_tag: 'Asset tag',
     expiring_soon: 'Expiring soon', overallocated: 'Overallocated',
     no_vendors: 'No vendors', no_contracts: 'No contracts',
     no_licenses: 'No licenses', no_assets: 'No assets',
     status_active: 'Active', status_expired: 'Expired',
     status_cancelled: 'Cancelled', status_in_use: 'In use',
     status_available: 'Available', status_retired: 'Retired',
+  
+    tab_cost_centers: 'Cost centers',
+    tab_compliance: 'Compliance',
+    dashboard_contracts_active: 'Active contracts',
+    dashboard_licenses_managed: 'Managed licenses',
+    dashboard_assets_inventory: 'Inventoried assets',
+    dashboard_vendors_active: 'Active vendors',
+    dashboard_license_annual_cost: 'Annual license cost',
+    dashboard_total_annual_cost: 'Total annual cost',
+    dashboard_expire_60: 'expiring in 60 days',
+    dashboard_expired: 'expired',
+    dashboard_in_use: 'in use',
+    dashboard_license_cost_scope: 'active licenses',
+    dashboard_total_cost_scope: 'contracts + licenses',
+    dashboard_upcoming_renewals: 'Upcoming renewals (60 days)',
+    dashboard_view_contracts: 'View contracts',
+    dashboard_no_urgent_renewals: 'No urgent renewals',
+    dashboard_today: 'Today',
+    dashboard_days_short: 'd',
+    dashboard_quick_actions: 'Quick actions',
+    action_add_vendor: 'Add vendor',
+    action_new_contract: 'New contract',
+    action_register_license: 'Register license',
+    action_add_asset: 'Add asset',
+    action_cost_centers: 'Cost centers',
+    action_compliance_report: 'Compliance report',
+    vendor_modal_new: 'New vendor',
+    vendor_modal_edit: 'Edit vendor',
+    vendor_label_name: 'Name',
+    vendor_label_category: 'Category',
+    vendor_label_country: 'Country',
+    vendor_label_web: 'Web',
+    vendor_label_support_email: 'Support email',
+    vendor_label_support_phone: 'Support phone',
+    vendor_label_account_manager: 'Account Manager',
+    vendor_label_account_number: 'Customer number',
+    vendor_label_tax_id: 'Tax ID',
+    vendor_label_notes: 'Notes',
+    vendor_placeholder_name: 'Microsoft, AWS, GitHub...',
+    vendor_placeholder_web: 'https://...',
+    vendor_create: 'Create vendor',
+    vendors_search_placeholder: 'Search vendor...',
+    vendors_filter_all_categories: 'All categories',
+    vendors_new: 'New vendor',
+    vendors_empty_title: 'No vendors',
+    vendors_empty_desc: 'Add the software, hardware and service vendors for your company',
+    vendors_delete_confirm: 'Delete vendor',
+    vendors_contracts_count: 'contract(s)',
+    no_cost_centers: 'No cost centers',
+    contracts_empty_desc: 'Register contracts with your software, hardware and service vendors',
+    licenses_empty_desc: 'Register your company software licenses to track usage and costs',
+    assets_empty_desc: 'Inventory your company devices and equipment',
+    cost_centers_empty_desc: 'Define cost centers to allocate license and contract costs',
+    contracts_search_placeholder: 'Search contract or vendor...',
+    licenses_search_placeholder: 'Search license...',
+    assets_search_placeholder: 'Search asset, serial, tag...',
+    vendors_filter_aria: 'Filter vendors by category',
+    contracts_modal_new: 'New contract',
+    contracts_modal_edit: 'Edit contract',
+    contracts_label_title: 'Title',
+    contracts_placeholder_title: 'Microsoft 365 Business Premium — 2025',
+    contracts_label_vendor: 'Vendor',
+    contracts_none_vendor: 'No vendor',
+    contracts_label_type: 'Type',
+    contracts_label_status: 'Status',
+    contracts_label_billing_cycle: 'Billing cycle',
+    contracts_cycle_one_time: 'One-time',
+    contracts_cycle_monthly: 'Monthly',
+    contracts_cycle_quarterly: 'Quarterly',
+    contracts_cycle_annual: 'Annual',
+    contracts_cycle_biennial: 'Biennial',
+    contracts_label_start_date: 'Start date',
+    contracts_label_end_date: 'End date',
+    contracts_label_renewal_date: 'Renewal date',
+    contracts_label_auto_renew: 'Auto-renewal',
+    contracts_yes: 'Yes',
+    contracts_no: 'No',
+    contracts_label_notice_days: 'Cancellation notice days',
+    contracts_label_total_value: 'Total value (€)',
+    contracts_label_annual_cost: 'Annual cost (€)',
+    contracts_label_owner: 'Owner',
+    contracts_none_owner: 'No owner',
+    contracts_label_cost_center: 'Cost center',
+    contracts_none_cost_center: 'No cost center',
+    contracts_label_po: 'PO number',
+    contracts_label_payment_method: 'Payment method',
+    contracts_placeholder_payment_method: 'Card, bank transfer...',
+    contracts_label_document_url: 'Document URL',
+    contracts_placeholder_document_url: 'https://drive.google.com/...',
+    contracts_label_notes: 'Notes',
+    contracts_save_changes: 'Save changes',
+    contracts_create: 'Create contract',
+    contracts_filter_status_aria: 'Filter contracts by status',
+    contracts_filter_all_statuses: 'All statuses',
+    contracts_urgent_only_aria: 'Show only urgent contracts',
+    contracts_urgent_only: 'Urgent only',
+    licenses_assign_title: 'Assign license',
+    licenses_seats_available: 'seat(s) available of',
+    licenses_no_seats_available: 'No seats available',
+    licenses_assign_user: 'Assign to user',
+    licenses_none_user: 'No specific user',
+    licenses_assign_device: 'Assign to device',
+    licenses_none_device: 'No device',
+    licenses_assignment_expiry: 'Assignment expiry date',
+    licenses_confirm_assignment: 'Confirm assignment',
+    licenses_assigning: 'Assigning...',
+    licenses_modal_new: 'New license',
+    licenses_modal_edit: 'Edit license',
+    licenses_label_name: 'Name',
+    licenses_placeholder_name: 'Microsoft 365 — Business Premium Plan',
+    licenses_label_product: 'Product',
+    licenses_placeholder_product: 'Microsoft 365',
+    licenses_label_edition: 'Edition',
+    licenses_placeholder_edition: 'Business Premium',
+    licenses_label_version: 'Version',
+    licenses_placeholder_version: '2024',
+    licenses_label_type: 'License type',
+    licenses_label_platform: 'Platform',
+    licenses_platform_all: 'All',
+    licenses_platform_web: 'Web',
+    licenses_platform_mobile: 'Mobile',
+    licenses_label_vendor: 'Vendor',
+    licenses_none_vendor: 'No vendor',
+    licenses_label_contract: 'Linked contract',
+    licenses_none_contract: 'No contract',
+    licenses_label_total_seats: 'Total seats (empty = unlimited)',
+    licenses_label_cost_center: 'Cost center',
+    licenses_none_cost_center: 'No cost center',
+    licenses_label_purchase_date: 'Purchase date',
+    licenses_label_expiry_date: 'Expiry date',
+    licenses_label_environment: 'Environment',
+    licenses_env_all: 'All',
+    licenses_env_production: 'Production',
+    licenses_env_staging: 'Staging',
+    licenses_env_dev: 'Development',
+    licenses_requires_compliance: 'Requires compliance / audit',
+    licenses_label_key: 'License key',
+    licenses_placeholder_key: 'XXXXX-XXXXX-XXXXX (stored encrypted)',
+    licenses_save: 'Save',
+    licenses_create: 'Create license',
+    licenses_filter_type_aria: 'Filter licenses by type',
+    licenses_filter_status_aria: 'Filter licenses by status',
+    licenses_filter_all_types: 'All types',
+    licenses_filter_all_statuses: 'All statuses',
+    assets_modal_new: 'New asset',
+    assets_modal_edit: 'Edit asset',
+    assets_label_name: 'Name',
+    assets_placeholder_name: 'MacBook Pro 16 — User',
+    assets_label_type: 'Type',
+    assets_label_status: 'Status',
+    assets_label_brand: 'Brand',
+    assets_placeholder_brand: 'Apple, Dell, HP...',
+    assets_label_model: 'Model',
+    assets_label_serial: 'Serial number',
+    assets_label_tag: 'Asset tag',
+    assets_placeholder_tag: 'ASSET-001',
+    assets_label_assigned_to: 'Assigned to',
+    assets_none_assigned: 'Unassigned',
+    assets_label_location: 'Location',
+    assets_placeholder_location: 'Office / Rack A3',
+    assets_label_vendor: 'Vendor',
+    assets_none_vendor: 'No vendor',
+    assets_label_condition: 'Condition',
+    assets_condition_new: 'New',
+    assets_condition_good: 'Good',
+    assets_condition_fair: 'Fair',
+    assets_condition_poor: 'Poor',
+    assets_label_purchase_date: 'Purchase date',
+    assets_label_purchase_price: 'Purchase price (€)',
+    assets_label_warranty_end: 'Warranty end',
+    assets_label_depreciation_years: 'Depreciation years',
+    assets_label_ip: 'IP',
+    assets_label_hostname: 'Hostname',
+    assets_label_os: 'Operating system',
+    assets_placeholder_os: 'Ubuntu 22.04 LTS',
+    assets_label_cpu: 'CPU',
+    assets_placeholder_cpu: 'Intel Xeon E5-2680',
+    assets_label_ram: 'RAM (GB)',
+    assets_label_storage: 'Storage (GB)',
+    assets_label_notes: 'Notes',
+    assets_create: 'Create asset',
+    assets_filter_type_aria: 'Filter assets by type',
+    assets_filter_status_aria: 'Filter assets by status',
+    assets_filter_all_types: 'All types',
+    assets_filter_all_statuses: 'All statuses',
+    cost_centers_new: 'New cost center',
+    cost_centers_edit: 'Edit cost center',
+    cost_centers_create: 'Create',
+    cost_centers_label_code: 'Code',
+    cost_centers_placeholder_code: 'CC-001',
+    cost_centers_label_name: 'Name',
+    cost_centers_placeholder_name: 'Technology',
+    cost_centers_label_budget: 'Annual budget (€)',
+    cost_centers_label_currency: 'Currency',
+    cost_centers_label_description: 'Description',
+    compliance_intro: 'Automatic audit of licenses marked as mandatory compliance. Detects expiries and over-assignments.',
+    compliance_issues: 'Compliance issues',
+    compliance_critical: 'Critical (immediate action)',
+    compliance_ok: 'Compliance OK',
+    compliance_ok_desc: 'All compliance licenses are active and correctly assigned',
+    compliance_severity_critical: 'CRITICAL',
+    compliance_severity_warning: 'WARNING',
+    tablist_aria: 'License and asset management sections',
   },
   resources: {
-    title: 'Resources', capacity: 'Capacity', load: 'Load',
+    title: 'Resources', subtitle: 'Manage capacity, utilization and team assignment', capacity: 'Capacity', load: 'Load',
     available: 'Available', overloaded: 'Overloaded',
     fte_label: 'FTE',
     utilization: 'Utilization', weekly_capacity: 'Weekly capacity',
@@ -2454,7 +2661,7 @@ const en = {
     linked_projects: 'Linked projects', no_clients: 'No clients',
   },
   sprints: {
-    title: 'Sprints', new_sprint: 'New sprint', sprint_name: 'Sprint name',
+    title: 'Sprints', subtitle: 'Agile sprint and backlog management', new_sprint: 'New sprint', sprint_name: 'Sprint name',
     start_date: 'Start date', end_date: 'End date', goal: 'Goal',
     capacity: 'Capacity (story points)', velocity: 'Velocity',
     backlog: 'Backlog', board: 'Board', completed: 'Completed',
@@ -2465,7 +2672,7 @@ const en = {
     status_completed: 'Completed', status_cancelled: 'Cancelled',
   },
   wiki: {
-    title: 'Wiki', new_page: 'New page', new_folder: 'New folder',
+    title: 'Wiki', subtitle: 'Documentation, specs and knowledge base', new_page: 'New page', new_folder: 'New folder',
     page_title: 'Title', content: 'Content', parent: 'Parent page',
     visibility: 'Visibility', vis_team: 'Team', vis_portal: 'Portal',
     vis_public: 'Public', last_updated: 'Last updated',
@@ -2551,7 +2758,7 @@ const en = {
     days_short: 'M|T|W|T|F|S|S',
   },
   contracts: {
-    title: 'Contracts', new_contract: 'New contract',
+    title: 'Contracts', subtitle: 'Contract and work order management', new_contract: 'New contract',
     contract_name: 'Contract name', client: 'Client', project: 'Project',
     start_date: 'Start date', end_date: 'End date',
     total_amount: 'Total amount', billing_type: 'Billing type',
@@ -2571,7 +2778,8 @@ const en = {
     no_expenses: 'No expenses recorded',
   },
   profitability: {
-    title: 'Profitability', revenue: 'Revenue', costs: 'Costs',
+    title: 'Profitability', subtitle: 'ASC 606 / IFRS 15 — revenue recognition and project tracking', revenue: 'Revenue', costs: 'Costs',
+    revenue_subtitle: 'ASC 606 / IFRS 15 — configuration and tracking by project',
     margin: 'Margin', margin_pct: 'Margin %', hours_sold: 'Hours sold',
     hours_worked: 'Hours worked', avg_rate: 'Average rate',
     by_project: 'By project', by_client: 'By client',
@@ -2586,7 +2794,7 @@ const en = {
     no_data: 'No data for selected period',
   },
   settings: {
-    title: 'Settings', general: 'General', users: 'Users',
+    title: 'Settings', subtitle: 'Full system administration', general: 'General', users: 'Users',
     departments: 'Departments', project_types: 'Project types',
     statuses: 'Statuses', workflows: 'Workflows', custom_fields: 'Custom fields',
     issue_types: 'Issue types', holidays: 'Holidays',
@@ -2690,6 +2898,7 @@ const en = {
     guide_ollama_desc: 'Run Llama, Mistral, Phi, Gemma and other models on your own hardware. No per-token cost and full data privacy.',
     guide_azure_desc: 'Access GPT-4o and o-series models through Azure with enterprise compliance, SLA, and regional data residency.',
     azure_api_key_hint: 'Azure API key',
+    ej: 'e.g.',
   },
   alerts: {
     title: 'Alerts', run_now: '▶ Run now', mark_read: 'Mark as read',
@@ -2713,7 +2922,7 @@ const en = {
     generic_error: 'Error',
   },
   deliverables: {
-    title: 'Deliverables', new_deliverable: 'New deliverable',
+    title: 'Deliverables', subtitle: 'Deliverable tracking and client acceptance', new_deliverable: 'New deliverable',
     deliverable_name: 'Name', due_date: 'Due date', version: 'Version',
     review_status: 'Review status', approved: 'Approved', rejected: 'Rejected',
     pending: 'Pending review', no_deliverables: 'No deliverables',
@@ -2725,14 +2934,14 @@ const en = {
     utilization: 'Utilization %', by_week: 'By week', by_month: 'By month',
   },
   invoices: {
-    title: 'Invoices', new_invoice: 'New invoice', invoice_number: 'Invoice number',
+    title: 'Invoices', subtitle: 'Invoices, payments and financial tracking', new_invoice: 'New invoice', invoice_number: 'Invoice number',
     issue_date: 'Issue date', due_date: 'Due date',
     amount: 'Amount', tax: 'Tax', total: 'Total',
     status_draft: 'Draft', status_sent: 'Sent', status_paid: 'Paid',
     status_overdue: 'Overdue', no_invoices: 'No invoices', pdf_download: 'Download PDF',
   },
   changes: {
-    title: 'Change Control', new_change: 'New change request',
+    title: 'Change Control', subtitle: 'Formal scope change request management', new_change: 'New change request',
     change_title: 'Title', impact: 'Impact', cost_impact: 'Cost impact',
     approve: 'Approve', reject: 'Reject',
     status_draft: 'Draft', status_pending: 'Pending approval',
@@ -3060,7 +3269,7 @@ const en = {
 
   // ── Budgets ───────────────────────────────────────────────────────────────────
   budgets: {
-    title: 'Budgets', new_budget: 'New budget',
+    title: 'Budgets', subtitle: 'Multi-period departmental budget control', new_budget: 'New budget',
     budget_name: 'Name', department: 'Department', period: 'Period',
     total_budget: 'Total budget', consumed: 'Consumed', remaining: 'Remaining',
     variance: 'Variance', over_budget: 'Over budget', on_track: 'On track',
@@ -3069,7 +3278,7 @@ const en = {
 
   // ── Calendar ──────────────────────────────────────────────────────────────────
   calendar: {
-    title: 'Calendar', today: 'Today', month: 'Month', week: 'Week',
+    title: 'Calendar', subtitle: 'Global view of tasks, milestones, sprints and absences', today: 'Today', month: 'Month', week: 'Week',
     day: 'Day', agenda: 'Agenda', add_event: 'Add event',
     tasks: 'Tasks', milestones: 'Milestones', sprints: 'Sprints', absences: 'Absences',
     all_types: 'All', no_events: 'No events',
@@ -3077,7 +3286,7 @@ const en = {
 
   // ── Changelog ─────────────────────────────────────────────────────────────────
   changelog: {
-    title: 'Changelog', new_entry: 'New entry', version: 'Version',
+    title: 'Changelog', subtitle: 'Change history and project release notes', new_entry: 'New entry', version: 'Version',
     release_date: 'Release date', category: 'Category', content: 'Content',
     cat_feature: 'New feature', cat_fix: 'Bug fix', cat_improvement: 'Improvement',
     cat_breaking: 'Breaking change', cat_security: 'Security',
@@ -3086,7 +3295,7 @@ const en = {
 
   // ── CMDB ──────────────────────────────────────────────────────────────────────
   cmdb: {
-    title: 'CMDB', new_ci: 'New CI', ci_name: 'CI Name',
+    title: 'CMDB', subtitle: 'Configuration Management Database and IT asset inventory', new_ci: 'New CI', ci_name: 'CI Name',
     ci_type: 'Type', environment: 'Environment', status: 'Status',
     owner: 'Owner', relationships: 'Relationships', impact: 'Impact',
     type_server: 'Server', type_database: 'Database', type_service: 'Service',
@@ -3124,7 +3333,7 @@ const en = {
 
   // ── Dependencies ──────────────────────────────────────────────────────────────
   dependencies: {
-    title: 'Task Dependencies', new_dep: 'New dependency',
+    title: 'Task Dependencies', subtitle: 'Manage and visualize which tasks block others', new_dep: 'New dependency',
     from_task: 'From task', to_task: 'To task', dep_type: 'Type',
     finish_to_start: 'Finish to Start', start_to_start: 'Start to Start',
     finish_to_finish: 'Finish to Finish', start_to_finish: 'Start to Finish',
@@ -3133,7 +3342,7 @@ const en = {
 
   // ── Epics ─────────────────────────────────────────────────────────────────────
   epics: {
-    title: 'Epics', new_epic: 'New epic', epic_name: 'Epic name',
+    title: 'Epics', subtitle: 'Group tasks into higher-level objectives and visualize the roadmap', new_epic: 'New epic', epic_name: 'Epic name',
     start_date: 'Start date', end_date: 'End date', progress: 'Progress',
     linked_tasks: 'Linked tasks', roadmap: 'Roadmap',
     gantt_title: 'Epic Gantt', dep_title: 'New epic dependency',
@@ -3142,7 +3351,7 @@ const en = {
 
   // ── Exports ───────────────────────────────────────────────────────────────────
   exports: {
-    title: 'Export & Integrate', export_data: 'Export data',
+    title: 'Export & Integrate', subtitle: 'Download data and sync with external tools', export_data: 'Export data',
     format: 'Format', entity: 'Entity', download: 'Download',
     csv: 'CSV', excel: 'Excel', json: 'JSON',
     integrations: 'Integrations', sync: 'Sync',
@@ -3150,7 +3359,7 @@ const en = {
 
   // ── Import Data ───────────────────────────────────────────────────────────────
   import_data: {
-    title: 'Data Import', upload_file: 'Upload file',
+    title: 'Data Import', subtitle: 'Import projects, users, imputations and expenses from CSV', upload_file: 'Upload file',
     entity: 'Entity', format: 'Format', template: 'Download template',
     validate: 'Validate', import_btn: 'Import', results: 'Results',
     rows_ok: 'rows imported', rows_error: 'rows with errors',
@@ -3159,7 +3368,7 @@ const en = {
 
   // ── Issue Types ───────────────────────────────────────────────────────────────
   issue_types: {
-    title: 'Issue Types', new_type: 'New type', type_name: 'Name',
+    title: 'Issue Types', subtitle: 'Define work types by project', new_type: 'New type', type_name: 'Name',
     icon: 'Icon', color: 'Color', description: 'Description',
     type_story: 'Story', type_bug: 'Bug', type_task: 'Task',
     type_improvement: 'Improvement', type_spike: 'Spike', type_epic: 'Epic',
@@ -3176,7 +3385,7 @@ const en = {
 
   // ── Mentions ──────────────────────────────────────────────────────────────────
   mentions: {
-    title: 'Mentions & Comments', all: 'All', unread: 'Unread',
+    title: 'Mentions & Comments', subtitle: 'Received mentions and comments on tasks and tickets', all: 'All', unread: 'Unread',
     mention_type: 'Type', task_comment: 'Task comment',
     ticket_comment: 'Ticket comment', mention: 'Mention',
     mark_all_read: 'Mark all as read', no_mentions: 'No mentions',
@@ -3184,7 +3393,7 @@ const en = {
 
   // ── Organizations ─────────────────────────────────────────────────────────────
   organizations: {
-    title: 'Organizations', new_org: 'New organization',
+    title: 'Organizations', subtitle: 'Multi-tenancy with isolated data spaces per organization', new_org: 'New organization',
     org_name: 'Name', subdomain: 'Subdomain', plan: 'Plan',
     status: 'Status', users: 'Users', storage: 'Storage',
     switch_org: 'Switch organization', no_orgs: 'No organizations',
@@ -3192,7 +3401,7 @@ const en = {
 
   // ── RACI ──────────────────────────────────────────────────────────────────────
   raci: {
-    title: 'RACI Matrix', add_entry: 'Add entry',
+    title: 'RACI Matrix', subtitle: 'Define who is Responsible, Accountable, Consulted and Informed', add_entry: 'Add entry',
     deliverable: 'Deliverable / Phase', responsible: 'Responsible (R)',
     accountable: 'Accountable (A)', consulted: 'Consulted (C)',
     informed: 'Informed (I)', no_entries: 'No RACI entries',
@@ -3200,7 +3409,7 @@ const en = {
 
   // ── Rate Cards ────────────────────────────────────────────────────────────────
   rate_cards: {
-    title: 'Rate Cards', new_card: 'New rate card',
+    title: 'Rate Cards', subtitle: 'Rate tables by role, department or client', new_card: 'New rate card',
     card_name: 'Name', role: 'Role', department: 'Department',
     rate: 'Rate (€/h)', currency: 'Currency', effective_from: 'Effective from',
     client_specific: 'Client specific', no_cards: 'No rate cards',
@@ -3208,7 +3417,7 @@ const en = {
 
   // ── Risk Scores ───────────────────────────────────────────────────────────────
   risk_scores: {
-    title: 'Risk Prediction', risk_level: 'Risk level',
+    title: 'Risk Prediction', subtitle: 'Proactive alert engine and early deviation signals', risk_level: 'Risk level',
     high_risk: 'High risk', medium_risk: 'Medium risk', low_risk: 'Low risk',
     factors: 'Risk factors', prediction: 'AI prediction',
     run_analysis: 'Run analysis', last_run: 'Last analysis',
@@ -3216,7 +3425,7 @@ const en = {
 
   // ── Scenarios ─────────────────────────────────────────────────────────────────
   scenarios: {
-    title: 'Scenario Planning', new_scenario: 'New scenario',
+    title: 'Scenario Planning', subtitle: 'Simulate the impact of new projects on team capacity', new_scenario: 'New scenario',
     scenario_name: 'Scenario name', add_project: 'Add project',
     capacity_impact: 'Capacity impact', cost_impact: 'Cost impact',
     compare: 'Compare scenarios', base_plan: 'Base plan',
@@ -3225,7 +3434,7 @@ const en = {
 
   // ── Skills ────────────────────────────────────────────────────────────────────
   skills: {
-    title: 'Skills & Competencies', new_skill: 'New skill',
+    title: 'Skills & Competencies', subtitle: 'Team knowledge management and resource search', new_skill: 'New skill',
     skill_name: 'Name', category: 'Category', level: 'Level',
     find_expert: 'Find expert', assigned: 'Assigned',
     level_beginner: 'Beginner', level_intermediate: 'Intermediate',
@@ -3235,7 +3444,7 @@ const en = {
 
   // ── AI Sprint Planning ────────────────────────────────────────────────────────
   sprint_planning: {
-    title: 'AI Sprint Planning', generate: 'Generate AI plan',
+    title: 'AI Sprint Planning', subtitle: 'Generate AI-optimized sprint plans', generate: 'Generate AI plan',
     backlog: 'Task backlog', capacity: 'Team capacity',
     suggested_plan: 'Suggested plan', accept: 'Accept plan',
     sprint_goal: 'Sprint goal', points_total: 'Total points',
@@ -3244,7 +3453,7 @@ const en = {
 
   // ── Subcontractors ────────────────────────────────────────────────────────────
   subcontractors: {
-    title: 'Subcontractors', new_sub: 'New subcontractor',
+    title: 'Subcontractors', subtitle: 'Full management of freelancers, vendors and external companies', new_sub: 'New subcontractor',
     company_name: 'Company', contact: 'Contact', specialty: 'Specialty',
     hourly_rate: 'Hourly rate', status_active: 'Active', status_inactive: 'Inactive',
     linked_projects: 'Linked projects', no_subs: 'No subcontractors',
@@ -3252,7 +3461,7 @@ const en = {
 
   // ── Timesheets ────────────────────────────────────────────────────────────────
   timesheets: {
-    title: 'Timesheets', period: 'Period', status: 'Status',
+    title: 'Timesheets', subtitle: 'Weekly hour control with approval workflow', period: 'Period', status: 'Status',
     submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected',
     pending: 'Pending', submit: 'Submit timesheet', approve: 'Approve',
     week_hours: 'Weekly hours', overtime: 'Overtime',
@@ -3261,7 +3470,7 @@ const en = {
 
   // ── AI Governance ─────────────────────────────────────────────────────────────
   governance: {
-    title: 'AI Governance', modules: 'AI Modules', usage: 'Usage',
+    title: 'AI Governance', subtitle: 'Control and audit of all artificial intelligence modules', modules: 'AI Modules', usage: 'Usage',
     cost: 'Cost', audit_log: 'Audit log', policies: 'Policies',
     enable: 'Enable', disable: 'Disable', run_history: 'Run history',
     token_usage: 'Token usage', model: 'Model', provider: 'Provider',
@@ -3269,7 +3478,7 @@ const en = {
 
   // ── MFA / 2FA ─────────────────────────────────────────────────────────────────
   mfa: {
-    title: 'Two-Factor Authentication', setup: 'Setup 2FA',
+    title: 'Two-Factor Authentication', subtitle: 'MFA/2FA to protect your account with TOTP', setup: 'Setup 2FA',
     scan_qr: 'Scan the QR code with your authenticator app',
     enter_code: 'Enter the 6-digit code', verify: 'Verify',
     enabled: 'MFA enabled', disabled: 'MFA disabled',
@@ -3290,7 +3499,7 @@ const en = {
     title: 'Gantt', view_day: 'Day', view_week: 'Week', view_month: 'Month',
     view_quarter: 'Quarter', today: 'Today', zoom_in: 'Zoom in', zoom_out: 'Zoom out',
     show_dependencies: 'Show dependencies', critical_path: 'Critical path',
-    baseline: 'Baseline',
+    baseline: 'Baseline', zoom: 'Zoom', milestone: 'Milestone',
   },
 
   // ── EVM ───────────────────────────────────────────────────────────────────────
@@ -3353,7 +3562,7 @@ const en = {
 
   // ── SLA Calendars ─────────────────────────────────────────────────────────────
   sla_calendars: {
-    title: 'SLA Calendars', new_calendar: 'New calendar',
+    title: 'SLA Calendars', subtitle: 'Define working hours and holidays to calculate SLA correctly', new_calendar: 'New calendar',
     calendar_name: 'Name', timezone: 'Timezone',
     work_hours: 'Working hours', holidays: 'Holidays',
     add_holiday: 'Add holiday', apply_to: 'Apply to',
@@ -3362,7 +3571,7 @@ const en = {
 
   // ── Internal Comments ─────────────────────────────────────────────────────────
   internal_comments: {
-    title: 'Internal Comments', new_comment: 'New comment',
+    title: 'Internal Comments', subtitle: 'Private team notes not visible to the customer', new_comment: 'New comment',
     add_comment: 'Add internal note', private_note: 'Private note',
     agent_only: 'Agent only', visible_to_customer: 'Visible to customer',
     no_comments: 'No internal comments',

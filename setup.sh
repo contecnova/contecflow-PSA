@@ -292,22 +292,7 @@ except:
   fi
 
   # Keep demo users aligned with DEFAULT_USER_PASSWORD in .env
-  log "Sincronizando credenciales de usuarios demo..."
-  "$PY_BIN" -c "
-from app.db.session import SessionLocal
-from app.models.user import User
-from app.core.security import get_password_hash
-from app.core.config import settings
-db = SessionLocal()
-seed_pwd = settings.DEFAULT_USER_PASSWORD
-for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
-    user = db.query(User).filter(User.username == username).first()
-    if user:
-        user.hashed_password = get_password_hash(seed_pwd)
-db.commit()
-db.close()
-print('ok')
-" >/dev/null 2>&1 || warn "No se pudieron sincronizar las credenciales demo automáticamente"
+  sync_demo_passwords
 }
 
 # ── Setup frontend ────────────────────────────────────────────────────────────
@@ -353,6 +338,53 @@ setup_frontend() {
   cd "$SCRIPT_DIR"
 }
 
+# ── Sync demo user passwords to match current DEFAULT_USER_PASSWORD ──────────
+sync_demo_passwords() {
+  cd "$SCRIPT_DIR"
+  resolve_venv_bins
+
+  DEMO_PWD=$(get_demo_password)
+  # Use a hash of the password as a change-detection sentinel
+  if check_command shasum; then
+    PWD_HASH=$(echo -n "$DEMO_PWD" | shasum -a 256 | awk '{print $1}')
+  else
+    PWD_HASH=$(echo -n "$DEMO_PWD" | md5sum 2>/dev/null | awk '{print $1}' || echo "nocheck")
+  fi
+  PWD_HASH_FILE="$VENV_DIR/.pwd_hash"
+
+  if [ -f "$PWD_HASH_FILE" ] && [ "$(cat $PWD_HASH_FILE)" = "$PWD_HASH" ]; then
+    log "Contraseñas demo sin cambios, omitiendo rehash"
+    return 0
+  fi
+
+  log "Sincronizando contraseñas demo con DEFAULT_USER_PASSWORD..."
+  SYNC_RESULT=$("$PY_BIN" -c "
+import sys
+from app.db.session import SessionLocal
+from app.models.user import User
+from app.core.security import get_password_hash
+
+pwd = '''$DEMO_PWD'''
+db = SessionLocal()
+updated = 0
+for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
+    user = db.query(User).filter(User.username == username).first()
+    if user:
+        user.hashed_password = get_password_hash(pwd)
+        updated += 1
+db.commit()
+db.close()
+print('ok:' + str(updated))
+" 2>&1)
+  if echo "$SYNC_RESULT" | grep -q '^ok:'; then
+    UPDATED=$(echo "$SYNC_RESULT" | grep -o '[0-9]*$')
+    log "Contraseñas actualizadas para $UPDATED usuario(s) demo"
+    echo "$PWD_HASH" > "$PWD_HASH_FILE"
+  else
+    warn "No se pudieron sincronizar las contraseñas demo: $SYNC_RESULT"
+  fi
+}
+
 # ── Start services ────────────────────────────────────────────────────────────
 start_services() {
   section "Arrancando Clarive"
@@ -370,6 +402,9 @@ start_services() {
     warn "Frontend no preparado. Inicializando frontend automáticamente..."
     setup_frontend
   fi
+
+  # Always sync demo passwords before starting — ensures hash matches .env even on 'start'
+  sync_demo_passwords
 
   # Kill any existing processes on our ports
   lsof -ti:$BACKEND_PORT | xargs kill -9 2>/dev/null || true
