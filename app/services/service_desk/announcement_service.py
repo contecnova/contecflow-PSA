@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import Response
+from fastapi import HTTPException, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 

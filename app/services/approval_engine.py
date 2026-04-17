@@ -502,9 +502,6 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
     if step.approver_type == "any_in_department":
         if current_user.department == step.approver_department:
             return True
-    # Admins can always act as approver
-    if hasattr(current_user.role, "value") and current_user.role.value == "admin":
-        return True
     return False
 
 

@@ -638,7 +638,8 @@ def run_query(
     return response
 
 
-_compute_summary = lambda rows, meta=None: _svc.compute_summary(rows)
+def _compute_summary(rows, meta=None):
+    return _svc.compute_summary(rows)
 
 
 @router.get("/filters/options", summary="Opciones para los filtros")

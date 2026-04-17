@@ -21,9 +21,9 @@ router = APIRouter()
 @router.get("/kpis", response_model=DashboardKPIs, summary="KPIs globales para dirección")
 def get_kpis(
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    return get_global_kpis(db)
+    return get_global_kpis(db, current_user)
 
 
 @router.get("/projects-health", response_model=List[ProjectHealthItem], summary="Salud de todos los proyectos")
@@ -31,7 +31,7 @@ def projects_health_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return svc_get_projects_health(db)
+    return svc_get_projects_health(db, current_user)
 
 
 @router.get("/resource-load", response_model=List[ResourceLoadItem], summary="Carga detallada por recurso")
@@ -41,7 +41,7 @@ def get_resource_load_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_resource_load(week_start, department, db)
+    return get_resource_load(week_start, department, db, current_user)
 
 
 @router.get("/profitability", summary="Rentabilidad por proyecto (solo admin)")
@@ -49,9 +49,9 @@ def get_profitability_endpoint(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ):
-    return get_profitability(date_from, date_to, db)
+    return get_profitability(date_from, date_to, db, current_user)
 
 
 @router.get("/productivity/team", summary="Productividad del equipo completo")
@@ -62,7 +62,7 @@ def get_team_productivity_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return get_team_productivity(date_from, date_to, department, db)
+    return get_team_productivity(date_from, date_to, department, db, current_user)
 
 
 # ── Dashboard seed por rol ────────────────────────────────────────────────────

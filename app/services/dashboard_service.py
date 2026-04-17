@@ -30,6 +30,15 @@ from app.schemas import DashboardKPIs
 from app.schemas import ProjectHealthItem
 from app.schemas import ResourceLoadItem
 
+
+def _org_id(current_user: Optional[User]) -> Optional[str]:
+    """Return the organization_id to scope queries to, or None for superadmin/unscoped."""
+    if current_user is None:
+        return None
+    if getattr(current_user, "is_superadmin", False):
+        return None
+    return getattr(current_user, "organization_id", None)
+
 # ── KPI cache ──────────────────────────────────────────────────────────────────
 _kpi_cache: TTLCache = TTLCache(maxsize=64, ttl=60)
 _kpi_cache_lock = Lock()
@@ -37,9 +46,10 @@ _kpi_cache_lock = Lock()
 
 # ── KPIs ───────────────────────────────────────────────────────────────────────
 
-def get_global_kpis(db: Session):
+def get_global_kpis(db: Session, current_user: Optional[User] = None):
 
-    cache_key = date.today().isoformat()
+    org = _org_id(current_user)
+    cache_key = f"{date.today().isoformat()}:{org}"
     with _kpi_cache_lock:
         if cache_key in _kpi_cache:
             return _kpi_cache[cache_key]
@@ -47,54 +57,70 @@ def get_global_kpis(db: Session):
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
 
+    proj_base = db.query(Project.id).filter(Project.status == ProjectStatus.active)
+    if org:
+        proj_base = proj_base.filter(Project.organization_id == org)
+
     total_budget = db.query(func.sum(Project.budget_amount)).filter(
-        Project.status == ProjectStatus.active
+        Project.status == ProjectStatus.active,
+        *([Project.organization_id == org] if org else []),
     ).scalar() or 0.0
 
-    active_project_ids = db.query(Project.id).filter(
-        Project.status == ProjectStatus.active
-    ).scalar_subquery()
+    active_project_ids = proj_base.scalar_subquery()
     total_spent = db.query(func.sum(Imputation.cost_amount)).filter(
         Imputation.project_id.in_(active_project_ids)
     ).scalar() or 0.0
     budget_used_pct = round((total_spent / total_budget) * 100, 1) if total_budget > 0 else 0
 
+    org_proj_filters = [Project.organization_id == org] if org else []
+    org_user_filters = [User.organization_id == org] if org else []
+
     projects_active = db.query(func.count(Project.id)).filter(
-        Project.status == ProjectStatus.active
+        Project.status == ProjectStatus.active,
+        *org_proj_filters,
     ).scalar() or 0
 
     projects_at_risk = db.query(func.count(Project.id)).filter(
         Project.status == ProjectStatus.active,
         Project.risk_level.in_([ProjectRisk.high, ProjectRisk.critical]),
+        *org_proj_filters,
     ).scalar() or 0
 
     total_resources = db.query(func.count(User.id)).filter(
-        User.is_active == True, User.status == UserStatus.active
+        User.is_active == True, User.status == UserStatus.active,
+        *org_user_filters,
     ).scalar() or 0
 
-    week_hours = db.query(
+    week_hours_q = db.query(
         Imputation.user_id,
         func.sum(Imputation.hours).label("total"),
-    ).filter(Imputation.date >= week_start).group_by(Imputation.user_id).subquery()
+    ).filter(
+        Imputation.date >= week_start,
+        *([Imputation.project_id.in_(active_project_ids)] if org else []),
+    ).group_by(Imputation.user_id).subquery()
 
     overloaded = db.query(func.count(User.id)).join(
-        week_hours, week_hours.c.user_id == User.id
+        week_hours_q, week_hours_q.c.user_id == User.id
     ).filter(
         User.is_active == True,
-        week_hours.c.total >= User.weekly_capacity_hours,
+        week_hours_q.c.total >= User.weekly_capacity_hours,
+        *org_user_filters,
     ).scalar() or 0
 
     tasks_blocked = db.query(func.count(Task.id)).filter(
-        Task.status == TaskStatus.blocked
+        Task.status == TaskStatus.blocked,
+        *([Task.project_id.in_(active_project_ids)] if org else []),
     ).scalar() or 0
 
     tasks_overdue = db.query(func.count(Task.id)).filter(
         Task.due_date < today,
         Task.status.not_in([TaskStatus.done, TaskStatus.cancelled]),
+        *([Task.project_id.in_(active_project_ids)] if org else []),
     ).scalar() or 0
 
     hours_this_week = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.date >= week_start
+        Imputation.date >= week_start,
+        *([Imputation.project_id.in_(active_project_ids)] if org else []),
     ).scalar() or 0.0
 
     efficiency_data = db.query(
@@ -110,7 +136,10 @@ def get_global_kpis(db: Session):
         avg_efficiency = 0.0
 
     projects_over_budget = 0
-    active_projects_list = db.query(Project).filter(Project.status == ProjectStatus.active).all()
+    active_projects_list = db.query(Project).filter(
+        Project.status == ProjectStatus.active,
+        *org_proj_filters,
+    ).all()
     for p in active_projects_list:
         if p.budget_amount and p.budget_amount > 0:
             cost = db.query(func.sum(Imputation.cost_amount)).filter(
@@ -168,9 +197,13 @@ def _project_health_score(
     return max(0, min(100, score))
 
 
-def get_projects_health(db: Session) -> list:
+def get_projects_health(db: Session, current_user: Optional[User] = None) -> list:
 
-    projects = db.query(Project).filter(Project.status == ProjectStatus.active).all()
+    org = _org_id(current_user)
+    proj_q = db.query(Project).filter(Project.status == ProjectStatus.active)
+    if org:
+        proj_q = proj_q.filter(Project.organization_id == org)
+    projects = proj_q.all()
     if not projects:
         return []
 
@@ -252,14 +285,18 @@ def get_resource_load(
     week_start: Optional[date],
     department: Optional[str],
     db: Session,
+    current_user: Optional[User] = None,
 ) -> list:
 
+    org = _org_id(current_user)
     if not week_start:
         today = date.today()
         week_start = today - timedelta(days=today.weekday())
     week_end = week_start + timedelta(days=6)
 
     q = db.query(User).filter(User.is_active == True, User.status == UserStatus.active)
+    if org:
+        q = q.filter(User.organization_id == org)
     if department:
         q = q.filter(User.department == department)
     users = q.all()
@@ -320,11 +357,16 @@ def get_profitability(
     date_from: Optional[date],
     date_to: Optional[date],
     db: Session,
+    current_user: Optional[User] = None,
 ) -> list:
 
-    projects = db.query(Project).filter(
+    org = _org_id(current_user)
+    proj_q = db.query(Project).filter(
         Project.status.in_([ProjectStatus.active, ProjectStatus.closed])
-    ).all()
+    )
+    if org:
+        proj_q = proj_q.filter(Project.organization_id == org)
+    projects = proj_q.all()
 
     agg_q = db.query(
         Imputation.project_id.label("project_id"),
@@ -369,6 +411,7 @@ def get_team_productivity(
     date_to: Optional[date],
     department: Optional[str],
     db: Session,
+    current_user: Optional[User] = None,
 ) -> dict:
 
     if not date_from:
@@ -376,7 +419,10 @@ def get_team_productivity(
     if not date_to:
         date_to = date.today()
 
+    org = _org_id(current_user)
     q = db.query(User).filter(User.is_active == True)
+    if org:
+        q = q.filter(User.organization_id == org)
     if department:
         q = q.filter(User.department == department)
     users = q.all()

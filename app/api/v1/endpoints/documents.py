@@ -497,7 +497,8 @@ def docs_by_ticket(
     return _doc_list(db, docs)
 
 
-_doc_list = lambda db, docs: doc_svc.build_doc_list(docs)
+def _doc_list(db, docs):
+    return doc_svc.build_doc_list(docs)
 
 
 # ── Tag management ─────────────────────────────────────────────────────────

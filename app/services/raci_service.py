@@ -6,7 +6,7 @@ Covers: serialisers for User / RACIEntry / ChangelogEntry / UATCase,
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session

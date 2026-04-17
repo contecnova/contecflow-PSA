@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
+from app.models.resources import ChangeRequest
 from app.services import change_service
 from app.schemas.changes import CRIn, CRReview
 

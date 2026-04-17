@@ -1,7 +1,7 @@
 """Remaining metrics: sprints, semantic, load profiles, etc."""
 from datetime import date
 from typing import Optional
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from . import register_metric

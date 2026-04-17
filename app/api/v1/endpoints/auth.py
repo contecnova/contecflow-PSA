@@ -149,23 +149,6 @@ def _login_bucket(username: str, request: Request) -> str:
 
 def _login_lock_ttl(bucket: str) -> int:
     return _svc.login_lock_ttl(bucket)
-    r = _get_sso_redis()
-    lock_key = f"{_LOGIN_LOCK_PREFIX}{bucket}"
-    if r is not None:
-        try:
-            ttl = r.ttl(lock_key)
-            return int(ttl) if ttl and ttl > 0 else 0
-        except Exception as exc:
-            logger.warning("Redis TTL read failed for login lockout: %s", exc)
-    with _sso_states_lock:
-        st = _login_fail_fallback.get(bucket)
-        if not st:
-            return 0
-        lock_until = st.get("lock_until", 0)
-        now = time.time()
-        if lock_until > now:
-            return int(lock_until - now)
-        return 0
 
 
 def _register_login_failure(bucket: str) -> int:

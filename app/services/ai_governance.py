@@ -409,8 +409,8 @@ def get_policy(db: Session, policy_id: str, org_id: str):
 
 
 def update_policy(db: Session, policy, updates: Dict[str, Any]):
-    for field, val in updates.items():
-        setattr(policy, field, val)
+    for key, val in updates.items():
+        setattr(policy, key, val)
     db.commit()
     db.refresh(policy)
     return policy

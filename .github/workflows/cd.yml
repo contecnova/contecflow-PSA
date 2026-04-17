@@ -9,7 +9,7 @@
 #   production — triggered by push to main OR creation of a vX.Y.Z tag
 #
 # Required Secrets (Settings → Secrets and variables → Actions):
-#   GHCR_TOKEN            — GitHub PAT with packages:write scope
+#   (GHCR auth uses the built-in GITHUB_TOKEN — no PAT needed)
 #   STAGING_HOST          — Staging server IP / hostname
 #   STAGING_SSH_USER      — SSH user on staging server (e.g. clarive)
 #   STAGING_SSH_KEY       — Private SSH key (base64 PEM) for staging
@@ -111,7 +111,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # ── Backend ──────────────────────────────────────────────────────────────
       - name: Extract backend metadata
@@ -177,7 +177,7 @@ jobs:
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             set -euo pipefail
-            export GHCR_TOKEN="${{ secrets.GHCR_TOKEN }}"
+            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
             export GHCR_USER="${{ github.actor }}"
             export BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}"
             export FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}"
@@ -222,7 +222,7 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
             set -euo pipefail
-            export GHCR_TOKEN="${{ secrets.GHCR_TOKEN }}"
+            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
             export GHCR_USER="${{ github.actor }}"
             export BACKEND_IMAGE="${{ env.BACKEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}"
             export FRONTEND_IMAGE="${{ env.FRONTEND_IMAGE }}:${{ needs.resolve-env.outputs.image_tag }}"

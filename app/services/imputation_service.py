@@ -385,11 +385,57 @@ def stop_timer_session(payload, current_user: User, db: Session):
     active_seconds = max(0, elapsed - pause_duration)
     hours = max(0.25, round(active_seconds / 3600, 2))
 
+    # Use the date the timer *started*, not today — timers may span midnight
+    imputation_date = started.date()
+
+    # Lockout enforcement (same rules as validate_and_create_imputation)
+    if current_user.role != UserRole.admin:
+        earliest_allowed = get_lockout_cutoff(current_user, db)
+        if imputation_date < earliest_allowed:
+            lockout_days = (date.today() - earliest_allowed).days
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"No puedes imputar en fechas anteriores a hace {lockout_days} días "
+                    f"({earliest_allowed}). El temporizador empezó en una fecha bloqueada."
+                ),
+            )
+
+    # Daily 24h cap
+    existing_hours = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == current_user.id,
+        Imputation.date == imputation_date,
+    ).scalar() or 0.0
+    if existing_hours + hours > 24:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}.",
+        )
+
+    # Duplicate check (mirrors validate_and_create_imputation)
+    if timer.task_id:
+        duplicate = db.query(Imputation.id).filter(
+            Imputation.user_id == current_user.id,
+            Imputation.task_id == timer.task_id,
+            Imputation.date == imputation_date,
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
+    else:
+        duplicate = db.query(Imputation.id).filter(
+            Imputation.user_id == current_user.id,
+            Imputation.project_id == timer.project_id,
+            Imputation.task_id.is_(None),
+            Imputation.date == imputation_date,
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
+
     imputation = Imputation(
         user_id=current_user.id,
         task_id=timer.task_id,
         project_id=timer.project_id,
-        date=date.today(),
+        date=imputation_date,
         hours=hours,
         description=payload.description,
         is_billable=payload.is_billable,

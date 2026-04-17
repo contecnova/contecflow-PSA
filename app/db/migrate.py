@@ -132,6 +132,10 @@ MIGRATIONS = [
     # v27 — Timer session tracking on imputations
     ("imputations", "timer_session_id", "VARCHAR(36)"),
 
+    # v24 — Invoicing state on imputations (Alembic: 024_imputation_is_invoiced)
+    ("imputations", "is_invoiced",         "BOOLEAN NOT NULL DEFAULT 0"),
+    ("imputations", "invoiced_invoice_id", "VARCHAR(36)"),
+
     # v28 — KB article vector embeddings (RAG vectorial)
     ("ai_kb_articles", "embedding", "TEXT"),
 

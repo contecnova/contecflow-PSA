@@ -523,12 +523,6 @@ def get_slack_webhook_url(db, org_id: str | None) -> str | None:
         q = q.filter(SlackConfig.organization_id == org_id)
     cfg = q.first()
     return cfg.webhook_url if cfg and hasattr(cfg, "webhook_url") else None
-    """Verifica la conexión con QuickBooks."""
-    result = _qb_request(config_dict, "GET", "/companyinfo/" + config_dict.get("realm_id", ""))
-    if result["ok"]:
-        info = result["data"].get("CompanyInfo", {})
-        return {"ok": True, "company": info.get("CompanyName"), "country": info.get("Country")}
-    return result
 
 
 # ── Hub service helpers (used by integrations_hub router) ─────────────────────
