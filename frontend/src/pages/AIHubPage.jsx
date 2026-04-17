@@ -1,4 +1,4 @@
-import { CHART } from '../constants/theme'
+import { PROVIDER_META } from '../constants/api'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useId, useState } from 'react'
@@ -10,16 +10,6 @@ import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 
-const PROVIDER_META = {
-  anthropic: { icon: '🟠', color: CHART.orange, name: 'Anthropic' },
-  openai:    { icon: '🟢', color: 'var(--success)', name: 'OpenAI' },
-  gemini:    { icon: '🔵', color: 'var(--accent)', name: 'Google' },
-  deepseek:  { icon: '🐋', color: 'var(--accent-dim)', name: 'DeepSeek' },
-  groq:      { icon: '⚡', color: 'var(--danger)', name: 'Groq' },
-  mistral:   { icon: '🌪', color: CHART.orange, name: 'Mistral' },
-  ollama:    { icon: '🦙', color: 'var(--success)', name: 'Ollama (local)' },
-  azure:     { icon: '☁️', color: 'var(--accent)', name: 'Azure OpenAI' },
-}
 
 const getStatusCfg = (t) => ({
   active:   { label: t('ai.provider_status_active'), color: 'var(--success)' },

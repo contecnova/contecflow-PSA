@@ -1,0 +1,11 @@
+[
+  {"username": "admin", "email": "admin@company.com", "full_name": "Admin Sistema", "role": "admin", "department": "Direccion", "job_title": "CTO", "hourly_rate": null, "weekly_capacity_hours": 40, "is_superadmin": true},
+  {"username": "ana.torres", "email": "ana.torres@company.com", "full_name": "Ana Torres", "role": "pm", "department": "Backend", "job_title": "Tech Lead PM", "hourly_rate": 85.0, "weekly_capacity_hours": 40},
+  {"username": "luis.vega", "email": "luis.vega@company.com", "full_name": "Luis Vega", "role": "employee", "department": "Backend", "job_title": "Senior Developer", "hourly_rate": 70.0, "weekly_capacity_hours": 40},
+  {"username": "marta.gil", "email": "marta.gil@company.com", "full_name": "Marta Gil", "role": "employee", "department": "IA / Data", "job_title": "Data Scientist", "hourly_rate": 80.0, "weekly_capacity_hours": 40},
+  {"username": "carlos.ruiz", "email": "carlos.ruiz@company.com", "full_name": "Carlos Ruiz", "role": "pm", "department": "Gestion", "job_title": "Project Manager", "hourly_rate": 75.0, "weekly_capacity_hours": 40},
+  {"username": "sara.lope", "email": "sara.lope@company.com", "full_name": "Sara Lopez", "role": "employee", "department": "Infraestructura", "job_title": "DevOps Engineer", "hourly_rate": 72.0, "weekly_capacity_hours": 40},
+  {"username": "diego.mora", "email": "diego.mora@company.com", "full_name": "Diego Mora", "role": "employee", "department": "Frontend", "job_title": "Frontend Developer", "hourly_rate": 55.0, "weekly_capacity_hours": 40},
+  {"username": "elena.pardo", "email": "elena.pardo@company.com", "full_name": "Elena Pardo", "role": "employee", "department": "Diseno UX", "job_title": "UX Designer", "hourly_rate": 65.0, "weekly_capacity_hours": 40},
+  {"username": "rrhh", "email": "rrhh@company.com", "full_name": "RRHH Manager", "role": "hr", "department": "RRHH", "job_title": "HR Manager", "hourly_rate": null, "weekly_capacity_hours": 40}
+]

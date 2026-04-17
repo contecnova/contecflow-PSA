@@ -26,7 +26,55 @@
 17. [Novedades por versión](#17-novedades-por-versión)
 18. [Guía de desarrollo](#18-guía-de-desarrollo)
 19. [Flujo coordinado de Feature Requests y Control de Cambios](#19-flujo-coordinado-de-feature-requests-y-control-de-cambios)
-20. [Internacionalización y traducciones](#20-internacionalizacion-y-traducciones)
+
+21. [Gestión de Organizaciones y Usuarios (Multi-Tenancy)](#21-gestion-de-organizaciones-y-usuarios-multi-tenancy)
+## 21. Gestión de Organizaciones y Usuarios (Multi-Tenancy)
+
+### Endpoints principales
+
+- `GET /organizations` — Listar organizaciones (admin)
+- `POST /organizations` — Crear organización
+- `GET /organizations/{org_id}` — Detalle de organización
+- `PATCH /organizations/{org_id}` — Actualizar organización
+- `POST /organizations/{org_id}/assign-user` — Asignar usuario a organización
+- `DELETE /organizations/{org_id}/remove-user/{user_id}` — Quitar usuario de organización
+
+### Validaciones y restricciones
+
+- No se pueden asignar usuarios inactivos.
+- No se pueden asignar usuarios ya asignados a otra organización.
+- No se pueden asignar usuarios duplicados.
+- No se puede superar el límite de usuarios por organización (según plan).
+- No se puede quitar el último usuario de una organización.
+- Todas las acciones relevantes quedan auditadas.
+- Solo administradores pueden asignar/quitar usuarios.
+
+### Orquestación y eventos
+
+- Tras cada asignación o desvinculación, se emite un evento de sistema (`organization.user_assigned`, `organization.user_removed`) para integración con otros servicios.
+- El sistema está preparado para integración con message bus, webhooks o notificaciones externas.
+
+### Seguridad
+
+- Todas las rutas requieren autenticación y permisos de administrador.
+- El frontend previene errores comunes y refleja los mensajes del backend.
+
+### Ejemplo de integración
+
+```python
+# Suscribirse a eventos de usuario en organización
+from app.services.notifications import subscribe_system_event
+
+def on_user_assigned(event):
+  print(f"Usuario {event['user_id']} asignado a organización {event['org_id']}")
+
+subscribe_system_event("organization.user_assigned", on_user_assigned)
+```
+
+### Notas
+
+- El sistema es extensible para reglas adicionales, integración con otros servicios y auditoría avanzada.
+- Para más detalles, consulta el código en `app/services/mfa_service.py` y los endpoints en `app/api/v1/endpoints/mfa.py`.
 
 ---
 

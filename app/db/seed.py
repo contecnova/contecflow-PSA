@@ -111,17 +111,23 @@ def seed():
     db.commit()
 
     # ── Users ──────────────────────────────────────────────────────────────────
-    users_data = [
-        dict(username="admin",    email="admin@company.com",    full_name="Admin Sistema",  role=UserRole.admin,    department="Direccion",      job_title="CTO",               hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS, is_superadmin=True),
-        dict(username="ana.torres",email="ana.torres@company.com",full_name="Ana Torres",   role=UserRole.pm,       department="Backend",        job_title="Tech Lead PM",      hourly_rate=85.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="luis.vega", email="luis.vega@company.com", full_name="Luis Vega",    role=UserRole.employee, department="Backend",        job_title="Senior Developer",  hourly_rate=70.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="marta.gil", email="marta.gil@company.com", full_name="Marta Gil",    role=UserRole.employee, department="IA / Data",      job_title="Data Scientist",    hourly_rate=80.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="carlos.ruiz",email="carlos.ruiz@company.com",full_name="Carlos Ruiz",role=UserRole.pm,      department="Gestion",        job_title="Project Manager",   hourly_rate=75.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="sara.lope", email="sara.lope@company.com", full_name="Sara Lopez",   role=UserRole.employee, department="Infraestructura",job_title="DevOps Engineer",   hourly_rate=72.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="diego.mora",email="diego.mora@company.com",full_name="Diego Mora",   role=UserRole.employee, department="Frontend",       job_title="Frontend Developer",hourly_rate=55.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="elena.pardo",email="elena.pardo@company.com",full_name="Elena Pardo",role=UserRole.employee,department="Diseno UX",      job_title="UX Designer",       hourly_rate=65.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-        dict(username="rrhh",      email="rrhh@company.com",      full_name="RRHH Manager", role=UserRole.hr,       department="RRHH",           job_title="HR Manager",        hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
-    ]
+    import json, os
+    users_data_path = os.getenv("SEED_USERS_DATA_PATH", "seed_users_data.json")
+    if os.path.exists(users_data_path):
+        with open(users_data_path, "r") as f:
+            users_data = json.load(f)
+    else:
+        users_data = [
+            dict(username="admin",    email=settings.SUPERADMIN_EMAIL,    full_name="Admin Sistema",  role=UserRole.admin,    department="Direccion",      job_title="CTO",               hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS, is_superadmin=True),
+            dict(username="ana.torres",email="ana.torres@company.com",full_name="Ana Torres",   role=UserRole.pm,       department="Backend",        job_title="Tech Lead PM",      hourly_rate=85.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="luis.vega", email="luis.vega@company.com", full_name="Luis Vega",    role=UserRole.employee, department="Backend",        job_title="Senior Developer",  hourly_rate=70.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="marta.gil", email="marta.gil@company.com", full_name="Marta Gil",    role=UserRole.employee, department="IA / Data",      job_title="Data Scientist",    hourly_rate=80.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="carlos.ruiz",email="carlos.ruiz@company.com",full_name="Carlos Ruiz",role=UserRole.pm,      department="Gestion",        job_title="Project Manager",   hourly_rate=75.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="sara.lope", email="sara.lope@company.com", full_name="Sara Lopez",   role=UserRole.employee, department="Infraestructura",job_title="DevOps Engineer",   hourly_rate=72.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="diego.mora",email="diego.mora@company.com",full_name="Diego Mora",   role=UserRole.employee, department="Frontend",       job_title="Frontend Developer",hourly_rate=55.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="elena.pardo",email="elena.pardo@company.com",full_name="Elena Pardo",role=UserRole.employee,department="Diseno UX",      job_title="UX Designer",       hourly_rate=65.0,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+            dict(username="rrhh",      email="rrhh@company.com",      full_name="RRHH Manager", role=UserRole.hr,       department="RRHH",           job_title="HR Manager",        hourly_rate=None,  weekly_capacity_hours=settings.DEFAULT_WEEKLY_CAPACITY_HOURS),
+        ]
     users = {}
     seed_pwd = settings.DEFAULT_USER_PASSWORD
     print(f"\n  ⚠️  Seed user password: {seed_pwd}")
@@ -192,33 +198,36 @@ def seed():
 
     # ── Numbering sequences ────────────────────────────────────────────────────
     # Fields: entity, prefix, padding, current_value
-    for entity, prefix, padding in [
+    NUMBERING_SEQUENCES = settings.NUMBERING_SEQUENCES if hasattr(settings, "NUMBERING_SEQUENCES") else [
         ("project","PRJ",4),("task","TSK",4),("contract","CNT",4),
         ("opportunity","OPP",4),("risk","RSK",4),
         ("change_request","CR",4),("deliverable","DEL",4)
-    ]:
+    ]
+    for entity, prefix, padding in NUMBERING_SEQUENCES:
         if not db.query(NumberingSequence).filter(NumberingSequence.entity==entity).first():
             db.add(NumberingSequence(entity=entity, prefix=prefix, padding=padding, current_value=0))
     db.commit()
 
     # ── Task types ─────────────────────────────────────────────────────────────
     # Fields: name, value, color, icon, is_active
-    for tname, color, icon in [
+    TASK_TYPES = settings.TASK_TYPES if hasattr(settings, "TASK_TYPES") else [
         ("Feature","#7c3aed","✦"),("Bug","#ff4757","⚠"),
         ("Improvement","#00d4ff","↑"),("Documentation","#ffb800","📄"),
         ("Research","#00c896","🔍"),("DevOps","#ff6b35","⚙")
-    ]:
+    ]
+    for tname, color, icon in TASK_TYPES:
         if not db.query(TaskType).filter(TaskType.name==tname).first():
             db.add(TaskType(name=tname, value=tname.lower(), color=color, icon=icon, is_active=True))
     db.commit()
 
     # ── Alert configs ──────────────────────────────────────────────────────────
     # Fields: alert_type, label, is_enabled, threshold_value, notify_admin, notify_pm
-    for alert_type, label, threshold in [
+    ALERT_CONFIGS = settings.ALERT_CONFIGS if hasattr(settings, "ALERT_CONFIGS") else [
         ("budget_alert","Alerta presupuesto >85%",85.0),
         ("overload_alert","Sobrecarga equipo >100%",100.0),
         ("deadline_alert","Proyecto vence en 7 dias",7.0)
-    ]:
+    ]
+    for alert_type, label, threshold in ALERT_CONFIGS:
         if not db.query(AlertConfig).filter(AlertConfig.alert_type==alert_type).first():
             db.add(AlertConfig(alert_type=alert_type, label=label, is_enabled=True,
                                threshold_value=threshold, notify_admin=True, notify_pm=True))
@@ -234,7 +243,7 @@ def seed():
     vp = db.query(VacationPolicy).first()
 
     # Fields: user_id, year, policy_id, days_entitled, days_taken, days_pending
-    for uname in ["ana.torres","luis.vega","marta.gil","carlos.ruiz","sara.lope","diego.mora","elena.pardo"]:
+    for uname in getattr(settings, "VACATION_USERS", ["ana.torres","luis.vega","marta.gil","carlos.ruiz","sara.lope","diego.mora","elena.pardo"]):
         u = users.get(uname)
         if u and not db.query(UserVacationBalance).filter(UserVacationBalance.user_id==u.id).first():
             days_taken_val = random.choice([0,2,3,5])
@@ -248,17 +257,27 @@ def seed():
     # Fields: name, short_name, industry, status, contact_name, contact_email,
     #         contact_phone, contact_role, city, country, payment_terms,
     #         currency, account_manager_id, created_by
-    clients_data = [
-        dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
-             contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
-             contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
-             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["carlos.ruiz"].id),
-        dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
-             contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
-             contact_role="CEO",             city="Barcelona",  country="ES",
-             payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["carlos.ruiz"].id),
+        clients_data_path = os.getenv("SEED_CLIENTS_DATA_PATH", "seed_clients_data.json")
+        if os.path.exists(clients_data_path):
+            with open(clients_data_path, "r") as f:
+                clients_data = json.load(f)
+            # Map usernames to user IDs for account_manager_id
+            for c in clients_data:
+                if "account_manager_username" in c:
+                    c["account_manager_id"] = users.get(c["account_manager_username"]).id if users.get(c["account_manager_username"]) else None
+        else:
+            clients_data = getattr(settings, "CLIENTS_DATA", [
+               dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
+                   contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
+                   contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
+                   payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+                   account_manager_id=users["carlos.ruiz"].id),
+               dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
+                   contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
+                   contact_role="CEO",             city="Barcelona",  country="ES",
+                   payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
+                   account_manager_id=users["carlos.ruiz"].id),
+            ])
         dict(name="RetailCorp SA",       short_name="RetailCorp", industry=ClientIndustry.retail,        status=ClientStatus.active,
              contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.es",  contact_phone="+34 95 300 4000",
              contact_role="Directora de Compras",    city="Sevilla",   country="ES",
@@ -1281,7 +1300,7 @@ def seed_v13():
     # ── API Key demo ───────────────────────────────────────────────────────────
     if admin:
         import bcrypt as _bcrypt
-        raw_key = "nxpm_demo_integration_key_1234"
+        raw_key = os.getenv("SEED_API_KEY_DEMO", "nxpm_demo_integration_key_1234")
         hashed = _bcrypt.hashpw(raw_key.encode(), _bcrypt.gensalt()).decode()
         db.add(ApiKey(
             name="Integración BI Dashboard",
@@ -1329,38 +1348,51 @@ def seed_v14(db):
     from app.db.session import engine as _eng_v14
     Base.metadata.create_all(bind=_eng_v14)
 
-    # System email templates (seed only if empty)
+    # ── Email templates (seed only if empty)
     if db.query(EmailTemplate).count() == 0:
-        templates = [
-            EmailTemplate(
-                name="Tarea vencida",
-                subject="[Clarive] Tarea vencida: {{task_title}}",
-                body_html="<h2>Tarea vencida</h2><p>La tarea <strong>{{task_title}}</strong> en el proyecto {{project_name}} ha vencido.</p><p>Responsable: {{assignee_name}}</p>",
-                category="automation", is_system=True,
-                variables=json.dumps(["task_title","project_name","assignee_name","due_date"]),
-            ),
-            EmailTemplate(
-                name="Alerta de presupuesto",
-                subject="[Clarive] Presupuesto al {{pct_used}}%: {{project_name}}",
-                body_html="<h2>Alerta de presupuesto</h2><p>El proyecto <strong>{{project_name}}</strong> ha consumido el {{pct_used}}% del presupuesto.</p><p>Total: {{budget_total}}€ | Consumido: {{budget_used}}€</p>",
-                category="alert", is_system=True,
-                variables=json.dumps(["project_name","budget_total","budget_used","pct_used"]),
-            ),
-            EmailTemplate(
-                name="Informe programado",
-                subject="[Clarive] Informe: {{report_name}}",
-                body_html="<h2>Informe: {{report_name}}</h2><p>Generado el {{generated_at}} para el período {{period}}.</p><p>Accede a Clarive para ver el informe completo.</p>",
-                category="report", is_system=True,
-                variables=json.dumps(["report_name","generated_at","period"]),
-            ),
-            EmailTemplate(
-                name="Ticket SLA vencido",
-                subject="[Service Desk] SLA vencido: #{{ticket_number}}",
-                body_html="<h2>SLA incumplido</h2><p>El ticket <strong>#{{ticket_number}} — {{ticket_title}}</strong> ha superado el SLA.</p><p>Asignado a: {{assignee_name}}</p>",
-                category="alert", is_system=True,
-                variables=json.dumps(["ticket_number","ticket_title","assignee_name","sla_due"]),
-            ),
-        ]
+        email_templates_path = os.getenv("SEED_EMAIL_TEMPLATES_PATH", "seed_email_templates.json")
+        if os.path.exists(email_templates_path):
+            with open(email_templates_path, "r") as f:
+                templates_data = json.load(f)
+            templates = [EmailTemplate(
+                name=tpl["name"],
+                subject=tpl["subject"],
+                body_html=tpl["body_html"],
+                category=tpl["category"],
+                is_system=tpl.get("is_system", True),
+                variables=json.dumps(tpl.get("variables", [])),
+            ) for tpl in templates_data]
+        else:
+            templates = [
+                EmailTemplate(
+                    name="Tarea vencida",
+                    subject="[Clarive] Tarea vencida: {{task_title}}",
+                    body_html="<h2>Tarea vencida</h2><p>La tarea <strong>{{task_title}}</strong> en el proyecto {{project_name}} ha vencido.</p><p>Responsable: {{assignee_name}}</p>",
+                    category="automation", is_system=True,
+                    variables=json.dumps(["task_title","project_name","assignee_name","due_date"]),
+                ),
+                EmailTemplate(
+                    name="Alerta de presupuesto",
+                    subject="[Clarive] Presupuesto al {{pct_used}}%: {{project_name}}",
+                    body_html="<h2>Alerta de presupuesto</h2><p>El proyecto <strong>{{project_name}}</strong> ha consumido el {{pct_used}}% del presupuesto.</p><p>Total: {{budget_total}}€ | Consumido: {{budget_used}}€</p>",
+                    category="alert", is_system=True,
+                    variables=json.dumps(["project_name","budget_total","budget_used","pct_used"]),
+                ),
+                EmailTemplate(
+                    name="Informe programado",
+                    subject="[Clarive] Informe: {{report_name}}",
+                    body_html="<h2>Informe: {{report_name}}</h2><p>Generado el {{generated_at}} para el período {{period}}.</p><p>Accede a Clarive para ver el informe completo.</p>",
+                    category="report", is_system=True,
+                    variables=json.dumps(["report_name","generated_at","period"]),
+                ),
+                EmailTemplate(
+                    name="Ticket SLA vencido",
+                    subject="[Service Desk] SLA vencido: #{{ticket_number}}",
+                    body_html="<h2>SLA incumplido</h2><p>El ticket <strong>#{{ticket_number}} — {{ticket_title}}</strong> ha superado el SLA.</p><p>Asignado a: {{assignee_name}}</p>",
+                    category="alert", is_system=True,
+                    variables=json.dumps(["ticket_number","ticket_title","assignee_name","sla_due"]),
+                ),
+            ]
         for t in templates:
             db.add(t)
         db.flush()

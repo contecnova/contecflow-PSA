@@ -1,0 +1,4 @@
+[
+  {"name": "Acme Industries SA", "short_name": "Acme", "industry": "technology", "status": "active", "contact_name": "Pedro Garcia", "contact_email": "pedro.garcia@acme.com", "contact_phone": "+34 91 100 2000", "contact_role": "Director de Tecnologia", "city": "Madrid", "country": "ES", "payment_terms": "30 dias", "currency": "EUR", "account_manager_username": "carlos.ruiz"},
+  {"name": "TechStart SL", "short_name": "TechStart", "industry": "technology", "status": "active", "contact_name": "Laura Mora", "contact_email": "laura@techstart.io", "contact_phone": "+34 93 200 3000", "contact_role": "CEO", "city": "Barcelona", "country": "ES", "payment_terms": "15 dias", "currency": "EUR", "account_manager_username": "carlos.ruiz"}
+]

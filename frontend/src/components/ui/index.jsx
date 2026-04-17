@@ -2,6 +2,8 @@ import { CHART } from '../../constants/theme'
 import React from 'react'
 import { X } from 'lucide-react'
 
+export { default as Confirm } from './Confirm'
+
 export {
   ClientSelect, UserSelect, ProjectSelect,
   SprintSelect, EpicSelect, ContractSelect,

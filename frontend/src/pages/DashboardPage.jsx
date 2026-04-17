@@ -784,9 +784,6 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <div style={{ background: 'var(--accent)', color: '#fff', padding: '8px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 700 }}>
-        ✅ Dashboard cargado correctamente
-      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Dashboard</div>

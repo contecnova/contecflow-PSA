@@ -38,14 +38,7 @@ from sqlalchemy.orm import joinedload
 # ── Transition table ───────────────────────────────────────────────────────────
 
 TASK_VALID_TRANSITIONS: dict = {
-    TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.backlog, TaskStatus.cancelled, TaskStatus.done},
-    TaskStatus.in_progress: {TaskStatus.in_review, TaskStatus.review, TaskStatus.blocked, TaskStatus.done, TaskStatus.todo},
-    TaskStatus.blocked:     {TaskStatus.in_progress, TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.in_review:   {TaskStatus.done, TaskStatus.in_progress, TaskStatus.review},
-    TaskStatus.review:      {TaskStatus.done, TaskStatus.in_progress, TaskStatus.in_review},
-    TaskStatus.done:        {TaskStatus.in_progress},
-    TaskStatus.cancelled:   set(),
+    status: {s for s in TaskStatus if s != status} for status in TaskStatus
 }
 
 

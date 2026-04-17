@@ -36,17 +36,19 @@ const STATUS_COLOR = {
   resolved: COLOR.success, closed: COLOR.text2, cancelled: COLOR.text3,
 }
 
-const createTicketSchema = z.object({
+function getCreateTicketSchema(t) {
+  return z.object({
   ticket_type: z.enum(['incident', 'service_request', 'change', 'problem', 'question']),
-  title: z.string().trim().min(1, 'El titulo es obligatorio'),
-  description: z.string().trim().min(1, 'La descripcion es obligatoria'),
+  title: z.string().trim().min(1, t('service_desk.zod_title_required')),
+  description: z.string().trim().min(1, t('service_desk.zod_description_required')),
   priority: z.enum(['p1_critical', 'p2_high', 'p3_medium', 'p4_low']),
   urgency: z.enum(['critical', 'high', 'medium', 'low']),
   impact: z.enum(['enterprise', 'department', 'user', 'minimal']),
   assigned_to_user_id: z.string().optional(),
   client_id: z.string().optional(),
   service_item_id: z.string().optional(),
-})
+  })
+}
 
 const LazyMetricsDashboard = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
@@ -88,28 +90,29 @@ function fmtMinutes(m) {
 }
 
 // ── Ticket Row ────────────────────────────────────────────────────────────────
-function TRow({ t, onClick }) {
+function TRow({ t: ticket, onClick }) {
+  const tr = useAppT()
   const now = new Date()
-  const due = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
-  const overdue = due && due < now && !['resolved','closed'].includes(t.status)
+  const due = ticket.sla_resolution_due ? new Date(ticket.sla_resolution_due) : null
+  const overdue = due && due < now && !['resolved','closed'].includes(ticket.status)
   return (
-    <tr onClick={onClick} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} aria-label={`Abrir ticket ${t.number} ${t.title}`}
+    <tr onClick={onClick} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }} aria-label={`${ticket.number} ${ticket.title}`}
       style={{ cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t.number}</td>
+      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
       <td style={{ padding: '10px 8px', maxWidth: 320 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</div>
-        {t.requester_name && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t.requester_name}</div>}
+        <div style={{ fontSize: 13, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
+        {ticket.requester_name && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{ticket.requester_name}</div>}
       </td>
-      <td style={{ padding: '10px 8px' }}><PBadge v={t.priority} /></td>
-      <td style={{ padding: '10px 8px' }}><SBadge v={t.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{t.ticket_type?.replace(/_/g, ' ')}</td>
+      <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
+      <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
+      <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.ticket_type?.replace(/_/g, ' ')}</td>
       <td style={{ padding: '10px 8px', fontSize: 11, color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
         {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
       </td>
       <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text-2)' }}>
-        {t.assigned_to?.full_name || <span style={{ color: 'var(--text-4)' }}>Sin asignar</span>}
+        {ticket.assigned_to?.full_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
       </td>
     </tr>
   )
@@ -117,6 +120,7 @@ function TRow({ t, onClick }) {
 
 // ── Queue / All Tickets ───────────────────────────────────────────────────────
 function TicketList({ queueOnly, onSelect }) {
+  const t = useAppT()
   const [search, setSearch] = useState('')
   const [filterPrio, setFilterPrio] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -125,7 +129,6 @@ function TicketList({ queueOnly, onSelect }) {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['sd-tickets', queueOnly, filterPrio, filterStatus, filterType],
     queryFn: () => {
-      // my-queue tiene ruta dedicada; todos los tickets usa /sd/tickets
       if (queueOnly) {
         return api.get('/sd/tickets/my-queue').then(r => r.data)
       }
@@ -137,7 +140,6 @@ function TicketList({ queueOnly, onSelect }) {
           page_size: 100,
         }
       }).then(r => {
-        // El backend devuelve {tickets: [...], total: N} — normalizar a array
         const d = r.data
         return Array.isArray(d) ? d : (d?.tickets || d?.items || [])
       })
@@ -147,14 +149,13 @@ function TicketList({ queueOnly, onSelect }) {
   })
 
   const filtered = useMemo(() => {
-    // Garantizar que siempre trabajamos con un array
     const list = Array.isArray(tickets) ? tickets : []
     if (!search) return list
     const q = search.toLowerCase()
-    return list.filter(t =>
-      t.title?.toLowerCase().includes(q) ||
-      t.number?.toLowerCase().includes(q) ||
-      t.requester_name?.toLowerCase().includes(q)
+    return list.filter(tk =>
+      tk.title?.toLowerCase().includes(q) ||
+      tk.number?.toLowerCase().includes(q) ||
+      tk.requester_name?.toLowerCase().includes(q)
     )
   }, [tickets, search])
 
@@ -167,42 +168,42 @@ function TicketList({ queueOnly, onSelect }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input placeholder="Buscar ticket, nº, solicitante…" value={search}
-          aria-label="Buscar tickets" onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1, minWidth: 200 }} />
-        <select aria-label="Filtrar tickets por prioridad" value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
-          <option value="">Todas las prioridades</option>
+        <input placeholder={t('service_desk.search_tickets')} value={search}
+          aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1, minWidth: 200 }} />
+        <select aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} style={IS}>
+          <option value="">{t('service_desk.filter_all_priorities')}</option>
           {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
             <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
         </select>
-        <select aria-label="Filtrar tickets por estado" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
-          <option value="">Todos los estados</option>
+        <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={IS}>
+          <option value="">{t('service_desk.filter_all_statuses')}</option>
           {['new','assigned','in_progress','pending_client','resolved','closed'].map(s =>
             <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
         </select>
-        <select aria-label="Filtrar tickets por tipo" value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
-          <option value="">Todos los tipos</option>
-          {['incident','service_request','change','problem','question'].map(t =>
-            <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+        <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} style={IS}>
+          <option value="">{t('service_desk.filter_all_types')}</option>
+          {['incident','service_request','change','problem','question'].map(tk =>
+            <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
         </select>
       </div>
 
       {isLoading ? <div style={{ textAlign:'center', padding: 40 }}><Spinner /></div> :
-       filtered.length === 0 ? <EmptyState icon="🎫" title="Sin tickets" description="No hay tickets que coincidan con los filtros" /> :
+       filtered.length === 0 ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} /> :
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>Nº</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>Título</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>Prioridad</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>Estado</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>Tipo</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>SLA límite</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>Asignado a</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="priority" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_priority')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="ticket_type" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.ticket_type')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="sla_due" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_sla_deadline')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="assignee_name" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.assigned_to')}</SortableTH></th>
             </tr>
           </thead>
           <tbody>
-            {sortedTickets.map(t => <TRow key={t.id} t={t} onClick={() => onSelect(t)} />)}
+            {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
           </tbody>
         </table>
         <div style={{ fontSize: 11, color: 'var(--text-3)', padding: '10px 4px' }}>
@@ -215,6 +216,7 @@ function TicketList({ queueOnly, onSelect }) {
 
 // ── Major Incidents ───────────────────────────────────────────────────────────
 function MajorIncidents() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showDeclare, setShowDeclare] = useState(false)
@@ -234,7 +236,7 @@ function MajorIncidents() {
         <div style={{ background: `${COLOR.danger}15`, border: `1px solid ${COLOR.danger}40`,
           borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: COLOR.danger, marginBottom: 10 }}>
-            🚨 {activeMis.length} incidente{activeMis.length > 1 ? 's' : ''} mayor{activeMis.length > 1 ? 'es' : ''} activo{activeMis.length > 1 ? 's' : ''}
+            🚨 {activeMis.length} {t('service_desk.mi_declared_at').toLowerCase()} {activeMis.length > 1 ? 's' : ''}
           </div>
           {activeMis.map(m => (
             <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between',
@@ -243,7 +245,7 @@ function MajorIncidents() {
                 <span style={{ fontWeight: 600, fontSize: 12, color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
                 <span style={{ fontSize: 13, color: 'var(--text-1)' }}>{m.title}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>Declarado {fmtDate(m.declared_at)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
             </div>
           ))}
         </div>
@@ -253,7 +255,7 @@ function MajorIncidents() {
         <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{mis.length} incidentes mayores registrados</div>
         <Button onClick={() => setShowDeclare(true)} style={{ background: `${COLOR.danger}20`, color: COLOR.danger,
           border: `1px solid ${COLOR.danger}40` }}>
-          🚨 Declarar Incidente Mayor
+          🚨 {t('service_desk.mi_declare_btn')}
         </Button>
       </div>
 
@@ -261,13 +263,13 @@ function MajorIncidents() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={miSort} onSort={setMiSort}>Nº</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={miSort} onSort={setMiSort}>Título</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="severity" sort={miSort} onSort={setMiSort}>Severidad</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={miSort} onSort={setMiSort}>Estado</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="commander" sort={miSort} onSort={setMiSort}>Comandante</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>Declarado</SortableTH></th>
-              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>Resuelto</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_title')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="severity" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_severity')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={miSort} onSort={setMiSort}>{t('service_desk.ticket_status')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="commander" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_commander')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="declared_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_declared_at')}</SortableTH></th>
+              <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="resolved_at" sort={miSort} onSort={setMiSort}>{t('service_desk.mi_resolved_at')}</SortableTH></th>
             </tr>
           </thead>
           <tbody>
@@ -298,7 +300,7 @@ function MajorIncidents() {
         <DeclareMIModal onClose={() => setShowDeclare(false)} onSaved={() => {
           qc.invalidateQueries({ queryKey: ['sd-major-incidents'] })
           setShowDeclare(false)
-          toast.success('Incidente mayor declarado')
+          toast.success(t('service_desk.mi_declared_success'))
         }} />
       )}
     </div>
@@ -306,6 +308,7 @@ function MajorIncidents() {
 }
 
 function DeclareMIModal({ onClose, onSaved }) {
+  const t = useAppT()
   const toast = useToast()
   const idPrefix = useId()
   const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
@@ -322,29 +325,29 @@ function DeclareMIModal({ onClose, onSaved }) {
     marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
-    <Modal open title="🚨 Declarar Incidente Mayor" onClose={onClose}>
+    <Modal open title={`🚨 ${t('service_desk.mi_declare_btn')}`} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label htmlFor={`${idPrefix}-title`} style={LS}>Título del incidente *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Ej: Caída del sistema de pagos en producción" />
+          <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.mi_title_lbl')} *</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} />
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-severity`} style={LS}>Severidad</label>
+          <label htmlFor={`${idPrefix}-severity`} style={LS}>{t('service_desk.mi_severity_lbl')}</label>
           <select id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} style={IS}>
-            <option value="P1">P1 — Crítico (sistema caído, impacto máximo)</option>
-            <option value="P2">P2 — Alto (degradación severa)</option>
+            <option value="P1">P1 — {t('service_desk.mi_severity')} (P1)</option>
+            <option value="P2">P2 — {t('service_desk.mi_severity')} (P2)</option>
           </select>
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-impact`} style={LS}>Descripción del impacto</label>
+          <label htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.mi_impact_lbl')}</label>
           <textarea id={`${idPrefix}-impact`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
-            style={{ ...IS, resize: 'vertical' }} placeholder="Qué sistemas están afectados, cuántos usuarios, impacto de negocio..." />
+            style={{ ...IS, resize: 'vertical' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title} loading={isPending}
             style={{ background: `${COLOR.danger}20`, color: COLOR.danger, border: `1px solid ${COLOR.danger}40` }}>
-            Declarar Incidente Mayor
+            {t('service_desk.mi_declare_btn')}
           </Button>
         </div>
       </div>
@@ -354,6 +357,7 @@ function DeclareMIModal({ onClose, onSaved }) {
 
 // ── Routing Rules ─────────────────────────────────────────────────────────────
 function RoutingRules() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -371,7 +375,7 @@ function RoutingRules() {
   })
   const { mutate: deleteRule } = useMutation({
     mutationFn: id => api.delete(`/sd/routing-rules/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }); toast.success('Regla eliminada') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-routing-rules'] }); toast.success(t('service_desk.routing_rule_deleted')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
@@ -380,13 +384,13 @@ function RoutingRules() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-          Las reglas se evalúan en orden de prioridad. La primera que coincide se aplica.
+          {t('service_desk.routing_no_rules_desc')}
         </div>
-        <Button onClick={() => setShowNew(true)}>+ Nueva regla</Button>
+        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.routing_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       rules.length === 0 ? <EmptyState icon="⚡" title="Sin reglas" description="Crea reglas para asignar tickets automáticamente por tipo, prioridad o categoría" /> :
+       rules.length === 0 ? <EmptyState icon="⚡" title={t('service_desk.routing_no_rules')} description={t('service_desk.routing_no_rules_desc')} /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {rules.map((rule, _i) => {
           let conds = {}, acts = {}
@@ -406,17 +410,17 @@ function RoutingRules() {
                     style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: rule.is_active ? COLOR.success : 'var(--text-3)',
                       fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {rule.is_active ? 'Activa' : 'Inactiva'}
+                    {rule.is_active ? t('service_desk.routing_active') : t('service_desk.routing_inactive')}
                   </button>
-                  <button aria-label={`Editar regla ${rule.name}`} onClick={() => setEditingRule(rule)}
+                  <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => setEditingRule(rule)}
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.accent, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    ✏ Editar
+                    ✏ {t('common.edit')}
                   </button>
-                  <button aria-label={`Eliminar regla ${rule.name}`} onClick={() => deleteRule(rule.id)}
+                  <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => deleteRule(rule.id)}
                     style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: COLOR.danger, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Eliminar
+                    {t('common.delete')}
                   </button>
                 </div>
               </div>
@@ -431,7 +435,7 @@ function RoutingRules() {
                   ))}
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-3)', marginRight: 6 }}>ENTONCES</span>
+                  <span style={{ color: 'var(--text-3)', marginRight: 6 }}>THEN</span>
                   {Object.entries(acts).map(([k,v]) => (
                     <span key={k} style={{ background: `${COLOR.accent}15`, borderRadius: 4,
                       padding: '2px 8px', marginRight: 6, color: COLOR.accent }}>
@@ -448,18 +452,19 @@ function RoutingRules() {
       {showNew && <NewRoutingRuleModal onClose={() => setShowNew(false)} onSaved={() => {
         qc.invalidateQueries({ queryKey: ['sd-routing-rules'] })
         setShowNew(false)
-        toast.success('Regla creada')
+        toast.success(t('service_desk.routing_rule_created'))
       }} />}
       {editingRule && <NewRoutingRuleModal rule={editingRule} onClose={() => setEditingRule(null)} onSaved={() => {
         qc.invalidateQueries({ queryKey: ['sd-routing-rules'] })
         setEditingRule(null)
-        toast.success('Regla actualizada')
+        toast.success(t('service_desk.routing_rule_updated'))
       }} />}
     </div>
   )
 }
 
 function NewRoutingRuleModal({ onClose, onSaved, rule }) {
+  const t = useAppT()
   const toast = useToast()
   const isEdit = !!rule
 
@@ -494,7 +499,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
       ? api.patch(`/sd/routing-rules/${rule.id}`, data)
       : api.post('/sd/routing-rules', data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, isEdit ? 'Error al actualizar regla' : 'Error al crear regla')),
+    onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const IS = {
@@ -508,20 +513,20 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
   }
 
   const COND_TYPES = [
-    { key: 'ticket_type',     label: 'Tipo de ticket' },
-    { key: 'priority',        label: 'Prioridad' },
-    { key: 'keyword_in_title',label: 'Palabra clave en título' },
-    { key: 'requester_domain',label: 'Dominio del solicitante' },
-    { key: 'tag_contains',    label: 'Contiene tag' },
-    { key: 'time_of_day',     label: 'Franja horaria (HH:MM-HH:MM)' },
-    { key: 'day_of_week',     label: 'Día de la semana' },
-    { key: 'sla_policy_id',   label: 'Política SLA' },
+    { key: 'ticket_type',     label: t('service_desk.ticket_type') },
+    { key: 'priority',        label: t('service_desk.ticket_priority') },
+    { key: 'keyword_in_title',label: t('service_desk.ticket_title') },
+    { key: 'requester_domain',label: 'Domain' },
+    { key: 'tag_contains',    label: 'Tag' },
+    { key: 'time_of_day',     label: 'Time (HH:MM-HH:MM)' },
+    { key: 'day_of_week',     label: 'Day of week' },
+    { key: 'sla_policy_id',   label: 'SLA Policy' },
   ]
   const ACT_TYPES = [
-    { key: 'assign_group',    label: 'Asignar a grupo' },
-    { key: 'assign_user',     label: 'Asignar a agente' },
-    { key: 'set_support_level', label: 'Nivel de soporte' },
-    { key: 'set_priority',    label: 'Cambiar prioridad' },
+    { key: 'assign_group',    label: t('service_desk.act_label') },
+    { key: 'assign_user',     label: t('service_desk.act_no_agent') },
+    { key: 'set_support_level', label: t('service_desk.groups_support_level') },
+    { key: 'set_priority',    label: t('service_desk.ticket_priority') },
   ]
 
   // Prevent duplicate condition keys
@@ -547,20 +552,20 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     const upd = (v) => updateCond(i, { value: v })
     if (cond.key === 'ticket_type') return (
       <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">Cualquier tipo</option>
+        <option value="">{t('service_desk.cond_any_type')}</option>
         {[['incident','Incidencia'],['service_request','Solicitud'],['change','Cambio'],['problem','Problema']].map(([v,l]) =>
           <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (cond.key === 'priority') return (
       <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">Cualquier prioridad</option>
+        <option value="">{t('service_desk.cond_any_priority')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (cond.key === 'sla_policy_id') return (
       <select value={cond.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">Cualquier política</option>
+        <option value="">{t('service_desk.cond_any_policy')}</option>
         {slaPolices.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
     )
@@ -601,20 +606,19 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     const upd = (v) => updateAct(i, { value: v })
     if (act.key === 'assign_group') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">Sin asignar grupo</option>
+        <option value="">{t('service_desk.act_no_group')}</option>
         {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
     )
     if (act.key === 'assign_user') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">Sin asignar agente</option>
+        <option value="">{t('service_desk.act_no_agent')}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
       </select>
     )
     if (act.key === 'set_support_level') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
-        <option value="">No cambiar</option>
-        {[['l1','L1 — Primer nivel'],['l2','L2 — Técnico'],['l3','L3 — Experto']].map(([v,l]) =>
+        <option value="">{t('service_desk.act_no_change')}</option>
           <option key={v} value={v}>{l}</option>)}
       </select>
     )
@@ -628,7 +632,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
   }
 
   const handleSave = () => {
-    if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return }
+    if (!form.name.trim()) { toast.error(t('service_desk.routing_name_required')); return }
     const condObj = {}
     for (const c of conditions) {
       if (!c.value) continue
@@ -642,7 +646,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     for (const a of actions) {
       if (a.value) actObj[a.key] = a.value
     }
-    if (Object.keys(actObj).length === 0) { toast.error('Define al menos una acción'); return }
+    if (Object.keys(actObj).length === 0) { toast.error(t('service_desk.routing_needs_action')); return }
     mutate({
       name: form.name.trim(),
       priority: Number(form.priority),
@@ -653,18 +657,18 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
   }
 
   return (
-    <Modal open title={isEdit ? `Editar regla: ${rule.name}` : 'Nueva regla de routing'} onClose={onClose}>
+    <Modal open title={isEdit ? `${t('service_desk.routing_new_title')} ${rule.name}` : t('service_desk.routing_new_title')} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: '80vh', overflowY: 'auto' }}>
 
         {/* Name + priority */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 12 }}>
           <div>
-            <label style={LS}>Nombre de la regla *</label>
+            <label style={LS}>{t('service_desk.routing_name_lbl')} *</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              style={IS} placeholder="Ej: P1 → L2 Técnico automático" autoFocus />
+              style={IS} autoFocus />
           </div>
           <div>
-            <label style={LS}>Orden</label>
+            <label style={LS}>{t('service_desk.routing_order_lbl')}</label>
             <input type="number" value={form.priority}
               onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
               style={{ ...IS }} />
@@ -674,7 +678,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
         {/* Conditions */}
         <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>SI el ticket cumple…</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.cond_field')}</span>
             <button type="button" onClick={addCondition}
               disabled={availCondTypes.length === 0}
               style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
@@ -685,13 +689,13 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
           </div>
           {conditions.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '10px 0' }}>
-              Sin filtros — se aplica a todos los tickets
+              {t('service_desk.routing_no_rules')}
             </div>
           )}
           {conditions.map((cond, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
               <div>
-                <label style={LS}>Campo</label>
+                <label style={LS}>{t('service_desk.cond_field')}</label>
                 <select value={cond.key}
                   onChange={e => updateCond(i, { key: e.target.value, value: '' })}
                   style={IS}>
@@ -701,7 +705,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
                 </select>
               </div>
               <div>
-                <label style={LS}>Valor</label>
+                <label style={LS}>{t('service_desk.cond_value')}</label>
                 {renderCondValue(cond, i)}
               </div>
               <div style={{ paddingTop: 20 }}>
@@ -718,7 +722,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
         {/* Actions */}
         <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>ENTONCES hacer…</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>{t('service_desk.act_label')}</span>
             <button type="button" onClick={addAction}
               disabled={actions.length >= ACT_TYPES.length}
               style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)',
@@ -730,7 +734,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
           {actions.map((act, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '170px 1fr 28px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
               <div>
-                <label style={LS}>Acción</label>
+                <label style={LS}>{t('service_desk.act_label')}</label>
                 <select value={act.key}
                   onChange={e => updateAct(i, { key: e.target.value, value: '' })}
                   style={IS}>
@@ -740,7 +744,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
                 </select>
               </div>
               <div>
-                <label style={LS}>Valor</label>
+                <label style={LS}>{t('service_desk.cond_value')}</label>
                 {renderActValue(act, i)}
               </div>
               <div style={{ paddingTop: 20 }}>
@@ -755,8 +759,8 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={isPending || !form.name} loading={isPending}>{isEdit ? 'Guardar cambios' : 'Crear regla'}</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={handleSave} disabled={isPending || !form.name} loading={isPending}>{isEdit ? t('common.save') : t('service_desk.routing_new_title')}</Button>
         </div>
       </div>
     </Modal>
@@ -766,6 +770,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
 // ── Reports / Config (simplificado) ──────────────────────────────────────────
 // ── Catalog Config ────────────────────────────────────────────────────────────
 function CatalogConfig() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNewCat, setShowNewCat] = useState(false)
@@ -781,34 +786,34 @@ function CatalogConfig() {
 
   const { mutate: createCat, isPending: creatingCat } = useMutation({
     mutationFn: d => api.post('/sd/catalog/categories', d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success('Categoría creada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('service_desk.cat_new_title')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateCat } = useMutation({
     mutationFn: ({id, ...d}) => api.patch(`/sd/catalog/categories/${id}`, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success('Categoría actualizada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('service_desk.cat_edit_title')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteCat } = useMutation({
     mutationFn: id => api.delete(`/sd/catalog/categories/${id}`),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success('Categoría eliminada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
     mutationFn: d => api.post('/sd/catalog/services', d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success('Servicio creado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('service_desk.svc_new_title')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateSvc } = useMutation({
     mutationFn: ({id, ...d}) => api.patch(`/sd/catalog/services/${id}`, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success('Servicio actualizado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('service_desk.svc_edit_title')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteSvc } = useMutation({
     mutationFn: id => api.delete(`/sd/catalog/services/${id}`),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success('Servicio eliminado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
@@ -821,15 +826,15 @@ function CatalogConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>Define las categorías y servicios del catálogo de IT</div>
+        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.catalog_empty_desc')}</div>
         <div style={{ display:'flex', gap:8 }}>
-          <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ Servicio</Button>
-          <Button onClick={() => setShowNewCat(true)}>+ Categoría</Button>
+          <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ {t('service_desk.svc_new_title')}</Button>
+          <Button onClick={() => setShowNewCat(true)}>+ {t('service_desk.cat_new_title')}</Button>
         </div>
       </div>
 
       {isLoading ? <Spinner /> :
-       catalog.length === 0 ? <EmptyState icon="📋" title="Catálogo vacío" description="Crea categorías y servicios para organizar las solicitudes de soporte" /> :
+       catalog.length === 0 ? <EmptyState icon="📋" title={t('service_desk.catalog_empty')} description={t('service_desk.catalog_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {catalog.map(cat => (
           <div key={cat.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
@@ -900,23 +905,23 @@ function CatalogConfig() {
 }
 
 function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
     icon: initial?.icon || '📁', color: initial?.color || '#4f8ef7'
   })
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
   return (
-    <Modal open title={initial ? 'Editar Categoría' : 'Nueva Categoría de Servicio'} onClose={onClose}>
+    <Modal open title={initial ? t('service_desk.cat_edit_title') : t('service_desk.cat_new_title')} onClose={onClose}>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10 }}>
-          <div><label style={LS}>Nombre *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-          <div><label style={LS}>Icono</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
-          <div><label style={LS}>Color</label><input type="color" value={form.color} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
+          <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
         </div>
-        <div><label style={LS}>Descripción</label><input value={form.description} onChange={set('description')} style={IS} /></div>
+          <div><label style={LS}>Icon</label><input value={form.icon} onChange={set('icon')} style={{...IS, width:60, textAlign:'center'}} /></div>
+          <div><label style={LS}>Color</label><input type="color" value={form.color} onChange={set('color')} style={{...IS, width:60, padding:'4px'}} /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? 'Guardar cambios' : 'Crear'}</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('common.new')}</Button>
         </div>
       </div>
     </Modal>
@@ -924,6 +929,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }) {
 }
 
 function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '',
     category_id: initial?.category_id || catalog[0]?.id || '',
@@ -936,38 +942,38 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   })
   const set = k => e => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
   return (
-    <Modal open title={initial ? 'Editar Servicio' : 'Nuevo Servicio en Catálogo'} onClose={onClose}>
+    <Modal open title={initial ? t('service_desk.svc_edit_title') : t('service_desk.svc_new_title')} onClose={onClose}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-        <div style={{ gridColumn:'1/-1' }}><label style={LS}>Nombre *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+        <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
         <div>
-          <label style={LS}>Categoría</label>
+          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
           <select value={form.category_id} onChange={set('category_id')} style={IS}>
             {catalog.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Tipo de ticket</label>
+          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
           <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
-            {['incident','service_request','change','question'].map(t => <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+            {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Prioridad por defecto</label>
+          <label style={LS}>{t('service_desk.svc_default_priority')}</label>
           <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
           </select>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          <div><label style={LS}>SLA respuesta (h)</label><input type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
-          <div><label style={LS}>SLA resolución (h)</label><input type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
+          <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} style={IS} /></div>
+          <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} style={IS} /></div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <input type="checkbox" id="req_appr" checked={form.requires_approval} onChange={set('requires_approval')} />
-          <label htmlFor="req_appr" style={{ fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>Requiere aprobación</label>
+          <label htmlFor="req_appr" style={{ fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
         </div>
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? 'Guardar cambios' : 'Crear Servicio'}</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.svc_new_title')}</Button>
         </div>
       </div>
     </Modal>
@@ -987,18 +993,18 @@ function SLAConfig() {
   const [editing, setEditing] = useState(null)
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/sd/sla-policies', d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success('Política SLA creada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success(t('service_desk.sla_created')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: update } = useMutation({
     mutationFn: ({id, ...d}) => api.patch(`/sd/sla-policies/${id}`, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setEditing(null); toast.success('Política SLA actualizada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setEditing(null); toast.success(t('service_desk.sla_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => api.delete(`/sd/sla-policies/${id}`),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); toast.success('Política SLA eliminada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); toast.success(t('service_desk.sla_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
@@ -1010,19 +1016,19 @@ function SLAConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>Define los tiempos de respuesta y resolución por prioridad</div>
-        <Button onClick={() => setShowNew(true)}>+ Nueva política SLA</Button>
+        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.sla_empty_desc')}</div>
+        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.sla_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       policies.length === 0 ? <EmptyState icon="⏱" title="Sin políticas SLA" description="Crea políticas SLA para controlar los tiempos de respuesta por prioridad" /> :
+       policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {policies.map(p => (
           <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
               <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
-              {p.is_default && <span style={{ fontSize:10, background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight:700 }}>DEFAULT</span>}
-              {p.business_hours_only && <span style={{ fontSize:10, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>Horario laboral</span>}
+              {p.is_default && <span style={{ fontSize:10, background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight:700 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
+              {p.business_hours_only && <span style={{ fontSize:10, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{t('service_desk.sla_business_hours')}</span>}
               <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
                 <button onClick={() => setEditing(p)}
                   style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
@@ -1046,12 +1052,12 @@ function SLAConfig() {
       </div>}
 
       {showNew && (
-        <Modal open title="Nueva Política SLA" onClose={() => setShowNew(false)} size="lg">
+        <Modal open title={t('service_desk.sla_new_title')} onClose={() => setShowNew(false)} size="lg">
           <NewSLAForm IS={IS} LS={LS} onSave={d => create(d)} isPending={isPending} onClose={() => setShowNew(false)} />
         </Modal>
       )}
       {editing && (
-        <Modal open title="Editar Política SLA" onClose={() => setEditing(null)} size="lg">
+        <Modal open title={t('service_desk.sla_edit_title')} onClose={() => setEditing(null)} size="lg">
           <NewSLAForm IS={IS} LS={LS} initial={editing}
             onSave={d => update({id: editing.id, ...d})}
             isPending={false} onClose={() => setEditing(null)} />
@@ -1062,6 +1068,7 @@ function SLAConfig() {
 }
 
 function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
     is_default: initial?.is_default || false, business_hours_only: initial?.business_hours_only || false,
@@ -1073,29 +1080,29 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
   const set = k => e => setForm(f => ({...f, [k]: e.target.type==='checkbox' ? e.target.checked : e.target.value}))
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-      <div style={{ gridColumn:'1/-1' }}><label style={LS}>Nombre *</label><input value={form.name} onChange={set('name')} style={IS} placeholder="Ej: SLA Standard, SLA Premium" /></div>
+      <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
       {[['P1 Crítico', 'p1'], ['P2 Alto', 'p2'], ['P3 Medio', 'p3'], ['P4 Bajo', 'p4']].map(([label, key]) => (
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
           <div style={{ fontSize:12, fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <div><label style={LS}>Respuesta (h)</label><input type="number" value={form[`${key}_response_hours`]} onChange={set(`${key}_response_hours`)} style={IS} /></div>
-            <div><label style={LS}>Resolución (h)</label><input type="number" value={form[`${key}_resolution_hours`]} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form[`${key}_response_hours`]} onChange={set(`${key}_response_hours`)} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form[`${key}_resolution_hours`]} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
           </div>
         </div>
       ))}
       <div style={{ gridColumn:'1/-1', display:'flex', gap:20, alignItems:'center' }}>
         <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>
           <input type="checkbox" checked={form.is_default} onChange={set('is_default')} />
-          Política por defecto
+          {t('service_desk.sla_default_policy')}
         </label>
         <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>
           <input type="checkbox" checked={form.business_hours_only} onChange={set('business_hours_only')} />
-          Solo horario laboral (9-18h, L-V)
+          {t('service_desk.sla_business_only')}
         </label>
       </div>
       <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? 'Guardar cambios' : 'Crear Política SLA'}</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.sla_new_title')}</Button>
       </div>
     </div>
   )
@@ -1103,6 +1110,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
 
 // ── Groups Config ─────────────────────────────────────────────────────────────
 function GroupsConfig() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -1118,18 +1126,18 @@ function GroupsConfig() {
   const [editing, setEditing] = useState(null)
   const { mutate: createGroup, isPending } = useMutation({
     mutationFn: d => api.post('/sd/groups', d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setShowNew(false); toast.success('Grupo creado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setShowNew(false); toast.success(t('service_desk.groups_created')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateGroup } = useMutation({
     mutationFn: ({id, ...d}) => api.patch(`/sd/groups/${id}`, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setEditing(null); toast.success('Grupo actualizado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setEditing(null); toast.success(t('service_desk.groups_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteGroup } = useMutation({
     mutationFn: id => api.delete(`/sd/groups/${id}`),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); toast.success('Grupo eliminado') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); toast.success(t('service_desk.groups_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: addMember } = useMutation({
@@ -1151,12 +1159,12 @@ function GroupsConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>Organiza los agentes en grupos de soporte por nivel o especialidad</div>
-        <Button onClick={() => setShowNew(true)}>+ Nuevo grupo</Button>
+        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.groups_empty_desc')}</div>
+        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.groups_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       groups.length === 0 ? <EmptyState icon="👥" title="Sin grupos" description="Crea grupos de agentes para enrutar tickets automáticamente" /> :
+       groups.length === 0 ? <EmptyState icon="👥" title={t('service_desk.groups_empty')} description={t('service_desk.groups_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {groups.map(g => {
           const memberIds = new Set((g.members || []).map(m => m.id))
@@ -1195,7 +1203,7 @@ function GroupsConfig() {
                   </div>
                 ))}
                 {(!g.members || g.members.length === 0) &&
-                  <span style={{ fontSize:12, color:'var(--text-4)' }}>Sin miembros todavía</span>}
+                  <span style={{ fontSize:12, color:'var(--text-4)' }}>{t('service_desk.groups_no_members')}</span>}
               </div>
             </div>
           )
@@ -1203,14 +1211,14 @@ function GroupsConfig() {
       </div>}
 
       {showNew && (
-        <Modal open title="Nuevo Grupo de Agentes" onClose={() => setShowNew(false)}>
+        <Modal open title={t('service_desk.groups_new_title')} onClose={() => setShowNew(false)}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <NewGroupForm IS={IS} LS={LS} onSave={createGroup} isPending={isPending} onClose={() => setShowNew(false)} />
           </div>
         </Modal>
       )}
       {editing && (
-        <Modal open title="Editar Grupo de Agentes" onClose={() => setEditing(null)}>
+        <Modal open title={t('service_desk.groups_edit_title')} onClose={() => setEditing(null)}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <NewGroupForm IS={IS} LS={LS} initial={editing}
               onSave={d => updateGroup({id: editing.id, ...d})}
@@ -1223,6 +1231,7 @@ function GroupsConfig() {
 }
 
 function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', description: initial?.description || '',
     support_level: initial?.support_level || 'l1'
@@ -1230,17 +1239,17 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }) {
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <>
-      <div><label style={LS}>Nombre *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
-      <div><label style={LS}>Nivel de soporte</label>
+      <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
+      <div><label style={LS}>{t('service_desk.groups_support_level')}</label>
         <select value={form.support_level} onChange={set('support_level')} style={IS}>
           {[['l1','L1 — Soporte básico'],['l2','L2 — Soporte técnico'],['l3','L3 — Experto / Desarrollo']].map(([v,l]) =>
             <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
-      <div><label style={LS}>Descripción</label><input value={form.description} onChange={set('description')} style={IS} /></div>
+      <div><label style={LS}>{t('common.description')}</label><input value={form.description} onChange={set('description')} style={IS} /></div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? 'Guardar cambios' : 'Crear Grupo'}</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.groups_new_title')}</Button>
       </div>
     </>
   )
@@ -1248,6 +1257,7 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }) {
 
 // ── Templates Config ──────────────────────────────────────────────────────────
 function TemplatesConfig() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -1259,13 +1269,13 @@ function TemplatesConfig() {
   const [editing, setEditing] = useState(null)
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/sd/ticket-templates', d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setShowNew(false); toast.success('Plantilla creada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setShowNew(false); toast.success(t('service_desk.templates_created')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: update } = useMutation({
     mutationFn: ({id, ...d}) => api.patch(`/sd/ticket-templates/${id}`, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setEditing(null); toast.success('Plantilla actualizada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setEditing(null); toast.success(t('service_desk.templates_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: toggle } = useMutation({
@@ -1275,7 +1285,7 @@ function TemplatesConfig() {
   })
   const { mutate: remove } = useMutation({
     mutationFn: id => api.delete(`/sd/ticket-templates/${id}`),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); toast.success('Plantilla eliminada') },
+    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); toast.success(t('service_desk.templates_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
@@ -1287,12 +1297,12 @@ function TemplatesConfig() {
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>Plantillas con campos predefinidos para agilizar la creación de tickets</div>
-        <Button onClick={() => setShowNew(true)}>+ Nueva plantilla</Button>
+        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.templates_hint')}</div>
+        <Button onClick={() => setShowNew(true)}>+ {t('service_desk.templates_new_title')}</Button>
       </div>
 
       {isLoading ? <Spinner /> :
-       templates.length === 0 ? <EmptyState icon="📝" title="Sin plantillas" description="Las plantillas permiten preconfigurar tipo, prioridad y campos de tickets frecuentes" /> :
+       templates.length === 0 ? <EmptyState icon="📝" title={t('service_desk.templates_empty')} description={t('service_desk.templates_empty_desc')} /> :
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px,1fr))', gap:12 }}>
         {templates.map(t => (
           <div key={t.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
@@ -1308,7 +1318,7 @@ function TemplatesConfig() {
                 <button onClick={() => toggle({id:t.id, is_active:!t.is_active})}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
                     fontSize:11, color: t.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
-                  {t.is_active ? 'Activa' : 'Inactiva'}
+                  {t.is_active ? t('service_desk.templates_active') : t('service_desk.templates_inactive')}
                 </button>
                 <button onClick={() => setEditing(t)}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
@@ -1319,7 +1329,7 @@ function TemplatesConfig() {
               </div>
             </div>
             {t.default_priority && <div style={{ fontSize:12, color:'var(--text-2)', marginBottom:6 }}>
-              Prioridad: <PBadge v={t.default_priority} />
+              {t('service_desk.templates_priority')}: <PBadge v={t.default_priority} />
             </div>}
             {t.description_template && (
               <div style={{ fontSize:12, color:'var(--text-3)', borderTop:'1px solid var(--surface-4)', paddingTop:8, marginTop:8 }}>
@@ -1331,12 +1341,12 @@ function TemplatesConfig() {
       </div>}
 
       {showNew && (
-        <Modal open title="Nueva Plantilla de Ticket" onClose={() => setShowNew(false)}>
+        <Modal open title={t('service_desk.templates_new_title')} onClose={() => setShowNew(false)}>
           <NewTemplateForm IS={IS} LS={LS} onSave={create} isPending={isPending} onClose={() => setShowNew(false)} />
         </Modal>
       )}
       {editing && (
-        <Modal open title="Editar Plantilla" onClose={() => setEditing(null)}>
+        <Modal open title={t('service_desk.templates_edit_title')} onClose={() => setEditing(null)}>
           <NewTemplateForm IS={IS} LS={LS} initial={editing}
             onSave={d => update({id: editing.id, ...d})}
             isPending={false} onClose={() => setEditing(null)} />
@@ -1347,6 +1357,7 @@ function TemplatesConfig() {
 }
 
 function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     name: initial?.name || '', ticket_type: initial?.ticket_type || 'service_request',
     default_priority: initial?.default_priority || 'p3_medium',
@@ -1355,17 +1366,17 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
   const set = k => e => setForm(f => ({...f, [k]: e.target.value}))
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-      <div><label style={LS}>Nombre *</label><input value={form.name} onChange={set('name')} style={IS} placeholder="Ej: Solicitud de acceso VPN" /></div>
+      <div><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
         <div>
-          <label style={LS}>Tipo de ticket</label>
+          <label style={LS}>{t('service_desk.svc_ticket_type')}</label>
           <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
-            {['incident','service_request','change','question','problem'].map(t =>
-              <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+            {['incident','service_request','change','question','problem'].map(tk =>
+              <option key={tk} value={tk}>{tk.replace(/_/g,' ')}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Prioridad por defecto</label>
+          <label style={LS}>{t('service_desk.templates_priority')}</label>
           <select value={form.default_priority} onChange={set('default_priority')} style={IS}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
@@ -1373,13 +1384,13 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
         </div>
       </div>
       <div>
-        <label style={LS}>Texto de ayuda para el solicitante</label>
+        <label style={LS}>{t('service_desk.templates_hint')}</label>
         <textarea value={form.description_template} onChange={set('description_template')} rows={4}
           style={{...IS, resize:'vertical'}} placeholder="Instrucciones o campos que el solicitante debe rellenar..." />
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? 'Guardar cambios' : 'Crear Plantilla'}</Button>
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={() => onSave(form)} disabled={isPending || !form.name} loading={isPending}>{initial ? t('common.save') : t('service_desk.templates_new_title')}</Button>
       </div>
     </div>
   )
@@ -1387,15 +1398,16 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
 
 // ── Config (wrapper con tabs) ─────────────────────────────────────────────────
 function Config() {
+  const t = useAppT()
   const [sub, setSub] = useState('catalog')
   const tabs = [
-    {id:'catalog',  label:'📋 Catálogo'},
-    {id:'sla',      label:'⏱ SLAs'},
-    {id:'groups',   label:'👥 Grupos'},
-    {id:'routing',  label:'⚡ Routing'},
-    {id:'templates',label:'📝 Templates'},
-    {id:'canned',   label:'💬 Resp. rápidas'},
-    {id:'announcements', label:'📢 Anuncios'},
+    {id:'catalog',  label:`📋 ${t('service_desk.tab_catalog')}`},
+    {id:'sla',      label:`⏱ ${t('service_desk.tab_sla')}`},
+    {id:'groups',   label:`👥 ${t('service_desk.tab_groups')}`},
+    {id:'routing',  label:`⚡ ${t('service_desk.tab_routing')}`},
+    {id:'templates',label:`📝 ${t('service_desk.tab_templates')}`},
+    {id:'canned',   label:`💬 ${t('service_desk.tab_canned')}`},
+    {id:'announcements', label:`📢 ${t('service_desk.tab_announcements')}`},
   ]
   return (
     <div>
@@ -1443,6 +1455,7 @@ function useWindowWidth() {
 
 // ── Split Ticket Modal ────────────────────────────────────────────────────────
 function SplitTicketModal({ ticket, onClose, onCreated }) {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({
     new_title: '',
@@ -1454,11 +1467,11 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => api.post(`/sd/tickets/${ticket.id}/split`, data),
     onSuccess: (res) => {
-      toast.success(`Ticket hijo ${res?.data?.child?.number || ''} creado`)
+      toast.success(`${t('service_desk.ticket_created_success')} ${res?.data?.child?.number || ''}`)
       onCreated?.(res?.data)
       onClose()
     },
-    onError: (e) => toast.error(extractErr(e, 'Error al dividir ticket')),
+    onError: (e) => toast.error(extractErr(e, t('common.error'))),
   })
 
   const IS = {
@@ -1472,7 +1485,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
   }
 
   const handleSave = () => {
-    if (!form.new_title.trim()) { toast.error('El título del ticket hijo es obligatorio'); return }
+    if (!form.new_title.trim()) { toast.error(t('service_desk.zod_title_required')); return }
     mutate({
       new_title: form.new_title.trim(),
       new_description: form.new_description,
@@ -1486,25 +1499,24 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8,
           border: '1px solid var(--surface-4)', fontSize: 12, color: 'var(--text-2)' }}>
-          Se creará un sub-ticket vinculado como hijo de <strong style={{ color: 'var(--text-1)' }}>{ticket?.number}</strong>.
-          Ambos quedan enlazados y el original mantiene su estado.
+          {t('service_desk.split_desc_original')} <strong style={{ color: 'var(--text-1)' }}>{ticket?.number}</strong>.
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div>
-            <label style={LS}>Título del ticket hijo *</label>
+            <label style={LS}>{t('service_desk.split_title_lbl')} *</label>
             <input value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))}
-              style={IS} placeholder="Ej: [Split] Actualización de base de datos" autoFocus />
+              style={IS} autoFocus />
           </div>
           <div>
-            <label style={LS}>Tags del ticket hijo (separadas por coma)</label>
+            <label style={LS}>{t('service_desk.split_tags_lbl')}</label>
             <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-              style={IS} placeholder="bug, backend, urgente" />
+              style={IS} />
           </div>
         </div>
 
         <div>
-          <label style={LS}>Descripción del ticket hijo</label>
+          <label style={LS}>{t('service_desk.split_desc_child')}</label>
           <textarea value={form.new_description}
             onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))}
             rows={4} style={{ ...IS, resize: 'vertical' }}
@@ -1512,16 +1524,16 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
         </div>
 
         <div>
-          <label style={LS}>Descripción que queda en el ticket original</label>
+          <label style={LS}>{t('service_desk.split_desc_original')}</label>
           <textarea value={form.keep_original_description}
             onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))}
             rows={4} style={{ ...IS, resize: 'vertical' }} />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSave} disabled={isPending || !form.new_title.trim()} loading={isPending}>
-            ✂ Crear sub-ticket
+            ✂ {t('service_desk.split_create_btn')}
           </Button>
         </div>
       </div>
@@ -1530,6 +1542,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
 }
 
 function TicketDetail({ ticketId, onClose, embedded = false }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [commentText, setCommentText] = useState('')
@@ -1567,7 +1580,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
 
   const { mutate: addComment, isPending: commenting } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/comments`, { body: commentText, is_internal: false }),
-    onSuccess: () => { invalidate(); setCommentText(''); toast.success('Comentario añadido') },
+    onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
@@ -1576,41 +1589,41 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
     onSuccess: (res) => {
       const draft = res?.data?.draft || ''
       if (!draft) {
-        toast.error('No se generó borrador')
+        toast.error(t('common.error'))
         return
       }
       setCommentText(prev => (prev ? `${prev}\n\n${draft}` : draft))
-      toast.success('Borrador IA generado')
+      toast.success(t('service_desk.detail_ai_generating'))
     },
     onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
   })
   const { mutate: logTime, isPending: loggingTime } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/time-log`, { minutes: Number(timeMin) }),
-    onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min registrados`) },
+    onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min`) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateTicket } = useMutation({
     mutationFn: data => api.patch(`/sd/tickets/${ticketId}`, data),
-    onSuccess: () => { invalidate(); toast.success('Ticket actualizado') },
+    onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_updated')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: escalate } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/escalate?to_level=l2`, {}),
-    onSuccess: () => { invalidate(); toast.success('Ticket escalado') },
+    onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_escalated')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: pauseSLA } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/sla/pause`, { note: 'Esperando respuesta del cliente' }),
-    onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success('SLA pausado') },
+    onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_paused')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: resumeSLA } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/sla/resume`),
-    onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success('SLA reanudado') },
+    onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_resumed')) },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
@@ -1675,16 +1688,16 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap' }}>
             {!['resolved','closed','cancelled'].includes(ticket.status) && <>
               <button onClick={() => updateTicket({ status:'in_progress' })}
-                style={{ ...qaBtnStyle, background:`${COLOR.accent}20`, color:COLOR.accent }}>▶ En progreso</button>
+                style={{ ...qaBtnStyle, background:`${COLOR.accent}20`, color:COLOR.accent }}>▶ {t('service_desk.ticket_status')}</button>
               <button onClick={() => updateTicket({ status:'resolved', resolution:'Resuelto' })}
-                style={{ ...qaBtnStyle, background:`${COLOR.success}20`, color:COLOR.success }}>✓ Resolver</button>
+                style={{ ...qaBtnStyle, background:`${COLOR.success}20`, color:COLOR.success }}>✓ {t('service_desk.ticket_status')}</button>
               <button onClick={() => escalate()}
-                style={{ ...qaBtnStyle, background:`${COLOR.warning}20`, color:COLOR.warning }}>↑ Escalar</button>
+                style={{ ...qaBtnStyle, background:`${COLOR.warning}20`, color:COLOR.warning }}>↑ {t('service_desk.ticket_escalated')}</button>
               {ticket.sla_paused_at
-                ? <button onClick={() => resumeSLA()} style={{ ...qaBtnStyle }}>▶ Reanudar SLA</button>
-                : <button onClick={() => pauseSLA()} style={{ ...qaBtnStyle }}>⏸ Pausar SLA</button>}
+                ? <button onClick={() => resumeSLA()} style={{ ...qaBtnStyle }}>▶ {t('service_desk.sla_resumed')}</button>
+                : <button onClick={() => pauseSLA()} style={{ ...qaBtnStyle }}>⏸ {t('service_desk.sla_paused')}</button>}
               <button onClick={() => setShowSplit(true)}
-                style={{ ...qaBtnStyle }}>✂ Dividir</button>
+                style={{ ...qaBtnStyle }}>✂ {t('service_desk.split_title_lbl')}</button>
             </>}
             {ticket.status === 'resolved' && (
               <button onClick={() => updateTicket({ status:'closed' })}
@@ -1703,13 +1716,13 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
             borderRadius:10, padding:'12px 16px', marginBottom:16, display:'grid',
             gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <div>
-              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', marginBottom:2 }}>SLA Respuesta</div>
+              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', marginBottom:2 }}>{t('service_desk.detail_sla_response')}</div>
               <div style={{ fontSize:12, fontWeight:600, color: ticket.sla_response_status === 'breached' ? COLOR.danger : COLOR.success }}>
                 {ticket.sla_response_status?.replace(/_/g,' ')} · {fmtDate(ticket.sla_response_due)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', marginBottom:2 }}>SLA Resolución</div>
+              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', marginBottom:2 }}>{t('service_desk.detail_sla_resolution')}</div>
               <div style={{ fontSize:12, fontWeight:600, color: slaColor }}>
                 {ticket.sla_resolution_status?.replace(/_/g,' ')} · {fmtDate(ticket.sla_resolution_due)}
               </div>
@@ -1719,14 +1732,14 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* Info grid */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
             {[
-              ['Solicitante',   ticket.requester_name || '—'],
-              ['Asignado a',    ticket.assigned_to_name || 'Sin asignar'],
-              ['Grupo',         ticket.assigned_group_name || '—'],
-              ['Proyecto',      ticket.project_name || '—'],
-              ['CI afectado',   ticket.ci_name || '—'],
-              ['Tiempo total',  fmtMinutes(ticket.time_spent_minutes)],
-              ['Creado',        fmtDate(ticket.created_at)],
-              ['Actualizado',   fmtDate(ticket.updated_at)],
+              [t('service_desk.detail_requester'),  ticket.requester_name || '—'],
+              [t('common.assigned_to'), ticket.assigned_to_name || t('service_desk.unassigned')],
+              [t('service_desk.detail_group'),      ticket.assigned_group_name || '—'],
+              [t('service_desk.detail_project'),    ticket.project_name || '—'],
+              [t('service_desk.detail_ci'),         ticket.ci_name || '—'],
+              [t('service_desk.detail_time_spent'), fmtMinutes(ticket.time_spent_minutes)],
+              [t('service_desk.detail_created'),    fmtDate(ticket.created_at)],
+              [t('service_desk.detail_updated'),    fmtDate(ticket.updated_at)],
             ].map(([label, val]) => (
               <div key={label} style={{ background:'var(--surface-2)', borderRadius:8, padding:'10px 12px' }}>
                 <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', marginBottom:2 }}>{label}</div>
@@ -1745,7 +1758,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
               <div style={{ display:'flex', gap:8, marginTop:8 }}>
                 <select onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })}
                   style={{ ...IS, flex:1 }} defaultValue="">
-                  <option value="" disabled>Seleccionar agente...</option>
+                  <option value="" disabled>{t('service_desk.detail_select_agent')}</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
               </div>
@@ -1754,7 +1767,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {/* Descripción */}
           <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:8, textTransform:'uppercase' }}>Descripción</div>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:8, textTransform:'uppercase' }}>{t('common.description')}</div>
             <div style={{ fontSize:13, color:'var(--text-1)', lineHeight:1.6, whiteSpace:'pre-wrap',
               background:'var(--surface-2)', borderRadius:8, padding:'12px 14px' }}>
               {ticket.description}
@@ -1764,7 +1777,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* Resolución si existe */}
           {ticket.resolution && (
             <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:COLOR.success, marginBottom:8, textTransform:'uppercase' }}>Resolución</div>
+              <div style={{ fontSize:11, fontWeight:700, color:COLOR.success, marginBottom:8, textTransform:'uppercase' }}>{t('service_desk.edit_resolution')}</div>
               <div style={{ fontSize:13, color:'var(--text-1)', background:`${COLOR.success}08`,
                 border:`1px solid ${COLOR.success}20`, borderRadius:8, padding:'12px 14px', lineHeight:1.5 }}>
                 {ticket.resolution}
@@ -1776,7 +1789,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {links.length > 0 && (
             <div style={{ marginBottom:20 }}>
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:8, textTransform:'uppercase' }}>
-                Tickets vinculados ({links.length})
+                {t('service_desk.detail_linked')} ({links.length})
               </div>
               {links.map(lk => (
                 <div key={lk.link_id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 0',
@@ -1793,13 +1806,13 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* Registrar tiempo */}
           <div style={{ marginBottom:20 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:8, textTransform:'uppercase' }}>
-              Registrar tiempo trabajado
+              {t('service_desk.detail_log_time')}
             </div>
             <div style={{ display:'flex', gap:8 }}>
               <input type="number" placeholder="Minutos" value={timeMin}
                 onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex:1 }} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>
-                Añadir
+                {t('service_desk.detail_add_btn')}
               </Button>
             </div>
           </div>
@@ -1807,7 +1820,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* Comentarios */}
           <div style={{ marginBottom:20 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:12, textTransform:'uppercase' }}>
-              Comentarios ({(ticket.comments || []).length})
+              {t('common.description')} ({(ticket.comments || []).length})
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:14 }}>
               {(ticket.comments || []).map(c => (
@@ -1827,7 +1840,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
                   onClose={() => setShowCanned(false)}
                 />
               )}
-              <textarea placeholder="Añadir comentario..." value={commentText}
+              <textarea placeholder={t('service_desk.detail_send_comment')} value={commentText}
                 onChange={e => setCommentText(e.target.value)} rows={3}
                 style={{ ...IS, resize:'vertical', marginBottom:6 }} />
             </div>
@@ -1845,11 +1858,11 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
                   background:'var(--surface-3)', border:'1px solid #1e2d45',
                   color:'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer',
                   fontFamily:'inherit' }}>
-                {suggestingReply ? 'Generando...' : '✨ Sugerir respuesta'}
+                {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('service_desk.detail_send_comment')}`}
               </button>
             </div>
             <Button onClick={() => addComment()} disabled={commenting || !commentText} loading={commenting} style={{ width:'100%' }}>
-              Enviar comentario
+              {t('service_desk.detail_send_comment')}
             </Button>
           </div>
 
@@ -1859,7 +1872,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* Historial */}
           {(ticket.history || []).length > 0 && (            <div>
               <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:10, textTransform:'uppercase' }}>
-                Historial de cambios
+                {t('service_desk.detail_history')}
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {ticket.history.slice(-8).reverse().map((h, i) => (
@@ -1879,7 +1892,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
         <TicketEditModal
           ticket={ticket}
           onClose={() => setShowEdit(false)}
-          onSaved={() => { invalidate(); setShowEdit(false); toast.success('Ticket actualizado') }}
+          onSaved={() => { invalidate(); setShowEdit(false); toast.success(t('service_desk.ticket_updated')) }}
         />
       )}
       {showSplit && ticket && (
@@ -1901,6 +1914,7 @@ const qaBtnStyle = {
 
 // ── Ticket Edit Modal — edición completa ─────────────────────────────────────
 function TicketEditModal({ ticket, onClose, onSaved }) {
+  const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({
     title:       ticket.title       || '',
@@ -1925,76 +1939,74 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
   const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
   return (
-    <Modal open title={`Editar ${ticket.number}`} onClose={onClose} size="lg">
+    <Modal open title={`${t('common.edit')} ${ticket.number}`} onClose={onClose} size="lg">
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14,
         maxHeight:'75vh', overflowY:'auto', paddingRight:4 }}>
         <div style={{ gridColumn:'1/-1' }}>
-          <label style={LS}>Título *</label>
+          <label style={LS}>{t('service_desk.ticket_title')} *</label>
           <input value={form.title} onChange={set('title')} style={IS} />
         </div>
         <div>
-          <label style={LS}>Tipo</label>
+          <label style={LS}>{t('service_desk.ticket_type')}</label>
           <select value={form.ticket_type} onChange={set('ticket_type')} style={IS}>
-            {[['incident','🔴 Incidente'],['service_request','🔵 Solicitud de servicio'],
-              ['change','🟡 Cambio'],['problem','🟠 Problema'],['question','⚪ Pregunta'],
+            {[['incident',`🔴 ${t('service_desk.type_incident')}`],['service_request',`🔵 ${t('service_desk.type_service_request')}`],
+              ['change',`🟡 ${t('service_desk.type_change')}`],['problem',`🟠 ${t('service_desk.type_problem')}`],['question',`⚪ ${t('service_desk.type_question')}`],
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Prioridad</label>
+          <label style={LS}>{t('service_desk.ticket_priority')}</label>
           <select value={form.priority} onChange={set('priority')} style={IS}>
-            {[['p1_critical','🔴 P1 Crítico'],['p2_high','🟠 P2 Alto'],
-              ['p3_medium','🟡 P3 Medio'],['p4_low','⚪ P4 Bajo'],
+            {[['p1_critical',`🔴 ${t('service_desk.priority_p1')}`],['p2_high',`🟠 ${t('service_desk.priority_p2')}`],
+              ['p3_medium',`🟡 ${t('service_desk.priority_p3')}`],['p4_low',`⚪ ${t('service_desk.priority_p4')}`],
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Urgencia</label>
+          <label style={LS}>{t('service_desk.edit_urgency')}</label>
           <select value={form.urgency} onChange={set('urgency')} style={IS}>
-            {[['critical','Crítica'],['high','Alta'],['medium','Media'],['low','Baja'],
+            {[['critical',t('service_desk.urgency_critical')],['high',t('service_desk.urgency_high')],['medium',t('service_desk.urgency_medium')],['low',t('service_desk.urgency_low')],
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Impacto</label>
+          <label style={LS}>{t('service_desk.edit_impact')}</label>
           <select value={form.impact} onChange={set('impact')} style={IS}>
-            {[['enterprise','Empresa entera'],['department','Departamento'],
-              ['user','Usuario individual'],['minimal','Impacto mínimo'],
+            {[['enterprise',t('service_desk.impact_enterprise')],['department',t('service_desk.impact_department')],
+              ['user',t('service_desk.impact_user')],['minimal',t('service_desk.impact_minimal')],
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label style={LS}>Estado</label>
+          <label style={LS}>{t('common.status')}</label>
           <select value={form.status} onChange={set('status')} style={IS}>
-            {[['new','Nuevo'],['assigned','Asignado'],['in_progress','En progreso'],
-              ['pending_client','Esperando cliente'],['pending_third','Esperando tercero'],
-              ['resolved','Resuelto'],['closed','Cerrado'],['cancelled','Cancelado'],
+            {[['new',t('service_desk.status_new')],['assigned',t('service_desk.status_assigned')],['in_progress',t('service_desk.status_in_progress')],
+              ['pending_client',t('service_desk.status_waiting_client')],['pending_third',t('service_desk.status_pending_change')],
+              ['resolved',t('service_desk.status_resolved')],['closed',t('service_desk.status_closed')],['cancelled',t('service_desk.status_cancelled')],
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div style={{ gridColumn:'1/-1' }}>
-          <label style={LS}>Descripción * <span style={{ fontSize: 10, color: '#718096', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
+          <label style={LS}>{t('common.description')} *</label>
           <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={5} style={{ ...IS, resize:'vertical' }} />
         </div>
         {['resolved','closed'].includes(form.status) && (
           <div style={{ gridColumn:'1/-1' }}>
-            <label style={LS}>Resolución aplicada</label>
+            <label style={LS}>{t('service_desk.edit_resolution')}</label>
             <textarea value={form.resolution} onChange={set('resolution')} rows={3}
-              style={{ ...IS, resize:'vertical' }}
-              placeholder="Cómo se resolvió el problema..." />
+              style={{ ...IS, resize:'vertical' }} />
           </div>
         )}
         <div style={{ gridColumn:'1/-1' }}>
-          <label style={LS}>Etiquetas (separadas por coma)</label>
-          <input value={form.tags} onChange={set('tags')} style={IS}
-            placeholder="vpn, acceso, producción..." />
+          <label style={LS}>{t('service_desk.edit_tags')}</label>
+          <input value={form.tags} onChange={set('tags')} style={IS} />
         </div>
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate(form)}
             disabled={isPending || !form.title.trim() || !form.description.trim()}
             loading={isPending}>
-            Guardar cambios
+            {t('common.save')}
           </Button>
         </div>
       </div>
@@ -2004,6 +2016,7 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
 
 // ── Create Ticket Modal ───────────────────────────────────────────────────────
 function CreateTicketModal({ onClose, onCreated }) {
+  const t = useAppT()
   const idPrefix = useId()
   const qc = useQueryClient()
   const toast = useToast()
@@ -2065,7 +2078,7 @@ function CreateTicketModal({ onClose, onCreated }) {
     onSuccess: (res) => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
-      toast.success(`Ticket ${res.data?.number || ''} creado`)
+      toast.success(`${t('service_desk.ticket_created_success')} ${res.data?.number || ''}`)
       onCreated?.(res.data)
       onClose()
     },
@@ -2085,50 +2098,50 @@ function CreateTicketModal({ onClose, onCreated }) {
   }
 
   return (
-    <Modal open title="Crear nuevo ticket" onClose={onClose} size="lg">
+    <Modal open title={t('service_desk.ticket_create_btn')} onClose={onClose} size="lg">
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div>
-          <label htmlFor={`${idPrefix}-ticket-type`} style={LS}>Tipo *</label>
+          <label htmlFor={`${idPrefix}-ticket-type`} style={LS}>{t('service_desk.ticket_type')} *</label>
           <select id={`${idPrefix}-ticket-type`} value={form.ticket_type} onChange={set('ticket_type')} style={validation.inputStyle(IS, 'ticket_type')}>
-            {['incident','service_request','change','problem','question'].map(t =>
-              <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+            {[['incident',t('service_desk.type_incident')],['service_request',t('service_desk.type_service_request')],['change',t('service_desk.type_change')],['problem',t('service_desk.type_problem')],['question',t('service_desk.type_question')]].map(([v,l]) =>
+              <option key={v} value={v}>{l}</option>)}
           </select>
           {validation.errors.ticket_type && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.ticket_type}</div>}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-service-item`} style={LS}>Servicio</label>
+          <label htmlFor={`${idPrefix}-service-item`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
           <select id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} style={IS}>
-            <option value="">Sin servicio específico</option>
+            <option value="">{t('service_desk.ticket_no_service')}</option>
             {catalog.flatMap(cat => cat.services?.map(s => (
               <option key={s.id} value={s.id}>{cat.name} → {s.name}</option>
             )) || [])}
           </select>
         </div>
         <div style={{ gridColumn:'1/-1' }}>
-          <label htmlFor={`${idPrefix}-title`} style={LS}>Título *</label>
+          <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(IS, 'title')}
             placeholder="Resumen claro del problema o solicitud" />
           {validation.errors.title && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn:'1/-1' }}>
-          <label htmlFor={`${idPrefix}-description`} style={LS}>Descripción * <span style={{ fontSize: 10, color: '#718096', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
-          <AIInlineEditor inputId={`${idPrefix}-description`} ariaLabel="Descripción del ticket" value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} placeholder="Detalla el problema: qué ocurre, cuándo, pasos para reproducir..." style={{...validation.inputStyle(IS, 'description'), resize:'vertical'}} />
+          <label htmlFor={`${idPrefix}-description`} style={LS}>{t('common.description')} *</label>
+          <AIInlineEditor inputId={`${idPrefix}-description`} ariaLabel={t('common.description')} value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={{...validation.inputStyle(IS, 'description'), resize:'vertical'}} />
           {validation.errors.description && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.description}</div>}
         </div>
 
         {/* Priority matrix */}
         <div>
-          <label htmlFor={`${idPrefix}-urgency`} style={LS}>Urgencia</label>
+          <label htmlFor={`${idPrefix}-urgency`} style={LS}>{t('service_desk.edit_urgency')}</label>
           <select id={`${idPrefix}-urgency`} value={form.urgency} onChange={set('urgency')} style={validation.inputStyle(IS, 'urgency')}>
-            {['critical','high','medium','low'].map(v => <option key={v} value={v}>{v}</option>)}
+            {[['critical',t('service_desk.urgency_critical')],['high',t('service_desk.urgency_high')],['medium',t('service_desk.urgency_medium')],['low',t('service_desk.urgency_low')]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
           {validation.errors.urgency && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.urgency}</div>}
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-impact`} style={LS}>Impacto</label>
+          <label htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.edit_impact')}</label>
           <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={validation.inputStyle(IS, 'impact')}>
-            {[['enterprise','Empresa entera'],['department','Departamento'],
-              ['user','Usuario individual'],['minimal','Mínimo']
+            {[['enterprise',t('service_desk.impact_enterprise')],['department',t('service_desk.impact_department')],
+              ['user',t('service_desk.impact_user')],['minimal',t('service_desk.impact_minimal')]
             ].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
           {validation.errors.impact && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.impact}</div>}
@@ -2137,11 +2150,11 @@ function CreateTicketModal({ onClose, onCreated }) {
         {/* Auto priority suggestion */}
         <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:12,
           background:'var(--surface-1)', borderRadius:8, padding:'10px 14px' }}>
-          <span style={{ fontSize:12, color:'var(--text-3)' }}>Prioridad ITIL sugerida:</span>
+          <span style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.ticket_auto_routing')}:</span>
           <PBadge v={suggestedPrio} />
           <button onClick={() => setForm(f => ({...f, priority: suggestedPrio}))}
             style={{ fontSize:11, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>
-            Aplicar
+            {t('common.save')}
           </button>
           <select aria-label="Prioridad del ticket" value={form.priority} onChange={set('priority')} style={{...validation.inputStyle(IS, 'priority'), width:'auto', flex:1}}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
@@ -2150,26 +2163,26 @@ function CreateTicketModal({ onClose, onCreated }) {
         </div>
 
         <div>
-          <label htmlFor={`${idPrefix}-assigned-to`} style={LS}>Asignar a</label>
+          <label htmlFor={`${idPrefix}-assigned-to`} style={LS}>{t('common.assigned_to')}</label>
           <select id={`${idPrefix}-assigned-to`} value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} style={IS}>
-            <option value="">Auto-routing / Sin asignar</option>
+            <option value="">{t('service_desk.ticket_auto_routing')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor={`${idPrefix}-client`} style={LS}>Cliente</label>
+          <label htmlFor={`${idPrefix}-client`} style={LS}>{t('service_desk.detail_requester')}</label>
           <select id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} style={IS}>
-            <option value="">Sin cliente específico</option>
+            <option value="">{t('service_desk.ticket_no_client')}</option>
             {(Array.isArray(clients) ? clients : clients?.items || []).map(c =>
               <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
 
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10, marginTop:8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit}
             disabled={isPending} loading={isPending}>
-            Crear Ticket
+            {t('service_desk.ticket_create_btn')}
           </Button>
         </div>
       </div>
@@ -2179,18 +2192,20 @@ function CreateTicketModal({ onClose, onCreated }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 // ── Kanban de tickets ──────────────────────────────────────────────────────────
-const KANBAN_COLS = [
-  { id: 'open',              label: 'Abierto',          color: '#378ADD' },
-  { id: 'in_progress',       label: 'En progreso',       color: '#7F77DD' },
-  { id: 'waiting_client',    label: 'Esperando cliente', color: '#BA7517' },
-  { id: 'pending_change',    label: 'Pendiente cambio',  color: '#D85A30' },
-  { id: 'resolved',          label: 'Resuelto',          color: '#1D9E75' },
-]
 
 function KanbanTickets({ onSelect }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [dragging, setDragging] = useState(null)
+
+  const KANBAN_COLS = [
+    { id: 'open',           label: t('service_desk.status_open'),           color: '#378ADD' },
+    { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: '#7F77DD' },
+    { id: 'waiting_client', label: t('service_desk.status_waiting_client'), color: '#BA7517' },
+    { id: 'pending_change', label: t('service_desk.status_pending_change'), color: '#D85A30' },
+    { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#1D9E75' },
+  ]
 
   const { data: raw = {}, isLoading } = useQuery({
     queryKey: ['sd-tickets-kanban'],
@@ -2309,7 +2324,7 @@ function KanbanTickets({ onSelect }) {
               {tickets.length === 0 && (
                 <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 11,
                   color: 'var(--text-3)', border: '1px dashed var(--surface-4)', borderRadius: 8 }}>
-                  Sin tickets
+                  {t('service_desk.kanban_no_tickets')}
                 </div>
               )}
             </div>
@@ -2323,6 +2338,7 @@ function KanbanTickets({ onSelect }) {
 
 // ── Canned Responses Picker ───────────────────────────────────────────────────
 function CannedResponsePicker({ onSelect, onClose }) {
+  const t = useAppT()
   const [search, setSearch] = useState('')
   const { data: responses = [] } = useQuery({
     queryKey: ['canned-responses', search],
@@ -2343,7 +2359,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
           autoFocus
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar respuesta..."
+          placeholder={t('service_desk.canned_search')}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: 13,
             outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -2353,7 +2369,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {responses.length === 0 ? (
           <div style={{ padding: '20px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>
-            {search ? 'Sin resultados' : 'Sin respuestas rápidas configuradas. Créalas en Config → Respuestas rápidas'}
+            {search ? t('service_desk.canned_no_results') : t('service_desk.canned_empty')}
           </div>
         ) : cats.map(cat => {
           const catItems = responses.filter(r => (r.category || 'General') === cat)
@@ -2383,7 +2399,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
       </div>
       <div style={{ padding: '6px 12px', borderTop: '1px solid var(--surface-4)', textAlign: 'right' }}>
         <button onClick={onClose} style={{ fontSize: 11, color: 'var(--text-3)', background: 'none',
-          border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar (Esc)</button>
+          border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('service_desk.canned_cancel_esc')}</button>
       </div>
     </div>
   )
@@ -2391,6 +2407,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
 
 // ── Canned Responses Manager (en Config) ─────────────────────────────────────
 function CannedResponsesManager() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ title: '', body: '', category: '', shortcut: '' })
@@ -2436,14 +2453,14 @@ function CannedResponsesManager() {
             <div key={r.id} style={{ padding:'12px 14px', background:'var(--accent-muted)',
               border:'1px solid var(--accent-glow)', borderRadius:10 }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                <div><label style={LS}>Título *</label>
-                  <input value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
-                <div><label style={LS}>Categoría</label>
-                  <input value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} style={IS} placeholder="General" /></div>
-              </div>
-              <div style={{marginBottom:8}}><label style={LS}>Shortcut (opcional)</label>
-                <input value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} placeholder="/cierre-ticket" /></div>
-              <div style={{marginBottom:10}}><label style={LS}>Texto *</label>
+          <div><label style={LS}>{t('common.name')} *</label>
+            <input value={editForm.title||''} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+          <div><label style={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input value={editForm.category||''} onChange={e=>setEditForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
+        </div>
+        <div style={{marginBottom:8}}><label style={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input value={editForm.shortcut||''} onChange={e=>setEditForm(f=>({...f,shortcut:e.target.value}))} style={{...IS}} /></div>
+        <div style={{marginBottom:10}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
                 <textarea value={editForm.body||''} onChange={e=>setEditForm(f=>({...f,body:e.target.value}))} rows={4}
                   style={{...IS, resize:'vertical'}} /></div>
               <div style={{display:'flex',gap:8}}>
@@ -2474,28 +2491,28 @@ function CannedResponsesManager() {
             </div>
           ))}
           {responses.length === 0 && !isLoading && (
-            <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>Sin respuestas rápidas</div>
+            <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>{t('service_desk.canned_empty')}</div>
           )}
         </div>
       )}
 
       {/* Formulario nueva respuesta */}
       <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed #00d4ff30', borderRadius:10 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--accent)', marginBottom:12 }}>Nueva respuesta rápida</div>
+        <div style={{ fontSize:12, fontWeight:700, color:'var(--accent)', marginBottom:12 }}>{t('service_desk.canned_new_header')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-          <div><label style={LS}>Título *</label>
-            <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} placeholder="Ej: Cierre por resolución" /></div>
-          <div><label style={LS}>Categoría</label>
-            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} placeholder="General" /></div>
+          <div><label style={LS}>{t('common.name')} *</label>
+            <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+          <div><label style={LS}>{t('service_desk.routing_name_lbl')}</label>
+            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} /></div>
         </div>
-        <div style={{marginBottom:8}}><label style={LS}>Shortcut (opcional)</label>
-          <input value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder="/cierre" /></div>
-        <div style={{marginBottom:12}}><label style={LS}>Texto de la respuesta *</label>
+        <div style={{marginBottom:8}}><label style={LS}>{t('service_desk.canned_shortcut')}</label>
+          <input value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
+        <div style={{marginBottom:12}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
           <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
             style={{...IS, resize:'vertical'}} placeholder="Hola {nombre},&#10;&#10;Hemos resuelto tu solicitud..." /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
           style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize:13,fontFamily:'inherit',fontWeight:600}}>
-          + Añadir respuesta
+          + {t('service_desk.canned_add_btn')}
         </button>
       </div>
     </div>
@@ -2504,6 +2521,7 @@ function CannedResponsesManager() {
 
 // ── Announcements (admin) ─────────────────────────────────────────────────────
 function AnnouncementsConfig() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
@@ -2519,23 +2537,23 @@ function AnnouncementsConfig() {
   })
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: d => api.post('/sd/announcements', d),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success('Anuncio publicado') },
+    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
     mutationFn: id => api.delete(`/sd/announcements/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success('Anuncio desactivado') },
+    onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success(t('service_desk.ann_deactivated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
-        <Button size="sm" onClick={() => setShowCreate(true)}>+ Nuevo anuncio</Button>
+        <Button size="sm" onClick={() => setShowCreate(true)}>{t('service_desk.ann_new_btn')}</Button>
       </div>
       {isLoading ? <div style={{ textAlign:'center', padding:30 }}><Spinner /></div>
         : anns.length === 0
-          ? <EmptyState icon="📢" title="Sin anuncios activos" description="Publica alertas de mantenimiento, cortes de servicio o informaciones importantes para agentes y clientes" />
+          ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description="" />
           : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {anns.map(a => (
@@ -2544,13 +2562,13 @@ function AnnouncementsConfig() {
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>{a.title}
                       <span style={{ fontSize:10, padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type]||'var(--accent)')+'20', color:TYPE_COLOR[a.type]||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
-                      {a.show_to_clients && <span style={{ fontSize:10, marginLeft:6, color:'var(--text-3)' }}>👁 Clientes</span>}
+                      {a.show_to_clients && <span style={{ fontSize:10, marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
                     </div>
                     <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>
                     {(a.starts_at||a.ends_at) && (
                       <div style={{ fontSize:11, color:'var(--text-3)', marginTop:6 }}>
-                        {a.starts_at && `Desde: ${new Date(a.starts_at).toLocaleString('es-ES')}`}
-                        {a.ends_at && ` · Hasta: ${new Date(a.ends_at).toLocaleString('es-ES')}`}
+                        {a.starts_at && `${t('service_desk.ann_starts')}: ${new Date(a.starts_at).toLocaleString()}`}
+                        {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${new Date(a.ends_at).toLocaleString()}`}
                       </div>
                     )}
                   </div>
@@ -2564,23 +2582,23 @@ function AnnouncementsConfig() {
       {showCreate && (
         <Modal open title="📢 Nuevo Anuncio" onClose={() => setShowCreate(false)} width={500}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div style={{ gridColumn:'1/-1' }}><label style={LS}>Título *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} placeholder="Mantenimiento programado" /></div>
-            <div><label style={LS}>Tipo</label>
+            <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
+            <div><label style={LS}>{t('common.status')}</label>
               <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={IS}>
                 {['info','warning','outage','maintenance'].map(t=><option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:18 }}>
               <input type="checkbox" id="showCl" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label htmlFor="showCl" style={{ fontSize:12, color:'var(--text-1)', cursor:'pointer' }}>Visible para clientes</label>
+              <label htmlFor="showCl" style={{ fontSize:12, color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
             </div>
-            <div><label style={LS}>Inicio (opcional)</label><input type="datetime-local" value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
-            <div><label style={LS}>Fin (opcional)</label><input type="datetime-local" value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
-            <div style={{ gridColumn:'1/-1' }}><label style={LS}>Mensaje *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
+            <div><label style={LS}>{t('service_desk.ann_starts')}</label><input type="datetime-local" value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
+            <div><label style={LS}>{t('service_desk.ann_ends')}</label><input type="datetime-local" value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
+            <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
           </div>
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid #1e2d45', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12 }}>Cancelar</button>
-            <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>Publicar</Button>
+            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid #1e2d45', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12 }}>{t('common.cancel')}</button>
+            <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
           </div>
         </Modal>
       )}
@@ -2589,7 +2607,7 @@ function AnnouncementsConfig() {
 }
 
 export default function ServiceDeskPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const [tab, setTab] = useState('queue')
   const [selId, setSelId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -2610,17 +2628,17 @@ export default function ServiceDeskPage() {
   }, [tab])
 
   const TABS = [
-    { id: 'queue',    label: '🏃 Mi Cola' },
-    { id: 'all',      label: '🎫 Todos' },
-    { id: 'kanban',   label: '📋 Kanban' },
-    { id: 'changes',  label: '🔄 Changes' },
-    { id: 'mi',       label: '🚨 Incid. Mayores' },
-    { id: 'problems', label: '🔍 Problemas' },
-    { id: 'kedb',     label: '📚 KEDB' },
-    { id: 'kb',       label: '📖 KB' },
-    { id: 'cmdb',     label: '🖥 CMDB' },
-    { id: 'metrics',  label: '📊 Métricas ITIL' },
-    { id: 'config',   label: '⚙️ Config' },
+    { id: 'queue',    label: `🏃 ${t('service_desk.tab_queue')}` },
+    { id: 'all',      label: `🎫 ${t('service_desk.tab_all')}` },
+    { id: 'kanban',   label: `📋 ${t('service_desk.tab_kanban')}` },
+    { id: 'changes',  label: `🔄 ${t('service_desk.tab_changes')}` },
+    { id: 'mi',       label: `🚨 ${t('service_desk.tab_mi')}` },
+    { id: 'problems', label: `🔍 ${t('service_desk.tab_problems')}` },
+    { id: 'kedb',     label: `📚 ${t('service_desk.tab_kedb')}` },
+    { id: 'kb',       label: `📖 ${t('service_desk.tab_kb')}` },
+    { id: 'cmdb',     label: `🖥 ${t('service_desk.tab_cmdb')}` },
+    { id: 'metrics',  label: `📊 ${t('service_desk.tab_metrics')}` },
+    { id: 'config',   label: `⚙️ ${t('service_desk.tab_config')}` },
   ]
 
   return (
@@ -2628,14 +2646,13 @@ export default function ServiceDeskPage() {
       <PageHeader
         icon={<MessageSquare size={18} />}
         title="Service Desk ITSM"
-        subtitle="ITIL v4 · Incident · Problem · Change · KEDB · Métricas MTTR/FCR/SLA"
+        subtitle="ITIL v4"
         actions={
-          <Button onClick={() => setShowCreate(true)}>+ Nuevo ticket</Button>
-        }
-      />
+          <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
+        }/>
 
       {/* Tab bar */}
-      <div role="tablist" aria-label="Secciones de Service Desk" style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
+      <div role="tablist" aria-label={t('service_desk.tab_config')} style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
         borderBottom: '1px solid var(--surface-4)', paddingBottom: 16 }}>
         {TABS.map(t => (
           <button key={t.id} role="tab" aria-selected={tab===t.id} aria-controls={`sd-panel-${t.id}`} id={`sd-tab-${t.id}`} onClick={() => setTab(t.id)} style={{
@@ -2659,7 +2676,7 @@ export default function ServiceDeskPage() {
               border: `1px solid ${mobileView === 'list' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: mobileView === 'list' ? 'var(--accent-muted)' : 'var(--surface-2)',
               color: mobileView === 'list' ? 'var(--accent)' : 'var(--text-2)' }}>
-            ← Lista
+            ← {t('service_desk.tab_all')}
           </button>
           <button onClick={() => setMobileView('detail')}
             aria-pressed={mobileView === 'detail'}
@@ -2668,7 +2685,7 @@ export default function ServiceDeskPage() {
               border: `1px solid ${mobileView === 'detail' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: mobileView === 'detail' ? 'var(--accent-muted)' : 'var(--surface-2)',
               color: mobileView === 'detail' ? 'var(--accent)' : 'var(--text-2)' }}>
-            Detalle →
+            {t('service_desk.tab_all')} →
           </button>
         </div>
       )}

@@ -9,7 +9,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import _PageHeader from '../components/layout/PageHeader'
+
 import { useAppT } from '../i18n/AppLangContext'
+import { INTEGRATION_CATALOG } from '../constants/api'
 
 const fs = { width:'100%', background:'var(--color-background-secondary)', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'9px 12px', color:'var(--color-text-primary)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
@@ -353,31 +355,8 @@ function IntegrationsTab() {
     }
   }
 
-  const CATALOG = [
-    { type:'slack',         label:'Slack',            icon:'💬', desc:'Notificaciones de tickets, milestones, riesgos y más',
-      fields: [{ key:'webhook_url', label:'Incoming Webhook URL', placeholder:'https://hooks.slack.com/services/...' },
-               { key:'channel', label:'Canal por defecto', placeholder:'#clarive' }] },
-    { type:'teams',         label:'Microsoft Teams',  icon:'🟦', desc:'Notificaciones en canales de Teams via Incoming Webhook',
-      fields: [{ key:'webhook_url', label:'Webhook URL de Teams', placeholder:'https://outlook.office.com/webhook/...' }] },
-    { type:'jira',          label:'Jira',             icon:'🔷', desc:'Crear y sincronizar issues, vincular tareas Clarive ↔ Jira',
-      fields: [{ key:'base_url', label:'URL de Jira', placeholder:'https://tu-empresa.atlassian.net' },
-               { key:'email', label:'Email de la cuenta API', placeholder:'admin@empresa.com' },
-               { key:'api_token', label:'API Token', placeholder:'Tu API Token de Atlassian', type:'password' }] },
-    { type:'github',        label:'GitHub',           icon:'🐙', desc:'Commits y PRs vinculados a tareas',
-      fields: [{ key:'access_token', label:'Personal Access Token', type:'password' },
-               { key:'repo', label:'Repositorio', placeholder:'org/repo' }] },
-    { type:'google_calendar', label:'Google Calendar', icon:'📅', desc:'Sincronizar sprints y milestones',
-      fields: [{ key:'access_token', label:'OAuth Access Token', type:'password' },
-               { key:'calendar_id', label:'Calendar ID', placeholder:'primary' }] },
-    { type:'xero', label:'Xero', icon:'🟦', desc:'Sincronizar facturas y contactos con Xero',
-      fields: [{ key:'access_token', label:'OAuth Access Token', type:'password', placeholder:'Bearer token de Xero' },
-               { key:'tenant_id', label:'Tenant ID', placeholder:'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }] },
-    { type:'quickbooks', label:'QuickBooks Online', icon:'🟩', desc:'Sincronizar facturas con QuickBooks Online',
-      fields: [{ key:'access_token', label:'OAuth Access Token', type:'password' },
-               { key:'realm_id', label:'Company ID (Realm ID)', placeholder:'123456789' },
-               { key:'default_customer_id', label:'Customer ID por defecto', placeholder:'1' },
-               { key:'default_item_id', label:'Item ID por defecto', placeholder:'1' }] },
-  ]
+
+  const CATALOG = INTEGRATION_CATALOG
 
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
   const is = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }

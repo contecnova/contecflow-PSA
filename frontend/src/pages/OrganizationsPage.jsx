@@ -6,7 +6,8 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
+import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -17,15 +18,45 @@ const card = { background:'var(--color-background-primary)', border:'.5px solid 
 const PLAN_COLORS = { starter:'var(--color-text-secondary)', pro:'var(--color-text-info)', enterprise:'var(--color-text-success)' }
 
 export default function OrganizationsPage() {
+  // ...existing code...
+  const [removingUserId, setRemovingUserId] = useState(null)
+    // Mutación para eliminar usuario de la organización
+    const { mutate: removeUser, isPending: isRemoving } = useMutation({
+      mutationFn: ({ orgId, userId }) => api.delete(`/organizations/${orgId}/remove-user/${userId}`),
+      onSuccess: () => {
+        qc.invalidateQueries(['org-detail', selected]);
+        setRemovingUserId(null)
+        toast.success('Usuario eliminado')
+      },
+      onError: e => toast.error(extractErr(e, 'Error al eliminar usuario')),
+    })
+  // Estado para asignar usuario
+  const [showAssignUser, setShowAssignUser] = useState(false)
+  const [assignUserId, setAssignUserId] = useState('')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone:'Europe/Madrid' })
+  const [editForm, setEditForm] = useState(null)
 
   const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => api.get('/organizations').then(r=>r.data) })
   const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => api.get(`/organizations/${selected}`).then(r=>r.data), enabled:!!selected })
+  // Todos los usuarios activos
+  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => api.get('/users').then(r=>r.data) })
+  // Mutación para asignar usuario
+  const { mutate: assignUser, isPending: isAssigning } = useMutation({
+    mutationFn: ({ orgId, userId }) => api.post(`/organizations/${orgId}/assign-user`, { user_id: userId }),
+    onSuccess: () => {
+      qc.invalidateQueries(['org-detail', selected]);
+      setShowAssignUser(false)
+      setAssignUserId('')
+      toast.success('Usuario asignado')
+    },
+    onError: e => toast.error(extractErr(e, 'Error al asignar usuario')),
+  })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => api.post('/organizations', d),
@@ -37,6 +68,28 @@ export default function OrganizationsPage() {
     onSuccess: () => qc.invalidateQueries(['orgs']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
+  const { mutate: update, isPending: isUpdating } = useMutation({
+    mutationFn: ({ id, data }) => api.patch(`/organizations/${id}`, data),
+    onSuccess: () => { qc.invalidateQueries(['orgs']); qc.invalidateQueries(['org-detail', selected]); setShowEdit(false) },
+    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+  })
+
+  // Rellena editForm con los datos actuales al abrir modal de edición
+  const openEdit = () => {
+    if (detail) {
+      setEditForm({
+        name: detail.name || '',
+        plan: detail.plan || 'starter',
+        max_users: detail.max_users || 25,
+        max_projects: detail.max_projects || 100,
+        admin_email: detail.admin_email || '',
+        timezone: detail.timezone || 'Europe/Madrid',
+        locale: detail.locale || '',
+        primary_color: detail.primary_color || '',
+      })
+      setShowEdit(true)
+    }
+  }
 
   return (
     <div style={{ padding:32 }}>
@@ -84,7 +137,10 @@ export default function OrganizationsPage() {
 
         {selected && detail && (
           <div style={{ ...card, padding:'20px 22px', position:'sticky', top:80, alignSelf:'start' }}>
-            <div style={{ fontSize:14, fontWeight:500, marginBottom:14 }}>{detail.name}</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:14, fontWeight:500 }}>{detail.name}</div>
+              <Button size="sm" onClick={openEdit}>Editar</Button>
+            </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
               {[['Plan', detail.plan], ['Usuarios', `${detail.users?.length}/${detail.max_users}`], ['Zona horaria', detail.timezone], ['Idioma', detail.locale]].map(([k,v]) => (
                 <div key={k} style={{ background:'var(--color-background-secondary)', borderRadius:8, padding:'10px 12px' }}>
@@ -93,13 +149,69 @@ export default function OrganizationsPage() {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize:13, fontWeight:500, marginBottom:10 }}>Usuarios ({detail.users?.length})</div>
-            {(detail.users || []).slice(0,8).map(u => (
-              <div key={u.id} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
-                <span>{u.full_name}</span>
-                <span style={{ color:'var(--color-text-secondary)' }}>{u.role}</span>
-              </div>
-            ))}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+              <span style={{ fontSize:13, fontWeight:500 }}>Usuarios ({detail.users?.length})</span>
+              <Button size="sm" onClick={() => setShowAssignUser(true)}>Asignar usuario</Button>
+            </div>
+            {(detail.users || []).length === 0 && <div style={{ color:'var(--color-text-tertiary)', fontSize:12, marginBottom:8 }}>No hay usuarios asignados.</div>}
+            {(detail.users || []).map((u, idx, arr) => {
+              const isLast = arr.length === 1
+              return (
+                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
+                  <span>{u.full_name}</span>
+                  <span style={{ color:'var(--color-text-secondary)' }}>{u.role}</span>
+                  <Button
+                    size="xs"
+                    variant="danger"
+                    style={{marginLeft:8, opacity: isLast ? 0.5 : 1, pointerEvents: isLast ? 'none' : 'auto'}}
+                    disabled={isLast}
+                    title={isLast ? 'No puedes quitar el último usuario de la organización' : 'Quitar usuario'}
+                    onClick={()=>setRemovingUserId(u.id)}
+                  >Quitar</Button>
+                </div>
+              )
+            })}
+                      {removingUserId && detail && (
+                        <Confirm
+                          open
+                          title="Quitar usuario"
+                          description="¿Seguro que quieres quitar este usuario de la organización?"
+                          onCancel={()=>setRemovingUserId(null)}
+                          onConfirm={()=>removeUser({ orgId: detail.id, userId: removingUserId })}
+                          loading={isRemoving}
+                        />
+                      )}
+                {showAssignUser && detail && (
+                  <Modal open title="Asignar usuario a organización" onClose={() => setShowAssignUser(false)} width={420}>
+                    <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+                      <div>
+                        <label style={ls}>Usuario</label>
+                        <UserSelect
+                          value={assignUserId}
+                          onChange={id => setAssignUserId(id)}
+                          placeholder="Selecciona un usuario..."
+                          style={fs}
+                          filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
+                        />
+                      </div>
+                      <div style={{ color:'var(--color-danger)', fontSize:12, minHeight:18 }}>
+                        {assignUserId === '' ? '' : (() => {
+                          const user = allUsers.find(u => u.id === assignUserId)
+                          if (user && user.is_active === false) return 'No puedes asignar usuarios inactivos.'
+                          if ((detail.users || []).some(u => u.id === assignUserId)) return 'Este usuario ya está asignado.'
+                          return ''
+                        })()}
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+                        <Button variant="secondary" onClick={()=>setShowAssignUser(false)}>Cancelar</Button>
+                        <Button
+                          onClick={()=>assignUser({ orgId: detail.id, userId: assignUserId })}
+                          disabled={!assignUserId || isAssigning || (assignUserId && allUsers.find(u => u.id === assignUserId)?.is_active === false) || (assignUserId && (detail.users || []).some(u => u.id === assignUserId))}
+                        >{isAssigning ? 'Asignando...' : 'Asignar'}</Button>
+                      </div>
+                    </div>
+                  </Modal>
+                )}
           </div>
         )}
       </div>
@@ -124,6 +236,32 @@ export default function OrganizationsPage() {
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>Cancelar</Button>
               <Button onClick={()=>create(form)} disabled={isPending||!form.name||!form.slug}>{isPending?'Creando...':'Crear'}</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showEdit && editForm && (
+        <Modal open title="Editar organización" onClose={() => setShowEdit(false)} width={520}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={ls}>Nombre</label><input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
+              {/* El slug no se puede editar */}
+              <div><label style={ls}>Slug</label><input value={detail.slug} disabled style={{...fs, background:'#f5f5f5'}} /></div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+              <div><label style={ls}>Plan</label>
+                <select value={editForm.plan} onChange={e=>setEditForm(f=>({...f,plan:e.target.value}))} style={fs}>
+                  {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div><label style={ls}>Máx. usuarios</label><input type="number" value={editForm.max_users} onChange={e=>setEditForm(f=>({...f,max_users:+e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>Máx. proyectos</label><input type="number" value={editForm.max_projects} onChange={e=>setEditForm(f=>({...f,max_projects:+e.target.value}))} style={fs} /></div>
+            </div>
+            <div><label style={ls}>Email del admin</label><input value={editForm.admin_email} onChange={e=>setEditForm(f=>({...f,admin_email:e.target.value}))} style={fs} /></div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <Button variant="secondary" onClick={()=>setShowEdit(false)}>Cancelar</Button>
+              <Button onClick={()=>update({ id: selected, data: editForm })} disabled={isUpdating||!editForm.name}>{isUpdating?'Guardando...':'Guardar'}</Button>
             </div>
           </div>
         </Modal>

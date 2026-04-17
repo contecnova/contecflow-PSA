@@ -245,11 +245,10 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     sprint.velocity = round(sprint.completed_points / duration_weeks, 1)
 
     incomplete = [st for st in sprint.sprint_tasks if st.task and st.task.status != "done"]
-    # Do NOT delete SprintTask rows for incomplete tasks.
-    # Removing them would silently orphan tasks — they would be invisible in
-    # both the sprint history and the board. Leave the rows attached to this
-    # completed sprint; get_project_backlog_tasks already excludes only
-    # planning/active sprints, so these tasks surface naturally in the backlog.
+    # Mover tareas incompletas al backlog (status = 'backlog') y desvincular del sprint
+    for st in incomplete:
+        st.task.status = "backlog"
+        db.delete(st)  # elimina la relación SprintTask, no la tarea
 
     db.commit()
     return {

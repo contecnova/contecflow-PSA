@@ -136,8 +136,10 @@ import hmac as _hmac
 import os as _os
 import json as _json
 
-_PBKDF2_ITERATIONS = 260_000
-_MAX_APPS_PER_USER = 10
+from app.core.config import settings
+
+_PBKDF2_ITERATIONS = getattr(settings, "PBKDF2_ITERATIONS", 260_000)
+_MAX_APPS_PER_USER = getattr(settings, "MAX_APPS_PER_USER", 10)
 
 
 def hash_secret(secret: str) -> str:

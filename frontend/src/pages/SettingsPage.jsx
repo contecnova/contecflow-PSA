@@ -8,13 +8,12 @@ import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { APP_TRANSLATIONS, APP_LANGUAGES, getAllKeys } from '../i18n/appTranslations'
+import { APP_LANGUAGES, loadLanguage, getAllKeys } from '../i18n/appTranslations'
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../i18n/portalTranslations'
 import { extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 
-const ROLE_LABELS = { admin: 'Dirección', pm: 'Project Manager', team_lead: 'Team Lead', hr: 'RRHH', employee: 'Empleado' }
-const ROLE_COLORS = { admin: 'var(--danger)', pm: 'var(--accent)', team_lead: 'var(--purple)', hr: 'var(--success)', employee: 'var(--text-2)' }
+import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
@@ -883,6 +882,8 @@ function IdiomasSection() {
   // Estado local
   const [activeTab,     setActiveTab]     = useState('operator')  // operator | app | portal
   const [appLang,       setAppLang]       = useState('en')         // idioma que se edita en la app
+  const [appTranslations, setAppTranslations] = useState({})
+  const [loadingAppLang, setLoadingAppLang] = useState(true)
   const [portalLang,    setPortalLang]    = useState('en')
   const [searchKey,     setSearchKey]     = useState('')
   const [activeModule,  setActiveModule]  = useState('all')
@@ -895,6 +896,19 @@ function IdiomasSection() {
   const allKeys = getAllKeys()
   const modules = ['all', ...new Set(allKeys.map(k => k.module))]
 
+  // Carga asíncrona de traducciones para edición
+  useEffect(() => {
+    let cancelled = false
+    setLoadingAppLang(true)
+    loadLanguage(appLang).then(tr => {
+      if (!cancelled) {
+        setAppTranslations(tr)
+        setLoadingAppLang(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [appLang])
+
   const filteredKeys = allKeys.filter(k => {
     const matchMod = activeModule === 'all' || k.module === activeModule
     const matchSrc = !searchKey || k.key.includes(searchKey.toLowerCase()) ||
@@ -904,28 +918,25 @@ function IdiomasSection() {
   })
 
   const getAppVal = (lang, module, key) =>
-    appEdits[lang]?.[module]?.[key] ??
-    customTrans[lang]?.[module]?.[key] ??
-    APP_TRANSLATIONS[lang]?.[module]?.[key] ?? ''
+    (lang === appLang ? (
+      appEdits?.[module]?.[key] ??
+      customTrans?.[module]?.[key] ??
+      appTranslations?.[module]?.[key]
+    ) : '') ?? ''
 
   const setAppVal = (lang, module, key, val) => {
+    if (lang !== appLang) return
     setAppEdits(prev => ({
       ...prev,
-      [lang]: { ...(prev[lang] || {}), [module]: { ...(prev[lang]?.[module] || {}), [key]: val } }
+      [module]: { ...(prev[module] || {}), [key]: val }
     }))
     setHasUnsaved(true)
   }
 
   const saveAppTrans = () => {
-    // Mergear edits con custom existentes
-    const merged = {}
-    for (const lang of Object.keys({ ...customTrans, ...appEdits })) {
-      merged[lang] = {}
-      const mods = new Set([...Object.keys(customTrans[lang] || {}), ...Object.keys(appEdits[lang] || {})])
-      for (const mod of mods) {
-        merged[lang][mod] = { ...(customTrans[lang]?.[mod] || {}), ...(appEdits[lang]?.[mod] || {}) }
-      }
-    }
+    // Mergear edits con custom existentes SOLO del idioma activo
+    const merged = { ...customTrans }
+    merged[appLang] = { ...customTrans, ...appEdits }
     setCustomTranslations(merged)
     setAppEdits({})
     setHasUnsaved(false)
@@ -933,17 +944,18 @@ function IdiomasSection() {
   }
 
   const exportJSON = () => {
-    const data = JSON.stringify(APP_TRANSLATIONS, null, 2)
+    const data = JSON.stringify(appTranslations, null, 2)
     const blob = new Blob([data], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a'); a.href = url
-    a.download = 'clarive_translations.json'; a.click()
+    a.download = `clarive_translations_${appLang}.json`; a.click()
     URL.revokeObjectURL(url)
   }
 
   const fs   = { width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }
   const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
+  if (loadingAppLang) return <div>Cargando traducciones…</div>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 

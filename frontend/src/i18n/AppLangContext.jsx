@@ -8,7 +8,7 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { APP_TRANSLATIONS, APP_LANGUAGES } from './appTranslations'
+import { APP_LANGUAGES, loadLanguage } from './appTranslations'
 import api from '../services/api'
 
 const AppLangContext = createContext(null)
@@ -20,14 +20,11 @@ const CUSTOM_KEY = 'clarive_custom_translations'
 
 function mergeCustom(base, custom) {
   if (!custom || typeof custom !== 'object') return base
-  const merged = {}
-  for (const lang of Object.keys(base)) {
-    merged[lang] = {}
-    for (const mod of Object.keys(base[lang])) {
-      merged[lang][mod] = {
-        ...base[lang][mod],
-        ...(custom[lang]?.[mod] || {}),
-      }
+  const merged = { ...base }
+  for (const mod of Object.keys(base)) {
+    merged[mod] = {
+      ...base[mod],
+      ...(custom[mod] || {}),
     }
   }
   return merged
@@ -37,14 +34,30 @@ export function AppLangProvider({ children }) {
   const [lang, setLangState] = useState(
     () => localStorage.getItem(STORAGE_KEY) || 'es'
   )
+
   const [customTrans, setCustomTrans] = useState(() => {
     try {
       const stored = localStorage.getItem(CUSTOM_KEY)
       return stored ? JSON.parse(stored) : {}
     } catch { return {} }
   })
+  const [translations, setTranslations] = useState({})
+  const [loading, setLoading] = useState(true)
 
-  const translations = mergeCustom(APP_TRANSLATIONS, customTrans)
+  // Carga asíncrona del idioma activo
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    loadLanguage(lang).then(base => {
+      if (!cancelled) {
+        const custom = customTrans[lang] || {}
+        setTranslations(mergeCustom(base, custom))
+        setLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line
+  }, [lang, customTrans])
 
   const setLang = useCallback((code) => {
     setLangState(code)
@@ -74,29 +87,26 @@ export function AppLangProvider({ children }) {
 
   // Función de traducción: t('module.key') o t('module', 'key')
   // Soporta interpolación: t('module.key', { var1: val1, var2: val2 })
-  const t = useCallback((moduleOrFullKey, keyOrLangOrParams, forceLang) => {
+  const t = useCallback((moduleOrFullKey, keyOrParams) => {
     // Detect if second argument is an interpolation params object
-    const isParams = keyOrLangOrParams !== null
-      && typeof keyOrLangOrParams === 'object'
-      && !Array.isArray(keyOrLangOrParams)
-    const params = isParams ? keyOrLangOrParams : null
-    const keyOrLang = isParams ? undefined : keyOrLangOrParams
+    const isParams = keyOrParams !== null
+      && typeof keyOrParams === 'object'
+      && !Array.isArray(keyOrParams)
+    const params = isParams ? keyOrParams : null
+    const key = isParams ? undefined : keyOrParams
 
-    const activeLang = forceLang || lang
-    let module, key
-    if (keyOrLang && !APP_LANGUAGES.find(l => l.code === keyOrLang)) {
+    let module, realKey
+    if (key) {
       module = moduleOrFullKey
-      key    = keyOrLang
+      realKey = key
     } else if (moduleOrFullKey.includes('.')) {
-      [module, key] = moduleOrFullKey.split('.', 2)
+      [module, realKey] = moduleOrFullKey.split('.', 2)
     } else {
       return moduleOrFullKey // fallback: devolver la clave tal cual
     }
 
-    let trans = translations[activeLang]?.[module]?.[key]
-           || translations['es']?.[module]?.[key]
-           || translations['en']?.[module]?.[key]
-           || key
+    let trans = translations?.[module]?.[realKey]
+    if (!trans) trans = realKey // fallback: clave
 
     // Apply interpolation: replace {varName} placeholders
     if (params && typeof trans === 'string') {
@@ -106,8 +116,9 @@ export function AppLangProvider({ children }) {
     }
 
     return trans
-  }, [lang, translations])
+  }, [translations])
 
+  if (loading) return null // O un spinner global
   return (
     <AppLangContext.Provider value={{ lang, setLang, t, translations, setCustomTranslations, customTrans }}>
       {children}

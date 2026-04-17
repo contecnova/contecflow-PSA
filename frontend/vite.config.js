@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
-  const apiTarget = process.env.VITE_API_URL || 'http://localhost:8000'
+  const apiTarget = process.env.VITE_API_URL || process.env.API_URL || 'http://localhost:8000'
   const apiOrigin = new URL(apiTarget).origin
 
   return {
@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       react(),
     ],
     server: {
-      port: 3000,
+      port: Number(process.env.VITE_PORT) || 3000,
       proxy: {
         '/api': {
           target: apiTarget,

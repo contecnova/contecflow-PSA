@@ -492,6 +492,7 @@ def get_approval_stats(db: Session, current_user: User) -> dict:
 # ── Private helpers ────────────────────────────────────────────────────────────
 
 def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> bool:
+    # Solo autoriza si el usuario está explícitamente configurado como aprobador
     if step.approver_type == "user" and step.approver_user_id == current_user.id:
         return True
     if step.approver_type == "role" and hasattr(current_user.role, "value"):
@@ -504,6 +505,7 @@ def _is_authorized(step, current_user: User, requested_by: str, db: Session) -> 
     if step.approver_type == "any_in_department":
         if current_user.department == step.approver_department:
             return True
+    # No bypass para admin: debe estar configurado explícitamente
     return False
 
 
@@ -607,87 +609,6 @@ def serialize_approval_request(r) -> dict:
 # TIMEOUT PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def process_approval_timeouts(db: Session) -> dict:
-    """
-    Scan all pending ApprovalRequests and apply the configured on_timeout action
-    (escalate | auto_approve | reject) for every step that has exceeded its
-    timeout_hours budget.  Returns a summary dict.
-    """
-
-    now = datetime.now(timezone.utc)
-    pending = (
-        db.query(ApprovalRequest)
-        .filter(
-            ApprovalRequest.status == "pending",
-            ApprovalRequest.step_started_at.isnot(None),
-        )
-        .all()
-    )
-
-    processed = escalated = auto_approved = rejected = 0
-
-    for req in pending:
-        step = (
-            db.query(ApprovalStep)
-            .filter(
-                ApprovalStep.workflow_id == req.workflow_id,
-                ApprovalStep.step_order == req.current_step,
-            )
-            .first()
-        )
-        if not step:
-            continue
-
-        timeout_hours = step.timeout_hours or 72
-        deadline = req.step_started_at + timedelta(hours=timeout_hours)
-        if now < deadline:
-            continue
-
-        processed += 1
-        action = step.on_timeout or "escalate"
-
-        if action == "auto_approve":
-            wf = db.query(ApprovalWorkflow).options(
-                joinedload(ApprovalWorkflow.steps)
-            ).filter(ApprovalWorkflow.id == req.workflow_id).first()
-            next_steps = []
-            if wf:
-                next_steps = sorted(
-                    [s for s in wf.steps if s.step_order > req.current_step and not s.is_optional],
-                    key=lambda s: s.step_order,
-                )
-            if next_steps:
-                req.current_step = next_steps[0].step_order
-                req.step_started_at = now
-            else:
-                req.status = "approved"
-                req.final_decision = "approved"
-                req.completed_at = now
-            auto_approved += 1
-
-        elif action == "reject":
-            req.status = "rejected"
-            req.final_decision = "rejected"
-            req.final_note = f"Auto-rejected: step {req.current_step} timed out after {timeout_hours}h"
-            req.completed_at = now
-            rejected += 1
-
-        else:  # escalate (default)
-            if step.escalate_to_user_id:
-                req.step_started_at = now
-                notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
-            else:
-                req.status = "rejected"
-                req.final_decision = "rejected"
-                req.final_note = (
-                    f"Auto-rejected: step {req.current_step} timed out and no escalatee configured"
-                )
-                req.completed_at = now
-            escalated += 1
-
-    db.commit()
-    return {
-        "processed": processed,
         "escalated": escalated,
         "auto_approved": auto_approved,
         "rejected": rejected,

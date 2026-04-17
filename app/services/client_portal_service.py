@@ -48,10 +48,10 @@ from sqlalchemy.orm import joinedload
 
 logger = logging.getLogger("clarive.client_portal")
 
-CLIENT_TOKEN_EXPIRE_HOURS = 72
+CLIENT_TOKEN_EXPIRE_HOURS = getattr(settings, "CLIENT_TOKEN_EXPIRE_HOURS", 72)
 CLIENT_TOKEN_SECRET = settings.CLIENT_PORTAL_SECRET
-PORTAL_SHARE_LINK_EXPIRE_HOURS = 72
-ALGORITHM = "HS256"
+PORTAL_SHARE_LINK_EXPIRE_HOURS = getattr(settings, "PORTAL_SHARE_LINK_EXPIRE_HOURS", 72)
+ALGORITHM = getattr(settings, "JWT_ALGORITHM", "HS256")
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────

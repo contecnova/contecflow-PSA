@@ -80,16 +80,17 @@ export function ClientSelect({ value = '', onChange, placeholder = 'Seleccionar 
  * @param {boolean}  required    - whether the field is required
  * @param {object}   style       - override styles
  */
-export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar usuario…', filterRole, required = false, style }) {
+export function UserSelect({ value = '', onChange, placeholder = 'Seleccionar usuario…', filterRole, required = false, style, filterFn }) {
   const { data: rawUsers = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
     staleTime: 2 * 60 * 1000,
   })
 
-  const users = filterRole
+  let users = filterRole
     ? rawUsers.filter(u => u.role === filterRole && u.is_active !== false)
     : rawUsers.filter(u => u.is_active !== false)
+  if (filterFn) users = users.filter(filterFn)
 
   const handleChange = (e) => {
     const id = e.target.value

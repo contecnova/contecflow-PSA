@@ -20,33 +20,38 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Update column defaults on the table to new calibrated values
+    # Usar valores de calibración desde variables de entorno si existen
+    import os
+    threshold_critical = os.getenv("SEM_THRESHOLD_CRITICAL", "0.90")
+    threshold_high = os.getenv("SEM_THRESHOLD_HIGH", "0.72")
+    threshold_medium = os.getenv("SEM_THRESHOLD_MEDIUM", "0.58")
+
     with op.batch_alter_table("sem_config") as batch_op:
         batch_op.alter_column(
             "threshold_critical",
             existing_type=sa.Float(),
-            server_default="0.90",
+            server_default=threshold_critical,
         )
         batch_op.alter_column(
             "threshold_high",
             existing_type=sa.Float(),
-            server_default="0.72",
+            server_default=threshold_high,
         )
         batch_op.alter_column(
             "threshold_medium",
             existing_type=sa.Float(),
-            server_default="0.58",
+            server_default=threshold_medium,
         )
 
     # Update any existing rows that still have the old default values
     op.execute(
-        "UPDATE sem_config SET threshold_critical = 0.90 WHERE threshold_critical = 0.80"
+        f"UPDATE sem_config SET threshold_critical = {threshold_critical} WHERE threshold_critical = 0.80"
     )
     op.execute(
-        "UPDATE sem_config SET threshold_high = 0.72 WHERE threshold_high = 0.70"
+        f"UPDATE sem_config SET threshold_high = {threshold_high} WHERE threshold_high = 0.70"
     )
     op.execute(
-        "UPDATE sem_config SET threshold_medium = 0.58 WHERE threshold_medium = 0.55"
+        f"UPDATE sem_config SET threshold_medium = {threshold_medium} WHERE threshold_medium = 0.55"
     )
 
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -26,11 +26,67 @@ const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review:
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const TASK_STATUSES = STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] }))
 
-function KanbanColumn({ status, tasks, onTaskClick }) {
+function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
+  const wasDragged = useRef(false)
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${task.title} — ${STATUS_LABELS[task.status] || task.status}`}
+      onMouseDown={e => {
+        if (e.button !== 0) return
+        wasDragged.current = false
+        onTaskDragStart && onTaskDragStart(e, task, () => { wasDragged.current = true })
+      }}
+      onClick={() => { if (!wasDragged.current) onTaskClick(task) }}
+      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onTaskClick(task)}
+      style={{
+        background: 'var(--surface-2)', border: `1px solid ${task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}`,
+        borderRadius: 10, padding: '14px 16px', cursor: 'grab', transition: 'all 0.15s', userSelect: 'none',
+      }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(79,142,247,0.4)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-start' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{task.code}</span>
+        <Badge label={task.priority} />
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, lineHeight: 1.4 }}>{task.title}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {task.assignee ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Avatar name={task.assignee.full_name} size={22} />
+            <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{task.assignee.full_name.split(' ')[0]}</span>
+          </div>
+        ) : <span />}
+        {task.estimated_hours && (
+          <span style={{ fontSize: 11, color: task.real_hours > task.estimated_hours ? 'var(--danger)' : 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
+            {task.real_hours?.toFixed(1) ?? 0}h / {task.estimated_hours}h
+          </span>
+        )}
+      </div>
+      {task.due_date && (
+        <div style={{ marginTop: 8, fontSize: 11, color: new Date(task.due_date) < new Date() && task.status !== 'done' ? 'var(--danger)' : 'var(--text-2)' }}>
+          📅 {fmtDate(task.due_date)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnter, onColumnLeave, dragOver }) {
   const colors = { todo: 'var(--text-2)', in_progress: 'var(--accent)', blocked: 'var(--danger)', review: 'var(--warning)', done: 'var(--success)' }
   const color = colors[status]
   return (
-    <div style={{ minWidth: 240, flex: 1 }}>
+    <div
+      onMouseEnter={onColumnEnter}
+      onMouseLeave={onColumnLeave}
+      style={{
+        minWidth: 240, flex: 1,
+        background: dragOver ? 'rgba(79,142,247,0.06)' : 'transparent',
+        borderRadius: 12, border: `1px solid ${dragOver ? 'rgba(79,142,247,0.35)' : 'transparent'}`,
+        padding: 8, transition: 'background 0.15s, border-color 0.15s',
+      }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
@@ -42,44 +98,12 @@ function KanbanColumn({ status, tasks, onTaskClick }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {tasks.map(task => (
-          <div
+          <TaskKanbanCard
             key={task.id}
-            role="button"
-            tabIndex={0}
-            aria-label={`${task.title} — ${STATUS_LABELS[task.status] || task.status}`}
-            onClick={() => onTaskClick(task)}
-            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onTaskClick(task)}
-            style={{
-              background: 'var(--surface-2)', border: `1px solid ${task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}`,
-              borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(79,142,247,0.4)'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = task.status === 'blocked' ? 'var(--danger-border)' : 'var(--surface-4)'}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-start' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{task.code}</span>
-              <Badge label={task.priority} />
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, lineHeight: 1.4 }}>{task.title}</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              {task.assignee ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Avatar name={task.assignee.full_name} size={22} />
-                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{task.assignee.full_name.split(' ')[0]}</span>
-                </div>
-              ) : <span />}
-              {task.estimated_hours && (
-                <span style={{ fontSize: 11, color: task.real_hours > task.estimated_hours ? 'var(--danger)' : 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
-                  {task.real_hours?.toFixed(1) ?? 0}h / {task.estimated_hours}h
-                </span>
-              )}
-            </div>
-            {task.due_date && (
-              <div style={{ marginTop: 8, fontSize: 11, color: new Date(task.due_date) < new Date() && task.status !== 'done' ? 'var(--danger)' : 'var(--text-2)' }}>
-                📅 {fmtDate(task.due_date)}
-              </div>
-            )}
-          </div>
+            task={task}
+            onTaskClick={onTaskClick}
+            onTaskDragStart={onTaskDragStart}
+          />
         ))}
       </div>
     </div>
@@ -149,13 +173,13 @@ function TaskDetailModal({ task, open, onClose }) {
       }
     },
     onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); setIsEditing(false); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: deleteTask, isPending: deleting } = useMutation({
     mutationFn: () => tasksApi.delete(task.id),
     onSuccess: () => { qc.invalidateQueries(['tasks']); qc.invalidateQueries(['dash-my-tasks']); qc.invalidateQueries(['dash-overdue-tasks']); qc.invalidateQueries(['cal-tasks']); qc.invalidateQueries(['kanban-board']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: e => toast.error(extractErr(e, t('common.error'))),
   })
 
   const { mutate: addComment, isPending: commenting } = useMutation({
@@ -330,7 +354,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Footer actions */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTop: '1px solid #1e2d45' }}>
-            <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta tarea?', onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
+            <button onClick={() => { openConfirmGlobal({ message: `${t('common.are_you_sure')} ${t('common.delete')}?`, onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
@@ -490,7 +514,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Acciones edición */}
           <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-            <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta tarea?', onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
+            <button onClick={() => { openConfirmGlobal({ message: `${t('common.are_you_sure')} ${t('common.delete')}?`, onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
@@ -553,6 +577,81 @@ export default function TasksPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [view, setView] = useState('kanban')
+
+  // ── Kanban drag-and-drop state ────────────────────────────────────────────
+  const dragTask      = useRef(null)
+  const ghostRef      = useRef(null)
+  const dropTargetRef = useRef(null)
+  const [dropTarget, setDropTarget] = useState(null)
+
+  const cleanupGhost = useCallback(() => {
+    if (ghostRef.current) { ghostRef.current.remove(); ghostRef.current = null }
+  }, [])
+
+  const { mutate: moveTaskStatus } = useMutation({
+    mutationFn: ({ id, status }) => api.patch(`/tasks/${id}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries(['tasks'])
+      qc.invalidateQueries(['kanban-board'])
+    },
+    onError: e => toast.error(e?.response?.data?.detail || 'Error al mover tarea'),
+  })
+
+  const handleTaskDragStart = useCallback((e, task, onDragStarted) => {
+    const startX = e.clientX
+    const startY = e.clientY
+    let dragging = false
+
+    const onMove = ev => {
+      if (!dragging) {
+        const dx = ev.clientX - startX
+        const dy = ev.clientY - startY
+        if (Math.sqrt(dx * dx + dy * dy) < 5) return
+        dragging = true
+        dragTask.current = task
+        onDragStarted()
+        const ghost = document.createElement('div')
+        ghost.textContent = task.title
+        Object.assign(ghost.style, {
+          position: 'fixed', zIndex: 9999, pointerEvents: 'none',
+          background: '#0d1424', border: '1px solid #4f8ef7',
+          borderRadius: '8px', padding: '8px 12px',
+          color: '#e8f0fe', fontSize: '12px', fontFamily: 'var(--font-sans)',
+          maxWidth: '220px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          opacity: '0.9', left: ev.clientX + 12 + 'px', top: ev.clientY + 12 + 'px',
+        })
+        document.body.appendChild(ghost)
+        ghostRef.current = ghost
+      } else if (ghostRef.current) {
+        ghostRef.current.style.left = ev.clientX + 12 + 'px'
+        ghostRef.current.style.top  = ev.clientY + 12 + 'px'
+      }
+    }
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      cleanupGhost()
+      if (dragging) {
+        const target = dropTargetRef.current
+        if (dragTask.current && target && dragTask.current.status !== target) {
+          moveTaskStatus({ id: dragTask.current.id, status: target })
+        }
+      }
+      dragTask.current = null
+      dropTargetRef.current = null
+      setDropTarget(null)
+    }
+
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [moveTaskStatus, cleanupGhost])
+
+  const handleColumnEnter = useCallback((status) => {
+    dropTargetRef.current = status
+    setDropTarget(status)
+  }, [])
+  const handleColumnLeave = useCallback(() => {}, [])
   const [projectFilter, setProjectFilter] = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
   const [search, setSearch]               = useState('')
@@ -722,7 +821,7 @@ export default function TasksPage() {
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
           flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-            ☑ {selected.size} {selected.size !== 1 ? t('tasks.status_done') : t('tasks.col_task')}
+            ☑ {selected.size} {t('tasks.selected')}
           </span>
           <div style={{ width: 1, height: 20, background: 'var(--surface-4)' }} />
           <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
@@ -772,6 +871,10 @@ export default function TasksPage() {
                   (!priorityFilter || t.priority === priorityFilter)
                 )}
                 onTaskClick={setSelectedTask}
+                onTaskDragStart={handleTaskDragStart}
+                onColumnEnter={() => handleColumnEnter(status)}
+                onColumnLeave={handleColumnLeave}
+                dragOver={dropTarget === status}
               />
             ))}
           </div>
@@ -782,7 +885,7 @@ export default function TasksPage() {
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 12, color: 'var(--text-2)' }}>
-                💡 Selecciona un proyecto para ver el tablero Kanban · Mostrando {flatTasks.length} tareas
+                💡 {t('tasks.select_project')} · {flatTasks.length} {t('tasks.col_task')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
@@ -1082,20 +1185,20 @@ function CreateTaskModal({ open, onClose, projects }) {
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (
           <div style={{ gridColumn: '1/-1', borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
-            <label style={{ ...ls, marginBottom: 10 }}>Campos personalizados</label>
+            <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {customFields.map(f => (
                 <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
                   <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                   {f.field_type === 'select' ? (
                     <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
-                      <option value="">Seleccionar...</option>
+                      <option value="">{t('tasks.select_option')}</option>
                       {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                   ) : f.field_type === 'boolean' ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
                       <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                      <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? 'Sí' : 'No'}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                     </div>
                   ) : (
                     <input

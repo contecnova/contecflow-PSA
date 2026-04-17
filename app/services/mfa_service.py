@@ -1,9 +1,31 @@
+# coding: utf-8
+from __future__ import annotations
+# Quitar usuario de organización
+def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise ValueError("404:Organización no encontrada")
+    user = db.query(User).filter(User.id == user_id, User.organization_id == org_id).first()
+    if not user:
+        raise ValueError("404:Usuario no encontrado en esta organización")
+    user_count = db.query(func.count(User.id)).filter(User.organization_id == org_id).scalar()
+    if user_count <= 1:
+        raise ValueError("No puedes quitar el último usuario de la organización")
+    user.organization_id = None
+    db.commit()
+    audit_log(db, user, "ORG_REMOVE", "organizations", org.id, f"Desvinculado de organización {org.name}")
+    # Emitir evento para orquestación
+    try:
+        from app.services.notifications import emit_system_event
+        emit_system_event("organization.user_removed", {"org_id": org.id, "user_id": user.id})
+    except Exception:
+        pass
+    return {"ok": True, "user": user.full_name, "org": org.name}
 """
 mfa_service — business logic extracted from app/api/v1/endpoints/mfa.py
 Covers: MFA TOTP, organizations, Slack/Teams, budgets, AI estimation,
         AI triage, scenario planning, PDF export, BI tokens.
 """
-from __future__ import annotations
 
 import io
 import json
@@ -883,9 +905,23 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise ValueError("404:Usuario no encontrado")
+    if user.is_active is False:
+        raise ValueError("No puedes asignar usuarios inactivos")
+    if user.organization_id and user.organization_id != org_id:
+        raise ValueError("El usuario ya pertenece a otra organización")
     check_org_user_limit(org, db)
+    # Evita duplicados
+    if user.organization_id == org_id:
+        raise ValueError("El usuario ya está asignado a esta organización")
     user.organization_id = org_id
     db.commit()
+    audit_log(db, user, "ORG_ASSIGN", "organizations", org.id, f"Asignado a organización {org.name}")
+    # Emitir evento para orquestación
+    try:
+        from app.services.notifications import emit_system_event
+        emit_system_event("organization.user_assigned", {"org_id": org.id, "user_id": user.id})
+    except Exception:
+        pass
     return {"ok": True, "user": user.full_name, "org": org.name}
 
 

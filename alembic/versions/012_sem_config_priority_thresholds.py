@@ -19,25 +19,32 @@ depends_on = None
 
 
 def upgrade() -> None:
+    import os
+    threshold_critical = os.getenv("SEM_THRESHOLD_CRITICAL", "0.80")
+    threshold_high = os.getenv("SEM_THRESHOLD_HIGH", "0.70")
+    threshold_medium = os.getenv("SEM_THRESHOLD_MEDIUM", "0.55")
+    threshold_low = os.getenv("SEM_THRESHOLD_LOW", "0.45")
+    history_decay_days = os.getenv("SEM_HISTORY_DECAY_DAYS", "90.0")
+
     op.add_column(
         "sem_config",
-        sa.Column("threshold_critical", sa.Float(), nullable=True, server_default="0.80"),
+        sa.Column("threshold_critical", sa.Float(), nullable=True, server_default=threshold_critical),
     )
     op.add_column(
         "sem_config",
-        sa.Column("threshold_high", sa.Float(), nullable=True, server_default="0.70"),
+        sa.Column("threshold_high", sa.Float(), nullable=True, server_default=threshold_high),
     )
     op.add_column(
         "sem_config",
-        sa.Column("threshold_medium", sa.Float(), nullable=True, server_default="0.55"),
+        sa.Column("threshold_medium", sa.Float(), nullable=True, server_default=threshold_medium),
     )
     op.add_column(
         "sem_config",
-        sa.Column("threshold_low", sa.Float(), nullable=True, server_default="0.45"),
+        sa.Column("threshold_low", sa.Float(), nullable=True, server_default=threshold_low),
     )
     op.add_column(
         "sem_config",
-        sa.Column("history_decay_days", sa.Float(), nullable=True, server_default="90.0"),
+        sa.Column("history_decay_days", sa.Float(), nullable=True, server_default=history_decay_days),
     )
 
 

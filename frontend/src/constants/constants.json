@@ -1,0 +1,64 @@
+{
+  "ROLES": [
+    {"value": "admin", "label": "Administrador"},
+    {"value": "pm", "label": "Project Manager"},
+    {"value": "team_lead", "label": "Team Lead"},
+    {"value": "developer", "label": "Desarrollador"},
+    {"value": "employee", "label": "Empleado"},
+    {"value": "hr", "label": "RRHH"},
+    {"value": "client", "label": "Cliente"}
+  ],
+  "PROJECT_TYPES": [
+    {"value": "consulting", "label": "Consultoría"},
+    {"value": "development", "label": "Desarrollo"},
+    {"value": "managed", "label": "Servicios gestionados"},
+    {"value": "internal", "label": "Proyecto interno"},
+    {"value": "training", "label": "Formación"},
+    {"value": "research", "label": "Investigación"}
+  ],
+  "BILLING_TYPES": [
+    {"value": "time_material", "label": "Tiempo y materiales"},
+    {"value": "fixed_price", "label": "Precio fijo"},
+    {"value": "hourly_bag", "label": "Bolsa de horas"},
+    {"value": "recurring_retainer", "label": "Retainer recurrente"},
+    {"value": "retainer", "label": "Retainer mensual"},
+    {"value": "milestone", "label": "Por hitos"}
+  ],
+  "TASK_PRIORITIES": [
+    {"value": "low", "label": "Baja"},
+    {"value": "medium", "label": "Media"},
+    {"value": "high", "label": "Alta"},
+    {"value": "critical", "label": "Crítica"}
+  ],
+  "TASK_STATUSES": [
+    {"value": "backlog", "label": "Backlog"},
+    {"value": "todo", "label": "Por hacer"},
+    {"value": "in_progress", "label": "En progreso"},
+    {"value": "review", "label": "En revisión"},
+    {"value": "done", "label": "Hecho"},
+    {"value": "blocked", "label": "Bloqueado"},
+    {"value": "cancelled", "label": "Cancelado"}
+  ],
+  "TICKET_TYPES": [
+    {"value": "incident", "label": "Incidencia", "icon": "🔴"},
+    {"value": "service_request", "label": "Solicitud", "icon": "🔵"},
+    {"value": "change", "label": "Cambio", "icon": "🟡"},
+    {"value": "question", "label": "Consulta", "icon": "⚪"},
+    {"value": "problem", "label": "Problema", "icon": "🟠"}
+  ],
+  "SLA_LEVELS": [
+    {"value": "l1", "label": "L1 — Soporte básico"},
+    {"value": "l2", "label": "L2 — Soporte técnico"},
+    {"value": "l3", "label": "L3 — Desarrollo / Experto"}
+  ],
+  "PROVIDER_DOCS": {
+    "anthropic": "https://console.anthropic.com",
+    "openai": "https://platform.openai.com",
+    "gemini": "https://aistudio.google.com",
+    "deepseek": "https://platform.deepseek.com",
+    "groq": "https://console.groq.com",
+    "mistral": "https://console.mistral.ai",
+    "ollama": "https://ollama.com",
+    "azure": "https://oai.azure.com"
+  }
+}
