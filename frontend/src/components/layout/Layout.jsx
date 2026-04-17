@@ -141,10 +141,18 @@ const LAYOUT_TEXT = {
   es: {
     shortcuts: 'Atajos',
     keyboard_shortcuts: 'Atajos de teclado',
+    shortcuts_hint: 'Pulsa',
+    shortcuts_hint_suffix: 'para ver atajos',
+    close: 'Cerrar',
     filter_menu: 'Filtrar menu...',
+    filter_menu_aria: 'Filtrar elementos del menú',
+    clear_search_aria: 'Borrar búsqueda',
     no_results: 'Sin resultados',
     quick_access: 'Acceso rapido',
     favorites: 'Favoritos',
+    add_favorite: 'Añadir a favoritos',
+    remove_favorite: 'Quitar de favoritos',
+    personalize_hint: 'Arrastra para personalizar',
     recent: 'Recientes',
     workspace: 'Workspace',
     workspace_all: 'Todo',
@@ -159,14 +167,34 @@ const LAYOUT_TEXT = {
     global_search_title: 'Búsqueda global (⌘K)',
     open_global_search: 'Abrir búsqueda global',
     search_placeholder: 'Buscar...',
+    ai_title: 'NexusAgent IA',
+    open_ai: 'Abrir asistente IA',
+    ai_short: 'Nexus',
+    active_alerts_title: 'Alertas activas: {count}',
+    pending_approvals_title: 'Aprobaciones pendientes: {count}',
+    skip_to_content: 'Ir al contenido',
+    main_navigation: 'Navegación principal',
+    side_menu: 'Menú lateral',
+    expand_sidebar: 'Expandir menú',
+    collapse_sidebar: 'Colapsar menú',
+    main_content: 'Contenido principal',
+    open_menu: 'Abrir menú',
   },
   en: {
     shortcuts: 'Shortcuts',
     keyboard_shortcuts: 'Keyboard shortcuts',
+    shortcuts_hint: 'Press',
+    shortcuts_hint_suffix: 'to see shortcuts',
+    close: 'Close',
     filter_menu: 'Filter menu...',
+    filter_menu_aria: 'Filter menu items',
+    clear_search_aria: 'Clear search',
     no_results: 'No results',
     quick_access: 'Quick access',
     favorites: 'Favorites',
+    add_favorite: 'Add to favorites',
+    remove_favorite: 'Remove from favorites',
+    personalize_hint: 'Drag to personalize',
     recent: 'Recent',
     workspace: 'Workspace',
     workspace_all: 'All',
@@ -181,6 +209,18 @@ const LAYOUT_TEXT = {
     global_search_title: 'Global search (⌘K)',
     open_global_search: 'Open global search',
     search_placeholder: 'Search...',
+    ai_title: 'NexusAgent AI',
+    open_ai: 'Open AI assistant',
+    ai_short: 'Nexus',
+    active_alerts_title: 'Active alerts: {count}',
+    pending_approvals_title: 'Pending approvals: {count}',
+    skip_to_content: 'Skip to content',
+    main_navigation: 'Main navigation',
+    side_menu: 'Side menu',
+    expand_sidebar: 'Expand menu',
+    collapse_sidebar: 'Collapse menu',
+    main_content: 'Main content',
+    open_menu: 'Open menu',
   },
 }
 
@@ -672,7 +712,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
               background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
               borderRadius: 8, color: 'var(--danger)', textDecoration: 'none',
               fontSize: 12, fontWeight: 600 }}
-            title={text.active_alerts_title.replace('{count}', alertCount)}
+            title={(text.active_alerts_title || '{count} alertas').replace('{count}', alertCount)}
           >
             <Bell size={13} /><span>{alertCount}</span>
           </NavLink>
@@ -683,7 +723,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
               background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
               borderRadius: 8, color: 'var(--warning)', textDecoration: 'none',
               fontSize: 12, fontWeight: 600 }}
-            title={text.pending_approvals_title.replace('{count}', approvalCount)}
+            title={(text.pending_approvals_title || '{count} aprobaciones').replace('{count}', approvalCount)}
           >
             <CheckCircle size={13} /><span>{approvalCount}</span>
           </NavLink>
@@ -905,7 +945,7 @@ export default function Layout({ children }) {
   const _setDensity = (d) => save({ ui_density: d })
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--surface-0)' }}>
       <a href="#main-content" className="skip-nav">{text.skip_to_content}</a>
 
       <aside aria-label={text.main_navigation} role="navigation"
@@ -1080,8 +1120,8 @@ export default function Layout({ children }) {
       )}
 
       <main id="main-content" aria-label={text.main_content} role="main"
-        className="app-main-shell flex min-h-screen min-w-0 flex-1 flex-col"
-        style={{ overflow: 'auto' }}>
+        className="app-main-shell"
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}>
         <button className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
           aria-label={text.open_menu}
           style={{
