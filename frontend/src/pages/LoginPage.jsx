@@ -167,7 +167,11 @@ export default function LoginPage() {
             {t('login.welcome_subtitle')}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <form
+            onSubmit={e => { e.preventDefault(); mode === 'login' ? handleSubmit() : (mode === 'forgot' ? handleForgotPassword() : handleResetPassword()) }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
+            noValidate
+          >
             {mode === 'login' && (
               <>
                 <div className="form-group">
@@ -281,7 +285,7 @@ export default function LoginPage() {
             )}
 
             <button
-              onClick={mode === 'login' ? handleSubmit : (mode === 'forgot' ? handleForgotPassword : handleResetPassword)}
+              type="submit"
               disabled={loading}
               className="btn-primary"
               style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: 14, fontWeight: 700 }}
@@ -316,7 +320,7 @@ export default function LoginPage() {
                 </button>
               )}
             </div>
-          </div>
+          </form>
 
           <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 11, marginTop: 28, lineHeight: 1.5 }}>
             {t('login.ad_note')}
