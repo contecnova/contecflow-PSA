@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# Clarive PSA — Script de despliegue para servidor propio
+# Contecflow PSA — Script de despliegue para servidor propio
 # Uso: ./scripts/deploy.sh [staging|production]
 #
 # Variables de entorno requeridas (o en .env del directorio de despliegue):
 #   GHCR_TOKEN       — GitHub personal access token (read:packages)
 #   GHCR_USER        — GitHub username / org
-#   BACKEND_IMAGE    — ghcr.io/<org>/clarive-backend:latest
-#   FRONTEND_IMAGE   — ghcr.io/<org>/clarive-frontend:latest
+#   BACKEND_IMAGE    — ghcr.io/<org>/contecflow-backend:latest
+#   FRONTEND_IMAGE   — ghcr.io/<org>/contecflow-frontend:latest
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
 ENVIRONMENT=${1:-staging}
-DEPLOY_DIR="/opt/clarive"
-LOG_FILE="/var/log/clarive-deploy.log"
+DEPLOY_DIR="/opt/contecflow"
+LOG_FILE="/var/log/contecflow-deploy.log"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 log()  { echo -e "${GREEN}[$(date '+%H:%M:%S')] ✅ $1${NC}" | tee -a "$LOG_FILE" 2>/dev/null || echo "✅ $1"; }
 warn() { echo -e "${YELLOW}[$(date '+%H:%M:%S')] ⚠  $1${NC}" | tee -a "$LOG_FILE" 2>/dev/null || echo "⚠  $1"; }
 err()  { echo -e "${RED}[$(date '+%H:%M:%S')] ✗  $1${NC}"; exit 1; }
 
-log "Iniciando despliegue Clarive PSA → ${ENVIRONMENT}"
+log "Iniciando despliegue Contecflow PSA → ${ENVIRONMENT}"
 
 command -v docker  >/dev/null || err "Docker no instalado"
 docker compose version >/dev/null 2>&1 || err "Docker Compose no instalado"
-[[ -d "$DEPLOY_DIR" ]]      || err "Directorio $DEPLOY_DIR no existe. Crea /opt/clarive y configura .env"
+[[ -d "$DEPLOY_DIR" ]]      || err "Directorio $DEPLOY_DIR no existe. Crea /opt/contecflow y configura .env"
 [[ -f "$DEPLOY_DIR/.env" ]] || err "Archivo .env no encontrado en $DEPLOY_DIR"
 cd "$DEPLOY_DIR"
 
@@ -41,7 +41,7 @@ if [[ "$ENVIRONMENT" == "production" ]]; then
   mkdir -p backups
   BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
   docker compose exec -T db pg_dump \
-    -U "${POSTGRES_USER:-clarive}" "${POSTGRES_DB:-clarive}" \
+    -U "${POSTGRES_USER:-contecflow}" "${POSTGRES_DB:-contecflow}" \
     > "backups/$BACKUP_FILE" 2>/dev/null \
     && log "Backup: backups/$BACKUP_FILE" \
     || warn "Backup omitido (BD puede no estar corriendo)"

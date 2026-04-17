@@ -100,5 +100,3 @@ api_router.include_router(currency_sync.router)
 api_router.include_router(currency_rates.router)
 api_router.include_router(salesforce_sync.router)
 api_router.include_router(slack_block_kit.router)
-api_router.include_router(v238_features.router,  tags=["Legacy Features v23.8"], deprecated=True)  # Use /api/v2/v238 for new integrations
-api_router.include_router(v239_features.router,  tags=["Legacy Features v23.9"], deprecated=True)  # Use /api/v2/v239 for new integrations

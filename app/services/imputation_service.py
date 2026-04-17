@@ -518,7 +518,52 @@ def get_current_timer_record(db: Session, current_user: User):
 
 
 def update_imputation_fields(imp, payload, db: Session):
-    """Apply field updates from payload and recompute cost if hours changed. Commits."""
+    """Apply field updates from payload and recompute cost if hours changed. Commits. Valida límites diarios y semanales."""
+    from app.models.user import User as UserModel
+    from app.models.imputation import Imputation
+    from sqlalchemy import func, and_
+    from datetime import timedelta
+    from fastapi import HTTPException
+
+    # Obtener usuario actual de la imputación
+    user = db.query(UserModel).filter(UserModel.id == imp.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado para la imputación")
+
+    # Si se va a cambiar horas, validar límites
+    new_hours = payload.hours if payload.hours is not None else imp.hours
+    imputation_date = imp.date
+    # Límite diario: sumar todas las imputaciones del usuario ese día, excepto la actual
+    existing_hours = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == user.id,
+        Imputation.date == imputation_date,
+        Imputation.id != imp.id
+    ).scalar() or 0.0
+    if existing_hours + new_hours > 24:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}."
+        )
+
+    # Límite semanal: sumar todas las imputaciones del usuario esa semana, excepto la actual
+    week_start = imputation_date - timedelta(days=imputation_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    weekly_hours = db.query(func.sum(Imputation.hours)).filter(
+        and_(
+            Imputation.user_id == user.id,
+            Imputation.date >= week_start,
+            Imputation.date <= week_end,
+            Imputation.id != imp.id
+        )
+    ).scalar() or 0.0
+    weekly_capacity = user.weekly_capacity_hours or 40.0
+    if weekly_hours + new_hours > weekly_capacity:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {new_hours}h."
+        )
+
+    # Aplicar cambios
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(imp, field, value)
     if payload.hours is not None:

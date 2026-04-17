@@ -245,10 +245,9 @@ def close_sprint_flow(db: Session, project_id: str, sprint_id: str) -> dict:
     sprint.velocity = round(sprint.completed_points / duration_weeks, 1)
 
     incomplete = [st for st in sprint.sprint_tasks if st.task and st.task.status != "done"]
-    # Mover tareas incompletas al backlog (status = 'backlog') y desvincular del sprint
+    # Mover tareas incompletas al backlog (status = 'backlog')
     for st in incomplete:
         st.task.status = "backlog"
-        db.delete(st)  # elimina la relación SprintTask, no la tarea
 
     db.commit()
     return {

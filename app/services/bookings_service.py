@@ -244,6 +244,14 @@ def get_bookings_heatmap(weeks: int, org_id, db) -> dict:
 
 
 def create_booking_record(payload, created_by_id, db) -> dict:
+    # Validación de solapamiento de reservas para el mismo usuario y recurso
+    overlap = db.query(ResourceBooking).filter(
+        ResourceBooking.user_id == payload.user_id,
+        ResourceBooking.start_date <= payload.end_date,
+        ResourceBooking.end_date >= payload.start_date,
+    ).first()
+    if overlap:
+        raise HTTPException(400, "Ya existe una reserva solapada para este usuario en las fechas indicadas.")
     if payload.end_date < payload.start_date:
         raise HTTPException(400, "La fecha fin no puede ser anterior al inicio")
     days = (payload.end_date - payload.start_date).days + 1

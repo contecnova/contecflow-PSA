@@ -86,7 +86,7 @@ find . \
 
 # 3) Bases locales de desarrollo
 echo "[clean] Eliminando DB local de desarrollo..."
-rm -f ./clarive.db ./clarive_legacy.db
+rm -f ./contecflow.db ./contecflow_legacy.db
 
 # 4) Limpieza opcional de uploads locales
 if [[ "$PURGE_UPLOADS" -eq 1 ]]; then

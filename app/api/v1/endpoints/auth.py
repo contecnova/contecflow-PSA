@@ -1248,8 +1248,14 @@ def mfa_disable(
         return {"ok": True, "message": "TOTP desactivado. Tu cuenta mantiene protección con passkeys."}
     return {"ok": True, "message": "2FA desactivado"}
 
+
+from fastapi import Request
+from app.services.auth_service import read_mfa_challenge
+
 @router.post("/change-password", summary="Cambiar contraseña propia")
+@limiter.limit("5/minute")
 def change_password(
+    request: Request,
     payload: dict = Body(default={}),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -1257,6 +1263,16 @@ def change_password(
     from app.core.security import verify_password, get_password_hash
     current_pw = payload.get("current_password")
     new_pw     = payload.get("new_password")
+    mfa_token  = payload.get("mfa_challenge_token")
+    # Si el usuario tiene MFA activo, requerimos challenge reciente
+    if current_user.mfa_enabled:
+        if not mfa_token:
+            raise HTTPException(401, "Debes completar un challenge MFA para cambiar la contraseña")
+        try:
+            challenge_data, challenge_row = read_mfa_challenge(db, mfa_token)
+        except Exception as e:
+            raise HTTPException(401, f"MFA inválido: {str(e)}")
+        # Consumo challenge (ya lo hace read_mfa_challenge)
     if not current_pw or not new_pw:
         raise HTTPException(400, "current_password y new_password son obligatorios")
     ok, err = validate_password_policy(new_pw)

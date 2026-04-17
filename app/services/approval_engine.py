@@ -602,14 +602,11 @@ def serialize_approval_request(r) -> dict:
             }
             for d in (r.decisions or [])
         ],
+        "escalated": getattr(r, "escalated", False),
+        "auto_approved": getattr(r, "auto_approved", False),
+        "rejected": getattr(r, "rejected", False),
     }
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TIMEOUT PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
-
-        "escalated": escalated,
-        "auto_approved": auto_approved,
-        "rejected": rejected,
-    }

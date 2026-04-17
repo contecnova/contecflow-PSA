@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-# Clarive PSA — CI local (corre el mismo pipeline que GitHub/GitLab)
+# Contecflow PSA — CI local (corre el mismo pipeline que GitHub/GitLab)
 # Uso: ./scripts/ci_local.sh
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail

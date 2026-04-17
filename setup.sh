@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================
-#  Clarive — Script de instalación y arranque
+#  Contecflow — Script de instalación y arranque
 #  Compatible: macOS y Linux
 #  Uso:
 #    ./setup.sh          → instala todo y arranca
@@ -32,11 +32,11 @@ print_banner() {
   echo ""
   echo -e "  ${CYAN}╔══════════════════════════════════════════╗${NC}"
   echo -e "  ${CYAN}║                                          ║${NC}"
-  echo -e "  ${CYAN}║   ◈  CLARIVE                             ║${NC}"
+  echo -e "  ${CYAN}║   ◈  CONTECFLOW                             ║${NC}"
   echo -e "  ${CYAN}║   Professional Services Automation       ║${NC}"
   echo -e "  ${CYAN}║                                          ║${NC}"
   echo -e "  ${CYAN}╚══════════════════════════════════════════╝${NC}"
-  echo -e "  ${BOLD}clarive2024! — Plataforma PSA Enterprise${NC}"
+  echo -e "  contecflow2024! — Plataforma PSA Enterprise${NC}"
   echo ""
 }
 
@@ -109,7 +109,7 @@ get_demo_password() {
   local pwd
   pwd=$(grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-)
   if [ -z "$pwd" ]; then
-    pwd="clarive2024!"
+    pwd="contecflow2024!"
   fi
   echo "$pwd"
 }
@@ -218,15 +218,15 @@ setup_backend() {
       PORTAL_SECRET=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
       GEN_SECRET_KEY=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_$(date +%s)")
       cat > .env << ENVEOF
-DATABASE_URL=sqlite:///./clarive.db
+DATABASE_URL=sqlite:///./contecflow.db
 SECRET_KEY=${GEN_SECRET_KEY}
 CLIENT_PORTAL_SECRET=${PORTAL_SECRET}
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=30
 ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
 SUPERADMIN_EMAIL=admin@company.com
-SUPERADMIN_PASSWORD=clarive2024!
-DEFAULT_USER_PASSWORD=clarive2024!
+SUPERADMIN_PASSWORD=contecflow2024!
+DEFAULT_USER_PASSWORD=contecflow2024!
 ANTHROPIC_API_KEY=
 NEXUS_AI_MODEL=claude-haiku-4-5
 ENVEOF
@@ -239,7 +239,7 @@ ENVEOF
       warn "${REQUIRED_VAR} no encontrado en .env — añadiendo valor por defecto"
       case "$REQUIRED_VAR" in
         CLIENT_PORTAL_SECRET)
-          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "clarive-portal-secret-change-in-production!!")
+          VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "contecflow-portal-secret-change-in-production!!")
           ;;
         SECRET_KEY)
           VAL=$($PYTHON -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32 2>/dev/null || echo "REPLACE_ME_CHANGE_THIS_NOW")
@@ -248,10 +248,10 @@ ENVEOF
           VAL="admin@company.com"
           ;;
         SUPERADMIN_PASSWORD)
-          VAL="clarive2024!"
+          VAL="contecflow2024!"
           ;;
         DEFAULT_USER_PASSWORD)
-          VAL="clarive2024!"
+          VAL="contecflow2024!"
           ;;
       esac
       echo "${REQUIRED_VAR}=${VAL}" >> .env
@@ -261,7 +261,7 @@ ENVEOF
   # Solo migrar si la BD no existe o los modelos cambiaron
   MODELS_HASH_FILE="$VENV_DIR/.models_hash"
   MODELS_HASH=$(find app/models -type f -name "*.py" 2>/dev/null | sort | hash_file_list)
-  if [ ! -f "clarive.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
+  if [ ! -f "contecflow.db" ] || [ ! -f "$MODELS_HASH_FILE" ] || [ "$(cat $MODELS_HASH_FILE)" != "$MODELS_HASH" ]; then
     log "Aplicando migraciones de base de datos..."
     "$PY_BIN" -m app.db.migrate
     echo "$MODELS_HASH" > "$MODELS_HASH_FILE"
@@ -284,7 +284,7 @@ except:
 
   if [ "$DB_OK" != "ok" ]; then
     log "Inicializando base de datos..."
-    rm -f clarive.db
+    rm -f contecflow.db
     "$PY_BIN" -m app.db.migrate
     "$PY_BIN" -m app.db.seed
   else
@@ -387,7 +387,7 @@ print('ok:' + str(updated))
 
 # ── Start services ────────────────────────────────────────────────────────────
 start_services() {
-  section "Arrancando Clarive"
+  section "Arrancando Contecflow"
   cd "$SCRIPT_DIR"
   resolve_venv_bins
   preflight_start_checks
@@ -417,7 +417,7 @@ start_services() {
     --port $BACKEND_PORT \
     --log-level info \
     --workers 1 \
-    > /tmp/clarive-backend.log 2>&1 &
+    > /tmp/contecflow-backend.log 2>&1 &
   BACKEND_PID=$!
 
   # Wait for backend to be ready
@@ -434,7 +434,7 @@ start_services() {
       echo ""
       echo -e "${RED}❌ El proceso backend murió inesperadamente.${NC}"
       echo "   Últimas líneas del log:"
-      tail -20 /tmp/clarive-backend.log
+      tail -20 /tmp/contecflow-backend.log
       exit 1
     fi
     if [ $((i % 10)) -eq 0 ]; then
@@ -448,11 +448,11 @@ start_services() {
     echo ""
     echo -e "${RED}❌ El backend no respondió en 60 segundos.${NC}"
     echo "   Revisando logs..."
-    tail -20 /tmp/clarive-backend.log
+    tail -20 /tmp/contecflow-backend.log
     echo ""
     echo -e "${YELLOW}⚠ Posibles causas:${NC}"
     echo "   1. El puerto $BACKEND_PORT ya está en uso (ejecuta: lsof -i :$BACKEND_PORT)"
-    echo "   2. Error en Python — revisa: cat /tmp/clarive-backend.log"
+    echo "   2. Error en Python — revisa: cat /tmp/contecflow-backend.log"
     echo "   3. Falta instalar dependencias — ejecuta: cd venv && pip install -r ../requirements.txt"
     exit 1
   fi
@@ -485,7 +485,7 @@ start_services() {
 
     log "Arrancando frontend en puerto $FRONTEND_PORT..."
   cd frontend
-  npm run dev -- --port $FRONTEND_PORT > /tmp/clarive-frontend.log 2>&1 &
+  npm run dev -- --port $FRONTEND_PORT > /tmp/contecflow-frontend.log 2>&1 &
   FRONTEND_PID=$!
   cd "$SCRIPT_DIR"
 
@@ -501,17 +501,17 @@ start_services() {
   done
 
   # Save PIDs
-  echo "$BACKEND_PID" > /tmp/clarive-backend.pid
-  echo "$FRONTEND_PID" > /tmp/clarive-frontend.pid
+  echo "$BACKEND_PID" > /tmp/contecflow-backend.pid
+  echo "$FRONTEND_PID" > /tmp/contecflow-frontend.pid
 
   echo ""
   echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════╗${NC}"
-  echo -e "${GREEN}${BOLD}║         Clarive listo ✓                  ║${NC}"
+  echo -e "${GREEN}${BOLD}║         Contecflow listo ✓                  ║${NC}"
   echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════╝${NC}"
   echo ""
   echo -e "  🌐 App:      ${BOLD}http://localhost:$FRONTEND_PORT${NC}"
   echo -e "  📡 API:      http://localhost:$BACKEND_PORT/api/v1/docs"
-  echo -e "  📋 Logs:     /tmp/clarive-backend.log"
+  echo -e "  📋 Logs:     /tmp/contecflow-backend.log"
   echo ""
   DEMO_PASSWORD=$(get_demo_password)
   echo -e "  ${BOLD}Usuarios de prueba:${NC}"
@@ -531,15 +531,15 @@ start_services() {
   fi
 
   # Wait and stream logs
-  trap "echo ''; log 'Parando Clarive...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
+  trap "echo ''; log 'Parando Contecflow...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
   wait $BACKEND_PID $FRONTEND_PID
 }
 
 # ── Stop services ─────────────────────────────────────────────────────────────
 stop_services() {
-  log "Parando Clarive..."
-  [ -f /tmp/clarive-backend.pid ]  && kill $(cat /tmp/clarive-backend.pid)  2>/dev/null || true
-  [ -f /tmp/clarive-frontend.pid ] && kill $(cat /tmp/clarive-frontend.pid) 2>/dev/null || true
+  log "Parando Contecflow..."
+  [ -f /tmp/contecflow-backend.pid ]  && kill $(cat /tmp/contecflow-backend.pid)  2>/dev/null || true
+  [ -f /tmp/contecflow-frontend.pid ] && kill $(cat /tmp/contecflow-frontend.pid) 2>/dev/null || true
   lsof -ti:$BACKEND_PORT  | xargs kill -9 2>/dev/null || true
   lsof -ti:$FRONTEND_PORT | xargs kill -9 2>/dev/null || true
   log "Parado"

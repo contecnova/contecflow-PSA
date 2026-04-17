@@ -6,16 +6,16 @@ RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd -r -u 1001 -g root -d /app -s /sbin/nologin clarive \
-    && chown -R clarive:root /app
+    && useradd -r -u 1001 -g root -d /app -s /sbin/nologin contecflow \
+    && chown -R contecflow:root /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN chown -R clarive:root /app
+RUN chown -R contecflow:root /app
 
-USER clarive
+USER contecflow
 
 EXPOSE 8000
 

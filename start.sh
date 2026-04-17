@@ -1,5 +1,5 @@
 #!/bin/bash
-# Clarive — Arranque en Mac/Linux (solo Python 3.12)
+# Contecflow — Arranque en Mac/Linux (solo Python 3.12)
 set -e
 GREEN='\033[0;32m'; CYAN='\033[0;36m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 log()  { echo -e "${CYAN}▶ $1${NC}"; }
@@ -71,7 +71,7 @@ setup|install)
 start|"")
   echo ""
   echo -e "  ${CYAN}╔══════════════════════════════════════════╗${NC}"
-  echo -e "  ${CYAN}║          ◈  CLARIVE  PSA                 ║${NC}"
+  echo -e "  ${CYAN}║          ◈  CONTECFLOW  PSA                 ║${NC}"
   echo -e "  ${CYAN}║   Professional Services Automation        ║${NC}"
   echo -e "  ${CYAN}╚══════════════════════════════════════════╝${NC}"
   echo ""
@@ -80,7 +80,7 @@ start|"")
   echo -e "  📡  WS:     ${CYAN}ws://localhost:8000/api/v1/ws/notifications${NC}"
   echo ""
   DEMO_PASSWORD=$(grep -E '^DEFAULT_USER_PASSWORD=' .env 2>/dev/null | tail -1 | cut -d'=' -f2-)
-  [ -z "$DEMO_PASSWORD" ] && DEMO_PASSWORD="clarive2024!"
+  [ -z "$DEMO_PASSWORD" ] && DEMO_PASSWORD="contecflow2024!"
   echo -e "  ${YELLOW}Credenciales de demo:${NC}"
   echo -e "    admin      /  ${DEMO_PASSWORD}   ${GREEN}(Administrador)${NC}"
   echo -e "    ana.torres /  ${DEMO_PASSWORD}   ${GREEN}(Project Manager)${NC}"
@@ -90,10 +90,10 @@ start|"")
   echo -e "  Pulsa ${RED}Ctrl+C${NC} para parar"
   echo ""
 
-  # Migración automática clarive_legacy.db → clarive.db (compatibilidad)
-  if [ -f "clarive_legacy.db" ] && [ ! -f "clarive.db" ]; then
-    echo "  🔄 Migrando clarive_legacy.db → clarive.db..."
-    cp clarive_legacy.db clarive.db
+  # Migración automática contecflow_legacy.db → contecflow.db (compatibilidad)
+  if [ -f "contecflow_legacy.db" ] && [ ! -f "contecflow.db" ]; then
+    echo "  🔄 Migrando contecflow_legacy.db → contecflow.db..."
+    cp contecflow_legacy.db contecflow.db
     echo "  ✅ Base de datos migrada"
   fi
 
@@ -149,7 +149,7 @@ reset)
   warn "Borrará toda la base de datos."
   read -p "¿Continuar? (s/N): " c
   if [ "$c" = "s" ] || [ "$c" = "S" ]; then
-    rm -f clarive.db
+    rm -f contecflow.db
     "$PY_BIN" -c "from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
     "$PY_BIN" -m app.db.seed
     ok "Base de datos reiniciada"

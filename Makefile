@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════════════════════
-# Clarive PSA — Makefile
+# Contecflow PSA — Makefile
 # Uso: make <target>
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -15,7 +15,7 @@ RESET  := \033[0m
 
 help: ## Muestra esta ayuda
 	@echo ""
-	@echo "$(CYAN)Clarive PSA — comandos disponibles:$(RESET)"
+	@echo "$(CYAN)Contecflow PSA — comandos disponibles:$(RESET)"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
@@ -37,7 +37,7 @@ install-e2e: ## Instala Playwright para tests E2E
 
 # ── Desarrollo ─────────────────────────────────────────────────────────────────
 dev: ## Inicia backend y frontend en modo desarrollo
-	@echo "$(CYAN)Iniciando Clarive PSA en modo desarrollo...$(RESET)"
+	@echo "$(CYAN)Iniciando Contecflow PSA en modo desarrollo...$(RESET)"
 	@make -j2 dev-backend dev-frontend
 
 dev-backend: ## Solo el backend
@@ -133,7 +133,7 @@ docker-build: ## Construye las imágenes Docker
 
 docker-up: ## Levanta todos los servicios
 	docker compose up -d
-	@echo "$(GREEN)✅ Clarive corriendo en http://localhost$(RESET)"
+	@echo "$(GREEN)✅ Contecflow corriendo en http://localhost$(RESET)"
 
 docker-down: ## Para todos los servicios
 	docker compose down
@@ -161,7 +161,7 @@ init-admin: ## Crea el usuario admin inicial
 clean: ## Limpia archivos temporales y caches
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -name "*.db" -not -name "clarive.db" -delete 2>/dev/null || true
+	find . -name "*.db" -not -name "contecflow.db" -delete 2>/dev/null || true
 	rm -rf htmlcov/ .coverage coverage.xml test-results/ dist/
 	@echo "$(GREEN)✅ Limpieza completa$(RESET)"
 

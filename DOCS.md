@@ -1,9 +1,117 @@
+
+### v23.9.9 (Abril 2026) — Seguridad AI, Bookings y Multi-tenant
+
+**AI Assistant — Seguridad de datos financieros:**
+- El contexto AI (`build_tenant_context`) ahora recibe siempre el objeto `User` y filtra por `organization_id` en todas las queries, evitando exposición de datos financieros a roles no autorizados y garantizando aislamiento multi-tenant.
+- Solo usuarios con rol `admin`, `hr` o `is_superadmin` pueden acceder a datos financieros (costes, facturas, rentabilidad) en el contexto y herramientas AI (`get_invoices`, `get_profitability`).
+- El endpoint `/ai/chat` y `prepare_chat` ya no pasan `user=None`.
+
+**AI Tools — Control de acceso:**
+- Las herramientas AI `get_invoices` y `get_profitability` ahora requieren rol `admin`, `hr` o `is_superadmin`. Otros roles reciben error de acceso denegado.
+
+**Bookings — Validación de solapamiento:**
+- `create_booking_record` ahora valida que no existan reservas solapadas para el mismo usuario y recurso en las fechas indicadas. Si existe, devuelve error 400.
+
+**Multi-tenant — Filtros organization_id:**
+- Todas las queries de contexto AI y bookings filtran por `organization_id` del usuario salvo para superadmins.
+
+**Documentación y código:**
+- Se han actualizado los comentarios y la documentación para reflejar estos cambios críticos de seguridad y lógica.
 # Clarive PSA — Documentación Completa del Sistema
+
+## 🛠️ Arquitectura de Orquestación de Servicios (Auditoría 2026)
+
+**Cumplimiento de orquestación de servicios:**
+
+Tras auditoría exhaustiva (abril 2026), se confirma que toda la lógica de negocio del backend está centralizada en módulos de servicios (`app/services/`). Los endpoints y routers de la API únicamente orquestan dependencias, validaciones y delegan la lógica a funciones de servicios, sin implementar reglas de negocio directas ni acceso a base de datos fuera de los servicios.
+
+**Patrón aplicado:**
+- Los endpoints (FastAPI routers) solo reciben, validan y delegan.
+- Toda lógica de negocio, side effects, validaciones complejas y acceso a datos residen en módulos de servicios.
+- No existen endpoints legacy, duplicados ni lógica directa en routers tras la limpieza de deuda técnica y deprecated.
+- El sistema cumple estrictamente el principio de orquestación de servicios, facilitando mantenibilidad, testeo y extensibilidad.
+
+**Ejemplo de endpoint correcto:**
+```python
+@router.post("/catalog/services", summary="Crear servicio")
+def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+  s = create_service_record(db, payload)  # delega a servicio
+  _commit_or_rollback(db); db.refresh(s)
+  return {"id": s.id, "name": s.name}
+```
+
+**Ejemplo de módulo de servicio:**
+```python
+# app/services/service_desk/catalog_service.py
+def create_service_record(db: Session, payload: ServiceItemIn):
+  # Lógica de negocio, validaciones, acceso a modelos y side effects
+  ...
+```
+
+**Resultado:**
+- El backend es 100% orquestado por servicios, sin lógica de negocio directa en endpoints.
+- Cumple arquitectura desacoplada, versionada y preparada para multi-tenant, CI/CD y extensiones futuras.
+
 
 > **Versión actual:** 23.10.0 · **Fecha:** Mayo 2026  
 > Professional Services Automation para consultoras modernas.
 
 ---
+
+
+## 📦 Configuración y catálogos externalizados (v23.10+)
+
+Desde la versión 23.10, **todos los valores de negocio, catálogos, límites, triggers, integraciones y constantes de UI** han sido externalizados a archivos JSON en el frontend y variables/env/config en el backend. Esto permite:
+
+- Multi-tenant y personalización sin tocar código.
+- Actualización de catálogos, triggers, integraciones y límites desde archivos de configuración.
+- Eliminación de hardcoded business logic en frontend y backend.
+
+### Estructura de configuración frontend
+
+- **frontend/src/constants/constants.json**  
+  Catálogos de negocio: roles, tipos de proyecto, tipos de facturación, prioridades, estados de tarea, tipos de ticket, niveles de SLA, docs de proveedores IA.
+
+- **frontend/src/constants/business_config.json**  
+  Parámetros de negocio y UI:  
+  - `TIMEOUT`, `PAGINATION`, `REFETCH`, `LIMITS`
+  - `INTEGRATION_CATALOG`: catálogo de integraciones externas (Slack, Teams, Jira, GitHub, etc.)
+  - `AUTOMATION_TRIGGERS`, `AUTOMATION_ACTIONS`, `AUTOMATION_OPERATORS`, `AUTOMATION_ACTION_PARAMS`: motor de automatizaciones
+  - `PROVIDER_META`: metadatos de proveedores IA (icono, color, nombre)
+  - `ROLE_LABELS`, `ROLE_COLORS`: etiquetas y colores de roles para UI
+  - `EMAIL_PROVIDER_GUIDES`: guías de configuración de email providers
+
+- **frontend/src/constants/api.js**  
+  Expone todas las constantes y catálogos como imports centralizados desde los JSON, para uso en toda la app React.
+
+### Estructura de configuración backend
+
+- **app/core/config.py**  
+  Todas las variables de entorno y parámetros de negocio se gestionan vía `.env` y Pydantic Settings.
+- **app/db/seed.py**  
+  Los datos semilla (usuarios, clientes, plantillas de email) se cargan desde archivos JSON externos si existen, o usan defaults parametrizables.
+- **Catálogos y constantes de negocio**  
+  Todos los catálogos, triggers, límites y parámetros de negocio se pueden sobreescribir vía archivos JSON o variables de entorno.
+
+### Ejemplo de uso en frontend
+
+```js
+// src/constants/api.js
+import constants from './constants/constants.json';
+import businessConfig from './constants/business_config.json';
+
+export const ROLES = constants.ROLES;
+export const INTEGRATION_CATALOG = businessConfig.INTEGRATION_CATALOG;
+export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
+// ...etc
+```
+
+### Ventajas
+
+- **Sin hardcoded business logic**: todo configurable.
+- **Fácil actualización**: solo editar JSON/config.
+- **Personalización multi-tenant**: cada cliente puede tener su propio set de catálogos, triggers, límites, integraciones, etc.
+- **Preparado para white-label y despliegues custom**.
 
 ## Tabla de contenidos
 

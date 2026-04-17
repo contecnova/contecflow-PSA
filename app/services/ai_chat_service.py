@@ -690,6 +690,12 @@ AGENT_TOOLS = [
 # ─── Tool executor ────────────────────────────────────────────────────────────
 
 def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> dict:
+    # Control de acceso para herramientas financieras
+    from app.models.user import UserRole
+    is_financial_role = (
+        getattr(user, "is_superadmin", False)
+        or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
+    )
     """Execute a tool call from the agent."""
     now = datetime.now(timezone.utc)
     try:
@@ -1227,6 +1233,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Invoices ──────────────────────────────────────────────────────────
         elif tool_name == "get_invoices":
+            if not is_financial_role:
+                return {"error": "Acceso denegado: solo administradores o RRHH pueden ver facturas."}
             q = db.query(Invoice)
             status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Invoice.status == status)
@@ -1256,6 +1264,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Profitability ─────────────────────────────────────────────────────
         elif tool_name == "get_profitability":
+            if not is_financial_role:
+                return {"error": "Acceso denegado: solo administradores o RRHH pueden ver rentabilidad."}
             pid = tool_input.get("project_id", "")
             if pid:
                 projects = db.query(Project).filter(
@@ -1925,7 +1935,10 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     user_msg = AIMessage(conversation_id=conv.id, role="user", content=effective_message)
     db.add(user_msg); db.flush()
 
-    ctx = build_tenant_context(db, None)
+    # Obtener el objeto User para pasar a build_tenant_context
+    from app.models.user import User
+    user = db.query(User).filter(User.id == user_id).first()
+    ctx = build_tenant_context(db, user)
     kb_ctx = kb_rag_context(db, effective_message)
     system = get_prompt(db, "nexusassist", system_template).format(
         context=json.dumps(ctx, ensure_ascii=False)

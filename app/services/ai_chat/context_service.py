@@ -23,11 +23,16 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)
     )
 
-    projects = db.query(Project).filter(Project.status.in_(["active", "planning"])).limit(20).all()
+    org_id = getattr(user, "organization_id", None) if user else None
+    q_proj = db.query(Project).filter(Project.status.in_(["active", "planning"]))
+    if org_id:
+        q_proj = q_proj.filter(Project.organization_id == org_id)
+    projects = q_proj.limit(20).all()
 
-    open_ticket_rows = db.query(Ticket).filter(
-        Ticket.status.in_(["open", "in_progress"])
-    ).order_by(Ticket.created_at.asc()).limit(50).all()
+    q_ticket = db.query(Ticket).filter(Ticket.status.in_(["open", "in_progress"]))
+    if org_id:
+        q_ticket = q_ticket.filter(Ticket.organization_id == org_id)
+    open_ticket_rows = q_ticket.order_by(Ticket.created_at.asc()).limit(50).all()
     ticket_assignee_ids = {t.assigned_to_user_id for t in open_ticket_rows if t.assigned_to_user_id}
     ticket_user_map = {}
     if ticket_assignee_ids:
@@ -45,9 +50,10 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
         "created_at": str(t.created_at)[:10] if t.created_at else None,
     } for t in open_ticket_rows]
 
-    overdue_task_rows = db.query(Task).filter(
-        Task.status != "done", Task.due_date < now.date()
-    ).order_by(Task.due_date.asc()).limit(30).all()
+    q_task = db.query(Task).filter(Task.status != "done", Task.due_date < now.date())
+    if org_id:
+        q_task = q_task.filter(Task.organization_id == org_id)
+    overdue_task_rows = q_task.order_by(Task.due_date.asc()).limit(30).all()
     task_proj_ids = {t.project_id for t in overdue_task_rows}
     task_assignee_ids = {t.assignee_id for t in overdue_task_rows if t.assignee_id}
     task_proj_map = {p.id: p.name for p in db.query(Project).filter(Project.id.in_(task_proj_ids)).all()} if task_proj_ids else {}
@@ -65,9 +71,10 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
 
     week_start = (now - timedelta(days=now.weekday())).date()
     week_end = week_start + timedelta(days=6)
-    imp_rows = db.query(Imputation).filter(
-        Imputation.date >= week_start, Imputation.date <= week_end,
-    ).all()
+    q_imp = db.query(Imputation).filter(Imputation.date >= week_start, Imputation.date <= week_end)
+    if org_id:
+        q_imp = q_imp.filter(Imputation.organization_id == org_id)
+    imp_rows = q_imp.all()
     imp_by_user = {}
     imp_by_project = {}
     total_hours_week = 0.0
@@ -93,39 +100,72 @@ def build_tenant_context(db: Session, user: User = None) -> dict:
     overdue_invoices = 0
     pipeline_count = 0
     if can_see_financials:
-        pending_invoices_count = db.query(func.count(Invoice.id)).filter(
-            Invoice.status.in_(["sent", "overdue"])
-        ).scalar() or 0
-        pending_invoices_amount = db.query(func.sum(Invoice.total)).filter(
-            Invoice.status.in_(["sent", "overdue"])
-        ).scalar() or 0
-        overdue_invoices = db.query(func.count(Invoice.id)).filter(
-            Invoice.status == "overdue"
-        ).scalar() or 0
-        pipeline_count = db.query(func.count(Opportunity.id)).filter(
-            Opportunity.stage.notin_(["won", "lost"])
-        ).scalar() or 0
-    pending_approvals = db.query(func.count(ApprovalRequest.id)).filter(
-        ApprovalRequest.status == "pending"
-    ).scalar() or 0
-    active_absences = db.query(func.count(Absence.id)).filter(
+        q_inv = db.query(func.count(Invoice.id)).filter(Invoice.status.in_(["sent", "overdue"]))
+        q_inv_amt = db.query(func.sum(Invoice.total)).filter(Invoice.status.in_(["sent", "overdue"]))
+        q_overdue = db.query(func.count(Invoice.id)).filter(Invoice.status == "overdue")
+        q_pipe = db.query(func.count(Opportunity.id)).filter(Opportunity.stage.notin_(["won", "lost"]))
+        if org_id:
+            q_inv = q_inv.filter(Invoice.organization_id == org_id)
+            q_inv_amt = q_inv_amt.filter(Invoice.organization_id == org_id)
+            q_overdue = q_overdue.filter(Invoice.organization_id == org_id)
+            q_pipe = q_pipe.filter(Opportunity.organization_id == org_id)
+        pending_invoices_count = q_inv.scalar() or 0
+        pending_invoices_amount = q_inv_amt.scalar() or 0
+        overdue_invoices = q_overdue.scalar() or 0
+        pipeline_count = q_pipe.scalar() or 0
+    q_approvals = db.query(func.count(ApprovalRequest.id)).filter(ApprovalRequest.status == "pending")
+    q_absences = db.query(func.count(Absence.id)).filter(
         Absence.status == "approved",
         Absence.start_date <= now.date(),
         Absence.end_date >= now.date(),
-    ).scalar() or 0
+    )
+    if org_id:
+        q_approvals = q_approvals.filter(ApprovalRequest.organization_id == org_id)
+        q_absences = q_absences.filter(Absence.organization_id == org_id)
+    pending_approvals = q_approvals.scalar() or 0
+    active_absences = q_absences.scalar() or 0
 
-    team_members = db.query(User).filter(User.is_active == True).limit(50).all()
+    q_team = db.query(User).filter(User.is_active == True)
+    if org_id:
+        q_team = q_team.filter(User.organization_id == org_id)
+    team_members = q_team.limit(50).all()
 
     all_active_proj_ids = [p.id for p in projects]
     prof_items = []
     if can_see_financials and all_active_proj_ids:
-        all_user_rates = {u.id: (getattr(u, "hourly_rate", None) or 0) for u in db.query(User).filter(User.is_active == True).all()}
-        imp_user_rows = db.query(
+        q_rates = db.query(User).filter(User.is_active == True)
+        if org_id:
+            q_rates = q_rates.filter(User.organization_id == org_id)
+        all_user_rates = {u.id: (getattr(u, "hourly_rate", None) or 0) for u in q_rates.all()}
+        q_imp_user = db.query(
             Imputation.project_id, Imputation.user_id,
             func.sum(Imputation.hours).label("hours"),
-        ).filter(Imputation.project_id.in_(all_active_proj_ids)).group_by(
+        ).filter(Imputation.project_id.in_(all_active_proj_ids))
+        if org_id:
+            q_imp_user = q_imp_user.filter(Imputation.organization_id == org_id)
+        imp_user_rows = q_imp_user.group_by(
             Imputation.project_id, Imputation.user_id
         ).all()
+        # Expenses
+        q_exp = db.query(
+            Expense.project_id, func.sum(Expense.amount).label("total_exp")
+        ).filter(
+            Expense.project_id.in_(all_active_proj_ids),
+            Expense.status == "approved",
+        )
+        if org_id:
+            q_exp = q_exp.filter(Expense.organization_id == org_id)
+        exp_rows = q_exp.group_by(Expense.project_id).all()
+        # Invoices
+        q_inv = db.query(
+            Invoice.project_id, func.sum(Invoice.total).label("invoiced")
+        ).filter(
+            Invoice.project_id.in_(all_active_proj_ids),
+            Invoice.status.in_(["sent", "paid", "overdue"]),
+        )
+        if org_id:
+            q_inv = q_inv.filter(Invoice.organization_id == org_id)
+        inv_rows = q_inv.group_by(Invoice.project_id).all()
         proj_labor_cost = {}
         proj_hours_total = {}
         for row in imp_user_rows:
