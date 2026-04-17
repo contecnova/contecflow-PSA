@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = Field(default=5, env="LOGIN_MAX_ATTEMPTS")
     LOGIN_ATTEMPT_WINDOW_SECONDS: int = Field(default=900, env="LOGIN_ATTEMPT_WINDOW_SECONDS")
     LOGIN_LOCKOUT_SECONDS: int = Field(default=900, env="LOGIN_LOCKOUT_SECONDS")
-    DEFAULT_USER_PASSWORD: str = Field(default_factory=lambda: secrets.token_urlsafe(16), env="DEFAULT_USER_PASSWORD")
+    DEFAULT_USER_PASSWORD: str = Field(default="clarive2024!", env="DEFAULT_USER_PASSWORD")
     DEFAULT_WORKING_HOURS_PER_DAY: float = Field(default=8.0, env="DEFAULT_WORKING_HOURS_PER_DAY")
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
     DEFAULT_VACATION_DAYS_PER_YEAR: int = Field(default=23, env="DEFAULT_VACATION_DAYS_PER_YEAR")
@@ -247,6 +247,16 @@ class Settings(BaseSettings):
         valid = {"development", "test", "staging", "production"}
         if v not in valid:
             raise ValueError(f"ENVIRONMENT must be one of {valid}, got '{v}'")
+        return v
+
+    @field_validator("DEFAULT_USER_PASSWORD")
+    @classmethod
+    def default_user_password_must_not_be_placeholder(cls, v: str) -> str:
+        if v.upper().startswith("CHANGE_ME"):
+            raise ValueError(
+                "DEFAULT_USER_PASSWORD still has a placeholder value. "
+                "Set a real password in .env or run ./setup.sh before seeding."
+            )
         return v
 
     @field_validator("WEBHOOK_SECRET", "INBOUND_EMAIL_SECRET")
