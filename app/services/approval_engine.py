@@ -153,6 +153,7 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
         requested_by=current_user.id,
         current_step=1,
         status="pending",
+        step_started_at=datetime.now(timezone.utc),
     )
     db.add(req)
     db.flush()
@@ -271,6 +272,7 @@ def decide_approval_request(
         next_steps = [s for s in steps if s.step_order > req.current_step and not s.is_optional]
         if next_steps:
             req.current_step = next_steps[0].step_order
+            req.step_started_at = datetime.now(timezone.utc)
             db.commit()
             notify_approver(req, next_steps[0], db)
         else:
@@ -599,66 +601,6 @@ def serialize_approval_request(r) -> dict:
             for d in (r.decisions or [])
         ],
     }
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TIMEOUT PROCESSING
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def process_approval_timeouts(db: Session) -> dict:
-    """Process timed-out approval steps: escalate, auto-approve or reject."""
-
-    now = datetime.now(timezone.utc)
-    pending = db.query(ApprovalRequest).filter(
-        ApprovalRequest.status == "pending",
-        ApprovalRequest.step_started_at.isnot(None),
-    ).all()
-
-    processed = escalated = auto_approved = rejected = 0
-
-    for req in pending:
-        step = (
-            db.query(ApprovalStep)
-            .filter(
-                ApprovalStep.workflow_id == req.workflow_id,
-                ApprovalStep.step_order == req.current_step,
-            )
-            .first()
-        )
-        if not step:
-            continue
-
-        timeout_hours = step.timeout_hours or 72
-        deadline = req.step_started_at + timedelta(hours=timeout_hours)
-        if now < deadline:
-            continue
-
-        processed += 1
-        on_timeout = step.on_timeout or "escalate"
-
-        if on_timeout == "auto_approve":
-            req.status = "approved"
-            req.final_decision = "approved"
-            req.final_note = f"Auto-aprobado por timeout ({timeout_hours}h)"
-            req.completed_at = now
-            auto_approved += 1
-        elif on_timeout == "reject":
-            req.status = "rejected"
-            req.final_decision = "rejected"
-            req.final_note = f"Rechazado por timeout ({timeout_hours}h)"
-            req.completed_at = now
-            rejected += 1
-        else:
-            if step.escalate_to_user_id:
-                req.step_started_at = now
-                try:
-                    notify_approver(req, step, db, explicit_user_id=step.escalate_to_user_id)
-                except Exception:
-                    pass
-            escalated += 1
-
-    db.commit()
-    return {"processed": processed, "escalated": escalated, "auto_approved": auto_approved, "rejected": rejected}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

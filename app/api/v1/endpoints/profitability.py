@@ -53,6 +53,32 @@ def get_profitability_summary(
     }
 
 
+@router.get("/projects", summary="Lista de proyectos con datos de rentabilidad (para dashboards)")
+def get_profitability_projects(
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
+    projects = profitability_service.get_summary_projects(db, status)
+    project_ids = [p.id for p in projects]
+
+    imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(db, project_ids)
+    billed_milestones_by_project = profitability_service.get_billed_milestones_total_by_project(db, project_ids)
+
+    results = [
+        profitability_service.calc_project_profitability(
+            p,
+            db,
+            imputation_totals=imputation_totals_by_project.get(p.id, {}),
+            billed_milestones_total=billed_milestones_by_project.get(p.id, 0),
+        )
+        for p in projects
+    ]
+
+    return sorted(results, key=lambda x: -(x.get("gross_margin") or 0))
+
+
 @router.get("/{project_id}", summary="Rentabilidad detallada de un proyecto")
 def get_project_profitability(
     project_id: str,

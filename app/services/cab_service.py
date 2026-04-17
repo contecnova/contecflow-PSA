@@ -1364,7 +1364,10 @@ def get_risk_scores(refresh: bool, db: Session) -> dict:
             ProjectRiskScore.project_id == project.id
         ).order_by(ProjectRiskScore.computed_at.desc()).first()
         if cached and not refresh and cached.computed_at:
-            age_minutes = (datetime.now(timezone.utc) - cached.computed_at).total_seconds() / 60
+            computed_at = cached.computed_at
+            if computed_at.tzinfo is None:
+                computed_at = computed_at.replace(tzinfo=timezone.utc)
+            age_minutes = (datetime.now(timezone.utc) - computed_at).total_seconds() / 60
             if age_minutes < 60:
                 results.append({
                     "project_id": project.id,

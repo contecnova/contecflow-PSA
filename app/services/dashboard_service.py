@@ -129,6 +129,7 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
     ).join(Task, Task.id == Imputation.task_id).filter(
         Task.status == TaskStatus.done,
         Task.estimated_hours > 0,
+        *([Task.project_id.in_(active_project_ids)] if org else []),
     ).first()
     if efficiency_data and efficiency_data.real_hours and efficiency_data.estimated_hours:
         avg_efficiency = round(efficiency_data.estimated_hours / efficiency_data.real_hours, 2)

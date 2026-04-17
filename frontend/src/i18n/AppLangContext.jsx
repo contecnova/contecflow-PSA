@@ -73,7 +73,15 @@ export function AppLangProvider({ children }) {
   }, [])
 
   // Función de traducción: t('module.key') o t('module', 'key')
-  const t = useCallback((moduleOrFullKey, keyOrLang, forceLang) => {
+  // Soporta interpolación: t('module.key', { var1: val1, var2: val2 })
+  const t = useCallback((moduleOrFullKey, keyOrLangOrParams, forceLang) => {
+    // Detect if second argument is an interpolation params object
+    const isParams = keyOrLangOrParams !== null
+      && typeof keyOrLangOrParams === 'object'
+      && !Array.isArray(keyOrLangOrParams)
+    const params = isParams ? keyOrLangOrParams : null
+    const keyOrLang = isParams ? undefined : keyOrLangOrParams
+
     const activeLang = forceLang || lang
     let module, key
     if (keyOrLang && !APP_LANGUAGES.find(l => l.code === keyOrLang)) {
@@ -85,10 +93,17 @@ export function AppLangProvider({ children }) {
       return moduleOrFullKey // fallback: devolver la clave tal cual
     }
 
-    const trans = translations[activeLang]?.[module]?.[key]
+    let trans = translations[activeLang]?.[module]?.[key]
            || translations['es']?.[module]?.[key]
            || translations['en']?.[module]?.[key]
            || key
+
+    // Apply interpolation: replace {varName} placeholders
+    if (params && typeof trans === 'string') {
+      trans = trans.replace(/\{(\w+)\}/g, (_, name) =>
+        params[name] !== undefined ? params[name] : `{${name}}`
+      )
+    }
 
     return trans
   }, [lang, translations])

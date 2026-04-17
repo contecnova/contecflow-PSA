@@ -12,6 +12,7 @@ from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority, TaskComment
 from app.models.project import Project
+from app.models.bookings import TaskDependency
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
@@ -210,4 +211,82 @@ def cascade_reschedule(
     current_user: User = Depends(get_current_user),
 ):
     return svc_cascade_reschedule(task_id, new_end_date, db)
+
+
+# ── Task Dependencies ──────────────────────────────────────────────────────────
+
+@router.get("/dependencies", summary="Listar dependencias de tareas")
+def list_dependencies(
+    project_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = db.query(TaskDependency).options(
+        joinedload(TaskDependency.predecessor),
+        joinedload(TaskDependency.successor),
+    )
+    if project_id:
+        q = q.join(Task, TaskDependency.predecessor_id == Task.id).filter(Task.project_id == project_id)
+    deps = q.all()
+    return [
+        {
+            "id": d.id,
+            "predecessor_id": d.predecessor_id,
+            "successor_id": d.successor_id,
+            "dependency_type": d.dependency_type,
+            "lag_days": d.lag_days,
+        }
+        for d in deps
+    ]
+
+
+@router.post("/dependencies", summary="Crear dependencia entre tareas", status_code=201)
+def create_dependency(
+    predecessor_id: str = Body(...),
+    successor_id: str = Body(...),
+    dependency_type: str = Body("FS"),
+    lag_days: int = Body(0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if predecessor_id == successor_id:
+        raise HTTPException(400, "Una tarea no puede depender de sí misma")
+    # Check for existing dependency
+    existing = db.query(TaskDependency).filter(
+        TaskDependency.predecessor_id == predecessor_id,
+        TaskDependency.successor_id == successor_id,
+    ).first()
+    if existing:
+        raise HTTPException(409, "La dependencia ya existe")
+    dep = TaskDependency(
+        predecessor_id=predecessor_id,
+        successor_id=successor_id,
+        dependency_type=dependency_type,
+        lag_days=lag_days,
+        created_by=current_user.id,
+    )
+    db.add(dep)
+    db.commit()
+    db.refresh(dep)
+    return {
+        "id": dep.id,
+        "predecessor_id": dep.predecessor_id,
+        "successor_id": dep.successor_id,
+        "dependency_type": dep.dependency_type,
+        "lag_days": dep.lag_days,
+    }
+
+
+@router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
+def delete_dependency(
+    dep_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
+    if not dep:
+        raise HTTPException(404, "Dependencia no encontrada")
+    db.delete(dep)
+    db.commit()
+    return {"ok": True}
 

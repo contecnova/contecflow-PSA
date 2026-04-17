@@ -541,7 +541,11 @@ const ACCENT_PRESETS = [
 
 export function ConfigPanel({ prefs, onSave, onClose }) {
   const t = useAppT()
-  const [localAccent, setLocalAccent] = useState(prefs.accent_color || '#4f8ef7')
+  const [localAccent, setLocalAccent] = useState(
+    (prefs.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color))
+      ? prefs.accent_color
+      : '#4f8ef7'
+  )
   const [localDensity, setLocalDensity] = useState(prefs.ui_density || 'normal')
 
   const applyAccent = (color) => {

@@ -375,6 +375,34 @@ def stop_timer_session(payload, current_user: User, db: Session):
             detail="No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
         )
 
+    # Re-validate project membership and status at stop time.
+    # The user may have been removed from the project, or the project status may
+    # have changed since the timer was started.
+    project = db.query(Project).filter(Project.id == timer.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="El proyecto asociado ya no existe.")
+    if project.status not in (_PS.active, _PS.on_hold, _PS.paused):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"El proyecto '{project.name}' está en estado '{project.status.value}' "
+                "y no admite nuevas imputaciones."
+            ),
+        )
+    _assert_project_membership(project, None, current_user, db)
+
+    # Re-validate task status if applicable.
+    if timer.task_id:
+        task = db.query(Task).filter(Task.id == timer.task_id).first()
+        if task and task.status in (TaskStatus.done, TaskStatus.cancelled):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"La tarea está en estado '{task.status.value}' "
+                    "y no admite nuevas imputaciones."
+                ),
+            )
+
     now = datetime.now(timezone.utc)
     started = timer.started_at if timer.started_at.tzinfo else timer.started_at.replace(tzinfo=timezone.utc)
     elapsed = (now - started).total_seconds()

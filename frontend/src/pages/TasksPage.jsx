@@ -87,6 +87,7 @@ function KanbanColumn({ status, tasks, onTaskClick }) {
 }
 
 function TaskDetailModal({ task, open, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
@@ -205,7 +206,7 @@ function TaskDetailModal({ task, open, onClose }) {
   const fs  = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls  = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
-  const STATUS_LABEL_MAP = { backlog: 'Backlog', todo: 'Pendiente', in_progress: 'En progreso', review: 'Revisión', blocked: 'Bloqueada', done: 'Hecha', cancelled: 'Cancelada' }
+  const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
   const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
   const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
 
@@ -218,8 +219,8 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 10 }}
-           role="tablist" aria-label="Secciones de la tarea">
-        {[['detail','📋 Detalles'],['comments','💬 Comentarios'],['docs','📎 Documentos']].map(([id, label]) => (
+           role="tablist" aria-label={t('tasks.tab_details')}>
+        {[['detail', t('tasks.tab_details')],['comments', t('tasks.tab_comments')],['docs', t('tasks.tab_docs')]].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} aria-controls={`tab-panel-${id}`}
             onClick={() => setTab(id)}
             style={{ padding: '5px 14px', borderRadius: 7, border: `1px solid ${tab===id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab===id ? 'var(--accent-muted)' : 'transparent', color: tab===id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -249,16 +250,16 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Info grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Asignado a</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{t('tasks.assignee')}</div>
               {task.assignee ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Avatar name={task.assignee.full_name} size={22} />
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{task.assignee.full_name}</span>
                 </div>
-              ) : <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Sin asignar</span>}
+              ) : <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{t('tasks.no_assignee')}</span>}
             </div>
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Horas</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{t('tasks.hours_label')}</div>
               <span style={{ fontSize: 13, fontWeight: 600 }}>
                 {task.real_hours?.toFixed(1) ?? 0}h real
                 {task.estimated_hours ? ` / ${task.estimated_hours}h est.` : ''}
@@ -266,13 +267,13 @@ function TaskDetailModal({ task, open, onClose }) {
             </div>
             {task.start_date && (
               <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Inicio</div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{t('tasks.start_date_label')}</div>
                 <span style={{ fontSize: 13 }}>{fmtDate(task.start_date)}</span>
               </div>
             )}
             {task.due_date && (
               <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Fecha límite</div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{t('tasks.due_date')}</div>
                 <span style={{ fontSize: 13, color: new Date(task.due_date) < new Date() && task.status !== 'done' ? 'var(--danger)' : 'var(--text-1)' }}>
                   {fmtDate(task.due_date)}
                 </span>
@@ -283,7 +284,7 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Description */}
           {task.description && (
             <div style={{ marginBottom: 14, background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Descripción</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('common.description')}</div>
               <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>{task.description}</div>
             </div>
           )}
@@ -291,7 +292,7 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Blocked reason */}
           {task.status === 'blocked' && task.blocked_reason && (
             <div style={{ marginBottom: 14, background: 'var(--danger-bg)', border: '1px solid #ff475730', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', marginBottom: 4 }}>✕ BLOQUEADA</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', marginBottom: 4 }}>✕ {t('tasks.blocked_label')}</div>
               <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{task.blocked_reason}</div>
             </div>
           )}
@@ -299,10 +300,10 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Tags */}
           {task.tags && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Etiquetas</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{t('tasks.tags_label')}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {String(task.tags).split(',').filter(Boolean).map(t => (
-                  <span key={t} style={{ fontSize: 11, padding: '2px 9px', borderRadius: 12, background: 'var(--surface-3)', color: 'var(--text-2)' }}>#{t.trim()}</span>
+                {String(task.tags).split(',').filter(Boolean).map(tag => (
+                  <span key={tag} style={{ fontSize: 11, padding: '2px 9px', borderRadius: 12, background: 'var(--surface-3)', color: 'var(--text-2)' }}>#{tag.trim()}</span>
                 ))}
               </div>
             </div>
@@ -311,7 +312,7 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Custom fields (read-only) */}
           {customFields.length > 0 && rawCustomValues.length > 0 && (
             <div style={{ marginBottom: 14, borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Campos personalizados</div>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{t('tasks.custom_fields_label')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {customFields.map(f => {
                   const val = customValues[f.id]
@@ -331,9 +332,9 @@ function TaskDetailModal({ task, open, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTop: '1px solid #1e2d45' }}>
             <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta tarea?', onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
-              {deleting ? 'Eliminando...' : '🗑 Eliminar'}
+              {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
-            <Button onClick={() => setIsEditing(true)}>✏️ Editar</Button>
+            <Button onClick={() => setIsEditing(true)}>✏️ {t('common.edit')}</Button>
           </div>
         </div>
       )}
@@ -344,67 +345,67 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Título */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>Título *</label>
+            <label style={ls}>{t('tasks.title_required')}</label>
             <input value={form.title} onChange={set('title')} style={fs} />
           </div>
 
           {/* Estado + Prioridad */}
           <div>
-            <label style={ls}>Estado</label>
+            <label style={ls}>{t('common.status')}</label>
             <select value={form.status} onChange={set('status')} style={fs}>
-              <option value="backlog">○ Backlog</option>
-              <option value="todo">○ Pendiente</option>
-              <option value="in_progress">◑ En progreso</option>
-              <option value="review">◐ Revisión</option>
-              <option value="blocked">✕ Bloqueada</option>
-              <option value="done">● Hecha</option>
-              <option value="cancelled">✕ Cancelada</option>
+              <option value="backlog">○ {t('tasks.status_backlog')}</option>
+              <option value="todo">○ {t('tasks.status_todo')}</option>
+              <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
+              <option value="review">◐ {t('tasks.status_review')}</option>
+              <option value="blocked">✕ {t('tasks.status_blocked')}</option>
+              <option value="done">● {t('tasks.status_done')}</option>
+              <option value="cancelled">✕ {t('tasks.status_cancelled')}</option>
             </select>
           </div>
           <div>
-            <label style={ls}>Prioridad</label>
+            <label style={ls}>{t('common.priority')}</label>
             <select value={form.priority} onChange={set('priority')} style={fs}>
-              <option value="low">🟢 Baja</option>
-              <option value="medium">🟡 Media</option>
-              <option value="high">🔴 Alta</option>
-              <option value="critical">🚨 Crítica</option>
+              <option value="low">🟢 {t('tasks.priority_low')}</option>
+              <option value="medium">🟡 {t('tasks.priority_medium')}</option>
+              <option value="high">🔴 {t('tasks.priority_high')}</option>
+              <option value="critical">🚨 {t('tasks.priority_critical')}</option>
             </select>
           </div>
 
           {/* Asignado + botón IA */}
           <div style={{ gridColumn: '1/-1' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <label style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
+              <label style={{ ...ls, marginBottom: 0 }}>{t('tasks.assignee')}</label>
               <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
                 style={{ background: 'transparent', border: '1px solid #7c3aed40', borderRadius: 6, padding: '3px 10px', color: 'var(--purple)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
-                {suggesting ? '⏳...' : '🧠 Sugerir con IA'}
+                {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_suggest')}`}
               </button>
             </div>
             <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
-              <option value="">Sin asignar</option>
+              <option value="">{t('tasks.no_assignee')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
             {(semSuggestion || semEffort) && !semSuggestion?.error && (
               <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, fontWeight: 700 }}>🧠 ANÁLISIS IA</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, fontWeight: 700 }}>{t('tasks.ai_analysis')}</div>
                   <div style={{ display: 'flex', gap: 16 }}>
                     {semSuggestion?.suggested_user_name && (
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--text-2)' }}>Persona sugerida</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{t('tasks.ai_person_label')}</div>
                         <div style={{ fontSize: 13, fontWeight: 700 }}>{semSuggestion.suggested_user_name} <span style={{ color: 'var(--accent)', fontSize: 11 }}>{Math.round((semSuggestion.confidence||0)*100)}%</span></div>
                       </div>
                     )}
                     {semEffort && (
                       <div>
-                        <div style={{ fontSize: 10, color: 'var(--text-2)' }}>Esfuerzo estimado</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{t('tasks.ai_effort_label')}</div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warning)' }}>{semEffort.base_hours}h <span style={{ color: COMPLEXITY_COLORS[semEffort.complexity], fontSize: 11 }}>{semEffort.complexity}</span></div>
                       </div>
                     )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={acceptSuggestion} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✓ Aplicar</button>
+                  <button onClick={acceptSuggestion} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
                   <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '4px 8px', borderRadius: 6, background: 'transparent', border: '1px solid #1e2d45', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✕</button>
                 </div>
               </div>
@@ -413,58 +414,58 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Horas + Fechas */}
           <div>
-            <label style={ls}>Horas estimadas</label>
+            <label style={ls}>{t('tasks.estimated_hours')}</label>
             <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" min="0" step="0.5" />
           </div>
           <div style={{ gridColumn: '1/-1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={ls}>Fecha inicio</label>
+              <label style={ls}>{t('tasks.date_start')}</label>
               <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
             </div>
             <div>
-              <label style={ls}>Fecha límite</label>
+              <label style={ls}>{t('tasks.due_date')}</label>
               <input type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
             </div>
           </div>
 
           {/* Descripción */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
+            <label style={ls}>{t('common.description')} <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>{t('tasks.description_hint')}</span></label>
             <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }} />
           </div>
 
           {/* Motivo bloqueo */}
           {form.status === 'blocked' && (
             <div style={{ gridColumn: '1/-1' }}>
-              <label style={ls}>Motivo del bloqueo</label>
+              <label style={ls}>{t('tasks.blocked_reason')}</label>
               <input value={form.blocked_reason} onChange={set('blocked_reason')} style={fs}
-                placeholder="¿Qué está bloqueando esta tarea?" />
+                placeholder={t('tasks.blocked_reason_placeholder')} />
             </div>
           )}
 
           {/* Tags */}
           <div style={{ gridColumn: '1/-1' }}>
-            <label style={ls}>Etiquetas (separadas por coma)</label>
-            <input value={form.tags} onChange={set('tags')} style={fs} placeholder="frontend, urgente, bug" />
+            <label style={ls}>{t('tasks.tags_label')}</label>
+            <input value={form.tags} onChange={set('tags')} style={fs} placeholder={t('tasks.tags_placeholder')} />
           </div>
 
           {/* Campos personalizados */}
           {customFields.length > 0 && (
             <div style={{ gridColumn: '1/-1', borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
-              <label style={{ ...ls, marginBottom: 10 }}>Campos personalizados</label>
+              <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {customFields.map(f => (
                   <div key={f.id} style={(f.field_type === 'text' || f.field_type === 'url') ? { gridColumn: '1/-1' } : {}}>
                     <label style={ls}>{f.name}{f.is_required ? ' *' : ''}</label>
                     {f.field_type === 'select' ? (
                       <select value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} style={fs}>
-                        <option value="">Seleccionar...</option>
+                        <option value="">{t('tasks.select_option')}</option>
                         {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : f.field_type === 'boolean' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
                         <input type="checkbox" checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-                        <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? 'Sí' : 'No'}</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                       </div>
                     ) : (
                       <input
@@ -482,21 +483,21 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Info solo lectura */}
           <div style={{ gridColumn: '1/-1', display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: 12, color: 'var(--text-2)' }}>
-            <span>🕐 Horas reales: <strong style={{ color: 'var(--text-1)' }}>{task.real_hours?.toFixed(1) ?? 0}h</strong></span>
-            <span>📅 Creada: <strong style={{ color: 'var(--text-1)' }}>{fmtDate(task.created_at)}</strong></span>
-            {task.completed_at && <span>✅ Completada: <strong style={{ color: 'var(--success)' }}>{fmtDate(task.completed_at)}</strong></span>}
+            <span>🕐 {t('tasks.real_hours')}: <strong style={{ color: 'var(--text-1)' }}>{task.real_hours?.toFixed(1) ?? 0}h</strong></span>
+            <span>📅 {t('tasks.created_label')}: <strong style={{ color: 'var(--text-1)' }}>{fmtDate(task.created_at)}</strong></span>
+            {task.completed_at && <span>✅ {t('tasks.completed_label')}: <strong style={{ color: 'var(--success)' }}>{fmtDate(task.completed_at)}</strong></span>}
           </div>
 
           {/* Acciones edición */}
           <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
             <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta tarea?', onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
-              {deleting ? 'Eliminando...' : '🗑 Eliminar'}
+              {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="secondary" onClick={cancelEdit}>Cancelar</Button>
+              <Button variant="secondary" onClick={cancelEdit}>{t('common.cancel')}</Button>
               <Button onClick={() => saveTask({ taskData: form, cfValues: customValues, cfFields: customFields, taskId: task.id, projectId: task.project_id })} disabled={saving || !form.title}>
-                {saving ? 'Guardando...' : '💾 Guardar cambios'}
+                {saving ? t('common.saving') : `💾 ${t('tasks.save_changes')}`}
               </Button>
             </div>
           </div>
@@ -507,7 +508,7 @@ function TaskDetailModal({ task, open, onClose }) {
       {tab === 'comments' && (
         <div>
           {(!task.comments || task.comments.length === 0) ? (
-            <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 16 }}>Sin comentarios todavía.</p>
+            <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 16 }}>{t('tasks.no_comments')}</p>
           ) : (
             <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {task.comments.map(c => (
@@ -525,14 +526,14 @@ function TaskDetailModal({ task, open, onClose }) {
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <textarea value={comment} onChange={e => setComment(e.target.value)}
-              placeholder="Añadir comentario..."
+              placeholder={t('tasks.add_comment')}
               rows={2}
               style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
               onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && comment) addComment({ id: task.id, content: comment }) }}
             />
-            <Button onClick={() => addComment({ id: task.id, content: comment })} disabled={!comment || commenting}>Enviar</Button>
+            <Button onClick={() => addComment({ id: task.id, content: comment })} disabled={!comment || commenting}>{t('tasks.send_comment')}</Button>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>⌘+Enter para enviar</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{t('tasks.send_hint')}</div>
         </div>
       )}
 
@@ -677,7 +678,7 @@ export default function TasksPage() {
               ))}
             </div>
             {hasRole('admin', 'pm', 'team_lead') && (
-              <Button onClick={() => setShowCreate(true)} icon="＋">Nueva tarea</Button>
+              <Button onClick={() => setShowCreate(true)} icon="＋">{t('tasks.new_task')}</Button>
             )}
           </div>
         }
@@ -688,28 +689,28 @@ export default function TasksPage() {
         <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 14 }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar tareas..."
+            placeholder={t('tasks.search_placeholder')}
             style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
         </div>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
           style={{ flex: 1, minWidth: isMobile ? '100%' : 200, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Todos los proyectos</option>
+          <option value="">{t('tasks.all_projects')}</option>
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Todas las prioridades</option>
+          <option value="">{t('tasks.filter_priority')}</option>
           {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
         <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
           style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Todos los asignados</option>
+          <option value="">{t('tasks.all_assignees')}</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-            <option value="">Todos los estados</option>
+            <option value="">{t('tasks.filter_status')}</option>
             {TASK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         )}
@@ -721,38 +722,38 @@ export default function TasksPage() {
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
           flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-            ☑ {selected.size} seleccionada{selected.size !== 1 ? 's' : ''}
+            ☑ {selected.size} {selected.size !== 1 ? t('tasks.status_done') : t('tasks.col_task')}
           </span>
           <div style={{ width: 1, height: 20, background: 'var(--surface-4)' }} />
           <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkStatus ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
-            <option value="">Estado...</option>
-            <option value="todo">○ Pendiente</option>
-            <option value="in_progress">◑ En progreso</option>
-            <option value="review">◐ Revisión</option>
-            <option value="blocked">✕ Bloqueada</option>
-            <option value="done">● Hecha</option>
+            <option value="">{t('tasks.bulk_status_ph')}</option>
+            <option value="todo">○ {t('tasks.status_todo')}</option>
+            <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
+            <option value="review">◐ {t('tasks.status_review')}</option>
+            <option value="blocked">✕ {t('tasks.status_blocked')}</option>
+            <option value="done">● {t('tasks.status_done')}</option>
           </select>
           <select value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkPriority ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
-            <option value="">Prioridad...</option>
-            <option value="low">🟢 Baja</option>
-            <option value="medium">🟡 Media</option>
-            <option value="high">🔴 Alta</option>
-            <option value="critical">🚨 Crítica</option>
+            <option value="">{t('tasks.bulk_priority_ph')}</option>
+            <option value="low">🟢 {t('tasks.priority_low')}</option>
+            <option value="medium">🟡 {t('tasks.priority_medium')}</option>
+            <option value="high">🔴 {t('tasks.priority_high')}</option>
+            <option value="critical">🚨 {t('tasks.priority_critical')}</option>
           </select>
           <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
             style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkAssignee ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
-            <option value="">Asignar a...</option>
+            <option value="">{t('tasks.bulk_assignee_ph')}</option>
             {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
           <button onClick={applyBulk} disabled={bulkPending || (!bulkStatus && !bulkPriority && !bulkAssignee)}
             style={{ background: 'var(--accent)', border: 'none', borderRadius: 7, padding: '6px 14px', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: (!bulkStatus && !bulkPriority && !bulkAssignee) ? 0.5 : 1 }}>
-            {bulkPending ? '⏳' : '✓ Aplicar'}
+            {bulkPending ? '⏳' : t('tasks.bulk_apply')}
           </button>
           <button onClick={() => { setSelected(new Set()); setBulkStatus(''); setBulkPriority(''); setBulkAssignee('') }}
             style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Cancelar
+            {t('common.cancel')}
           </button>
         </div>
       )}
@@ -777,7 +778,7 @@ export default function TasksPage() {
         ) : (
           // Sin proyecto: mostrar lista de todas las tareas
           flatTasks.length === 0 ? (
-            <EmptyState icon="tasks" title="Sin tareas" description="Crea tu primera tarea o importa desde un proyecto existente." ctaLabel="Nueva tarea" onCta={() => setShowCreate(true)} />
+            <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 12, color: 'var(--text-2)' }}>
@@ -785,12 +786,12 @@ export default function TasksPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-                <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>Tarea</SortableTH>
-                <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>Proyecto</SortableTH>
-                <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>Asignado</SortableTH>
-                <SortableTH col="estimated_hours" sort={taskSort} onSort={setTaskSort}>Est.</SortableTH>
-                <SortableTH col="status" sort={taskSort} onSort={setTaskSort}>Estado</SortableTH>
-                <SortableTH col="priority" sort={taskSort} onSort={setTaskSort}>Prioridad</SortableTH>
+                <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
+                <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
+                <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_assignee')}</SortableTH>
+                <SortableTH col="estimated_hours" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_est')}</SortableTH>
+                <SortableTH col="status" sort={taskSort} onSort={setTaskSort}>{t('common.status')}</SortableTH>
+                <SortableTH col="priority" sort={taskSort} onSort={setTaskSort}>{t('common.priority')}</SortableTH>
               </div>
               {sortedTasks.map(t => {
                 const proj = projects.find(p => p.id === t.project_id)
@@ -817,7 +818,7 @@ export default function TasksPage() {
         )
       ) : (
         flatTasks.length === 0 ? (
-          <EmptyState icon="search" title="Sin resultados" description="Ninguna tarea coincide con los filtros seleccionados." />
+          <EmptyState icon="search" title={t('common.no_results')} description={t('tasks.filter_status')} />
         ) : isCompact ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {sortedTasks.map((t) => {
@@ -843,9 +844,9 @@ export default function TasksPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-2)' }}>
                     <span>{t.code}</span>
-                    <span>{proj ? proj.code : 'Sin proyecto'}</span>
-                    <span>{t.assignee?.full_name || 'Sin asignar'}</span>
-                    <span>{t.estimated_hours ? `${t.estimated_hours}h est.` : 'Sin estimación'}</span>
+                    <span>{proj ? proj.code : t('tasks.no_project')}</span>
+                    <span>{t.assignee?.full_name || t('tasks.no_assignee')}</span>
+                    <span>{t.estimated_hours ? `${t.estimated_hours}h est.` : t('tasks.no_estimate')}</span>
                     <span>{t.real_hours?.toFixed(1) ?? 0}h real</span>
                   </div>
                   <div style={{ marginTop: 8 }}>
@@ -859,13 +860,13 @@ export default function TasksPage() {
           <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-              <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>Tarea</SortableTH>
-              <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>Proyecto</SortableTH>
-              <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>Asignado</SortableTH>
-              <SortableTH col="estimated_hours" sort={taskSort} onSort={setTaskSort}>Est.</SortableTH>
-              <SortableTH col="real_hours" sort={taskSort} onSort={setTaskSort}>Real</SortableTH>
-              <SortableTH col="status" sort={taskSort} onSort={setTaskSort}>Estado</SortableTH>
-              <SortableTH col="priority" sort={taskSort} onSort={setTaskSort}>Prioridad</SortableTH>
+              <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
+              <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
+              <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_assignee')}</SortableTH>
+              <SortableTH col="estimated_hours" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_est')}</SortableTH>
+              <SortableTH col="real_hours" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_real')}</SortableTH>
+              <SortableTH col="status" sort={taskSort} onSort={setTaskSort}>{t('common.status')}</SortableTH>
+              <SortableTH col="priority" sort={taskSort} onSort={setTaskSort}>{t('common.priority')}</SortableTH>
             </div>
             <VirtualList
               items={sortedTasks}
@@ -904,6 +905,7 @@ export default function TasksPage() {
 }
 
 function CreateTaskModal({ open, onClose, projects }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: users = [] } = useQuery({
@@ -978,49 +980,49 @@ function CreateTaskModal({ open, onClose, projects }) {
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
 
   return (
-    <Modal open={open} onClose={onClose} title="Nueva Tarea" width={580}>
+    <Modal open={open} onClose={onClose} title={t('tasks.new_task')} width={580}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>Título *</label>
-          <input value={form.title} onChange={set('title')} style={fs} placeholder="Título de la tarea" />
+          <label style={ls}>{t('tasks.title_required')}</label>
+          <input value={form.title} onChange={set('title')} style={fs} placeholder={t('tasks.task_title')} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>Proyecto *</label>
+          <label style={ls}>{t('tasks.project_required')}</label>
           <select value={form.project_id} onChange={set('project_id')} style={fs}>
-            <option value="">Seleccionar proyecto...</option>
+            <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Estado</label>
+          <label style={ls}>{t('common.status')}</label>
           <select value={form.status} onChange={set('status')} style={fs}>
-            <option value="todo">○ Pendiente</option>
-            <option value="in_progress">◑ En progreso</option>
-            <option value="blocked">✕ Bloqueada</option>
-            <option value="review">◐ Revisión</option>
-            <option value="done">● Hecha</option>
+            <option value="todo">○ {t('tasks.status_todo')}</option>
+            <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
+            <option value="blocked">✕ {t('tasks.status_blocked')}</option>
+            <option value="review">◐ {t('tasks.status_review')}</option>
+            <option value="done">● {t('tasks.status_done')}</option>
           </select>
         </div>
         <div>
-          <label style={ls}>Prioridad</label>
+          <label style={ls}>{t('common.priority')}</label>
           <select value={form.priority} onChange={set('priority')} style={fs}>
-            <option value="low">🟢 Baja</option>
-            <option value="medium">🟡 Media</option>
-            <option value="high">🔴 Alta</option>
-            <option value="critical">🚨 Crítica</option>
+            <option value="low">🟢 {t('tasks.priority_low')}</option>
+            <option value="medium">🟡 {t('tasks.priority_medium')}</option>
+            <option value="high">🔴 {t('tasks.priority_high')}</option>
+            <option value="critical">🚨 {t('tasks.priority_critical')}</option>
           </select>
         </div>
         {/* Asignación + estimación con IA */}
         <div style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <label style={{ ...ls, marginBottom: 0 }}>Asignado a</label>
+            <label style={{ ...ls, marginBottom: 0 }}>{t('tasks.assignee')}</label>
             <button onClick={analyzeWithAI} disabled={suggesting || !form.title}
               style={{ background: 'transparent', border: '1px solid #7c3aed40', borderRadius: 6, padding: '3px 12px', color: 'var(--purple)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
-              {suggesting ? '⏳...' : '🧠 Analizar con IA'}
+              {suggesting ? '⏳...' : `🧠 ${t('tasks.ai_analyze')}`}
             </button>
           </div>
           <select value={form.assignee_id} onChange={set('assignee_id')} style={fs}>
-            <option value="">Sin asignar</option>
+            <option value="">{t('tasks.no_assignee')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
         </div>
@@ -1028,11 +1030,11 @@ function CreateTaskModal({ open, onClose, projects }) {
         {(semSuggestion || semEffort) && !semSuggestion?.error && (
           <div style={{ gridColumn: '1 / -1', padding: '12px 14px', background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6, fontWeight: 700 }}>🧠 ANÁLISIS IA</div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6, fontWeight: 700 }}>{t('tasks.ai_analysis')}</div>
               <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                 {semSuggestion?.suggested_user_name && (
                   <div>
-                    <div style={{ fontSize: 10, color: 'var(--text-2)' }}>Persona sugerida</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{t('tasks.ai_person_label')}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
                       {semSuggestion.suggested_user_name}
                       <span style={{ fontSize: 11, color: 'var(--accent)', marginLeft: 6 }}>
@@ -1043,7 +1045,7 @@ function CreateTaskModal({ open, onClose, projects }) {
                 )}
                 {semEffort && (
                   <div>
-                    <div style={{ fontSize: 10, color: 'var(--text-2)' }}>Esfuerzo estimado</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{t('tasks.ai_effort_label')}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warning)' }}>
                       {semEffort.base_hours}h
                       <span style={{ fontSize: 11, marginLeft: 6, color: COMPLEXITY_COLORS[semEffort.complexity] }}>
@@ -1056,26 +1058,26 @@ function CreateTaskModal({ open, onClose, projects }) {
               {semSuggestion?.reasoning && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{semSuggestion.reasoning}</div>}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={acceptSuggestion} style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>✓ Aplicar</button>
+              <button onClick={acceptSuggestion} style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
               <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '5px 8px', borderRadius: 6, background: 'transparent', border: '1px solid #1e2d45', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>✕</button>
             </div>
           </div>
         )}
         <div>
-          <label style={ls}>Horas estimadas</label>
+          <label style={ls}>{t('tasks.estimated_hours')}</label>
           <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" />
         </div>
         <div>
-          <label style={ls}>Fecha inicio</label>
+          <label style={ls}>{t('tasks.date_start')}</label>
           <input type="date" value={form.start_date} onChange={set('start_date')} style={fs} />
         </div>
         <div>
-          <label style={ls}>Fecha límite</label>
+          <label style={ls}>{t('tasks.due_date')}</label>
           <input type="date" value={form.due_date} onChange={set('due_date')} style={fs} />
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
-          <label style={ls}>Descripción <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>— escribe &apos;/&apos; para comandos IA</span></label>
-          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder="Descripción de la tarea..." style={{ ...fs, resize: 'vertical' }} />
+          <label style={ls}>{t('common.description')} <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>{t('tasks.description_hint')}</span></label>
+          <AIInlineEditor value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={{ ...fs, resize: 'vertical' }} />
         </div>
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (
@@ -1109,9 +1111,9 @@ function CreateTaskModal({ open, onClose, projects }) {
           </div>
         )}
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate({ taskData: form, cfValues: customValues, cfFields: customFields })} disabled={isPending || !form.title || !form.project_id} loading={isPending}>
-            {isPending ? 'Creando...' : 'Crear tarea'}
+            {isPending ? t('tasks.creating') : t('tasks.create_task_btn')}
           </Button>
         </div>
       </div>

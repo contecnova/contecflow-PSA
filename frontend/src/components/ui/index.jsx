@@ -435,6 +435,8 @@ export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel
 // ── Modal ─────────────────────────────────────────────────────────────────────
 export function Modal({ open, onClose, title, children, width = 520, subtitle }) {
   const dialogRef = React.useRef(null)
+  const onCloseRef = React.useRef(onClose)
+  React.useEffect(() => { onCloseRef.current = onClose })
 
   // Focus trap: keep keyboard navigation inside the modal while open
   React.useEffect(() => {
@@ -459,7 +461,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
         if (document.activeElement === last)  { e.preventDefault(); first?.focus() }
       }
     }
-    const esc = (e) => { if (e.key === 'Escape') onClose() }
+    const esc = (e) => { if (e.key === 'Escape') onCloseRef.current() }
 
     el.addEventListener('keydown', trap)
     document.addEventListener('keydown', esc)
@@ -468,7 +470,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
       document.removeEventListener('keydown', esc)
       prev?.focus()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   return (

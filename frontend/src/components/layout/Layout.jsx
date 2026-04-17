@@ -57,7 +57,7 @@ const ROUTE_LABELS = {
   '/import': 'Importar Datos', '/mfa': 'Seguridad MFA',
   '/governance': 'AI Governance', '/grc': 'GRC / SoD', '/organizations': 'Organizaciones',
   '/enterprise': 'Enterprise', '/webhook-log': 'Log Webhooks',
-  '/raci': 'Matriz RACI', '/changelog': 'Changelog', '/uat': 'UAT — Pruebas de Aceptación',
+  '/raci': 'Matriz RACI', '/changelog': 'Changelog', '/uat': 'UAT',
   '/jira-integration': 'Integración Jira',
   '/project-templates': 'Plantillas de proyecto',
 }
@@ -246,7 +246,7 @@ const NAV_GROUPS = [
     { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Planif. sprint IA',   roles: ['admin','pm'] },
     { to: '/raci',            icon: <Shield size={SZ} />,          label: 'Matriz RACI',         roles: ['admin','pm','team_lead'] },
     { to: '/changelog',       icon: <ScrollText size={SZ} />,      label: 'Changelog',           roles: ['admin','pm','team_lead'] },
-    { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT / Pruebas',        roles: ['admin','pm','team_lead'] },
+    { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT',                  roles: ['admin','pm','team_lead'] },
     { to: '/gantt',           icon: <BarChart2 size={SZ} />,      label: 'Gantt',               roles: ['admin','pm','team_lead','employee'] },
     { to: '/epics',           icon: <Target size={SZ} />,         label: 'Épicas & Roadmap',    roles: ['admin','pm','team_lead'] },
     { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Entregables',         roles: ['admin','pm'] },

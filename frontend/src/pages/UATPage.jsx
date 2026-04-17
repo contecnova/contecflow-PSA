@@ -224,7 +224,7 @@ export default function UATPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
       <PageHeader
-        title="UAT — Pruebas de Aceptación"
+        title="UAT"
         subtitle="Define y gestiona los casos de prueba de usuario. Exporta el plan para que el cliente valide."
         icon={<ClipboardCheck size={18} />}
         actions={

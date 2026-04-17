@@ -13,18 +13,6 @@ const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRa
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const STATUS_CFG = {
-  open:        { label:'Abierta',     color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
-  in_progress: { label:'En progreso', color:'var(--accent)', bg:'var(--accent-muted)' },
-  done:        { label:'Completada',  color:'var(--success)', bg:'var(--success-bg)' },
-  cancelled:   { label:'Cancelada',   color:'var(--danger)', bg:'var(--danger-bg)' },
-}
-const PRIORITY_CFG = {
-  low:      { label:'Baja',     color:'var(--text-2)' },
-  medium:   { label:'Media',    color:'var(--warning)' },
-  high:     { label:'Alta',     color:'var(--warning)' },
-  critical: { label:'Crítica',  color:'var(--danger)' },
-}
 const COLORS = ['var(--purple)','var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--warning)','var(--accent)',CHART.pink]
 
 const daysBetween = (a, b) => {
@@ -33,6 +21,7 @@ const daysBetween = (a, b) => {
 }
 
 function EpicForm({ projectId, epic, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!epic?.id
@@ -48,6 +37,19 @@ function EpicForm({ projectId, epic, onClose }) {
   })
   const set = k => v => setForm(f=>({...f,[k]:v}))
 
+  const STATUS_CFG = {
+    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
+    in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
+    done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
+    cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
+  }
+  const PRIORITY_CFG = {
+    low:      { label: t('epics.priority_low'),      color:'var(--text-2)' },
+    medium:   { label: t('epics.priority_medium'),   color:'var(--warning)' },
+    high:     { label: t('epics.priority_high'),     color:'var(--warning)' },
+    critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
+  }
+
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
       ? api.patch(`epics/${epic.id}`, d).then(r=>r.data)
@@ -57,27 +59,27 @@ function EpicForm({ projectId, epic, onClose }) {
   })
 
   return (
-    <Modal open onClose={onClose} title={isEdit?'Editar épica':'Nueva épica'}>
+    <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        <div><label style={ls}>Título</label><input style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder="Título de la épica"/></div>
-        <div><label style={ls}>Descripción</label><textarea style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
+        <div><label style={ls}>{t('epics.title_label')}</label><input style={is} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
+        <div><label style={ls}>{t('common.description')}</label><textarea style={{...is,height:70,resize:'vertical'}} value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div><label style={ls}>Estado</label>
+          <div><label style={ls}>{t('common.status')}</label>
             <select style={is} value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
-          <div><label style={ls}>Prioridad</label>
+          <div><label style={ls}>{t('common.priority')}</label>
             <select style={is} value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <div><label style={ls}>Fecha inicio</label><input type="date" style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
-          <div><label style={ls}>Fecha fin</label><input type="date" style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
+          <div><label style={ls}>{t('epics.start_date')}</label><input type="date" style={is} value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
+          <div><label style={ls}>{t('epics.end_date')}</label><input type="date" style={is} value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
         </div>
-        <div><label style={ls}>Color</label>
+        <div><label style={ls}>{t('epics.color_label')}</label>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             {COLORS.map(c=>(
               <button key={c} onClick={()=>set('color')(c)}
@@ -88,9 +90,9 @@ function EpicForm({ projectId, epic, onClose }) {
           </div>
         </div>
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.title} loading={isPending}>
-            {isPending?'Guardando...':(isEdit?'Guardar':'Crear épica')}
+            {isPending ? t('common.saving') : (isEdit ? t('common.save') : t('epics.new_epic'))}
           </Button>
         </div>
       </div>
@@ -98,11 +100,11 @@ function EpicForm({ projectId, epic, onClose }) {
   )
 }
 
-function RoadmapView({ epics }) {
-  if(!epics.length) return <EmptyState icon="🗺" title="Sin épicas" description="Crea épicas con fechas para verlas en el roadmap"/>
+function RoadmapView({ epics, t }) {
+  if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
   const datesWithValues = epics.flatMap(e=>[e.start_date,e.end_date].filter(Boolean))
-  if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize:13}}>Asigna fechas de inicio y fin a las épicas para ver el roadmap visual</div>
+  if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize:13}}>{t('epics.no_epics_desc')}</div>
 
   const minDate = new Date(Math.min(...datesWithValues.map(d=>new Date(d))))
   const maxDate = new Date(Math.max(...datesWithValues.map(d=>new Date(d))))
@@ -172,6 +174,19 @@ export default function EpicsPage() {
   const [editEpic,  setEditEpic]  = useState(null)
   const [_detailEpic,setDetailEpic]= useState(null)
 
+  const STATUS_CFG = {
+    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'rgba(120,138,170,0.09)' },
+    in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
+    done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
+    cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
+  }
+  const PRIORITY_CFG = {
+    low:      { label: t('epics.priority_low'),      color:'var(--text-2)' },
+    medium:   { label: t('epics.priority_medium'),   color:'var(--warning)' },
+    high:     { label: t('epics.priority_high'),     color:'var(--warning)' },
+    critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
+  }
+
   const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:epics=[],isLoading } = useQuery({
     queryKey:['epics',project],
@@ -197,37 +212,37 @@ export default function EpicsPage() {
       <PageHeader title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
           <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid #1e2d45',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>Lista</button>
-            <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid #1e2d45',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>🗺 Roadmap</button>
-            <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ Nueva épica</Button>
+            <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid #1e2d45',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>{t('epics.list_view')}</button>
+            <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid #1e2d45',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>🗺 {t('epics.roadmap')}</button>
+            <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>
           </div>
         )}/>
 
       {/* Selector proyecto */}
       <div style={{...ps,marginBottom:20}}>
-        <label style={ls}>Proyecto</label>
+        <label style={ls}>{t('epics.project_label')}</label>
         <select value={project} onChange={e=>setProject(e.target.value)} style={{...is,width:360}}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="🗂" title="Selecciona un proyecto" description="Las épicas se organizan por proyecto"/>}
+      {!project && <EmptyState icon="🗂" title={t('epics.no_project_title')} description={t('epics.no_project_desc')}/>}
       {project&&isLoading&&<Spinner/>}
 
       {project&&!isLoading&&epics.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
           <div style={{fontSize:48,marginBottom:16}}>🎯</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>Sin épicas</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>Las épicas agrupan historias y tareas en objetivos estratégicos de mayor nivel.</div>
-          <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ Crear primera épica</Button>
+          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
+          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('epics.no_epics_desc')}</div>
+          <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>
         </div>
       )}
 
       {project&&epics.length>0&&view==='roadmap'&&(
         <div style={ps}>
-          <div style={{fontSize:14,fontWeight:600,marginBottom:20}}>Roadmap de épicas — {projects.find(p=>p.id===project)?.name}</div>
-          <RoadmapView epics={roadmapEpics}/>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:20}}>{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
+          <RoadmapView epics={roadmapEpics} t={t}/>
         </div>
       )}
 
@@ -265,9 +280,9 @@ export default function EpicsPage() {
                       </div>
                       {epic.description&&<div style={{fontSize:13,color:'var(--text-2)',marginBottom:8}}>{epic.description}</div>}
                       <div style={{display:'flex',alignItems:'center',gap:20,fontSize:12,color:'var(--text-2)'}}>
-                        {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||'sin fecha fin'}</span>}
-                        <span>📌 {epic.task_count||0} tareas</span>
-                        {epic.task_count>0&&<span style={{color:'var(--success)'}}>{progress}% completado</span>}
+                        {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
+                        <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
+                        {epic.task_count>0&&<span style={{color:'var(--success)'}}>{progress}% {t('epics.completed_label')}</span>}
                       </div>
                       {epic.task_count>0&&(
                         <div style={{marginTop:8,height:4,background:'var(--surface-4)',borderRadius:2,overflow:'hidden'}}>
@@ -277,9 +292,9 @@ export default function EpicsPage() {
                     </div>
                     <div style={{display:'flex',gap:6,flexShrink:0}}>
                       <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
-                        style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>Editar</button>
-                      <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`¿Eliminar "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
-                        style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>Eliminar</button>
+                        style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>{t('common.edit')}</button>
+                      <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
+                        style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>{t('common.delete')}</button>
                     </div>
                   </div>
                 </div>

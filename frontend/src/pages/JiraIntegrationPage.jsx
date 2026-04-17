@@ -187,6 +187,7 @@ export default function JiraIntegrationPage() {
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showToken ? 'text' : 'password'}
+                      autoComplete="current-password"
                       placeholder={config?.token_hint ? `\u2022\u2022\u2022\u2022\u2022\u2022${config.token_hint}` : t('jira_integration.token_placeholder')}
                       value={form.jira_api_token}
                       onChange={e => setForm(p => ({ ...p, jira_api_token: e.target.value }))}

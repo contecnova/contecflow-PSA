@@ -85,7 +85,11 @@ export default function UserProfilePanel({ onClose }) {
 
   // ── Apariencia ──────────────────────────────────────────────────────────────
   const [localTheme,   setLocalTheme]   = useState(prefs?.theme_mode  || 'dark')
-  const [localAccent,  setLocalAccent]  = useState(prefs?.accent_color || '#4f8ef7')
+  const [localAccent,  setLocalAccent]  = useState(
+    (prefs?.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color))
+      ? prefs.accent_color
+      : '#4f8ef7'
+  )
   const [localDensity, setLocalDensity] = useState(prefs?.ui_density  || 'normal')
 
   const applyTheme = (themeId) => {

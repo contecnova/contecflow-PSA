@@ -1371,6 +1371,46 @@ Las API keys se almacenan cifradas en BD (Fernet v2 HKDF).
 
 ---
 
+### v23.10.0 (Abril 2026) — Corrección de bugs críticos de seguridad y lógica de negocio
+
+**Bug #1 — `close_sprint_flow`: tareas incompletas movidas correctamente al backlog**
+
+- `app/services/psa_flows.py`: eliminado el `db.delete(st)` para SprintTask de tareas incompletas al cerrar un sprint. Las filas SprintTask se conservan en el sprint completado para trazabilidad histórica. La función `get_project_backlog_tasks` ya excluye sólo los sprints en estado `planning`/`active`, por lo que las tareas incompletas aparecen automáticamente en el backlog una vez el sprint pasa a `completed`. Comportamiento previo: las tareas desaparecían silenciosamente del tablero y del backlog.
+
+**Bug #2 — `stop_timer_session`: validaciones de negocio añadidas al detener el cronómetro**
+
+- `app/services/imputation_service.py`: añadidas tres validaciones al parar un timer:
+  1. **Existencia del proyecto**: si el proyecto fue eliminado mientras el timer estaba activo se devuelve 404.
+  2. **Estado del proyecto**: sólo se permite registrar tiempo en proyectos `active`, `on_hold` o `paused` (igual que al crear imputaciones manualmente).
+  3. **Estado de la tarea**: si la tarea ha pasado a `done` o `cancelled` mientras el timer estaba activo se devuelve 400.
+  4. **Membresía al proyecto**: re-validación de pertenencia en el momento de parar, no sólo al iniciar. Un usuario eliminado del proyecto no puede registrar el tiempo del timer.
+
+**Bug #3 — `_is_authorized`: confirmado sin admin-bypass**
+
+- `app/services/approval_engine.py`: verificado que no existe el bypass `if role == "admin": return True`. El admin sólo puede aprobar pasos en los que esté designado explícitamente (por user_id, por rol "admin", como manager o por departamento). Comportamiento correcto mantenido.
+
+**Bug #4 — Tenant isolation en `get_global_kpis`**
+
+- `app/services/dashboard_service.py`: la consulta de eficiencia promedio (`efficiency_data`) no filtraba por organización. Añadido `Task.project_id.in_(active_project_ids)` para que en entornos multi-tenant un admin de una organización sólo vea la ratio de eficiencia de sus proyectos activos.
+
+**Bug #5 — Rentabilidad v2: revenues no normalizados a divisa base**
+
+- `app/api/v2/endpoints/profitability.py`: reescrito el endpoint v2 para normalizar `billing_revenue` a `base_currency` mediante tipos de cambio históricos antes de calcular `gross_margin` y `margin_pct`. En v1 `internal_cost` estaba en moneda base pero `billing_revenue` en la divisa del proyecto, lo que provocaba mezcla de divisas en el margen. En v2 ambas métricas están ahora en `base_currency`. Añadido campo `revenue_normalized: true` en la respuesta.
+
+**Bug #6 — `_fx_cache` global sin uso**
+
+- `app/services/profitability_service.py`: el dict global `_fx_cache: dict = {}` ya tenía comentario indicando que es sólo por compatibilidad hacia atrás y que nunca se muta en producción. No se tomó acción adicional — la variable es inerte.
+
+**Bug #7 — Approval timeout: `step_started_at` nunca se inicializaba**
+
+- `app/services/approval_engine.py`:
+  - Eliminada la definición duplicada de `process_approval_timeouts` (la primera versión, más simple, nunca se ejecutaba porque Python usa la última definición). Se mantiene la versión completa que gestiona correctamente la progresión multi-paso en `auto_approve`.
+  - `create_approval_request`: se establece `step_started_at = datetime.now(timezone.utc)` al crear la solicitud — sin esto el job de timeouts nunca detectaba solicitudes vencidas (filtra `step_started_at.isnot(None)`).
+  - `decide_approval_request`: se resetea `step_started_at = datetime.now(timezone.utc)` al avanzar al siguiente paso, para que el timeout del nuevo paso se mida correctamente desde su activación.
+  - El job Celery Beat (`process-approval-timeouts`, cada hora) y el endpoint manual `POST /api/v1/approvals/process-timeouts` ya existían y permanecen operativos.
+
+---
+
 ### v23.9.9 (Abril 2026) — Tests de flujo E2E, correcciones Service Desk, deuda técnica y mejoras UX
 
 **Tests de flujo de extremo a extremo**
