@@ -4,7 +4,6 @@ settings — thin router delegating to app.services.settings_service
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
 from datetime import date as date_type
 import logging
 
@@ -12,76 +11,25 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr
 from app.models.user import User, UserRole
 import app.services.settings_service as _svc
+from app.schemas.settings import (
+    SettingOut,
+    SettingUpdate,
+    ProjectTypeIn,
+    ProjectTypeOut,
+    ProjectStatusIn,
+    ProjectStatusOut,
+    TaskStatusIn,
+    TaskStatusOut,
+    DepartmentIn,
+    DepartmentOut,
+    HolidayIn,
+    HolidayOut,
+    LogLevelPayload,
+)
 
 router = APIRouter()
 
-# ── Pydantic schemas ──────────────────────────────────────────────────────────
 
-class SettingOut(BaseModel):
-    key: str
-    value: Optional[str]
-    description: Optional[str]
-    model_config = {"from_attributes": True}
-
-class SettingUpdate(BaseModel):
-    value: str
-
-class ProjectTypeIn(BaseModel):
-    value: str
-    label: str
-    color: str = "#7a8aaa"
-    sort_order: int = 0
-
-class ProjectTypeOut(ProjectTypeIn):
-    id: str
-    is_active: bool
-    model_config = {"from_attributes": True}
-
-class ProjectStatusIn(BaseModel):
-    value: str
-    label: str
-    color: str = "#7a8aaa"
-    is_default: bool = False
-    sort_order: int = 0
-
-class ProjectStatusOut(ProjectStatusIn):
-    id: str
-    is_active: bool
-    model_config = {"from_attributes": True}
-
-class TaskStatusIn(BaseModel):
-    value: str
-    label: str
-    color: str = "#7a8aaa"
-    is_default: bool = False
-    sort_order: int = 0
-
-class TaskStatusOut(TaskStatusIn):
-    id: str
-    is_active: bool
-    model_config = {"from_attributes": True}
-
-class DepartmentIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    manager_id: Optional[str] = None
-
-class DepartmentOut(DepartmentIn):
-    id: str
-    is_active: bool
-    model_config = {"from_attributes": True}
-
-class HolidayIn(BaseModel):
-    name: str
-    date: date_type
-    type: str = "public"
-    applies_to: Optional[str] = None
-
-class HolidayOut(HolidayIn):
-    id: str
-    model_config = {"from_attributes": True}
-
-# ── Helper: check PM or admin ─────────────────────────────────────────────────
 def require_admin_or_pm(current_user: User = Depends(get_current_user)):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(status_code=403, detail="Acceso denegado")
@@ -249,10 +197,6 @@ def get_log_level(_: User = Depends(require_admin)):
         "uvicorn_access": uvicorn_access_level if uvicorn_access_level != "NOTSET" else root_level,
         "valid_levels": sorted(VALID_LOG_LEVELS),
     }
-
-class LogLevelPayload(BaseModel):
-    level: str
-    logger: Optional[str] = None
 
 from app.core.config import settings as app_settings
 

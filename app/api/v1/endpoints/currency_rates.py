@@ -2,7 +2,6 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin, require_any_manager
@@ -10,16 +9,9 @@ from app.db.session import get_db
 from app.models.billing_reports import InvoiceStatus
 from app.models.user import User
 from app.services import currency_rates_service
+from app.schemas.currency_rates import ExchangeRateCreate
 
 router = APIRouter()
-
-
-class ExchangeRateCreate(BaseModel):
-    from_currency: str
-    to_currency: str
-    rate: float
-    effective_date: Optional[date] = None
-    source: Optional[str] = "manual"
 
 
 @router.get("/currency/rates", summary="List exchange rates")

@@ -2,51 +2,20 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel
 from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
 from app.models.user import User, UserRole
 from app.services import training_service
-
-router = APIRouter(prefix="/training", tags=["Training"])
-
-
-class CourseIn(BaseModel):
-    title: str
-    description: Optional[str] = None
-    provider: Optional[str] = None
-    category: Optional[str] = None
-    duration_h: Optional[float] = None
-    url: Optional[str] = None
-    cost: Optional[float] = None
-
-class EnrollmentIn(BaseModel):
-    course_id: str
-    user_id: str
-    status: str = "planned"
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    score: Optional[float] = None
-    notes: Optional[str] = None
-
-class CertificationIn(BaseModel):
-    user_id: str
-    name: str
-    issuer: Optional[str] = None
-    cert_id: Optional[str] = None
-    obtained_at: Optional[date] = None
-    expires_at: Optional[date] = None
-    url: Optional[str] = None
-    notes: Optional[str] = None
-
-
 from app.services.training_service import (
     serialize_course as _ser_course,
     serialize_enrollment as _ser_enrollment,
     serialize_certification as _ser_cert,
 )
+from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
+
+router = APIRouter(prefix="/training", tags=["Training"])
 
 
 @router.get("/courses", summary="Catálogo de cursos")
