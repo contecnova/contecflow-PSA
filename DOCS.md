@@ -1,5 +1,36 @@
 ## Novedades técnicas recientes
 
+### Multi-tenancy — aislamiento real entre tenants (2026-04-17)
+
+**Problema resuelto:** usuarios con `organization_id=NULL` podían ver datos de todos los tenants porque `TenantSession` interpretaba `NULL` como «sin filtro», igual que el superadmin.
+
+**Cambios:**
+
+- **`app/core/deps.py`:** `get_current_user` ahora escribe `db.info["is_superadmin"]` (True/False) además de `organization_id`. Así `TenantSession` puede distinguir el bypass legítimo del superadmin de un usuario sin organización asignada.
+- **`app/db/session.py` — `TenantSession.query()`:**
+  - Si `is_superadmin=True` → sin filtro (comportamiento anterior).
+  - Si `is_superadmin=False` y `org_id=None` → aplica `sql_false()` (resultado vacío en lugar de bypass).
+  - Si `is_superadmin=False` y `org_id` presente → aplica el filtro de tenant de siempre.
+  - Nueva rama de fallback `actor_id` en `_tenant_filter_for_model` para modelos que referencian usuarios vía `actor_id` en lugar de `user_id` (p. ej. `ActivityEvent`).
+- **`app/models/activity.py`:** añadida columna `organization_id` (FK → `organizations`) a `ActivityEvent`.
+- **`app/services/activity_service.py`:** `emit_activity()` estampa `organization_id` del actor en cada evento nuevo.
+- **`alembic/versions/026_activity_event_tenant_isolation.py`:** migración que añade la columna, FK, índice y hace backfill desde el actor del evento.
+
+**Impacto en producción:** tras aplicar `alembic upgrade head`, los usuarios sin organización asignada verán cero datos (comportamiento correcto). La tabla `organizations` debe tener al menos un registro y los usuarios deben estar asignados.
+
+---
+
+### Correcciones de tests y lógica de negocio (2026-04-17)
+
+- **`app/services/imputation_service.py`:** el tope diario de 24 h ahora se comprueba *antes* que el guard de duplicado, de modo que superar 24 h siempre devuelve 400 y no 409.
+- **`app/services/profitability_service.py`:** la conversión FX de costes usa la moneda del *usuario* (`user.currency`) en lugar de la del proyecto, que es lo correcto para normalizar coste interno.
+- **`app/services/psa_flows.py`:** mensaje de error del timesheet vacío corregido a «vacío» (con acento).
+- **`app/schemas/timesheets.py`:** `TimesheetOut.submitted_at` / `reviewed_at` ahora incluyen un `field_validator` que coerciona `datetime → date` (Pydantic v2 rechaza datetimes inexactos en campos `date`).
+- **`tests/test_numbering_concurrency.py`:** acepta `201` además de `200` al crear facturas (respuesta correcta del endpoint).
+- **`tests/test_timesheets_extended.py`:** `make_project` ahora añade `dev-test-id` como miembro del proyecto para que las imputaciones no devuelvan 403.
+
+---
+
 ### Correcciones e internacionalización (i18n) — sesión 2025-07
 
 - **Backend — arranque estabilizado:**
