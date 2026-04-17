@@ -89,19 +89,57 @@ start|"")
   echo ""
   echo -e "  Pulsa ${RED}Ctrl+C${NC} para parar"
   echo ""
+
   # Migración automática clarive_legacy.db → clarive.db (compatibilidad)
   if [ -f "clarive_legacy.db" ] && [ ! -f "clarive.db" ]; then
     echo "  🔄 Migrando clarive_legacy.db → clarive.db..."
     cp clarive_legacy.db clarive.db
     echo "  ✅ Base de datos migrada"
   fi
+
+  # Instalar dependencias frontend si hace falta
+  if [ ! -d "frontend/node_modules" ]; then
+    log "Instalando dependencias frontend (npm install)..."
+    (cd frontend && npm install --silent) || err "npm install falló"
+    ok "Dependencias frontend instaladas"
+  fi
+
+  # Función de limpieza: mata backend y frontend al recibir Ctrl+C
+  BACKEND_PID=""
+  FRONTEND_PID=""
+  cleanup() {
+    echo ""
+    echo -e "  ${YELLOW}Parando servicios...${NC}"
+    [ -n "$FRONTEND_PID" ] && kill "$FRONTEND_PID" 2>/dev/null
+    [ -n "$BACKEND_PID"  ] && kill "$BACKEND_PID"  2>/dev/null
+    wait 2>/dev/null
+    echo -e "  ${GREEN}Servicios parados. ¡Hasta luego!${NC}"
+    exit 0
+  }
+  trap cleanup INT TERM
+
+  # Arrancar frontend en background
+  log "Arrancando frontend (Vite, puerto 3000)..."
+  (cd frontend && npm run dev -- --host 127.0.0.1 --port 3000 2>&1 | sed 's/^/  [frontend] /') &
+  FRONTEND_PID=$!
+
+  # Pequeña pausa para que vite arranque antes del backend
+  sleep 1
+
+  # Arrancar backend
+  log "Arrancando backend (uvicorn, puerto 8000)..."
   UVICORN_LOG_LEVEL="${LOG_LEVEL:-info}"
   UVICORN_RELOAD="${UVICORN_RELOAD:-1}"
   if [ "$UVICORN_RELOAD" = "1" ]; then
-    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level "$UVICORN_LOG_LEVEL"
+    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level "$UVICORN_LOG_LEVEL" 2>&1 | sed 's/^/  [backend]  /' &
   else
-    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level "$UVICORN_LOG_LEVEL"
+    "$PY_BIN" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level "$UVICORN_LOG_LEVEL" 2>&1 | sed 's/^/  [backend]  /' &
   fi
+  BACKEND_PID=$!
+
+  # Esperar a que alguno termine (si uno cae, el cleanup lo mata todo)
+  wait $BACKEND_PID
+  cleanup
   ;;
 seed)
   "$PY_BIN" -m app.db.seed
