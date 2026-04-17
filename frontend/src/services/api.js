@@ -25,7 +25,7 @@ api.interceptors.response.use(
     const original = err.config
     const status = err.response?.status
     const requestPath = original?.url || ''
-    const isAuthFlowRequest = requestPath.includes('/auth/login') || requestPath.includes('/auth/refresh')
+    const isAuthFlowRequest = requestPath.includes('/auth/login') || requestPath.includes('/auth/refresh') || requestPath.includes('/auth/me')
 
     // Avoid infinite loops: skip if already retried or if there's no response
     if (!err.response || original._retry || isAuthFlowRequest) {

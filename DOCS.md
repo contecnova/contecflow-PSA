@@ -1,6 +1,6 @@
 # Clarive PSA — Documentación Completa del Sistema
 
-> **Versión actual:** 23.9.9 · **Fecha:** Abril 2026  
+> **Versión actual:** 23.10.0 · **Fecha:** Mayo 2026  
 > Professional Services Automation para consultoras modernas.
 
 ---
@@ -1258,6 +1258,57 @@ Las API keys se almacenan cifradas en BD (Fernet v2 HKDF).
 
 ## 17. Novedades por versión
 
+### v23.10.0 (Mayo 2026) — Tests GRC/NPS/Portfolio/RACI/Webhooks/ReportBuilder, correcciones frontend y cobertura E2E
+
+**Nuevos módulos de test — 134 tests nuevos (8 archivos)**
+
+`tests/test_grc.py` (16 tests): cobertura completa del módulo GRC (Governance, Risk & Compliance):
+- Seed y lectura de matriz de permisos por rol
+- CRUD de reglas SoD (Segregación de Funciones)
+- Detección y registro de violaciones SoD (`record_sod_violation`)
+- Detección de auto-aprobación (`record_self_approval_violation_for_request`)
+- Comprobación de cumplimiento por usuario (`/grc/sod-check`)
+- Registro de auditoría GRC (`GrcAuditLog`)
+
+`tests/test_nps_customer_health.py` (21 tests): cobertura completa de NPS y Customer Health:
+- Creación y lectura de respuestas NPS por cliente
+- Clasificación automática promotor / pasivo / detractor
+- Cálculo de score NPS agregado (fórmula promotores–detractores)
+- Cómputo del índice de salud compuesto (`compute_composite_health`)
+- Snapshots de salud y lectura histórica (`/nps/{id}/health`)
+- Comportamiento con cliente inexistente (HTTP 404)
+
+`tests/test_portfolio.py` (14 tests): cobertura completa de Portfolios y EVM:
+- CRUD de portfolios (`POST/GET/PATCH/DELETE /portfolios`)
+- Añadir y eliminar proyectos de un portfolio; idempotencia de duplicados
+- Dashboard de portfolio (`/portfolios/{id}/dashboard`) con y sin proyectos
+- Cálculo EVM rápido (`get_evm_quick`): BAC, AC, pct_complete con y sin tareas
+- Color de salud EVM (green/yellow/red/grey) según CPI y SPI
+
+`tests/test_raci.py` (14 tests): cobertura completa de RACI, burnout, UAT y Changelog:
+- Matriz RACI: asignar/actualizar/eliminar entradas (roles R/A/C/I)
+- Burnout risk por usuario (umbral de horas semanales)
+- UAT cases: crear, listar, transición de estado (pending → passed/failed/blocked)
+- Project Changelog: entradas manuales, actualización, generación automática
+
+`tests/test_report_builder.py` (20 tests): cobertura del Report Builder:
+- Schema de entidades disponibles (projects, tasks, imputations, etc.)
+- Preview con filtros, columnas y paginación
+- Exportación CSV
+- CRUD de plantillas de informe (templates)
+- Validación de entidad/columna inválida
+
+`tests/test_webhooks.py`, `tests/test_custom_fields.py`, `tests/test_exchange_rates.py`: cobertura adicional de webhooks, campos personalizados y tipos de cambio.
+
+**Suite total actualizada: 1181 passed, 12 skipped**
+
+**Correcciones de bugs — frontend**
+
+- `frontend/src/pages/ImputarPage.jsx`: eliminado atributo HTML inválido `loading={isPending}` en elemento `<button>` (no es un atributo nativo; causaba warnings en consola)
+- `frontend/src/services/api.js`: añadido `/auth/me` a la lista de exclusión `isAuthFlowRequest` en el interceptor de respuesta — evita bucle infinito de reintentos cuando `/auth/me` devuelve 401
+
+---
+
 ### v23.9.9 (Abril 2026) — Tests de flujo E2E, correcciones Service Desk, deuda técnica y mejoras UX
 
 **Tests de flujo de extremo a extremo**
@@ -2297,4 +2348,4 @@ _Última revisión: [fecha de hoy]_
 
 ---
 
-*Documentación generada: Abril 2026 — Clarive PSA v23.9.9*
+*Documentación generada: Mayo 2026 — Clarive PSA v23.10.0*

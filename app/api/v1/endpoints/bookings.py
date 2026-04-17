@@ -86,10 +86,16 @@ def delete_booking(booking_id: str, db: Session = Depends(get_db),
 # ── Exchange Rates ────────────────────────────────────────────────────────────
 
 @router.get("/currency/rates")
-def get_exchange_rates(base: Optional[str] = None, db: Session = Depends(get_db),
+def get_exchange_rates(base: Optional[str] = None, target: Optional[str] = None,
+                       db: Session = Depends(get_db),
                        current_user: User = Depends(get_current_user)):
-    from app.core.config import settings
-    return svc.get_exchange_rates_data(base or settings.DEFAULT_CURRENCY, db)
+    from app.services import currency_rates_service as _crs
+    rates = _crs.list_exchange_rates(db, base_currency=base, target_currency=target)
+    return [
+        {"from_currency": r.from_currency, "to_currency": r.to_currency,
+         "rate": r.rate, "effective_date": str(r.effective_date), "source": r.source}
+        for r in rates
+    ]
 
 
 @router.post("/currency/rates")

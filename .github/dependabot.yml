@@ -1,0 +1,77 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Clarive PSA — Dependabot Configuration
+#
+# Keeps GitHub Actions, Python packages, and npm packages up-to-date
+# automatically via weekly PRs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: 2
+
+updates:
+
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "chore(ci)"
+    reviewers:
+      - ${{ github.repository_owner }}
+
+  # ── Python (pip) ────────────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: "chore(deps)"
+    # Group all non-major updates into a single PR
+    groups:
+      python-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    # Limit open PRs to avoid noise
+    open-pull-requests-limit: 10
+    ignore:
+      # Pin major upgrades to a manual decision
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # ── npm (frontend) ──────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    labels:
+      - dependencies
+      - frontend
+    commit-message:
+      prefix: "chore(frontend)"
+    groups:
+      npm-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

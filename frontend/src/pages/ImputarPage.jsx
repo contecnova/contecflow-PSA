@@ -294,7 +294,7 @@ export default function ImputarPage() {
             color: canSubmit ? 'var(--surface-0)' : 'var(--text-2)',
             fontWeight: 800, fontSize: 15, cursor: canSubmit ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit', transition: 'all 0.3s',
-          }} loading={isPending}
+          }}
         >
           {saved ? t('imputa_page.saved') : isPending ? t('imputa_page.saving') : navigator.onLine ? t('imputa_page.submit') : t('imputa_page.submit_offline')}
         </button>

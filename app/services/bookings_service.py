@@ -317,13 +317,19 @@ def get_exchange_rates_data(base: str, db) -> dict:
 
 
 def upsert_exchange_rate_record(payload: dict, db) -> dict:
+    import re as _re
     from_currency = payload.get("from_currency", settings.DEFAULT_CURRENCY).upper()
     to_currency   = payload.get("to_currency", "USD").upper()
+    _iso3 = _re.compile(r"^[A-Z]{3}$")
+    if not _iso3.match(from_currency) or not _iso3.match(to_currency):
+        raise HTTPException(422, "Currency codes must be 3-letter ISO codes (e.g. EUR, USD)")
     rate_value    = float(payload.get("rate", 1.0))
     if rate_value <= 0:
         raise HTTPException(400, "El tipo de cambio debe ser mayor que cero")
+    source = payload.get("source", "manual")
     effective_date = date.fromisoformat(payload.get("effective_date", str(date.today())))
-    for fc, tc, r in [(from_currency, to_currency, rate_value), (to_currency, from_currency, round(1 / rate_value, 6))]:
+    primary_obj = None
+    for idx, (fc, tc, r) in enumerate([(from_currency, to_currency, rate_value), (to_currency, from_currency, round(1 / rate_value, 6))]):
         existing = db.query(ExchangeRate).filter(
             ExchangeRate.from_currency == fc,
             ExchangeRate.to_currency == tc,
@@ -331,19 +337,33 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
         ).first()
         if existing:
             existing.rate = r
+            existing.source = source
+            if idx == 0:
+                primary_obj = existing
         else:
-            db.add(ExchangeRate(from_currency=fc, to_currency=tc, rate=r, effective_date=effective_date, source="manual"))
+            obj = ExchangeRate(from_currency=fc, to_currency=tc, rate=r, effective_date=effective_date, source=source)
+            db.add(obj)
+            if idx == 0:
+                primary_obj = obj
     db.commit()
-    return {"ok": True}
+    if primary_obj:
+        db.refresh(primary_obj)
+    return {
+        "from_currency": from_currency,
+        "to_currency": to_currency,
+        "rate": rate_value,
+        "effective_date": str(effective_date),
+        "source": source,
+    }
 
 
 def convert_currency_amount(payload: dict, db) -> dict:
     amount    = float(payload.get("amount", 0))
-    from_curr = payload.get("from", settings.DEFAULT_CURRENCY).upper()
-    to_curr   = payload.get("to", settings.DEFAULT_CURRENCY).upper()
+    from_curr = (payload.get("from_currency") or payload.get("from") or settings.DEFAULT_CURRENCY).upper()
+    to_curr   = (payload.get("to_currency") or payload.get("to") or settings.DEFAULT_CURRENCY).upper()
     on_date   = date.fromisoformat(payload.get("date", str(date.today()))) if payload.get("date") else date.today()
     if from_curr == to_curr:
-        return {"amount": amount, "from": from_curr, "to": to_curr, "rate": 1.0, "converted": amount}
+        return {"converted_amount": amount, "amount": amount, "from_currency": from_curr, "to_currency": to_curr, "rate": 1.0}
     rate_row = db.query(ExchangeRate).filter(
         ExchangeRate.from_currency == from_curr,
         ExchangeRate.to_currency == to_curr,
@@ -353,7 +373,8 @@ def convert_currency_amount(payload: dict, db) -> dict:
         raise HTTPException(404, f"Sin tipo de cambio {from_curr}→{to_curr}. Configura los tipos en Configuración → Monedas.")
     converted = round(amount * rate_row.rate, 2)
     return {
-        "amount": amount, "from": from_curr, "to": to_curr,
+        "converted_amount": converted, "amount": amount,
+        "from_currency": from_curr, "to_currency": to_curr,
         "rate": rate_row.rate, "converted": converted,
         "effective_date": str(rate_row.effective_date),
     }

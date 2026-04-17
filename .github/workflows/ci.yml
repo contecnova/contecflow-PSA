@@ -1,0 +1,228 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Clarive PSA — CI Pipeline
+#
+# Triggers:
+#   - Push to main or develop
+#   - Pull Request targeting main or develop
+#
+# Jobs:
+#   lint-python    — ruff static analysis on app/
+#   lint-frontend  — ESLint on frontend/src
+#   test-backend   — pytest + coverage (SQLite in-memory, no external services)
+#   build-frontend — Vite production build
+#   build-docker   — Docker image build validation (no push)
+# ══════════════════════════════════════════════════════════════════════════════
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+# ── Jobs ───────────────────────────────────────────────────────────────────────
+
+jobs:
+
+  # ── 1. Python linting (ruff) ────────────────────────────────────────────────
+  lint-python:
+    name: Lint — Python (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install ruff==0.4.7
+
+      - name: Run ruff
+        run: ruff check app/ --output-format=github
+
+  # ── 2. Frontend linting (ESLint) ────────────────────────────────────────────
+  lint-frontend:
+    name: Lint — Frontend (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run ESLint
+        run: cd frontend && npm run lint
+
+  # ── 3. Backend tests with coverage ─────────────────────────────────────────
+  test-backend:
+    name: Tests — Backend (pytest + coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx coverage pytest-cov
+
+      - name: Run tests with coverage
+        env:
+          TESTING: "1"
+          SECRET_KEY: "ci-secret-key-not-for-production-use-only"
+          CLIENT_PORTAL_SECRET: "ci-client-portal-secret-not-for-prod"
+          WEBHOOK_SECRET: "ci-webhook-secret-not-for-prod"
+          DATABASE_URL: "sqlite://"
+        run: |
+          python -m pytest tests/ \
+            -q \
+            --tb=short \
+            -p no:warnings \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=55 \
+            --junit-xml=test-results/junit.xml
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/junit.xml
+          retention-days: 30
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 30
+
+  # ── 4. Frontend build ───────────────────────────────────────────────────────
+  build-frontend:
+    name: Build — Frontend (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build
+        run: cd frontend && npm run build
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ── 5. Docker build validation ──────────────────────────────────────────────
+  build-docker:
+    name: Build — Docker images (validate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: clarive-backend:ci
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: clarive-frontend:ci
+
+  # ── 6. Python syntax validation ─────────────────────────────────────────────
+  syntax-check:
+    name: Syntax — Python compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check Python syntax
+        run: |
+          find app -name "*.py" ! -path "*__pycache__*" \
+            -exec python -m py_compile {} \;
+          echo "All Python files compile OK"
+
+  # ── Gate: all checks must pass ──────────────────────────────────────────────
+  ci-ok:
+    name: CI — All checks passed
+    runs-on: ubuntu-latest
+    needs:
+      - lint-python
+      - lint-frontend
+      - test-backend
+      - build-frontend
+      - build-docker
+      - syntax-check
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          results="${{ join(needs.*.result, ' ') }}"
+          echo "Job results: $results"
+          for result in $results; do
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              echo "One or more CI jobs failed: $results"
+              exit 1
+            fi
+          done
+          echo "All CI checks passed ✅"
