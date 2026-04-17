@@ -930,10 +930,10 @@ python -m pytest tests/ -x
 
 ### Cobertura actual
 
-- **831 tests totales** en la suite backend principal
-- Resultado validado recientemente: **820 passed, 11 skipped**
-- Tiempo de la última validación completa: **18m39s**
-- Además, se validan subconjuntos críticos para auth, tenant isolation, seguridad, lógica de negocio y clasificación semántica en cada hardening relevante
+- **1.182 tests totales** en la suite backend principal (8 módulos nuevos añadidos en el ciclo actual de cobertura de negocio)
+- Resultado validado: **1.047+ passed, 11 skipped** (suite completa, sin regressions)
+- Los 8 nuevos módulos añaden **134 tests** con cobertura de dominios previamente sin cobertura
+- Tiempo de ejecución completa: ~18–20 minutos
 
 ### Módulos de test
 
@@ -980,6 +980,14 @@ python -m pytest tests/ -x
 | `test_resources.py` | Recursos y entregables |
 | `test_settings.py` | Configuración global |
 | `test_v24_features.py` | Features v24+ (Activity Feed, @Mentions, Health Score, CPM, etc.) |
+| `test_grc.py` | ✨ **NUEVO** — GRC: matriz de permisos, reglas SoD, violaciones, audit log |
+| `test_nps_customer_health.py` | ✨ **NUEVO** — NPS: respuestas, resumen, puntuación de salud del cliente |
+| `test_portfolio.py` | ✨ **NUEVO** — Carteras: CRUD, EVM (CPI/SPI/health), dashboard RAG |
+| `test_raci.py` | ✨ **NUEVO** — RACI matrix, burnout risk, casos UAT, changelog de proyecto |
+| `test_custom_fields.py` | ✨ **NUEVO** — Campos personalizados, workflow states/transitions, permisos granulares |
+| `test_webhooks.py` | ✨ **NUEVO** — Webhooks: CRUD, signing HMAC-SHA256, firing logic, delivery log |
+| `test_report_builder.py` | ✨ **NUEVO** — Report Builder: schema, preview, export CSV, templates |
+| `test_exchange_rates.py` | ✨ **NUEVO** — Tipos de cambio: CRUD, conversión, sync ECB (mock), FX service unit |
 
 ### Tests E2E (Playwright)
 
@@ -997,49 +1005,103 @@ pytest test_e2e_projects.py -v
 
 ## 13. CI/CD
 
-### Pipeline GitHub Actions (`.github/workflows/ci.yml`)
+La plataforma dispone de un pipeline completo en **GitHub Actions** con cuatro ficheros de workflow:
+
+### Workflows
+
+| Fichero | Trigger | Descripción |
+|---------|---------|-------------|
+| `.github/workflows/ci.yml` | Push / PR a `main`, `develop` | Pipeline de integración continua |
+| `.github/workflows/cd.yml` | Push a `main`, `develop`, tags `v*.*.*` | Despliegue continuo (GHCR + SSH) |
+| `.github/workflows/security.yml` | Semanal + push / PR | Escaneo de seguridad |
+| `.github/dependabot.yml` | Semanal (lunes 06:00 UTC) | Actualizaciones automáticas de dependencias |
+
+### Pipeline CI (`.github/workflows/ci.yml`)
 
 ```
 on: push/PR a main, develop
 
 Jobs:
-├── test
-│   ├── Python 3.12
-│   ├── pytest tests/ -q + cobertura
-│   └── Upload artifacts (junit + coverage)
-├── lint
-│   ├── ruff + bandit + pip-audit
-│   └── validación de excepciones de vulnerabilidades
-├── frontend
-│   ├── npm ci
-│   ├── npm audit --omit=dev --audit-level=high
-│   ├── npm run lint
-│   └── npm run build
-├── sast / sca / dast
-│   ├── Semgrep + Bandit
-│   ├── Trivy (SCA)
-│   └── OWASP ZAP baseline
-├── sbom-and-signature
-│   ├── Syft (CycloneDX)
-│   └── cosign sign/verify (keyless)
-├── secrets
-│   └── Gitleaks (repo + historial)
-└── build
-  ├── build backend image
-  └── build frontend image
+├── lint-python
+│   └── ruff check + ruff format --check
+├── lint-frontend
+│   └── npm ci + npm run lint
+├── test-backend
+│   ├── Python 3.12 + SQLite in-memory
+│   ├── TESTING=1 pytest tests/ -q --cov=app
+│   └── Cobertura mínima requerida: 55%
+├── build-frontend
+│   └── npm run build (artefacto en dist/)
+├── build-docker
+│   └── docker build (build check, sin push)
+├── syntax-check
+│   └── python -c "import app.main" + validate imports
+└── ci-ok (gate)
+    └── Depende de todos los jobs anteriores
 ```
+
+Variables de entorno requeridas (secrets de GitHub):
+- `SECRET_KEY` — clave JWT
+- `CLIENT_PORTAL_SECRET` — secreto del portal cliente
+- `WEBHOOK_SECRET` — secreto para webhooks salientes
+
+### Pipeline CD (`.github/workflows/cd.yml`)
+
+```
+on:
+  push a develop → staging
+  push a main / tag v*.*.* → producción
+
+Jobs:
+├── resolve-env   — determina entorno (staging / production)
+├── build-and-push
+│   ├── Build imagen Docker backend
+│   └── Push a GHCR (ghcr.io/{owner}/contecflow-backend)
+├── deploy-staging  — SSH + docker compose pull + up -d
+└── deploy-production — SSH + docker compose pull + up -d + alembic upgrade
+```
+
+Secrets requeridos en GitHub:
+- `GHCR_TOKEN` — token con permiso `write:packages`
+- `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`
+- `PROD_HOST`, `PROD_SSH_USER`, `PROD_SSH_KEY`
+
+### Escaneo de seguridad (`.github/workflows/security.yml`)
+
+```
+Jobs:
+├── gitleaks        — búsqueda de secretos en historial completo
+├── pip-audit       — audit de dependencias Python (con excepciones gestionadas)
+├── validate-exceptions — valida que las excepciones de vulnerabilidades tengan justificación
+└── codeql          — SAST estático (python + javascript-typescript)
+```
+
+Las excepciones de vulnerabilidades se gestionan en `security/vulnerability-exceptions.json` y se validan automáticamente con `scripts/validate_vulnerability_exceptions.py`.
+
+### Dependabot (`.github/dependabot.yml`)
+
+- **github-actions**: actualizaciones semanales (lunes)
+- **pip** (directorio `/`): actualizaciones semanales, parches y menores agrupados
+- **npm** (directorio `/frontend`): actualizaciones semanales, parches y menores agrupados
+- Las actualizaciones de versión **major** están bloqueadas (requieren revisión manual)
 
 ### Ejecutar CI localmente
 
 ```bash
-# Script de CI local (similar al pipeline de GitHub Actions)
+# Script de CI local
 ./scripts/ci_local.sh
 
 # O manualmente:
 source venv/bin/activate
-CLIENT_PORTAL_SECRET=test SECRET_KEY=test python -m pytest tests/ -q
+export TESTING=1 SECRET_KEY=test CLIENT_PORTAL_SECRET=test WEBHOOK_SECRET=test
+python -m pytest tests/ -q --cov=app --cov-fail-under=55
 
-cd frontend && npm run lint && npm run check:i18n
+# Lint Python
+ruff check app/ tests/
+ruff format --check app/ tests/
+
+# Lint Frontend
+cd frontend && npm run lint
 ```
 
 ### Despliegue automático
