@@ -1,868 +1,6 @@
-## Novedades técnicas recientes
-
-### Approval workflows — timeout y escalación reales (2026-04-17)
-
-**Problema resuelto:** `timeout_hours` y `on_timeout` existían en el modelo y el schema pero nunca se evaluaban. No había ningún job que comprobara solicitudes vencidas, por lo que los workflows con timeout configurado nunca escalaban.
-
-**Cambios:**
-
-- **`app/models/billing_reports.py` — `ApprovalRequest`:** nueva columna `step_started_at` (`DateTime(timezone=True)`, nullable). Registra cuándo el paso activo empezó; es la referencia para calcular el tiempo transcurrido.
-- **`app/services/approval_engine.py`:**
-  - `create_approval_request`: establece `step_started_at = now` al crear la solicitud.
-  - `decide_approval_request`: resetea `step_started_at = now` cada vez que se avanza al siguiente paso.
-  - Nueva función exportada `process_approval_timeouts(db)`: escanea todas las solicitudes `pending`, calcula si `(now − step_started_at) ≥ timeout_hours` y aplica la acción configurada:
-    - `auto_approve` → registra una decisión automática, avanza al siguiente paso (o marca la solicitud como aprobada) y notifica.
-    - `reject` → rechaza la solicitud con nota de timeout.
-    - `escalate` → notifica al `escalate_to_user_id` si está configurado (o re-notifica al aprobador original) y resetea el reloj para evitar re-fires inmediatos.
-  - Todos los timeouts quedan trazados en `FinancialApprovalAuditLog` con `action="timeout"`.
-- **`app/api/v1/endpoints/approvals.py`:** nuevo endpoint `POST /approvals/process-timeouts` (solo admin) para disparo manual del job, siguiendo el mismo patrón que `POST /sd/escalation-rules/run`.
-- **`app/worker.py`:** nueva tarea Celery `process_approval_timeouts` programada cada hora en `beat_schedule` (`crontab(minute=0)`).
-- **`alembic/versions/027_approval_step_started_at.py`:** migración que añade la columna y hace backfill de `created_at` en solicitudes pendientes existentes (conservador — evita falsos timeouts inmediatos en el primer deploy).
-
-**Uso:**
-- Configura `timeout_hours` y `on_timeout` en cada paso del workflow desde el UI de Aprobaciones.
-- En producción, Celery Beat ejecuta `process_approval_timeouts` cada hora automáticamente.
-- Para lanzarlo manualmente: `POST /api/v1/approvals/process-timeouts` (requiere rol admin).
-
----
-
-### Multi-tenancy — aislamiento real entre tenants (2026-04-17)
-
-**Problema resuelto:** usuarios con `organization_id=NULL` podían ver datos de todos los tenants porque `TenantSession` interpretaba `NULL` como «sin filtro», igual que el superadmin.
-
-**Cambios:**
-
-- **`app/core/deps.py`:** `get_current_user` ahora escribe `db.info["is_superadmin"]` (True/False) además de `organization_id`. Así `TenantSession` puede distinguir el bypass legítimo del superadmin de un usuario sin organización asignada.
-- **`app/db/session.py` — `TenantSession.query()`:**
-  - Si `is_superadmin=True` → sin filtro (comportamiento anterior).
-  - Si `is_superadmin=False` y `org_id=None` → aplica `sql_false()` (resultado vacío en lugar de bypass).
-  - Si `is_superadmin=False` y `org_id` presente → aplica el filtro de tenant de siempre.
-  - Nueva rama de fallback `actor_id` en `_tenant_filter_for_model` para modelos que referencian usuarios vía `actor_id` en lugar de `user_id` (p. ej. `ActivityEvent`).
-- **`app/models/activity.py`:** añadida columna `organization_id` (FK → `organizations`) a `ActivityEvent`.
-- **`app/services/activity_service.py`:** `emit_activity()` estampa `organization_id` del actor en cada evento nuevo.
-- **`alembic/versions/026_activity_event_tenant_isolation.py`:** migración que añade la columna, FK, índice y hace backfill desde el actor del evento.
-
-**Impacto en producción:** tras aplicar `alembic upgrade head`, los usuarios sin organización asignada verán cero datos (comportamiento correcto). La tabla `organizations` debe tener al menos un registro y los usuarios deben estar asignados.
-
----
-
-### Correcciones de tests y lógica de negocio (2026-04-17)
-
-- **`app/services/imputation_service.py`:** el tope diario de 24 h ahora se comprueba *antes* que el guard de duplicado, de modo que superar 24 h siempre devuelve 400 y no 409.
-- **`app/services/profitability_service.py`:** la conversión FX de costes usa la moneda del *usuario* (`user.currency`) en lugar de la del proyecto, que es lo correcto para normalizar coste interno.
-- **`app/services/psa_flows.py`:** mensaje de error del timesheet vacío corregido a «vacío» (con acento).
-- **`app/schemas/timesheets.py`:** `TimesheetOut.submitted_at` / `reviewed_at` ahora incluyen un `field_validator` que coerciona `datetime → date` (Pydantic v2 rechaza datetimes inexactos en campos `date`).
-- **`tests/test_numbering_concurrency.py`:** acepta `201` además de `200` al crear facturas (respuesta correcta del endpoint).
-- **`tests/test_timesheets_extended.py`:** `make_project` ahora añade `dev-test-id` como miembro del proyecto para que las imputaciones no devuelvan 403.
-
----
-
-### Correcciones e internacionalización (i18n) — sesión 2025-07
-
-- **Backend — arranque estabilizado:**
-  - Añadida importación faltante de `AIProvider` y `AIUsageLog` en `app/models/__init__.py`.
-  - Creada migración Alembic `025_merge_multitenancy_heads.py` para resolver dos cabeceras divergentes.
-  - El servidor arranca correctamente: "Clarive PSA listo — 1290 endpoints".
-- **Traducciones back-office (`frontend/src/i18n/appTranslations.js`):**
-  - Completadas todas las claves faltantes del bloque EN (459 claves en 40 módulos).
-  - Módulos ampliados: `alm` (+200 claves), `approvals` (+93), `absences` (+60), `agent_dashboard`, `cumulative_flow`, `alerts`, `common`, y ~35 módulos con `subtitle` y otras claves puntuales.
-  - FR/DE/PT/IT/PL/ZH siguen con fallback a ES/EN (funciona correctamente por diseño).
-- **Traducciones portal cliente (`frontend/src/i18n/portalTranslations.js`):**
-  - **Todas las lenguas ahora completas: 0 claves faltantes en ES/EN/FR/DE/PT/IT/PL/ZH.**
-  - EN: añadidas 5 claves de dashboard.
-  - FR/DE/PT/IT/PL/ZH: añadidas 252 claves por idioma (dashboard, KPIs, facturas, roadmap, perfil, soporte, encuestas, documentos, etc.).
-
----
-
-## Novedades técnicas recientes (sesiones anteriores)
-
-- Descomposición progresiva de endpoints legacy:
-  - Se extrajeron routers de dominio para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`.
-  - `v238_features` y `v239_features` quedan como routers de compatibilidad temporal.
-- Normalización de capa de esquemas:
-  - Esquemas movidos a `app/schemas/bookings.py` y `app/schemas/billing_reports.py`.
-  - Se añadió test de guardia para evitar reintroducir `BaseModel` inline en endpoints normalizados.
-- Paginación consistente en endpoints de alto volumen:
-  - `GET /sd/problems`, `GET /sd/cmdb` y `GET /sd/changes` ahora aceptan `page` y `page_size`.
-  - `GET /bi/data/timesheets` ahora acepta `page` y `page_size` (elimina límite fijo de 10k filas).
-  - `POST /analytics/adhoc` usa el `limit` validado del payload en todas las métricas.
-- Gobernanza de índices (Alembic):
-  - Nueva migración `022_perf_composite_indexes.py` con índices compuestos para consultas de tickets, cambios, problemas, tareas, imputaciones e invoices.
-
-**Ejemplo de uso:**
-- Crear un proyecto: En el portal, ve a "Proyectos" > "Nuevo proyecto", completa los datos y asigna equipo. Guarda y revisa el resumen.
-- Crear tarea Kanban: Dentro de un proyecto, accede al tablero, pulsa "+ Tarea", define título, responsable y prioridad.
-- Consultar Gantt: Entra en el proyecto y selecciona la pestaña "Gantt" para ver dependencias y fechas.
-- Aprobar entregable UAT: En "Entregables", selecciona uno pendiente y pulsa "Validar" tras revisar el resultado.
-- API: `POST /api/v1/projects` para crear, `GET /api/v1/projects/{id}` para consultar.
-**Ejemplo de uso:**
-- Imputar horas: Ve a "Imputaciones" y registra tus horas diarias por tarea/proyecto. Usa el temporizador si lo deseas.
-- Aprobar timesheet: Si eres manager, accede a "Timesheets", revisa y aprueba/rechaza los partes semanales.
-- Solicitar ausencia: En "Ausencias", pulsa "Nueva solicitud", selecciona tipo y fechas, y envía para aprobación.
-- Consultar skills: En tu perfil, revisa y actualiza tus habilidades. Los managers pueden asignar skills a usuarios.
-- API: `POST /api/v1/imputations` para registrar horas, `GET /api/v1/timesheets` para consultar partes.
-**Ejemplo de uso:**
-- Crear oportunidad pipeline: Ve a "Pipeline", pulsa "+ Oportunidad", completa datos y etapa inicial.
-- Crear contrato: En "Contratos", pulsa "+ Contrato", elige tipo (T&M, fijo, retainer), vincula cliente y define condiciones.
-- Emitir factura: En "Facturación", pulsa "+ Factura", selecciona contrato/milestone y añade líneas.
-- Consultar rentabilidad: Accede a "Rentabilidad" para ver márgenes y costes por proyecto.
-- API: `POST /api/v1/pipeline` para oportunidades, `POST /api/v1/invoices` para facturas, `GET /api/v1/profitability` para KPIs.
-**Ejemplo de uso:**
-- Crear ticket: Ve a "Service Desk" o "Soporte", pulsa "+ Ticket", elige tipo (incidencia, cambio, pregunta), describe el problema y envía.
-- Consultar SLA: En el ticket, revisa los plazos de respuesta y resolución según prioridad.
-- Buscar en la base de conocimiento: Usa la barra de búsqueda en "Conocimiento" para encontrar artículos relevantes.
-- Escalar ticket: Si no se resuelve en plazo, el sistema lo escala automáticamente según reglas configuradas.
-- API: `POST /api/v1/service-desk/tickets` para crear, `GET /api/v1/service-desk/tickets/{id}` para consultar.
-**Ejemplo de uso:**
-- Consultar dashboard: Ve a "BI" o "Dashboard" para ver KPIs y widgets en tiempo real. Personaliza el layout arrastrando widgets.
-- Crear informe: En "Report Builder", selecciona métricas, filtros y genera un informe exportable a Excel/CSV.
-- Buscar globalmente: Usa Cmd+K o la barra de búsqueda para localizar proyectos, tareas, tickets, clientes, etc.
-- Configurar alerta: En "Alertas", define umbral y canal (email, Slack) para recibir notificaciones automáticas.
-**Ejemplo de uso:**
-- Crear nuevo tenant: Como admin, accede a "Configuración empresa", pulsa "+ Organización" y completa los datos.
-- Asignar roles: En "Usuarios", edita un usuario y selecciona el rol adecuado (admin, pm, hr, etc.).
-- Configurar automatización: En "Automatizaciones", crea una regla if/then (ej: "Si ticket P1, notificar a L2").
-- Revisar auditoría: En "Auditoría", consulta el log de cambios críticos y accesos.
-- API: `POST /api/v1/enterprise` para crear tenant, `POST /api/v1/automations` para reglas, `GET /api/v1/alerts` para logs.
-# 10. Preguntas frecuentes y resolución de problemas
-
-**¿No arranca el backend?**
-- Revisa que PostgreSQL y Redis estén activos y accesibles.
-- Comprueba el archivo `.env` y las variables de conexión.
-- Consulta los logs con `docker-compose logs` o en consola.
-
-**¿No carga el frontend?**
-- Asegúrate de haber ejecutado `npm install` y `npm run dev` en la carpeta `frontend/`.
-- Verifica la URL del backend en la configuración.
-
-**¿Problemas con migraciones de base de datos?**
-- Ejecuta `alembic upgrade head` y revisa los scripts en `alembic/versions/`.
-
-**¿No llegan emails?**
-- Revisa la configuración SMTP en el `.env` y los logs de errores.
-
-**¿Errores de permisos o autenticación?**
-- Comprueba los roles asignados y la configuración de CORS/ALLOWED_HOSTS.
-
-**¿Cómo restauro un backup?**
-- Usa el comando de restauración de PostgreSQL y revisa los permisos de usuario.
-
-Para dudas avanzadas, consulta la documentación de cada módulo o contacta con el soporte técnico.
-# 9. Seguridad y buenas prácticas
-
-La seguridad es prioritaria tanto en desarrollo como en producción. Sigue estas recomendaciones:
-
-## Autenticación y autorización
-- Usa contraseñas robustas y activa MFA/2FA para todos los usuarios.
-- Limita los permisos según el rol y el principio de mínimo privilegio.
-- Configura correctamente los CORS y los ALLOWED_HOSTS.
-
-## Protección de datos
-- Cambia la `SECRET_KEY` y claves de acceso en cada entorno.
-- Cifra datos sensibles (Fernet, TLS/SSL en todas las conexiones).
-- No subas nunca archivos `.env` ni backups a repositorios públicos.
-
-## Infraestructura
-- Expón solo los puertos necesarios y usa firewalls.
-- Configura HTTPS en Nginx y renueva los certificados periódicamente.
-- Realiza backups y pruebas de restauración periódicas.
-
-## Actualizaciones y dependencias
-- Mantén el sistema y las librerías actualizadas.
-- Revisa los avisos de seguridad de dependencias (pip, npm audit).
-
-## Auditoría y trazabilidad
-- Activa logs de acceso y cambios críticos.
-- Usa herramientas de monitorización y alertas ante eventos sospechosos.
-
-Consulta la sección de administración para más detalles y comandos útiles.
-# 8. Administración y mantenimiento
-
-Esta sección está orientada a administradores y técnicos responsables del sistema.
-
-## Gestión de usuarios y roles
-- Los usuarios se gestionan desde el portal o vía API.
-- Asigna roles (`admin`, `pm`, `team_lead`, `employee`, etc.) según responsabilidades.
-- Configura MFA/2FA para mayor seguridad.
-
-## Backups y restauración
-- Programa backups automáticos de la base de datos (PostgreSQL) y del almacenamiento de ficheros.
-- Ejemplo de backup manual:
-  ```sh
-  pg_dump -U <usuario> -h <host> <db> > backup.sql
-  ```
-- Para restaurar:
-  ```sh
-  psql -U <usuario> -h <host> <db> < backup.sql
-  ```
-
-## Logs y monitorización
-- Los logs del backend se almacenan en consola y pueden integrarse con Sentry, ELK, etc.
-- Monitoriza recursos (CPU, RAM, disco) y uso de servicios (DB, Redis).
-
-## Troubleshooting
-- Revisa los logs ante errores o caídas.
-- Usa los comandos de gestión de Docker (`docker-compose logs`, `docker-compose restart`).
-- Consulta la documentación de cada módulo para resolución de problemas específicos.
-
-**Consejo:** Mantén el sistema y las dependencias actualizadas, y revisa periódicamente la seguridad y los accesos.
-# 7. Guía de uso para usuarios
-
-## Flujos y procesos funcionales
-
-
-### 1. Proceso de alta de un nuevo proyecto
-
-```mermaid
-flowchart TD
-  A[Usuario accede a gestión de proyectos] --> B[Pulsa 'Nuevo proyecto']
-  B --> C[Completa datos y asigna equipo]
-  C --> D[Define entregables y fechas]
-  D --> E[Guarda y revisa resumen]
-  E --> F[Proyecto visible para el equipo]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style F fill:#c8e6c9,stroke:#388e3c
-```
-
-**Objetivo:** Crear un nuevo proyecto correctamente configurado, con equipo y entregables definidos.
-
-**Pasos detallados:**
-1. Accede al portal y selecciona “Proyectos” en el menú lateral.
-2. Pulsa el botón “Nuevo proyecto”.
-3. Completa los campos obligatorios:
-  - Nombre del proyecto (único y descriptivo)
-  - Cliente asociado (elige de la lista o crea uno nuevo)
-  - Fechas de inicio y fin previstas
-  - Presupuesto estimado y tipo de contrato (T&M, fijo, retainer)
-4. (Opcional) Añade descripción, objetivos y notas internas.
-5. Asigna miembros del equipo:
-  - Selecciona usuarios y define su rol (PM, consultor, desarrollador, etc.)
-  - Puedes invitar usuarios externos si el proyecto lo requiere
-6. Añade tareas iniciales y entregables:
-  - Define milestones, entregables y fechas clave
-  - Puedes importar plantillas de proyectos anteriores
-7. Guarda y revisa el resumen del proyecto.
-8. El proyecto queda visible solo para el equipo asignado y los roles con permisos.
-
-**Buenas prácticas:**
-- Usa nombres claros y evita duplicados.
-- Define siempre al menos un responsable (PM).
-- Documenta objetivos y criterios de éxito.
-- Revisa los permisos antes de invitar a usuarios externos.
-
-**Notas:**
-- Puedes editar todos los datos del proyecto salvo el identificador único.
-- Los cambios quedan auditados y notificados a los implicados.
-
-
-### 2. Ciclo de vida de una Feature Request (FR) y Change Request (CR)
-
-**Objetivo:** Gestionar solicitudes de nuevas funcionalidades o cambios de forma transparente, auditable y colaborativa.
-
-**Flujo estándar:**
-```mermaid
-flowchart TD
-  A[Cliente crea FR] --> B[Equipo revisa y estima]
-  B --> C[Cliente aprueba FR]
-  C --> D[Se crea CR vinculado]
-  D --> E[Equipo desarrolla y actualiza estado]
-  E --> F[Cliente valida y cierra FR/CR]
-  F --> G{¿Solicita ajustes?}
-  G -- Sí --> E
-  G -- No --> H[Fin]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style H fill:#c8e6c9,stroke:#388e3c
-```
-1. El cliente accede al portal y selecciona “Solicitudes de funcionalidad (FR)”.
-2. Pulsa “Nueva solicitud” y completa:
-  - Título y descripción detallada
-  - Prioridad y justificación de negocio
-  - (Opcional) Presupuesto estimado y área afectada
-3. El equipo recibe la FR, la revisa y añade una estimación de esfuerzo/coste.
-4. El cliente revisa la estimación y, si está de acuerdo, aprueba la FR.
-5. Al aprobar, el sistema crea automáticamente un Change Request (CR) vinculado.
-6. El equipo desarrolla la funcionalidad, actualiza el estado y añade comentarios de avance.
-7. El cliente valida el resultado y marca la FR/CR como completada o solicita ajustes.
-8. Todo el ciclo queda registrado, con notificaciones en tiempo real y trazabilidad completa.
-
-**Variantes y notas:**
-- Si la FR es rechazada, se notifica y se documenta el motivo.
-- El CR puede tener su propio ciclo de vida (aprobado, en desarrollo, implementado, rechazado).
-- Los estados y transiciones están definidos en la sección de reglas de negocio.
-
-**Buenas prácticas:**
-- Describe claramente el valor y el impacto del cambio.
-- Usa comentarios para aclarar dudas y registrar decisiones.
-- No apruebes una FR sin revisar la estimación y el alcance.
-
-
-### 3. Gestión de tickets de soporte
-
-**Objetivo:** Resolver incidencias, dudas y solicitudes de los usuarios de forma eficiente y trazable.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Usuario crea ticket] --> B[Soporte categoriza y prioriza]
-  B --> C[Agente responde o solicita info]
-  C --> D[Usuario aporta datos o confirma]
-  D --> E{¿Resuelto?}
-  E -- Sí --> F[Ticket cerrado]
-  E -- No --> C
-  style A fill:#e1f5fe,stroke:#0288d1
-  style F fill:#c8e6c9,stroke:#388e3c
-```
-1. Accede a la sección “Soporte” o “Tickets”.
-2. Pulsa “Nuevo ticket” y selecciona el tipo (incidencia, solicitud, cambio, pregunta).
-3. Describe el problema o la petición con el mayor detalle posible (adjunta capturas si es necesario).
-4. El equipo de soporte recibe el ticket, lo categoriza y asigna prioridad.
-5. Un agente responde, solicita información adicional o propone una solución.
-6. El usuario puede responder, aportar más datos o confirmar la resolución.
-7. Cuando el problema se resuelve, el ticket se cierra y el usuario puede valorar la atención recibida.
-
-**Notas y variantes:**
-- Los tickets pueden ser internos (solo equipo) o visibles para el cliente.
-- El sistema notifica automáticamente cambios de estado y respuestas.
-- Se pueden definir SLAs automáticos según prioridad y tipo de ticket.
-
-
-### 4. Validación UAT y entregables
-
-**Objetivo:** Validar entregables y funcionalidades antes de su aceptación final por parte del cliente.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Cliente accede a UAT] --> B[Ejecuta casos de prueba]
-  B --> C{¿Caso pasado?}
-  C -- Sí --> D[Marca como validado]
-  C -- No --> E[Reporta incidencia]
-  D --> F{¿Todos validados?}
-  F -- Sí --> G[Entrega aceptada]
-  F -- No --> B
-  E --> B
-  style A fill:#e1f5fe,stroke:#0288d1
-  style G fill:#c8e6c9,stroke:#388e3c
-```
-1. El cliente accede a la sección “UAT” (User Acceptance Testing).
-2. Visualiza la lista de entregables y casos de prueba pendientes.
-3. Para cada caso, ejecuta la prueba y marca el resultado (“pasado”, “fallido”, “pendiente”).
-4. Si detecta un problema, puede reportar una incidencia directamente desde la interfaz UAT.
-5. El equipo recibe el feedback, corrige y actualiza el estado del entregable.
-6. El proceso se repite hasta que todos los casos estén validados.
-
-**Buenas prácticas:**
-- Documenta criterios de aceptación claros para cada entregable.
-- Usa comentarios para aclarar dudas o registrar incidencias.
-- No marques como “pasado” un caso sin validación real.
-
-
-### 5. Firma electrónica de documentos
-
-**Objetivo:** Garantizar la validez legal y trazabilidad de la firma de documentos clave.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Usuario recibe notificación de firma] --> B[Accede a documento]
-  B --> C[Revisa y pulsa 'Firmar']
-  C --> D[Redirige a pasarela de firma]
-  D --> E[Completa proceso de firma]
-  E --> F[Certificado descargado y estado actualizado]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style F fill:#c8e6c9,stroke:#388e3c
-```
-1. El usuario recibe una notificación (email y portal) de documento pendiente de firma.
-2. Accede a la sección “Documentos” y localiza el archivo pendiente.
-3. Revisa el PDF, verifica los datos y pulsa “Firmar”.
-4. El sistema redirige a la pasarela de firma electrónica (DocuSign, AdobeSign, etc.).
-5. Completa el proceso de firma siguiendo las instrucciones de la plataforma externa.
-6. Al finalizar, el sistema descarga automáticamente el certificado de firma y actualiza el estado del documento.
-
-**Notas:**
-- El historial de firmas y versiones queda registrado y es auditable.
-- Solo usuarios autorizados pueden firmar documentos vinculados a su rol o proyecto.
-
-
-## Flujos y procesos técnicos
-
-
-### 1. Alta de un nuevo usuario y asignación de roles
-
-```mermaid
-flowchart TD
-  A[Admin accede a gestión de usuarios] --> B[Pulsa 'Nuevo usuario']
-  B --> C[Completa datos y asigna rol]
-  C --> D[Usuario recibe invitación]
-  D --> E[Activa cuenta y establece contraseña]
-  E --> F{¿Configura MFA/2FA?}
-  F -- Sí --> G[Usuario protegido con MFA]
-  F -- No --> H[Usuario activo sin MFA]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style G fill:#c8e6c9,stroke:#388e3c
-  style H fill:#fffde7,stroke:#fbc02d
-```
-
-**Objetivo:** Incorporar nuevos usuarios al sistema con los permisos adecuados.
-
-**Pasos detallados:**
-1. El administrador accede a la sección de administración de usuarios.
-2. Pulsa “Nuevo usuario” y completa los datos básicos (nombre, email, rol).
-3. Selecciona el rol adecuado (`admin`, `pm`, `employee`, etc.) y, si aplica, los proyectos a los que tendrá acceso.
-4. El usuario recibe un email de invitación para activar su cuenta y establecer contraseña.
-5. (Opcional) Configura MFA/2FA para mayor seguridad.
-
-**Notas:**
-- Los roles determinan los permisos y la visibilidad de módulos.
-- Puedes editar o desactivar usuarios en cualquier momento.
-
-
-### 2. Despliegue de una nueva versión
-
-**Objetivo:** Actualizar la plataforma de forma segura y automatizada.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Admin inicia proceso de despliegue] --> B[Prepara entorno (Docker, venv, dependencias)]
-  B --> C[Configura variables y archivos]
-  C --> D[Ejecuta migraciones (Alembic)]
-  D --> E[Arranca servicios (Docker Compose/Makefile)]
-  E --> F[Verifica logs y estado]
-  F --> G{¿Todo OK?}
-  G -- Sí --> H[Despliegue completado]
-  G -- No --> I[Revisa errores y repite pasos]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style H fill:#c8e6c9,stroke:#388e3c
-  style I fill:#ffcdd2,stroke:#d32f2f
-```
-1. El desarrollador realiza los cambios y hace commit/push al repositorio principal.
-2. El pipeline de CI/CD (ej. GitHub Actions, GitLab CI) ejecuta tests automáticos y genera el build.
-3. Si todo es correcto, el sistema despliega la nueva versión en staging o producción.
-4. Se aplican migraciones de base de datos con Alembic (`alembic upgrade head`).
-5. Se monitorizan logs y métricas para detectar posibles incidencias.
-
-**Buenas prácticas:**
-- Realiza despliegues fuera de horario laboral cuando sea posible.
-- Haz backup antes de cada despliegue importante.
-- Documenta los cambios y comunica al equipo.
-
-
-### 3. Backup y restauración
-
-**Objetivo:** Proteger la información y garantizar la recuperación ante incidentes.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Admin accede a gestión de backups] --> B[Selecciona tipo de backup]
-  B --> C[Inicia proceso de backup]
-  C --> D[Backup de base de datos]
-  C --> E[Backup de archivos (uploads, configs)]
-  D --> F[Verifica integridad del backup]
-  E --> F
-  F --> G{¿Backup correcto?}
-  G -- Sí --> H[Backup almacenado y registrado]
-  G -- No --> I[Reintenta o revisa logs]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style H fill:#c8e6c9,stroke:#388e3c
-  style I fill:#ffcdd2,stroke:#d32f2f
-```
-1. Programa backups automáticos diarios/semanales de la base de datos y ficheros críticos.
-2. Verifica periódicamente la integridad de los backups (pruebas de restauración).
-3. En caso de incidente (pérdida, corrupción, ataque), localiza el backup más reciente.
-4. Restaura la base de datos y ficheros siguiendo los comandos y procedimientos documentados.
-5. Notifica a los usuarios afectados y documenta el incidente.
-
-**Notas:**
-- Almacena los backups en ubicaciones seguras y redundantes.
-- No olvides cifrar los backups si contienen datos sensibles.
-
-
-### 4. Gestión de incidencias y troubleshooting
-
-**Objetivo:** Resolver problemas técnicos de forma rápida y documentada.
-
-**Flujo detallado:**
-```mermaid
-flowchart TD
-  A[Usuario detecta incidencia] --> B[Consulta FAQ/manual]
-  B --> C{¿Resuelve el problema?}
-  C -- Sí --> D[Fin]
-  C -- No --> E[Contacta soporte técnico]
-  E --> F[Soporte analiza logs y estado]
-  F --> G{¿Incidencia reproducida?}
-  G -- Sí --> H[Propone solución o workaround]
-  G -- No --> I[Solicita más información]
-  H --> J[Usuario prueba solución]
-  J --> K{¿Resuelto?}
-  K -- Sí --> L[Fin]
-  K -- No --> E
-  style A fill:#e1f5fe,stroke:#0288d1
-  style D fill:#c8e6c9,stroke:#388e3c
-  style L fill:#c8e6c9,stroke:#388e3c
-  style I fill:#fffde7,stroke:#fbc02d
-```
-
-### 5. Gestión de permisos y roles
-
-```mermaid
-flowchart TD
-  A[Admin accede a gestión de permisos] --> B[Selecciona usuario o grupo]
-  B --> C[Asigna/quita roles y permisos]
-  C --> D[Guarda cambios]
-  D --> E[Usuario recibe actualización de permisos]
-  E --> F{¿Permisos correctos?}
-  F -- Sí --> G[Fin]
-  F -- No --> H[Revisa y ajusta configuración]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style G fill:#c8e6c9,stroke:#388e3c
-  style H fill:#fffde7,stroke:#fbc02d
-```
-
-### 6. Autenticación y acceso
-
-```mermaid
-flowchart TD
-  A[Usuario accede a la aplicación] --> B[Introduce usuario y contraseña]
-  B --> C{¿Autenticación correcta?}
-  C -- No --> D[Muestra error y permite reintentar]
-  C -- Sí --> E{¿MFA/2FA activado?}
-  E -- Sí --> F[Solicita código de segundo factor]
-  F --> G{¿Código correcto?}
-  G -- Sí --> H[Acceso concedido]
-  G -- No --> D
-  E -- No --> H
-  style A fill:#e1f5fe,stroke:#0288d1
-  style H fill:#c8e6c9,stroke:#388e3c
-  style D fill:#ffcdd2,stroke:#d32f2f
-```
-
-### 7. Recuperación de contraseña
-
-```mermaid
-flowchart TD
-  A[Usuario solicita restablecer contraseña] --> B[Introduce email]
-  B --> C[Recibe email con enlace seguro]
-  C --> D[Accede al enlace]
-  D --> E[Introduce nueva contraseña]
-  E --> F{¿Cumple requisitos de seguridad?}
-  F -- Sí --> G[Contraseña actualizada]
-  F -- No --> H[Muestra error y permite reintentar]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style G fill:#c8e6c9,stroke:#388e3c
-  style H fill:#ffcdd2,stroke:#d32f2f
-```
-
-### 8. Configuración de notificaciones
-
-```mermaid
-flowchart TD
-  A[Usuario accede a gestión de notificaciones] --> B[Configura preferencias (email, app, etc)]
-  B --> C[Guarda configuración]
-  C --> D[Recibe notificaciones según preferencias]
-  D --> E{¿Desea modificar preferencias?}
-  E -- Sí --> B
-  E -- No --> F[Fin]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style F fill:#c8e6c9,stroke:#388e3c
-```
-
-### 9. Integración con sistemas externos
-
-```mermaid
-flowchart TD
-  A[Usuario accede a gestión de integraciones] --> B[Selecciona integración (Jira, Slack, etc)]
-  B --> C[Introduce credenciales y parámetros]
-  C --> D[Guarda y prueba conexión]
-  D --> E{¿Conexión exitosa?}
-  E -- Sí --> F[Integración activa]
-  E -- No --> G[Muestra error y permite reintentar]
-  style A fill:#e1f5fe,stroke:#0288d1
-  style F fill:#c8e6c9,stroke:#388e3c
-  style G fill:#ffcdd2,stroke:#d32f2f
-```
-1. Ante un error o caída, revisa los logs del sistema (backend, frontend, servicios externos).
-2. Consulta las métricas de recursos (CPU, RAM, disco, red).
-3. Identifica la causa raíz (configuración, código, infraestructura).
-4. Aplica la corrección necesaria (parche, reinicio, rollback, ajuste de configuración).
-5. Documenta la incidencia, la causa y la solución aplicada en el registro de incidencias.
-6. Si es un problema recurrente, planifica una mejora permanente.
-
-**Buenas prácticas:**
-- Mantén un registro centralizado de incidencias y soluciones.
-- Comparte el conocimiento con el equipo para evitar errores repetidos.
-
-Esta sección describe cómo utilizar la plataforma desde el punto de vista de un usuario funcional (consultor, PM, cliente, soporte, etc.).
-
-## Acceso y navegación
-- Accede al portal en la URL proporcionada por tu organización.
-- Inicia sesión con tus credenciales o mediante SSO (si está habilitado).
-- El menú lateral permite navegar entre módulos: proyectos, tareas, tickets, documentos, UAT, etc.
-
-## Proyectos y tareas
-- Visualiza y gestiona proyectos activos, su estado, presupuesto y equipo.
-- Usa el tablero Kanban para mover tareas entre estados, asignar responsables y añadir comentarios.
-- Consulta el Gantt para ver dependencias y fechas clave.
-
-## Feature Requests y Control de Cambios
-- Crea nuevas solicitudes de funcionalidad (FR) desde el portal.
-- Consulta el estado, comentarios y presupuesto asociado.
-- Si la FR es aprobada, se crea automáticamente un Change Request (CR) vinculado.
-- Recibe notificaciones en tiempo real sobre cambios de estado.
-
-## Service Desk y tickets
-- Abre tickets de soporte (incidencia, solicitud, cambio, pregunta).
-- Haz seguimiento del estado, responde a agentes y valora la atención recibida.
-- Consulta la base de conocimiento para resolver dudas frecuentes.
-
-## Documentos y firma electrónica
-- Descarga y firma documentos vinculados a proyectos o contratos.
-- Consulta el historial de versiones y permisos de acceso.
-
-## UAT y entregables
-- Participa en sesiones de validación UAT.
-- Marca casos como pasados/fallidos y reporta incidencias.
-
-## Notificaciones y alertas
-- Recibe avisos automáticos por email y en la campana del portal.
-- Configura tus preferencias de idioma y notificación en el perfil.
-
-Para detalles avanzados, consulta las secciones específicas de cada módulo.
-# 6. Arquitectura y componentes principales
-
-La plataforma sigue una arquitectura moderna, modular y desacoplada:
-
-**Backend (app/):**
-- Framework: FastAPI (Python async)
-- Lógica de negocio, API REST, autenticación, seguridad, integración con base de datos y servicios externos
-- Tareas asíncronas: Celery + Redis
-- Migraciones: Alembic
-- Seguridad: JWT, TOTP, cifrado Fernet, rate limiting
-
-**Frontend (frontend/):**
-- Framework: React 18 + Vite
-- SPA (Single Page Application) con rutas protegidas y gestión de estado
-- Componentes reutilizables, hooks, contexto global (auth, notificaciones)
-- Integración con backend vía Axios
-
-**Infraestructura:**
-- Orquestación: Docker Compose
-- Proxy: Nginx
-- Base de datos: PostgreSQL 16
-- Caché y cola: Redis 7
-- Almacenamiento: AWS S3 (o local)
-
-**Integraciones externas:**
-- SSO (Azure AD, Okta, Google)
-- Firmas electrónicas (DocuSign, AdobeSign)
-- Microsoft 365, Xero, QuickBooks, GitHub, GitLab
-
-**Automatización y reporting:**
-- Motor de reglas if/then
-- Report builder visual
-- Alertas automáticas y búsqueda semántica
-
-Esta arquitectura permite escalar, mantener y adaptar la plataforma a distintos escenarios empresariales.
-# 5. Despliegue (local, Docker, producción)
-
-La plataforma puede desplegarse en modo local para desarrollo, o en producción usando Docker para mayor robustez y escalabilidad.
-
-## Despliegue local (desarrollo)
-1. Asegúrate de tener PostgreSQL y Redis corriendo localmente.
-2. Activa el entorno virtual y ejecuta:
-  ```sh
-  uvicorn app.main:app --reload
-  ```
-3. En otra terminal, arranca el frontend:
-  ```sh
-  cd frontend
-  npm run dev
-  ```
-4. Accede a http://localhost:3000 (frontend) y http://localhost:8000/docs (API docs).
-
-## Despliegue con Docker (recomendado)
-1. Revisa y ajusta el archivo `.env`.
-2. Ejecuta:
-  ```sh
-  docker-compose up --build -d
-  ```
-3. El sistema levantará todos los servicios necesarios.
-
-## Despliegue en producción
-- Usa siempre HTTPS (configura Nginx y certificados SSL).
-- Configura backups automáticos de base de datos y ficheros.
-- Limita el acceso a puertos y expón solo los necesarios.
-- Revisa logs y monitoriza recursos.
-- Aplica migraciones de base de datos antes de cada despliegue:
-  ```sh
-  alembic upgrade head
-  ```
-
-**Notas:**
-- Consulta la sección de CI/CD para automatizar despliegues.
-- Para alta disponibilidad, considera balanceadores y réplicas.
-# 4. Configuración inicial y variables de entorno
-
-La configuración se realiza principalmente mediante el archivo `.env` en la raíz del proyecto. Aquí se definen los parámetros de conexión, seguridad y comportamiento del sistema.
-
-**Variables principales:**
-
-- `DATABASE_URL` — Cadena de conexión a PostgreSQL (ejemplo: `postgresql+psycopg2://user:pass@host:5432/db`)
-- `REDIS_URL` — Cadena de conexión a Redis (ejemplo: `redis://localhost:6379/0`)
-- `SECRET_KEY` — Clave secreta para JWT y cifrado
-- `ALLOWED_HOSTS` — Hosts permitidos (separados por coma)
-- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` — Configuración SMTP para notificaciones
-- `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` — Parámetros de almacenamiento en AWS S3 (opcional)
-- `FRONTEND_URL` — URL pública del frontend
-- `BACKEND_URL` — URL pública del backend
-- `DEBUG` — Activa/desactiva modo debug (True/False)
-
-**Pasos para configurar:**
-1. Copia `.env.example` a `.env`.
-2. Rellena cada variable según tu entorno (desarrollo o producción).
-3. Guarda y reinicia los servicios para aplicar los cambios.
-
-**Consejos:**
-- Nunca subas `.env` a git ni lo compartas públicamente.
-- Cambia la `SECRET_KEY` en producción.
-- Usa contraseñas y claves seguras.
-
-Consulta la sección de seguridad para recomendaciones avanzadas.
-# 3. Instalación y requisitos previos
-
-Antes de instalar, asegúrate de cumplir los siguientes requisitos:
-
-**Requisitos mínimos:**
-- Python 3.11+
-- Node.js 20+
-- Docker y Docker Compose (para despliegue en contenedores)
-- PostgreSQL 16 (si no usas Docker)
-- Redis 7 (si no usas Docker)
-
-**Dependencias del sistema:**
-- git, make, unzip, curl, build-essential, libpq-dev, etc.
-
-**Instalación local (desarrollo):**
-1. Clona el repositorio:
-  ```sh
-  git clone <repo_url>
-  cd nexuspm_v23
-  ```
-2. Crea y activa un entorno virtual Python:
-  ```sh
-  python3 -m venv venv
-  source venv/bin/activate
-  ```
-3. Instala dependencias backend:
-  ```sh
-  pip install -r requirements.txt
-  ```
-4. Instala dependencias frontend:
-  ```sh
-  cd frontend
-  npm install
-  cd ..
-  ```
-5. Copia y edita el archivo `.env.example` a `.env` y configura las variables necesarias.
-
-**Instalación con Docker (recomendada para producción):**
-1. Copia `.env.example` a `.env` y revisa las variables.
-2. Ejecuta:
-  ```sh
-  docker-compose up --build
-  ```
-3. El sistema levantará backend, frontend, base de datos y redis automáticamente.
-
-**Notas:**
-- Para producción, revisa la configuración de seguridad, backups y acceso a puertos.
-- Consulta las secciones siguientes para detalles de configuración avanzada.
-# 2. Estructura de archivos y carpetas
-
-La plataforma está organizada en una estructura clara para separar el backend, frontend, scripts, configuración y documentación. A continuación se describen las carpetas y archivos principales:
-
-**Raíz del proyecto:**
-- `app/` — Backend (FastAPI, lógica de negocio, modelos, API, servicios)
-- `frontend/` — Frontend (React, Vite, componentes, páginas, assets)
-- `alembic/` — Migraciones de base de datos (versiones, scripts)
-- `tests/` — Tests unitarios y de integración (pytest)
-- `tests_e2e/` — Tests end-to-end (Playwright)
-- `nginx/` — Configuración de Nginx para producción
-- `scripts/` — Scripts de automatización y utilidades
-- `sdk/` — SDKs para integración externa (Python, JS)
-- `docker-compose.yml` — Orquestación de servicios en contenedores
-- `Dockerfile` — Imagen Docker principal
-- `requirements.txt` — Dependencias Python
-- `package.json` — Dependencias frontend
-- `.env.example` — Ejemplo de variables de entorno
-
-**Backend (`app/`):**
-- `main.py` — Punto de entrada, configuración global
-- `worker.py` — Definición de workers Celery
-- `api/v1/` — Routers y endpoints de la API REST
-- `core/` — Configuración, seguridad, dependencias
-- `db/` — Base SQLAlchemy, sesiones, migraciones
-- `models/` — Modelos de datos (ORM)
-- `schemas/` — Esquemas Pydantic (validación)
-- `services/` — Lógica de negocio y servicios auxiliares
-
-**Frontend (`frontend/`):**
-- `src/` — Código fuente principal (App.jsx, páginas, componentes)
-- `public/` — Recursos estáticos
-- `scripts/` — Scripts de build, validación, utilidades
-
-**Otros:**
-- `alembic/versions/` — Scripts de migración de BD
-- `nginx/` — Configuración de proxy y seguridad
-- `uploads/` — Almacenamiento de ficheros subidos
-
-Esta estructura permite un desarrollo, despliegue y mantenimiento ordenado y escalable.
-# 1. Introducción y visión general
-
-Clarive PSA es una plataforma integral para la gestión de servicios profesionales, proyectos, recursos, finanzas y soporte, orientada a consultoras y empresas de servicios. Permite gestionar todo el ciclo de vida del negocio, desde la preventa y la gestión de oportunidades hasta la facturación, pasando por la ejecución de proyectos, la colaboración con clientes y la automatización de procesos.
-
-**Público objetivo:**
-- Usuarios funcionales (consultores, PMs, clientes, RRHH, finanzas, soporte)
-- Técnicos (administradores, devops, integradores, desarrolladores)
-
-**Ámbitos cubiertos:**
-- Gestión de proyectos, tareas, entregables y riesgos
-- Recursos humanos, imputación de horas, skills, ausencias
-- Finanzas, contratos, facturación, rentabilidad
-- Service Desk ITSM/ITIL, tickets, SLAs, base de conocimiento
-- Portal de cliente externo: UAT, solicitudes, documentos, mensajería
-- Integraciones con sistemas externos y automatización
-
-**Ventajas clave:**
-- Modular, escalable y seguro
-- Multitenant y multi-idioma
-- APIs abiertas y arquitectura moderna (FastAPI, React, Docker)
-- Automatización, reporting y trazabilidad total
-
-Este manual explica cómo instalar, configurar, desplegar y utilizar la plataforma, tanto desde el punto de vista funcional como técnico.
-
-# Manual de usuario y administración
-
-Este manual cubre **toda la operativa y configuración** de la plataforma, tanto para usuarios funcionales como para técnicos. Incluye desde la estructura de archivos y despliegue hasta el uso detallado de cada módulo y funcionalidad.
-
-## Índice del manual
-
-1. Introducción y visión general
-2. Estructura de archivos y carpetas
-3. Instalación y requisitos previos
-4. Configuración inicial y variables de entorno
-5. Despliegue (local, Docker, producción)
-6. Arquitectura y componentes principales
-7. Guía de uso para usuarios (portal, proyectos, tickets, etc.)
-8. Administración y mantenimiento (usuarios, backups, logs, troubleshooting)
-9. Seguridad y buenas prácticas
-10. Preguntas frecuentes y resolución de problemas
-
-Cada sección se irá ampliando con ejemplos, comandos y referencias a los archivos relevantes.
-
 # Clarive PSA — Documentación Completa del Sistema
 
-> **Versión actual:** 23.9.8 · **Fecha:** Abril 2026  
+> **Versión actual:** 23.9.9 · **Fecha:** Abril 2026  
 > Professional Services Automation para consultoras modernas.
 
 ---
@@ -884,48 +22,11 @@ Cada sección se irá ampliando con ejemplos, comandos y referencias a los archi
 13. [CI/CD](#13-cicd)
 14. [Usuarios y roles](#14-usuarios-y-roles)
 15. [Portal de cliente externo](#15-portal-de-cliente-externo)
-19. [Flujo coordinado de Feature Requests y Control de Cambios](#19-flujo-coordinado-de-feature-requests-y-control-de-cambios)
-20. [Internacionalización y traducciones](#20-internacionalizacion-y-traducciones)
-# 20. Internacionalización y traducciones
-
-El portal de cliente y todos los flujos de Feature Request (FR) y Change Request (CR) han sido revisados para asegurar que **todas las claves de traducción están presentes en los 8 idiomas soportados** (es, en, fr, de, pt, it, pl, zh). No faltan claves en ningún idioma y la experiencia es completamente multilingüe.
-
-_Última revisión: [fecha de hoy]_
-# 19. Flujo coordinado de Feature Requests y Control de Cambios
-
-### Ciclo de vida y reglas de negocio
-
-**Objetivo:** Garantizar que el ciclo de vida de las solicitudes de funcionalidad (FR) y su integración con Control de Cambios (ChangeRequest) es coherente, auditable y seguro.
-
-#### Estados y transiciones de la Feature Request (FR)
-
-- `new` → `reviewing` → `estimated` → `approved` → `in_development` → `done`
-- El paso de `estimated` a `approved` solo lo puede hacer el cliente (aprobación explícita).
-- Solo al aprobar el cliente, se crea el ChangeRequest asociado (registro en Control de Cambios).
-- El paso a `in_development` (ya sea desde backoffice o API) solo cambia el estado de la FR, pero **no crea ni modifica ChangeRequest** si no está aprobada.
-
-
-#### Lógica backend (sincronización bidireccional)
-
-- Cuando el equipo responde y estima (`status: estimated`), no se crea ChangeRequest.
-- Cuando el cliente aprueba (`/decide`, `approved: true`), se crea el ChangeRequest (si no existe) y se vincula a la FR.
-- Cuando la FR pasa a `in_development`, `done` o `rejected`, el CR asociado (si existe) se actualiza automáticamente al estado correspondiente (`approved`, `implemented`, `rejected`).
-- Cuando el CR cambia a `approved`, `implemented` o `rejected`, la FR asociada se sincroniza automáticamente al estado correspondiente (`in_development`, `done`, `rejected`).
-- Si se intenta iniciar desarrollo sin aprobación previa, el backend impide la creación de ChangeRequest y solo actualiza el estado de la FR.
-
-#### Garantía automática
-
-- Hay tests automáticos que aseguran que nunca se crea un ChangeRequest si el cliente no ha aprobado.
-- El ciclo de vida es coherente, auditable y seguro para equipo y cliente.
-
-#### Referencias
-
-- [app/api/v1/endpoints/client_portal.py](app/api/v1/endpoints/client_portal.py)
-- [tests/test_portal_feature_requests.py](tests/test_portal_feature_requests.py)
-- [tests/test_portal_feature_requests_cr_control.py](tests/test_portal_feature_requests_cr_control.py)
 16. [Integraciones externas](#16-integraciones-externas)
 17. [Novedades por versión](#17-novedades-por-versión)
 18. [Guía de desarrollo](#18-guía-de-desarrollo)
+19. [Flujo coordinado de Feature Requests y Control de Cambios](#19-flujo-coordinado-de-feature-requests-y-control-de-cambios)
+20. [Internacionalización y traducciones](#20-internacionalizacion-y-traducciones)
 
 ---
 
@@ -2157,6 +1258,62 @@ Las API keys se almacenan cifradas en BD (Fernet v2 HKDF).
 
 ## 17. Novedades por versión
 
+### v23.9.9 (Abril 2026) — Tests de flujo E2E, correcciones Service Desk, deuda técnica y mejoras UX
+
+**Tests de flujo de extremo a extremo**
+
+Creado `tests/test_platform_flows.py` con **17 tests de ciclo de vida completo** (no unitarios). Suite total: **1047 passed, 11 skipped**.
+
+Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), service desk (ticket→comentar→escalar→resolver→cerrar), cola de agente, control de cambios, aprobación de entregable vía portal, CRUD de proyecto + rentabilidad, riesgos (identificar→mitigar→cerrar + puntuación multi-riesgo), portal cliente (FR completo + rechazo), OKRs (objetivo→key result→check-in), ausencias (solicitud→aprobación→bloqueo capacidad), seguridad (401 sin auth + restricciones de rol).
+
+**Corrección de bugs — Service Desk**
+
+- `app/api/v1/endpoints/service_desk.py`: `payload.note` → `payload.description` para coincidir con el schema `TimeLogIn`
+- `app/services/service_desk/ticket_ops_service.py`: `add_ticket_time()` usa parámetro `description` en lugar de `note` al crear `TicketTimeLog`
+
+**Correcciones de lógica de negocio**
+
+- `app/services/imputation_service.py`: tope diario de 24 h se comprueba antes que el guard de duplicado (400 antes que 409)
+- `app/services/profitability_service.py`: conversión FX usa moneda del usuario (`user.currency`) en lugar de la del proyecto
+- `app/schemas/timesheets.py`: `field_validator` en `submitted_at`/`reviewed_at` coerciona `datetime → date` (Pydantic v2)
+- Tests: `test_numbering_concurrency` acepta 201 al crear facturas; `test_timesheets_extended` añade `dev-test-id` como miembro de proyecto
+
+**Multi-tenancy — aislamiento real entre tenants**
+
+- `app/core/deps.py`: `get_current_user` escribe `db.info["is_superadmin"]`; `TenantSession` aplica `sql_false()` para usuarios sin organización (antes hacía bypass)
+- `app/models/activity.py`: columna `organization_id` en `ActivityEvent`
+- `app/services/activity_service.py`: `emit_activity()` estampa `organization_id`
+- Migración `026_activity_event_tenant_isolation.py`
+
+**Approval workflows — timeout y escalación automática**
+
+- `app/services/approval_engine.py`: nueva función `process_approval_timeouts(db)` que evalúa `timeout_hours` / `on_timeout` (auto_approve / reject / escalate) y traza en `FinancialApprovalAuditLog`
+- `app/worker.py`: tarea Celery Beat cada hora
+- Endpoint manual `POST /api/v1/approvals/process-timeouts` (solo admin)
+- Migración `027_approval_step_started_at.py` con backfill conservador
+
+**i18n — internacionalización**
+
+- `appTranslations.js`: bloque EN completado (459 claves en 40 módulos); FR/DE/PT/IT/PL/ZH con fallback a ES/EN
+- `portalTranslations.js`: 0 claves faltantes en los 8 idiomas (252 claves añadidas por idioma)
+- `ImputarPage.jsx`: 100% internacionalizada con nuevo módulo `imputa_page` en ES, EN y FR
+- Modelos migrados previamente: `DeveloperPortalPage`, `IntakeFormPage`, `JiraIntegrationPage`, `LoginPage`, `ProjectTemplatesPage`, `PublicFormsPage`, `ResourceSchedulerPage`
+
+**Mejoras de UX**
+
+- `Badge` (componente global): valores de enum en bruto (`in_progress`, `todo`, etc.) → etiquetas legibles ("In Progress", "To Do"); `aria-label`; soporte de colores para prioridades SD (`p1_critical`–`p4_low`), `in_review`, `approved`, `rejected`, `submitted`, `pending`, `resolved`, `draft`; fallback `humanize()` para valores desconocidos
+- `ImputarPage`: botones editar/eliminar con `aria-label` y `title`
+- `PipelinePage`: `EmptyState` cuando no hay oportunidades (guía al nuevo tenant)
+- `ExecutiveDashboardPage`: spinner de carga; KPI grid `repeat(auto-fit, minmax(180px, 1fr))` en lugar de `repeat(5, 1fr)`
+
+**Deuda técnica**
+
+- Eliminados `scripts/_thin_auth.py`, `scripts/_thin_cab.py`, `scripts/_thin_client_portal.py` (scripts de refactorización de un solo uso)
+- `tests/test_business_logic_v239.py`: `compute_composite_health` importado desde `app.services.customer_health_service` (no desde el módulo de endpoint)
+- `app/.DS_Store` desregistrado del repositorio
+
+---
+
 ### v23.9.8 (Abril 2026) — i18n Completo, Sincronización Multi-dispositivo & Transacciones Seguras
 
 **Sistema Internacionalización (i18n) — Expansión módulo Developer**
@@ -2264,6 +1421,12 @@ Las API keys se almacenan cifradas en BD (Fernet v2 HKDF).
 
 **Limpieza local:**
 - Eliminados artefactos temporales de ejecución (`__pycache__`, `.pytest_cache`) para mantener workspace limpio.
+
+**Refactoring y rendimiento backend:**
+- Descomposición progresiva de endpoints legacy: routers extraídos para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`; `v238_features` y `v239_features` como routers de compatibilidad temporal.
+- Normalización de capa de esquemas: movidos a `app/schemas/bookings.py` y `app/schemas/billing_reports.py`; test de guardia para evitar `BaseModel` inline.
+- Paginación consistente en endpoints de alto volumen: `GET /sd/problems`, `GET /sd/cmdb`, `GET /sd/changes`, `GET /bi/data/timesheets` y `POST /analytics/adhoc` ahora paginados.
+- Gobernanza de índices (Alembic): migración `022_perf_composite_indexes.py` con índices compuestos para tickets, cambios, problemas, tareas, imputaciones e invoices.
 
 ### v23.9.5 (Abril 2026) — Hardening UX/Frontend/CI
 
@@ -3088,47 +2251,50 @@ logger.warning(f"Atención: {detalle}")
 logger.error(f"Error: {e}", exc_info=True)
 ```
 
----
-
-*Documentación generada: Abril 2026 — Clarive PSA v23.9.8*
 
 ---
 
-## Novedades técnicas (sesión 2025-07 — Fase 5)
+## 19. Flujo coordinado de Feature Requests y Control de Cambios
 
-### Tests de flujo completo de plataforma
+### Ciclo de vida y reglas de negocio
 
-Se ha creado `tests/test_platform_flows.py` con **17 tests de flujo de extremo a extremo** que prueban ciclos de vida completos (no unitarios). Todos los tests pasan en el pipeline.
+**Objetivo:** Garantizar que el ciclo de vida de las solicitudes de funcionalidad (FR) y su integración con Control de Cambios (ChangeRequest) es coherente, auditable y seguro.
 
-Flujos cubiertos:
-- **Gastos** — creación → envío → aprobación → rechazo → recall → re-envío
-- **Service Desk** — crear ticket → comentar → registrar tiempo → escalar (L2) → resolver → cerrar
-- **Cola de agente** — asignación y lectura de `my-queue`
-- **Control de cambios** — propuesta → envío → revisión → rechazo → implementación
-- **Entregable** — aprobación cliente vía portal
-- **Proyecto** — CRUD completo + métricas de rentabilidad
-- **Riesgos** — identificar → mitigar → cerrar; puntuación y ordenación multi-riesgo
-- **Portal cliente** — feature request completo + rechazo por el cliente
-- **OKRs** — objetivo → key result → check-in → lectura de progreso
-- **Ausencias** — solicitud → aprobación → bloqueo de capacidad
-- **Seguridad** — 17 endpoints verificados con `401` sin auth; restricciones de rol admin
+#### Estados y transiciones de la Feature Request (FR)
 
-Suite total tras esta sesión: **1047 passed, 11 skipped**.
+- `new` → `reviewing` → `estimated` → `approved` → `in_development` → `done`
+- El paso de `estimated` a `approved` solo lo puede hacer el cliente (aprobación explícita).
+- Solo al aprobar el cliente, se crea el ChangeRequest asociado (registro en Control de Cambios).
+- El paso a `in_development` (ya sea desde backoffice o API) solo cambia el estado de la FR, pero **no crea ni modifica ChangeRequest** si no está aprobada.
 
-### Corrección de bug: `TimeLogIn.description` (Service Desk)
 
-- `app/api/v1/endpoints/service_desk.py` línea ~556: `payload.note` → `payload.description` (coincide con el schema `TimeLogIn`)
-- `app/services/service_desk/ticket_ops_service.py`: `add_ticket_time()` ahora usa el parámetro `description` en lugar de `note` al crear `TicketTimeLog`
+#### Lógica backend (sincronización bidireccional)
 
-### Eliminación de deuda técnica
+- Cuando el equipo responde y estima (`status: estimated`), no se crea ChangeRequest.
+- Cuando el cliente aprueba (`/decide`, `approved: true`), se crea el ChangeRequest (si no existe) y se vincula a la FR.
+- Cuando la FR pasa a `in_development`, `done` o `rejected`, el CR asociado (si existe) se actualiza automáticamente al estado correspondiente (`approved`, `implemented`, `rejected`).
+- Cuando el CR cambia a `approved`, `implemented` o `rejected`, la FR asociada se sincroniza automáticamente al estado correspondiente (`in_development`, `done`, `rejected`).
+- Si se intenta iniciar desarrollo sin aprobación previa, el backend impide la creación de ChangeRequest y solo actualiza el estado de la FR.
 
-- Eliminados `scripts/_thin_auth.py`, `scripts/_thin_cab.py`, `scripts/_thin_client_portal.py` (scripts de refactorización de un solo uso, ya aplicados)
-- Corregida la importación de `compute_composite_health` en `tests/test_business_logic_v239.py`: ahora importa desde `app.services.customer_health_service` en lugar del módulo de endpoint
-- `app/.DS_Store` desregistrado del repositorio git
+#### Garantía automática
 
-### Mejoras de UX
+- Hay tests automáticos que aseguran que nunca se crea un ChangeRequest si el cliente no ha aprobado.
+- El ciclo de vida es coherente, auditable y seguro para equipo y cliente.
 
-- **`Badge` (componente global):** los valores de enum en bruto (`in_progress`, `todo`, `backlog`, etc.) ahora se muestran como etiquetas legibles («In Progress», «To Do», «Backlog»). Compatibilidad total hacia atrás mediante prop `display` y fallback `humanize()`. Añadido `aria-label` para accesibilidad. Nuevo soporte de colores para `p1_critical`–`p4_low`, `in_review`, `approved`, `rejected`, `submitted`, `pending`, `resolved`, `draft`.
-- **`ImputarPage` (página principal de empleados):** 100% internacionalizada. Todos los textos ahora usan `t('imputa_page.*')`. Nuevas secciones `imputa_page` en ES, EN y FR. Botones de editar/eliminar enriquecidos con `aria-label` y `title`.
-- **`PipelinePage`:** añadido `EmptyState` cuando no hay oportunidades en el pipeline (guía al nuevo tenant).
-- **`ExecutiveDashboardPage`:** añadido spinner de carga durante la carga de datos; KPI grid cambiado de `repeat(5, 1fr)` a `repeat(auto-fit, minmax(180px, 1fr))` para adaptarse a pantallas más pequeñas.
+#### Referencias
+
+- [app/api/v1/endpoints/client_portal.py](app/api/v1/endpoints/client_portal.py)
+- [tests/test_portal_feature_requests.py](tests/test_portal_feature_requests.py)
+- [tests/test_portal_feature_requests_cr_control.py](tests/test_portal_feature_requests_cr_control.py)
+
+---
+
+## 20. Internacionalización y traducciones
+
+El portal de cliente y todos los flujos de Feature Request (FR) y Change Request (CR) han sido revisados para asegurar que **todas las claves de traducción están presentes en los 8 idiomas soportados** (es, en, fr, de, pt, it, pl, zh). No faltan claves en ningún idioma y la experiencia es completamente multilingüe.
+
+_Última revisión: [fecha de hoy]_
+
+---
+
+*Documentación generada: Abril 2026 — Clarive PSA v23.9.9*
