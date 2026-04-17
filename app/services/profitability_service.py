@@ -20,15 +20,29 @@ from app.models.user import User
 
 # ── FX helper ──────────────────────────────────────────────────────────────────
 
-_fx_cache: dict = {}  # (from_currency, to_currency, date) -> rate; cleared per summary call
+# Kept as empty module-level name for backward compatibility with existing imports/tests.
+# Production code uses a call-local cache (passed as parameter) to avoid shared mutable state.
+_fx_cache: dict = {}
 
 
-def get_fx_rate(db: Session, from_currency: str, to_currency: str, as_of: date) -> float:
+def get_fx_rate(
+    db: Session,
+    from_currency: str,
+    to_currency: str,
+    as_of: date,
+    _cache: dict | None = None,
+) -> float:
+    """Return FX rate for *from_currency* → *to_currency* on *as_of*.
+
+    *_cache* is an optional call-local dict used to avoid redundant DB hits within
+    the same computation.  Pass an explicit dict from the caller; never share one
+    across concurrent requests.
+    """
     if from_currency == to_currency:
         return 1.0
     key = (from_currency, to_currency, as_of)
-    if key in _fx_cache:
-        return _fx_cache[key]
+    if _cache is not None and key in _cache:
+        return _cache[key]
     row = (
         db.query(ExchangeRate)
         .filter(
@@ -40,7 +54,8 @@ def get_fx_rate(db: Session, from_currency: str, to_currency: str, as_of: date) 
         .first()
     )
     rate = row.rate if row else 1.0
-    _fx_cache[key] = rate
+    if _cache is not None:
+        _cache[key] = rate
     return rate
 
 
@@ -57,7 +72,8 @@ def calc_project_profitability(
     Costs are normalised to *settings.DEFAULT_CURRENCY* using the exchange rate
     effective on the imputation date.
     """
-    _fx_cache.clear()
+    # Local cache: isolated per call, no shared mutable state between concurrent requests.
+    _local_fx_cache: dict = {}
 
     org_currency = settings.DEFAULT_CURRENCY
     project_currency = getattr(project, "currency", org_currency) or org_currency
@@ -66,12 +82,28 @@ def calc_project_profitability(
         imps = get_project_imputations(db, project.id)
         total_hours = sum(i.hours for i in imps)
         billable_hours = sum(i.hours for i in imps if i.is_billable)
+        # Bulk-load users so we can read their currency for FX conversion
+        user_ids = {i.user_id for i in imps if i.user_id}
+        if user_ids:
+            user_currency_map = {
+                u.id: (getattr(u, "currency", None) or org_currency)
+                for u in db.query(User).filter(User.id.in_(user_ids)).all()
+            }
+        else:
+            user_currency_map = {}
         internal_cost = 0.0
         for i in imps:
             raw_cost = i.cost_amount or 0.0
-            if raw_cost and project_currency != org_currency:
-                fx = get_fx_rate(db, project_currency, org_currency, i.date)
-                raw_cost = raw_cost * fx
+            if raw_cost:
+                # Convert from the user's native currency to the org's default currency
+                user_currency = user_currency_map.get(i.user_id, org_currency) or org_currency
+                if user_currency != org_currency:
+                    fx = get_fx_rate(db, user_currency, org_currency, i.date, _cache=_local_fx_cache)
+                    raw_cost = raw_cost * fx
+                elif project_currency != org_currency:
+                    # Fallback: convert based on project currency when user currency is unknown
+                    fx = get_fx_rate(db, project_currency, org_currency, i.date, _cache=_local_fx_cache)
+                    raw_cost = raw_cost * fx
             internal_cost += raw_cost
     else:
         total_hours = float(imputation_totals.get("total_hours") or 0)

@@ -27,12 +27,15 @@ class ActivityEvent(Base):
     """
     __tablename__ = "activity_events"
 
-    id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    entity_type   = Column(String(50), nullable=False, index=True)  # project task ticket sprint
-    entity_id     = Column(String(36), nullable=False, index=True)
-    entity_code   = Column(String(50), nullable=True)               # TSK-042, PRJ-007 ...
-    actor_id      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    actor_name    = Column(String(255), nullable=True)              # snapshot for delete safety
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # Tenant isolation — must be set on every INSERT so TenantSession can scope reads.
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"),
+                             nullable=True, index=True)
+    entity_type     = Column(String(50), nullable=False, index=True)  # project task ticket sprint
+    entity_id       = Column(String(36), nullable=False, index=True)
+    entity_code     = Column(String(50), nullable=True)               # TSK-042, PRJ-007 ...
+    actor_id        = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_name      = Column(String(255), nullable=True)              # snapshot for delete safety
     verb          = Column(String(80), nullable=False)              # created, closed, commented, mentioned, status_changed ...
     detail        = Column(Text, nullable=True)                     # JSON or plain text detail
     target_type   = Column(String(50), nullable=True)               # e.g. "user" if verb=assigned_to

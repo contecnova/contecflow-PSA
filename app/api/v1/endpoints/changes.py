@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.services import change_service
+from app.schemas.changes import CRIn, CRReview
 
 router = APIRouter()
 
@@ -24,20 +25,6 @@ STATUS_CFG = {
     "rejected":      {"label": "Rechazado",       "color": "#ff4757"},
     "implemented":   {"label": "Implementado",   "color": "#7c3aed"},
 }
-
-
-class CRIn(BaseModel):
-    title: str
-    description: str
-    justification: Optional[str] = None
-    impact: str = "medium"
-    cost_impact: Optional[float] = None
-    schedule_impact_days: Optional[int] = None
-    scope_impact: Optional[str] = None
-
-class CRReview(BaseModel):
-    approved: bool
-    resolution_notes: Optional[str] = None
 
 
 class ChangeRequestOut(BaseModel):

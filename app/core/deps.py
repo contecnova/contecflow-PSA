@@ -47,10 +47,15 @@ def get_current_user(
         )
 
     # Store tenant context in the session so query scoping can enforce row-level isolation.
+    # is_superadmin=True  → bypass all tenant filters (full cross-tenant visibility)
+    # is_superadmin=False → enforce tenant filter; if org_id is also None the user has
+    #                       no assigned organisation and must see zero rows (not all rows).
     if getattr(user, "is_superadmin", False):
         db.info["organization_id"] = None
+        db.info["is_superadmin"] = True
     else:
         db.info["organization_id"] = getattr(user, "organization_id", None)
+        db.info["is_superadmin"] = False
 
     return user
 

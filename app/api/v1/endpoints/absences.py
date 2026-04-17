@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -13,24 +12,9 @@ from app.services import absence_service
 from app.services.absence_service import (
     TYPE_LABELS, STATUS_CFG, count_working_days as _working_days, serialize_absence as _absence_out,
 )
+from app.schemas.absences import AbsenceIn, AbsenceReview
 
 router = APIRouter()
-
-# Label constants and helpers delegated to absence_service
-
-
-class AbsenceIn(BaseModel):
-    type: str
-    start_date: date
-    end_date: date
-    reason: Optional[str] = None
-
-class AbsenceReview(BaseModel):
-    approved: bool
-    rejection_reason: Optional[str] = None
-
-
-# _working_days and _absence_out delegated to absence_service (see imports above)
 
 
 @router.get("", summary="Listar ausencias con filtros de fecha (global)")

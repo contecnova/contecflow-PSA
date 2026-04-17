@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -12,37 +11,9 @@ from app.services.risk_scoring import risk_level, risk_score
 from app.services.risk_service import (
     PROB_LABELS, IMPACT_LABELS, STATUS_LABELS, CATEGORY_LABELS, serialize_risk as _risk_out,
 )
+from app.schemas.risks import RiskIn, RiskUpdate
 
 router = APIRouter()
-
-# Label constants delegated to risk_service (see imports above)
-
-
-class RiskIn(BaseModel):
-    title: str
-    description: Optional[str] = None
-    category: Optional[str] = None
-    probability: str
-    impact: str
-    status: str = "identified"
-    mitigation_plan: Optional[str] = None
-    contingency_plan: Optional[str] = None
-    response_type: Optional[str] = None
-    owner_id: Optional[str] = None
-    review_date: Optional[date] = None
-    cost_impact_min: Optional[float] = None
-    cost_impact_max: Optional[float] = None
-    schedule_impact_days: Optional[int] = None
-    notes: Optional[str] = None
-
-class RiskUpdate(RiskIn):
-    title: Optional[str] = None
-    probability: Optional[str] = None
-    impact: Optional[str] = None
-    closed_date: Optional[date] = None
-
-
-# _risk_out delegated to risk_service.serialize_risk (see imports above)
 
 
 @router.get("/all/portfolio", summary="Riesgos de toda la cartera")

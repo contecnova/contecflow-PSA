@@ -255,6 +255,9 @@ if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
     if errorlevel 1 exit /b 1
 )
 
+:: Always sync demo passwords before starting -- ensures hash matches .env even on 'start only'
+call :sync_demo_passwords
+
 :: Matar procesos en los puertos si ya existen
 for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%BACKEND_PORT% " ^| findstr "LISTENING"') do (
     taskkill /F /PID %%a >nul 2>&1
@@ -340,11 +343,32 @@ exit /b 0
 
 :: -----------------------------------------------------------------------
 :sync_demo_passwords
-echo [INFO] Sincronizando credenciales de usuarios demo...
-venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; from app.core.security import get_password_hash; from app.core.config import settings; db=SessionLocal(); pwd=settings.DEFAULT_USER_PASSWORD; [setattr(u,'hashed_password',get_password_hash(pwd)) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close()" >nul 2>&1
-if errorlevel 1 (
-    echo [WARN] No se pudieron sincronizar las credenciales demo automaticamente
+setlocal EnableDelayedExpansion
+call :get_demo_password
+set "DEMO_PWD=!DEMO_PASSWORD!"
+
+:: Compute a simple sentinel: write password to tmp, hash it if certutil available
+set "PWD_HASH_FILE=venv\.pwd_hash"
+set "CURRENT_HASH=%DEMO_PWD%"
+
+if exist "%PWD_HASH_FILE%" (
+    set /p STORED_HASH=<"%PWD_HASH_FILE%"
+    if "!STORED_HASH!"=="!CURRENT_HASH!" (
+        echo [INFO] Contrasenas demo sin cambios, omitiendo rehash
+        endlocal
+        exit /b 0
+    )
 )
+
+echo [INFO] Sincronizando contrasenas demo con DEFAULT_USER_PASSWORD...
+venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; from app.core.security import get_password_hash; db=SessionLocal(); [setattr(u,'hashed_password',get_password_hash('!DEMO_PWD!')) for u in db.query(User).filter(User.username.in_(['admin','ana.torres','luis.vega','rrhh'])).all()]; db.commit(); db.close(); print('ok')"
+if errorlevel 1 (
+    echo [WARN] No se pudieron sincronizar las contrasenas demo automaticamente
+) else (
+    echo !CURRENT_HASH!> "%PWD_HASH_FILE%"
+    echo [INFO] Contrasenas actualizadas correctamente
+)
+endlocal
 exit /b 0
 
 :: -----------------------------------------------------------------------

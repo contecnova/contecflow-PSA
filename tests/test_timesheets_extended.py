@@ -14,7 +14,12 @@ def make_project(client, token):
         "name": "Timesheet Project", "code": "TSP01",
         "status": "active", "billing_type": "time_material",
     }, headers=auth(token))
-    return r.json()["id"]
+    pid = r.json()["id"]
+    # Ensure dev-test-id can log hours against this project
+    client.post(f"/api/v1/projects/{pid}/members",
+                json={"user_id": "dev-test-id", "role": "developer"},
+                headers=auth(token))
+    return pid
 
 
 def add_imputation(client, token, project_id, hours=6):

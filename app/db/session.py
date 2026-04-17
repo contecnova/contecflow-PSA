@@ -76,6 +76,17 @@ def _tenant_filter_for_model(query, model, org_id):
         )
         return query.filter(model.user_id.in_(user_ids_sq))
 
+    # Fallback: models (e.g. ActivityEvent) that link to users via actor_id
+    if hasattr(model, "actor_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.user import User
+        user_ids_sq = (
+            sa_select(User.id)
+            .where(User.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return query.filter(model.actor_id.in_(user_ids_sq))
+
     return query
 
 
@@ -90,9 +101,22 @@ class TenantSession(Session):
 
     def query(self, *entities, **kwargs):
         q = super().query(*entities, **kwargs)
+
+        # is_superadmin is explicitly set by deps.get_current_user:
+        #   True  → superadmin, bypass all tenant filters
+        #   False → regular user, enforce tenant isolation
+        #   None  → session not initialised by a request (background job / test)
+        #           → bypass for backward compatibility
+        is_superadmin = self.info.get("is_superadmin", None)
+        if is_superadmin is None or is_superadmin is True:
+            return q
+
         org_id = self.info.get("organization_id")
         if org_id is None:
-            return q
+            # Regular user with no organisation assigned — block cross-tenant leakage
+            # by returning an empty result set instead of bypassing all filters.
+            from sqlalchemy import false as sql_false
+            return q.filter(sql_false())
 
         # Resolve the first entity to a mapped model class (handles both class
         # and InstrumentedAttribute patterns, e.g. db.query(Project.id)).

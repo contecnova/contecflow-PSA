@@ -131,6 +131,24 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             detail=f"No puedes imputar horas a un proyecto en estado '{project.status}'. Contacta con el PM si necesitas registrar horas históricas.",
         )
 
+    # Hourly rate required
+    if (not current_user.hourly_rate or current_user.hourly_rate <= 0) and current_user.role != UserRole.subcontractor:
+        raise HTTPException(
+            status_code=400,
+            detail="No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
+        )
+
+    # Daily cap — checked before duplicate so exceeding 24h always returns 400
+    existing_hours = db.query(func.sum(Imputation.hours)).filter(
+        Imputation.user_id == current_user.id,
+        Imputation.date == payload.date,
+    ).scalar() or 0.0
+    if existing_hours + payload.hours > 24:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas.",
+        )
+
     if task:
         if task.status in (TaskStatus.done, TaskStatus.cancelled):
             raise HTTPException(
@@ -144,24 +162,20 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
         ).first()
         if duplicate:
             raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
-
-    # Hourly rate required
-    if (not current_user.hourly_rate or current_user.hourly_rate <= 0) and current_user.role != UserRole.subcontractor:
-        raise HTTPException(
-            status_code=400,
-            detail="No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
-        )
-
-    # Daily cap
-    existing_hours = db.query(func.sum(Imputation.hours)).filter(
-        Imputation.user_id == current_user.id,
-        Imputation.date == payload.date,
-    ).scalar() or 0.0
-    if existing_hours + payload.hours > 24:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas.",
-        )
+    else:
+        # task_id is None: NULL != NULL in SQL so the unique index doesn't protect us;
+        # enforce the duplicate check explicitly at the application level.
+        dup = db.query(Imputation.id).filter(
+            Imputation.user_id == current_user.id,
+            Imputation.project_id == payload.project_id,
+            Imputation.task_id.is_(None),
+            Imputation.date == payload.date,
+        ).first()
+        if dup:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.",
+            )
 
     # Weekly cap
     week_start = payload.date - timedelta(days=payload.date.weekday())

@@ -2,58 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, STAGE_PROB, serialize_opportunity as _opp_out
+from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
 
 router = APIRouter()
 
 STAGE_ORDER = ["lead", "qualification", "proposal", "negotiation", "won", "lost", "cancelled"]
-
-
-class OpportunityIn(BaseModel):
-    name: str
-    client_name: str
-    stage: str = "lead"
-    probability: float = 50
-    expected_revenue: Optional[float] = None
-    expected_margin_pct: Optional[float] = None
-    expected_hours: Optional[float] = None
-    expected_close_date: Optional[date] = None
-    expected_start_date: Optional[date] = None
-    expected_duration_weeks: Optional[int] = None
-    description: Optional[str] = None
-    contact_name: Optional[str] = None
-    contact_email: Optional[str] = None
-    owner_id: Optional[str] = None
-    notes: Optional[str] = None
-
-class OpportunityUpdate(OpportunityIn):
-    name: Optional[str] = None
-    client_name: Optional[str] = None
-    lost_reason: Optional[str] = None
-    project_id: Optional[str] = None
-
-class ActivityIn(BaseModel):
-    type: str = "note"
-    content: str
-
-class StageConfigIn(BaseModel):
-    stage_key: str
-    label: str
-    description: Optional[str] = None
-    color: str = "#6B7280"
-    order: int = 0
-    probability_default: float = 50
-    is_terminal: bool = False
-    is_won: bool = False
-
-
-# _opp_out delegated to pipeline_service.serialize_opportunity (see imports above)
 
 
 @router.get("", summary="Listar oportunidades")

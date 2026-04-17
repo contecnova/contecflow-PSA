@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel
 from datetime import date
 
 from app.db.session import get_db
@@ -10,32 +9,10 @@ from app.core.deps import get_current_user, require_admin_or_hr, require_any_man
 from app.models.user import User
 from app.models.performance import ReviewCycleStatus, ReviewStatus
 from app.services import performance_service
+from app.services.performance_service import avg_score as _avg, serialize_review as _ser_review
+from app.schemas.performance import ReviewCycleIn as CycleIn, PerformanceReviewIn as ReviewIn
 
 router = APIRouter(prefix="/performance", tags=["Performance Reviews"])
-
-
-class CycleIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    include_self: bool = True
-    include_peers: bool = True
-    include_manager: bool = True
-
-class ReviewIn(BaseModel):
-    score_quality: Optional[float] = None
-    score_delivery: Optional[float] = None
-    score_teamwork: Optional[float] = None
-    score_leadership: Optional[float] = None
-    score_innovation: Optional[float] = None
-    score_overall: Optional[float] = None
-    strengths: Optional[str] = None
-    improvements: Optional[str] = None
-    goals_next: Optional[str] = None
-
-
-from app.services.performance_service import avg_score as _avg, serialize_review as _ser_review
 
 
 @router.get("/cycles", summary="Listar ciclos de evaluación")

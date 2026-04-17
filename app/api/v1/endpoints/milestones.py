@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 from datetime import date, datetime, timezone
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -36,25 +35,13 @@ from app.services.milestone_service import (
     get_pending_milestones_dashboard as svc_get_pending_milestones_dashboard,
     serialize_milestone,
 )
+from app.schemas.milestones import (
+    MilestoneIn,
+    MilestoneApprovalRequestIn as ApprovalRequestIn,
+    MilestoneApprovalDecisionIn as ApprovalDecisionIn,
+)
 
 router = APIRouter(prefix="/milestones", tags=["milestones"])
-
-
-# ── Schemas ────────────────────────────────────────────────────────────────────
-class MilestoneIn(BaseModel):
-    name:           str
-    description:    Optional[str] = None
-    due_date:       Optional[date] = None
-    billing_amount: Optional[float] = None
-    billing_pct:    Optional[float] = None
-    sort_order:     int = 0
-
-class ApprovalRequestIn(BaseModel):
-    message: Optional[str] = None   # mensaje opcional al aprobador
-
-class ApprovalDecisionIn(BaseModel):
-    approved:         bool
-    rejection_reason: Optional[str] = None
 
 
 # ── Helper output ──────────────────────────────────────────────────────────────

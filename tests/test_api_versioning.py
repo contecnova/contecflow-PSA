@@ -7,7 +7,8 @@ def test_api_v2_compatibility_surface_available(client, admin_token, db):
     assert res.headers.get("x-api-version") == "2"
     body = res.json()
     assert body.get("api_version") == "v2"
-    assert body.get("currency_normalized") is True
+    assert "base_currency" in body          # honest disclosure; no longer claims full normalization
+    assert body.get("currency_normalized") is None  # removed: was a false claim
     assert "portfolio" in body
 
 

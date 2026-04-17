@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -10,41 +9,9 @@ from app.models.user import User, UserRole
 from app.models.resources import DeliverableStatus
 from app.services import deliverable_service
 from app.services.deliverable_service import STATUS_CFG, serialize_deliverable as _del_out
+from app.schemas.deliverables import DeliverableIn, DeliverableUpdate
 
 router = APIRouter()
-
-# STATUS_CFG delegated to deliverable_service (see imports above)
-
-
-class DeliverableIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    format: Optional[str] = None
-    planned_date: Optional[date] = None
-    owner_id: Optional[str] = None
-    client_contact: Optional[str] = None
-    acceptance_criteria: Optional[str] = None
-    milestone_id: Optional[str] = None
-    phase_id: Optional[str] = None
-    sort_order: int = 0
-
-class DeliverableUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    format: Optional[str] = None
-    status: Optional[str] = None
-    planned_date: Optional[date] = None
-    delivered_date: Optional[date] = None
-    accepted_date: Optional[date] = None
-    owner_id: Optional[str] = None
-    client_contact: Optional[str] = None
-    acceptance_criteria: Optional[str] = None
-    rejection_reason: Optional[str] = None
-    document_url: Optional[str] = None
-    sort_order: Optional[int] = None
-
-
-# _del_out delegated to deliverable_service.serialize_deliverable (see imports above)
 
 
 @router.get("/all/overview", summary="Vista global de entregables")

@@ -2,42 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin
 from app.models.user import User, UserRole
 from app.services import profitability_service
 from app.services.profitability_service import get_fx_rate as _get_fx_rate, _fx_cache
+from app.schemas.milestones import MilestoneIn, MilestoneOut, MilestoneUpdate
 
 router = APIRouter()
-
-
-class MilestoneIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    due_date: Optional[date] = None
-    billing_amount: Optional[float] = None
-    billing_pct: Optional[float] = None
-    sort_order: int = 0
-
-class MilestoneOut(MilestoneIn):
-    id: str
-    project_id: str
-    is_completed: bool
-    completed_date: Optional[date] = None
-    is_billed: bool
-    billed_at: Optional[date] = None
-    model_config = {"from_attributes": True}
-
-class MilestoneUpdate(BaseModel):
-    is_completed: Optional[bool] = None
-    completed_date: Optional[date] = None
-    is_billed: Optional[bool] = None
-    billed_at: Optional[date] = None
-    name: Optional[str] = None
-    due_date: Optional[date] = None
-    billing_amount: Optional[float] = None
 
 
 @router.get("/summary", summary="Rentabilidad de todos los proyectos")

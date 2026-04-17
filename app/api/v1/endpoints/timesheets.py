@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -17,43 +16,14 @@ from app.services.psa_flows import (
     sync_timesheet_from_imputations_flow,
 )
 import app.services.timesheet_service as _tsvc
+from app.schemas.timesheets import (
+    TimesheetOut,
+    TimesheetReview,
+    ImputationLine,
+    TimesheetSendBackPayload as SendBackPayload,
+)
 
 router = APIRouter()
-
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
-class TimesheetOut(BaseModel):
-    id: str
-    user_id: str
-    week_start: date
-    week_end: date
-    status: str
-    total_hours: float
-    billable_hours: float
-    total_cost: float
-    submitted_at: Optional[date] = None
-    reviewed_at: Optional[date] = None
-    review_notes: Optional[str] = None
-    user_name: Optional[str] = None
-    reviewer_name: Optional[str] = None
-    model_config = {"from_attributes": True}
-
-class TimesheetReview(BaseModel):
-    approved: bool
-    notes: Optional[str] = None
-
-class ImputationLine(BaseModel):
-    id: str
-    date: date
-    hours: float
-    billable_hours: float
-    cost: float
-    project_name: str
-    project_code: str
-    description: Optional[str] = None
-    is_billable: bool
-    is_approved: bool
 
 
 _get_week_bounds = _tsvc.get_week_bounds
@@ -141,8 +111,6 @@ def review_timesheet(
     return {"message": f"Timesheet {action}", "status": ts.status}
 
 
-class SendBackPayload(BaseModel):
-    notes: str = ""
 
 
 @router.post("/{timesheet_id}/send-back", summary="Devolver timesheet al empleado para corrección")

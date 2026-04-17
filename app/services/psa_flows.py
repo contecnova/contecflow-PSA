@@ -117,7 +117,7 @@ def submit_timesheet_flow(db: Session, user_id: str, week_start: date) -> Timesh
     if ts.status not in [TimesheetStatus.draft, TimesheetStatus.rejected]:
         raise HTTPException(status_code=400, detail="Solo se pueden enviar timesheets en borrador o rechazados")
     if ts.total_hours == 0:
-        raise HTTPException(status_code=400, detail="No puedes enviar un timesheet vacio")
+        raise HTTPException(status_code=400, detail="No puedes enviar un timesheet vacío")
 
     ts.status = TimesheetStatus.submitted
     ts.submitted_at = datetime.now(timezone.utc)

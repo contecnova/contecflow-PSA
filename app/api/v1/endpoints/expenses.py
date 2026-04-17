@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, select, or_
 from typing import Optional
 from datetime import date, datetime, timezone
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.services.audit import audit_log
@@ -36,48 +35,9 @@ from app.services.expense_service import (
     delete_my_expense as svc_delete_my_expense,
     CATEGORY_LABELS, next_expense_code as _next_code, serialize_expense as _expense_out,
 )
+from app.schemas.expenses import ExpenseIn, ExpenseCreate, ExpenseUpdate, ExpenseReviewPayload as ReviewPayload
 
 router = APIRouter()
-
-class ExpenseIn(BaseModel):
-    user_id: Optional[str] = None
-    project_id: Optional[str] = None
-    category: Optional[str] = None
-    amount: Optional[float] = None
-    currency: Optional[str] = None
-    expense_date: Optional[date] = None
-    description: Optional[str] = None
-    notes: Optional[str] = None
-    receipt_url: Optional[str] = None
-    status: Optional[str] = None
-    is_billable: Optional[bool] = None
-
-# Label constants and helpers delegated to expense_service (see imports above)
-
-
-class ExpenseCreate(BaseModel):
-    project_id: Optional[str] = None
-    contract_id: Optional[str] = None
-    category: str
-    description: str
-    amount: float
-    currency: str = settings.DEFAULT_CURRENCY
-    expense_date: date
-    is_billable: bool = True
-    receipt_name: Optional[str] = None
-    notes: Optional[str] = None
-
-class ExpenseUpdate(BaseModel):
-    category: Optional[str] = None
-    description: Optional[str] = None
-    amount: Optional[float] = None
-    expense_date: Optional[date] = None
-    is_billable: Optional[bool] = None
-    notes: Optional[str] = None
-
-class ReviewPayload(BaseModel):
-    approved: bool
-    rejection_reason: Optional[str] = None
 
 
 @router.get("/my", summary="Mis gastos")

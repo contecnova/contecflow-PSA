@@ -7,7 +7,6 @@ Flujo: request → step 1 → step 2 → ... → step N → decision final
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel
 import logging
 
 from app.db.session import get_db
@@ -33,56 +32,13 @@ from app.services.approval_engine import (
     serialize_workflow as _workflow_out,
     serialize_approval_request as _request_out,
 )
+from app.schemas.approvals import WorkflowIn, StepIn, ApprovalRequestIn, DecisionIn
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 _FINANCIAL_ENTITY_TYPES = {"timesheet", "expense", "milestone", "purchase", "invoice"}
-
-
-# ── Schemas ────────────────────────────────────────────────────────────────────
-class WorkflowIn(BaseModel):
-    name:        str
-    description: Optional[str] = None
-    entity_type: str   # timesheet | expense | change_request | milestone | purchase
-    is_default:  bool  = False
-    trigger_conditions: Optional[str] = "{}"
-
-class StepIn(BaseModel):
-    step_order:          int
-    name:                str
-    approver_type:       str   # role | user | manager | any_in_department
-    approver_role:       Optional[str] = None
-    approver_user_id:    Optional[str] = None
-    approver_department: Optional[str] = None
-    is_optional:         bool  = False
-    timeout_hours:       int   = 72
-    on_timeout:          str   = "escalate"
-    escalate_to_user_id: Optional[str] = None
-
-    # Coerce empty strings to None so FK constraints are never violated
-    from pydantic import field_validator
-
-    @field_validator("approver_user_id", "escalate_to_user_id", mode="before")
-    @classmethod
-    def _empty_str_to_none(cls, v):
-        return None if v == "" else v
-
-class ApprovalRequestIn(BaseModel):
-    workflow_id:    Optional[str] = None   # si None, buscar el default para entity_type
-    entity_type:    str
-    entity_id:      str
-    entity_summary: Optional[str] = None
-
-class DecisionIn(BaseModel):
-    decision: str        # approved | rejected | delegated
-    note:     Optional[str] = None
-    delegate_to: Optional[str] = None   # user_id si decision=delegated
-
-
-# ── Helpers (delegated to approval_engine service) ────────────────────────────
-# _step_out, _workflow_out, _request_out imported above from approval_engine
 
 
 

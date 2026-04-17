@@ -237,7 +237,7 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
         insecure = {"clarive-secret-key-change-in-production-min32chars!!", "REPLACE_ME", "change-me"}
-        if v in insecure or v.startswith("REPLACE_ME"):
+        if v in insecure or v.startswith("REPLACE_ME") or v.upper().startswith("CHANGE_ME"):
             raise ValueError("SECRET_KEY must be changed from the default value before running")
         return v
 

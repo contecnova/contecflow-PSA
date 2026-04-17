@@ -104,3 +104,31 @@ def test_imputation_rejects_duplicate_same_user_task_date(client, admin_token, d
     second = client.post("/api/v1/imputations", headers=auth(dev_token), json=payload)
     assert second.status_code == 409
     assert "ya existe" in second.json()["detail"].lower()
+
+
+def test_imputation_rejects_duplicate_no_task_same_project_date(client, admin_token, dev_token, db):
+    """When task_id is None the unique index doesn't protect (NULL != NULL); app must block."""
+    project_id = _create_project(client, admin_token, "IMPG-04")
+
+    # Add dev user as a member so the membership check passes (no task assignee to rely on).
+    db.add(
+        ProjectMember(
+            project_id=project_id,
+            user_id="dev-test-id",
+            role=ProjectMemberRole.developer,
+        )
+    )
+    db.commit()
+
+    payload = {
+        "project_id": project_id,
+        "date": str(date.today()),
+        "hours": 2.0,
+    }
+
+    first = client.post("/api/v1/imputations", headers=auth(dev_token), json=payload)
+    assert first.status_code in (200, 201), first.text
+
+    second = client.post("/api/v1/imputations", headers=auth(dev_token), json=payload)
+    assert second.status_code == 409
+    assert "ya existe" in second.json()["detail"].lower()

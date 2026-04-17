@@ -32,7 +32,10 @@ from app.models.user import User
 from app.api.v1.endpoints.v239.branding import router as branding_router
 from app.api.v1.endpoints.v239.baselines import router as baselines_router
 from app.api.v1.endpoints.v239.approval_builder import router as approval_builder_router
-import app.services.v239_service as _svc
+import app.services.marketplace_service as _marketplace_svc
+import app.services.customer_health_service as _health_svc
+import app.services.ai_copilot_service as _ai_svc
+import app.services.advanced_config_service as _tmpl_svc
 
 router = APIRouter()
 
@@ -54,7 +57,7 @@ def list_marketplace(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return _svc.list_marketplace_connectors(category, certified_only, org_id, db)
+    return _marketplace_svc.list_marketplace_connectors(category, certified_only, org_id, db)
 
 
 class InstanceCreate(BaseModel):
@@ -86,7 +89,7 @@ def install_integration(
     current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return _svc.install_integration_connector(
+    return _marketplace_svc.install_integration_connector(
         payload.connector_slug, payload.name, payload.config,
         payload.sync_direction, payload.sync_frequency,
         org_id, str(current_user.id), db,
@@ -99,7 +102,7 @@ def list_instances(
     current_user: User = Depends(require_any_manager),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    return _svc.list_integration_instances(org_id, db)
+    return _marketplace_svc.list_integration_instances(org_id, db)
 
 
 @router.delete("/integrations/instances/{instance_id}",
@@ -110,7 +113,7 @@ def uninstall_integration(
     current_user: User = Depends(require_admin),
 ):
     org_id = getattr(current_user, "organization_id", None)
-    _svc.uninstall_integration_connector(instance_id, org_id, db)
+    _marketplace_svc.uninstall_integration_connector(instance_id, org_id, db)
     return None
 
 
@@ -125,7 +128,7 @@ def compute_composite_health(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.compute_composite_health(client_id, db)
+    return _health_svc.compute_composite_health(client_id, db)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -139,7 +142,7 @@ def ai_gantt_suggestions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_ai_gantt_suggestions(project_id, db)
+    return _ai_svc.get_ai_gantt_suggestions(project_id, db)
 
 
 @router.get("/ai/suggestions/timesheets/{user_id}",
@@ -149,7 +152,7 @@ def ai_timesheet_anomalies(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.get_ai_timesheet_anomalies(user_id, db)
+    return _ai_svc.get_ai_timesheet_anomalies(user_id, db)
 
 
 @router.get("/ai/suggestions/ticket/{ticket_id}",
@@ -159,7 +162,7 @@ def ai_ticket_kb_suggestions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_ai_ticket_kb_suggestions(ticket_id, db)
+    return _ai_svc.get_ai_ticket_kb_suggestions(ticket_id, db)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -192,7 +195,7 @@ def add_template_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.add_template_document(template_id, payload, db)
+    return _tmpl_svc.add_template_document(template_id, payload, db)
 
 
 @router.post("/templates/{template_id}/roles",
@@ -203,7 +206,7 @@ def add_template_role(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.add_template_role(template_id, payload, db)
+    return _tmpl_svc.add_template_role(template_id, payload, db)
 
 
 @router.get("/templates/{template_id}/full",
@@ -213,7 +216,7 @@ def get_full_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _svc.get_full_template(template_id, db)
+    return _tmpl_svc.get_full_template(template_id, db)
 
 
 @router.post("/projects/{project_id}/export-template",
@@ -224,6 +227,6 @@ def export_project_as_template(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.export_project_as_template(
+    return _tmpl_svc.export_project_as_template(
         project_id, body.get("name"), body.get("description"), str(current_user.id), db
     )

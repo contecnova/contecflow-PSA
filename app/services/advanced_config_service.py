@@ -877,3 +877,147 @@ def delete_template(template_id: str, db: Session) -> dict:
     t.is_active = False
     db.commit()
     return {"ok": True}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TEMPLATE DOCUMENTS + ROLES (v23.9.0)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def add_template_document(template_id: str, payload, db: Session) -> dict:
+    from app.models.advanced_config import ProjectTemplate
+    from app.models.marketplace import TemplateDocument
+    from fastapi import HTTPException
+    if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
+        raise HTTPException(404, "Template not found")
+    doc = TemplateDocument(template_id=template_id, **payload.dict())
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return {"id": doc.id, "name": doc.name, "created": True}
+
+
+def add_template_role(template_id: str, payload, db: Session) -> dict:
+    from app.models.advanced_config import ProjectTemplate
+    from app.models.marketplace import TemplateRole
+    from fastapi import HTTPException
+    if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
+        raise HTTPException(404, "Template not found")
+    role = TemplateRole(template_id=template_id, **payload.dict())
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    return {"id": role.id, "role_name": role.role_name, "created": True}
+
+
+def get_full_template(template_id: str, db: Session) -> dict:
+    from app.models.advanced_config import (
+        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
+    )
+    from app.models.marketplace import TemplateDocument, TemplateRole
+    from fastapi import HTTPException
+
+    tmpl = db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first()
+    if not tmpl:
+        raise HTTPException(404, "Template not found")
+
+    phases = db.query(TemplatePhase).filter(
+        TemplatePhase.template_id == template_id
+    ).order_by(TemplatePhase.order).all()
+    phase_out = []
+    for ph in phases:
+        tasks = db.query(TemplateTask).filter(
+            TemplateTask.phase_id == ph.id
+        ).order_by(TemplateTask.order).all()
+        phase_out.append({
+            "id": ph.id, "name": ph.name, "description": ph.description,
+            "order": ph.order, "estimated_weeks": ph.estimated_weeks,
+            "estimated_hours": ph.estimated_hours,
+            "tasks": [{"id": t.id, "title": t.title, "description": t.description,
+                        "estimated_hours": t.estimated_hours, "skill_required": t.skill_required,
+                        "order": t.order} for t in tasks],
+        })
+
+    risks = db.query(TemplateRisk).filter(TemplateRisk.template_id == template_id).all()
+    deliverables = db.query(TemplateDeliverable).filter(
+        TemplateDeliverable.template_id == template_id
+    ).all()
+    documents = db.query(TemplateDocument).filter(
+        TemplateDocument.template_id == template_id
+    ).all()
+    roles = db.query(TemplateRole).filter(TemplateRole.template_id == template_id).all()
+
+    return {
+        "id": tmpl.id, "name": tmpl.name, "description": tmpl.description,
+        "project_type": tmpl.project_type, "estimated_weeks": tmpl.estimated_weeks,
+        "estimated_hours": tmpl.estimated_hours, "is_active": tmpl.is_active,
+        "phases": phase_out,
+        "risks": [{"id": r.id, "title": r.title, "category": r.category,
+                   "probability": r.probability, "impact": r.impact,
+                   "mitigation_plan": r.mitigation_plan} for r in risks],
+        "deliverables": [{"id": d.id, "name": d.name, "format": d.format,
+                           "acceptance_criteria": d.acceptance_criteria,
+                           "week_offset": d.week_offset, "billing_pct": d.billing_pct}
+                          for d in deliverables],
+        "documents": [{"id": d.id, "name": d.name, "document_type": d.document_type,
+                        "description": d.description, "url": d.url,
+                        "is_required": d.is_required, "due_week_offset": d.due_week_offset}
+                       for d in documents],
+        "roles": [{"id": r.id, "role_name": r.role_name, "skill_required": r.skill_required,
+                   "min_seniority": r.min_seniority, "estimated_hours": r.estimated_hours,
+                   "is_mandatory": r.is_mandatory, "notes": r.notes} for r in roles],
+    }
+
+
+def export_project_as_template(
+    project_id: str, name, description, user_id: str, db: Session,
+) -> dict:
+    from app.models.project import Project
+    from app.models.task import Task
+    from app.models.pipeline import Risk as RiskModel
+    from app.models.advanced_config import (
+        ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk,
+    )
+    from fastapi import HTTPException
+
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(404, "Project not found")
+
+    tmpl_name = name or f"Template from {proj.name}"
+    tmpl = ProjectTemplate(
+        name=tmpl_name,
+        description=description or proj.description,
+        project_type=proj.project_type if hasattr(proj, "project_type") else None,
+        created_by=user_id,
+    )
+    db.add(tmpl); db.flush()
+
+    phase = TemplatePhase(template_id=tmpl.id, name="Fase Principal", order=0)
+    db.add(phase); db.flush()
+
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
+    for i, t in enumerate(tasks):
+        db.add(TemplateTask(
+            phase_id=phase.id, title=t.title,
+            description=t.description if hasattr(t, "description") else None,
+            estimated_hours=t.estimated_hours if hasattr(t, "estimated_hours") else None,
+            order=i,
+        ))
+
+    risks = db.query(RiskModel).filter(RiskModel.project_id == project_id).all()
+    for r in risks:
+        db.add(TemplateRisk(
+            template_id=tmpl.id, title=r.title,
+            category=r.category if hasattr(r, "category") else None,
+            probability=str(getattr(r, "probability", "medium")),
+            impact=str(getattr(r, "impact", "moderate")),
+            mitigation_plan=r.mitigation_plan if hasattr(r, "mitigation_plan") else None,
+        ))
+
+    db.commit(); db.refresh(tmpl)
+    return {
+        "template_id": tmpl.id, "name": tmpl.name,
+        "tasks_exported": len(tasks),
+        "risks_exported": len(risks),
+        "created": True,
+    }

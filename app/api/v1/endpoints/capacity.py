@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, timedelta
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -10,24 +9,9 @@ from app.models.user import User
 from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
 from app.services import capacity_service
+from app.schemas.capacity import CapacityPlanIn, CapacityPlanOut
 
 router = APIRouter()
-
-
-class CapacityPlanIn(BaseModel):
-    user_id: str
-    project_id: Optional[str] = None
-    week_start: date
-    planned_hours: float
-    notes: Optional[str] = None
-
-class CapacityPlanOut(CapacityPlanIn):
-    id: str
-    user_name: Optional[str] = None
-    project_name: Optional[str] = None
-    project_code: Optional[str] = None
-    model_config = {"from_attributes": True}
-
 
 _get_weeks = capacity_service.get_weeks
 

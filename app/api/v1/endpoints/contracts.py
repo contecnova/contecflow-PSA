@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from datetime import date
-from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
@@ -11,50 +10,9 @@ from app.models.user import User
 from app.models.pipeline import Contract, WorkOrder
 from app.services import contract_service
 from app.services.contract_service import CONTRACT_TYPE_LABELS, serialize_contract as _contract_out
+from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
 
 router = APIRouter()
-
-
-# Labels and serializer delegated to service
-
-class ContractIn(BaseModel):
-    name: str
-    project_id: str
-    client_name: str
-    contract_type: str
-    total_amount: Optional[float] = None
-    hourly_rate: Optional[float] = None
-    hours_bag: Optional[float] = None
-    monthly_retainer: Optional[float] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    signed_date: Optional[date] = None
-    client_contact: Optional[str] = None
-    payment_terms: Optional[str] = None
-    notes: Optional[str] = None
-
-class ContractUpdate(BaseModel):
-    name: Optional[str] = None
-    status: Optional[str] = None
-    total_amount: Optional[float] = None
-    hourly_rate: Optional[float] = None
-    hours_bag: Optional[float] = None
-    monthly_retainer: Optional[float] = None
-    end_date: Optional[date] = None
-    signed_date: Optional[date] = None
-    payment_terms: Optional[str] = None
-    notes: Optional[str] = None
-
-class WorkOrderIn(BaseModel):
-    name: str
-    amount: Optional[float] = None
-    hours: Optional[float] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    description: Optional[str] = None
-
-
-# _contract_out delegated to service (see import above)
 
 
 @router.get("", summary="Listar contratos")

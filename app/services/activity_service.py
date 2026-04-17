@@ -34,6 +34,7 @@ def emit_activity(
 ) -> None:
     from app.models.activity import ActivityEvent
     event = ActivityEvent(
+        organization_id=getattr(actor, "organization_id", None),
         entity_type=entity_type,
         entity_id=entity_id,
         entity_code=entity_code,
