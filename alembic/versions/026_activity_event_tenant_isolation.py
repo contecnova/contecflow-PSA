@@ -11,6 +11,7 @@ Create Date: 2026-04-17
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 revision = "026_activity_event_tenant_isolation"
 down_revision = "025_merge_multitenancy_heads"
@@ -18,26 +19,41 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(table: str, column: str) -> bool:
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    return any(c["name"] == column for c in inspector.get_columns(table))
+
+
+def _index_exists(table: str, index: str) -> bool:
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    return any(ix["name"] == index for ix in inspector.get_indexes(table))
+
+
 def upgrade() -> None:
-    # 1. Add nullable column (existing rows will be NULL, backfilled below)
-    op.add_column(
-        "activity_events",
-        sa.Column("organization_id", sa.String(36), nullable=True),
-    )
+    # 1. Add nullable column (idempotent — skip if already present)
+    if not _column_exists("activity_events", "organization_id"):
+        op.add_column(
+            "activity_events",
+            sa.Column("organization_id", sa.String(36), nullable=True),
+        )
 
-    # 2. FK constraint — deferred so existing NULL rows stay valid
-    op.create_foreign_key(
-        "fk_activity_events_organization_id",
-        "activity_events", "organizations",
-        ["organization_id"], ["id"],
-        ondelete="CASCADE",
-    )
+    # 2. FK constraint — use batch mode for SQLite compatibility
+    with op.batch_alter_table("activity_events") as batch_op:
+        batch_op.create_foreign_key(
+            "fk_activity_events_organization_id",
+            "organizations",
+            ["organization_id"], ["id"],
+            ondelete="CASCADE",
+        )
 
-    # 3. Index for per-tenant feed queries
-    op.create_index(
-        "ix_activity_events_organization_id",
-        "activity_events", ["organization_id"],
-    )
+    # 3. Index for per-tenant feed queries (idempotent)
+    if not _index_exists("activity_events", "ix_activity_events_organization_id"):
+        op.create_index(
+            "ix_activity_events_organization_id",
+            "activity_events", ["organization_id"],
+        )
 
     # 4. Backfill: derive org from the actor user where known
     op.execute(
