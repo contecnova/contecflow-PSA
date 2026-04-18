@@ -480,12 +480,17 @@ async def request_logger(request: Request, call_next):
         return response
 
     # Color según status
+    # 401 on /auth/me is expected (session probe at startup) — log as INFO
+    _expected_401 = (status == 401 and path.endswith("/auth/me"))
     if status < 300:
         level = logging.INFO
         icon  = "✅"
     elif status < 400:
         level = logging.INFO
         icon  = "↩️ "
+    elif _expected_401:
+        level = logging.INFO
+        icon  = "🔑"
     elif status < 500:
         level = logging.WARNING
         icon  = "⚠️ "

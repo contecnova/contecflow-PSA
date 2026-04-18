@@ -149,12 +149,15 @@ def get_project_member_ids(db: Session, project_id) -> list:
 
 def list_profiles_with_users(db: Session) -> list:
     """Return all semantic profiles enriched with user names."""
-    # Filtrado por tenant: solo perfiles de usuarios de la organización actual
+    from app.models.user import User
     org_id = db.info.get("organization_id")
+    is_superadmin = db.info.get("is_superadmin", False)
     query = db.query(SemProfile)
-    if org_id:
+    if not is_superadmin:
+        # Non-superadmins without an organisation must see zero rows (not all rows)
+        if not org_id:
+            return []
         from sqlalchemy import select as sa_select
-        from app.models.user import User
         user_ids_sq = (
             sa_select(User.id)
             .where(User.organization_id == org_id)

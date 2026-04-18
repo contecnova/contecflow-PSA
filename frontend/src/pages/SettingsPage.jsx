@@ -8,7 +8,7 @@ import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { APP_LANGUAGES, loadLanguage, getAllKeys } from '../i18n/appTranslations'
+import { APP_LANGUAGES, loadLanguage, getAllKeys, es } from '../i18n/appTranslations.mjs'
 import { PORTAL_TRANSLATIONS, PORTAL_LANGUAGES, getPortalKeys } from '../i18n/portalTranslations'
 import { extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -489,6 +489,7 @@ function NumberingSection() {
 
 // ── Custom fields section ─────────────────────────────────────────────────────
 function CustomFieldsSection() {
+  const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const { data: fields = [], isLoading } = useQuery({ queryKey: ['custom-fields'], queryFn: () => advancedConfigApi.getCustomFields().then(r => r.data) })
@@ -549,7 +550,7 @@ function CustomFieldsSection() {
               </div>
             </div>
           ))}
-          {fields.length === 0 && <EmptyState icon="🧩" title="Sin campos personalizados" description="Añade campos específicos de tu empresa" />}
+          {fields.length === 0 && <EmptyState icon="🧩" title={t('settings.empty_custom_fields_title')} description={t('settings.empty_custom_fields_desc')} />}
         </div>
       )}
       <div style={{ padding: '14px 16px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
@@ -578,7 +579,7 @@ function TemplatesSection() {
   return (
     <Section icon="📐" title="Plantillas de Proyecto" description="Reutiliza configuraciones de proyectos similares con fases, tareas, riesgos y entregables predefinidos">
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState icon="📐" title="Sin plantillas" description="Crea plantillas para agilizar la configuración de nuevos proyectos" />
+        <EmptyState icon="📐" title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
           {templates.map(t => (
@@ -893,7 +894,9 @@ function IdiomasSection() {
   const [hasUnsaved,    setHasUnsaved]    = useState(false)
 
   // Todas las claves del back-office
-  const allKeys = getAllKeys()
+  console.log('DEBUG es', es)
+  const allKeys = getAllKeys(es)
+  console.log('DEBUG allKeys', allKeys)
   const modules = ['all', ...new Set(allKeys.map(k => k.module))]
 
   // Carga asíncrona de traducciones para edición
@@ -933,10 +936,35 @@ function IdiomasSection() {
     setHasUnsaved(true)
   }
 
+
+  // Importar JSON de traducciones para el idioma activo
+  const importJSON = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result)
+        // Solo importar para el idioma activo
+        if (typeof data !== 'object' || !data[appLang]) {
+          toast.error('El JSON no contiene traducciones para el idioma seleccionado.')
+          return
+        }
+        // data[appLang] debe ser { modulo: { clave: valor } }
+        setAppEdits(data[appLang])
+        setHasUnsaved(true)
+        toast.success('Traducciones importadas. Revisa y guarda para aplicar.')
+      } catch {
+        toast.error('Error al leer el archivo JSON')
+      }
+    }
+    reader.readAsText(file)
+  }
+
   const saveAppTrans = () => {
     // Mergear edits con custom existentes SOLO del idioma activo
     const merged = { ...customTrans }
-    merged[appLang] = { ...customTrans, ...appEdits }
+    merged[appLang] = { ...customTrans[appLang], ...appEdits }
     setCustomTranslations(merged)
     setAppEdits({})
     setHasUnsaved(false)
@@ -956,6 +984,7 @@ function IdiomasSection() {
   const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
   if (loadingAppLang) return <div>Cargando traducciones…</div>
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -1022,6 +1051,13 @@ function IdiomasSection() {
                 {modules.map(m => <option key={m} value={m}>{m === 'all' ? 'Todos los módulos' : m}</option>)}
               </select>
             </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                📤 Importar JSON
+                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={importJSON} />
+              </label>
+            </div>
           </div>
 
           {/* Cabecera tabla */}
@@ -1084,7 +1120,7 @@ function IdiomasSection() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IDIOMA A EDITAR</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setPortalLang(l.code)}
                     style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${portalLang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1097,6 +1133,37 @@ function IdiomasSection() {
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
                 placeholder="Buscar clave o texto..." style={{ ...fs, width: 260 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                📤 Importar JSON
+                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = evt => {
+                    try {
+                      const data = JSON.parse(evt.target.result)
+                      setPortalEdits(prev => {
+                        const merged = { ...prev }
+                        for (const [lang, keys] of Object.entries(data)) {
+                          for (const [key, value] of Object.entries(keys)) {
+                            if (!merged[key]) merged[key] = {}
+                            merged[key][lang] = value
+                          }
+                        }
+                        return merged
+                      })
+                      setHasUnsaved(true)
+                      alert('Traducciones importadas. Revisa y guarda para aplicar.')
+                    } catch {
+                      alert('Error al leer el archivo JSON')
+                    }
+                  }
+                  reader.readAsText(file)
+                }} />
+              </label>
             </div>
           </div>
 
@@ -1138,6 +1205,35 @@ function IdiomasSection() {
               {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>⚠ Cambios sin guardar</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                📤 Importar JSON
+                <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
+                  const file = e.target.files[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = evt => {
+                    try {
+                      const data = JSON.parse(evt.target.result)
+                      // data[lang][key] = value
+                      setPortalEdits(prev => {
+                        const merged = { ...prev }
+                        for (const [lang, keys] of Object.entries(data)) {
+                          for (const [key, value] of Object.entries(keys)) {
+                            if (!merged[key]) merged[key] = {}
+                            merged[key][lang] = value
+                          }
+                        }
+                        return merged
+                      })
+                      setHasUnsaved(true)
+                      alert('Traducciones importadas. Revisa y guarda para aplicar.')
+                    } catch {
+                      alert('Error al leer el archivo JSON')
+                    }
+                  }
+                  reader.readAsText(file)
+                }} />
+              </label>
               <button onClick={() => {
                 const data = JSON.stringify(PORTAL_TRANSLATIONS, null, 2)
                 const blob = new Blob([data], { type: 'application/json' })
@@ -1161,7 +1257,7 @@ function IdiomasSection() {
                 savePortalTrans(stored)
                 setPortalEdits({})
                 setHasUnsaved(false)
-              }} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--surface-0)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+              }} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: hasUnsaved ? 'var(--accent)' : 'var(--surface-4)', color: hasUnsaved ? 'var(--surface-0)' : 'var(--text-2)', cursor: hasUnsaved ? 'pointer' : 'default', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }} disabled={!hasUnsaved}>
                 {savingPortal ? 'Guardando...' : '💾 Guardar traducciones'}
               </button>
             </div>

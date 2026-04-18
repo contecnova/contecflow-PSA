@@ -251,8 +251,8 @@ export default function SemanticEnginePage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Motor de Asignación IA"
-        subtitle={t('semantic_engine.subtitle')}
+        title={_t('semantic_engine.title')}
+        subtitle={_t('semantic_engine.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {(generating || rebuilding || opStatus.type === 'failed' || opStatus.type === 'done') && (

@@ -217,8 +217,8 @@ export default function SearchPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Búsqueda"
-        subtitle="Busca en todo el sistema o usa consultas NQL avanzadas"
+        title={_t('search.title')}
+        subtitle={_t('search.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: 4 }}>
             {[['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']].map(([id, label]) => (

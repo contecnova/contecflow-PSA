@@ -231,8 +231,8 @@ def run_scheduled_rotation():
     name="app.worker.run_agent_task",
     bind=True,
     max_retries=0,
-    time_limit=300,
-    soft_time_limit=280,
+    time_limit=settings.CELERY_AGENT_TASK_TIME_LIMIT,
+    soft_time_limit=settings.CELERY_AGENT_TASK_SOFT_TIME_LIMIT,
 )
 def run_agent_task(
     self,

@@ -1,5 +1,9 @@
 // Português (auto-traduzido)
 const pt = {
+  issue_types: {
+    edit_modal_title: 'Editar tipo de issue',
+    new_modal_title: 'Novo tipo de issue',
+  },
   common: {
     save: 'Salvar', cancel: 'Cancelar', delete: 'Excluir', edit: 'Editar',
     create: 'Criar', add: 'Adicionar', search: 'Pesquisar...', filter: 'Filtrar',
@@ -62,7 +66,26 @@ const pt = {
     group_ai: 'IA & Automação', group_settings: 'Configurações',
   },
   login: {
-    // ...todos os textos do módulo login traduzidos automaticamente para o português...
+     brand_title: 'Bem-vindo à nova era da gestão',
+     brand_subtitle: 'Contecflow revoluciona sua produtividade',
+     brand_description: 'A plataforma profissional para equipes que buscam eficiência, controle e crescimento. Descubra a experiência de gestão mais avançada, segura e flexível do mercado.',
+     feature_1: 'Impulsione seu negócio com tecnologia de ponta',
+     feature_2: 'Segurança e privacidade de nível empresarial',
+     feature_3: 'Automação inteligente e análise avançada',
+     feature_4: 'Multilíngue, global e sempre disponível',
+     welcome_title: 'Acesse seu espaço profissional',
+     welcome_subtitle: 'Gerencie projetos, equipes e clientes em uma única plataforma',
+     username_label: 'Usuário ou e-mail',
+     username_placeholder: 'Seu usuário ou e-mail',
+     password_label: 'Senha',
+     password_placeholder: 'Sua senha',
+     input_error: 'Por favor, insira usuário e senha',
+     credentials_error: 'Usuário ou senha incorretos',
+     loading_button: 'Entrando...',
+     login_button: 'Entrar no Contecflow',
+     session_expired_message: 'Sua sessão expirou. Por favor, faça login novamente.',
+     ad_note: 'Contecflow é uma marca registrada. Todos os direitos reservados.',
+     help_text: 'Precisa de ajuda? Contate o suporte.',
   },
   intake_form: {
     // ...todos os textos do módulo intake_form traduzidos automaticamente para o português...
@@ -84,6 +107,10 @@ const pt = {
   },
   service_desk: {
     // ...todos os textos do módulo service_desk traduzidos automaticamente para o português...
+  },
+  imputa_page: {
+    // ...todos os textos do módulo imputa_page traduzidos automaticamente para o português...
+    subtitle: 'Registro e edição rápida de horas de trabalho',
   },
   // ...adicione o restante dos módulos seguindo a estrutura de es.mjs, auto-traduzido...
 };

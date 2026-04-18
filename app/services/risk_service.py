@@ -39,6 +39,11 @@ def create_risk(db: Session, project_id: str, identified_by: str, **fields) -> R
     db.add(risk)
     db.commit()
     db.refresh(risk)
+    from app.core.events import emit, EventType
+    emit(db, EventType.RISK_CREATED,
+         {"risk_id": risk.id, "code": risk.code, "title": risk.title,
+          "project_id": project_id, "risk_score": score},
+         resource_type="risk", resource_id=risk.id, project_id=project_id)
     return risk
 
 
@@ -78,12 +83,24 @@ def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
     risk.risk_score = risk_score(risk.probability, risk.impact)
     db.commit()
     db.refresh(risk)
+    new_status = str(risk.status)
+    from app.core.events import emit, EventType
+    event_type = EventType.RISK_MITIGATED if new_status in ("mitigating", "monitoring", "closed") else EventType.RISK_UPDATED
+    emit(db, event_type,
+         {"risk_id": risk.id, "code": risk.code, "title": risk.title,
+          "status": new_status, "risk_score": risk.risk_score},
+         resource_type="risk", resource_id=risk.id, project_id=risk.project_id)
     return risk
 
 
 def delete_risk(db: Session, risk: Risk) -> None:
+    risk_id, project_id, code = risk.id, risk.project_id, risk.code
     db.delete(risk)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.RISK_CLOSED,
+         {"risk_id": risk_id, "code": code, "project_id": project_id},
+         resource_type="risk", resource_id=risk_id, project_id=project_id)
 
 
 # ── Label constants ────────────────────────────────────────────────────────────

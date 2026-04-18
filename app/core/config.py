@@ -227,6 +227,60 @@ class Settings(BaseSettings):
     OPEN_EXCHANGE_RATES_APP_ID: Optional[str] = Field(default=None, env="OPEN_EXCHANGE_RATES_APP_ID")
     EXCHANGE_RATES_AUTO_UPDATE: bool = Field(default=False, env="EXCHANGE_RATES_AUTO_UPDATE")
 
+    # ── Rate limiting ─────────────────────────────────────────────────────────
+    RATE_LIMIT_DEFAULT: str = Field(default="200/minute", env="RATE_LIMIT_DEFAULT")
+
+    # ── Celery task timeouts ──────────────────────────────────────────────────
+    CELERY_AGENT_TASK_TIME_LIMIT: int = Field(default=300, env="CELERY_AGENT_TASK_TIME_LIMIT")
+    CELERY_AGENT_TASK_SOFT_TIME_LIMIT: int = Field(default=280, env="CELERY_AGENT_TASK_SOFT_TIME_LIMIT")
+
+    # ── Customer health score ─────────────────────────────────────────────────
+    HEALTH_NPS_LOOKBACK_DAYS: int = Field(default=90, env="HEALTH_NPS_LOOKBACK_DAYS")
+    HEALTH_TICKET_LOOKBACK_DAYS: int = Field(default=30, env="HEALTH_TICKET_LOOKBACK_DAYS")
+    HEALTH_DEFAULT_NO_DATA: float = Field(default=70.0, env="HEALTH_DEFAULT_NO_DATA")
+    HEALTH_PORTAL_BASE_SCORE: float = Field(default=30.0, env="HEALTH_PORTAL_BASE_SCORE")
+    HEALTH_PORTAL_SCORE_PER_SESSION: float = Field(default=7.0, env="HEALTH_PORTAL_SCORE_PER_SESSION")
+    HEALTH_WEIGHT_NPS: float = Field(default=0.40, env="HEALTH_WEIGHT_NPS")
+    HEALTH_WEIGHT_DELIVERY: float = Field(default=0.20, env="HEALTH_WEIGHT_DELIVERY")
+    HEALTH_WEIGHT_BUDGET: float = Field(default=0.15, env="HEALTH_WEIGHT_BUDGET")
+    HEALTH_WEIGHT_TICKETS: float = Field(default=0.15, env="HEALTH_WEIGHT_TICKETS")
+    HEALTH_WEIGHT_PORTAL: float = Field(default=0.10, env="HEALTH_WEIGHT_PORTAL")
+    HEALTH_THRESHOLD_EXCELLENT: float = Field(default=80.0, env="HEALTH_THRESHOLD_EXCELLENT")
+    HEALTH_THRESHOLD_GOOD: float = Field(default=60.0, env="HEALTH_THRESHOLD_GOOD")
+    HEALTH_THRESHOLD_AT_RISK: float = Field(default=40.0, env="HEALTH_THRESHOLD_AT_RISK")
+
+    # ── Project health score ──────────────────────────────────────────────────
+    PROJECT_HEALTH_WEIGHT_SCHEDULE: float = Field(default=0.30, env="PROJECT_HEALTH_WEIGHT_SCHEDULE")
+    PROJECT_HEALTH_WEIGHT_BUDGET: float = Field(default=0.25, env="PROJECT_HEALTH_WEIGHT_BUDGET")
+    PROJECT_HEALTH_WEIGHT_QUALITY: float = Field(default=0.20, env="PROJECT_HEALTH_WEIGHT_QUALITY")
+    PROJECT_HEALTH_WEIGHT_VELOCITY: float = Field(default=0.15, env="PROJECT_HEALTH_WEIGHT_VELOCITY")
+    PROJECT_HEALTH_WEIGHT_CLIENT: float = Field(default=0.10, env="PROJECT_HEALTH_WEIGHT_CLIENT")
+    PROJECT_HEALTH_TRAFFIC_GREEN: float = Field(default=70.0, env="PROJECT_HEALTH_TRAFFIC_GREEN")
+    PROJECT_HEALTH_TRAFFIC_YELLOW: float = Field(default=45.0, env="PROJECT_HEALTH_TRAFFIC_YELLOW")
+    PROJECT_HEALTH_BUDGET_RATIO_GOOD: float = Field(default=0.80, env="PROJECT_HEALTH_BUDGET_RATIO_GOOD")
+    PROJECT_HEALTH_BUDGET_RATIO_OK: float = Field(default=1.00, env="PROJECT_HEALTH_BUDGET_RATIO_OK")
+    PROJECT_HEALTH_BUDGET_RATIO_WARN: float = Field(default=1.20, env="PROJECT_HEALTH_BUDGET_RATIO_WARN")
+
+    # ── SLA breach prediction thresholds ─────────────────────────────────────
+    SLA_PREDICTION_HOURS_CRITICAL: int = Field(default=4, env="SLA_PREDICTION_HOURS_CRITICAL")
+    SLA_PREDICTION_HOURS_HIGH: int = Field(default=8, env="SLA_PREDICTION_HOURS_HIGH")
+    SLA_PREDICTION_HOURS_MEDIUM: int = Field(default=24, env="SLA_PREDICTION_HOURS_MEDIUM")
+    SLA_PREDICTION_HOURS_LOW: int = Field(default=72, env="SLA_PREDICTION_HOURS_LOW")
+    SLA_PREDICTION_WARNING_PCT: float = Field(default=0.70, env="SLA_PREDICTION_WARNING_PCT")
+    SLA_PREDICTION_SEVERITY_CRITICAL_H: float = Field(default=1.0, env="SLA_PREDICTION_SEVERITY_CRITICAL_H")
+    SLA_PREDICTION_SEVERITY_HIGH_H: float = Field(default=4.0, env="SLA_PREDICTION_SEVERITY_HIGH_H")
+
+    # ── Semantic classifier fallback defaults (override via SemConfig in DB) ──
+    SEM_THRESHOLD_EXPERT_CACHE: float = Field(default=0.92, env="SEM_THRESHOLD_EXPERT_CACHE")
+    SEM_THRESHOLD_CRITICAL: float = Field(default=0.90, env="SEM_THRESHOLD_CRITICAL")
+    SEM_THRESHOLD_HIGH: float = Field(default=0.72, env="SEM_THRESHOLD_HIGH")
+    SEM_THRESHOLD_MEDIUM: float = Field(default=0.58, env="SEM_THRESHOLD_MEDIUM")
+    SEM_THRESHOLD_LOW: float = Field(default=0.45, env="SEM_THRESHOLD_LOW")
+    SEM_WEIGHT_PROFILE: float = Field(default=0.40, env="SEM_WEIGHT_PROFILE")
+    SEM_WEIGHT_HISTORY: float = Field(default=0.60, env="SEM_WEIGHT_HISTORY")
+    SEM_TOP_K_HISTORY: int = Field(default=3, env="SEM_TOP_K_HISTORY")
+    SEM_MULTI_ROLE_FACTOR: float = Field(default=0.70, env="SEM_MULTI_ROLE_FACTOR")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

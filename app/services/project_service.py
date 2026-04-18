@@ -468,6 +468,10 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
         raise HTTPException(404, "Proyecto no encontrado")
     project.status = ProjectStatus.cancelled
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.PROJECT_STATUS_CHANGED,
+         {"name": project.name, "status": "cancelled", "project_id": project_id},
+         resource_type="project", resource_id=project_id, project_id=project_id)
     return {"message": "Proyecto cancelado"}
 
 
@@ -545,6 +549,10 @@ def add_member_record(db: Session, project_id: str, data: dict):
     db.add(m)
     db.commit()
     db.refresh(m)
+    from app.core.events import emit, EventType
+    emit(db, EventType.PROJECT_MEMBER_ADDED,
+         {"project_id": project_id, "user_id": data["user_id"], "role": data.get("role")},
+         resource_type="project", resource_id=project_id, project_id=project_id)
     return m
 
 
@@ -576,14 +584,26 @@ def save_new_project(db: Session, payload, current_user):
     project = create_project_record(db, payload, current_user)
     db.commit()
     db.refresh(project)
+    from app.core.events import emit, EventType
+    emit(db, EventType.PROJECT_CREATED,
+         {"name": project.name, "status": str(project.status), "project_id": project.id},
+         actor=current_user, resource_type="project", resource_id=project.id,
+         project_id=project.id)
     return project
 
 
 def update_and_save_project(db: Session, project, data: dict):
     """Apply field updates, commit, refresh, and return the updated project."""
+    old_status = str(project.status)
     apply_project_update(db, project, data)
     db.commit()
     db.refresh(project)
+    from app.core.events import emit, EventType
+    new_status = str(project.status)
+    etype = EventType.PROJECT_STATUS_CHANGED if new_status != old_status else EventType.PROJECT_UPDATED
+    emit(db, etype,
+         {"name": project.name, "status": new_status, "project_id": project.id, **data},
+         resource_type="project", resource_id=project.id, project_id=project.id)
     return project
 
 
@@ -599,5 +619,11 @@ def update_member_record(db: Session, m, data: dict):
 
 def remove_member_record(db: Session, m) -> None:
     """Delete a ProjectMember and commit."""
+    project_id = m.project_id
+    user_id = m.user_id
     db.delete(m)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.PROJECT_MEMBER_REMOVED,
+         {"project_id": project_id, "user_id": user_id},
+         resource_type="project", resource_id=project_id, project_id=project_id)

@@ -14,12 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.models.activity import ActivityEvent
-from app.models.activity import ProjectHealthSnapshot
-from app.models.activity import RecurringTask
-from app.models.activity import RecurringTask, RecurringFreqType
-from app.models.activity import ResourceDemandForecast
-from app.models.activity import VendorScore
+from app.models.activity import ActivityEvent, ProjectHealthSnapshot, RecurringTask, RecurringFreqType, ResourceDemandForecast, VendorScore
 from app.models.alm import ALMVendor
 from app.models.bookings import TaskDependency
 from app.models.enterprise import Notification
@@ -30,12 +25,9 @@ from app.models.imputation import Imputation
 from app.models.mfa import Budget
 from app.models.nps import ClientHealthSnapshot
 from app.models.pipeline import Opportunity, OpportunityStage
-from app.models.pipeline import Opportunity
-from app.models.project import Project
 from app.models.project import Project, ProjectStatus
-from app.models.task import Task
 from app.models.task import Task, TaskStatus
-from app.models.task import Task as TaskModel
+TaskModel = Task
 from fastapi import HTTPException
 
 
@@ -293,12 +285,13 @@ def compute_health(db: Session, project_id: str) -> dict:
         project = db.query(Project).filter(Project.id == project_id).first()
         estimated_hours = getattr(project, "estimated_hours", None)
         if estimated_hours and estimated_hours > 0:
+            from app.core.config import settings as _s
             ratio = actual_cost_q / estimated_hours
-            if ratio <= 0.8:
+            if ratio <= _s.PROJECT_HEALTH_BUDGET_RATIO_GOOD:
                 budget_score = 100.0
-            elif ratio <= 1.0:
+            elif ratio <= _s.PROJECT_HEALTH_BUDGET_RATIO_OK:
                 budget_score = 80.0
-            elif ratio <= 1.2:
+            elif ratio <= _s.PROJECT_HEALTH_BUDGET_RATIO_WARN:
                 budget_score = 50.0
             else:
                 budget_score = 20.0
@@ -321,13 +314,13 @@ def compute_health(db: Session, project_id: str) -> dict:
         if latest_nps:
             client_score = min(100.0, latest_nps.health_score)
 
-    weights = {"schedule": 0.30, "budget": 0.25, "quality": 0.20, "velocity": 0.15, "client": 0.10}
+    from app.core.config import settings as _s
     composite = round(
-        schedule_score * weights["schedule"] +
-        budget_score   * weights["budget"] +
-        quality_score  * weights["quality"] +
-        velocity_score * weights["velocity"] +
-        client_score   * weights["client"],
+        schedule_score * _s.PROJECT_HEALTH_WEIGHT_SCHEDULE +
+        budget_score   * _s.PROJECT_HEALTH_WEIGHT_BUDGET +
+        quality_score  * _s.PROJECT_HEALTH_WEIGHT_QUALITY +
+        velocity_score * _s.PROJECT_HEALTH_WEIGHT_VELOCITY +
+        client_score   * _s.PROJECT_HEALTH_WEIGHT_CLIENT,
         1
     )
 
@@ -338,7 +331,7 @@ def compute_health(db: Session, project_id: str) -> dict:
         "quality_score": quality_score,
         "velocity_score": velocity_score,
         "client_score": client_score,
-        "traffic_light": "green" if composite >= 70 else ("yellow" if composite >= 45 else "red"),
+        "traffic_light": "green" if composite >= _s.PROJECT_HEALTH_TRAFFIC_GREEN else ("yellow" if composite >= _s.PROJECT_HEALTH_TRAFFIC_YELLOW else "red"),
         "overdue_tasks": overdue,
         "total_tasks": total_tasks,
         "open_bugs": open_risks,

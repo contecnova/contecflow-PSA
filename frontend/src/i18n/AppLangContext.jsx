@@ -8,6 +8,7 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { APP_LANGUAGES, loadLanguage } from './appTranslations'
 import api from '../services/api'
 
@@ -31,9 +32,15 @@ function mergeCustom(base, custom) {
 }
 
 export function AppLangProvider({ children }) {
-  const [lang, setLangState] = useState(
-    () => localStorage.getItem(STORAGE_KEY) || 'es'
-  )
+  const [lang, setLangState] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) return stored
+    // Detectar idioma navegador (primer acceso)
+    const navLang = (navigator.language || 'es').slice(0,2)
+    return navLang in APP_LANGUAGES ? navLang : 'es'
+  })
+  // Obtener usuario autenticado
+  const { user } = useAuth ? useAuth() : { user: null }
 
   const [customTrans, setCustomTrans] = useState(() => {
     try {
@@ -62,9 +69,11 @@ export function AppLangProvider({ children }) {
   const setLang = useCallback((code) => {
     setLangState(code)
     localStorage.setItem(STORAGE_KEY, code)
-    // Persist language preference in backend; local state remains source of truth on failures.
-    api.patch('/users/me/preferences', { language: code }).catch(() => {})
-  }, [])
+    // Solo persistir en backend si hay usuario autenticado
+    if (user) {
+      api.patch('/users/me/preferences', { language: code }).catch(() => {})
+    }
+  }, [user])
 
   // Escuchar evento de sincronización de idioma (emitido por useUserPreferences
   // al cargar o actualizar prefs del backend)

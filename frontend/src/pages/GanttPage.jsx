@@ -41,12 +41,12 @@ export default function GanttPage() {
 
   const { data: dependencies = [] } = useQuery({
     queryKey: ['task-deps', projectId],
-    queryFn:  () => {
-      const params = projectId ? { project_id: projectId } : {}
-      return api.get('/tasks/dependencies', { params })
-        .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || []))
-        .catch(() => [])
-    },
+    queryFn: () =>
+      projectId
+        ? api.get(`/task-dependencies/${projectId}`)
+            .then(r => (Array.isArray(r.data.edges) ? r.data.edges : []))
+            .catch(() => [])
+        : Promise.resolve([]),
     staleTime: 30000,
   })
 
@@ -72,7 +72,12 @@ export default function GanttPage() {
   })
 
   const { mutate: createDep } = useMutation({
-    mutationFn: dep => api.post('/tasks/dependencies', dep),
+    mutationFn: dep => api.post('/task-dependencies', {
+      from_task_id: dep.predecessor_id,
+      to_task_id: dep.successor_id,
+      dep_type: dep.dependency_type || 'blocks',
+      lag_days: dep.lag_days || 0,
+    }),
     onSuccess:  () => { invalidate('task-deps'); toast.success('Dependencia creada') },
     onError:    (e) => toast.error(e?.response?.data?.detail || 'Error al crear dependencia'),
   })
@@ -94,8 +99,8 @@ export default function GanttPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
       <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
         <PageHeader
-          title="Gantt interactivo v2"
-          subtitle={t('gantt.subtitle')}
+          title={_t('gantt.title')}
+          subtitle={_t('gantt.subtitle')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input

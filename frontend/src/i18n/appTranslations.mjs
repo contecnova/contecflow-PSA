@@ -1,7 +1,15 @@
 
-// Stub for getAllKeys to avoid import error
-export function getAllKeys() {
-	return [];
+/**
+ * Devuelve todas las claves planas con su módulo: [{module, key, base_es}]
+ */
+export function getAllKeys(obj = es) {
+	const result = [];
+	for (const [module, keys] of Object.entries(obj)) {
+		for (const [key, value] of Object.entries(keys)) {
+			result.push({ module, key, full_key: `${module}.${key}`, base_es: value });
+		}
+	}
+	return result;
 }
 /**
  * Archivo migrado a .mjs para evitar problemas de análisis con Vite.

@@ -1,5 +1,9 @@
 // Deutsch (automatisch übersetzt)
 const de = {
+  issue_types: {
+    edit_modal_title: 'Issue-Typ bearbeiten',
+    new_modal_title: 'Neuer Issue-Typ',
+  },
   common: {
     save: 'Speichern', cancel: 'Abbrechen', delete: 'Löschen', edit: 'Bearbeiten',
     create: 'Erstellen', add: 'Hinzufügen', search: 'Suchen...', filter: 'Filtern',
@@ -62,29 +66,36 @@ const de = {
     group_ai: 'KI & Automatisierung', group_settings: 'Einstellungen',
   },
   login: {
-    // ...alle Texte des Moduls login automatisch ins Deutsche übersetzt...
+    brand_title: 'Willkommen in der neuen Ära des Managements',
+    brand_subtitle: 'Contecflow revolutioniert Ihre Produktivität',
+    brand_description: 'Die professionelle Plattform für Teams, die Effizienz, Kontrolle und Wachstum suchen. Entdecken Sie das fortschrittlichste, sicherste und flexibelste Management-Erlebnis auf dem Markt.',
+    feature_1: 'Steigern Sie Ihr Geschäft mit modernster Technologie',
+    feature_2: 'Sicherheit und Datenschutz auf Unternehmensniveau',
+    feature_3: 'Intelligente Automatisierung und fortschrittliche Analytik',
+    feature_4: 'Mehrsprachig, global und immer verfügbar',
+    welcome_title: 'Zugang zu Ihrem professionellen Bereich',
+    welcome_subtitle: 'Verwalten Sie Projekte, Teams und Kunden auf einer einzigen Plattform',
+    username_label: 'Benutzername oder E-Mail',
+    username_placeholder: 'Ihr Benutzername oder E-Mail',
+    password_label: 'Passwort',
+    password_placeholder: 'Ihr Passwort',
+    input_error: 'Bitte Benutzername und Passwort eingeben',
+    credentials_error: 'Falscher Benutzername oder Passwort',
+    loading_button: 'Anmeldung...',
+    login_button: 'Anmelden bei Contecflow',
+    session_expired_message: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    ad_note: 'Contecflow ist eine eingetragene Marke. Alle Rechte vorbehalten.',
+    help_text: 'Brauchen Sie Hilfe? Kontaktieren Sie den Support.',
   },
-  intake_form: {
-    // ...alle Texte des Moduls intake_form automatisch ins Deutsche übersetzt...
+  intake_form: {},
+  resource_scheduler: {},
+  dashboard: {},
+  projects: {},
+  tasks: {},
+  timesheet: {},
+  service_desk: {},
+  imputa_page: {
+    subtitle: 'Schnelle Erfassung und Bearbeitung von Arbeitszeiten',
   },
-  resource_scheduler: {
-    // ...alle Texte des Moduls resource_scheduler automatisch ins Deutsche übersetzt...
-  },
-  dashboard: {
-    // ...alle Texte des Moduls dashboard automatisch ins Deutsche übersetzt...
-  },
-  projects: {
-    // ...alle Texte des Moduls projects automatisch ins Deutsche übersetzt...
-  },
-  tasks: {
-    // ...alle Texte des Moduls tasks automatisch ins Deutsche übersetzt...
-  },
-  timesheet: {
-    // ...alle Texte des Moduls timesheet automatisch ins Deutsche übersetzt...
-  },
-  service_desk: {
-    // ...alle Texte des Moduls service_desk automatisch ins Deutsche übersetzt...
-  },
-  // ...füge den Rest der Module gemäß der Struktur von es.mjs hinzu, automatisch übersetzt...
 };
 export default de;

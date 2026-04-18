@@ -213,9 +213,12 @@ export default function DependenciesPage() {
     queryKey: ['projects'],
     queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
+  // Usar siempre el endpoint correcto y nunca llamar sin projectId
   const { data: graph, isLoading } = useQuery({
     queryKey: ['task-deps', project],
-    queryFn: () => project ? api.get(`/task-dependencies/${project}`).then(r => r.data).catch(() => null) : Promise.resolve(null),
+    queryFn: () => project
+      ? api.get(`/task-dependencies/${project}`).then(r => r.data).catch(() => null)
+      : Promise.resolve(null),
     enabled: !!project,
   })
 

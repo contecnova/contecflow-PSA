@@ -262,7 +262,7 @@ export default function MilestoneBillingPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="🧾 Facturación por Milestones"
-        subtitle={t('milestone_billing.subtitle')}
+        subtitle={_t('milestone_billing.subtitle')}
       />
 
       {/* Tabs */}

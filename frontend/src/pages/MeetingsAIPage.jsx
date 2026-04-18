@@ -119,8 +119,8 @@ export default function MeetingsAIPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Meeting Assistant"
-        subtitle={t('meetings_ai.subtitle')}
+        title={_t('meetings_ai.title')}
+        subtitle={_t('meetings_ai.subtitle')}
         actions={<Button onClick={() => setShowProcess(true)}>＋ Procesar reunión</Button>}
       />
 

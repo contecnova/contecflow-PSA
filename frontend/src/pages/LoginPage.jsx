@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppT, useAppLang } from '../i18n/AppLangContext'
+import LangSelector from '../components/LangSelector'
 import { authApi } from '../services/api'
 
 export default function LoginPage() {
@@ -86,73 +87,77 @@ export default function LoginPage() {
   })
 
   return (
-    <div className="login-layout">
+    <div className="login-layout" style={{ position: 'relative' }}>
+      {/* ── Language selector (top right) ── */}
+      <div style={{ position: 'absolute', top: 24, right: 32, zIndex: 10 }}>
+        <LangSelector />
+      </div>
       {/* ── Brand panel (left) ───────────────────────────────── */}
       <div className="login-brand-panel">
         {/* Ambient glow */}
         <div style={{
           position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)',
           width: 400, height: 400,
-          background: 'radial-gradient(circle, rgba(79,142,247,0.18) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(0, 180, 255, 0.18) 0%, transparent 65%)',
           pointerEvents: 'none',
         }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Logo */}
+          {/* Logo Contecflow */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
             <div style={{
-              width: 44, height: 44, background: 'var(--accent)',
-              borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(79,142,247,0.4)',
+              width: 48, height: 48, background: 'var(--accent)',
+              borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 24px rgba(0,180,255,0.18)',
             }}>
-              <svg viewBox="0 0 16 16" width="22" height="22" fill="none">
-                <path d="M12 4C10.8 2.9 9.5 2.5 8 2.5C5 2.5 2.5 5 2.5 8C2.5 11 5 13.5 8 13.5C9.5 13.5 10.8 13.1 12 12"
-                  stroke="white" strokeWidth="1.7" strokeLinecap="round" />
-                <rect x="7" y="6.5" width="7" height="1.3" rx="0.65" fill="white" opacity="0.95" />
-                <rect x="7" y="9" width="5.5" height="1.3" rx="0.65" fill="white" opacity="0.65" />
+              <svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+                <circle cx="16" cy="16" r="14" fill="#fff" fillOpacity="0.13" />
+                <path d="M8 16C8 11.58 11.58 8 16 8C20.42 8 24 11.58 24 16C24 20.42 20.42 24 16 24C11.58 24 8 20.42 8 16Z" fill="#00b4ff" />
+                <path d="M16 12V20M12 16H20" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-1)' }}>
-              Clarive
+            <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-1)', fontFamily: 'Montserrat, Inter, sans-serif' }}>
+              Contecflow
             </span>
           </div>
 
-          <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2,
-            color: 'var(--text-1)', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15,
+            color: 'var(--text-1)', marginBottom: 14, fontFamily: 'Montserrat, Inter, sans-serif' }}>
             {t('login.brand_title')}
             <br />
             <span style={{ color: 'var(--accent)' }}>{t('login.brand_subtitle')}</span>
           </h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6, marginBottom: 32, maxWidth: 320 }}>
+          <p style={{ color: 'var(--text-2)', fontSize: 15, lineHeight: 1.7, marginBottom: 36, maxWidth: 340, fontWeight: 500 }}>
             {t('login.brand_description')}
           </p>
 
-          {/* Feature pills */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Feature pills marquetinianas */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { icon: '◈', label: t('login.feature_1') },
-              { icon: '⏱', label: t('login.feature_2') },
-              { icon: '📈', label: t('login.feature_3') },
-              { icon: '🤖', label: t('login.feature_4') },
+              { icon: '🚀', label: t('login.feature_1') },
+              { icon: '🔒', label: t('login.feature_2') },
+              { icon: '💡', label: t('login.feature_3') },
+              { icon: '🌎', label: t('login.feature_4') },
             ].map((f, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10,
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 16px', background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(0,180,255,0.09)', borderRadius: 12,
+                fontWeight: 600, fontSize: 14,
               }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>{f.icon}</span>
-                <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{f.label}</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{f.icon}</span>
+                <span style={{ color: 'var(--text-2)' }}>{f.label}</span>
               </div>
             ))}
           </div>
 
           {/* Version badge */}
-          <div style={{ marginTop: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginTop: 44, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{
-              fontSize: 10, fontWeight: 700, background: 'rgba(79,142,247,0.15)',
-              color: 'var(--accent)', borderRadius: 6, padding: '3px 8px',
-              border: '1px solid rgba(79,142,247,0.25)', letterSpacing: '0.05em',
-            }}>v24</span>
-            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Enterprise · SOC2 · ISO27001</span>
+              fontSize: 11, fontWeight: 800, background: 'rgba(0,180,255,0.13)',
+              color: 'var(--accent)', borderRadius: 7, padding: '4px 10px',
+              border: '1px solid rgba(0,180,255,0.18)', letterSpacing: '0.06em',
+            }}>v26</span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>Enterprise · SOC2 · ISO27001</span>
           </div>
         </div>
       </div>

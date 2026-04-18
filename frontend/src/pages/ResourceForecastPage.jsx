@@ -223,8 +223,8 @@ export default function ResourceForecastPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: '100%' }}>
       <PageHeader
-        title="Resource Forecast"
-        subtitle={t('resource_forecast.subtitle', { weeks })}
+        title={_t('resource_forecast.title')}
+        subtitle={_t('resource_forecast.subtitle', { weeks })}
         icon={<BarChart size={18} />}
       />
 

@@ -587,7 +587,7 @@ export default function ExpensesPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="Gestión de gastos"
-        subtitle={t('expenses.subtitle')}
+        subtitle={_t('expenses.subtitle')}
         actions={
           <button
             onClick={() => {

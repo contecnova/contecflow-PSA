@@ -297,8 +297,8 @@ export default function CapacityPage() {
     <div style={{ padding: '28px 32px' }}>
       <PageHeader
         icon={<TrendingUp size={18} />}
-        title="Planificador de capacidad"
-        subtitle="Planifica asignaciones semana a semana — arrastra para reasignar"
+        title={_t('capacity.title')}
+        subtitle={_t('capacity.subtitle')}
       />
 
       {/* KPI bar */}

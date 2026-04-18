@@ -224,8 +224,8 @@ export default function UATPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
       <PageHeader
-        title="UAT"
-        subtitle={t('uat.subtitle')}
+        title={_t('uat.title')}
+        subtitle={_t('uat.subtitle')}
         icon={<ClipboardCheck size={18} />}
         actions={
           selectedProject ? (

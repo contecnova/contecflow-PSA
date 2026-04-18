@@ -278,8 +278,8 @@ export default function TimerPage() {
         </div>
       )}
       <PageHeader
-        title="Cronómetro"
-        subtitle={t('timer.subtitle')}
+        title={_t('timer.title')}
+        subtitle={_t('timer.subtitle')}
         actions={!currentTimer && (
           <button onClick={() => setShowStart(true)} style={{
             padding: '9px 20px', background: 'var(--accent)', border: 'none',

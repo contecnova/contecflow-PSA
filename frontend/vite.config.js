@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       port: Number(process.env.VITE_PORT) || 3000,
       proxy: {
         '/api': {
-          target: apiTarget,
+          target: apiOrigin,
           changeOrigin: true,
         }
       },

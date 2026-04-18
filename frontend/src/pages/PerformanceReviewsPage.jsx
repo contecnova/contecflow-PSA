@@ -309,7 +309,7 @@ export default function PerformanceReviewsPage() {
         subtitle={t('performance.subtitle')}
         actions={
           tab === 'cycles' && (
-            <Button onClick={() => setShowNewCycle(true)}>+ Nuevo ciclo</Button>
+            <Button onClick={() => setShowNewCycle(true)}>+ {t('performance.new_cycle') || 'Nuevo ciclo'}</Button>
           )
         }
       />

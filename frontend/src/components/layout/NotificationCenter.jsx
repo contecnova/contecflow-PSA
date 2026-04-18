@@ -31,7 +31,21 @@ export default function NotificationCenter({ collapsed }) {
       try {
         const { data } = await api.get('/ws/ticket')  // cookie-authenticated
         if (cancelled) return
-        const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/v1/ws/notifications?ticket=${data.ticket}`
+        // Elegir la URL del WebSocket de forma elegante y configurable
+        let wsBase = import.meta.env.VITE_WS_URL
+        if (!wsBase) {
+          // Si no hay variable, usar el host actual pero adaptando protocolo y puerto
+          const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+          // Si el backend está en otro puerto, usarlo
+          const apiUrl = import.meta.env.VITE_API_URL || '/api/v1'
+          try {
+            const url = new URL(apiUrl, window.location.origin)
+            wsBase = `${proto}://${url.hostname}:${url.port || (proto === 'wss' ? '443' : '80')}`
+          } catch {
+            wsBase = `${proto}://${window.location.hostname}:8000`
+          }
+        }
+        const wsUrl = `${wsBase}/api/v1/ws/notifications?ticket=${data.ticket}`
         const ws = new window.WebSocket(wsUrl)
         wsRef.current = ws
         ws.onmessage = (ev) => {

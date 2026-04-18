@@ -57,6 +57,10 @@ def get_current_user(
         db.info["organization_id"] = getattr(user, "organization_id", None)
         db.info["is_superadmin"] = False
 
+    # Make the authenticated user available to the service layer so events
+    # can be emitted without passing actor as an explicit parameter.
+    db.info["current_user"] = user
+
     return user
 
 

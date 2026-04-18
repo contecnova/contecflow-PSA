@@ -1,4 +1,33 @@
 
+### v23.10.1 (Abril 2026) — Bus de eventos completo, correcciones de seguridad y deuda técnica
+
+**Sistema de eventos — cobertura completa:**
+- Todos los módulos principales emiten ahora eventos de sistema tras cada acción relevante: tareas, proyectos, sprints, gastos, riesgos, aprobaciones y carteras.
+- Nuevo módulo centralizado `app/core/events.py` con catálogo `EventType` (~60 tipos), funciones `emit_event()`, `emit()` (lee actor desde `db.info`) y alias legacy `emit_system_event()`.
+- El actor queda disponible en toda la capa de servicios sin cambiar firmas: `get_current_user` almacena el usuario en `db.info["current_user"]` tras autenticarse.
+- Los eventos se despachan síncronamente al subsistema de webhooks existente (`fire_webhook`); errores no propagan al flujo principal.
+
+**Seguridad — aislamiento multi-tenant en Semantic Engine:**
+- `semantic_engine_service.py`: usuarios sin `is_superadmin` y sin `organization_id` reciben lista vacía en lugar de ver todos los perfiles. Los superadmins conservan visibilidad global.
+- El import de `User` se movió fuera del bloque condicional (`if org_id:`), eliminando el `UnboundLocalError` en producción.
+
+**Portfolio — correcciones de routing y NameErrors:**
+- Todos los endpoints del router de carteras (`portfolio.py`) registran ahora las rutas tanto con como sin `/` final (`@router.get("")` + `@router.get("/")`), resolviendo el 404 con `redirect_slashes=False`.
+- Eliminados 6 `NameError` causados por referencias a `response` no definida en endpoints de cartera.
+- Los endpoints de cartera emiten eventos (`PORTFOLIO_CREATED`, `PORTFOLIO_UPDATED`, `PORTFOLIO_DELETED`, `PORTFOLIO_PROJECT_ADDED`, `PORTFOLIO_PROJECT_REMOVED`).
+
+**Frontend — correcciones ReferenceError i18n:**
+- Corregido `t is not defined` en MilestoneBillingPage, ExecutiveDashboardPage, SprintChartsPage, SemanticEnginePage, WorkflowsPage, GrcPage, ProjectPermissionsPage y CustomFieldsPage. El hook `useAppT()` devuelve `_t`, no `t`.
+
+**Logging:**
+- El sondeo `GET /api/v1/auth/me` con 401 (comprobación de sesión del frontend) se registra como INFO en lugar de WARNING, eliminando falsos positivos en los logs de aplicación.
+
+**mfa_service.py — limpieza de deuda técnica:**
+- Eliminada función `remove_user_from_org` orphaned definida antes de los imports. Reimplementada correctamente después de todos los imports.
+- Las llamadas a `emit_system_event` se migran a `emit_event` desde `app.core.events`.
+
+---
+
 ### v23.9.9 (Abril 2026) — Seguridad AI, Bookings y Multi-tenant
 
 **AI Assistant — Seguridad de datos financieros:**
@@ -159,30 +188,55 @@ export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
 
 ### Orquestación y eventos
 
-- Tras cada asignación o desvinculación, se emite un evento de sistema (`organization.user_assigned`, `organization.user_removed`) para integración con otros servicios.
-- El sistema está preparado para integración con message bus, webhooks o notificaciones externas.
+Todos los módulos del backend emiten eventos de sistema tras cada acción relevante. El bus de eventos está implementado en `app/core/events.py`.
+
+**Cobertura por dominio:**
+
+| Dominio | Eventos emitidos |
+|---------|-----------------|
+| Organización | `organization.user_assigned`, `organization.user_removed` |
+| Usuario | `user.created`, `user.updated`, `user.role_changed`, `user.deactivated`, `user.activated` |
+| Cartera | `portfolio.created`, `portfolio.updated`, `portfolio.deleted`, `portfolio.project_added`, `portfolio.project_removed` |
+| Proyecto | `project.created`, `project.updated`, `project.status_changed`, `project.member_added`, `project.member_removed`, `project.completed` |
+| Tarea | `task.created`, `task.updated`, `task.completed`, `task.assigned`, `task.deleted` |
+| Sprint | `sprint.created`, `sprint.started`, `sprint.completed`, `sprint.deleted` |
+| Gasto | `expense.submitted`, `expense.approved`, `expense.rejected` |
+| Aprobación | `approval.requested`, `approval.approved`, `approval.rejected` |
+| Riesgo | `risk.created`, `risk.updated`, `risk.mitigated`, `risk.closed` |
+| Hito | `milestone.created`, `milestone.updated`, `milestone.completed`, `milestone.approved`, `milestone.invoiced` |
+| Ticket | `ticket.created`, `ticket.updated`, `ticket.assigned`, `ticket.resolved`, `ticket.closed`, `ticket.escalated` |
+| Financiero | `invoice.created`, `invoice.paid`, `budget.exceeded` |
+| Contrato | `contract.created`, `contract.signed`, `contract.expired`, `opportunity.won`, `opportunity.lost` |
+| Documento | `document.uploaded` |
+| Riesgo GRC | `risk.created`, `risk.mitigated`, `risk.closed` |
+
+**Patrón de emisión (siempre después de `db.commit()`):**
+
+```python
+from app.core.events import emit, EventType
+
+# En un servicio — actor leído automáticamente desde db.info["current_user"]
+db.commit()
+emit(db, EventType.TASK_CREATED,
+     {"task_id": task.id, "title": task.title, "project_id": task.project_id},
+     resource_type="task", resource_id=task.id, project_id=task.project_id)
+```
+
+**Actor disponible sin cambiar firmas:**  
+`get_current_user` almacena el usuario autenticado en `db.info["current_user"]`. La función `emit()` lo resuelve automáticamente si no se pasa `actor=` de forma explícita.
+
+**Dispatch a webhooks:**  
+Los eventos se envían síncronamente a los webhooks configurados via `fire_webhook`. Los errores de dispatch no propagan al flujo principal.
 
 ### Seguridad
 
 - Todas las rutas requieren autenticación y permisos de administrador.
 - El frontend previene errores comunes y refleja los mensajes del backend.
 
-### Ejemplo de integración
-
-```python
-# Suscribirse a eventos de usuario en organización
-from app.services.notifications import subscribe_system_event
-
-def on_user_assigned(event):
-  print(f"Usuario {event['user_id']} asignado a organización {event['org_id']}")
-
-subscribe_system_event("organization.user_assigned", on_user_assigned)
-```
-
 ### Notas
 
-- El sistema es extensible para reglas adicionales, integración con otros servicios y auditoría avanzada.
-- Para más detalles, consulta el código en `app/services/mfa_service.py` y los endpoints en `app/api/v1/endpoints/mfa.py`.
+- Para más detalles, consulta `app/core/events.py` (catálogo completo `EventType`) y los servicios en `app/services/`.
+- El módulo `app/services/mfa_service.py` gestiona asignación/desvinculación de usuarios a organizaciones.
 
 ---
 
@@ -1233,6 +1287,13 @@ Jobs:
 ```
 
 Las excepciones de vulnerabilidades se gestionan en `security/vulnerability-exceptions.json` y se validan automáticamente con `scripts/validate_vulnerability_exceptions.py`.
+
+**Política de excepciones de vulnerabilidades:**
+- Cada excepción debe incluir ticket, motivo, aprobadores y fecha de expiración.
+- Las excepciones caducadas fallan el CI de inmediato.
+- Las excepciones son aceptación temporal de riesgo, nunca permanentes.
+- Los PRs que modifican el fichero de excepciones requieren doble aprobación.
+- Se requiere un aprobador de seguridad cuando esté definido en `.github/security-approvers.txt`.
 
 ### Dependabot (`.github/dependabot.yml`)
 
@@ -2565,6 +2626,14 @@ logger.error(f"Error: {e}", exc_info=True)
 
 ## 19. Flujo coordinado de Feature Requests y Control de Cambios
 
+### Mejoras visuales y de usabilidad planificadas
+
+- Mostrar badge con estado CR junto al estado FR, con tooltip explicativo y borde lateral coloreado.
+- Al hacer clic en el badge CR, mostrar modal con detalles del Change Request (descripción, impacto, fechas).
+- Notificación toast cuando el estado CR cambia mientras el usuario visualiza la FR (implementado: el backend emite evento WebSocket).
+- Filtro de FRs por estado CR en la vista de equipo.
+- Notificación por email o sistema interno cuando una CR vinculada cambia de estado relevante.
+
 ### Ciclo de vida y reglas de negocio
 
 **Objetivo:** Garantizar que el ciclo de vida de las solicitudes de funcionalidad (FR) y su integración con Control de Cambios (ChangeRequest) es coherente, auditable y seguro.
@@ -2606,4 +2675,4 @@ _Última revisión: [fecha de hoy]_
 
 ---
 
-*Documentación generada: Mayo 2026 — Clarive PSA v23.10.0*
+*Documentación generada: Abril 2026 — Clarive PSA v23.10.1*

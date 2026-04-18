@@ -53,6 +53,11 @@ def get_next_sprint_number(db: Session, project_id: str) -> int:
 def create_sprint(db: Session, sprint: Sprint) -> None:
     db.add(sprint)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.SPRINT_CREATED,
+         {"sprint_id": sprint.id, "name": sprint.name, "project_id": sprint.project_id,
+          "number": sprint.number},
+         resource_type="sprint", resource_id=sprint.id, project_id=sprint.project_id)
 
 
 def get_sprint_simple(
@@ -150,8 +155,13 @@ def get_sprint_task(
 
 
 def delete_sprint_task(db: Session, st: SprintTask) -> None:
+    sprint_id = st.sprint_id
     db.delete(st)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.SPRINT_DELETED,
+         {"sprint_task_removed": True, "sprint_id": sprint_id, "task_id": st.task_id},
+         resource_type="sprint_task", resource_id=sprint_id)
 
 
 def reorder_sprint_backlog(

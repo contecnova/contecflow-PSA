@@ -677,20 +677,20 @@ export default function OrgChartPage() {
     <div style={{ padding:'20px 28px' }}>
       <PageHeader
         title="Organigrama"
-        subtitle={t('org_chart.subtitle', { total })}
+        subtitle={_t('org_chart.subtitle', { total })}
       />
 
       {/* Tabs */}
       <div style={{ display:'flex', gap:6, marginBottom:24,
         borderBottom:'1px solid var(--surface-4)', paddingBottom:14 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+        {TABS.map(tabObj => (
+          <button key={tabObj.id} onClick={() => setTab(tabObj.id)} style={{
             padding:'8px 16px', borderRadius:8,
-            border:`1px solid ${tab===t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
-            background: tab===t.id ? 'var(--accent-muted)' : 'transparent',
-            color: tab===t.id ? 'var(--accent)' : 'var(--text-2)',
+            border:`1px solid ${tab===tabObj.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+            background: tab===tabObj.id ? 'var(--accent-muted)' : 'transparent',
+            color: tab===tabObj.id ? 'var(--accent)' : 'var(--text-2)',
             fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-          }} title={t.desc}>{t.label}</button>
+          }} title={tabObj.desc}>{tabObj.label}</button>
         ))}
       </div>
 

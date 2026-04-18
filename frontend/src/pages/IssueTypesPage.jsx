@@ -50,8 +50,9 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
       : [...form.field_keys, key])
   }
 
+  const t = useAppT();
   return (
-    <Modal open onClose={onClose} title={isEdit ? 'Editar tipo de issue' : 'Nuevo tipo de issue'}>
+    <Modal open onClose={onClose} title={isEdit ? t('issue_types.edit_modal_title') : t('issue_types.new_modal_title')}>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div>

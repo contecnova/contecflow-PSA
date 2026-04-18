@@ -43,9 +43,10 @@ function InternalCommentThread({ ticketId }) {
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
+  const t = useAppT()
   if (!ticketId) return (
     <div style={{textAlign:'center', padding:'40px 24px', color:'var(--text-3)', fontSize:13}}>
-      Introduce el ID de un ticket para ver sus comentarios internos
+      {t('internal_comments.no_ticket_selected')}
     </div>
   )
 
@@ -55,14 +56,14 @@ function InternalCommentThread({ ticketId }) {
       <div style={{padding:'10px 14px', background:'var(--warning-bg)', border:'1px solid #ffb80030',
         borderRadius:8, marginBottom:16, fontSize:12, color:'var(--warning)', display:'flex', gap:8, alignItems:'center'}}>
         <span>🔒</span>
-        <span><strong>Comentarios internos</strong> — Solo visibles para el equipo de soporte. El cliente no puede verlos.</span>
+        <span><strong>{t('internal_comments.banner_title')}</strong> — {t('internal_comments.banner_desc')}</span>
       </div>
 
       {isLoading ? <Spinner /> : (
         <div>
           {comments.length === 0 ? (
             <div style={{textAlign:'center', padding:'24px', color:'var(--text-3)', fontSize:13}}>
-              Sin comentarios internos en este ticket.
+              {t('internal_comments.empty')}
             </div>
           ) : (
             <div style={{display:'flex', flexDirection:'column', gap:8, marginBottom:16}}>

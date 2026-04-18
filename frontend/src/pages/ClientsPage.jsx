@@ -1,3 +1,49 @@
+// Estilos reutilizables globales (asegurar que siempre estén definidos)
+const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+
+// Estado global para clientes (usado en toda la página)
+const STATUS_LABEL = {
+  active: 'Activo',
+  planning: 'Planificación',
+  on_hold: 'En espera',
+  completed: 'Completado',
+  cancelled: 'Cancelado',
+  new: 'Nueva',
+  reviewing: 'En revisión',
+  estimated: 'Presupuestada',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
+  in_development: 'En desarrollo',
+  done: 'Completada',
+  pending: 'Pendiente',
+  in_progress: 'En progreso',
+  passed: 'Aprobado',
+  failed: 'Rechazado',
+  conditional: 'Con reservas',
+}
+const STATUS_COLOR = {
+  active: 'var(--success)',
+  planning: 'var(--accent)',
+  on_hold: 'var(--warning)',
+  completed: 'var(--text-2)',
+  cancelled: 'var(--danger)',
+  new: 'var(--accent)',
+  reviewing: 'var(--warning)',
+  estimated: 'var(--accent)',
+  approved: 'var(--success)',
+  rejected: 'var(--danger)',
+  in_development: 'var(--accent)',
+  done: 'var(--success)',
+  pending: 'var(--text-2)',
+  in_progress: 'var(--accent)',
+  passed: 'var(--success)',
+  failed: 'var(--danger)',
+  conditional: 'var(--warning)',
+}
+// Refuerzo: exportar para debug si es necesario
+// export const inp = inp;
 import { useState, useEffect } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -11,307 +57,8 @@ import _PageHeader from '../components/layout/PageHeader'
 import { fmtCurrency, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
-// ── Estilo base ───────────────────────────────────────────────────────────────
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const inp   = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl   = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-
-const STATUS_COLOR = { active: 'var(--success)', prospect: 'var(--accent)', inactive: 'var(--warning)', churned: 'var(--danger)' }
-const STATUS_LABEL = { active: 'Activo', prospect: 'Prospecto', inactive: 'Inactivo', churned: 'Perdido' }
-const SLA_COLOR    = { enterprise: 'var(--purple)', gold: 'var(--warning)', silver: 'var(--text-2)', bronze: 'var(--warning)' }
-
-const MODULES = [
-  { id: 'service_desk', label: 'Service Desk', icon: '🎫' },
-  { id: 'projects',     label: 'Proyectos',    icon: '⬡' },
-  { id: 'documents',    label: 'Documentos',   icon: '📄' },
-  { id: 'invoices',     label: 'Facturas',     icon: '🧾' },
-  { id: 'reports',      label: 'Informes',     icon: '📊' },
-  { id: 'knowledge_base', label: 'Base de conocimiento', icon: '📚' },
-]
-
-function HealthBadge({ score }) {
-  const color = score >= 80 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--danger)'
-  const label = score >= 80 ? 'Saludable' : score >= 50 ? 'Atención' : 'Crítico'
-  return (
-    <span style={{ background: color + '20', border: `1px solid ${color}50`, borderRadius: 20,
-      padding: '2px 10px', fontSize: 11, fontWeight: 700, color }}>
-      {label} {score}
-    </span>
-  )
-}
-
-// ── Vista 360 del cliente ─────────────────────────────────────────────────────
-function Client360({ cid }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['client-360', cid],
-    queryFn: () => api.get(`/clients/${cid}/360`).then(r => r.data),
-  })
-  if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
-  if (!data) return null
-  const k = data.kpis
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>Estado general del cliente</div>
-        <HealthBadge score={data.health_score} />
-      </div>
-      {data.alerts?.length > 0 && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid #ff475730', borderRadius: 8,
-          padding: '10px 14px', marginBottom: 20 }}>
-          {data.alerts.map((a, i) => (
-            <div key={i} style={{ fontSize: 12, color: 'var(--danger)' }}>⚠️ {a}</div>
-          ))}
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
-        {[
-          { label: 'Proyectos activos', value: k.active_projects, icon: '⬡', color: 'var(--accent)' },
-          { label: 'Tickets abiertos',  value: k.open_tickets,    icon: '🎫', color: k.open_tickets > 3 ? 'var(--danger)' : 'var(--success)' },
-          { label: 'Tickets (30d)',     value: k.tickets_last_30d, icon: '📈', color: 'var(--purple)' },
-          { label: 'Contratos',         value: k.linked_contracts, icon: '📄', color: 'var(--success)' },
-          { label: 'Valor contratos',   value: fmtCurrency(k.contract_value_eur), icon: '💰', color: 'var(--warning)', isStr: true },
-          { label: 'Licencias',         value: k.linked_licenses,  icon: '🔑', color: 'var(--accent)' },
-          { label: 'Lic. por vencer',   value: k.licenses_expiring_soon, icon: '⏰', color: k.licenses_expiring_soon > 0 ? 'var(--danger)' : 'var(--text-3)' },
-          { label: 'Usuarios portal',   value: k.portal_users,     icon: '👤', color: 'var(--accent)' },
-        ].map(kpi => (
-          <div key={kpi.label} style={{ ...panel, padding: '14px 16px' }}>
-            <div style={{ fontSize: 20, marginBottom: 6 }}>{kpi.icon}</div>
-            <div style={{ fontSize: kpi.isStr ? 14 : 22, fontWeight: 800, color: kpi.color, fontFamily: "'Space Mono', monospace" }}>
-              {kpi.value}
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>{kpi.label}</div>
-          </div>
-        ))}
-      </div>
-      {data.recent_tickets?.length > 0 && (
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Tickets recientes</div>
-          {data.recent_tickets.map(t => (
-            <div key={t.id} style={{ ...panel, padding: '10px 14px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t.created_at?.slice(0, 10)}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--surface-4)', color: 'var(--text-2)' }}>{t.priority}</span>
-                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{t.status}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Facturas del cliente ──────────────────────────────────────────────────────
-function InvoicesClientTab({ cid }) {
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['client-invoices', cid],
-    queryFn: () => api.get(`/clients/${cid}/invoices`).then(r => r.data),
-  })
-
-  const STATUS_COLOR = { draft: 'var(--text-2)', sent: 'var(--accent)', paid: 'var(--success)', overdue: 'var(--danger)', cancelled: 'var(--text-3)' }
-  const STATUS_LABEL = { draft: 'Borrador', sent: 'Enviada', paid: 'Pagada', overdue: 'Vencida', cancelled: 'Cancelada' }
-
-  const total = invoices.reduce((s, i) => s + (i.total_amount || 0), 0)
-  const paid  = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.total_amount || 0), 0)
-  const pending = invoices.filter(i => ['sent','overdue'].includes(i.status)).reduce((s, i) => s + (i.total_amount || 0), 0)
-
-  if (isLoading) return <Spinner />
-  return (
-    <div>
-      {invoices.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-          {[
-            { label: 'Total facturado', value: fmtCurrency(total), color: 'var(--accent)' },
-            { label: 'Cobrado', value: fmtCurrency(paid), color: 'var(--success)' },
-            { label: 'Pendiente', value: fmtCurrency(pending), color: pending > 0 ? 'var(--warning)' : 'var(--text-3)' },
-          ].map(k => (
-            <div key={k.label} style={{ ...panel, padding: '14px 16px' }}>
-              <div style={{ fontSize: 18, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>{invoices.length} factura(s)</div>
-
-      {invoices.length === 0
-        ? <EmptyState icon="🧾" title="Sin facturas" description="Las facturas creadas en este cliente aparecerán aquí" />
-        : invoices.map(inv => (
-          <div key={inv.id} style={{ ...panel, padding: '12px 18px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 3 }}>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700 }}>{inv.number}</span>
-                <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20,
-                  background: (STATUS_COLOR[inv.status] || 'var(--text-2)') + '20',
-                  color: STATUS_COLOR[inv.status] || 'var(--text-2)', fontWeight: 700 }}>
-                  {STATUS_LABEL[inv.status] || inv.status}
-                </span>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
-                {inv.issue_date && `Emitida: ${inv.issue_date}`}
-                {inv.due_date && ` · Vence: ${inv.due_date}`}
-                {inv.project_name && ` · ⬡ ${inv.project_name}`}
-              </div>
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)', fontFamily: "'Space Mono', monospace" }}>
-              {fmtCurrency(inv.total_amount || 0)}
-            </div>
-          </div>
-        ))
-      }
-    </div>
-  )
-}
 
 
-// ── Timeline Gantt del cliente ─────────────────────────────────────────────────
-function ClientTimelineTab({ cid, clientName }) {
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: ['client-projects-linked', cid],
-    queryFn: () => api.get(`/clients/${cid}/projects`).then(r => r.data),
-    staleTime: 0,
-  })
-
-  const today = new Date()
-  const months = []
-  const startYear = today.getFullYear()
-  const startMonth = today.getMonth() - 2
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(startYear, startMonth + i, 1)
-    months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' }) })
-  }
-
-  const totalDays = months.length * 30
-  const refDate = new Date(startYear, startMonth, 1)
-
-  const getDayOffset = (dateStr) => {
-    if (!dateStr) return null
-    const d = new Date(dateStr)
-    return Math.floor((d - refDate) / (1000 * 60 * 60 * 24))
-  }
-
-  const STATUS_COLOR = {
-    active: 'var(--success)', planning: 'var(--accent)', on_hold: 'var(--warning)',
-    completed: 'var(--purple)', cancelled: 'var(--text-3)', paused: 'var(--warning)',
-  }
-
-  if (isLoading) return <Spinner />
-  if (projects.length === 0) return (
-    <EmptyState icon="📅" title="Sin proyectos" description="Vincula proyectos a este cliente para ver su timeline" />
-  )
-
-  return (
-    <div>
-      <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
-        Timeline de {projects.length} proyecto(s) · {clientName}
-      </div>
-
-      <div style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth: 900 }}>
-          {/* Cabecera de meses */}
-          <div style={{ display: 'flex', marginLeft: 200, marginBottom: 8 }}>
-            {months.map((m, i) => (
-              <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: 'var(--text-2)',
-                fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
-                borderLeft: '1px solid #1e2d45', padding: '4px 2px' }}>
-                {m.label}
-              </div>
-            ))}
-          </div>
-
-          {/* Línea de hoy */}
-          <div style={{ position: 'relative' }}>
-            {/* Proyectos */}
-            {projects.map((p, _pi) => {
-              const startOffset = getDayOffset(p.start_date)
-              const endOffset   = getDayOffset(p.end_date || p.end_date_planned)
-              const color       = STATUS_COLOR[p.status] || 'var(--text-2)'
-
-              const barLeft  = startOffset !== null ? Math.max(0, (startOffset / totalDays) * 100) : null
-              const barWidth = (startOffset !== null && endOffset !== null)
-                ? Math.max(2, ((endOffset - startOffset) / totalDays) * 100)
-                : 5
-
-              return (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', marginBottom: 8, height: 36 }}>
-                  {/* Nombre proyecto */}
-                  <div style={{ width: 200, flexShrink: 0, padding: '0 12px 0 0' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.code && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, color: 'var(--text-2)', marginRight: 6 }}>{p.code}</span>}
-                      {p.name}
-                    </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>
-                      <span style={{ background: color + '20', color, padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 700 }}>{p.status}</span>
-                    </div>
-                  </div>
-
-                  {/* Barra del Gantt */}
-                  <div style={{ flex: 1, height: '100%', background: 'var(--surface-1)', borderRadius: 4,
-                    position: 'relative', overflow: 'hidden', border: '1px solid #1e2d45' }}>
-
-                    {/* Separadores de mes */}
-                    {months.map((_, i) => (
-                      <div key={i} style={{ position: 'absolute', left: `${(i / (months.length || 1)) * 100}%`,
-                        top: 0, bottom: 0, width: 1, background: 'var(--surface-4)' }} />
-                    ))}
-
-                    {/* Barra del proyecto */}
-                    {barLeft !== null && (
-                      <div title={`${p.name}: ${p.start_date || '?'} → ${p.end_date || p.end_date_planned || '?'}`}
-                        style={{
-                          position: 'absolute',
-                          left: `${Math.min(barLeft, 98)}%`,
-                          width: `${Math.min(barWidth, 100 - barLeft)}%`,
-                          top: '20%', height: '60%',
-                          background: `linear-gradient(90deg, ${color}, ${color}aa)`,
-                          borderRadius: 4,
-                          display: 'flex', alignItems: 'center', paddingLeft: 6,
-                          overflow: 'hidden',
-                        }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--surface-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {p.name}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Línea de hoy */}
-                    {(() => {
-                      const todayOffset = getDayOffset(today.toISOString().slice(0, 10))
-                      const todayPct = (todayOffset / totalDays) * 100
-                      if (todayPct >= 0 && todayPct <= 100) {
-                        return <div style={{ position: 'absolute', left: `${todayPct}%`, top: 0, bottom: 0,
-                          width: 2, background: 'var(--danger)', opacity: 0.7 }} />
-                      }
-                    })()}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Leyenda */}
-          <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-            {Object.entries(STATUS_COLOR).map(([k, v]) => (
-              <span key={k} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 5, alignItems: 'center' }}>
-                <span style={{ width: 10, height: 10, background: v, borderRadius: 2, display: 'inline-block' }} />
-                {k}
-              </span>
-            ))}
-            <span style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 5, alignItems: 'center' }}>
-              <span style={{ width: 2, height: 10, background: 'var(--danger)', display: 'inline-block' }} />
-              Hoy
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 
 // ── Proyectos vinculados ───────────────────────────────────────────────────────

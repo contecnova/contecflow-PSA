@@ -62,7 +62,26 @@ const en = {
     group_ai: 'AI & Automation', group_settings: 'Settings',
   },
   login: {
-    // ...all login module texts translated to English...
+      brand_title: 'Welcome to the new era of management',
+      brand_subtitle: 'Contecflow revolutionizes your productivity',
+      brand_description: 'The professional platform for teams seeking efficiency, control, and growth. Discover the most advanced, secure, and flexible management experience on the market.',
+      feature_1: 'Boost your business with cutting-edge technology',
+      feature_2: 'Enterprise-level security and privacy',
+      feature_3: 'Smart automation and advanced analytics',
+      feature_4: 'Multilingual, global, and always available',
+      welcome_title: 'Access your professional space',
+      welcome_subtitle: 'Manage projects, teams, and clients from a single platform',
+      username_label: 'Username or email',
+      username_placeholder: 'Your username or email',
+      password_label: 'Password',
+      password_placeholder: 'Your password',
+      input_error: 'Please enter username and password',
+      credentials_error: 'Incorrect username or password',
+      loading_button: 'Logging in...',
+      login_button: 'Log in to Contecflow',
+      session_expired_message: 'Your session has expired. Please log in again.',
+      ad_note: 'Contecflow is a registered trademark. All rights reserved.',
+      help_text: 'Need help? Contact support.',
   },
   intake_form: {
     // ...all intake_form module texts translated to English...

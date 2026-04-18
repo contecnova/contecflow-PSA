@@ -14,16 +14,12 @@ from sqlalchemy import func
 from app.core.config import settings
 from app.services.ai_dispatch import call_ai
 from app.core.security import verify_client_token
-from app.models.ai_chat import AIActionLog
-from app.models.ai_chat import AIPrediction
-from app.models.ai_chat import AIVoiceCommand
-from app.models.ai_chat import AIMeeting
-from app.models.ai_chat import AIMeeting, AIMeetingAction
-from app.models.ai_chat import AIContract
-from app.models.ai_chat import AIContract, AIContractClause
-from app.models.ai_chat import AIKBArticle
-from app.models.ai_chat import AIClientChatSession, AIClientChatMessage
-from app.models.ai_chat import AIAgentExecution as _Exec
+from app.models.ai_chat import (
+    AIActionLog, AIPrediction, AIVoiceCommand,
+    AIMeeting, AIMeetingAction, AIContract, AIContractClause,
+    AIKBArticle, AIClientChatSession, AIClientChatMessage,
+    AIAgentExecution as _Exec,
+)
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket
@@ -281,13 +277,22 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             continue
         created_aware = t.created_at.replace(tzinfo=timezone.utc) if t.created_at.tzinfo is None else t.created_at
         age_hours = (now - created_aware).total_seconds() / 3600
-        sla_limit = {"critical": 4, "high": 8, "medium": 24, "low": 72}.get(t.priority or "medium", 24)
-        if age_hours < sla_limit * 0.7:
+        from app.core.config import settings as _s
+        _sla_hours = {
+            "critical": _s.SLA_PREDICTION_HOURS_CRITICAL,
+            "high":     _s.SLA_PREDICTION_HOURS_HIGH,
+            "medium":   _s.SLA_PREDICTION_HOURS_MEDIUM,
+            "low":      _s.SLA_PREDICTION_HOURS_LOW,
+        }
+        sla_limit = _sla_hours.get(t.priority or "medium", _s.SLA_PREDICTION_HOURS_MEDIUM)
+        if age_hours < sla_limit * _s.SLA_PREDICTION_WARNING_PCT:
             continue
 
         remaining  = sla_limit - age_hours
         probability = min(round(age_hours / sla_limit, 2), 0.99)
-        severity   = "critical" if remaining < 1 else "high" if remaining < 4 else "medium"
+        severity   = ("critical" if remaining < _s.SLA_PREDICTION_SEVERITY_CRITICAL_H
+                      else "high" if remaining < _s.SLA_PREDICTION_SEVERITY_HIGH_H
+                      else "medium")
         existing   = db.query(AIPrediction).filter(
             AIPrediction.entity_id == t.id,
             AIPrediction.prediction_type == "sla_breach",

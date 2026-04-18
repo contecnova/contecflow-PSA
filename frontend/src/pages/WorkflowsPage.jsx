@@ -205,7 +205,7 @@ export default function WorkflowsPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="Workflows personalizados"
-        subtitle={t('workflows.subtitle')}
+        subtitle={_t('workflows.subtitle')}
         actions={selectedProject && states.length > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>+ Transición</Button>

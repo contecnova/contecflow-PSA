@@ -1,3 +1,200 @@
+                                                                    client_portal: {
+                                                                      title: 'Portal Cliente',
+                                                                      subtitle: 'Gestión de usuarios, sesiones UAT y documentos',
+                                                                      contacts_count: 'Contactos',
+                                                                      add_contact: 'Añadir contacto',
+                                                                      empty_contacts_title: 'Sin contactos',
+                                                                      empty_contacts_desc: 'No hay contactos de cliente aún',
+                                                                      role_unknown: 'Rol desconocido',
+                                                                      perm_approve: 'Aprobar entregables',
+                                                                      perm_request: 'Solicitar cambios',
+                                                                      perm_view_budget: 'Ver presupuesto',
+                                                                      last_access: 'Último acceso',
+                                                                      edit: 'Editar',
+                                                                      suspend: 'Suspender',
+                                                                      activate: 'Activar',
+                                                                      delete_contact_confirm: '¿Eliminar este contacto?',
+                                                                      create_contact_title: 'Crear contacto',
+                                                                      label_full_name: 'Nombre completo',
+                                                                      label_email: 'Email',
+                                                                      label_job_title: 'Puesto',
+                                                                      label_company: 'Empresa',
+                                                                      label_phone: 'Teléfono',
+                                                                      label_password: 'Contraseña',
+                                                                      password_placeholder: 'Dejar en blanco para no cambiar',
+                                                                      additional_projects_access: 'Acceso a proyectos adicionales',
+                                                                      permissions: 'Permisos',
+                                                                      perm_approve_desc: 'Puede aprobar entregables',
+                                                                      perm_request_desc: 'Puede solicitar cambios',
+                                                                      perm_budget_desc: 'Puede ver presupuesto',
+                                                                      perm_team_desc: 'Puede ver equipo',
+                                                                      creating: 'Creando...',
+                                                                      create_access: 'Crear acceso',
+                                                                    },
+                                                                  esign: {
+                                                                    title: 'Solicitudes de firma',
+                                                                    subtitle: 'Gestiona firmas electrónicas y sobres',
+                                                                    empty_title: 'Sin solicitudes',
+                                                                    empty_desc: 'No hay solicitudes de firma aún',
+                                                                  },
+                                                                issue_types: {
+                                                                  title: 'Tipos de Issue',
+                                                                  subtitle: 'Configura los tipos de issue para cada proyecto',
+                                                                  edit_modal_title: 'Editar tipo de issue',
+                                                                  new_modal_title: 'Nuevo tipo de issue',
+                                                                },
+                                                              rate_cards: {
+                                                                title: 'Tablas de Tarifas',
+                                                                subtitle: 'Gestiona tarifas por rol/perfil y calcula márgenes',
+                                                              },
+                                                            performance: {
+                                                              title: 'Evaluaciones de Rendimiento',
+                                                              subtitle: 'Ciclos de evaluación 360°, formularios y seguimiento',
+                                                              new_cycle: 'Nuevo ciclo',
+                                                            },
+                                                          cumulative_flow: {
+                                                            title: 'Flujo Acumulativo de Tareas',
+                                                            subtitle: 'Visualiza el avance y los cuellos de botella en el flujo de trabajo',
+                                                          },
+                                                        sprint_planning: {
+                                                          title: 'Planificación de Sprints',
+                                                          subtitle: 'Genera planes de sprint automáticos y estima backlog con IA',
+                                                        },
+                                                      profitability: {
+                                                        revenue: 'Reconocimiento de Ingresos',
+                                                        revenue_subtitle: 'Configura el método y registra ingresos mensuales por proyecto',
+                                                      },
+                                                    portfolio: {
+                                                      title: 'Gestión de Carteras',
+                                                      subtitle: 'Agrupa proyectos en carteras con seguimiento RAG, EVM y hitos cruzados',
+                                                      new_portfolio: 'Nueva cartera',
+                                                    },
+                                                  project_templates: {
+                                                    title: 'Plantillas de Proyecto',
+                                                    subtitle: 'Crea y reutiliza plantillas para proyectos, fases y tareas',
+                                                  },
+                                                nps: {
+                                                  title: 'NPS y Salud de Clientes',
+                                                  subtitle: 'Ranking, tendencias y feedback de clientes',
+                                                },
+                                              subcontractors: {
+                                                title: 'Subcontratistas',
+                                                subtitle: 'Gestión de freelancers y proveedores externos',
+                                              },
+                                            invoices: {
+                                              title: 'Facturación',
+                                              subtitle: 'Gestión de facturas, cobros y vencimientos',
+                                            },
+                                          internal_comments: {
+                                            title: 'Comentarios internos',
+                                            subtitle: 'Notas privadas solo visibles para el equipo de soporte',
+                                          },
+                                        ai: {
+                                          hub_title: 'AI Hub',
+                                          hub_subtitle: 'Gestión de proveedores y modelos de IA',
+                                        },
+                                      tasks: {
+                                        title: 'Tareas',
+                                        subtitle: 'Gestión de tareas, asignaciones y seguimiento',
+                                      },
+                                    projects: {
+                                      title: 'Proyectos',
+                                      subtitle: 'Gestión de proyectos, planificación y seguimiento',
+                                    },
+                                  deliverables: {
+                                    title: 'Entregables',
+                                    subtitle: 'Gestión de entregables y entregas de proyecto',
+                                  },
+                                contracts: {
+                                  title: 'Contratos',
+                                  subtitle: 'Gestión de contratos, OTs y facturación',
+                                },
+                              clients: {
+                                  title: 'Clientes',
+                                  subtitle: 'Gestión de clientes y facturación',
+                                },
+                                title: 'Clientes',
+                                subtitle: 'Gestión de clientes, proyectos y contratos',
+                              },
+                            absences: {
+                              title: 'Ausencias',
+                              subtitle: 'Solicita y gestiona tus ausencias y vacaciones',
+                            },
+                          mentions: {
+                            title: 'Menciones',
+                            subtitle: 'Notificaciones y comentarios donde te han mencionado',
+                          },
+                        uat: {
+                          title: 'UAT',
+                          subtitle: 'Gestión de casos de aceptación de usuario (User Acceptance Testing)',
+                        },
+                      timer: {
+                        title: 'Cronómetro',
+                        subtitle: 'Registra tu tiempo de trabajo y conviértelo en imputaciones',
+                      },
+                    search: {
+                      title: 'Búsqueda',
+                      subtitle: 'Busca en todo el sistema o usa consultas NQL avanzadas',
+                    },
+                  semantic_engine: {
+                    title: 'Motor de Asignación IA',
+                    subtitle: 'Asignación automática semántica de tickets y tareas',
+                  },
+                login: {
+                  brand_title: 'Bienvenido a la nueva era de la gestión',
+                  brand_subtitle: 'Contecflow revoluciona tu productividad',
+                  brand_description: 'La plataforma profesional para equipos que buscan eficiencia, control y crecimiento. Descubre la experiencia de gestión más avanzada, segura y flexible del mercado.',
+                  feature_1: 'Impulsa tu negocio con tecnología de vanguardia',
+                  feature_2: 'Seguridad y privacidad de nivel empresarial',
+                  feature_3: 'Automatización inteligente y analítica avanzada',
+                  feature_4: 'Multilingüe, global y siempre disponible',
+                  welcome_title: 'Accede a tu espacio profesional',
+                  welcome_subtitle: 'Gestiona proyectos, equipos y clientes desde una sola plataforma',
+                  username_label: 'Usuario o email',
+                  username_placeholder: 'Tu usuario o email',
+                  password_label: 'Contraseña',
+                  password_placeholder: 'Tu contraseña',
+                  input_error: 'Por favor, introduce usuario y contraseña',
+                  credentials_error: 'Usuario o contraseña incorrectos',
+                  loading_button: 'Accediendo...',
+                  login_button: 'Entrar en Contecflow',
+                  session_expired_message: 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
+                  ad_note: 'Contecflow es una marca registrada. Todos los derechos reservados.',
+                  help_text: '¿Necesitas ayuda? Contacta con soporte.',
+                },
+              settings: {
+                empty_custom_fields_title: 'Sin campos personalizados',
+                empty_custom_fields_desc: 'Añade campos específicos de tu empresa',
+                empty_templates_title: 'Sin plantillas',
+                empty_templates_desc: 'Crea plantillas para agilizar la configuración de nuevos proyectos',
+              },
+            internal_comments: {
+              no_ticket_selected: 'Introduce el ID de un ticket para ver sus comentarios internos',
+              banner_title: 'Comentarios internos',
+              banner_desc: 'Solo visibles para el equipo de soporte. El cliente no puede verlos.',
+              empty: 'Sin comentarios internos en este ticket.',
+            },
+          clients: {
+            empty_invoices_title: 'Sin facturas',
+            empty_invoices_desc: 'Las facturas creadas en este cliente aparecerán aquí',
+            empty_projects_title: 'Sin proyectos',
+            empty_projects_desc: 'Vincula proyectos a este cliente para ver su timeline',
+          },
+        resources: {
+          analyzing_load_patterns: 'Analizando patrones de carga...',
+          empty_title: '¡Sin riesgos!',
+          empty_desc: 'Nadie en el equipo está en zona de riesgo de burnout',
+        },
+      empty_title: 'Sin solicitudes de firma',
+      empty_desc: 'Crea tu primera solicitud para pedir la firma electrónica de un documento.',
+    grc: {
+      title: 'GRC — Gobierno, Riesgo y Cumplimiento',
+      subtitle: 'Columna vertebral de seguridad · Matrices de permisos · SoD · Violaciones · Audit Log',
+    },
+  issue_types: {
+    edit_modal_title: 'Editar tipo de issue',
+    new_modal_title: 'Nuevo tipo de issue',
+  },
 /**
  * Contecflow — Traducciones del back-office (operador)
  * Sistema i18n completo para la interfaz de gestión.
@@ -7,7 +204,7 @@
  */
 
 // ─── ESPAÑOL (base) ──────────────────────────────────────────────────────────
-const es = {
+export const es = {
 
   // ── Común / General ─────────────────────────────────────────────────────────
   common: {
@@ -1014,6 +1211,10 @@ const es = {
   },
 
   // ── IA / AI Hub ──────────────────────────────────────────────────────────────
+  meetings_ai: {
+    title: 'Meeting Assistant',
+    subtitle: 'Asistente inteligente para reuniones, transcripción y acciones automáticas',
+  },
   ai: {
     hub_title: 'IA & Conectores', providers: '🤖 Proveedores',
     hub_subtitle: 'Configura proveedores de IA y gestiona integraciones',
@@ -1145,7 +1346,9 @@ const es = {
 
   // ── Capacidad ────────────────────────────────────────────────────────────────
   capacity: {
-    title: 'Planificación de Capacidad', team_load: 'Carga del equipo',
+    title: 'Planificador de capacidad',
+    subtitle: 'Planifica asignaciones semana a semana — arrastra para reasignar',
+    team_load: 'Carga del equipo',
     available_hours: 'Horas disponibles', allocated_hours: 'Horas asignadas',
     free_hours: 'Horas libres', overloaded: 'Sobrecargado',
     utilization: '% Utilización', by_week: 'Por semana', by_month: 'Por mes',
@@ -2248,6 +2451,7 @@ const es = {
     offline_error: 'Error al guardar offline',
     edit_aria: 'Editar imputación',
     delete_aria: 'Eliminar imputación',
+      subtitle: 'Registro y edición rápida de horas de trabajo',
   },
 
 }
@@ -5921,6 +6125,7 @@ const fr = {
     offline_error: 'Erreur lors de l\'enregistrement hors ligne',
     edit_aria: 'Modifier l\'entrée de temps',
     delete_aria: 'Supprimer l\'entrée de temps',
+      subtitle: 'Saisie et modification rapide des heures de travail',
   },
 
   toast: {
@@ -14308,9 +14513,9 @@ export const APP_LANGUAGES = [
 ]
 
 /** Obtener todas las claves planas con su módulo: [{module, key, base_es}] */
-export function getAllKeys() {
+export function getAllKeys(obj = es) {
   const result = []
-  for (const [module, keys] of Object.entries(es)) {
+  for (const [module, keys] of Object.entries(obj)) {
     for (const [key, value] of Object.entries(keys)) {
       result.push({ module, key, full_key: `${module}.${key}`, base_es: value })
     }

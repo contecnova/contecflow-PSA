@@ -211,8 +211,8 @@ export default function ESignPage() {
       )}
 
       {isLoading ? <Spinner /> : envelopes.length === 0 ? (
-        <EmptyState icon="✍" title="Sin solicitudes de firma"
-          description="Crea tu primera solicitud para pedir la firma electrónica de un documento." />
+        <EmptyState icon="✍" title={t('esign.empty_title')}
+          description={t('esign.empty_desc')} />
       ) : (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

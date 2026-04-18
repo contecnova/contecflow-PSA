@@ -311,6 +311,12 @@ def create_task_record(db: Session, payload, current_user):
         db.rollback()
         raise HTTPException(status_code=409, detail="Código de tarea duplicado. Inténtalo de nuevo.")
     db.refresh(task)
+    from app.core.events import emit, EventType
+    emit(db, EventType.TASK_CREATED,
+         {"title": task.title, "status": str(task.status), "assignee_id": task.assignee_id,
+          "project_id": task.project_id, "code": task.code},
+         actor=current_user, resource_type="task", resource_id=task.id,
+         project_id=task.project_id)
     return task
 
 
@@ -389,6 +395,21 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
         raise HTTPException(status_code=503, detail="Database operation failed")
 
     db.refresh(task)
+    from app.core.events import emit, EventType
+    changed_fields = payload.model_dump(exclude_unset=True)
+    new_assignee = changed_fields.get("assignee_id")
+    new_status = changed_fields.get("status")
+    if new_status and str(new_status) in ("done", "completed", "closed"):
+        etype = EventType.TASK_COMPLETED
+    elif new_assignee and new_assignee != old_assignee_id:
+        etype = EventType.TASK_ASSIGNED
+    else:
+        etype = EventType.TASK_UPDATED
+    emit(db, etype,
+         {"title": task.title, "status": str(task.status), "assignee_id": task.assignee_id,
+          "project_id": task.project_id, **changed_fields},
+         actor=current_user, resource_type="task", resource_id=task.id,
+         project_id=task.project_id)
     return task, old_assignee_id
 
 
@@ -413,6 +434,10 @@ def cancel_task_record(db: Session, task_id: str) -> dict:
         db.rollback()
         logger.error(f"Database error cancelling task {task_id}: {str(e)}")
         raise HTTPException(status_code=503, detail="Database operation failed")
+    from app.core.events import emit, EventType
+    emit(db, EventType.TASK_DELETED,
+         {"title": task.title, "project_id": task.project_id, "reason": "cancelled"},
+         resource_type="task", resource_id=task_id, project_id=task.project_id)
     return {"message": "Tarea cancelada"}
 
 

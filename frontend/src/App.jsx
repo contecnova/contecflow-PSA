@@ -482,9 +482,7 @@ export default function App() {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
+        <AppRoutes />
       </ConfirmProvider>
     </ToastProvider>
   )

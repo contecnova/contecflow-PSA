@@ -384,6 +384,11 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     expense = db.query(Expense).options(joinedload(Expense.project)).filter(
         Expense.id == expense.id
     ).first()
+    from app.core.events import emit, EventType
+    emit(db, EventType.EXPENSE_SUBMITTED,
+         {"code": expense.code, "amount": expense.amount, "category": expense.category,
+          "project_id": expense.project_id, "status": str(expense.status)},
+         resource_type="expense", resource_id=expense.id, project_id=expense.project_id)
     return expense
 
 
@@ -432,6 +437,10 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     expense.status = ExpenseStatus.submitted
     expense.submitted_at = datetime.now(timezone.utc)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.EXPENSE_SUBMITTED,
+         {"amount": expense.amount, "category": expense.category, "project_id": expense.project_id},
+         resource_type="expense", resource_id=expense_id, project_id=expense.project_id)
     return {"ok": True}
 
 
@@ -460,6 +469,11 @@ def reimburse_expense_record(db: Session, expense_id: str) -> dict:
     expense.status = ExpenseStatus.reimbursed
     expense.reimbursed_at = datetime.now(timezone.utc)
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.EXPENSE_APPROVED,
+         {"amount": expense.amount, "category": expense.category, "project_id": expense.project_id,
+          "status": "reimbursed"},
+         resource_type="expense", resource_id=expense_id, project_id=expense.project_id)
     return {"ok": True}
 
 

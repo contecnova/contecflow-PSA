@@ -135,10 +135,10 @@ function BurnoutMonitorTab() {
 
       {isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}>
-          <Spinner /><span style={{ color: 'var(--text-2)' }}>Analizando patrones de carga...</span>
+          <Spinner /><span style={{ color: 'var(--text-2)' }}>{t('resources.analyzing_load_patterns')}</span>
         </div>
       ) : members.length === 0 ? (
-        <EmptyState icon="🎉" title="¡Sin riesgos!" description="Nadie en el equipo está en zona de riesgo de burnout" />
+        <EmptyState icon="🎉" title={t('resources.empty_title')} description={t('resources.empty_desc')} />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
           {members.map(m => <BurnoutRiskCard key={m.user_id} member={m} />)}

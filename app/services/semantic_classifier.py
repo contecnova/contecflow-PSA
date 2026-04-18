@@ -24,11 +24,7 @@ from typing import Optional
 
 from app.core.config import settings
 from app.models.resources import UserSkill
-from app.models.semantic_engine import SemConfig
-from app.models.semantic_engine import SemFeedback
-from app.models.semantic_engine import SemProfile
-from app.models.semantic_engine import SemProfile, SemFeedback
-from app.models.semantic_engine import SemEmbeddingCache
+from app.models.semantic_engine import SemConfig, SemEmbeddingCache, SemFeedback, SemProfile
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User
@@ -166,7 +162,8 @@ EFFORT_HOURS = {
     "support_l2":   (1.0, 2.0,  4.0),
     "default":      (2.0, 4.0,  8.0),
 }
-MULTI_ROLE_FACTOR = 0.70  # identico a Ficosa
+from app.core.config import settings as _cfg
+MULTI_ROLE_FACTOR = _cfg.SEM_MULTI_ROLE_FACTOR
 
 
 # ── Motor de asignacion semantica ─────────────────────────────────────────────
@@ -182,9 +179,9 @@ class SemanticAssigner:
     (misma formula que Ficosa)
     """
 
-    WEIGHT_PROFILE   = 0.40
-    WEIGHT_HISTORY   = 0.60
-    TOP_K_HISTORY    = 3
+    WEIGHT_PROFILE   = _cfg.SEM_WEIGHT_PROFILE
+    WEIGHT_HISTORY   = _cfg.SEM_WEIGHT_HISTORY
+    TOP_K_HISTORY    = _cfg.SEM_TOP_K_HISTORY
 
     def __init__(self, db, config=None):
         self.db = db
@@ -361,7 +358,7 @@ class SemanticAssigner:
                                 {}, False, "Expert cache (coincidencia exacta)")
 
         # Nivel 2 — Expert Cache semantico (coseno >= threshold)
-        sem_thr = self.config.threshold_expert_cache or 0.92
+        sem_thr = self.config.threshold_expert_cache or _cfg.SEM_THRESHOLD_EXPERT_CACHE
         feedback_hit = self._semantic_lookup_feedback(text, item_type, sem_thr)
         if feedback_hit:
             return self._result(feedback_hit["user_id"], feedback_hit["score"],
@@ -379,10 +376,10 @@ class SemanticAssigner:
                                 "Sin perfiles configurados")
 
         # Mejora 4: thresholds dinámicos con bandera auto/manual por prioridad
-        _thr_crit = getattr(self.config, "threshold_critical", None) or 0.90
-        _thr_high = getattr(self.config, "threshold_high", None) or 0.72
-        _thr_med  = getattr(self.config, "threshold_medium", None) or 0.58
-        _thr_low  = getattr(self.config, "threshold_low", None) or 0.45
+        _thr_crit = getattr(self.config, "threshold_critical", None) or _cfg.SEM_THRESHOLD_CRITICAL
+        _thr_high = getattr(self.config, "threshold_high", None) or _cfg.SEM_THRESHOLD_HIGH
+        _thr_med  = getattr(self.config, "threshold_medium", None) or _cfg.SEM_THRESHOLD_MEDIUM
+        _thr_low  = getattr(self.config, "threshold_low", None) or _cfg.SEM_THRESHOLD_LOW
         PRIORITY_THRESHOLDS = {
             "critical":    {"auto": False, "min": _thr_crit},
             "p1_critical": {"auto": False, "min": _thr_crit},

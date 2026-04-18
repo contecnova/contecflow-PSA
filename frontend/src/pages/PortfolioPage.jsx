@@ -275,7 +275,7 @@ function PortfolioDashboard({ portfolioId, onClose }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -308,13 +308,13 @@ export default function PortfolioPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Briefcase size={22} color="var(--accent)" />
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Gestión de Carteras</h1>
-            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '2px 0 0' }}>Agrupa proyectos en carteras con seguimiento RAG, EVM y hitos cruzados</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{t('portfolio.title')}</h1>
+            <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '2px 0 0' }}>{t('portfolio.subtitle')}</p>
           </div>
         </div>
         <button onClick={() => setShowCreate(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: 'var(--accent)', border: 'none', borderRadius: 9, color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-          <Plus size={14} /> Nueva cartera
+          <Plus size={14} /> {t('portfolio.new_portfolio')}
         </button>
       </div>
 

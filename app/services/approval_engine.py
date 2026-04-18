@@ -174,6 +174,11 @@ def create_approval_request(payload, db: Session, current_user: User) -> dict:
 
     db.commit()
     db.refresh(req)
+    from app.core.events import emit, EventType
+    emit(db, EventType.APPROVAL_REQUESTED,
+         {"entity_type": req.entity_type, "entity_id": req.entity_id,
+          "summary": req.entity_summary, "workflow_id": req.workflow_id},
+         resource_type="approval_request", resource_id=req.id)
     return req
 
 
@@ -284,6 +289,17 @@ def decide_approval_request(
 
     db.commit()
     db.refresh(req)
+    from app.core.events import emit, EventType
+    event_type = (
+        EventType.APPROVAL_APPROVED if req.final_decision == "approved"
+        else EventType.APPROVAL_REJECTED if req.final_decision == "rejected"
+        else EventType.APPROVAL_REQUESTED
+    )
+    emit(db, event_type,
+         {"entity_type": req.entity_type, "entity_id": req.entity_id,
+          "summary": req.entity_summary, "decision": decision, "note": note},
+         resource_type="approval_request", resource_id=req.id,
+         actor=current_user)
     return req
 
 
@@ -451,6 +467,12 @@ def cancel_approval_request(db: Session, request_id: str, current_user: User):
         step_order=req.current_step,
     )
     db.commit()
+    from app.core.events import emit, EventType
+    emit(db, EventType.APPROVAL_REJECTED,
+         {"entity_type": req.entity_type, "entity_id": req.entity_id,
+          "summary": req.entity_summary, "action": "cancelled"},
+         resource_type="approval_request", resource_id=req.id,
+         actor=current_user)
     return req
 
 

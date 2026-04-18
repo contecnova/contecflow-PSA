@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import api from '../services/api'
 
 const AuthContext = createContext(null)
@@ -7,15 +8,22 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sessionExpired, setSessionExpired] = useState(false)
+  const location = useLocation()
 
   useEffect(() => {
+    // Evitar petición a /auth/me si estamos en la pantalla de login
+    if (location.pathname === '/login') {
+      setLoading(false)
+      setUser(null)
+      return
+    }
     // Restore session by validating the httpOnly cookie via /auth/me.
     // No token is read from localStorage — cookies are sent automatically.
     api.get('/auth/me')
       .then(res => setUser(res.data))
       .catch(() => setUser(null))
       .finally(() => setLoading(false))
-  }, [])
+  }, [location.pathname])
 
   // Listen for session-expired events fired by the axios interceptor when
   // a token refresh fails. Show a brief message before clearing the session.
@@ -31,7 +39,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = useCallback(async (username, password) => {
-    const { data } = await api.post('/api/v1/auth/login', { username, password })
+    const { data } = await api.post('/auth/login', { username, password })
     // Tokens are now stored in httpOnly cookies set by the server.
     // We only keep the user profile in React state (never in localStorage).
     setUser(data.user)

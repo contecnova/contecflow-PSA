@@ -56,7 +56,7 @@ def _build_limiter() -> Limiter:
         if redis_ok:
             return Limiter(
                 key_func=_rate_limit_key,
-                default_limits=["200/minute"],
+                default_limits=[settings.RATE_LIMIT_DEFAULT],
                 storage_uri=redis_url,
             )
         if (
@@ -78,7 +78,7 @@ def _build_limiter() -> Limiter:
             )
     return Limiter(
         key_func=_rate_limit_key,
-        default_limits=["200/minute"],
+        default_limits=[settings.RATE_LIMIT_DEFAULT],
     )
 
 

@@ -627,8 +627,8 @@ export default function GrcPage() {
   return (
     <div style={{ padding: '20px 28px' }}>
       <PageHeader
-        title="GRC — Governance, Risk & Compliance"
-        subtitle={t('grc.subtitle')}
+        title={_t('grc.title')}
+        subtitle={_t('grc.subtitle')}
       />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)',

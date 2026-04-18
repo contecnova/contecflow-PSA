@@ -68,7 +68,7 @@ function ClientAuthProvider({ children }) {
     return () => { mounted = false }
   }, [])
   const login = async (email, password) => {
-    const res = await CLIENT_API.post('/api/v1/portal/auth/login', { email, password })
+    const res = await CLIENT_API.post('/portal/auth/login', { email, password })
     const clientData = _pickClientUiFields(res.data.client)
     localStorage.setItem('client_user', JSON.stringify(clientData))
     if (res.data.client?.language) {

@@ -167,8 +167,8 @@ export default function CustomFieldsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Campos personalizados"
-        subtitle={t('custom_fields.subtitle')}
+        title={_t('custom_fields.title')}
+        subtitle={_t('custom_fields.subtitle')}
         actions={selectedProject && (
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo campo</Button>
         )}

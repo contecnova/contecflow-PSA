@@ -2645,7 +2645,7 @@ export default function ServiceDeskPage() {
     <div className="p-4 sm:p-5 lg:px-7 lg:py-5" style={{ minHeight: '100%' }}>
       <PageHeader
         icon={<MessageSquare size={18} />}
-        title="Service Desk ITSM"
+        title={t('service_desk.title')}
         subtitle={t('service_desk.subtitle')}
         actions={
           <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
