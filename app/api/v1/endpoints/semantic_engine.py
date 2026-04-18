@@ -3,7 +3,7 @@ semantic_engine.py — API del motor de asignacion semantica (thin router)
 """
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
 from app.core.deps import get_current_user
 import app.services.semantic_engine_service as _svc
@@ -18,20 +18,6 @@ def _cache_item_embedding(db, item_id, item_type, text, user_id):
     return _svc.cache_item_embedding(db, item_id, item_type, text, user_id)
 
 
-class SemConfigPatch(BaseModel):
-    engine_mode: str | None = None
-    threshold_ticket: float | None = None
-    threshold_task: float | None = None
-    threshold_expert_cache: float | None = None
-    load_balance_weight: float | None = None
-    threshold_critical: float | None = None
-    threshold_high: float | None = None
-    threshold_medium: float | None = None
-    threshold_low: float | None = None
-    history_decay_days: float | None = None
-    auto_assign_tickets: bool | None = None
-    auto_assign_tasks: bool | None = None
-    local_model_name: str | None = None
 
 
 # ── Configuracion ─────────────────────────────────────────────────────────────

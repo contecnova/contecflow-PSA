@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = useCallback(async (username, password) => {
-    const { data } = await api.post('/auth/login', { username, password })
+    const { data } = await api.post('/api/v1/auth/login', { username, password })
     // Tokens are now stored in httpOnly cookies set by the server.
     // We only keep the user profile in React state (never in localStorage).
     setUser(data.user)

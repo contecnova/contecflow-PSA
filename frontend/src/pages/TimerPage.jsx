@@ -279,7 +279,7 @@ export default function TimerPage() {
       )}
       <PageHeader
         title="Cronómetro"
-        subtitle="Registra tu tiempo de trabajo y conviértelo en imputaciones"
+        subtitle={t('timer.subtitle')}
         actions={!currentTimer && (
           <button onClick={() => setShowStart(true)} style={{
             padding: '9px 20px', background: 'var(--accent)', border: 'none',

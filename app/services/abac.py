@@ -315,6 +315,13 @@ class ABACService:
         self.db.commit()
         return True
 
+    def get_policy_by_id(self, policy_id: str) -> Optional[ABACPolicy]:
+        """Get a single policy by ID scoped to org."""
+        return self.db.query(ABACPolicy).filter(
+            ABACPolicy.id == policy_id,
+            ABACPolicy.org_id == self.org_id,
+        ).first()
+
     def list_policies(self, active_only: bool = True) -> List[ABACPolicy]:
         """List policies for org."""
         query = self.db.query(ABACPolicy).filter(ABACPolicy.org_id == self.org_id)

@@ -314,7 +314,7 @@ export default function ReportBuilderPage() {
     <div style={{ padding: 32, maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader
         title={t('report_builder.title')}
-        subtitle="Crea informes sin código: elige entidad, campos, filtros y exporta a CSV"
+        subtitle={t('report_builder.subtitle')}
       />
 
       {/* Tabs */}

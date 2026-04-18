@@ -80,14 +80,21 @@ function KnownErrors() {
                 <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{ke.root_cause}</div>
               </div>
             )}
-            {ke.workaround && (
+            {ke.workaround ? (
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: COLOR.success, marginBottom: 4 }}>WORKAROUND</div>
                 <div style={{ fontSize: 13, color: 'var(--text-1)', background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '10px 14px' }}>
                   {ke.workaround}
                 </div>
               </div>
-            )}
+            ) : ke.fix_description ? (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLOR.info, marginBottom: 4 }}>SOLUCIÓN DEFINITIVA</div>
+                <div style={{ fontSize: 13, color: 'var(--text-1)', background: `${COLOR.info}08`, border: `1px solid ${COLOR.info}20`, borderRadius: 8, padding: '10px 14px' }}>
+                  {ke.fix_description}
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>}
@@ -133,15 +140,15 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
         <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder="Describe el error de forma concisa" /></div>
         <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Cuando ocurre, sintomas, frecuencia..." /></div>
         <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Por que ocurre este error?" /></div>
-        <div><label style={LS}>Workaround * (solucion temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Pasos para resolver o mitigar el problema mientras se soluciona de forma definitiva" /></div>
-        <div><label style={LS}>Solucion definitiva (opcional)</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Descripcion de la solucion permanente cuando este disponible" /></div>
+        <div><label style={LS}>Workaround (solución temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Pasos para resolver o mitigar el problema mientras se soluciona de forma definitiva" /></div>
+        <div><label style={LS}>Solución definitiva</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Descripción de la solución permanente cuando esté disponible" /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label style={LS}>Prioridad</label><select value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
           <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => onSaved(form)} disabled={!form.title || !form.workaround.trim()}>{isEdit ? 'Guardar cambios' : 'Crear error conocido'}</Button>
+          <Button onClick={() => onSaved(form)} disabled={!form.title.trim()}>{isEdit ? 'Guardar cambios' : 'Crear error conocido'}</Button>
         </div>
       </div>
     </Modal>

@@ -6,6 +6,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
+from app.models.service_desk import Ticket
+from sqlalchemy import case
 from . import register_metric
 
 

@@ -15,13 +15,147 @@ import { useAppT } from '../i18n/AppLangContext'
 
 
 
+// ── Triggers — exhaustive catalog ────────────────────────────────────────────
+// All labels and categories are now translated at render time using t() and translation keys.
+const TRIGGERS = {
+  task_status_changed:      { icon: '🔄', category: 'Tareas' },
+  task_created:             { icon: '🆕', category: 'Tareas' },
+  task_deleted:             { icon: '🗑️', category: 'Tareas' },
+  task_assigned:            { icon: '👤', category: 'Tareas' },
+  task_unassigned:          { icon: '👤', category: 'Tareas' },
+  task_completed:           { icon: '✅', category: 'Tareas' },
+  task_overdue:             { icon: '⏰', category: 'Tareas' },
+  task_deadline_approaching:{ icon: '📅', category: 'Tareas' },
+  task_priority_changed:    { icon: '🔺', category: 'Tareas' },
+  task_blocked:             { icon: '🚫', category: 'Tareas' },
+  task_comment_added:       { icon: '💬', category: 'Tareas' },
+  task_moved_to_sprint:     { icon: '⚡', category: 'Tareas' },
+  project_status_changed:   { icon: '📁', category: 'Proyectos' },
+  project_created:          { icon: '🆕', category: 'Proyectos' },
+  project_deadline_approaching: { icon: '📅', category: 'Proyectos' },
+  budget_threshold:         { icon: '💰', category: 'Proyectos' },
+  budget_overspent:         { icon: '🚨', category: 'Proyectos' },
+  risk_score_high:          { icon: '⚠️', category: 'Proyectos' },
+  risk_created:             { icon: '⚠️', category: 'Proyectos' },
+  phase_completed:          { icon: '🏁', category: 'Proyectos' },
+  deliverable_overdue:      { icon: '📦', category: 'Proyectos' },
+  change_request_created:   { icon: '⇄',  category: 'Proyectos' },
+  member_added:             { icon: '➕', category: 'Proyectos' },
+  member_removed:           { icon: '➖', category: 'Proyectos' },
+  sprint_started:           { icon: '⚡', category: 'Sprints' },
+  sprint_ended:             { icon: '🏁', category: 'Sprints' },
+  sprint_goal_missed:       { icon: '❌', category: 'Sprints' },
+  sprint_capacity_exceeded: { icon: '📈', category: 'Sprints' },
+  timesheet_not_submitted:  { icon: '📋', category: 'Tiempo' },
+  timesheet_submitted:      { icon: '✅', category: 'Tiempo' },
+  timesheet_rejected:       { icon: '❌', category: 'Tiempo' },
+  overtime_detected:        { icon: '⏱', category: 'Tiempo' },
+  imputation_lockout_warning:{ icon: '🔒', category: 'Tiempo' },
+  date_reached:             { icon: '📅', category: 'Tiempo' },
+  end_of_week:              { icon: '📆', category: 'Tiempo' },
+  end_of_month:             { icon: '📆', category: 'Tiempo' },
+  absence_requested:        { icon: '🌴', category: 'Equipo' },
+  absence_approved:         { icon: '✅', category: 'Equipo' },
+  absence_rejected:         { icon: '❌', category: 'Equipo' },
+  user_created:             { icon: '👤', category: 'Equipo' },
+  capacity_threshold:       { icon: '📈', category: 'Equipo' },
+  performance_review_due:   { icon: '🌟', category: 'Equipo' },
+  certification_expiring:   { icon: '🎒', category: 'Equipo' },
+  okr_deadline_approaching: { icon: '🏆', category: 'Equipo' },
+  ticket_created:           { icon: '🎫', category: 'Service Desk' },
+  ticket_sla_at_risk:       { icon: '🚨', category: 'Service Desk' },
+  ticket_sla_breached:      { icon: '🔴', category: 'Service Desk' },
+  ticket_escalated:         { icon: '↑',  category: 'Service Desk' },
+  ticket_resolved:          { icon: '✅', category: 'Service Desk' },
+  ticket_reopened:          { icon: '🔄', category: 'Service Desk' },
+  ticket_no_response:       { icon: '⏰', category: 'Service Desk' },
+  cmdb_asset_expiring:      { icon: '🖥️', category: 'Service Desk' },
+  expense_submitted:        { icon: '💸', category: 'Finanzas' },
+  expense_approved:         { icon: '✅', category: 'Finanzas' },
+  invoice_created:          { icon: '🧾', category: 'Finanzas' },
+  invoice_overdue:          { icon: '💳', category: 'Finanzas' },
+  contract_expiring:        { icon: '📝', category: 'Finanzas' },
+  milestone_reached:        { icon: '◎',  category: 'Finanzas' },
+  nps_score_low:            { icon: '⭐', category: 'Finanzas' },
+  webhook_received:         { icon: '🔗', category: 'Integraciones' },
+  git_pr_merged:            { icon: '⎇',  category: 'Integraciones' },
+  git_pipeline_failed:      { icon: '❌', category: 'Integraciones' },
+  email_received:           { icon: '📧', category: 'Integraciones' },
+  form_submitted:           { icon: '📝', category: 'Integraciones' },
+  api_event:                { icon: '🔌', category: 'Integraciones' },
+}
 
-import {
-  AUTOMATION_TRIGGERS as TRIGGERS,
-  AUTOMATION_ACTIONS as ACTIONS,
-  AUTOMATION_OPERATORS as OPERATORS,
-  AUTOMATION_ACTION_PARAMS as ACTION_PARAMS
-} from '../constants/api'
+
+// All labels and categories are now translated at render time using t() and translation keys.
+const ACTIONS = {
+  create_alert:           { icon: '🔔', category: 'Notificaciones' },
+  notify_role:            { icon: '👥', category: 'Notificaciones' },
+  notify_user:            { icon: '👤', category: 'Notificaciones' },
+  send_email:             { icon: '📧', category: 'Notificaciones' },
+  send_webhook:           { icon: '🔗', category: 'Integraciones' },
+  send_teams_message:     { icon: 'Ⓜ',  category: 'Integraciones' },
+  send_slack_message:     { icon: '💬', category: 'Integraciones' },
+  create_jira_issue:      { icon: '🔵', category: 'Integraciones' },
+  change_task_status:     { icon: '🔄', category: 'Tareas' },
+  change_task_priority:   { icon: '🔺', category: 'Tareas' },
+  assign_task:            { icon: '👤', category: 'Tareas' },
+  create_task:            { icon: '🆕', category: 'Tareas' },
+  change_project_status:  { icon: '📁', category: 'Proyectos' },
+  escalate_ticket:        { icon: '↑',  category: 'Service Desk' },
+  change_ticket_status:   { icon: '🎫', category: 'Service Desk' },
+  assign_ticket:          { icon: '👤', category: 'Service Desk' },
+  approve_expense:        { icon: '💸', category: 'Finanzas' },
+  rpa_power_automate:     { icon: '🔵', category: 'RPA' },
+  rpa_uipath:             { icon: '🤖', category: 'RPA' },
+  rpa_zapier:             { icon: '⚡', category: 'RPA' },
+  rpa_make:               { icon: '🔧', category: 'RPA' },
+  rpa_n8n:                { icon: '🔀', category: 'RPA' },
+  rpa_custom_http:        { icon: '🌐', category: 'RPA' },
+}
+
+// All operator labels are now translated at render time using t() and translation keys.
+const OPERATORS = [
+  { value: 'equals' },
+  { value: 'not_equals' },
+  { value: 'greater_than' },
+  { value: 'less_than' },
+  { value: 'contains' },
+]
+
+const TRIGGER_FIELDS = {
+  task_status_changed:    ['status', 'priority', 'project_id'],
+  budget_threshold:       ['budget_pct', 'project_id'],
+  risk_score_high:        ['risk_score', 'project_id'],
+  ticket_created:         ['priority', 'ticket_type', 'support_level'],
+  project_status_changed: ['status'],
+}
+
+// All param labels are now translated at render time using t() and translation keys.
+const ACTION_PARAMS = {
+  create_alert:         [{ key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
+  notify_role:          [{ key: 'role', type: 'select', options: ['admin','pm','employee','hr','team_lead'] }, { key: 'message', type: 'text' }, { key: 'severity', type: 'select', options: ['info','warning','critical'] }],
+  notify_user:          [{ key: 'message', type: 'text' }],
+  send_email:           [{ key: 'to_role', type: 'select', options: ['admin','pm','employee','hr'] }, { key: 'subject', type: 'text' }, { key: 'body', type: 'text' }],
+  send_webhook:         [{ key: 'url', type: 'text' }, { key: 'payload_template', type: 'text' }],
+  send_teams_message:   [{ key: 'teams_webhook_url', type: 'text' }, { key: 'message', type: 'text' }],
+  send_slack_message:   [{ key: 'slack_webhook_url', type: 'text' }, { key: 'channel', type: 'text' }, { key: 'message', type: 'text' }],
+  create_jira_issue:    [{ key: 'jira_project_key', type: 'text' }, { key: 'issue_type', type: 'select', options: ['Bug','Task','Story','Epic'] }, { key: 'summary', type: 'text' }],
+  change_task_status:   [{ key: 'status', type: 'select', options: ['todo','in_progress','in_review','done','blocked'] }],
+  change_task_priority: [{ key: 'priority', type: 'select', options: ['critical','high','medium','low'] }],
+  assign_task:          [{ key: 'assign_to_role', type: 'select', options: ['pm','team_lead','employee'] }],
+  create_task:          [{ key: 'task_title', type: 'text' }, { key: 'priority', type: 'select', options: ['critical','high','medium','low'] }, { key: 'assign_to_role', type: 'select', options: ['pm','team_lead','employee'] }],
+  change_project_status:[{ key: 'status', type: 'select', options: ['active','on_hold','completed','cancelled'] }],
+  escalate_ticket:      [{ key: 'to_level', type: 'select', options: ['l2','l3'] }],
+  change_ticket_status: [{ key: 'status', type: 'select', options: ['assigned','in_progress','resolved','closed'] }],
+  assign_ticket:        [{ key: 'to_role', type: 'select', options: ['l1','l2','l3'] }],
+  approve_expense:      [{ key: 'decision', type: 'select', options: ['approved','rejected'] }, { key: 'comment', type: 'text' }],
+  rpa_power_automate:   [{ key: 'flow_url', type: 'text' }, { key: 'payload', type: 'text' }],
+  rpa_uipath:           [{ key: 'orchestrator_url', type: 'text' }, { key: 'process_key', type: 'text' }, { key: 'robot_name', type: 'text' }],
+  rpa_zapier:           [{ key: 'zap_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
+  rpa_make:             [{ key: 'make_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
+  rpa_n8n:              [{ key: 'n8n_webhook_url', type: 'text' }, { key: 'payload', type: 'text' }],
+  rpa_custom_http:      [{ key: 'url', type: 'text' }, { key: 'method', type: 'select', options: ['POST','GET','PUT','PATCH'] }, { key: 'headers', type: 'text' }, { key: 'body', type: 'text' }],
+}
 
 // Derived category lists (referenced by both RuleModal and WorkflowModal)
 const TRIGGER_CATEGORIES = [...new Set(Object.values(TRIGGERS).map(t => t.category))]

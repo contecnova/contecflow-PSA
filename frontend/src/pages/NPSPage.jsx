@@ -148,7 +148,7 @@ export default function NPSPage() {
     <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
         title={t('nps.title')}
-        subtitle="Net Promoter Score y evolución de la salud por cliente"
+        subtitle={t('nps.subtitle')}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>

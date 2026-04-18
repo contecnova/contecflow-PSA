@@ -628,7 +628,7 @@ export default function GrcPage() {
     <div style={{ padding: '20px 28px' }}>
       <PageHeader
         title="GRC — Governance, Risk & Compliance"
-        subtitle="Columna vertebral de seguridad · Matrices de permisos · SoD · Violaciones · Audit Log"
+        subtitle={t('grc.subtitle')}
       />
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)',

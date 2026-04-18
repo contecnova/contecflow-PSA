@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from app.schemas.governance import PolicyPackUpsert, EvidenceCreate
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -51,20 +51,8 @@ CONTROL_CATALOG = {
 }
 
 
-class PolicyPackUpsert(BaseModel):
-    is_enabled: bool = True
-    pack_version: str = "1.0"
-    config: Optional[dict] = None
 
 
-class EvidenceCreate(BaseModel):
-    framework: str
-    control_id: str
-    evidence_type: str
-    title: str
-    description: Optional[str] = None
-    artifact_uri: Optional[str] = None
-    metadata: Optional[dict] = None
 
 
 # _org_id delegated to _gsvc.get_org_id (see import above)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
@@ -15,17 +15,25 @@ from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
 router = APIRouter()
 
 
+
 @router.get("", summary="Listar contratos")
 def list_contracts(
     project_id: Optional[str] = None,
     client_id: Optional[str] = None,
     status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    contracts = contract_service.list_contracts(
-        db, current_user, project_id=project_id, client_id=client_id, status=status
-    )
+    q = contract_service.query_contracts(db, current_user, project_id=project_id, client_id=client_id, status=status)
+    total = q.count()
+    contracts = q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
     return [_contract_out(c) for c in contracts]
 
 

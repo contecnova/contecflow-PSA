@@ -243,6 +243,15 @@ async def security_headers_middleware(request: Request, call_next):
         or path.startswith("/docs/oauth2-redirect")
     )
 
+    # --- API version header logic ---
+    if path.startswith(settings.API_V2_STR):
+        response.headers["x-api-version"] = "2"
+    elif path.startswith(settings.API_V1_STR):
+        response.headers["x-api-version"] = "1"
+        # Si v2 está montada, marcamos v1 como deprecated
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -453,21 +462,7 @@ def ticket_widget_js():
 """
         return Response(content=js, media_type="application/javascript")
 
-# ── API versioning / deprecation headers ──────────────────────────────────────
-@app.middleware("http")
-async def api_version_middleware(request: Request, call_next):
-    response = await call_next(request)
-    path = request.url.path
-    if path.startswith(settings.API_V1_STR):
-        response.headers["X-API-Version"] = "1"
-        response.headers["X-API-Deprecated"] = "true"
-        response.headers["X-API-Successor"] = settings.API_V2_STR
-        response.headers["Deprecation"] = "true"
-        response.headers["Sunset"] = "Thu, 31 Dec 2026 23:59:59 GMT"
-    elif path.startswith(settings.API_V2_STR):
-        response.headers["X-API-Version"] = "2"
-        response.headers["X-API-Deprecated"] = "false"
-    return response
+
 
 # ── Middleware de logging de peticiones ───────────────────────────────────────
 @app.middleware("http")

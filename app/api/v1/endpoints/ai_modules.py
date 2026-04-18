@@ -135,14 +135,7 @@ def list_meetings(
     return _svc.list_meetings(db, project_id=project_id)
 
 
-class MeetingProcessPayload(BaseModel):
-    title: Optional[str] = None
-    project_id: Optional[str] = None
-    platform: str = "upload"
-    transcript: str
-    participants: Optional[List[str]] = None
-    meeting_date: Optional[str] = None
-    duration_min: Optional[int] = None
+from app.schemas.ai_modules import MeetingProcessPayload
 
 
 @router.post("/meetings/process", summary="Procesar transcripción de reunión con IA")
@@ -200,11 +193,7 @@ def list_ai_contracts(
     return _svc.list_ai_contracts(db, project_id=project_id)
 
 
-class ContractAnalyzePayload(BaseModel):
-    project_id: Optional[str] = None
-    client_name: Optional[str] = None
-    filename: Optional[str] = None
-    contract_text: str
+from app.schemas.ai_modules import ContractAnalyzePayload
 
 
 @router.post("/contracts-ai/analyze", summary="Analizar contrato con IA")
@@ -324,9 +313,7 @@ def transcribe_voice_audio(
     return {**result, "whisper_transcript": transcript}
 
 
-class VoiceCommandPayload(BaseModel):
-    transcript: str
-    confidence: Optional[float] = None
+from app.schemas.ai_modules import VoiceCommandPayload
 
 
 @router.post("/voice/command", summary="Procesar comando de voz")
@@ -378,9 +365,7 @@ def revenue_forecast(
 
 # ─── Smart schedule ───────────────────────────────────────────────────────────
 
-class SmartScheduleRequest(BaseModel):
-    project_id: Optional[str] = None
-    max_tasks: int = 20
+from app.schemas.ai_modules import SmartScheduleRequest
 
 
 @router.post("/smart-schedule", summary="Sugerir calendario de tareas sin fecha con IA")
@@ -394,16 +379,7 @@ def smart_schedule(
 
 # ── AI Overrun Prediction ──────────────────────────────────────────────────────
 
-class OverrunPredictionOut(BaseModel):
-    project_id:             str
-    project_name:           str
-    cost_overrun_prob:      float
-    schedule_overrun_prob:  float
-    cost_overrun_pct:       float
-    schedule_overrun_days:  int
-    confidence:             str
-    signals:                list
-    recommendation:         str
+from app.schemas.ai_modules import OverrunPredictionOut
 
 
 @router.post("/overrun-prediction", summary="Predicción de sobrecosto/retraso por proyecto")

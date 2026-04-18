@@ -9,8 +9,8 @@
 // Recomendado: VITE_API_URL=https://api.miapp.com/api/v1
 export const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
-import constants from './constants/constants.json';
-import businessConfig from './constants/business_config.json';
+import constants from './constants.json' assert { type: 'json' };
+import businessConfig from './business_config.json' assert { type: 'json' };
 
 // Configuración de negocio y catálogos
 export const TIMEOUT = businessConfig.TIMEOUT;

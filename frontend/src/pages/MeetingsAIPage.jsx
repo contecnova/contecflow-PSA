@@ -120,7 +120,7 @@ export default function MeetingsAIPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="Meeting Assistant"
-        subtitle="Transforma transcripciones en resúmenes, decisiones y tareas automáticamente"
+        subtitle={t('meetings_ai.subtitle')}
         actions={<Button onClick={() => setShowProcess(true)}>＋ Procesar reunión</Button>}
       />
 

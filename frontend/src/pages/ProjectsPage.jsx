@@ -773,7 +773,7 @@ function TemplatesTab() {
 function GanttWithDeps({ projectId, tasks }) {
   const { data: depsRaw = [] } = useQuery({
     queryKey: ['task-deps', projectId],
-    queryFn: () => api.get(`/dependencies/${projectId}`).then(r => r.data),
+    queryFn: () => projectId ? api.get(`/dependencies/${projectId}`).then(r => r.data) : Promise.resolve([]),
     enabled: !!projectId,
   })
   const deps = Array.isArray(depsRaw) ? depsRaw : []
@@ -828,7 +828,7 @@ export default function ProjectsPage() {
       <PageHeader
         icon={<FolderOpen size={18} />}
         title={t('projects.title')}
-        subtitle={`${stats.total} proyectos · ${stats.active} activos · ${stats.atRisk} en riesgo`}
+        subtitle={t('projects.subtitle', { total: stats.total, active: stats.active, atRisk: stats.atRisk })}
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>

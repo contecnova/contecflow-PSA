@@ -597,11 +597,22 @@ async def ws_doc_collab(
         { "type": "pong" }
     """
     from app.db.session import SessionLocal
+    from app.services.documents_service import get_document_or_404, check_document_access
+    from app.models.user import User
     db = SessionLocal()
     try:
         user_id = await _validate_jwt(token, db)
         if not user_id:
             await websocket.close(code=4001, reason="Token inválido")
+            return
+
+        # Obtener usuario y documento
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        doc = get_document_or_404(db, doc_id)
+        try:
+            check_document_access(doc, user, required_level=None)  # viewer mínimo
+        except Exception as e:
+            await websocket.close(code=4003, reason="Sin permiso para acceder al documento")
             return
 
         await websocket.accept()
@@ -621,9 +632,13 @@ async def ws_doc_collab(
         # Notify others
         await _broadcast_doc(doc_id, {"type": "joined", "user_id": user_id, "peers": peer_count}, exclude=websocket)
 
+        MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB
         try:
             while True:
                 raw = await websocket.receive_text()
+                if len(raw) > MAX_MSG_SIZE:
+                    await websocket.close(code=4009, reason="Mensaje demasiado grande")
+                    break
                 try:
                     msg = json.loads(raw)
                     msg_type = msg.get("type")

@@ -4,7 +4,7 @@ Un cliente puede tener: proyectos, contratos, licencias ALM, activos,
 usuarios de portal y acceso al Service Desk independientemente de
 si tiene proyectos vinculados.
 """
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.session import get_db
@@ -32,29 +32,50 @@ def list_clients(
     limit: Optional[int] = None,
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.list_clients(db, cu, q=q, status=status, industry=industry, limit=limit)
 
 
 @router.post("")
-def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return svc_create_client(data, cu, db)
 
 
 @router.get("/{cid}")
-def get_client(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_client(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     cu = _
     c = _get_scoped_client_or_404(db, cu, cid)
     return _out_detail(c, db)
 
 
 @router.patch("/{cid}")
-def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def update_client(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.update_client(cid, data, cu, db)
 
 
 @router.delete("/{cid}")
-def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.delete_client(cid, cu, db)
 
 
@@ -111,19 +132,31 @@ def link_contract(cid: str, data: dict = Body(...), db: Session = Depends(get_db
 
 
 @router.delete("/{cid}/contracts/{link_id}")
-def unlink_contract(cid: str, link_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def unlink_contract(cid: str, link_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.unlink_contract(cid, link_id, db)
 
 
 # ── Config portal ─────────────────────────────────────────────────────────────
 
 @router.get("/{cid}/portal-config")
-def get_portal_config(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_portal_config(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.get_portal_config(cid, db)
 
 
 @router.patch("/{cid}/portal-config")
-def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def update_portal_config(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.update_portal_config(cid, data, db)
 
 
@@ -134,7 +167,12 @@ def list_client_invoices(
     cid: str,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.list_client_invoices(cid, db)
 
 
@@ -146,14 +184,23 @@ def list_client_tickets(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.list_client_tickets(cid, status, db)
 
 
 # ── Usuarios de portal del cliente ────────────────────────────────────────────
 
 @router.get("/{cid}/portal-users")
-def list_portal_users(cid: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+def list_portal_users(cid: str, db: Session = Depends(get_db), _: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     _get_scoped_client_or_404(db, _, cid)
     return _svc.list_portal_users(cid, db)
 
@@ -170,7 +217,6 @@ def update_portal_user(cid: str, uid: str, data: dict = Body(...),
     return _svc.update_portal_user(cid, uid, data, db)
 
 
-
 # ── Vinculación de proyectos ───────────────────────────────────────────────────
 
 @router.get("/{cid}/projects")
@@ -179,7 +225,11 @@ def list_client_projects(cid: str, db: Session = Depends(get_db), _=Depends(get_
 
 
 @router.get("/{cid}/projects/available")
-def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         return _svc.list_available_projects(cid, db)
     except Exception as e:
@@ -189,17 +239,30 @@ def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(g
 
 
 @router.post("/{cid}/projects/{project_id}/link")
-def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def link_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.link_project(cid, project_id, db)
 
 
 @router.delete("/{cid}/projects/{project_id}/link")
-def unlink_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+def unlink_project(cid: str, project_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return _svc.unlink_project(cid, project_id, db)
+
 
 # ── Visión 360: resumen ejecutivo del cliente ─────────────────────────────────
 
 @router.get("/{cid}/360")
-def client_360(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def client_360(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user), response: Response = None):
     """Vista 360 del cliente: KPIs, actividad reciente, estado de salud."""
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return svc_client_360(cid, db)

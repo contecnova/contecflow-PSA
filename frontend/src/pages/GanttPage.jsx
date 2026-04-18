@@ -95,7 +95,7 @@ export default function GanttPage() {
       <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
         <PageHeader
           title="Gantt interactivo v2"
-          subtitle="Arrastra para mover · borde derecho para extender · Shift+drag = dependencia · +/− zoom"
+          subtitle={t('gantt.subtitle')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input

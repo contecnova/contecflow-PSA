@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date as _date
@@ -49,6 +49,7 @@ def get_profitability_summary_v2(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
+    response: Response = None,
 ):
     data = profitability_v1.get_profitability_summary(
         status=status,
@@ -62,6 +63,9 @@ def get_profitability_summary_v2(
     total_revenue = sum(p.get("billing_revenue") or 0 for p in projects)
     total_cost = sum(p.get("internal_cost") or 0 for p in projects)
     total_margin = total_revenue - total_cost
+
+    if response is not None:
+        response.headers["x-api-version"] = "2"
 
     return {
         "api_version": "v2",

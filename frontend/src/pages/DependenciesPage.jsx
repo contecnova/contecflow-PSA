@@ -215,7 +215,7 @@ export default function DependenciesPage() {
   })
   const { data: graph, isLoading } = useQuery({
     queryKey: ['task-deps', project],
-    queryFn: () => api.get(`/task-dependencies/${project}`).then(r => r.data).catch(() => null),
+    queryFn: () => project ? api.get(`/task-dependencies/${project}`).then(r => r.data).catch(() => null) : Promise.resolve(null),
     enabled: !!project,
   })
 

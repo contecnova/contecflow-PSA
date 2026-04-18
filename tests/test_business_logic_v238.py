@@ -32,7 +32,7 @@ def _upsert_rate(client, token, from_c="EUR", to_c="USD", rate=1.08, eff=None):
         body["effective_date"] = eff
     r = client.post("/api/v1/currency/rates", json=body, headers=auth(token))
     assert r.status_code in (200, 201), r.text
-    # bookings.py returns {"ok": True}, v238_features.py returns {"id": ..., "rate": ...}
+    # bookings.py returns {"ok": True}, v238_features.py (eliminado) retornaba {"id": ..., "rate": ...}
     return r.json()
 
 

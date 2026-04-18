@@ -41,8 +41,8 @@ export function useUserPreferences() {
     // Idioma — emitir evento para que AppLangContext actualice su estado
     // Se emite siempre (no sólo en discrepancia) para garantizar sincronización
     if (prefs.language) {
-      localStorage.setItem('clarive_operator_lang', prefs.language)
-      window.dispatchEvent(new CustomEvent('clarive-lang-sync', { detail: { lang: prefs.language } }))
+      localStorage.setItem('contecflow_operator_lang', prefs.language)
+      window.dispatchEvent(new CustomEvent('contecflow-lang-sync', { detail: { lang: prefs.language } }))
     }
 
     // Accent color
@@ -107,6 +107,9 @@ export function useUserPreferences() {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => saveMutation(patch), 500)
   }, [qc, saveMutation])
+
+  // Cancel pending debounced save on unmount to avoid state updates on unmounted component
+  useEffect(() => () => clearTimeout(saveTimer.current), [])
 
   return { prefs, isLoading, save }
 }

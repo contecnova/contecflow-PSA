@@ -178,7 +178,7 @@ export default function ESignPage() {
     <div style={{ padding: 32, maxWidth: 1080, margin: '0 auto' }}>
       <PageHeader
         title={t('esign.title')}
-        subtitle="Solicitudes de firma electrónica — DocuSign, Adobe Sign o manual"
+        subtitle={t('esign.subtitle')}
         action={<Button onClick={() => setCreating(true)}>✍ Nueva solicitud</Button>}
       />
 

@@ -357,7 +357,7 @@ export default function PipelinePage() {
       <PageHeader
         icon={<Megaphone size={18} />}
         title={t('pipeline.title')}
-        subtitle="Oportunidades y gestión de ventas"
+        subtitle={t('pipeline.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>

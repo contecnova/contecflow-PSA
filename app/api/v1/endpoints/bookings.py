@@ -1,3 +1,4 @@
+
 """
 bookings.py router — thin delegates to bookings_service.
 """
@@ -18,27 +19,42 @@ from app.schemas.bookings import (
 )
 from app.services import bookings_service as svc
 
+from app.services import v238_service
+
 router = APIRouter()
 
 
-# ── Task Dependencies ─────────────────────────────────────────────────────────
+# ── Capacity: Conflicts & Gantt Leveling (v238) ─────────────────────────────
+@router.get("/bookings/conflicts")
+def get_booking_conflicts(
+    user_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    threshold_pct: float = Query(100.0, ge=0, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from datetime import date
+    # Parse dates if provided
+    sd = date.fromisoformat(start_date) if start_date else None
+    ed = date.fromisoformat(end_date) if end_date else None
+    return v238_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db)
 
-@router.get("/dependencies/{project_id}")
-def get_dependencies(project_id: str, db: Session = Depends(get_db),
-                     current_user: User = Depends(get_current_user)):
-    return svc.get_project_dependencies(project_id, db)
+@router.get("/bookings/gantt-leveling")
+def get_gantt_leveling(
+    project_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from datetime import date
+    sd = date.fromisoformat(start_date) if start_date else None
+    ed = date.fromisoformat(end_date) if end_date else None
+    return v238_service.get_gantt_leveling(project_id, sd, ed, db)
 
 
-@router.post("/dependencies")
-def create_dependency(payload: DependencyCreate, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_any_manager)):
-    return svc.create_task_dependency(payload, current_user.id, db)
 
-
-@router.delete("/dependencies/{dep_id}")
-def delete_dependency(dep_id: str, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_any_manager)):
-    return svc.delete_task_dependency(dep_id, db)
 
 
 # ── Resource Bookings ─────────────────────────────────────────────────────────

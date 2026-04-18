@@ -30,7 +30,7 @@ echo  API Docs: http://localhost:8000/api/v1/docs
 echo.
 set DEMO_PASSWORD=
 for /f "tokens=1,* delims==" %%A in ('findstr /b "DEFAULT_USER_PASSWORD=" .env 2^>nul') do set DEMO_PASSWORD=%%B
-if "%DEMO_PASSWORD%"=="" set DEMO_PASSWORD=clarive2024!
+if "%DEMO_PASSWORD%"=="" set DEMO_PASSWORD=contecflow2024!
 echo  admin       / %DEMO_PASSWORD%
 echo  ana.torres  / %DEMO_PASSWORD%
 echo  luis.vega   / %DEMO_PASSWORD%

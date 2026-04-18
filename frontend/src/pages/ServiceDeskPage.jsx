@@ -619,7 +619,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }) {
     if (act.key === 'set_support_level') return (
       <select value={act.value} onChange={e => upd(e.target.value)} style={IS}>
         <option value="">{t('service_desk.act_no_change')}</option>
-          <option key={v} value={v}>{l}</option>)}
+        {[['l1','L1 — Básico'],['l2','L2 — Técnico'],['l3','L3 — Experto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     )
     if (act.key === 'set_priority') return (
@@ -2646,7 +2646,7 @@ export default function ServiceDeskPage() {
       <PageHeader
         icon={<MessageSquare size={18} />}
         title="Service Desk ITSM"
-        subtitle="ITIL v4"
+        subtitle={t('service_desk.subtitle')}
         actions={
           <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
         }/>

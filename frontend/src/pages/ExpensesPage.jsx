@@ -587,7 +587,7 @@ export default function ExpensesPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="Gestión de gastos"
-        subtitle="Registro, aprobación y reembolso de gastos de proyecto"
+        subtitle={t('expenses.subtitle')}
         actions={
           <button
             onClick={() => {

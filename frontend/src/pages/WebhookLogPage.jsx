@@ -57,7 +57,7 @@ export default function WebhookLogPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('webhooks.title')}
-        subtitle="Historial de llamadas salientes y eventos entregados"
+        subtitle={t('webhooks.subtitle')}
         actions={
           <button onClick={() => refetch()}
             style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',

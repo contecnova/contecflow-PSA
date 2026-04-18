@@ -677,7 +677,7 @@ export default function OrgChartPage() {
     <div style={{ padding:'20px 28px' }}>
       <PageHeader
         title="Organigrama"
-        subtitle={`${total} personas · Estructura de reporting · Cadenas de aprobación`}
+        subtitle={t('org_chart.subtitle', { total })}
       />
 
       {/* Tabs */}

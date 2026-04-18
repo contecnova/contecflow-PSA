@@ -1,9 +1,19 @@
+
+from __future__ import annotations
+# Devuelve un query filtrable y el total para paginación de facturas
+def query_invoices(db: Session, project_id=None, status=None):
+    q = db.query(Invoice)
+    if project_id:
+        q = q.filter(Invoice.project_id == project_id)
+    if status:
+        q = q.filter(Invoice.status == status)
+    total = q.count()
+    return q.order_by(Invoice.issue_date.desc()), total
 """
 billing_reports_service — business logic extracted from billing_reports.py router.
 Covers: report runners, invoice helpers, SLA helpers, workflow/scheduled-report
 serializers, SmartMatch, template instantiation, bulk import helpers.
 """
-from __future__ import annotations
 
 import csv
 import io
@@ -442,8 +452,21 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
     if not inv:
         raise HTTPException(404)
     old_status = inv.status
-    inv.status = payload.get("status", inv.status)
-    if payload.get("status") == "paid":
+    new_status = payload.get("status", inv.status)
+    # Definir transiciones válidas
+    allowed_transitions = {
+        "draft":    ["sent", "cancelled"],
+        "sent":     ["paid", "overdue", "cancelled"],
+        "overdue":  ["paid", "cancelled"],
+        "paid":     [],
+        "cancelled": [],
+    }
+    if new_status == old_status:
+        return {"ok": True, "status": inv.status}
+    if new_status not in allowed_transitions.get(str(old_status), []):
+        raise HTTPException(400, f"Transición de estado no permitida: {old_status} → {new_status}")
+    inv.status = new_status
+    if new_status == "paid":
         inv.paid_date = date.today()
     audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number,
               old_values={"status": old_status}, new_values={"status": inv.status})

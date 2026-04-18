@@ -157,7 +157,7 @@ export default function NotificationsPage() {
     <div style={{ padding:32 }}>
       <PageHeader
         title={t('notifications.title')}
-        subtitle="Bandeja de entrada de alertas, menciones y eventos del sistema"
+        subtitle={t('notifications.subtitle')}
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11,

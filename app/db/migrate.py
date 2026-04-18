@@ -150,8 +150,6 @@ MIGRATIONS = [
 ]
 
 
-# Lista de migraciones de renombrado (deuda técnica histórica)
-TABLE_RENAMES = [('v18_project_custom_field_values', 'project_custom_field_values'), ('v18_project_custom_fields', 'project_custom_fields'), ('v18_workflow_states', 'workflow_states'), ('v18_workflow_transitions', 'workflow_transitions'), ('v19_epic_dependencies', 'epic_dependencies'), ('v19_epic_tasks', 'epic_tasks'), ('v19_epics', 'epics'), ('v19_mentions', 'mentions'), ('v19_saved_filters', 'saved_filters'), ('v19_task_state_snapshots', 'task_state_snapshots'), ('v19_threaded_comments', 'threaded_comments'), ('v19_wiki_comments', 'wiki_comments'), ('v19_wiki_pages', 'wiki_pages'), ('v19_wiki_spaces', 'wiki_spaces'), ('v19_wiki_templates', 'wiki_templates'), ('v19_wiki_versions', 'wiki_versions'), ('v20_epic_dependency_meta', 'epic_dependency_meta'), ('v20_fts_index', 'fts_index'), ('v20_issue_type_fields', 'issue_type_fields'), ('v20_issue_types', 'issue_types'), ('v20_task_dependency_meta', 'task_dependency_meta'), ('v21_agent_metric_snapshots', 'agent_metric_snapshots'), ('v21_cmdb_categories', 'cmdb_categories'), ('v21_cmdb_items', 'cmdb_items'), ('v21_cmdb_relations', 'cmdb_relations'), ('v21_kanban_columns', 'kanban_columns'), ('v21_kanban_configs', 'kanban_configs'), ('v21_sla_calendars', 'sla_calendars'), ('v21_sla_holidays', 'sla_calendar_holidays'), ('v21_sprint_plan_tasks', 'sprint_plan_tasks'), ('v21_sprint_plans', 'sprint_plans'), ('v21_ticket_internal_comments', 'ticket_internal_comments'), ('v21_wiki_export_jobs', 'wiki_export_jobs'), ('v21_wiki_page_tags', 'wiki_page_tags'), ('v21_wiki_tags', 'wiki_tags')]
 
 
 def table_exists(name):
@@ -159,13 +157,10 @@ def table_exists(name):
     return name in insp.get_table_names()
 
 
-# Whitelist de tablas permitidas para migraciones (seguridad contra SQL injection)
 ALLOWED_TABLES = set(
-    [t[0] for t in MIGRATIONS] +  # Tablas de MIGRATIONS
-    [old_name for old_name, _ in TABLE_RENAMES] +  # Tablas antiguas a renombrar
-    [new_name for _, new_name in TABLE_RENAMES] +  # Tablas nuevas después del rename
+    [t[0] for t in MIGRATIONS] +
     ["financial_approval_audit_logs"] +
-    ["document_access_logs"]  # Nueva tabla v26
+    ["document_access_logs"]
 )
 
 
@@ -177,26 +172,9 @@ def validate_table_name(table_name: str) -> str:
 
 
 def run():
+
     logger.info("🔧 Aplicando migraciones de base de datos...")
-
-    # Renombrar tablas con prefijos de versión (deuda técnica)
-    logger.info("  🔄 Renombrando tablas legacy...")
-    with engine.connect() as conn:
-        for old_name, new_name in TABLE_RENAMES:
-            if table_exists(old_name) and not table_exists(new_name):
-                try:
-                    # Validar nombres de tabla contra whitelist
-                    old_safe = validate_table_name(old_name)
-                    new_safe = validate_table_name(new_name)
-                    conn.execute(text(f"ALTER TABLE {old_safe} RENAME TO {new_safe}"))
-                    conn.commit()
-                    logger.info("    ✅ %s → %s", old_name, new_name)
-                except Exception as e:
-                    logger.error("Table rename %s → %s failed: %s", old_name, new_name, e, exc_info=True)
-            elif table_exists(new_name):
-                pass  # Ya renombrada
-
-    # Luego crear tablas nuevas que aún no existen
+    # Crear tablas nuevas que aún no existen
     Base.metadata.create_all(bind=engine)
 
     with engine.connect() as conn:

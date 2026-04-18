@@ -15,7 +15,7 @@ import json
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
-from pydantic import BaseModel
+from app.schemas.grc import PermissionUpdate, SodRuleIn, ViolationResolveIn
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -145,21 +145,8 @@ def _ensure_sod_seeded(db: Session):
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class PermissionUpdate(BaseModel):
-    allowed: bool
 
-class SodRuleIn(BaseModel):
-    module_a:    str
-    action_a:    str
-    module_b:    str
-    action_b:    str
-    risk:        str = "high"
-    description: Optional[str] = None
-    roles_conflict: List[str] = []
-    mitigated_by_workflow_id: Optional[str] = None
 
-class ViolationResolveIn(BaseModel):
-    resolution_note: Optional[str] = None
 
 
 # ── Permission Matrix ─────────────────────────────────────────────────────────

@@ -112,53 +112,28 @@ def create_document(
     return doc_svc.create_document(db, payload, current_user)
 
 
+
 @router.get("", response_model=List[DocumentListOut], summary="List documents with filters")
 def list_documents(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     category: Optional[DocumentCategory] = None,
     tags: Optional[str] = None,
     search: Optional[str] = None,
     project_id: Optional[str] = None,
     is_archived: bool = False,
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List documents with optional filters."""
-    docs = doc_svc.list_documents(db, current_user, skip, limit, category, tags, search, project_id, is_archived)
-
-    result = []
-    for doc in docs:
-        latest_version = doc.versions[0] if doc.versions else None
-        version_data = None
-        if latest_version:
-            _url = file_storage.generate_presigned_url(latest_version.file_key) if latest_version.file_key else None
-            version_data = DocumentVersionOut(
-                id=latest_version.id,
-                version_num=latest_version.version_num,
-                file_name=latest_version.file_name,
-                file_size=latest_version.file_size,
-                file_mime_type=latest_version.file_mime_type,
-                change_note=latest_version.change_note,
-                uploader_id=latest_version.created_by,
-                uploader_name=latest_version.uploader.full_name if latest_version.uploader else "Unknown",
-                created_at=latest_version.created_at,
-                download_url=_url,
-                s3_url=_url,
-            )
-        result.append(DocumentListOut(
-            id=doc.id,
-            title=doc.title,
-            category=doc.category,
-            is_archived=doc.is_archived,
-            approval_status=doc.approval_status,
-            created_by_name=doc.creator.full_name if doc.creator else "Unknown",
-            created_at=doc.created_at,
-            updated_at=doc.updated_at,
-            latest_version=version_data,
-        ))
-
-    return result
+    """List documents with optional filters and paginación obligatoria."""
+    docs_q, total = doc_svc.query_documents(db, current_user, category, tags, search, project_id, is_archived)
+    docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
 
 
 @router.get("/{doc_id}", response_model=DocumentOut, summary="Get document detail")
@@ -238,8 +213,8 @@ def upload_version(
             version_num=len(doc.versions) + 1,
             content_type=file.content_type or "application/octet-stream",
         )
-    except ValueError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=500, detail="Error interno en el sistema de almacenamiento. Contacta con soporte si el problema persiste.")
 
     # Create version record
     try:
@@ -463,6 +438,7 @@ def serve_local_file(
 
 # ── Documents filtered by entity ──────────────────────────────────────────
 
+
 @router.get("/by-project/{project_id}", summary="List documents linked to a project")
 def docs_by_project(
     project_id: str,
@@ -473,28 +449,51 @@ def docs_by_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = doc_svc.docs_by_project(db, project_id, archived)
-    return _doc_list(db, docs)
+    docs_q, total = doc_svc.query_documents(db, current_user, project_id=project_id, is_archived=archived)
+    docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+
 
 
 @router.get("/by-task/{task_id}", summary="List documents linked to a task")
 def docs_by_task(
     task_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = doc_svc.docs_by_task(db, task_id)
-    return _doc_list(db, docs)
+    docs_q, total = doc_svc.query_documents(db, current_user, task_id=task_id)
+    docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
+
 
 
 @router.get("/by-ticket/{ticket_id}", summary="List documents linked to a ticket")
 def docs_by_ticket(
     ticket_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    docs = doc_svc.docs_by_ticket(db, ticket_id)
-    return _doc_list(db, docs)
+    docs_q, total = doc_svc.query_documents(db, current_user, ticket_id=ticket_id)
+    docs = docs_q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return [doc_svc.serialize_doc_list_item(doc) for doc in docs]
 
 
 def _doc_list(db, docs):

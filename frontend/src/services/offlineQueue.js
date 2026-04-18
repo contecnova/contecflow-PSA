@@ -6,7 +6,7 @@
  * to /api/v1/imputations in order and removed from the queue.
  */
 
-const DB_NAME   = 'clarive_offline';
+const DB_NAME   = 'contecflow_offline';
 const DB_VERSION = 1;
 const STORE     = 'imputations_queue';
 

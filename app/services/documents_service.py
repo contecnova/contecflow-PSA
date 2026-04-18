@@ -1,9 +1,57 @@
+from __future__ import annotations
+from sqlalchemy.orm import Session
+# Devuelve un query filtrable y el total para paginación
+def query_documents(db: Session, current_user, category=None, tags=None, search=None, project_id=None, is_archived=False, task_id=None, ticket_id=None):
+    q = db.query(Document).filter(Document.is_archived == is_archived)
+    if category:
+        q = q.filter(Document.category == category)
+    if project_id:
+        q = q.filter(Document.project_id == project_id)
+    if task_id:
+        q = q.filter(Document.task_id == task_id)
+    if ticket_id:
+        q = q.filter(Document.ticket_id == ticket_id)
+    if search:
+        q = q.filter(or_(Document.title.ilike(f"%{search}%"), Document.description.ilike(f"%{search}%")))
+    if current_user.role != UserRole.admin:
+        q = q.filter(or_(Document.created_by == current_user.id, Document.permissions.any(DocumentPermission.user_id == current_user.id)))
+    if not current_user.is_superadmin and current_user.organization_id:
+        org_user_ids = db.query(User.id).filter(User.organization_id == current_user.organization_id).scalar_subquery()
+        q = q.filter(or_(Document.created_by.in_(org_user_ids), Document.permissions.any(DocumentPermission.user_id.in_(org_user_ids))))
+    total = q.count()
+    return q.order_by(Document.created_at.desc()), total
+
+# Serializador compacto para listados
+def serialize_doc_list_item(doc):
+    latest = doc.versions[0] if doc.versions else None
+    return {
+        "id": doc.id,
+        "title": doc.title,
+        "category": doc.category,
+        "approval_status": doc.approval_status,
+        "is_archived": doc.is_archived,
+        "created_by_name": doc.creator.full_name if doc.creator else "Unknown",
+        "created_at": str(doc.created_at)[:16] if doc.created_at else None,
+        "tags": [t.tag_name for t in doc.tags],
+        "version_count": len(doc.versions),
+        "latest_version": {
+            "id": latest.id,
+            "version_num": latest.version_num,
+            "file_name": latest.file_name,
+            "file_size": latest.file_size,
+            "file_mime_type": latest.file_mime_type,
+            "download_url": file_storage.generate_presigned_url(latest.file_key) if latest.file_key else None,
+            "uploader_id": latest.created_by,
+            "uploader_name": latest.uploader.full_name if latest.uploader else "Unknown",
+            "created_at": latest.created_at,
+        } if latest else None,
+    }
+
 """
 Documents service — business logic extracted from documents.py endpoint.
 Covers: MIME validation, upload validation, document access checks,
         serialization, and entity-filtered listing helpers.
 """
-from __future__ import annotations
 
 import logging
 import mimetypes

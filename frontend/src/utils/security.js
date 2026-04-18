@@ -25,7 +25,11 @@ export function sanitizeUrl(url) {
   const trimmed = url.trim()
   if (!trimmed) return '#'
 
-  // Relative URLs (start with / or ./) are always safe
+  // Block protocol-relative URLs (//evil.com) — they switch to http/https on the current protocol
+  // and can redirect to external sites.
+  if (trimmed.startsWith('//')) return '#'
+
+  // Safe same-origin relative paths
   if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
     return trimmed
   }
@@ -36,8 +40,8 @@ export function sanitizeUrl(url) {
     if (!SAFE_PROTOCOLS.has(parsed.protocol)) return '#'
     return trimmed
   } catch {
-    // URL() throws for relative or malformed URLs; treat as relative path
-    return trimmed
+    // URL() throws for relative or malformed URLs; fall through to '#' (unknown is unsafe)
+    return '#'
   }
 }
 

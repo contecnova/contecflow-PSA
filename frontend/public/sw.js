@@ -1,5 +1,5 @@
-// Clarive v22 Service Worker
-const CACHE_NAME = 'clarive-v22';
+// Contecflow v22 Service Worker
+const CACHE_NAME = 'contecflow-v22';
 
 // Al instalar, limpiar todas las cachés anteriores
 self.addEventListener('install', () => {

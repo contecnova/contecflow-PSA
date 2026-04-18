@@ -184,8 +184,8 @@ def chat(
             db, messages, system=system,
             module="nexusassist", user_id=current_user.id, max_tokens=1500,
         )
-    except Exception as e:
-        assistant_text = f"⚠ Error en el proveedor IA: {str(e)[:120]}"
+    except Exception:
+        assistant_text = "\u26a0 Error en el proveedor IA. Contacta con soporte si el problema persiste."
 
     # Guardrail: PII check on outgoing response
     gr_out = check_output(assistant_text, current_user, "nexusassist", db)

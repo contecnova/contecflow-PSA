@@ -16,7 +16,6 @@ from app.api.v1.endpoints import (
     public_forms, developer_portal, scim, governance, abac,
     security_observability, ai_governance, abac_admin, jira,
     currency_sync, currency_rates, salesforce_sync, slack_block_kit,
-    v238_features,
     v239_features,
 )
 
@@ -100,3 +99,5 @@ api_router.include_router(currency_sync.router)
 api_router.include_router(currency_rates.router)
 api_router.include_router(salesforce_sync.router)
 api_router.include_router(slack_block_kit.router)
+for _r in v239_features:
+    api_router.include_router(_r)

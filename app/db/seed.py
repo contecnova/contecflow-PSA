@@ -257,58 +257,57 @@ def seed():
     # Fields: name, short_name, industry, status, contact_name, contact_email,
     #         contact_phone, contact_role, city, country, payment_terms,
     #         currency, account_manager_id, created_by
-        clients_data_path = os.getenv("SEED_CLIENTS_DATA_PATH", "seed_clients_data.json")
-        if os.path.exists(clients_data_path):
-            with open(clients_data_path, "r") as f:
-                clients_data = json.load(f)
-            # Map usernames to user IDs for account_manager_id
-            for c in clients_data:
-                if "account_manager_username" in c:
-                    c["account_manager_id"] = users.get(c["account_manager_username"]).id if users.get(c["account_manager_username"]) else None
-        else:
-            clients_data = getattr(settings, "CLIENTS_DATA", [
-               dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
-                   contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
-                   contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
-                   payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
-                   account_manager_id=users["carlos.ruiz"].id),
-               dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
-                   contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
-                   contact_role="CEO",             city="Barcelona",  country="ES",
-                   payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
-                   account_manager_id=users["carlos.ruiz"].id),
-            ])
-        dict(name="RetailCorp SA",       short_name="RetailCorp", industry=ClientIndustry.retail,        status=ClientStatus.active,
-             contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.es",  contact_phone="+34 95 300 4000",
-             contact_role="Directora de Compras",    city="Sevilla",   country="ES",
-             payment_terms="45 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["ana.torres"].id),
-        dict(name="Hospital X",          short_name="HospX",      industry=ClientIndustry.healthcare,    status=ClientStatus.active,
-             contact_name="Dr. Javier Sanz", contact_email="javier.sanz@hospitalx.es", contact_phone="+34 96 400 5000",
-             contact_role="Director TI",    city="Valencia",  country="ES",
-             payment_terms="60 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["carlos.ruiz"].id),
-        dict(name="FinanceCo SA",        short_name="FinanceCo",  industry=ClientIndustry.finance,       status=ClientStatus.prospect,
-             contact_name="Isabel Navarro",  contact_email="i.navarro@financeco.es",  contact_phone="+34 91 500 6000",
-             contact_role="CFO",             city="Madrid",    country="ES",
-             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["ana.torres"].id),
-        dict(name="FabriTech SL",        short_name="FabriTech",  industry=ClientIndustry.manufacturing, status=ClientStatus.prospect,
-             contact_name="Ramon Ferrer",    contact_email="r.ferrer@fabritech.es",   contact_phone="+34 93 600 7000",
-             contact_role="Director de Operaciones", city="Barcelona", country="ES",
-             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["carlos.ruiz"].id),
-        dict(name="StartupX",            short_name="StartupX",   industry=ClientIndustry.technology,    status=ClientStatus.active,
-             contact_name="Pablo Vidal",     contact_email="pablo@startupx.io",       contact_phone="+34 91 700 8000",
-             contact_role="CTO",             city="Madrid",    country="ES",
-             payment_terms="inmediato",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["ana.torres"].id),
-        dict(name="PymesGroup",          short_name="PymesGroup", industry=ClientIndustry.consulting,    status=ClientStatus.churned,
-             contact_name="Teresa Gil",      contact_email="teresa.gil@pymesgroup.es", contact_phone="+34 91 800 9000",
-             contact_role="Gerente",         city="Madrid",    country="ES",
-             payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
-             account_manager_id=users["carlos.ruiz"].id),
-    ]
+    clients_data_path = os.getenv("SEED_CLIENTS_DATA_PATH", "seed_clients_data.json")
+    if os.path.exists(clients_data_path):
+        with open(clients_data_path, "r") as f:
+            clients_data = json.load(f)
+        # Map usernames to user IDs for account_manager_id
+        for c in clients_data:
+            if "account_manager_username" in c:
+                c["account_manager_id"] = users.get(c["account_manager_username"]).id if users.get(c["account_manager_username"]) else None
+    else:
+        clients_data = getattr(settings, "CLIENTS_DATA", [
+            dict(name="Acme Industries SA",  short_name="Acme",       industry=ClientIndustry.technology,    status=ClientStatus.active,
+                contact_name="Pedro Garcia",    contact_email="pedro.garcia@acme.com",   contact_phone="+34 91 100 2000",
+                contact_role="Director de Tecnologia",  city="Madrid",    country="ES",
+                payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["carlos.ruiz"].id),
+            dict(name="TechStart SL",        short_name="TechStart",  industry=ClientIndustry.technology,    status=ClientStatus.active,
+                contact_name="Laura Mora",      contact_email="laura@techstart.io",      contact_phone="+34 93 200 3000",
+                contact_role="CEO",             city="Barcelona",  country="ES",
+                payment_terms="15 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["carlos.ruiz"].id),
+            dict(name="RetailCorp SA",       short_name="RetailCorp", industry=ClientIndustry.retail,        status=ClientStatus.active,
+                contact_name="Maria Blanco",    contact_email="m.blanco@retailcorp.es",  contact_phone="+34 95 300 4000",
+                contact_role="Directora de Compras",    city="Sevilla",   country="ES",
+                payment_terms="45 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["ana.torres"].id),
+            dict(name="Hospital X",          short_name="HospX",      industry=ClientIndustry.healthcare,    status=ClientStatus.active,
+                contact_name="Dr. Javier Sanz", contact_email="javier.sanz@hospitalx.es", contact_phone="+34 96 400 5000",
+                contact_role="Director TI",    city="Valencia",  country="ES",
+                payment_terms="60 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["carlos.ruiz"].id),
+            dict(name="FinanceCo SA",        short_name="FinanceCo",  industry=ClientIndustry.finance,       status=ClientStatus.prospect,
+                contact_name="Isabel Navarro",  contact_email="i.navarro@financeco.es",  contact_phone="+34 91 500 6000",
+                contact_role="CFO",             city="Madrid",    country="ES",
+                payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["ana.torres"].id),
+            dict(name="FabriTech SL",        short_name="FabriTech",  industry=ClientIndustry.manufacturing, status=ClientStatus.prospect,
+                contact_name="Ramon Ferrer",    contact_email="r.ferrer@fabritech.es",   contact_phone="+34 93 600 7000",
+                contact_role="Director de Operaciones", city="Barcelona", country="ES",
+                payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["carlos.ruiz"].id),
+            dict(name="StartupX",            short_name="StartupX",   industry=ClientIndustry.technology,    status=ClientStatus.active,
+                contact_name="Pablo Vidal",     contact_email="pablo@startupx.io",       contact_phone="+34 91 700 8000",
+                contact_role="CTO",             city="Madrid",    country="ES",
+                payment_terms="inmediato",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["ana.torres"].id),
+            dict(name="PymesGroup",          short_name="PymesGroup", industry=ClientIndustry.consulting,    status=ClientStatus.churned,
+                contact_name="Teresa Gil",      contact_email="teresa.gil@pymesgroup.es", contact_phone="+34 91 800 9000",
+                contact_role="Gerente",         city="Madrid",    country="ES",
+                payment_terms="30 dias",  currency=settings.DEFAULT_CURRENCY,
+                account_manager_id=users["carlos.ruiz"].id),
+        ])
     clients = {}
     for cd in clients_data:
         c = db.query(Client).filter(Client.name == cd["name"]).first()
@@ -1613,12 +1612,12 @@ def seed_itsm_v2():
         prob = Problem(
             number="PRB-0001",
             title="Error 500 al exportar informes con rango > 6 meses",
-            description="Los usuarios reportan error 500 al intentar exportar informes cuando el rango de fechas supera los 6 meses.",
+            description="Los usuarios reportaban error 500 al intentar exportar informes cuando el rango de fechas superaba los 6 meses. Ahora el sistema soporta exportación paginada y eficiente para grandes volúmenes de datos.",
             status=ProblemStatus.known_error,
             priority=TicketPriority.p3_medium,
-            root_cause="La query SQL no tiene timeout configurado. En rangos largos supera el límite de memoria del proceso de exportación.",
-            workaround="Dividir la exportación en períodos de máximo 6 meses. Ejemplo: dos exportaciones de 6 meses en lugar de una de 12.",
-            fix_description="Implementar paginación en el proceso de exportación y añadir índice compuesto en fecha+proyecto.",
+            root_cause="La query SQL no tenía timeout ni paginación. En rangos largos superaba el límite de memoria del proceso de exportación.",
+            workaround=None,
+            fix_description="Solución definitiva: exportación paginada y optimizada mediante índices compuestos en fecha+proyecto. Ya no hay límite práctico de rango.",
             ci_id=ci_api.id if ci_api else None,
             owner_user_id=ana.id if ana else None,
         )

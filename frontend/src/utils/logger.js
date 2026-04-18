@@ -1,11 +1,11 @@
 /**
- * logger.js — Configurable frontend logger for Clarive PSA
+ * logger.js — Configurable frontend logger for Contecflow PSA
  *
  * Log levels (ascending severity):  debug < info < warn < error
  *
  * Runtime configuration:
- *   • localStorage key `clarive_log_level`  (e.g. "warn")
- *   • window.CLARIVE_LOG_LEVEL              (higher priority)
+ *   • localStorage key `contecflow_log_level`  (e.g. "warn")
+ *   • window.CONTECFLOW_LOG_LEVEL              (higher priority)
  *
  * Examples:
  *   import logger from '../utils/logger'
@@ -15,7 +15,7 @@
  *   logger.error('Request failed', err)
  *
  * Change level at runtime from browser console:
- *   window.CLARIVE_LOG_LEVEL = 'debug'; location.reload()
+ *   window.CONTECFLOW_LOG_LEVEL = 'debug'; location.reload()
  *   // or without reload:
  *   import logger from '…/utils/logger'; logger.setLevel('debug')
  */
@@ -28,10 +28,14 @@ const COLORS = {
   error: '#ef4444',
 }
 
+function _safeLocalStorageGet(key) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
 function resolveLevel() {
   const raw = (
-    window.CLARIVE_LOG_LEVEL ||
-    localStorage.getItem('clarive_log_level') ||
+    window.CONTECFLOW_LOG_LEVEL ||
+    _safeLocalStorageGet('contecflow_log_level') ||
     (import.meta.env.DEV ? 'debug' : 'warn')
   ).toLowerCase()
   return LEVELS[raw] !== undefined ? raw : (import.meta.env.DEV ? 'debug' : 'warn')
@@ -63,12 +67,12 @@ const logger = {
   setLevel(level) {
     const l = level.toLowerCase()
     if (LEVELS[l] === undefined) {
-      console.warn(`[Clarive logger] Invalid level "${level}". Valid: ${Object.keys(LEVELS).join(', ')}`)
+      console.warn(`[Contecflow logger] Invalid level "${level}". Valid: ${Object.keys(LEVELS).join(', ')}`)
       return
     }
     _currentLevel = l
-    localStorage.setItem('clarive_log_level', l)
-    console.warn(`%c[Clarive logger] Level set to: ${l.toUpperCase()}`, `color:${COLORS[l]||'#fff'};font-weight:600`)
+    localStorage.setItem('contecflow_log_level', l)
+    console.warn(`%c[Contecflow logger] Level set to: ${l.toUpperCase()}`, `color:${COLORS[l]||'#fff'};font-weight:600`)
   },
 
   /** Returns current level name */
@@ -77,7 +81,7 @@ const logger = {
 
 // Expose to browser console for easy debugging
 if (typeof window !== 'undefined') {
-  window.__clariveLogger = logger
+  window.__contecflowLogger = logger
 }
 
 export default logger

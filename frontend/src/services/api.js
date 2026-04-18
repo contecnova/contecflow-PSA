@@ -6,6 +6,7 @@ const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,  // send httpOnly cookies on every request
+  timeout: 30000,
 })
 
 // Strip Content-Type for FormData so the browser sets the correct multipart boundary.
@@ -25,7 +26,7 @@ api.interceptors.response.use(
     const original = err.config
     const status = err.response?.status
     const requestPath = original?.url || ''
-    const isAuthFlowRequest = requestPath.includes('/auth/login') || requestPath.includes('/auth/refresh') || requestPath.includes('/auth/me')
+    const isAuthFlowRequest = requestPath.includes('/api/v1/auth/login') || requestPath.includes('/api/v1/auth/refresh') || requestPath.includes('/api/v1/auth/me')
 
     // Avoid infinite loops: skip if already retried or if there's no response
     if (!err.response || original._retry || isAuthFlowRequest) {
@@ -119,11 +120,11 @@ export default api
 // ── Typed API helpers ─────────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  forgotPassword: (payload) => api.post('/auth/password/forgot', payload),
-  resetPassword: (payload) => api.post('/auth/password/reset', payload),
-  me:    () => api.get('/auth/me'),
-  syncLdap: () => api.post('/auth/ldap/sync'),
+  login: (credentials) => api.post('/api/v1/auth/login', credentials),
+  forgotPassword: (payload) => api.post('/api/v1/auth/password/forgot', payload),
+  resetPassword: (payload) => api.post('/api/v1/auth/password/reset', payload),
+  me:    () => api.get('/api/v1/auth/me'),
+  syncLdap: () => api.post('/api/v1/auth/ldap/sync'),
 }
 
 export const usersApi = {

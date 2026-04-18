@@ -113,7 +113,7 @@ export default function ExecutiveDashboardPage() {
       )}
       <PageHeader
         title="Dashboard Ejecutivo"
-        subtitle="Vista C-Level — métricas estratégicas en tiempo real"
+        subtitle={t('executive_dashboard.subtitle')}
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <span style={{ fontSize:11, color:'var(--text-2)' }}>Actualizado hace 30s</span>

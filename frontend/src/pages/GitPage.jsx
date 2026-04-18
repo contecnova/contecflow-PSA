@@ -91,7 +91,7 @@ export default function GitPage() {
     <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
         title={t('git_integration.title')}
-        subtitle="Pull Requests y Deployments vinculados a tareas"
+        subtitle={t('git_integration.subtitle')}
         action={
           <a
             href="/api/v1/git/webhooks/github"

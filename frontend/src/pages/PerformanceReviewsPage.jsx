@@ -306,7 +306,7 @@ export default function PerformanceReviewsPage() {
     <div style={{ padding:32 }}>
       <PageHeader
         title={t('performance.title')}
-        subtitle="Ciclos 360° — autoevaluación, pares y manager"
+        subtitle={t('performance.subtitle')}
         actions={
           tab === 'cycles' && (
             <Button onClick={() => setShowNewCycle(true)}>+ Nuevo ciclo</Button>

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 
-const API = axios.create({ baseURL: '/api/v1' })
+const API = axios.create({ baseURL: '/api/v1', timeout: 30000 })
 
 export default function PortalPublicViewPage() {
   const { token } = useParams()

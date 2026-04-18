@@ -222,14 +222,25 @@ def import_jobs(
 # INVOICING
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @router.get("/invoices", response_model=List[InvoiceOut], summary="Listar facturas")
 def list_invoices(
     project_id: Optional[str] = None,
     status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    return _svc.list_invoices(project_id, status, db)
+    q, total = _svc.query_invoices(db, project_id, status)
+    invoices = q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    from app.services.billing_reports_service import invoice_out
+    return [invoice_out(inv) for inv in invoices]
 
 
 @router.post("/invoices/from-timesheets", response_model=Dict[str, Any], summary="Generar factura desde timesheets aprobados")

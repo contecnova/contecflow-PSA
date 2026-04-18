@@ -11,12 +11,13 @@ raci — Market-leader feature expansion:
                           POST /projects/{id}/changelog/generate (auto from tasks)
                           PATCH/DELETE /projects/{id}/changelog/{entry_id}
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, datetime
 from app.core.ratelimit import limiter
 from pydantic import BaseModel
+from app.schemas.raci import RACIEntryIn, RACIBatchIn, RetroNotesIn, ChangelogEntryIn, ChangelogEntryPatch, UATCaseIn
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -43,16 +44,6 @@ router = APIRouter()
 # 1. RACI MATRIX
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class RACIEntryIn(BaseModel):
-    item_type:  str              # deliverable | milestone | phase | custom
-    item_label: str
-    item_id:    Optional[str] = None
-    user_id:    str
-    role:       str              # R | A | C | I
-
-
-class RACIBatchIn(BaseModel):
-    entries: List[RACIEntryIn]
 
 
 @router.get("/projects/{project_id}/raci", summary="RACI Matrix del proyecto",
@@ -61,7 +52,12 @@ def get_project_raci(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         return _svc.get_project_raci(project_id, db)
     except ValueError as e:
@@ -75,7 +71,25 @@ def upsert_raci(
     payload: RACIBatchIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
+@router.put("/projects/{project_id}/raci", summary="Guardar/actualizar entradas RACI (batch upsert)",
+            tags=["v25 — RACI"])
+def upsert_raci(
+    project_id: str,
+    payload: RACIBatchIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+    response: Response = None,
+):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         return _svc.upsert_raci(project_id, payload.entries, db)
     except ValueError as e:
@@ -89,7 +103,12 @@ def delete_raci_entry(
     entry_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         _svc.delete_raci_entry(project_id, entry_id, db)
     except ValueError as e:
@@ -110,16 +129,18 @@ def get_sprint_retrospective(
     sprint_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         return _svc.get_sprint_retrospective(project_id, sprint_id, db)
     except ValueError as e:
         raise _http(e)
 
 
-class RetroNotesIn(BaseModel):
-    manual_notes: Optional[str] = None
-    action_items: Optional[List[dict]] = None   # [{text, owner_id}]
 
 
 @router.put(
@@ -169,21 +190,6 @@ def compute_and_save_burnout_snapshots(
 # ═══════════════════════════════════════════════════════════════════════════════
 # 4. PROJECT CHANGELOG / RELEASE NOTES
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class ChangelogEntryIn(BaseModel):
-    version_tag: Optional[str] = None
-    entry_date:  date
-    entry_type:  str = "feature"   # feature | bugfix | improvement | milestone | breaking
-    title:       str
-    description: Optional[str] = None
-
-
-class ChangelogEntryPatch(BaseModel):
-    version_tag: Optional[str] = None
-    entry_date:  Optional[date] = None
-    entry_type:  Optional[str] = None
-    title:       Optional[str] = None
-    description: Optional[str] = None
 
 
 @router.get("/projects/{project_id}/changelog", summary="Changelog del proyecto",
@@ -266,16 +272,6 @@ def delete_changelog_entry(
 # 5. UAT CASES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class UATCaseIn(BaseModel):
-    title: str
-    description: Optional[str] = None
-    expected_result: Optional[str] = None
-    actual_result: Optional[str] = None
-    status: Optional[str] = "pending"
-    priority: Optional[str] = "medium"
-    task_id: Optional[str] = None
-    assigned_to_id: Optional[str] = None
-    notes: Optional[str] = None
 
 
 @router.get("/projects/{project_id}/uat",
@@ -341,7 +337,12 @@ def export_uat_report(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     try:
         return _svc.export_uat_report(project_id, db)
     except ValueError as e:

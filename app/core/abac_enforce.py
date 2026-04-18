@@ -37,8 +37,8 @@ def enforce_abac(
     - There are no ABAC policies for the org (fail-open)
     - The user is a superadmin
 
-    Any exception from the ABAC service is logged and swallowed so a
-    service degradation never blocks legitimate access.
+    Any exception from the ABAC service is logged and results in a 403
+    (fail-closed) to avoid granting access when policy evaluation is broken.
     """
     if getattr(user, "is_superadmin", False):
         return
@@ -87,5 +87,11 @@ def enforce_abac(
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
-        logger.warning("ABAC evaluation error for %s/%s: %s", resource_type, resource_id, exc)
-        # Fail-open: evaluation error never blocks the user
+        logger.error(
+            "ABAC evaluation error for %s/%s — denying by default: %s",
+            resource_type, resource_id, exc, exc_info=True,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Access temporarily unavailable — please try again or contact support",
+        )

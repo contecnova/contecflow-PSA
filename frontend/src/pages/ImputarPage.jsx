@@ -160,7 +160,7 @@ export default function ImputarPage() {
     <div style={{ padding: 32, maxWidth: 680, margin: '0 auto' }}>
       <PageHeader
         title={t('imputa_page.title')}
-        subtitle={`${fmtDate(today)} · ${t('imputa_page.total_today')}: ${todayHours.toFixed(1)}h`}
+        subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
       />
 
       {activeTimer && (

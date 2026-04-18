@@ -59,6 +59,27 @@ def apply_status_side_effects(task, new_status: TaskStatus) -> None:
     elif new_status == TaskStatus.done:
         task.completed_at = datetime.now(timezone.utc)
 
+        # Trigger OKR sync si la tarea está vinculada a un proyecto con OKRs
+        try:
+            from app.services import okr_service
+            db = getattr(task, '_sa_instance_state', None)
+            if hasattr(task, 'project_id') and task.project_id:
+                session = getattr(task, '_sa_instance_state', None)
+                if session:
+                    db_session = session.session
+                    krs = db_session.query(okr_service.KeyResult).join(okr_service.Objective).filter(
+                        okr_service.Objective.project_id == task.project_id
+                    ).all()
+                    for kr in krs:
+                        try:
+                            okr_service.sync_kr_from_tasks(kr.id, task.assignee_id or "system", db_session)
+                        except Exception as e:
+                            import logging
+                            logging.getLogger(__name__).warning(f"OKR sync failed for KR {kr.id}: {e}")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"OKR sync global error: {e}")
+
 
 # ── Cascade reschedule (BFS) ───────────────────────────────────────────────────
 
@@ -167,12 +188,33 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
         if current_user.role in (UserRole.employee, UserRole.subcontractor):
             skipped.append({"id": task.id, "reason": "forbidden"})
             continue
-        if current_user.role not in (UserRole.admin,):
+        # Permitir admin
+        if current_user.role == UserRole.admin:
+            pass
+        # Permitir pm del proyecto
+        elif current_user.role == UserRole.pm:
             project = db.query(Project).filter(Project.id == task.project_id).first()
             if not (project and project.pm_id == current_user.id):
                 if task.assignee_id != current_user.id:
                     skipped.append({"id": task.id, "reason": "forbidden"})
                     continue
+        # Permitir team_lead si es miembro con rol lead
+        elif current_user.role == UserRole.team_lead:
+            from app.models.project import ProjectMember, ProjectMemberRole
+            is_lead = db.query(ProjectMember).filter(
+                ProjectMember.project_id == task.project_id,
+                ProjectMember.user_id == current_user.id,
+                ProjectMember.role == ProjectMemberRole.lead
+            ).first()
+            if not is_lead:
+                if task.assignee_id != current_user.id:
+                    skipped.append({"id": task.id, "reason": "forbidden"})
+                    continue
+        # Otros solo si son asignee
+        else:
+            if task.assignee_id != current_user.id:
+                skipped.append({"id": task.id, "reason": "forbidden"})
+                continue
 
         if new_status and new_status != task.status:
             allowed = TASK_VALID_TRANSITIONS.get(task.status, set())

@@ -224,7 +224,7 @@ export default function ResourceForecastPage() {
     <div style={{ padding: '28px 32px', maxWidth: '100%' }}>
       <PageHeader
         title="Resource Forecast"
-        subtitle={`Proyección de capacidad del equipo — ${weeks} semanas`}
+        subtitle={t('resource_forecast.subtitle', { weeks })}
         icon={<BarChart size={18} />}
       />
 

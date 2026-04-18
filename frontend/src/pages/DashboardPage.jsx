@@ -621,7 +621,9 @@ function useDashboardConfig() {
   }, [])
 
   const saveBackend = React.useCallback((cfg) => {
-    api.patch('/users/me/preferences', { dashboard_widgets: cfg }).catch(() => {})
+    api.patch('/users/me/preferences', { dashboard_widgets: cfg }).catch((err) => {
+      console.warn('[Dashboard] Failed to persist widget config:', err?.message)
+    })
   }, [])
 
   React.useEffect(() => {

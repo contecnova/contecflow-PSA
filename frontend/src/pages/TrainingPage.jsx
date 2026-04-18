@@ -168,7 +168,7 @@ export default function TrainingPage() {
       <PageHeader
         icon={<BookOpen size={18} />}
         title={t('training.title')}
-        subtitle="Catálogo de cursos, planes de formación y certificaciones del equipo"
+        subtitle={t('training.subtitle')}
         actions={
           <div style={{ display:'flex', gap:8 }}>
             {tab === 'courses' && isAdmin && (

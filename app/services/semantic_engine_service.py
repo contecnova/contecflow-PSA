@@ -149,7 +149,19 @@ def get_project_member_ids(db: Session, project_id) -> list:
 
 def list_profiles_with_users(db: Session) -> list:
     """Return all semantic profiles enriched with user names."""
-    profiles = db.query(SemProfile).all()
+    # Filtrado por tenant: solo perfiles de usuarios de la organización actual
+    org_id = db.info.get("organization_id")
+    query = db.query(SemProfile)
+    if org_id:
+        from sqlalchemy import select as sa_select
+        from app.models.user import User
+        user_ids_sq = (
+            sa_select(User.id)
+            .where(User.organization_id == org_id)
+            .scalar_subquery()
+        )
+        query = query.filter(SemProfile.user_id.in_(user_ids_sq))
+    profiles = query.all()
     result = []
     for p in profiles:
         u = db.query(User).filter(User.id == p.user_id).first()

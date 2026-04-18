@@ -1,5 +1,5 @@
 /**
- * Clarive — Traducciones del back-office (operador)
+ * Contecflow — Traducciones del back-office (operador)
  * Sistema i18n completo para la interfaz de gestión.
  * 
  * Estructura: módulo -> clave -> traducción
@@ -175,6 +175,7 @@ const es = {
     status_cancelled: 'Cancelado', status_archived: 'Archivado',
     type_software: 'Software', type_infrastructure: 'Infraestructura',
     type_consulting: 'Consultoría', type_internal: 'Interno',
+    subtitle: '{total} projects · {active} active · {atRisk} at risk',
   },
 
   // ── Tareas ───────────────────────────────────────────────────────────────────
@@ -333,6 +334,7 @@ const es = {
     subtitle: 'Proveedores, contratos, licencias, hardware y compliance',
     vendors: 'Proveedores', contracts: 'Contratos', licenses: 'Licencias',
     assets: 'Activos', cost_centers: 'Centros de coste', compliance: 'Compliance',
+      subtitle: 'Arrastra tarjetas entre columnas · / para buscar · Shift+N nueva tarea',
     tab_dashboard: 'Dashboard',
     tab_vendors: 'Proveedores',
     tab_contracts: 'Contratos',
@@ -340,6 +342,7 @@ const es = {
     tab_assets: 'Activos',
     tab_cost_centers: 'Centros de coste',
     tab_compliance: 'Compliance',
+      subtitle: 'Tendencias de velocidad y progreso de sprints',
     dashboard_contracts_active: 'Contratos activos',
     dashboard_licenses_managed: 'Licencias gestionadas',
     dashboard_assets_inventory: 'Activos inventariados',
@@ -349,6 +352,7 @@ const es = {
     dashboard_expire_60: 'expiran en 60 días',
     dashboard_expired: 'expiradas',
     dashboard_in_use: 'en uso',
+      subtitle: 'Margen, costes e ingresos por proyecto',
     dashboard_license_cost_scope: 'licencias activas',
     dashboard_total_cost_scope: 'contratos + licencias',
     dashboard_upcoming_renewals: 'Renovaciones próximas (60 días)',
@@ -359,22 +363,26 @@ const es = {
     dashboard_quick_actions: 'Acciones rápidas',
     action_add_vendor: 'Añadir proveedor',
     action_new_contract: 'Nuevo contrato',
+      subtitle: 'Registro, aprobación y reembolso de gastos de proyecto',
     action_register_license: 'Registrar licencia',
     action_add_asset: 'Añadir activo',
     action_cost_centers: 'Centros de coste',
     action_compliance_report: 'Informe compliance',
     vendor_modal_new: 'Nuevo proveedor',
     vendor_modal_edit: 'Editar proveedor',
+      subtitle: 'Proyección de capacidad del equipo — {weeks} semanas',
     vendor_label_name: 'Nombre',
     vendor_label_category: 'Categoría',
     vendor_label_country: 'País',
     vendor_label_web: 'Web',
     vendor_label_support_email: 'Email soporte',
     vendor_label_support_phone: 'Teléfono soporte',
+      subtitle: '{total} personas · Estructura de reporting · Cadenas de aprobación',
     vendor_label_account_manager: 'Account Manager',
     vendor_label_account_number: 'Nº cliente',
     vendor_label_tax_id: 'CIF/NIF',
     vendor_label_notes: 'Notas',
+      subtitle: 'Asignación automática semántica de tickets y tareas',
     vendor_placeholder_name: 'Microsoft, AWS, GitHub...',
     vendor_placeholder_web: 'https://...',
     vendor_create: 'Crear proveedor',
@@ -382,11 +390,13 @@ const es = {
     vendors_filter_all_categories: 'Todas las categorías',
     vendors_new: 'Nuevo proveedor',
     vendors_empty_title: 'Sin proveedores',
+      subtitle: 'Columna vertebral de seguridad · Matrices de permisos · SoD · Violaciones · Audit Log',
     vendors_empty_desc: 'Añade los proveedores de software, hardware y servicios de tu empresa',
     vendors_delete_confirm: '¿Eliminar proveedor',
     vendors_contracts_count: 'contrato(s)',
     new_vendor: 'Nuevo proveedor', new_contract: 'Nuevo contrato',
-    new_license: 'Nueva licencia', new_asset: 'Nuevo activo',
+      subtitle_today: 'Hoy, {date} · Ya registradas: {hours}h',
+      subtitle: '{date} · Total hoy: {hours}h',
     vendor_name: 'Nombre proveedor', category: 'Categoría',
     contract_title: 'Título contrato', contract_type: 'Tipo contrato',
     renewal_date: 'Fecha renovación', annual_value: 'Valor anual',
@@ -409,14 +419,19 @@ const es = {
     contracts_modal_new: 'Nuevo contrato',
     contracts_modal_edit: 'Editar contrato',
     contracts_label_title: 'Título',
+      subtitle: '{total} proyectos · {active} activos · {atRisk} en riesgo',
     contracts_placeholder_title: 'Microsoft 365 Business Premium — 2025',
     contracts_label_vendor: 'Proveedor',
     contracts_none_vendor: 'Sin proveedor',
     contracts_label_type: 'Tipo',
     contracts_label_status: 'Estado',
-    contracts_label_billing_cycle: 'Ciclo facturación',
+        subtitle: '{date} · Total aujourd\'hui : {hours}h',
+      subtitle: 'Registra tu tiempo de trabajo y conviértelo en imputaciones',
     contracts_cycle_one_time: 'Único',
     contracts_cycle_monthly: 'Mensual',
+    bi_project_detail: {
+      subtitle: '{projectName}',
+    },
     contracts_cycle_quarterly: 'Trimestral',
     contracts_cycle_annual: 'Anual',
     contracts_cycle_biennial: 'Bienal',
@@ -1515,7 +1530,7 @@ const es = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -1646,6 +1661,7 @@ const es = {
     card_fields: 'Campos visibles en cards', by_assignee: 'Por asignado',
     by_priority: 'Por prioridad', by_project: 'Por proyecto',
     wip_exceeded: 'Límite WIP superado', configure: 'Configurar tablero',
+    subtitle: 'Drag cards between columns · / to search · Shift+N new task',
   },
 
   // ── Menciones ─────────────────────────────────────────────────────────────────
@@ -1820,6 +1836,7 @@ const es = {
     velocity: 'Velocidad', avg_velocity: 'Velocidad media',
     ideal_line: 'Línea ideal', actual_line: 'Línea real',
     story_points: 'Story points completados', sprints_view: 'Por sprints',
+    subtitle: 'Sprint velocity and progress trends',
   },
 
   // ── Organigrama ───────────────────────────────────────────────────────────────
@@ -1827,6 +1844,7 @@ const es = {
     title: 'Organigrama', expand_all: 'Expandir todo', collapse_all: 'Colapsar todo',
     search: 'Buscar persona...', by_department: 'Por departamento',
     by_role: 'Por rol', show_vacancies: 'Mostrar vacantes',
+    subtitle: 'Margin, costs and revenue by project',
   },
 
   // ── Resource Forecast ─────────────────────────────────────────────────────────
@@ -1834,6 +1852,7 @@ const es = {
     title: 'Forecast de recursos', period: 'Período', resource: 'Recurso',
     allocated: 'Asignado', available: 'Disponible', utilization: 'Utilización',
     by_project: 'Por proyecto', by_skill: 'Por skill', hire_needed: 'Necesidad de contratación',
+    subtitle: 'Project expense logging, approval and reimbursement',
   },
 
   // ── Milestone Billing ─────────────────────────────────────────────────────────
@@ -1843,6 +1862,7 @@ const es = {
     due_date: 'Fecha esperada', invoice: 'Factura vinculada',
     status_pending: 'Pendiente', status_invoiced: 'Facturado', status_paid: 'Cobrado',
     no_milestones: 'Sin milestones de facturación',
+    subtitle: 'Team capacity projection — {weeks} weeks',
   },
 
   // ── Microsoft 365 ─────────────────────────────────────────────────────────────
@@ -1851,6 +1871,7 @@ const es = {
     calendar_sync: 'Sincronización de calendario', teams_sync: 'Sincronización Teams',
     sharepoint: 'SharePoint', onedrive: 'OneDrive',
     connected: 'Conectado como', not_connected: 'No conectado',
+    subtitle: '{total} people · Reporting structure · Approval chains',
   },
 
   // ── SLA Calendars ─────────────────────────────────────────────────────────────
@@ -1860,6 +1881,7 @@ const es = {
     work_hours: 'Horas laborables', holidays: 'Festivos',
     add_holiday: 'Añadir festivo', apply_to: 'Aplicar a',
     no_calendars: 'Sin calendarios SLA',
+    subtitle: 'Automatic semantic assignment of tickets and tasks',
   },
 
   // ── Comentarios internos ──────────────────────────────────────────────────────
@@ -1868,6 +1890,7 @@ const es = {
     add_comment: 'Añadir nota interna', private_note: 'Nota privada',
     agent_only: 'Solo agentes', visible_to_customer: 'Visible para cliente',
     no_comments: 'Sin comentarios internos',
+    subtitle: 'Security backbone · Permission matrices · SoD · Violations · Audit Log',
   },
 
   // ── Automations ───────────────────────────────────────────────────────────────
@@ -2134,7 +2157,7 @@ const es = {
     portal_subtitle: 'Gestiona aplicaciones OAuth2 e integraciones de terceros vía API',
     new_app_btn: '+ Nueva app',
     no_apps: 'Sin aplicaciones',
-    no_apps_subtitle: 'Registra tu primera app para integrar Clarive con tus herramientas.',
+    no_apps_subtitle: 'Registra tu primera app para integrar Contecflow con tus herramientas.',
     create_app_btn: 'Crear app OAuth',
     
     // App Modal
@@ -2228,89 +2251,6 @@ const es = {
   },
 
 }
-
-// ─── INGLÉS ──────────────────────────────────────────────────────────────────
-
-
-const en = {
-  // ... traducciones en inglés ...
-  // Operators
-  op_equals: 'equals', op_not_equals: 'not equals', op_greater_than: 'greater than',
-  op_less_than: 'less than', op_contains: 'contains',
-  // Duration units
-  unit_minutes: 'minutes', unit_hours: 'hours', unit_days: 'days',
-  // StepConfig labels
-  duration_lbl: 'Duration', unit_lbl: 'Unit', webhook_url_lbl: 'Webhook URL',
-  webhook_payload: 'JSON Payload (template)', notify_role_lbl: 'Notify role', message_lbl: 'Message',
-  // Categories
-  cat_tasks: 'Tasks', cat_projects: 'Projects', cat_sprints: 'Sprints',
-  cat_time: 'Time', cat_team: 'Team', cat_service_desk: 'Service Desk',
-  cat_finance: 'Finance', cat_integrations: 'Integrations',
-  cat_notifications: 'Notifications', cat_rpa: 'RPA',
-  // Triggers
-  trig_task_status_changed: 'Task changes status', trig_task_created: 'Task created',
-  trig_task_deleted: 'Task deleted', trig_task_assigned: 'Task assigned to user',
-  trig_task_unassigned: 'Task unassigned', trig_task_completed: 'Task completed',
-  trig_task_overdue: 'Task overdue', trig_task_deadline_approaching: 'Task deadline approaching',
-  trig_task_priority_changed: 'Task priority changed', trig_task_blocked: 'Task marked as blocked',
-  trig_task_comment_added: 'Comment added to task', trig_task_moved_to_sprint: 'Task moved to sprint',
-  trig_project_status_changed: 'Project changes status', trig_project_created: 'Project created',
-  trig_project_deadline_approaching: 'Project deadline approaching',
-  trig_budget_threshold: 'Budget exceeds threshold (%)', trig_budget_overspent: 'Budget exhausted / overspent',
-  trig_risk_score_high: 'Risk with high score', trig_risk_created: 'New risk registered',
-  trig_phase_completed: 'Project phase completed', trig_deliverable_overdue: 'Deliverable overdue',
-  trig_change_request_created: 'Change request created',
-  trig_member_added: 'Member added to project', trig_member_removed: 'Member removed from project',
-  trig_sprint_started: 'Sprint started', trig_sprint_ended: 'Sprint ended',
-  trig_sprint_goal_missed: 'Sprint goal not reached', trig_sprint_capacity_exceeded: 'Sprint capacity exceeded',
-  trig_timesheet_not_submitted: 'Timesheet not submitted at week close', trig_timesheet_submitted: 'Timesheet submitted',
-  trig_timesheet_rejected: 'Timesheet rejected', trig_overtime_detected: 'Overtime detected',
-  trig_imputation_lockout_warning: 'Imputation lockout period approaching',
-  trig_date_reached: 'Scheduled date/time (cron)', trig_end_of_week: 'End of work week',
-  trig_end_of_month: 'End of month', trig_absence_requested: 'Absence requested',
-  trig_absence_approved: 'Absence approved', trig_absence_rejected: 'Absence rejected',
-  trig_user_created: 'User created in system', trig_capacity_threshold: 'Resource load exceeds threshold',
-  trig_performance_review_due: 'Performance review pending', trig_certification_expiring: 'Certification expiring soon',
-  trig_okr_deadline_approaching: 'OKR with deadline approaching',
-  trig_ticket_created: 'Ticket created in Service Desk', trig_ticket_sla_at_risk: 'Ticket SLA at risk',
-  trig_ticket_sla_breached: 'Ticket SLA breached', trig_ticket_escalated: 'Ticket escalated',
-  trig_ticket_resolved: 'Ticket resolved', trig_ticket_reopened: 'Ticket reopened by client',
-  trig_ticket_no_response: 'Ticket without response', trig_cmdb_asset_expiring: 'CMDB asset expiring',
-  trig_expense_submitted: 'Expense submitted for approval', trig_expense_approved: 'Expense approved',
-  trig_invoice_created: 'Invoice created', trig_invoice_overdue: 'Invoice overdue',
-  trig_contract_expiring: 'Contract expiring', trig_milestone_reached: 'Billing milestone reached',
-  trig_nps_score_low: 'NPS / client health below threshold', trig_webhook_received: 'Webhook received (external system)',
-  trig_git_pr_merged: 'Pull Request merged in Git', trig_git_pipeline_failed: 'CI/CD pipeline failed',
-  trig_email_received: 'Email received with label', trig_form_submitted: 'External form submitted',
-  trig_api_event: 'Arbitrary event via external API',
-  // Actions
-  act_create_alert: 'Create system alert', act_notify_role: 'Notify a role',
-  act_notify_user: 'Notify specific user', act_send_email: 'Send email',
-  act_send_webhook: 'Call external webhook (HTTP POST)', act_send_teams_message: 'Send message to MS Teams',
-  act_send_slack_message: 'Send message to Slack', act_create_jira_issue: 'Create Jira issue',
-  act_change_task_status: 'Change task status', act_change_task_priority: 'Change task priority',
-  act_assign_task: 'Assign task to user/role', act_create_task: 'Create new task',
-  act_change_project_status: 'Change project status', act_escalate_ticket: 'Escalate ticket to next level',
-  act_change_ticket_status: 'Change ticket status', act_assign_ticket: 'Assign ticket to agent',
-  act_approve_expense: 'Approve / reject expense', act_rpa_power_automate: 'Trigger Power Automate Flow',
-  act_rpa_uipath: 'Trigger UiPath Orchestrator job', act_rpa_zapier: 'Trigger Zapier Zap',
-  act_rpa_make: 'Trigger Make scenario', act_rpa_n8n: 'Trigger n8n workflow',
-  act_rpa_custom_http: 'Custom HTTP request',
-  // Action param labels
-  param_message: 'Message', param_severity: 'Severity', param_role: 'Role',
-  param_to_role: 'Send to (role)', param_subject: 'Subject', param_body: 'Email body',
-  param_url: 'Webhook URL', param_payload_template: 'JSON Payload (template)',
-  param_teams_webhook_url: 'Teams Webhook URL', param_slack_webhook_url: 'Slack Webhook URL',
-  param_channel: 'Channel (#general)', param_jira_project_key: 'Jira project key',
-  param_issue_type: 'Issue type', param_summary: 'Summary / title', param_status: 'New status',
-  param_priority: 'New priority', param_assign_to_role: 'Assign to role',
-  param_task_title: 'Task title', param_to_level: 'Escalate to', param_decision: 'Decision',
-  param_comment: 'Comment (optional)', param_flow_url: 'Flow URL (HTTP trigger)',
-  param_payload: 'Additional payload (JSON)', param_orchestrator_url: 'Orchestrator URL',
-  param_process_key: 'Process key', param_robot_name: 'Robot (empty = any)',
-  param_zap_webhook_url: 'Zap Webhook URL', param_make_webhook_url: 'Make Webhook URL',
-  param_n8n_webhook_url: 'n8n Webhook URL', param_method: 'HTTP method', param_headers: 'Headers (JSON)'
-};
 
 // ─── ENGLISH ────────────────────────────────────────────────────────────────
 const en = {
@@ -4233,7 +4173,7 @@ const en = {
     portal_subtitle: 'Manage OAuth2 applications and third-party integrations via API',
     new_app_btn: '+ New app',
     no_apps: 'No applications',
-    no_apps_subtitle: 'Register your first app to integrate Clarive with your tools.',
+    no_apps_subtitle: 'Register your first app to integrate Contecflow with your tools.',
     create_app_btn: 'Create OAuth app',
     
     // App Modal
@@ -4313,7 +4253,7 @@ const en = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -4573,6 +4513,7 @@ const en = {
   imputa_page: {
     title: 'Log Hours',
     subtitle_today: 'Today, {date} · Already logged: {hours}h',
+    subtitle: '{date} · Total today: {hours}h',
     week_title: 'Your current week',
     total: 'Total',
     capacity: 'Capacity',
@@ -4602,10 +4543,12 @@ const en = {
     offline_error: 'Error saving offline',
     edit_aria: 'Edit time entry',
     delete_aria: 'Delete time entry',
+    subtitle: 'Log your work time and convert it to timesheets',
   },
 
   toast: {
     unexpected_error: 'Error inesperado',
+    subtitle: '{projectName}',
   },
 }
 
@@ -5515,7 +5458,7 @@ const fr = {
     portal_subtitle: 'Gérer les applications OAuth2 et les intégrations tiers via API',
     new_app_btn: '+ Nouvelle application',
     no_apps: 'Aucune application',
-    no_apps_subtitle: 'Enregistrez votre première application pour intégrer Clarive avec vos outils.',
+    no_apps_subtitle: 'Enregistrez votre première application pour intégrer Contecflow avec vos outils.',
     create_app_btn: 'Créer application OAuth',
     app_created: 'Application créée',
     app_updated: 'Application mise à jour',
@@ -5583,7 +5526,7 @@ const fr = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -6906,7 +6849,7 @@ const de = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -7081,7 +7024,7 @@ const de = {
     portal_subtitle: 'Gestiona aplicaciones OAuth2 e integraciones de terceros vía API',
     new_app_btn: '+ Nueva app',
     no_apps: 'Sin aplicaciones',
-    no_apps_subtitle: 'Registra tu primera app para integrar Clarive con tus herramientas.',
+    no_apps_subtitle: 'Registra tu primera app para integrar Contecflow con tus herramientas.',
     create_app_btn: 'Crear app OAuth',
     
     // App Modal
@@ -8244,7 +8187,7 @@ const pt = {
     portal_subtitle: 'Gerencie aplicações OAuth2 e integrações de terceiros via API',
     new_app_btn: '+ Novo app',
     no_apps: 'Sem aplicações',
-    no_apps_subtitle: 'Registre seu primeiro app para integrar o Clarive com suas ferramentas.',
+    no_apps_subtitle: 'Registre seu primeiro app para integrar o Contecflow com suas ferramentas.',
     create_app_btn: 'Criar app OAuth',
     app_created: 'App criado',
     app_updated: 'App atualizado',
@@ -8312,7 +8255,7 @@ const pt = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -9587,7 +9530,7 @@ const it = {
     portal_subtitle: 'Gestisci applicazioni OAuth2 e integrazioni di terze parti tramite API',
     new_app_btn: '+ Nuova app',
     no_apps: 'Nessuna applicazione',
-    no_apps_subtitle: 'Registra la tua prima app per integrare Clarive con i tuoi strumenti.',
+    no_apps_subtitle: 'Registra la tua prima app per integrare Contecflow con i tuoi strumenti.',
     create_app_btn: 'Crea app OAuth',
     app_created: 'App creata',
     app_updated: 'App aggiornata',
@@ -9655,7 +9598,7 @@ const it = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -11753,7 +11696,7 @@ const pl = {
     portal_subtitle: "Zarządzaj aplikacjami OAuth2 i integracjami innych firm za pośrednictwem API",
     new_app_btn: "+ Nowa aplikacja",
     no_apps: "Brak aplikacji",
-    no_apps_subtitle: "Zarejestruj swoją pierwszą aplikację, aby zintegrować Clarive z własnymi narzędziami.",
+    no_apps_subtitle: "Zarejestruj swoją pierwszą aplikację, aby zintegrować Contecflow z własnymi narzędziami.",
     create_app_btn: "Utwórz aplikację OAuth",
     app_created: "Aplikacja utworzona",
     app_updated: "Aplikacja zaktualizowana",
@@ -11820,7 +11763,7 @@ const pl = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },
@@ -13916,7 +13859,7 @@ const zh = {
     portal_subtitle: "管理 OAuth2 应用程序和通过 API 的第三方集成",
     new_app_btn: "+ 新建应用",
     no_apps: "未有应用程序",
-    no_apps_subtitle: "注册您的第一个应用程序以将 Clarive 与您的工具集成。",
+    no_apps_subtitle: "注册您的第一个应用程序以将 Contecflow 与您的工具集成。",
     create_app_btn: "创建 OAuth 应用",
     app_created: "已创建应用程序",
     app_updated: "应用已更新",
@@ -13983,7 +13926,7 @@ const zh = {
     go_login: 'Ir al inicio de sesión',
     reload: '🔄 Recargar',
     app_load_outdated: 'Error de carga — caché desactualizada',
-    app_load_failed: 'Error al cargar Clarive',
+    app_load_failed: 'Error al cargar Contecflow',
     app_outdated_desc: 'El navegador tiene una versión antigua de la aplicación en caché. Pulsa el botón para recargar con la versión actual.',
     app_reload: '🔄 Recargar aplicación',
   },

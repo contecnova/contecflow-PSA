@@ -610,3 +610,120 @@ def serialize_approval_request(r) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 # TIMEOUT PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def process_approval_timeouts(db: Session) -> dict:
+    """
+    Procesa todas las solicitudes de aprobación pendientes y aplica la acción configurada
+    (escalar, auto-aprobar o rechazar) para los pasos que superaron su timeout.
+    Devuelve un resumen de las acciones realizadas.
+    """
+    from sqlalchemy import and_
+    now = datetime.now(timezone.utc)
+    updated = 0
+    escalated = 0
+    auto_approved = 0
+    rejected = 0
+    details = []
+
+    # Buscar todas las solicitudes pendientes
+    requests = db.query(ApprovalRequest).filter(ApprovalRequest.status == "pending").all()
+    for req in requests:
+        # Obtener el paso actual
+        step = (
+            db.query(ApprovalStep)
+            .filter(
+                ApprovalStep.workflow_id == req.workflow_id,
+                ApprovalStep.step_order == req.current_step,
+            )
+            .first()
+        )
+        if not step or not step.timeout_hours or not req.step_started_at:
+            continue  # No timeout definido o no hay fecha de inicio
+
+        timeout_at = req.step_started_at + timedelta(hours=step.timeout_hours)
+        if now < timeout_at:
+            continue  # Aún no ha vencido el timeout
+
+        action = (step.on_timeout or "escalate").lower()
+        info = {"request_id": req.id, "step": step.step_order, "action": action}
+
+        if action == "escalate":
+            # Escalar: asignar a otro usuario si está definido
+            if step.escalate_to_user_id:
+                # Crear una nueva decisión de tipo "delegated" y avanzar el paso
+                dec = ApprovalDecision(
+                    request_id=req.id,
+                    step_order=step.step_order,
+                    approver_id=step.escalate_to_user_id,
+                    decision="delegated",
+                    note="Escalado automáticamente por timeout",
+                    decided_at=now,
+                )
+                db.add(dec)
+                req.current_step += 1
+                req.step_started_at = now
+                escalated += 1
+                info["escalated_to"] = step.escalate_to_user_id
+            else:
+                # Si no hay a quién escalar, marcar como rechazado
+                req.status = "rejected"
+                req.final_decision = "rejected"
+                req.final_note = "Rechazado automáticamente por timeout (sin escalado)"
+                req.completed_at = now
+                rejected += 1
+                info["rejected"] = True
+
+        elif action == "auto_approve":
+            # Aprobar automáticamente
+            dec = ApprovalDecision(
+                request_id=req.id,
+                step_order=step.step_order,
+                approver_id=step.approver_user_id,
+                decision="approved",
+                note="Aprobado automáticamente por timeout",
+                decided_at=now,
+            )
+            db.add(dec)
+            req.current_step += 1
+            req.step_started_at = now
+            auto_approved += 1
+            info["auto_approved"] = True
+
+        elif action == "reject":
+            # Rechazar automáticamente
+            req.status = "rejected"
+            req.final_decision = "rejected"
+            req.final_note = "Rechazado automáticamente por timeout"
+            req.completed_at = now
+            rejected += 1
+            info["rejected"] = True
+
+        else:
+            # Acción desconocida, omitir
+            continue
+
+        # Registrar en el log de auditoría si corresponde
+        if req.entity_type in _FINANCIAL_ENTITY_TYPES:
+            db.add(FinancialApprovalAuditLog(
+                request_id=req.id,
+                entity_type=req.entity_type,
+                entity_id=req.entity_id,
+                action="timeout",
+                decision=action,
+                actor_user_id=None,
+                step_order=step.step_order,
+                note=f"Acción automática por timeout: {action}",
+                created_at=now,
+            ))
+
+        updated += 1
+        details.append(info)
+
+    db.commit()
+    return {
+        "updated": updated,
+        "escalated": escalated,
+        "auto_approved": auto_approved,
+        "rejected": rejected,
+        "details": details,
+    }

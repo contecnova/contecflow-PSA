@@ -1,3 +1,9 @@
+
+import os
+# Forzar modo 'plain' para claves JWT en tests (no KMS)
+os.environ["KMS_PROVIDER"] = ""
+os.environ["AWS_KMS_KEY_ID"] = ""
+
 """
 conftest.py — Fixtures compartidos para toda la suite de tests de Clarive.
 Usa SQLite en memoria para aislamiento total.
@@ -71,6 +77,7 @@ app.dependency_overrides[get_db] = override_get_db
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 @pytest.fixture(scope="function", autouse=True)
+
 def db():
     """Crea tablas y datos base antes de cada test; las borra al final."""
     from app import models as _models  # noqa: F401 — registra todos los modelos en Base.metadata
@@ -78,6 +85,9 @@ def db():
     session = TestSession()
 
     # Admin
+    admin_hashed = get_password_hash(_TEST_PASSWORD)
+    print(f"[DEBUG] TEST_PASSWORD: {_TEST_PASSWORD}")
+    print(f"[DEBUG] ADMIN HASHED PASSWORD: {admin_hashed}")
     admin = User(
         id="admin-test-id",
         username="admin",
@@ -86,7 +96,7 @@ def db():
         role=UserRole.admin,
         status=UserStatus.active,
         is_active=True,
-        hashed_password=get_password_hash(_TEST_PASSWORD),
+        hashed_password=admin_hashed,
     )
     # PM
     pm = User(
@@ -126,7 +136,16 @@ def db():
     session.commit()
     session.close()
 
+    # --- Inicializar el cache global de claves JWT para la app ---
+    from app.services.key_management import refresh_caches
     db_session = TestSession()
+
+    refresh_caches(db_session)
+    # Debug print the JWT keyring value after initialization
+    from sqlalchemy import text as _text
+    row = db_session.execute(_text("SELECT value FROM app_settings WHERE key='security.jwt_keyring'")).first()
+    print(f"[DEBUG] JWT keyring value after refresh_caches: {row}")
+
     yield db_session
     db_session.close()
 

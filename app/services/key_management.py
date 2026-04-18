@@ -84,8 +84,6 @@ def _generate_key_material_ref() -> str:
 
 def _resolve_material(ref: str) -> str:
     """Resolve material ref to plaintext key string."""
-    if ref.startswith("plain:"):
-        return ref.split(":", 1)[1]
     if ref.startswith("kms:"):
         blob_b64 = ref.split(":", 1)[1]
         blob = base64.urlsafe_b64decode(blob_b64.encode())
@@ -93,8 +91,9 @@ def _resolve_material(ref: str) -> str:
         res = client.decrypt(CiphertextBlob=blob)
         plaintext = base64.urlsafe_b64encode(res["Plaintext"]).decode()
         return plaintext
-    # Backward compatibility with legacy plain values
-    return ref
+    if ref.startswith("plain:"):
+        return ref.split(":", 1)[1]
+    raise ValueError("Invalid key material reference format")
 
 
 def _get_setting(db, key: str) -> Optional[AppSetting]:
@@ -113,11 +112,7 @@ def _settings_table_available(db) -> bool:
 
 
 def _legacy_only_state() -> KeyRingState:
-    return KeyRingState(
-        active_kid="legacy-secret-key",
-        keys={"legacy-secret-key": f"plain:{settings.SECRET_KEY}"},
-        last_rotated_at=_now(),
-    )
+    raise RuntimeError("Legacy key state is no longer supported.")
 
 
 def _save_keyring(db, state: KeyRingState) -> None:
@@ -152,7 +147,7 @@ def _load_keyring(db) -> Optional[KeyRingState]:
 
 def ensure_jwt_keyring(db) -> KeyRingState:
     if not _settings_table_available(db):
-        return _legacy_only_state()
+        raise RuntimeError("Settings table not available for JWT keyring initialization.")
 
     state = _load_keyring(db)
     if state:
@@ -164,9 +159,6 @@ def ensure_jwt_keyring(db) -> KeyRingState:
         keys={kid: _generate_key_material_ref()},
         last_rotated_at=_now(),
     )
-
-    # Keep compatibility: include legacy SECRET_KEY as a grace key for verification
-    state.keys["legacy-secret-key"] = f"plain:{settings.SECRET_KEY}"
     _save_keyring(db, state)
     db.commit()
     logger.info("Initialized JWT keyring with kid=%s", kid)
@@ -200,7 +192,7 @@ def get_jwt_signing_key() -> tuple[str, str]:
 
 
 def get_jwt_verification_keys() -> dict[str, str]:
-    """Return map kid -> plaintext_key (includes active + grace keys)."""
+    """Return map kid -> plaintext_key (active and retained keys only)."""
     if _cache["jwt"] is None:
         refresh_caches()
     state = _cache["jwt"]
@@ -212,8 +204,6 @@ def get_jwt_verification_keys() -> dict[str, str]:
             out[kid] = _resolve_material(ref)
         except Exception as exc:
             logger.warning("Failed resolving key for kid=%s: %s", kid, exc)
-    # Safety fallback
-    out.setdefault("legacy-secret-key", settings.SECRET_KEY)
     return out
 
 

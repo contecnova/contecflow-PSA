@@ -411,24 +411,47 @@ def list_tickets(
     )
 
 
+
 @router.get("/tickets/my-queue", summary="Mi cola de trabajo")
 def my_queue(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return my_queue_payload(db, current_user, _ticket_out)
+    tickets = my_queue_payload(db, current_user, _ticket_out)
+    total = len(tickets)
+    start = (page - 1) * page_size
+    end = start + page_size
+    items = tickets[start:end]
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return items
+
 
 
 
 @router.get("/tickets/client/my", summary="Mis tickets (cliente)")
 def client_my_tickets(
     status: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    response: Response = None,
     authorization: Optional[str] = Header(None),
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
     client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
-    return client_my_tickets_payload(db, client.id, _ticket_out, status)
+    q, total = client_my_tickets_payload(db, client.id, _ticket_out, status, as_query=True)
+    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return items
 
 
 # ── Problem Management ────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { BadgeWithTooltip } from '../components/ui/BadgeWithTooltip'
 import { IconCR } from '../components/ui/FRCRIcons'
 
-const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true })
+const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 30000 })
 
 // Language Context
 const LangContext = createContext('es')
@@ -39,6 +39,13 @@ function useLang() {
 const ClientAuthContext = createContext(null)
 function useClientAuth() { return useContext(ClientAuthContext) }
 
+// Only persist the fields needed for UI — auth is handled by httpOnly cookies.
+function _pickClientUiFields(client) {
+  if (!client) return null
+  const { id, email, name, language, organization_name } = client
+  return { id, email, name, language, organization_name }
+}
+
 function ClientAuthProvider({ children }) {
   const [client, setClient] = useState(() => {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
@@ -48,29 +55,32 @@ function ClientAuthProvider({ children }) {
     CLIENT_API.get('/portal/auth/me')
       .then((res) => {
         if (!mounted) return
-        const me = res?.data || null
+        const me = _pickClientUiFields(res?.data)
         setClient(me)
         if (me) localStorage.setItem('client_user', JSON.stringify(me))
+        else localStorage.removeItem('client_user')
       })
       .catch(() => {
         if (!mounted) return
         setClient(null)
+        localStorage.removeItem('client_user')
       })
     return () => { mounted = false }
   }, [])
   const login = async (email, password) => {
-    const res = await CLIENT_API.post('/portal/auth/login', { email, password })
-    localStorage.setItem('client_user', JSON.stringify(res.data.client))
-    // Aplicar el idioma del perfil del cliente
+    const res = await CLIENT_API.post('/api/v1/portal/auth/login', { email, password })
+    const clientData = _pickClientUiFields(res.data.client)
+    localStorage.setItem('client_user', JSON.stringify(clientData))
     if (res.data.client?.language) {
       localStorage.setItem('portal_lang', res.data.client.language)
     }
-    setClient(res.data.client)
+    setClient(clientData)
     return res.data.client
   }
   const logout = async () => {
     try { await CLIENT_API.post('/portal/auth/logout') } catch { /* noop */ }
-    localStorage.removeItem('client_user'); setClient(null)
+    localStorage.removeItem('client_user')
+    setClient(null)
   }
   return <ClientAuthContext.Provider value={{ client, login, logout }}>{children}</ClientAuthContext.Provider>
 }

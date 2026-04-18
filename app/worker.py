@@ -171,11 +171,26 @@ def generate_retainer_invoices():
                     year_separator="-",
                 )
 
+                # Obtener datos del cliente si están disponibles
+                client_name = getattr(proj, "client_name", None)
+                client_email = getattr(proj, "client_email", None)
+                client_address = getattr(proj, "client_address", None)
+                # Si el proyecto no tiene estos datos, intentar obtenerlos del cliente
+                if not all([client_name, client_email, client_address]) and proj.client_id:
+                    from app.models.client import Client
+                    client = db.query(Client).filter(Client.id == proj.client_id).first()
+                    if client:
+                        client_name = client_name or getattr(client, "name", None)
+                        client_email = client_email or getattr(client, "email", None)
+                        client_address = client_address or getattr(client, "address", None)
                 inv = Invoice(
                     id=str(uuid.uuid4()),
                     number=inv_number,
                     project_id=proj.id,
                     client_id=proj.client_id,
+                    client_name=client_name,
+                    client_email=client_email,
+                    client_address=client_address,
                     total=proj.retainer_amount,
                     currency=proj.currency or "EUR",
                     issue_date=today,

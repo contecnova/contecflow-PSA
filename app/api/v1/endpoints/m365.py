@@ -24,7 +24,7 @@ from typing import List, Optional
 import httpx
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from app.schemas.m365 import CalendarEventCreate, TeamsNotification, MilestoneSyncRequest
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -53,24 +53,6 @@ _graph_post_sync = m365_service.graph_post_sync
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
-class CalendarEventCreate(BaseModel):
-    subject:       str
-    start_dt:      datetime
-    end_dt:        datetime
-    body:          Optional[str] = None
-    location:      Optional[str] = None
-    attendees:     List[str] = []     # list of email addresses
-    user_upn:      str                # the user whose calendar to write to
-
-class TeamsNotification(BaseModel):
-    title:       str
-    text:        str
-    color:       str = "0078D4"       # hex without #
-    webhook_url: Optional[str] = None # overrides TEAMS_WEBHOOK_URL env var
-
-class MilestoneSyncRequest(BaseModel):
-    user_upn:  str          # calendar owner
-    days_ahead: int = 30    # sync milestones in next N days
 
 
 # ── Status endpoint ──────────────────────────────────────────────────────────

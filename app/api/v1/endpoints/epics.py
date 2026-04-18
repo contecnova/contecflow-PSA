@@ -2,7 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from pydantic import BaseModel
+from app.schemas.epics import (
+    WikiSpaceIn, WikiPageIn, WikiTemplateIn, WikiCommentIn, EpicIn, NQLIn, SavedFilterIn, ThreadedCommentIn
+)
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
@@ -30,12 +32,6 @@ router = APIRouter()
 # 1. WIKI — ESPACIOS
 # ══════════════════════════════════════════════════════════════════════
 
-class WikiSpaceIn(BaseModel):
-    name: str
-    slug: str
-    description: Optional[str] = None
-    project_id: Optional[str] = None
-    is_public: bool = False
 
 
 @router.get("/wiki/spaces")
@@ -65,14 +61,6 @@ def delete_space(space_id: str, db: Session = Depends(get_db),
 # 2. WIKI — PÁGINAS
 # ══════════════════════════════════════════════════════════════════════
 
-class WikiPageIn(BaseModel):
-    title: str
-    slug: str
-    content: Optional[List] = []
-    parent_id: Optional[str] = None
-    is_published: bool = True
-    sort_order: int = 0
-    change_note: Optional[str] = None
 
 
 @router.get("/wiki/spaces/{space_id}/pages")
@@ -129,11 +117,6 @@ def list_templates(db: Session = Depends(get_db), cu: User = Depends(get_current
     return list_wiki_templates(db)
 
 
-class WikiTemplateIn(BaseModel):
-    name: str
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    content: Optional[List] = []
 
 
 @router.post("/wiki/templates")
@@ -144,9 +127,6 @@ def create_template(p: WikiTemplateIn, db: Session = Depends(get_db),
 
 # ── Wiki comments ──────────────────────────────────────────────────────────────
 
-class WikiCommentIn(BaseModel):
-    content: str
-    parent_id: Optional[str] = None
 
 
 @router.get("/wiki/pages/{page_id}/comments")
@@ -170,15 +150,6 @@ def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
 # 3. ÉPICAS Y ROADMAP
 # ══════════════════════════════════════════════════════════════════════
 
-class EpicIn(BaseModel):
-    title: str
-    description: Optional[str] = None
-    color: str = "#7c3aed"
-    status: str = "open"
-    priority: str = "medium"
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    sort_order: int = 0
 
 
 @router.get("/epics")
@@ -244,10 +215,6 @@ def get_roadmap(project_id: str,
 # 4. NQL — BÚSQUEDA AVANZADA
 # ══════════════════════════════════════════════════════════════════════
 
-class NQLIn(BaseModel):
-    entity_type: str
-    query: str
-    limit: int = 50
 
 
 @router.post("/nql/search")
@@ -261,11 +228,6 @@ def list_filters(entity_type: Optional[str] = None,
     return list_saved_filters(entity_type, cu.id, db)
 
 
-class SavedFilterIn(BaseModel):
-    name: str
-    entity_type: str
-    nql_query: str
-    is_shared: bool = False
 
 
 @router.post("/filters")
@@ -313,9 +275,6 @@ def mark_all_read(db: Session = Depends(get_db), cu: User = Depends(get_current_
 # 7. COMENTARIOS THREADED
 # ══════════════════════════════════════════════════════════════════════
 
-class ThreadedCommentIn(BaseModel):
-    content: str
-    parent_id: Optional[str] = None
 
 
 @router.get("/comments")

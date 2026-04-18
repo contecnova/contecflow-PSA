@@ -1,5 +1,5 @@
 """Training & Certificaciones."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
@@ -18,22 +18,34 @@ from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
 router = APIRouter(prefix="/training", tags=["Training"])
 
 
-@router.get("/courses", summary="Catálogo de cursos")
+@router.get("/courses", summary="Listar cursos")
 def list_courses(category: Optional[str] = None, db: Session = Depends(get_db),
-                 cu: User = Depends(get_current_user)):
+                 cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return [_ser_course(c) for c in training_service.list_courses(db, category=category)]
 
 
 @router.post("/courses", summary="Crear curso", status_code=201)
 def create_course(payload: CourseIn, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr)):
+                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.create_course(db, payload.model_dump())
     return {"id": c.id, "title": c.title}
 
 
-@router.patch("/courses/{course_id}", summary="Editar curso")
+@router.patch("/courses/{course_id}", summary="Actualizar curso")
 def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr)):
+                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.get_course(db, course_id)
     if not c:
         raise HTTPException(404, "Curso no encontrado")
@@ -43,7 +55,11 @@ def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_d
 
 @router.delete("/courses/{course_id}", summary="Eliminar curso")
 def delete_course(course_id: str, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr)):
+                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.get_course(db, course_id)
     if not c:
         raise HTTPException(404, "Curso no encontrado")
@@ -51,24 +67,36 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
     return {"deleted": True}
 
 
-@router.get("/enrollments", summary="Inscripciones")
+@router.get("/enrollments", summary="Listar inscripciones")
 def list_enrollments(user_id: Optional[str] = None, course_id: Optional[str] = None,
                      status: Optional[str] = None, db: Session = Depends(get_db),
-                     cu: User = Depends(get_current_user)):
+                     cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     return [_ser_enrollment(e) for e in training_service.list_enrollments(
         db, user_id=user_id, course_id=course_id, status=status)]
 
 
-@router.post("/enrollments", summary="Inscribir usuario a curso", status_code=201)
+@router.post("/enrollments", summary="Crear inscripción", status_code=201)
 def create_enrollment(payload: EnrollmentIn, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager)):
+                      cu: User = Depends(require_any_manager), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     e = training_service.create_enrollment(db, payload.model_dump())
     return {"id": e.id}
 
 
 @router.patch("/enrollments/{enroll_id}", summary="Actualizar inscripción")
 def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager)):
+                      cu: User = Depends(require_any_manager), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
         raise HTTPException(404, "Inscripción no encontrada")
@@ -78,7 +106,11 @@ def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depen
 
 @router.delete("/enrollments/{enroll_id}", summary="Eliminar inscripción")
 def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
-                      cu: User = Depends(require_any_manager)):
+                      cu: User = Depends(require_any_manager), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
         raise HTTPException(404, "Inscripción no encontrada")
@@ -96,16 +128,23 @@ def list_certifications(user_id: Optional[str] = None, expiring_days: Optional[i
     return certs
 
 
-@router.post("/certifications", summary="Añadir certificación", status_code=201)
+@router.post("/certifications", summary="Crear certificación", status_code=201)
 def create_certification(payload: CertificationIn, db: Session = Depends(get_db),
-                         cu: User = Depends(get_current_user)):
+                         cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.create_certification(db, payload.model_dump())
     return {"id": c.id}
 
 
-@router.patch("/certifications/{cert_id}", summary="Editar certificación")
 def update_certification(cert_id: str, payload: CertificationIn, db: Session = Depends(get_db),
-                         cu: User = Depends(get_current_user)):
+                         cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.get_certification(db, cert_id)
     if not c:
         raise HTTPException(404, "Certificación no encontrada")
@@ -115,9 +154,12 @@ def update_certification(cert_id: str, payload: CertificationIn, db: Session = D
     return {"id": c.id}
 
 
-@router.delete("/certifications/{cert_id}", summary="Eliminar certificación")
 def delete_certification(cert_id: str, db: Session = Depends(get_db),
-                         cu: User = Depends(get_current_user)):
+                         cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     c = training_service.get_certification(db, cert_id)
     if not c:
         raise HTTPException(404, "Certificación no encontrada")

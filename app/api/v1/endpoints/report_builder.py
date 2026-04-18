@@ -81,21 +81,26 @@ def preview_report(
     return {"rows": rows, "count": len(rows), "truncated": len(rows) == limit}
 
 
+
+from fastapi import Query
+
 @router.post("/export")
 def export_report(
     q: ReportQuery,
+    page: int = Query(1, ge=1, description="Número de página para exportación paginada"),
+    page_size: int = Query(2000, ge=1, le=10000, description="Tamaño de página para exportación paginada"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     if q.entity not in _svc.ENTITIES:
         raise HTTPException(400, f"Entidad '{q.entity}' desconocida")
-    rows = _svc.execute_report(
+    result = _svc.execute_report_paginated(
         q.entity, q.columns, q.filters,
         q.sort.column if q.sort else None,
         q.sort.direction if q.sort else "asc",
-        2000, current_user, db,
+        page, page_size, current_user, db,
     )
-    return _svc.build_csv_response(q.columns, rows, q.entity)
+    return _svc.build_csv_response(q.columns, result["items"], q.entity, pagination=result)
 
 
 @router.get("/templates")

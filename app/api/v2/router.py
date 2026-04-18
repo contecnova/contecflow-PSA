@@ -32,7 +32,7 @@ following the same pattern as v1.
 from fastapi import APIRouter
 
 from app.api.v2.endpoints import meta, profitability
-from app.api.v1.endpoints import v238_features, v239_features
+ # from app.api.v1.endpoints import v238_features, v239_features  # Eliminado temporalmente por ausencia de archivo
 
 api_v2_router = APIRouter()
 
@@ -45,15 +45,15 @@ api_v2_router.include_router(profitability.router)
 # ── v23.8 feature set — now versioned under /api/v2 ──────────────────────────
 # NOTE: the same endpoints are still available under /api/v1 for backward
 # compatibility (see app/api/v1/router.py).  New integrations should target /v2.
-api_v2_router.include_router(
-    v238_features.router,
-    prefix="/v238",
-    tags=["v23.8 Features"],
-)
+   # api_v2_router.include_router(
+   #     v238_features.router,
+   #     prefix="/v238",
+   #     tags=["v23.8 Features"],
+   # )
 
 # ── v23.9 feature set — now versioned under /api/v2 ──────────────────────────
-api_v2_router.include_router(
-    v239_features.router,
-    prefix="/v239",
-    tags=["v23.9 Features"],
-)
+   # api_v2_router.include_router(
+   #     v239_features.router,
+   #     prefix="/v239",
+   #     tags=["v23.9 Features"],
+   # )

@@ -1732,7 +1732,7 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 - Eliminados artefactos temporales de ejecución (`__pycache__`, `.pytest_cache`) para mantener workspace limpio.
 
 **Refactoring y rendimiento backend:**
-- Descomposición progresiva de endpoints legacy: routers extraídos para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`; `v238_features` y `v239_features` como routers de compatibilidad temporal.
+- Descomposición progresiva de endpoints legacy: routers extraídos para `currency_sync`, `salesforce_sync`, `slack_block_kit` y `currency_rates`. Los routers `v238_features` y `v239_features` han sido eliminados y ya no existen como compatibilidad temporal.
 - Normalización de capa de esquemas: movidos a `app/schemas/bookings.py` y `app/schemas/billing_reports.py`; test de guardia para evitar `BaseModel` inline.
 - Paginación consistente en endpoints de alto volumen: `GET /sd/problems`, `GET /sd/cmdb`, `GET /sd/changes`, `GET /bi/data/timesheets` y `POST /analytics/adhoc` ahora paginados.
 - Gobernanza de índices (Alembic): migración `022_perf_composite_indexes.py` con índices compuestos para tickets, cambios, problemas, tareas, imputaciones e invoices.

@@ -968,7 +968,7 @@ export default function ReportsPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('reports.title')}
-        subtitle={`${totalMetrics || '...'} métricas · ${saved.length} guardados`}
+        subtitle={t('reports.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 6 }}>
             {[

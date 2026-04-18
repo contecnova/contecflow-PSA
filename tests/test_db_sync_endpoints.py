@@ -11,7 +11,7 @@ LEGACY_ASYNC_DB_ENDPOINT_FILES = {
     "esign.py",
     "git_integration.py",
     "integrations_hub.py",
-    "v238_features.py",
+    # "v238_features.py",  # Eliminado: archivo no existe
 }
 
 

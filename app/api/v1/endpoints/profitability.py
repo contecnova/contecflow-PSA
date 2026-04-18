@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
@@ -18,6 +18,7 @@ def get_profitability_summary(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
+    response: Response = None,
 ):
     projects = profitability_service.get_summary_projects(db, status)
     project_ids = [p.id for p in projects]
@@ -40,6 +41,11 @@ def get_profitability_summary(
     total_margin = total_revenue - total_cost
     portfolio_margin_pct = (total_margin / total_revenue * 100) if total_revenue > 0 else 0
 
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
+
     return {
         "projects": sorted(results, key=lambda x: x["gross_margin"]),
         "portfolio": {
@@ -58,8 +64,13 @@ def get_profitability_projects(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     projects = profitability_service.get_summary_projects(db, status)
     project_ids = [p.id for p in projects]
 
@@ -84,7 +95,12 @@ def get_project_profitability(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if current_user.role not in [UserRole.admin, UserRole.pm]:
         raise HTTPException(403, "Acceso denegado")
 
@@ -99,15 +115,15 @@ def get_project_profitability(
 
     weekly: dict = {}
     for row in by_day_rows:
-        d = row.date if isinstance(row.date, date) else row[0]
+        d = row.date if hasattr(row, 'date') else row[0]
         if isinstance(d, str):
             d = date.fromisoformat(d)
         ws = d - timedelta(days=d.weekday())
         key = str(ws)
         if key not in weekly:
             weekly[key] = {"week": key, "hours": 0, "cost": 0}
-        weekly[key]["hours"] += row.hours or 0
-        weekly[key]["cost"] += row.cost or 0
+        weekly[key]["hours"] += getattr(row, 'hours', 0) or 0
+        weekly[key]["cost"] += getattr(row, 'cost', 0) or 0
 
     milestones = profitability_service.list_milestones(db, project_id)
 
@@ -143,7 +159,12 @@ def get_milestones(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     milestones = profitability_service.list_milestones(db, project_id)
     return [{"id": m.id, "name": m.name, "description": m.description,
              "due_date": str(m.due_date) if m.due_date else None,

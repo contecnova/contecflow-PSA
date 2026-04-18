@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "name": "clarive-frontend",
+  "name": "contecflow-frontend",
   "problems": [
     "missing: @testing-library/dom@^10.0.0, required by @testing-library/react@16.3.2"
   ],

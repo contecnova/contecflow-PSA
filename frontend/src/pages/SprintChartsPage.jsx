@@ -61,7 +61,7 @@ export default function SprintChartsPage() {
     <div style={{ padding: 32, maxWidth: 1050, margin: '0 auto' }}>
       <PageHeader
         title="Burnup & Velocity"
-        subtitle="Tendencias de velocidad y progreso de sprints"
+        subtitle={t('sprint_charts.subtitle')}
       />
 
       {/* Project + Sprint selectors */}

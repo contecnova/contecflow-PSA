@@ -51,7 +51,29 @@ def get_risk(db: Session, risk_id: str, project_id: str) -> Optional[Risk]:
 
 
 def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
+    allowed_fields = {
+        "title", "description", "category", "probability", "impact", "status", "mitigation_plan",
+        "contingency_plan", "response_type", "owner_id", "review_date", "cost_impact_min",
+        "cost_impact_max", "schedule_impact_days", "notes", "closed_date"
+    }
+    allowed_status_transitions = {
+        "identified":    ["analyzing", "mitigating", "monitoring", "closed", "materialized"],
+        "analyzing":     ["mitigating", "monitoring", "closed", "materialized"],
+        "mitigating":    ["monitoring", "closed", "materialized"],
+        "monitoring":    ["closed", "materialized"],
+        "closed":        [],
+        "materialized":  [],
+    }
+    old_status = str(risk.status)
     for k, v in updates.items():
+        if k not in allowed_fields:
+            continue
+        if k == "status":
+            new_status = str(v)
+            if new_status == old_status:
+                continue
+            if new_status not in allowed_status_transitions.get(old_status, []):
+                raise ValueError(f"Transición de estado no permitida: {old_status} → {new_status}")
         setattr(risk, k, v)
     risk.risk_score = risk_score(risk.probability, risk.impact)
     db.commit()

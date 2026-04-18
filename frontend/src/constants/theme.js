@@ -1,5 +1,5 @@
 /**
- * theme.js — Design tokens centralizados de Clarive
+ * theme.js — Design tokens centralizados de Contecflow
  *
  * REGLA: Nunca uses colores hex directamente en componentes.
  * - En CSS/JSX inline: usa var(--accent), var(--surface-2), etc.

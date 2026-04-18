@@ -185,6 +185,13 @@ def test_sprint_close_generates_velocity_metrics_flow(client, pm_token, db):
     assert payload["velocity"] > 0
     assert payload["incomplete_tasks"] == 1
 
+    # Verificar que la tarea incompleta sigue en el backlog del proyecto
+    backlog = client.get(f"/api/v1/projects/{project_id}/backlog", headers=auth(pm_token))
+    assert backlog.status_code == 200, backlog.text
+    backlog_tasks = backlog.json()
+    open_task_id = t2.json()["id"]
+    assert any(task["id"] == open_task_id for task in backlog_tasks), "La tarea incompleta no está en el backlog tras cerrar el sprint"
+
 
 def test_capacity_plan_blocked_by_approved_absence_flow(client, pm_token, db):
     monday = date.today() - timedelta(days=date.today().weekday())

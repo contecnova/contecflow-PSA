@@ -345,7 +345,7 @@ export default function OKRsPage() {
       <PageHeader
         icon={<Trophy size={18} />}
         title={t('okrs.title')}
-        subtitle="Objectives & Key Results — Seguimiento de metas estratégicas"
+        subtitle={t('okrs.subtitle')}
         actions={
           <div style={{ display:'flex', gap:10, alignItems:'center' }}>
             <select value={period} onChange={e => setPeriod(e.target.value)}

@@ -152,7 +152,7 @@ export default function ProjectPermissionsPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title="Permisos por proyecto"
-        subtitle="Controla quién accede a cada proyecto y qué puede hacer"
+        subtitle={t('project_permissions.subtitle')}
         actions={selectedProject && (
           <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>+ Añadir acceso</Button>
         )}

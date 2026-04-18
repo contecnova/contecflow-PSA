@@ -2,6 +2,7 @@
  * PageHeader — Cabecera de página consistente con icono, título, breadcrumb, acciones y métricas
  * Acepta un prop `icon` (elemento Lucide/JSX) que se muestra junto al título.
  */
+// subtitle debe ser SIEMPRE una cadena traducida (ej: t('modulo.subtitle'))
 export default function PageHeader({ title, subtitle, actions, breadcrumb, meta, icon }) {
   return (
     <div style={{

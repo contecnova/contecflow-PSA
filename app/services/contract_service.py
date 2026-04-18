@@ -8,6 +8,32 @@ from app.models.project import Project
 from app.models.user import User
 from app.services.numbering import next_numbered_code
 
+def query_contracts(
+    db: Session,
+    current_user: User,
+    project_id: Optional[str] = None,
+    client_id: Optional[str] = None,
+    status: Optional[str] = None,
+):
+    q = db.query(Contract).options(joinedload(Contract.work_orders))
+    q = scope_contract_query(q, db, current_user)
+    if project_id:
+        q = q.filter(Contract.project_id == project_id)
+    if client_id:
+        q = q.filter(Contract.client_id == client_id)
+    if status:
+        q = q.filter(Contract.status == status)
+    return q.order_by(Contract.created_at.desc())
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import IntegrityError
+from typing import Optional
+from datetime import date
+
+from app.models.pipeline import Contract, WorkOrder
+from app.models.project import Project
+from app.models.user import User
+from app.services.numbering import next_numbered_code
+
 
 def _next_code(db: Session) -> str:
     return next_numbered_code(db, "contract", prefix="CTR", padding=4)
@@ -70,7 +96,28 @@ def get_contract(db: Session, contract_id: str, current_user: User) -> Optional[
 
 
 def update_contract(db: Session, c: Contract, updates: dict) -> Contract:
+    # Solo permitir campos válidos
+    allowed_fields = {
+        "name", "status", "total_amount", "hourly_rate", "hours_bag", "monthly_retainer",
+        "end_date", "signed_date", "payment_terms", "notes"
+    }
+    # Controlar transiciones de estado
+    allowed_status_transitions = {
+        "draft":    ["active", "cancelled"],
+        "active":   ["expired", "cancelled"],
+        "expired":  [],
+        "cancelled": [],
+    }
+    old_status = str(c.status)
     for k, v in updates.items():
+        if k not in allowed_fields:
+            continue
+        if k == "status":
+            new_status = str(v)
+            if new_status == old_status:
+                continue
+            if new_status not in allowed_status_transitions.get(old_status, []):
+                raise ValueError(f"Transición de estado no permitida: {old_status} → {new_status}")
         setattr(c, k, v)
     db.commit()
     db.refresh(c)

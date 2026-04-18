@@ -267,7 +267,7 @@ export default function ProfitabilityPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('profitability.title')}
-        subtitle="Margen, costes e ingresos por proyecto"
+        subtitle={t('profitability.subtitle')}
         actions={
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>

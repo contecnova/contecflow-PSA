@@ -124,8 +124,7 @@ def decrypt_value(ciphertext: str) -> Optional[str]:
             key = _derive_record_key(salt)
             return Fernet(key).decrypt(token.encode()).decode()
         else:
-            # Legacy v1 format: global key
-            return Fernet(_get_key()).decrypt(ciphertext.encode()).decode()
+            raise ValueError("Legacy v1 format is no longer supported.")
     except Exception as exc:
         logger.warning(f"Decryption failed (value may be unencrypted plaintext): {exc}")
         return None

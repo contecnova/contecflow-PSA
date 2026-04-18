@@ -271,7 +271,7 @@ export default function RisksPage() {
       <PageHeader
         icon={<AlertTriangle size={18} />}
         title={t('risks.title')}
-        subtitle="Registro formal de riesgos del proyecto"
+        subtitle={t('risks.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}

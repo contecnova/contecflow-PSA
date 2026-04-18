@@ -254,7 +254,7 @@ export default function BIProjectDetailPage() {
     <div id="bi-project-detail-root" style={{ padding: 24 }}>
       <PageHeader
         title={t('bi.detail_title')}
-        subtitle={projectName}
+        subtitle={t('bi_project_detail.subtitle', { projectName })}
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button

@@ -279,7 +279,7 @@ function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId,
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function KanbanAdvancedPage() {
-  const _t          = useAppT()
+  const t           = useAppT()
   const toast       = useToast()
   const qc          = useQueryClient()
 
@@ -479,7 +479,7 @@ export default function KanbanAdvancedPage() {
       <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
         <PageHeader
           title="Kanban Avanzado"
-          subtitle="Arrastra tarjetas entre columnas · / para buscar · Shift+N nueva tarea"
+          subtitle={t('kanban.subtitle')}
           actions={
             <Button size="sm" variant="subtle" onClick={() => setShowSettings(s => !s)}>
               ⚙ Configurar

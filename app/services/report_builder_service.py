@@ -543,10 +543,12 @@ def _serialize_value(v: Any) -> Any:
 
 # ── Core report execution ─────────────────────────────────────────────────────
 
+
 def execute_report(
     entity: str, columns: List[str], filters: list, sort_column: Optional[str],
     sort_direction: str, limit: int, current_user: User, db: Session,
 ) -> List[Dict]:
+    # Conserva compatibilidad para preview, usa limit
     model = get_model_class(entity)
     if model is None:
         raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
@@ -594,15 +596,79 @@ def execute_report(
     ]
 
 
-def build_csv_response(columns: List[str], rows: List[Dict], entity: str) -> StreamingResponse:
+# Nueva función para paginación real
+from app.services.pagination_service import paginate_query
+def execute_report_paginated(
+    entity: str, columns: List[str], filters: list, sort_column: Optional[str],
+    sort_direction: str, page: int, page_size: int, current_user: User, db: Session,
+) -> dict:
+    model = get_model_class(entity)
+    if model is None:
+        raise HTTPException(400, f"Entidad '{entity}' no soportada en este entorno")
+
+    entity_def = ENTITIES.get(entity, {})
+    allowed_cols = set(entity_def.get("columns", {}).keys())
+
+    for c in columns:
+        if c not in allowed_cols:
+            raise HTTPException(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
+
+    db_query = db.query(model)
+
+    if not current_user.is_superadmin and current_user.organization_id:
+        org_id = current_user.organization_id
+        if hasattr(model, "organization_id"):
+            db_query = db_query.filter(model.organization_id == org_id)
+        elif hasattr(model, "project_id"):
+            proj_ids = db.query(_Proj.id).filter(
+                _Proj.organization_id == org_id
+            ).scalar_subquery()
+            db_query = db_query.filter(model.project_id.in_(proj_ids))
+
+    for f in filters:
+        col_name = f.column if hasattr(f, "column") else f.get("column", "")
+        op = f.operator if hasattr(f, "operator") else f.get("operator", "")
+        val = f.value if hasattr(f, "value") else f.get("value")
+        if col_name not in allowed_cols:
+            raise HTTPException(400, f"Columna de filtro '{col_name}' no permitida")
+        if op not in OPERATORS:
+            raise HTTPException(400, f"Operador '{op}' no soportado")
+        db_query = apply_filter(db_query, model, col_name, op, val)
+
+    if sort_column and sort_column in allowed_cols and hasattr(model, sort_column):
+        col = getattr(model, sort_column)
+        db_query = db_query.order_by(
+            col.desc() if sort_direction == "desc" else col.asc()
+        )
+
+    items, total, pages = paginate_query(db_query, page, page_size)
+    return {
+        "items": [
+            {c: _serialize_value(getattr(row, c, None)) for c in columns}
+            for row in items
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": pages,
+    }
+
+
+def build_csv_response(columns: List[str], rows: List[Dict], entity: str, pagination: dict = None) -> StreamingResponse:
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=columns)
     writer.writeheader()
     writer.writerows(rows)
     buf.seek(0)
     filename = f"report_{entity}_{date.today().isoformat()}.csv"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    if pagination:
+        headers["X-Total-Count"] = str(pagination.get("total", 0))
+        headers["X-Page"] = str(pagination.get("page", 1))
+        headers["X-Page-Size"] = str(pagination.get("page_size", len(rows)))
+        headers["X-Total-Pages"] = str(pagination.get("pages", 1))
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers=headers,
     )

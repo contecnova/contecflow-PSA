@@ -6,7 +6,7 @@ POST /portfolios/{portfolio_id}/projects
 DELETE /portfolios/{portfolio_id}/projects/{project_id}
 GET /portfolios/{portfolio_id}/dashboard
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -43,9 +43,12 @@ class PortfolioProjectIn(BaseModel):
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
-@router.get("", summary="Listar carteras")
 def list_portfolios(db: Session = Depends(get_db),
-                    cu: User = Depends(get_current_user)):
+                    cu: User = Depends(get_current_user), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     rows = portfolio_service.list_portfolios(
         db,
         is_superadmin=cu.is_superadmin,
@@ -54,9 +57,12 @@ def list_portfolios(db: Session = Depends(get_db),
     return [_serialize_portfolio(r) for r in rows]
 
 
-@router.post("", summary="Crear cartera", status_code=201)
 def create_portfolio(payload: PortfolioIn, db: Session = Depends(get_db),
-                     cu: User = Depends(require_admin_or_pm)):
+                     cu: User = Depends(require_admin_or_pm), response: Response = None):
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     p = portfolio_service.create_portfolio(
         db, owner_id=cu.id, data=payload.model_dump()
     )
@@ -67,6 +73,10 @@ def create_portfolio(payload: PortfolioIn, db: Session = Depends(get_db),
 def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(get_current_user)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
     return _serialize_portfolio(p)
@@ -77,6 +87,10 @@ def update_portfolio(portfolio_id: str, payload: PortfolioIn,
                      db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
     p = portfolio_service.update_portfolio(db, p, payload.model_dump(exclude_unset=True))
@@ -87,6 +101,10 @@ def update_portfolio(portfolio_id: str, payload: PortfolioIn,
 def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
     portfolio_service.delete_portfolio(db, p)
@@ -99,6 +117,10 @@ def add_project(portfolio_id: str, payload: PortfolioProjectIn,
                 db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not p:
         raise HTTPException(404, "Cartera no encontrada")
     proj = portfolio_service.get_project(db, payload.project_id)
@@ -122,6 +144,10 @@ def remove_project(portfolio_id: str, project_id: str,
                    db: Session = Depends(get_db),
                    cu: User = Depends(require_admin_or_pm)):
     pp = portfolio_service.get_portfolio_project(db, portfolio_id, project_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not pp:
         raise HTTPException(404, "El proyecto no está en esta cartera")
     portfolio_service.remove_project_from_portfolio(db, pp)
@@ -139,6 +165,10 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
     - Cross-project milestone timeline (for Gantt-style view)
     """
     port = portfolio_service.get_portfolio(db, portfolio_id)
+    if response is not None:
+        response.headers["x-api-version"] = "1"
+        response.headers["x-api-deprecated"] = "true"
+        response.headers["deprecation"] = "true"
     if not port:
         raise HTTPException(404, "Cartera no encontrada")
 
