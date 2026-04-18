@@ -22,10 +22,17 @@ const BAR_PAD  = 7
 const MS_R     = 7
 
 const STATUS_COLOR = {
-  todo: '#4a5a78', in_progress: '#4f8ef7', in_review: '#f59e0b',
-  done: '#34d399', blocked: '#f87171', active: '#4f8ef7',
-  planning: '#a78bfa', paused: '#f59e0b', closed: '#34d399',
-  cancelled: '#4a5a78', on_hold: '#f59e0b',
+  todo: 'var(--text-3)',
+  in_progress: 'var(--accent)',
+  in_review: 'var(--warning)',
+  done: 'var(--success)',
+  blocked: 'var(--danger)',
+  active: 'var(--accent)',
+  planning: 'var(--purple)',
+  paused: 'var(--warning)',
+  closed: 'var(--success)',
+  cancelled: 'var(--text-3)',
+  on_hold: 'var(--warning)',
 }
 
 function parseDate(s) {

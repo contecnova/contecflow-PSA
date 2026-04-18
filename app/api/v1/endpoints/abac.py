@@ -196,7 +196,7 @@ def create_policy(
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
 
-    rules = [r.dict() for r in schema.rules]
+    rules = [r.model_dump() for r in schema.rules]
     service = ABACService(db, org_id)
     policy = service.create_policy(
         policy_name=schema.policy_name,
@@ -243,7 +243,7 @@ def update_policy(
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
 
-    rules = [r.dict() for r in schema.rules]
+    rules = [r.model_dump() for r in schema.rules]
     service = ABACService(db, org_id)
     policy = service.update_policy(
         policy_id,

@@ -863,7 +863,7 @@ def delete_template(template_id: str, db: Session) -> dict:
 def add_template_document(template_id: str, payload, db: Session) -> dict:
     if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
         raise HTTPException(404, "Template not found")
-    doc = TemplateDocument(template_id=template_id, **payload.dict())
+    doc = TemplateDocument(template_id=template_id, **payload.model_dump())
     db.add(doc)
     db.commit()
     db.refresh(doc)
@@ -873,7 +873,7 @@ def add_template_document(template_id: str, payload, db: Session) -> dict:
 def add_template_role(template_id: str, payload, db: Session) -> dict:
     if not db.query(ProjectTemplate).filter(ProjectTemplate.id == template_id).first():
         raise HTTPException(404, "Template not found")
-    role = TemplateRole(template_id=template_id, **payload.dict())
+    role = TemplateRole(template_id=template_id, **payload.model_dump())
     db.add(role)
     db.commit()
     db.refresh(role)

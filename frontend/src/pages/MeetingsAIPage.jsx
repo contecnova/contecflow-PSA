@@ -7,9 +7,32 @@ import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const card = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-lg)',
+}
+const fs = {
+  width: '100%',
+  background: 'var(--surface-1)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-md)',
+  padding: 'var(--space-3) var(--space-3)',
+  color: 'var(--text-1)',
+  fontSize: '13px',
+  outline: 'none',
+  fontFamily: 'var(--font-sans)',
+  boxSizing: 'border-box',
+}
+const ls = {
+  fontSize: '11px',
+  fontWeight: 700,
+  color: 'var(--text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  display: 'block',
+  marginBottom: 'var(--space-1)',
+}
 
 const PLATFORMS = [
   { id: 'teams',  label: 'Microsoft Teams', icon: '💠' },

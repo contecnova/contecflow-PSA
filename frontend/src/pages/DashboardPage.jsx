@@ -622,7 +622,7 @@ function useDashboardConfig() {
 
   const saveBackend = React.useCallback((cfg) => {
     api.patch('/users/me/preferences', { dashboard_widgets: cfg }).catch((err) => {
-      console.warn('[Dashboard] Failed to persist widget config:', err?.message)
+      // silent fail — widget config is non-critical
     })
   }, [])
 
@@ -765,8 +765,7 @@ export default function DashboardPage() {
 
   if (kpisLoading) return <SkeletonDashboard />
 
-  // DIAGNOSTIC: remove after fix
-  console.log('[DIAG] DashboardPage rendering, kpis:', kpis)
+
 
   const isVisible = (id) => config.visible.includes(id)
 

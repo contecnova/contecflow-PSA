@@ -219,8 +219,8 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
 
         {error && (
           <div style={{
-            padding: '8px 12px', borderRadius: 8, background: '#EF444415',
-            color: '#EF4444', fontSize: 13, marginBottom: 14,
+            padding: '8px 12px', borderRadius: 8, background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
+            color: 'var(--danger)', fontSize: 13, marginBottom: 14,
           }}>
             {error}
           </div>
@@ -291,12 +291,12 @@ export default function ProjectTemplatesPage() {
       {/* Success banner */}
       {successMsg && (
         <div style={{
-          padding: '12px 18px', borderRadius: 10, background: '#10B98115',
-          border: '1px solid #10B98130', color: '#10B981', fontSize: 14,
+          padding: '12px 18px', borderRadius: 10, background: 'color-mix(in srgb, var(--success) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', fontSize: 14,
           marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           {successMsg}
-          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10B981', fontSize: 18 }}>×</button>
+          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', fontSize: 18 }}>×</button>
         </div>
       )}
 

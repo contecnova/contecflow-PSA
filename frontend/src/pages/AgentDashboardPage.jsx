@@ -8,11 +8,41 @@ import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const ps = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-lg)',
+  padding: 'var(--space-6) var(--space-8)',
+}
+const is = {
+  width: '100%',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-md)',
+  padding: 'var(--space-3) var(--space-3)',
+  color: 'var(--text-1)',
+  fontSize: '13px',
+  outline: 'none',
+  fontFamily: 'var(--font-sans)',
+  boxSizing: 'border-box',
+}
+const ls = {
+  fontSize: '11px',
+  fontWeight: 600,
+  color: 'var(--text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  display: 'block',
+  marginBottom: 'var(--space-1)',
+}
 
-const TOOLTIP_STYLE = {background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:8,color:'var(--text-1)',fontSize:12}
+const TOOLTIP_STYLE = {
+  background: 'var(--surface-2)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-md)',
+  color: 'var(--text-1)',
+  fontSize: '12px',
+}
 
 export default function AgentDashboardPage() {
   const t = useAppT()

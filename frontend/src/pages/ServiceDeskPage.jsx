@@ -1411,7 +1411,7 @@ function Config() {
   ]
   return (
     <div>
-      <div style={{ display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:16, flexWrap:'wrap' }}>
+      <div style={{ display:'flex', gap:8, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:16, flexWrap:'wrap', paddingLeft:12 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setSub(t.id)} style={{
             padding:'7px 16px', borderRadius:8,
@@ -2654,7 +2654,7 @@ export default function ServiceDeskPage() {
       {/* Tab bar */}
       <div role="tablist" aria-label={t('service_desk.tab_config')} style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
         borderBottom: '1px solid var(--surface-4)', paddingBottom: 16 }}>
-        {TABS.map(t => (
+        {TABS.map((t, i) => (
           <button key={t.id} role="tab" aria-selected={tab===t.id} aria-controls={`sd-panel-${t.id}`} id={`sd-tab-${t.id}`} onClick={() => setTab(t.id)} style={{
             padding: '8px 16px', borderRadius: 8,
             border: `1px solid ${tab===t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
@@ -2662,6 +2662,7 @@ export default function ServiceDeskPage() {
             color: tab===t.id ? 'var(--accent)' : 'var(--text-2)',
             fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
             whiteSpace: 'nowrap',
+            marginLeft: i === 0 ? 12 : undefined,
           }}>{t.label}</button>
         ))}
       </div>

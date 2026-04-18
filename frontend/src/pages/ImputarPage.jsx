@@ -199,7 +199,7 @@ export default function ImputarPage() {
           <select
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '11px 14px', color: form.project_id ? 'var(--text-1)' : 'var(--text-2)', fontSize: 14, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: form.project_id ? 'var(--text-1)' : 'var(--text-2)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer' }}
           >
             <option value="">{t('imputa_page.project_placeholder')}</option>
             {projects.map(p => (
@@ -217,7 +217,7 @@ export default function ImputarPage() {
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', cursor: form.project_id ? 'pointer' : 'not-allowed', opacity: form.project_id ? 1 : 0.5 }}
+            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', cursor: form.project_id ? 'pointer' : 'not-allowed', opacity: form.project_id ? 1 : 0.5 }}
           >
             <option value="">{t('imputa_page.task_none')}</option>
             {tasks.map(t => (
@@ -236,7 +236,7 @@ export default function ImputarPage() {
             value={form.date}
             onChange={e => set('date')(e.target.value)}
             max={today}
-            style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', width: '100%', boxSizing: 'border-box' }}
           />
         </div>
 
@@ -245,17 +245,17 @@ export default function ImputarPage() {
           <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.hours_label')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
             {HOUR_OPTIONS.map(h => (
               <button
                 key={h}
                 onClick={() => set('hours')(h)}
                 style={{
-                  flex: '1 0 60px', padding: '11px 6px', borderRadius: 8, textAlign: 'center',
+                  flex: '1 0 60px', padding: 'var(--space-4) var(--space-2)', borderRadius: 'var(--radius-md)', textAlign: 'center',
                   border: `1px solid ${form.hours === h ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
                   background: form.hours === h ? 'var(--accent-glow)' : 'var(--surface-3)',
                   color: form.hours === h ? 'var(--accent)' : 'var(--text-2)',
-                  fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                  fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s',
                 }}
               >
                 {h}h
@@ -263,7 +263,7 @@ export default function ImputarPage() {
             ))}
           </div>
           {form.hours > 0 && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', textAlign: 'right' }}>
+            <div style={{ marginTop: 'var(--space-2)', fontSize: '12px', color: 'var(--text-2)', textAlign: 'right' }}>
               {t('imputa_page.total_today')}: <span style={{ color: todayHours + form.hours > 8 ? 'var(--warning)' : 'var(--text-1)', fontWeight: 700 }}>
                 {(todayHours + form.hours).toFixed(1)}h
               </span> / 8h
@@ -272,8 +272,8 @@ export default function ImputarPage() {
         </div>
 
         {/* Description */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 'var(--space-2)' }}>
             {t('imputa_page.description_label')}
           </label>
           <textarea
@@ -281,7 +281,7 @@ export default function ImputarPage() {
             onChange={e => set('description')(e.target.value)}
             placeholder={t('imputa_page.description_placeholder')}
             rows={3}
-            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 'var(--radius-md)', padding: 'var(--space-4) var(--space-4)', color: 'var(--text-1)', fontSize: '14px', outline: 'none', fontFamily: 'var(--font-sans)', resize: 'vertical', boxSizing: 'border-box' }}
           />
         </div>
 

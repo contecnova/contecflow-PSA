@@ -19,10 +19,10 @@ const fmtE = n => n == null ? '—' : `${Number(n).toLocaleString('es-ES', { max
 const fmtI = n => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const RAG = {
-  green:  { color: '#22c55e', label: 'En control',  Icon: CheckCircle },
-  yellow: { color: '#eab308', label: 'Atención',    Icon: AlertTriangle },
-  red:    { color: '#ef4444', label: 'En riesgo',   Icon: AlertTriangle },
-  grey:   { color: '#6b7280', label: 'Sin datos',   Icon: Clock },
+  green:  { color: 'var(--success)', label: 'En control',  Icon: CheckCircle },
+  yellow: { color: 'var(--warning)', label: 'Atención',    Icon: AlertTriangle },
+  red:    { color: 'var(--danger)',  label: 'En riesgo',   Icon: AlertTriangle },
+  grey:   { color: 'var(--text-2)', label: 'Sin datos',   Icon: Clock },
 };
 
 // ── RAG pill ───────────────────────────────────────────────────────────────────

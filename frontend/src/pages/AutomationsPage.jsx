@@ -845,7 +845,7 @@ export default function AutomationsPage() {
                     ))}
                   </div>
                   <button aria-label={`Usar plantilla ${tpl.name}`} onClick={() => createFromTemplate(tpl)}
-                    style={{ background: 'linear-gradient(135deg,#00d4ff,#7c3aed)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
+                    style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, width: '100%' }}>
                     Usar esta plantilla
                   </button>
                 </div>

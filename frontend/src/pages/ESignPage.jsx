@@ -27,13 +27,32 @@ function StatusPill({ status }) {
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
-      borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
+      borderRadius: 'var(--radius-md)', padding: '2px var(--space-3)', fontSize: '11px', fontWeight: 600,
     }}>{s.label}</span>
   )
 }
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = {
+  width: '100%',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 'var(--radius-md)',
+  padding: 'var(--space-3) var(--space-3)',
+  color: 'var(--text-1)',
+  fontSize: '13px',
+  outline: 'none',
+  fontFamily: 'var(--font-sans)',
+  boxSizing: 'border-box',
+}
+const ls = {
+  fontSize: '11px',
+  fontWeight: 700,
+  color: 'var(--text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  display: 'block',
+  marginBottom: 'var(--space-1)',
+}
 
 function CreateEnvelopeModal({ onClose, onCreated }) {
   const [form, setForm] = useState({

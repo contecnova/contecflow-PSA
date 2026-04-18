@@ -77,7 +77,7 @@ function EVMDetail({ projectId, onClose }) {
         boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
       }} onClick={e => e.stopPropagation()}>
         {isLoading && <div style={{ color: 'var(--text-3)' }}>Calculando métricas EVM…</div>}
-        {isError  && <div style={{ color: '#ef4444' }}>Error al cargar métricas</div>}
+        {isError  && <div style={{ color: 'var(--danger)' }}>Error al cargar métricas</div>}
         {data && <>
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>

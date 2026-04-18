@@ -405,7 +405,7 @@ function SubDetail({ sub, onBack }) {
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Personas', value: sub.worker_count ?? '—', color: '#a855f7' },
+          { label: 'Personas', value: sub.worker_count ?? '—', color: 'var(--purple, #a855f7)' },
           { label: 'Asignaciones', value: assignments.length, color: 'var(--accent)' },
           { label: 'Horas registradas', value: `${totalHours.toFixed(1)}h`, color: 'var(--success)' },
           { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: 'var(--warning)' },

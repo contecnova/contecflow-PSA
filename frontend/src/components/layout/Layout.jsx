@@ -419,7 +419,7 @@ function ShortcutsModal({ onClose, text }) {
 
 function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin, text = {} }) {
   const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
-  const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
+  const badgeColor = item.to === '/approvals' ? 'var(--warning)' : 'var(--danger)'
   const displayLabel = getNavLabel(item.to, item.label, t)
   const isPinned = pinned?.includes(item.to)
   const [hover, setHover] = useState(false)
@@ -453,7 +453,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
         </span>
         {!collapsed && <span style={{ flex: 1, fontSize: 12.5 }}>{displayLabel}</span>}
         {!collapsed && badge > 0 && (
-          <span style={{ background: badgeColor + '22', color: badgeColor, borderRadius: 9,
+          <span style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: badgeColor, borderRadius: 9,
             padding: '1px 5px', fontSize: 9.5, fontWeight: 700, flexShrink: 0 }}>{badge}</span>
         )}
       </NavLink>
@@ -464,7 +464,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           style={{
             position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
             background: 'none', border: 'none', cursor: 'pointer',
-            color: isPinned ? '#f59e0b' : 'var(--text-3)', padding: '2px 4px', lineHeight: 1, fontSize: 13,
+            color: isPinned ? 'var(--warning)' : 'var(--text-3)', padding: '2px 4px', lineHeight: 1, fontSize: 13,
           }}
         >{isPinned ? '★' : '☆'}</button>
       )}
@@ -814,7 +814,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '3px 4px' }}>
       {matches.map(item => {
         const badge = item.to === '/alerts' ? alertCount : item.to === '/approvals' ? approvalCount : 0
-        const badgeColor = item.to === '/approvals' ? '#ffb800' : '#ff4757'
+        const badgeColor = item.to === '/approvals' ? 'var(--warning)' : 'var(--danger)'
         const itemLabel = getNavLabel(item.to, item.label, t)
         return (
           <NavLink key={item.to} to={item.to} onClick={onNavigate}
@@ -831,7 +831,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
           >
             <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
             <span style={{ flex: 1, fontSize: 12.5 }}>{itemLabel}</span>
-            {badge > 0 && <span style={{ background: badgeColor + '22', color: badgeColor, borderRadius: 9, padding: '1px 5px', fontSize: 9.5, fontWeight: 700 }}>{badge}</span>}
+            {badge > 0 && <span style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: badgeColor, borderRadius: 9, padding: '1px 5px', fontSize: 9.5, fontWeight: 700 }}>{badge}</span>}
           </NavLink>
         )
       })}

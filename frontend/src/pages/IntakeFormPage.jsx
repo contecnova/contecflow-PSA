@@ -8,7 +8,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import axios from 'axios'
 import { useAppT } from '../i18n/AppLangContext'
 
-const BASE_URL = import.meta.env.VITE_API_URL || ''
+const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/api\/v1\/?$/, '')
 
 const FS = {
   width: '100%', background: '#fff', border: '1px solid #d1d5db',

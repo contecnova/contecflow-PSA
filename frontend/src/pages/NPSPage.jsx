@@ -18,8 +18,8 @@ import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width: '100%', background: '#2d3748', border: '1px solid #4a5568', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const HEALTH_COLOR = (score) => score >= 75 ? '#68d391' : score >= 50 ? '#f6ad55' : '#fc8181'
 

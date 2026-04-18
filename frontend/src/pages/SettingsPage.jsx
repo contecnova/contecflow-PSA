@@ -894,9 +894,7 @@ function IdiomasSection() {
   const [hasUnsaved,    setHasUnsaved]    = useState(false)
 
   // Todas las claves del back-office
-  console.log('DEBUG es', es)
   const allKeys = getAllKeys(es)
-  console.log('DEBUG allKeys', allKeys)
   const modules = ['all', ...new Set(allKeys.map(k => k.module))]
 
   // Carga asíncrona de traducciones para edición
