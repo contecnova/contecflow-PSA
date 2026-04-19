@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 /**
- * DashboardPage v23 — Dashboard ejecutivo con widgets completos
- * Muestra KPIs de todos los módulos en un vistazo
+ * DashboardPage v24 — Drag & Resize widgets + extended metrics catalog
  */
 
 import { useQuery } from '@tanstack/react-query'
+import GridLayout from 'react-grid-layout'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
 import api, { dashboardApi, alertsApi } from '../services/api'
 import { Spinner } from '../components/ui'
 import _PageHeader from '../components/layout/PageHeader'
@@ -17,7 +19,8 @@ import useCountUp from '../hooks/useCountUp'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
 
 const COLORS = ['var(--accent)','var(--success)','var(--warning)','var(--purple)','var(--danger)','var(--warning)']
-const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+// panel: no border/radius — the grid-item wrapper supplies those
+const panel = { background: 'var(--surface-2)', height: '100%', boxSizing: 'border-box' }
 const LANG_LOCALE = { es: 'es-ES', en: 'en-GB', fr: 'fr-FR', de: 'de-DE', pt: 'pt-PT', it: 'it-IT', pl: 'pl-PL', zh: 'zh-CN' }
 
 // ── Animated KPI number ───────────────────────────────────────────────────────
@@ -59,7 +62,7 @@ function KpiRow({ kpis }) {
   ]
 
   return (
-    <div className="grid-kpi grid-kpi-dashboard" style={{ marginBottom: 24 }}>
+    <div className="grid-kpi grid-kpi-dashboard" style={{ marginBottom: 0 }}>
       {cards.map(c => (
         <div key={c.label} onClick={() => nav(c.path)}
           className="surface-card-interactive"
@@ -147,8 +150,6 @@ function TeamLoadWidget() {
       .catch(() => []),
   })
 
-  // Filtrar usuarios con capacidad definida, ordenar por carga desc
-  // Incluir usuarios con load_pct = 0 para mostrar que existen pero sin trabajo esta semana
   const load = rawLoad
     .slice(0, 8)
     .map(u => ({ ...u, load_pct: u.load_pct || 0 }))
@@ -169,7 +170,6 @@ function TeamLoadWidget() {
           {t('dashboard.no_team_config')}
         </div>
       ) : allZero ? (
-        // Si todos tienen 0%, mostrar lista de usuarios con barras vacías + mensaje
         <div>
           <div style={{ fontSize: 11, color: 'var(--warning)', marginBottom: 10, padding: '6px 10px',
             background: 'var(--warning-bg)', borderRadius: 6, border: 'var(--warning-border)' }}>
@@ -295,7 +295,6 @@ function ProjectsHealthWidget() {
         <button onClick={() => nav('/projects')} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('dashboard.see_all_m')}</button>
       </div>
 
-      {/* Resumen semáforo */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[['🟢', counts.ok, 'var(--success)', t('dashboard.health_ok')], ['🟡', counts.warn, 'var(--warning)', t('dashboard.health_risk')], ['🔴', counts.crit, 'var(--danger)', t('dashboard.health_critical')]].map(([ico, n, color, lbl]) => (
           <div key={lbl} style={{ flex: 1, textAlign: 'center', padding: '8px 4px',
@@ -309,7 +308,6 @@ function ProjectsHealthWidget() {
         ))}
       </div>
 
-      {/* Lista de proyectos individuales */}
       {isLoading ? <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: 8 }}>{t('dashboard.loading')}</div> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
           {projects.length === 0 && (
@@ -583,158 +581,412 @@ function OverdueTasksWidget() {
   )
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-// ── Widget registry y configuración ──────────────────────────────────────────
+// ── Burndown Widget ───────────────────────────────────────────────────────────
+function BurndownWidget() {
+  const t = useAppT()
+  const { data: sprints = [] } = useQuery({
+    queryKey: ['dash-sprints-active'],
+    queryFn: () => api.get('/sprints', { params: { status: 'active', limit: 1 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 60000,
+  })
+  const activeSprint = sprints[0]
+  const { data: sprintTasks = [] } = useQuery({
+    queryKey: ['dash-burndown-tasks', activeSprint?.id],
+    queryFn: () => api.get('/tasks', { params: { sprint_id: activeSprint.id, limit: 200 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    enabled: !!activeSprint?.id,
+    staleTime: 60000,
+  })
+
+  const total = sprintTasks.length
+  const done = sprintTasks.filter(tk => tk.status === 'done').length
+  const inProg = sprintTasks.filter(tk => tk.status === 'in_progress').length
+  const pct = total > 0 ? Math.round(done / total * 100) : 0
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📉 {t('dashboard.widget_burndown')}</div>
+      {!activeSprint ? (
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('dashboard.no_active_sprint')}</div>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 14, fontWeight: 600 }}>{activeSprint.name}</div>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            {[
+              { label: t('dashboard.done_label'), value: done, color: 'var(--success)' },
+              { label: t('dashboard.in_progress_label'), value: inProg, color: 'var(--accent)' },
+              { label: t('dashboard.remaining_label'), value: Math.max(0, total - done - inProg), color: 'var(--text-3)' },
+            ].map(s => (
+              <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '10px 6px', background: 'var(--surface-3)', borderRadius: 8 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+            <span>{pct}% {t('dashboard.completed_label')}</span>
+            <span>{total} {t('dashboard.tasks_total_label')}</span>
+          </div>
+          <div style={{ background: 'var(--surface-4)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
+            <div style={{ width: `${pct}%`, height: '100%', background: pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--accent)' : 'var(--warning)', borderRadius: 6, transition: 'width 0.6s' }} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Velocity Widget ───────────────────────────────────────────────────────────
+function VelocityWidget() {
+  const t = useAppT()
+  const { data: sprints = [] } = useQuery({
+    queryKey: ['dash-velocity'],
+    queryFn: () => api.get('/sprints', { params: { status: 'completed', limit: 6 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 120000,
+  })
+
+  const data = sprints.map(s => ({
+    name: (s.name || `S${s.id}`).slice(0, 10),
+    pts: s.completed_points ?? s.velocity ?? 0,
+  }))
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🚀 {t('dashboard.widget_velocity')}</div>
+      {data.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('dashboard.no_sprint_data')}</div>
+      ) : (
+        <ResponsiveContainer width="100%" height={150}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-2)' }} axisLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} axisLine={false} />
+            <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 12 }} />
+            <Bar dataKey="pts" fill="var(--accent)" radius={[4,4,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  )
+}
+
+// ── Expenses Widget ───────────────────────────────────────────────────────────
+function ExpensesWidget() {
+  const t = useAppT()
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['dash-expenses'],
+    queryFn: () => api.get('/expenses', { params: { limit: 100 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 120000,
+  })
+
+  const byCategory = expenses.reduce((acc, e) => {
+    const cat = e.category || 'other'
+    acc[cat] = (acc[cat] || 0) + (e.amount || 0)
+    return acc
+  }, {})
+  const data = Object.entries(byCategory).sort((a,b) => b[1]-a[1]).slice(0, 5)
+  const grandTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0)
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>💰 {t('dashboard.widget_expenses')}</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)' }}>{fmtCurrency(grandTotal)}</div>
+      </div>
+      {data.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>—</div>
+      ) : data.map(([cat, total]) => {
+        const pct = grandTotal > 0 ? Math.round(total / grandTotal * 100) : 0
+        return (
+          <div key={cat} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-2)', marginBottom: 3 }}>
+              <span style={{ textTransform: 'capitalize' }}>{cat}</span>
+              <span style={{ fontWeight: 600 }}>{pct}%</span>
+            </div>
+            <div style={{ background: 'var(--surface-4)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Risks Widget ──────────────────────────────────────────────────────────────
+function RisksWidget() {
+  const nav = useNavigate()
+  const t = useAppT()
+  const { data: risks = [] } = useQuery({
+    queryKey: ['dash-risks'],
+    queryFn: () => api.get('/risks', { params: { limit: 200 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 120000,
+  })
+
+  const bySev = { critical: 0, high: 0, medium: 0, low: 0 }
+  risks.forEach(r => { if (r.severity in bySev) bySev[r.severity]++ })
+  const COLORS_SEV = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--success)' }
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>⚠️ {t('dashboard.widget_risks')}</div>
+        <button onClick={() => nav('/grc')} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('dashboard.see_all_m')}</button>
+      </div>
+      {risks.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--success)', padding: '8px 0' }}>✓ {t('dashboard.no_risks')}</div>
+      ) : (
+        <>
+          {Object.entries(bySev).filter(([,v]) => v > 0).map(([sev, count]) => (
+            <div key={sev} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--surface-4)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS_SEV[sev], flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 12, color: 'var(--text-1)', textTransform: 'capitalize' }}>{sev}</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: COLORS_SEV[sev], fontFamily: 'var(--font-mono)' }}>{count}</span>
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 10 }}>{t('dashboard.total_risks')}: {risks.length}</div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Approvals Widget ──────────────────────────────────────────────────────────
+function ApprovalsWidget() {
+  const t = useAppT()
+  const { data: approvals = [] } = useQuery({
+    queryKey: ['dash-approvals'],
+    queryFn: () => api.get('/approvals', { params: { status: 'pending', limit: 8 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 60000,
+  })
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>✅ {t('dashboard.widget_approvals')}</div>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 8px', borderRadius: 10 }}>
+          {approvals.length} {t('dashboard.pending_label')}
+        </span>
+      </div>
+      {approvals.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--success)', padding: '8px 0' }}>✓ {t('dashboard.no_approvals')}</div>
+      ) : approvals.slice(0, 6).map(a => (
+        <div key={a.id} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
+          <div style={{ flex: 1, fontSize: 12, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {a.title || a.name || `#${a.id}`}
+          </div>
+          <span style={{ fontSize: 10, color: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 12%, transparent)', padding: '2px 6px', borderRadius: 4, fontWeight: 700, flexShrink: 0 }}>
+            PENDING
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Contracts Widget ──────────────────────────────────────────────────────────
+function ContractsWidget() {
+  const nav = useNavigate()
+  const t = useAppT()
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['dash-contracts'],
+    queryFn: () => api.get('/contracts', { params: { limit: 100 } }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items ?? [])
+    }).catch(() => []),
+    staleTime: 120000,
+  })
+
+  const active = contracts.filter(c => c.status === 'active').length
+  const expiringSoon = contracts.filter(c => {
+    if (!c.end_date) return false
+    const daysLeft = (new Date(c.end_date) - new Date()) / 86400000
+    return daysLeft > 0 && daysLeft <= 30
+  }).length
+
+  return (
+    <div style={{ ...panel, padding: '20px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>📝 {t('dashboard.widget_contracts')}</div>
+        <button onClick={() => nav('/contracts')} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('dashboard.see_all_m')}</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ textAlign: 'center', padding: '14px 8px', background: 'var(--surface-3)', borderRadius: 10 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>{active}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{t('dashboard.contracts_active')}</div>
+        </div>
+        <div style={{ textAlign: 'center', padding: '14px 8px', background: 'var(--surface-3)', borderRadius: 10 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: expiringSoon > 0 ? 'var(--warning)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{expiringSoon}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{t('dashboard.contracts_expiring')}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Widget registry ───────────────────────────────────────────────────────────
 const ALL_WIDGETS = [
-  { id: 'kpis',       label: 'KPIs principales',    icon: '◈', size: 'full' },
-  { id: 'tasks',      label: 'Mis tareas activas',   icon: '▦', size: 'third' },
-  { id: 'alerts',     label: 'Alertas',              icon: '🔔', size: 'third' },
-  { id: 'health',     label: 'Salud proyectos',      icon: '⬡', size: 'third' },
-  { id: 'overdue',    label: 'Tareas vencidas',      icon: '⚠', size: 'third' },
-  { id: 'team',       label: 'Carga del equipo',     icon: '👥', size: 'twothird' },
-  { id: 'pipeline',   label: 'Pipeline',             icon: '🎪', size: 'sixth' },
-  { id: 'clients',    label: 'Clientes activos',     icon: '🏢', size: 'sixth' },
-  { id: 'hours',      label: 'Horas por semana',     icon: '⏱', size: 'half' },
-  { id: 'activity',   label: 'Actividad reciente',   icon: '⚡', size: 'half' },
-  { id: 'docs',       label: 'Documentos recientes', icon: '📎', size: 'half' },
+  { id: 'kpis',      icon: '◈', defaultHidden: false },
+  { id: 'tasks',     icon: '▦', defaultHidden: false },
+  { id: 'alerts',    icon: '🔔', defaultHidden: false },
+  { id: 'health',    icon: '⬡', defaultHidden: false },
+  { id: 'overdue',   icon: '⚠', defaultHidden: false },
+  { id: 'team',      icon: '👥', defaultHidden: false },
+  { id: 'pipeline',  icon: '🎪', defaultHidden: false },
+  { id: 'clients',   icon: '🏢', defaultHidden: false },
+  { id: 'hours',     icon: '⏱', defaultHidden: false },
+  { id: 'activity',  icon: '⚡', defaultHidden: false },
+  { id: 'docs',      icon: '📎', defaultHidden: false },
+  { id: 'burndown',  icon: '📉', defaultHidden: true },
+  { id: 'velocity',  icon: '🚀', defaultHidden: true },
+  { id: 'expenses',  icon: '💰', defaultHidden: true },
+  { id: 'risks',     icon: '⚠️', defaultHidden: true },
+  { id: 'approvals', icon: '✅', defaultHidden: true },
+  { id: 'contracts', icon: '📝', defaultHidden: true },
 ]
 
-const DASHBOARD_STORAGE_KEY = 'clarive-dashboard-v1'
+// Default grid positions (12-column grid, rowHeight=60)
+const DEFAULT_POSITIONS = {
+  kpis:      { i: 'kpis',      x: 0, y: 0,  w: 12, h: 3,  minW: 6, minH: 2 },
+  tasks:     { i: 'tasks',     x: 0, y: 3,  w: 4,  h: 7,  minW: 3, minH: 4 },
+  alerts:    { i: 'alerts',    x: 4, y: 3,  w: 4,  h: 7,  minW: 3, minH: 4 },
+  health:    { i: 'health',    x: 8, y: 3,  w: 4,  h: 7,  minW: 3, minH: 4 },
+  overdue:   { i: 'overdue',   x: 0, y: 10, w: 4,  h: 7,  minW: 3, minH: 4 },
+  team:      { i: 'team',      x: 4, y: 10, w: 8,  h: 7,  minW: 4, minH: 4 },
+  pipeline:  { i: 'pipeline',  x: 0, y: 17, w: 6,  h: 7,  minW: 3, minH: 4 },
+  clients:   { i: 'clients',   x: 6, y: 17, w: 6,  h: 7,  minW: 3, minH: 4 },
+  hours:     { i: 'hours',     x: 0, y: 24, w: 6,  h: 6,  minW: 4, minH: 4 },
+  activity:  { i: 'activity',  x: 6, y: 24, w: 6,  h: 6,  minW: 4, minH: 4 },
+  docs:      { i: 'docs',      x: 0, y: 30, w: 6,  h: 6,  minW: 4, minH: 4 },
+  burndown:  { i: 'burndown',  x: 6, y: 30, w: 6,  h: 6,  minW: 3, minH: 4 },
+  velocity:  { i: 'velocity',  x: 0, y: 36, w: 6,  h: 6,  minW: 4, minH: 4 },
+  expenses:  { i: 'expenses',  x: 6, y: 36, w: 6,  h: 6,  minW: 3, minH: 4 },
+  risks:     { i: 'risks',     x: 0, y: 42, w: 4,  h: 7,  minW: 3, minH: 4 },
+  approvals: { i: 'approvals', x: 4, y: 42, w: 4,  h: 7,  minW: 3, minH: 4 },
+  contracts: { i: 'contracts', x: 8, y: 42, w: 4,  h: 6,  minW: 3, minH: 4 },
+}
 
-const buildDefaultDashboardConfig = () => ({
-  visible: ALL_WIDGETS.map(w => w.id),
-  order: ALL_WIDGETS.map(w => w.id),
-})
+const DASHBOARD_STORAGE_KEY = 'clarive-dashboard-v2'
 
-const isValidDashboardConfig = (cfg) => (
-  !!cfg
-  && Array.isArray(cfg.visible)
-  && Array.isArray(cfg.order)
-)
+function buildDefaultConfig() {
+  return {
+    visible: ALL_WIDGETS.filter(w => !w.defaultHidden).map(w => w.id),
+    layout: ALL_WIDGETS.map(w => DEFAULT_POSITIONS[w.id]),
+  }
+}
+
+function isValidConfig(cfg) {
+  return !!cfg && Array.isArray(cfg.visible) && Array.isArray(cfg.layout)
+}
+
+function migrateOldConfig(old) {
+  if (!old || !Array.isArray(old.visible)) return null
+  if (Array.isArray(old.order) && !Array.isArray(old.layout)) {
+    return { visible: old.visible, layout: ALL_WIDGETS.map(w => DEFAULT_POSITIONS[w.id]) }
+  }
+  return null
+}
 
 function useDashboardConfig() {
-  const defaultConfig = React.useMemo(() => buildDefaultDashboardConfig(), [])
   const [config, setConfig] = React.useState(null)
 
   const saveLocal = React.useCallback((cfg) => {
-    localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(cfg))
+    try { localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(cfg)) } catch {}
   }, [])
 
   const saveBackend = React.useCallback((cfg) => {
-    api.patch('/users/me/preferences', { dashboard_widgets: cfg }).catch((err) => {
-      // silent fail — widget config is non-critical
-    })
+    api.patch('/users/me/preferences', { dashboard_widgets: cfg }).catch(() => {})
   }, [])
 
   React.useEffect(() => {
     let mounted = true
+    const defaultConfig = buildDefaultConfig()
 
     const readLocal = () => {
       try {
         const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY)
         if (!raw) return null
         const parsed = JSON.parse(raw)
-        return isValidDashboardConfig(parsed) ? parsed : null
-      } catch {
-        return null
-      }
+        if (isValidConfig(parsed)) return parsed
+        return migrateOldConfig(parsed)
+      } catch { return null }
     }
 
     const loadConfig = async () => {
       const localConfig = readLocal()
-
       try {
         const prefs = await api.get('/users/me/preferences').then(r => r.data)
-        const remoteConfig = prefs?.dashboard_widgets
-
-        if (isValidDashboardConfig(remoteConfig)) {
-          if (mounted) setConfig(remoteConfig)
-          saveLocal(remoteConfig)
+        const remote = prefs?.dashboard_widgets
+        if (isValidConfig(remote)) {
+          if (mounted) setConfig(remote)
+          saveLocal(remote)
           return
         }
-
-        if (localConfig) {
-          if (mounted) setConfig(localConfig)
-          saveBackend(localConfig)
-          return
-        }
-      } catch {
-        if (localConfig) {
-          if (mounted) setConfig(localConfig)
-          return
-        }
-      }
-
-      try {
-        const seed = await api.get('/dashboard/seed-config').then(r => r.data?.config)
-        const seededConfig = (seed?.visible && seed?.order)
-          ? { visible: seed.visible, order: seed.order }
-          : defaultConfig
-        if (mounted) setConfig(seededConfig)
-        saveLocal(seededConfig)
-        saveBackend(seededConfig)
-      } catch {
-        if (mounted) setConfig(defaultConfig)
-      }
+      } catch {}
+      if (localConfig) { if (mounted) setConfig(localConfig); return }
+      if (mounted) setConfig(defaultConfig)
     }
 
     loadConfig()
     return () => { mounted = false }
-  }, [defaultConfig, saveBackend, saveLocal])
+  }, [saveLocal, saveBackend])
 
-  const resolvedConfig = config || defaultConfig
-  
-  const save = (newConfig) => {
+  const resolvedConfig = config || buildDefaultConfig()
+
+  const save = React.useCallback((newConfig) => {
     setConfig(newConfig)
     saveLocal(newConfig)
     saveBackend(newConfig)
-  }
-  
-  const toggle = (id) => {
-    const visible = resolvedConfig.visible.includes(id)
-      ? resolvedConfig.visible.filter(x => x !== id)
-      : [...resolvedConfig.visible, id]
-    save({ ...resolvedConfig, visible })
-  }
-  
-  const moveUp = (id) => {
-    const order = [...resolvedConfig.order]
-    const idx = order.indexOf(id)
-    if (idx > 0) { [order[idx-1], order[idx]] = [order[idx], order[idx-1]] }
-    save({ ...resolvedConfig, order })
-  }
-  
-  const moveDown = (id) => {
-    const order = [...resolvedConfig.order]
-    const idx = order.indexOf(id)
-    if (idx < order.length - 1) { [order[idx], order[idx+1]] = [order[idx+1], order[idx]] }
-    save({ ...resolvedConfig, order })
-  }
-  
-  const reset = () => save({ 
-    visible: ALL_WIDGETS.map(w => w.id), 
-    order: ALL_WIDGETS.map(w => w.id) 
-  })
+  }, [saveLocal, saveBackend])
 
-  const reorder = (fromId, toId) => {
-    if (fromId === toId) return
-    const order = [...resolvedConfig.order]
-    const fromIdx = order.indexOf(fromId)
-    const toIdx = order.indexOf(toId)
-    if (fromIdx === -1 || toIdx === -1) return
-    order.splice(fromIdx, 1)
-    order.splice(toIdx, 0, fromId)
-    save({ ...resolvedConfig, order })
-  }
-  
-  const orderedWidgets = resolvedConfig.order
-    .map(id => ALL_WIDGETS.find(w => w.id === id))
-    .filter(Boolean)
-    .concat(ALL_WIDGETS.filter(w => !resolvedConfig.order.includes(w.id)))
-  
-  return { config: resolvedConfig, orderedWidgets, toggle, moveUp, moveDown, reset, reorder }
+  const toggle = React.useCallback((id) => {
+    setConfig(prev => {
+      const cur = prev || buildDefaultConfig()
+      const visible = cur.visible.includes(id)
+        ? cur.visible.filter(x => x !== id)
+        : [...cur.visible, id]
+      const next = { ...cur, visible }
+      saveLocal(next); saveBackend(next)
+      return next
+    })
+  }, [saveLocal, saveBackend])
+
+  const updateLayout = React.useCallback((newLayout) => {
+    setConfig(prev => {
+      const cur = prev || buildDefaultConfig()
+      const layoutMap = Object.fromEntries(cur.layout.map(l => [l.i, l]))
+      newLayout.forEach(item => {
+        layoutMap[item.i] = { ...layoutMap[item.i], ...item }
+      })
+      const next = { ...cur, layout: Object.values(layoutMap) }
+      saveLocal(next); saveBackend(next)
+      return next
+    })
+  }, [saveLocal, saveBackend])
+
+  const reset = React.useCallback(() => {
+    const d = buildDefaultConfig()
+    setConfig(d); saveLocal(d); saveBackend(d)
+  }, [saveLocal, saveBackend])
+
+  const visibleLayout = resolvedConfig.layout
+    .filter(l => resolvedConfig.visible.includes(l.i))
+    .map(l => ({ ...DEFAULT_POSITIONS[l.i], ...l }))
+
+  return { config: resolvedConfig, visibleLayout, toggle, updateLayout, reset }
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const t = useAppT()
   const { lang } = useAppLang()
@@ -744,47 +996,46 @@ export default function DashboardPage() {
     staleTime: 30000,
     refetchInterval: 60000,
   })
-  const { config, orderedWidgets, toggle, reset, reorder } = useDashboardConfig()
+  const { config, visibleLayout, toggle, updateLayout, reset } = useDashboardConfig()
   const [configOpen, setConfigOpen] = useState(false)
-  const [dragOver, setDragOver] = useState(null)
-  const dragId = React.useRef(null)
-  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
+  const containerRef = useRef(null)
+  const [gridWidth, setGridWidth] = useState(0)
 
   useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const el = containerRef.current
+    if (!el) return
+    const update = () => setGridWidth(el.getBoundingClientRect().width)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
-
-  const isMobile = viewportWidth <= 900
-  const isTablet = viewportWidth > 900 && viewportWidth <= 1200
-
-  const topWidgetsCols = isMobile ? '1fr' : '1fr 1fr 1fr'
-  const teamRowCols = isMobile ? '1fr' : isTablet ? '1fr 1fr' : '2fr 1fr 1fr'
-  const bottomRowCols = isMobile ? '1fr' : '1fr 1fr'
 
   if (kpisLoading) return <SkeletonDashboard />
 
-
-
-  const isVisible = (id) => config.visible.includes(id)
-
   const WIDGET_MAP = {
-    kpis:     <div data-tour="kpi-row"><KpiRow kpis={kpis} /></div>,
-    tasks:    <MyPendingWidget />,
-    alerts:   <AlertsWidget />,
-    health:   <ProjectsHealthWidget />,
-    overdue:  <OverdueTasksWidget />,
-    team:     <TeamLoadWidget />,
-    pipeline: <PipelineWidget />,
-    clients:  <TopClientsWidget />,
-    hours:    <HoursChartWidget />,
-    activity: <RecentActivityWidget />,
-    docs:     <RecentDocumentsWidget />,
+    kpis:      <div style={{ padding: '12px 16px 8px', height: '100%', boxSizing: 'border-box' }}><KpiRow kpis={kpis} /></div>,
+    tasks:     <MyPendingWidget />,
+    alerts:    <AlertsWidget />,
+    health:    <ProjectsHealthWidget />,
+    overdue:   <OverdueTasksWidget />,
+    team:      <TeamLoadWidget />,
+    pipeline:  <PipelineWidget />,
+    clients:   <TopClientsWidget />,
+    hours:     <HoursChartWidget />,
+    activity:  <RecentActivityWidget />,
+    docs:      <RecentDocumentsWidget />,
+    burndown:  <BurndownWidget />,
+    velocity:  <VelocityWidget />,
+    expenses:  <ExpensesWidget />,
+    risks:     <RisksWidget />,
+    approvals: <ApprovalsWidget />,
+    contracts: <ContractsWidget />,
   }
 
   return (
     <div style={{ padding: 32 }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Dashboard</div>
@@ -792,71 +1043,65 @@ export default function DashboardPage() {
             {t('dashboard.overview')} · {new Date().toLocaleDateString(LANG_LOCALE[lang] || 'es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
           </div>
         </div>
-        <button onClick={() => setConfigOpen(o => !o)} data-tour="dashboard-customize"
-          style={{ background: configOpen ? 'var(--accent-muted)' : 'var(--surface-2)',
+        <button
+          onClick={() => setConfigOpen(o => !o)}
+          data-tour="dashboard-customize"
+          style={{
+            background: configOpen ? 'var(--accent-muted)' : 'var(--surface-2)',
             border: `1px solid ${configOpen ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
             borderRadius: 9, color: configOpen ? 'var(--accent)' : 'var(--text-2)', padding: '8px 16px',
             cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', display: 'flex', gap: 6, alignItems: 'center',
-            transition: 'all 0.15s', width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+            transition: 'all 0.15s',
+          }}
+        >
           ⊞ {t('dashboard.customize_dashboard')}
         </button>
       </div>
 
-      {/* Widget configuration panel */}
+      {/* Widget catalog panel */}
       {configOpen && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-          borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{t('dashboard.widgets_title')}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{t('dashboard.widgets_hint')}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{t('dashboard.widgets_hint_drag')}</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={reset}
-                style={{ fontSize: 11, color: 'var(--text-2)', background: 'none',
-                  border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px',
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.1s' }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--surface-5)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
+              <button
+                onClick={reset}
+                style={{ fontSize: 11, color: 'var(--text-2)', background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 {t('dashboard.reset')}
               </button>
-              <button onClick={() => setConfigOpen(false)}
-                style={{ fontSize: 18, lineHeight: 1, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}>
+              <button
+                onClick={() => setConfigOpen(false)}
+                style={{ fontSize: 18, lineHeight: 1, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+              >
                 ×
               </button>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 8 }}>
-            {orderedWidgets.map((w) => {
-              const visible = isVisible(w.id)
-              const isOver = dragOver === w.id
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+            {ALL_WIDGETS.map(w => {
+              const visible = config.visible.includes(w.id)
               return (
-                <div key={w.id}
-                  draggable
-                  onDragStart={() => { dragId.current = w.id }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(w.id) }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={() => { reorder(dragId.current, w.id); setDragOver(null) }}
-                  onDragEnd={() => { dragId.current = null; setDragOver(null) }}
+                <div
+                  key={w.id}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
-                    background: isOver ? 'var(--accent-muted)' : 'var(--surface-3)',
-                    borderRadius: 8, cursor: 'grab',
-                    border: `1px solid ${isOver ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
-                    opacity: visible ? 1 : 0.5, transition: 'background 0.1s, border-color 0.1s, opacity 0.2s',
-                    userSelect: 'none',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                    background: 'var(--surface-3)', borderRadius: 8,
+                    border: `1px solid ${visible ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
+                    opacity: visible ? 1 : 0.55, transition: 'all 0.15s',
                   }}
                 >
-                  <span style={{ color: 'var(--text-3)', fontSize: 11, cursor: 'grab', flexShrink: 0 }}>⠿</span>
                   <span style={{ fontSize: 14, flexShrink: 0 }}>{w.icon}</span>
-                  <span style={{ flex: 1, fontSize: 12, color: visible ? 'var(--text-1)' : 'var(--text-3)', fontWeight: 500 }}>{t('dashboard.widget_' + w.id)}</span>
-                  <button onClick={() => toggle(w.id)} title={visible ? t('dashboard.hide') : t('dashboard.show')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer',
-                      color: visible ? 'var(--accent)' : 'var(--text-3)',
-                      fontSize: 13, padding: '2px', flexShrink: 0, transition: 'color 0.1s' }}
-                    onMouseEnter={e => e.currentTarget.style.color = visible ? 'var(--danger)' : 'var(--accent)'}
-                    onMouseLeave={e => e.currentTarget.style.color = visible ? 'var(--accent)' : 'var(--text-3)'}
+                  <span style={{ flex: 1, fontSize: 12, color: visible ? 'var(--text-1)' : 'var(--text-3)', fontWeight: 500 }}>
+                    {t('dashboard.widget_' + w.id)}
+                  </span>
+                  <button
+                    onClick={() => toggle(w.id)}
+                    title={visible ? t('dashboard.hide') : t('dashboard.show')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: visible ? 'var(--accent)' : 'var(--text-3)', fontSize: 13, padding: '2px', flexShrink: 0 }}
                   >
                     {visible ? '👁' : '○'}
                   </button>
@@ -867,31 +1112,57 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Widgets en orden configurado */}
-      {isVisible('kpis') && <div style={{ marginBottom: 16 }}>{WIDGET_MAP.kpis}</div>}
-
-      <div style={{ display: 'grid', gridTemplateColumns: topWidgetsCols, gap: 16, marginBottom: 16 }}>
-        {['tasks','alerts','health'].filter(isVisible).map(id => (
-          <div key={id}>{WIDGET_MAP[id]}</div>
-        ))}
-      </div>
-
-      {isVisible('overdue') && (
-        <div style={{ display: 'grid', gridTemplateColumns: topWidgetsCols, gap: 16, marginBottom: 16 }}>
-          <div>{WIDGET_MAP.overdue}</div>
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: teamRowCols, gap: 16, marginBottom: 16 }}>
-        {isVisible('team') && <div>{WIDGET_MAP.team}</div>}
-        {isVisible('pipeline') && <div>{WIDGET_MAP.pipeline}</div>}
-        {isVisible('clients') && <div>{WIDGET_MAP.clients}</div>}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: bottomRowCols, gap: 16 }}>
-        {isVisible('hours')    && <div>{WIDGET_MAP.hours}</div>}
-        {isVisible('activity') && <div>{WIDGET_MAP.activity}</div>}
-        {isVisible('docs')     && <div>{WIDGET_MAP.docs}</div>}
+      {/* Grid */}
+      <div ref={containerRef}>
+        {gridWidth > 0 && config.visible.length > 0 && (
+          <GridLayout
+            layout={visibleLayout}
+            cols={12}
+            rowHeight={60}
+            width={gridWidth}
+            onLayoutChange={updateLayout}
+            isDraggable
+            isResizable
+            draggableHandle=".dash-drag-handle"
+            margin={[14, 14]}
+            containerPadding={[0, 0]}
+            resizeHandles={['se', 's', 'e']}
+          >
+            {config.visible.map(id => {
+              const w = ALL_WIDGETS.find(x => x.id === id)
+              return (
+                <div
+                  key={id}
+                  style={{
+                    display: 'flex', flexDirection: 'column',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--surface-4)',
+                    borderRadius: 12, overflow: 'hidden',
+                  }}
+                >
+                  {/* Drag handle bar */}
+                  <div
+                    className="dash-drag-handle"
+                    style={{
+                      height: 28, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px',
+                      background: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)',
+                      cursor: 'grab', userSelect: 'none',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-3)', fontSize: 11, letterSpacing: 1 }}>⠿⠿</span>
+                    <span style={{ fontSize: 13 }}>{w?.icon}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)' }}>{t('dashboard.widget_' + id)}</span>
+                  </div>
+                  {/* Widget content */}
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                    {WIDGET_MAP[id]}
+                  </div>
+                </div>
+              )
+            })}
+          </GridLayout>
+        )}
       </div>
     </div>
   )

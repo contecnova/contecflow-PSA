@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@tanstack/react-query": "^5.45.0",
+    "@testing-library/dom": "^9.3.4",
     "@testing-library/react": "^16.3.2",
     "axios": "^1.7.2",
     "date-fns": "^3.6.0",
@@ -12,13 +13,13 @@
     "lucide-react": "^0.394.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-grid-layout": "^2.2.3",
     "react-router-dom": "^6.23.1",
     "react-window": "^1.8.10",
     "recharts": "^2.12.7",
     "y-websocket": "^3.0.0",
     "yjs": "^13.6.30",
-    "zod": "^3.25.76",
-    "@testing-library/dom": "^9.3.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@babel/parser": "^7.28.4",
@@ -30,12 +31,12 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^24.0.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "vite": "^7.1.12",
     "vitest": "^2.1.8",
-    "workbox-window": "^7.1.0",
-    "jsdom": "^24.0.0"
+    "workbox-window": "^7.1.0"
   },
   "scripts": {
     "dev": "vite",
