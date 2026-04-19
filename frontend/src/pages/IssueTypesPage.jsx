@@ -60,13 +60,13 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
             <input style={is} value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({...f, name:n, value: isEdit ? f.value : autoValue(n)}))
-            }} placeholder="Historia de usuario" />
+            }} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={ls}>Valor interno</label>
             <input style={{...is, fontFamily:'monospace', fontSize:12}} value={form.value}
               onChange={e => set('value')(e.target.value)} disabled={isEdit}
-              placeholder="historia" />
+              placeholder={t(modulo.clave)} />
           </div>
         </div>
 
@@ -74,7 +74,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
           <div>
             <label style={ls}>Icono</label>
             <input style={{...is, textAlign:'center', fontSize:20}} value={form.icon}
-              onChange={e => set('icon')(e.target.value)} placeholder="📖" />
+              onChange={e => set('icon')(e.target.value)} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={ls}>Color</label>
@@ -92,7 +92,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
         <div>
           <label style={ls}>Descripción</label>
           <input style={is} value={form.description} onChange={e => set('description')(e.target.value)}
-            placeholder="Cuándo usar este tipo de issue" />
+            placeholder={t(modulo.clave)} />
         </div>
 
         <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
@@ -177,7 +177,7 @@ export default function IssueTypesPage() {
         </select>
       </div>
 
-      {!project && <EmptyState icon="🏷" title="Selecciona un proyecto" description="Los tipos de issue se configuran por proyecto" />}
+      {!project && <EmptyState icon="🏷" title={t(modulo.clave)} description={t(modulo.clave)} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && types.length === 0 && (

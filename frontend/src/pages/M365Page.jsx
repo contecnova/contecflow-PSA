@@ -73,7 +73,7 @@ function CalendarTab() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={ls}>UPN del usuario (usuario@empresa.com)</label>
-            <input value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder="user@contoso.com" />
+            <input value={upn} onChange={e => setUpn(e.target.value)} style={fs} placeholder={t(modulo.clave)} />
           </div>
           <div style={{ width: 100 }}>
             <label style={ls}>Días</label>
@@ -107,7 +107,7 @@ function CalendarTab() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={ls}>Calendario destino (UPN)</label>
-            <input value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder="pm@contoso.com" />
+            <input value={msUpn} onChange={e => setMsUpn(e.target.value)} style={fs} placeholder={t(modulo.clave)} />
           </div>
           <div style={{ width: 100 }}>
             <label style={ls}>Días</label>
@@ -156,16 +156,16 @@ function TeamsTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={ls}>Título</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder="Alerta de presupuesto" />
+            <input value={title} onChange={e => setTitle(e.target.value)} style={fs} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={ls}>Mensaje</label>
-            <textarea value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder="El proyecto XYZ ha superado el 90% del presupuesto…" />
+            <textarea value={text} onChange={e => setText(e.target.value)} style={{ ...fs, resize: 'vertical' }} rows={3} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={ls}>Color (hex sin #)</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
+              <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder={t(modulo.clave)} />
               {['0078D4','FF0000','FF8C00','107C10','5C2D91'].map(c => (
                 <button key={c} onClick={() => setColor(c)} style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid #fff' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />
               ))}
@@ -291,8 +291,8 @@ export default function M365Page() {
   return (
     <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
       <PageHeader
-        title="Microsoft 365"
-        subtitle="Integración profunda: sincronización de Calendar + notificaciones de Teams"
+        title={t(modulo.clave)}
+        subtitle={t(modulo.clave)}
       />
 
       {/* Connection pills */}

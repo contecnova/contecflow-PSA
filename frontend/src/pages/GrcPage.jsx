@@ -265,7 +265,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
 
         <div>
           <label style={ls}>Descripción del riesgo</label>
-          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder="Ej: Quien crea facturas no debe aprobarlas (riesgo de fraude)" />
+          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div>
@@ -361,7 +361,7 @@ function SodTab() {
       </div>
 
       {isLoading ? <Spinner /> : rules.length === 0 ? (
-        <EmptyState icon="⚠️" title="Sin reglas SoD" description="Define pares de acciones que no deben recaer en la misma persona" />
+        <EmptyState icon="⚠️" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rules.map(rule => {
@@ -450,7 +450,7 @@ function ViolationsTab() {
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
-        <EmptyState icon={filter === false ? '✅' : '🔍'} title="Sin violaciones" description={filter === false ? 'No hay violaciones SoD pendientes de resolver' : 'No hay violaciones registradas'} />
+        <EmptyState icon={filter === false ? '✅' : '🔍'} title={t(modulo.clave)} description={filter === false ? 'No hay violaciones SoD pendientes de resolver' : 'No hay violaciones registradas'} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {violations.map(v => (
@@ -520,7 +520,7 @@ function AuditLogTab() {
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
-        <EmptyState icon="📋" title="Sin registros" description="Los eventos GRC aparecerán aquí al realizarse cambios de permisos, reglas SoD o violaciones" />
+        <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 600, overflowY: 'auto', paddingRight: 4 }}>
           {log.map(e => {
@@ -569,8 +569,8 @@ function ApprovalsTab() {
       </div>
 
       {isLoading ? <Spinner /> : workflows.length === 0 ? (
-        <EmptyState icon="✅" title="Sin flujos configurados"
-          description="Ve a Aprobaciones → Flujos para crear flujos de aprobación por entidad" />
+        <EmptyState icon="✅" title={t(modulo.clave)}
+          description={t(modulo.clave)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {workflows.map(wf => (

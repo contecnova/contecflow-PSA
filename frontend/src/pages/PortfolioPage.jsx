@@ -50,7 +50,7 @@ function PortfolioModal({ initial, onClose, onSave }) {
       <div style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Transformación Digital 2026" /></div>
+          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t(modulo.clave)} /></div>
           <div><label style={ls}>Descripción</label><textarea value={form.description || ''} onChange={set('description')} style={{ ...fs, resize: 'vertical', minHeight: 70 }} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div><label style={ls}>Estado</label>
@@ -60,7 +60,7 @@ function PortfolioModal({ initial, onClose, onSave }) {
                 <option value="archived">Archivado</option>
               </select>
             </div>
-            <div><label style={ls}>Presupuesto total (€)</label><input type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder="500000" /></div>
+            <div><label style={ls}>Presupuesto total (€)</label><input type="number" value={form.budget_total || ''} onChange={set('budget_total')} style={fs} placeholder={t(modulo.clave)} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div><label style={ls}>Fecha inicio</label><input type="date" value={form.start_date || ''} onChange={set('start_date')} style={fs} /></div>
@@ -100,7 +100,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Añadir proyecto a la cartera</div>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyecto…"
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t(modulo.clave)}
           style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 13, marginBottom: 12 }} />
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {available.map(p => (

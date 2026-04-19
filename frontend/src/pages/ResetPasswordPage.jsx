@@ -1,3 +1,4 @@
+import { useAppT } from "@/hooks/useAppT";
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../services/api'
@@ -85,7 +86,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Nueva contrasena"
+              placeholder={t(modulo.clave)}
               autoComplete="new-password"
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
             />
@@ -94,7 +95,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirmar contrasena"
+              placeholder={t(modulo.clave)}
               autoComplete="new-password"
               style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
             />

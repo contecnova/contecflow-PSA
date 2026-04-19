@@ -147,7 +147,7 @@ function OppFormModal({ opp, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder="Proyecto de migración cloud" />
+          <input value={form.name} onChange={set('name')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Cliente *</label>
@@ -159,7 +159,7 @@ function OppFormModal({ opp, onClose }) {
         </div>
         <div>
           <label style={ls}>Contacto</label>
-          <input value={form.contact_name} onChange={set('contact_name')} style={fs} placeholder="Juan García" />
+          <input value={form.contact_name} onChange={set('contact_name')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Etapa</label>
@@ -173,19 +173,19 @@ function OppFormModal({ opp, onClose }) {
         </div>
         <div>
           <label style={ls}>Revenue esperado (€)</label>
-          <input type="number" value={form.expected_revenue} onChange={set('expected_revenue')} style={fs} placeholder="0" />
+          <input type="number" value={form.expected_revenue} onChange={set('expected_revenue')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Margen esperado %</label>
-          <input type="number" value={form.expected_margin_pct} onChange={set('expected_margin_pct')} style={fs} placeholder="25" />
+          <input type="number" value={form.expected_margin_pct} onChange={set('expected_margin_pct')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Horas estimadas</label>
-          <input type="number" value={form.expected_hours} onChange={set('expected_hours')} style={fs} placeholder="0" />
+          <input type="number" value={form.expected_hours} onChange={set('expected_hours')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Duración (semanas)</label>
-          <input type="number" value={form.expected_duration_weeks} onChange={set('expected_duration_weeks')} style={fs} placeholder="0" />
+          <input type="number" value={form.expected_duration_weeks} onChange={set('expected_duration_weeks')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Fecha cierre estimada</label>
@@ -198,12 +198,12 @@ function OppFormModal({ opp, onClose }) {
         {(form.stage === 'lost') && (
           <div style={{ gridColumn: '1/-1' }}>
             <label style={ls}>Motivo de pérdida</label>
-            <input value={form.lost_reason} onChange={set('lost_reason')} style={fs} placeholder="Precio, competencia..." />
+            <input value={form.lost_reason} onChange={set('lost_reason')} style={fs} placeholder={t(modulo.clave)} />
           </div>
         )}
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Descripción</label>
-          <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Descripción del proyecto..." />
+          <textarea value={form.description} onChange={set('description')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -286,7 +286,7 @@ function OppDetailModal({ opp, onClose, onEdit }) {
           {activities.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin actividad registrada</div>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input value={comment} onChange={e => setComment(e.target.value)} placeholder="Añadir nota..."
+          <input value={comment} onChange={e => setComment(e.target.value)} placeholder={t(modulo.clave)}
             style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
             onKeyDown={e => e.key === 'Enter' && comment && addActivity()} />
           <Button size="sm" onClick={() => addActivity()} disabled={!comment}>Añadir</Button>
@@ -387,7 +387,7 @@ export default function PipelinePage() {
       </div>
 
       {isLoading ? <Spinner /> : !isLoading && summary.open_opportunities === 0 && !Object.values(stages).some(s => s.count > 0) ? (
-        <EmptyState icon="📣" title="No hay oportunidades en el pipeline" description="Crea tu primera oportunidad para comenzar a gestionar el proceso de ventas." ctaLabel="Nueva oportunidad" onCta={() => document.querySelector('[data-action=new-opp]')?.click()} />
+        <EmptyState icon="📣" title={t(modulo.clave)} description={t(modulo.clave)} ctaLabel={t(modulo.clave)} onCta={() => document.querySelector('[data-action=new-opp]')?.click()} />
       ) : view === 'kanban' ? (
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16 }}>
           {ACTIVE_STAGES.map(stage => {

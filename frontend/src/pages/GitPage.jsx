@@ -137,7 +137,7 @@ export default function GitPage() {
       {/* PR table */}
       {tab === 'prs' && (
         loadPR ? <Spinner /> : prs.length === 0 ? (
-          <EmptyState icon="🔀" title="No hay Pull Requests" description="Los PRs aparecerán aquí cuando el webhook reciba eventos de GitHub/GitLab." />
+          <EmptyState icon="🔀" title={t(modulo.clave)} description={t(modulo.clave)} />
         ) : (
           <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -191,7 +191,7 @@ export default function GitPage() {
       {/* Deployments table */}
       {tab === 'deps' && (
         loadDep ? <Spinner /> : deploys.length === 0 ? (
-          <EmptyState icon="🚀" title="No hay deployments" description="Los deployments aparecerán aquí cuando el webhook reciba eventos de GitHub/GitLab." />
+          <EmptyState icon="🚀" title={t(modulo.clave)} description={t(modulo.clave)} />
         ) : (
           <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -240,7 +240,7 @@ export default function GitPage() {
       {tab === 'config' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ConfigSection
-            title="GitHub"
+            title={t(modulo.clave)}
             icon="🐙"
             webhookPath="/api/v1/git/webhooks/github"
             envVar="GITHUB_WEBHOOK_SECRET"
@@ -254,7 +254,7 @@ export default function GitPage() {
             ]}
           />
           <ConfigSection
-            title="GitLab"
+            title={t(modulo.clave)}
             icon="🦊"
             webhookPath="/api/v1/git/webhooks/gitlab"
             envVar="GITLAB_WEBHOOK_SECRET"

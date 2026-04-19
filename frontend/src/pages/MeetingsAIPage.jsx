@@ -67,11 +67,11 @@ function ProcessModal({ onClose }) {
   })
 
   return (
-    <Modal open title="Procesar reunión con IA" onClose={onClose} width={700}>
+    <Modal open title={t(modulo.clave)} onClose={onClose} width={700}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Título *</label>
-          <input value={form.title} onChange={s('title')} style={fs} placeholder="Sprint Review Q3 · Kickoff Proyecto Alpha..." />
+          <input value={form.title} onChange={s('title')} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div>
@@ -83,12 +83,12 @@ function ProcessModal({ onClose }) {
 
         <div>
           <label style={ls}>Duración (minutos)</label>
-          <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder="45" />
+          <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Participantes (separados por coma)</label>
-          <input value={form.participants} onChange={s('participants')} style={fs} placeholder="Pedro García, María López, Carlos Ruiz..." />
+          <input value={form.participants} onChange={s('participants')} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div style={{ gridColumn: '1/-1' }}>
@@ -101,7 +101,7 @@ function ProcessModal({ onClose }) {
           </div>
           <textarea value={form.transcript} onChange={s('transcript')} rows={10}
             style={{ ...fs, resize: 'vertical', lineHeight: 1.5 }}
-            placeholder="Pega aquí la transcripción completa de la reunión..." />
+            placeholder={t(modulo.clave)} />
         </div>
       </div>
 

@@ -439,7 +439,7 @@ function TaskDetailModal({ task, open, onClose }) {
           {/* Horas + Fechas */}
           <div>
             <label style={ls}>{t('tasks.estimated_hours')}</label>
-            <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" min="0" step="0.5" />
+            <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder={t(modulo.clave)} min="0" step="0.5" />
           </div>
           <div style={{ gridColumn: '1/-1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
@@ -1168,7 +1168,7 @@ function CreateTaskModal({ open, onClose, projects }) {
         )}
         <div>
           <label style={ls}>{t('tasks.estimated_hours')}</label>
-          <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder="0" />
+          <input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>{t('tasks.date_start')}</label>

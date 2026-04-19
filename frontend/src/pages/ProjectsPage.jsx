@@ -317,7 +317,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del proyecto" />
+          <input value={form.name} onChange={set('name')} style={fs} placeholder={t(modulo.clave)} />
           {errors.name && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.name}</div>}
         </div>
         <div>
@@ -345,7 +345,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
           <ClientSelect
             value={form.client_id}
             onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
-            placeholder="— Sin cliente asignado —"
+            placeholder={t(modulo.clave)}
             style={fs}
           />
         </div>
@@ -365,18 +365,18 @@ function ProjectFormModal({ open, onClose, project = null }) {
         </div>
         <div>
           <label style={ls}>Presupuesto (€)</label>
-          <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="0" />
+          <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder={t(modulo.clave)} />
           {errors.budget_amount && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
               <label style={ls}>Importe retainer (€/mes)</label>
-              <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder="0" />
+              <input type="number" value={form.retainer_amount} onChange={set('retainer_amount')} style={fs} placeholder={t(modulo.clave)} />
             </div>
             <div>
               <label style={ls}>Día del mes (1-28)</label>
-              <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder="1" />
+              <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder={t(modulo.clave)} />
               {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.retainer_day}</div>}
             </div>
           </>
@@ -393,7 +393,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Descripción</label>
           <textarea value={form.description} onChange={set('description')} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder="Descripción del proyecto..." />
+            style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -680,7 +680,7 @@ function TemplatesTab() {
       </div>
 
       {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState icon="📋" title="Sin plantillas" description="Crea plantillas de proyecto para acelerar la creación de nuevos proyectos" />
+        <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:16}}>
           {templates.map(t => (
@@ -724,7 +724,7 @@ function TemplatesTab() {
             </div>
             <div><label style={ls}>Nombre del proyecto *</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-              <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder="— Sin cliente —" style={fs} /></div>
+              <div><label style={ls}>Cliente</label><ClientSelect value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={t(modulo.clave)} style={fs} /></div>
               <div><label style={ls}>Fecha de inicio</label><input type="date" value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Presupuesto €</label><input type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} style={fs} /></div>
               <div><label style={ls}>Project Manager</label>
@@ -745,9 +745,9 @@ function TemplatesTab() {
       )}
 
       {showCreate && (
-        <Modal open title="Nueva plantilla de proyecto" onClose={() => setShowCreate(false)} width={580}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={580}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Implementación ERP" /></div>
+            <div><label style={ls}>Nombre *</label><input value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} style={fs} placeholder={t(modulo.clave)} /></div>
             <div><label style={ls}>Descripción</label><textarea value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} /></div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
               <div><label style={ls}>Tipo</label>
@@ -864,7 +864,7 @@ export default function ProjectsPage() {
       {/* Filters */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Buscar por nombre o código..."
+          placeholder={t(modulo.clave)}
           className="sm:col-span-2"
           style={{ minWidth: 0, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
         />
@@ -885,7 +885,7 @@ export default function ProjectsPage() {
       {isLoading ? (
         <SkeletonProjects />
       ) : filtered.length === 0 ? (
-        <EmptyState icon="folder" title="Sin proyectos" description="Crea tu primer proyecto para empezar a gestionar tu equipo, tareas y entregas." ctaLabel="Nuevo proyecto" onCta={() => setShowCreate(true)} />
+        <EmptyState icon="folder" title={t(modulo.clave)} description={t(modulo.clave)} ctaLabel={t(modulo.clave)} onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {sortedProjects.map(p => (

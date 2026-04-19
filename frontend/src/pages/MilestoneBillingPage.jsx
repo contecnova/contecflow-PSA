@@ -34,12 +34,12 @@ function StatusBadge({ status }) {
 function RejectModal({ _milestone, onClose, onReject }) {
   const [reason, setReason] = useState('')
   return (
-    <Modal open title="✗ Rechazar milestone" onClose={onClose} width={420}>
+    <Modal open title={t(modulo.clave)} onClose={onClose} width={420}>
       <div style={{ marginBottom: 16 }}>
         <label style={lbl}>Motivo del rechazo *</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
           style={{ ...inp, minHeight: 80, resize: 'vertical' }}
-          placeholder="Explica qué falta o qué debe corregirse..." />
+          placeholder={t(modulo.clave)} />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
@@ -184,11 +184,11 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
   })
 
   return (
-    <Modal open title="+ Nuevo milestone de facturación" onClose={onClose} width={500}>
+    <Modal open title={t(modulo.clave)} onClose={onClose} width={500}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
           <label style={lbl}>Nombre *</label>
-          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Entrega fase 1, Aprobación diseño..." />
+          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={lbl}>Fecha límite</label>
@@ -197,11 +197,11 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={lbl}>Importe a facturar (€)</label>
-            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder="5000" />
+            <input type="number" value={form.billing_amount} onChange={e => setForm(f=>({...f,billing_amount:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={lbl}>O % del contrato</label>
-            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} style={inp} placeholder="25" min="0" max="100" />
+            <input type="number" value={form.billing_pct} onChange={e => setForm(f=>({...f,billing_pct:e.target.value}))} style={inp} placeholder={t(modulo.clave)} min="0" max="100" />
           </div>
         </div>
         <div>
@@ -261,7 +261,7 @@ export default function MilestoneBillingPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="🧾 Facturación por Milestones"
+        title={t(modulo.clave)}
         subtitle={_t('milestone_billing.subtitle')}
       />
 
@@ -293,9 +293,9 @@ export default function MilestoneBillingPage() {
           </div>
 
           {!selectedProject ? (
-            <EmptyState icon="🧾" title="Selecciona un proyecto" description="Elige un proyecto para gestionar sus milestones de facturación" />
+            <EmptyState icon="🧾" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : milestones.length === 0 ? (
-            <EmptyState icon="○" title="Sin milestones" description="Crea milestones para gestionar la facturación por hitos" />
+            <EmptyState icon="○" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div>
               {/* Flujo visual */}
@@ -331,7 +331,7 @@ export default function MilestoneBillingPage() {
       {tab === 'dashboard' && (
         <div>
           {dashboard.length === 0 ? (
-            <EmptyState icon="✅" title="Sin acciones pendientes" description="Todos los milestones están al día" />
+            <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <>
               <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>

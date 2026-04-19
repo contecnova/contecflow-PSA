@@ -1,3 +1,4 @@
+import { useAppT } from "@/hooks/useAppT";
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -87,12 +88,12 @@ function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions })
               </div>
             ))}
           </div>
-          <Section title="Descripción" content={c.description} />
-          <Section title="Justificación de negocio" content={c.business_justification} />
-          <Section title="Plan de implementación" content={c.implementation_plan} />
-          <Section title="Plan de rollback" content={c.rollback_plan} />
-          <Section title="Plan de pruebas" content={c.test_plan} />
-          <Section title="Descripción de impacto" content={c.impact_description} />
+          <Section title={t(modulo.clave)} content={c.description} />
+          <Section title={t(modulo.clave)} content={c.business_justification} />
+          <Section title={t(modulo.clave)} content={c.implementation_plan} />
+          <Section title={t(modulo.clave)} content={c.rollback_plan} />
+          <Section title={t(modulo.clave)} content={c.test_plan} />
+          <Section title={t(modulo.clave)} content={c.impact_description} />
         </>}
       </div>
     </div>
@@ -161,9 +162,9 @@ function NewChangeModal({ onClose, onSaved }) {
   const LS = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
-    <Modal open title="Nuevo Change Request ITSM" onClose={onClose} size="lg">
+    <Modal open title={t(modulo.clave)} onClose={onClose} size="lg">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ gridColumn: '1/-1' }}><label style={LS}>Título *</label><input value={form.title} onChange={set('title')} style={IS} placeholder="Descripción breve del cambio" /></div>
+        <div style={{ gridColumn: '1/-1' }}><label style={LS}>Título *</label><input value={form.title} onChange={set('title')} style={IS} placeholder={t(modulo.clave)} /></div>
         <div><label style={LS}>Tipo de cambio</label><select value={form.change_type} onChange={set('change_type')} style={IS}><option value="standard">Standard — pre-aprobado</option><option value="normal">Normal — requiere CAB</option><option value="emergency">Emergency — ECAB</option></select></div>
         <div><label style={LS}>Riesgo</label><select value={form.risk} onChange={set('risk')} style={IS}><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option><option value="critical">Crítico</option></select></div>
         <div><label style={LS}>Inicio planificado</label><input type="datetime-local" value={form.planned_start} onChange={set('planned_start')} style={IS} /></div>
@@ -226,7 +227,7 @@ export default function ChangeManagementTab() {
         <Button onClick={() => setShowNew(true)}>+ Nuevo Change Request</Button>
       </div>
 
-      {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title="Sin changes" description="No hay change requests activos" /> :
+      {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title={t(modulo.clave)} description={t(modulo.clave)} /> :
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>Título</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>

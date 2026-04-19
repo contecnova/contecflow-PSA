@@ -131,7 +131,7 @@ export default function RevenuePage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState icon="📊" title="Sin datos de reconocimiento" description="Crea reglas y registra entradas mensuales para ver el gráfico" />
+            <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} />
           )}
         </div>
       )}
@@ -143,7 +143,7 @@ export default function RevenuePage() {
             <Button onClick={() => setShowCreate(true)}>+ Nueva regla</Button>
           </div>
           {isLoading ? <Spinner /> : rules.length === 0 ? (
-            <EmptyState icon="📋" title="Sin reglas de reconocimiento" description="Crea una regla por proyecto para empezar a registrar ingresos" />
+            <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {rules.map(r => {
@@ -221,7 +221,7 @@ export default function RevenuePage() {
 
       {/* Modal nueva regla */}
       {showCreate && (
-        <Modal open title="Nueva regla de reconocimiento" onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Proyecto</label>
               <select value={form.project_id} onChange={e=>setForm(f=>({...f,project_id:e.target.value}))} style={fs}>
@@ -235,7 +235,7 @@ export default function RevenuePage() {
               </select>
             </div>
             <div><label style={ls}>Valor del contrato (€)</label>
-              <input type="number" value={form.contract_value} onChange={e=>setForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="0" />
+              <input type="number" value={form.contract_value} onChange={e=>setForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder={t(modulo.clave)} />
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div><label style={ls}>Fecha inicio</label><input type="date" value={form.start_date} onChange={e=>setForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>

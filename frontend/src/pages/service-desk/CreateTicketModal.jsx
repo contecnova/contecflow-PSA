@@ -125,7 +125,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')}
-            style={validation.inputStyle(IS, 'title')} placeholder="Resumen claro del problema o solicitud" />
+            style={validation.inputStyle(IS, 'title')} placeholder={t(modulo.clave)} />
           {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
@@ -167,7 +167,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
             style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
             {t('common.save')}
           </button>
-          <select aria-label="Prioridad del ticket" value={form.priority} onChange={set('priority')}
+          <select aria-label={t(modulo.clave)} value={form.priority} onChange={set('priority')}
             style={{ ...validation.inputStyle(IS, 'priority'), width: 'auto', flex: 1 }}>
             {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}

@@ -110,7 +110,7 @@ function KRRow({ kr, _onCheckin, onDelete }) {
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
                 fontSize:13, outline:'none', fontFamily:'inherit' }}
-              placeholder="Nota opcional..." />
+              placeholder={t(modulo.clave)} />
           </div>
           <Button onClick={() => submitCheckin()} disabled={isPending} loading={isPending} size="sm">
             Guardar
@@ -217,12 +217,12 @@ function ObjModal({ obj, onClose }) {
         <div>
           <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Título *</label>
           <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
-            style={IS} placeholder="Ej: Mejorar la satisfacción del cliente" autoFocus />
+            style={IS} placeholder={t(modulo.clave)} autoFocus />
         </div>
         <div>
           <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción</label>
           <textarea value={form.description} onChange={e => setForm(f => ({...f, description:e.target.value}))}
-            rows={2} style={{ ...IS, resize:'vertical' }} placeholder="Contexto del objetivo..." />
+            rows={2} style={{ ...IS, resize:'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div>
@@ -276,7 +276,7 @@ function KRModal({ objective, onClose }) {
         <div>
           <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción del resultado *</label>
           <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
-            style={IS} placeholder="Ej: NPS ≥ 8.0 en encuesta trimestral" autoFocus />
+            style={IS} placeholder={t(modulo.clave)} autoFocus />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div>
@@ -293,7 +293,7 @@ function KRModal({ objective, onClose }) {
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Unidad</label>
             <input value={form.unit} onChange={e => setForm(f => ({...f, unit:e.target.value}))}
-              style={IS} placeholder="%, €, NPS…" />
+              style={IS} placeholder={t(modulo.clave)} />
           </div>
         </div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
@@ -385,7 +385,7 @@ export default function OKRsPage() {
       </div>
 
       {isLoading ? <Spinner /> : objectives.length === 0 ? (
-        <EmptyState icon="🎯" title="Sin objetivos" description="Crea tu primer OKR para empezar a medir el progreso estratégico" />
+        <EmptyState icon="🎯" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         objectives.map(obj => (
           <ObjectiveCard key={obj.id} obj={obj}

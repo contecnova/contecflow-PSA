@@ -56,7 +56,7 @@ function WeekLines({ weekStart, onClose }) {
   return (
     <Modal open title={`Semana ${weekStart}`} onClose={onClose} width={660}>
       {isLoading ? <Spinner /> : lines.length === 0 ? (
-        <EmptyState icon="⏱️" title="Sin imputaciones" description="No hay horas registradas esta semana" />
+        <EmptyState icon="⏱️" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {Object.entries(byDay).sort().map(([day, dayLines]) => (
@@ -78,7 +78,7 @@ function WeekLines({ weekStart, onClose }) {
                       <span style={{ fontSize: 12, color: 'var(--text-2)' }}>h</span>
                       <input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                        placeholder="Descripción..."
+                        placeholder={t(modulo.clave)}
                         style={{ ...IS, flex: 1 }} />
                       <button onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         disabled={updating || editForm.hours <= 0}
@@ -166,7 +166,7 @@ function ReviewModal({ timesheet, onClose }) {
           ))}
         </div>
         <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Motivo del rechazo o comentarios..."
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t(modulo.clave)}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -242,7 +242,7 @@ export default function TimesheetsPage() {
       {tab === 'mine' && (
         <div>
           {loadingMine ? <Spinner /> : mySheets.length === 0 ? (
-            <EmptyState icon="📋" title="Sin timesheets" description="Imputa horas en la sección Imputar y aparecerán aquí" />
+            <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {mySheets.map(ts => (
@@ -279,7 +279,7 @@ export default function TimesheetsPage() {
       {tab === 'pending' && (
         <div>
           {loadingPending ? <Spinner /> : pending.length === 0 ? (
-            <EmptyState icon="✅" title="Sin timesheets pendientes" description="Todos los timesheets están revisados" />
+            <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {pending.map(ts => (
@@ -302,7 +302,7 @@ export default function TimesheetsPage() {
       {tab === 'team' && (
         <div>
           {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
-            <EmptyState icon="👥" title="Sin timesheets del equipo" description="Aún no hay timesheets registrados" />
+            <EmptyState icon="👥" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>

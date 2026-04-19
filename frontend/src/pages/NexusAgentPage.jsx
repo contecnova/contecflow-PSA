@@ -166,7 +166,7 @@ export default function NexusAgentPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('ai.agent_title')}
-        subtitle="Agente autónomo — escribe una instrucción en lenguaje natural y el agente actúa"
+        subtitle={t(modulo.clave)}
       />
 
       {/* Provider indicator */}
@@ -188,7 +188,7 @@ export default function NexusAgentPage() {
               value={instruction}
               onChange={e => setInstruction(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Ej: Lista los proyectos con más tareas vencidas y crea un resumen..."
+              placeholder={t(modulo.clave)}
               rows={4}
               style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
@@ -265,7 +265,7 @@ export default function NexusAgentPage() {
             </div>
             {history.length === 0 ? (
               <div style={{ padding: 32 }}>
-                <EmptyState icon="⚡" title="Sin ejecuciones" description="Las instrucciones ejecutadas aparecerán aquí" />
+                <EmptyState icon="⚡" title={t(modulo.clave)} description={t(modulo.clave)} />
               </div>
             ) : history.map(e => {
               const sc = STATUS_CFG[e.status] || STATUS_CFG.pending

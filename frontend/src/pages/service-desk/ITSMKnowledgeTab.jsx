@@ -1,3 +1,4 @@
+import { useAppT } from "@/hooks/useAppT";
 import { useState } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -59,7 +60,7 @@ function KnownErrors() {
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo error conocido</Button>
       </div>
       {isLoading ? <Spinner /> :
-       kedb.length === 0 ? <EmptyState icon="📚" title="KEDB vacia" description="Documenta errores conocidos con su workaround para dar solucion rapida a incidentes recurrentes" /> :
+       kedb.length === 0 ? <EmptyState icon="📚" title={t(modulo.clave)} description={t(modulo.clave)} /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {kedb.map(ke => (
           <div key={ke.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
@@ -137,11 +138,11 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
   return (
     <Modal open title={isEdit ? 'Editar error conocido' : 'Nuevo error conocido (KEDB)'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder="Describe el error de forma concisa" /></div>
-        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Cuando ocurre, sintomas, frecuencia..." /></div>
-        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Por que ocurre este error?" /></div>
-        <div><label style={LS}>Workaround (solución temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Pasos para resolver o mitigar el problema mientras se soluciona de forma definitiva" /></div>
-        <div><label style={LS}>Solución definitiva</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Descripción de la solución permanente cuando esté disponible" /></div>
+        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Workaround (solución temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Solución definitiva</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label style={LS}>Prioridad</label><select value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
           <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -203,7 +204,7 @@ function Problems() {
 
       {isLoading ? <Spinner /> :
        problems.length === 0
-        ? <EmptyState icon="🔍" title="Sin problemas registrados" description="Registra las causas raiz de los incidentes recurrentes y documenta soluciones definitivas" />
+        ? <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)} />
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {problems.map(p => {
               const sc = statusColors[p.status] || COLOR.text2
@@ -279,11 +280,11 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
   return (
     <Modal open title={isEdit ? `Editar - ${item.number}` : 'Nuevo problema'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder="Describe el problema de forma concisa" /></div>
-        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Cuando ocurre, sintomas, frecuencia..." /></div>
-        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Por que ocurre este problema?" /></div>
-        <div><label style={LS}>Workaround (solucion temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Pasos para mitigar mientras se soluciona definitivamente" /></div>
-        <div><label style={LS}>Solucion definitiva (opcional)</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Descripcion de la solucion permanente" /></div>
+        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Workaround (solucion temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Solucion definitiva (opcional)</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div><label style={LS}>Prioridad</label><select value={form.priority} onChange={set('priority')} style={IS}>{[['p1_critical', 'P1 Critico'], ['p2_high', 'P2 Alto'], ['p3_medium', 'P3 Medio'], ['p4_low', 'P4 Bajo']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
           <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto'], ['closed', 'Cerrado']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -327,11 +328,11 @@ function KB() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <input placeholder="Buscar en la base de conocimiento..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
+        <input placeholder={t(modulo.clave)} value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo articulo</Button>
       </div>
       {isLoading ? <Spinner /> :
-       articles.length === 0 ? <EmptyState icon="📖" title="Base de conocimiento vacia" description="Crea articulos para documentar soluciones frecuentes o convierte resoluciones de tickets en KB" /> :
+       articles.length === 0 ? <EmptyState icon="📖" title={t(modulo.clave)} description={t(modulo.clave)} /> :
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 14 }}>
         {articles.map(a => (
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
@@ -385,10 +386,10 @@ function KBArticleModal({ article, onClose, onSaved }) {
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} /></div>
-        <div><label style={LS}>Resumen</label><input value={form.summary} onChange={set('summary')} style={IS} placeholder="Descripcion breve visible en la lista" /></div>
-        <div><label style={LS}>Contenido *</label><textarea value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder="Escribe el articulo en texto o Markdown..." /></div>
+        <div><label style={LS}>Resumen</label><input value={form.summary} onChange={set('summary')} style={IS} placeholder={t(modulo.clave)} /></div>
+        <div><label style={LS}>Contenido *</label><textarea value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={LS}>Etiquetas (separadas por coma)</label><input value={form.tags} onChange={set('tags')} style={IS} placeholder="error, acceso, email" /></div>
+          <div><label style={LS}>Etiquetas (separadas por coma)</label><input value={form.tags} onChange={set('tags')} style={IS} placeholder={t(modulo.clave)} /></div>
           <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
         </div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' }}><input type="checkbox" checked={form.is_public} onChange={set('is_public')} />Visible en el portal cliente</label>

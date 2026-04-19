@@ -102,7 +102,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
         {replyTo===comment.id&&(
           <div style={{marginTop:10}}>
             <textarea value={replyContent} onChange={e=>setReplyContent(e.target.value)}
-              placeholder="Escribe una respuesta... (usa @nombre para mencionar)"
+              placeholder={t(modulo.clave)}
               rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
             <div style={{display:'flex',gap:6}}>
               <Button onClick={()=>addComment({content:replyContent,parent_id:comment.id})} disabled={adding||!replyContent.trim()}>
@@ -129,7 +129,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
       )}
       <div style={{marginTop:12}}>
         <textarea value={newContent} onChange={e=>setNewContent(e.target.value)}
-          placeholder="Añadir comentario... (usa @nombre para mencionar)"
+          placeholder={t(modulo.clave)}
           rows={2} style={{...is,marginBottom:8,resize:'vertical'}}/>
         <Button onClick={()=>addComment({content:newContent,parent_id:null})} disabled={adding||!newContent.trim()}>
           {adding?'Enviando...':'Añadir comentario'}
@@ -222,7 +222,7 @@ export default function MentionsPage() {
               <div>
                 <label style={ls}>ID de la entidad</label>
                 <input value={demoEntity} onChange={e=>setDemoEntity(e.target.value)}
-                  placeholder="Pega el ID de la tarea o ticket..." style={is}/>
+                  placeholder={t(modulo.clave)} style={is}/>
               </div>
             </div>
           </div>

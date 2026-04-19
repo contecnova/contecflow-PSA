@@ -83,7 +83,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
   if (credsInfo) {
     return (
-      <Modal open title="✅ Persona añadida" onClose={onClose} width={480}>
+      <Modal open title={t('subcontractors.person_added')} onClose={onClose} width={480}>
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Persona creada como recurso</div>
@@ -114,11 +114,11 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={lbl}>Nombre completo *</label>
-          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder="María López" />
+          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_name')} />
         </div>
         <div>
           <label style={lbl}>Rol / Perfil</label>
-          <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp} placeholder="Senior Developer" />
+          <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_role')} />
         </div>
         <div>
           <label style={lbl}>Email</label>
@@ -164,7 +164,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
                 background: (LEVEL_COLOR[s.level] || '#6b7280') + '18', color: LEVEL_COLOR[s.level] || '#6b7280', border: `1px solid ${(LEVEL_COLOR[s.level] || '#6b7280')}40` }}>
                 {s.skill_name}
                 <span style={{ opacity: 0.65, fontSize: 10 }}>({s.level})</span>
-                {s.certified && <span title="Certificado">🏆</span>}
+                {s.certified && <span title={t('subcontractors.certified')}>🏆</span>}
                 <button onClick={() => removeSkill(s.skill_id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1, opacity: 0.7, fontSize: 11 }}>✕</button>
               </span>
@@ -202,7 +202,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
                 <input type="checkbox" id="wsCert" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
                 <label htmlFor="wsCert" style={{ fontSize: 12, color: 'var(--text-1)', cursor: 'pointer' }}>Certificado</label>
                 {skillForm.certified && (
-                  <input value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder="AWS Solutions Architect..." />
+                  <input value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
                 )}
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end' }}>
@@ -255,7 +255,7 @@ function WorkersPanel({ subId }) {
       </div>
 
       {workers.length === 0 ? (
-        <EmptyState icon="👤" title="Sin personas registradas" description="Añade los perfiles que esta empresa puede poner a disposición del proyecto" />
+        <EmptyState icon="👤" title={t('subcontractors.empty_people_title')} description={t('subcontractors.empty_people_desc')} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {workers.map(w => (
@@ -316,7 +316,7 @@ function WorkersPanel({ subId }) {
       {showCreate && <WorkerModal subId={subId} onClose={() => setShowCreate(false)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
       {editWorker && <WorkerModal subId={subId} worker={editWorker} onClose={() => setEditWorker(null)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
       {deactivateTarget && (
-        <Modal open title="¿Desactivar persona?" onClose={() => setDeactivateTarget(null)} width={380}>
+        <Modal open title={t(modulo.clave)} onClose={() => setDeactivateTarget(null)} width={380}>
           <p style={{ fontSize: 14, color: 'var(--text-1)', marginBottom: 20 }}>
             Se desactivará a <strong>{deactivateTarget.name}</strong> y no podrá iniciar sesión ni ser asignado a tareas.
           </p>
@@ -440,7 +440,7 @@ function SubDetail({ sub, onBack }) {
             <Button size="sm" onClick={() => setShowAssign(true)}>+ Nueva asignación</Button>
           </div>
           {assignments.length === 0 ? (
-            <EmptyState icon="📋" title="Sin asignaciones" description="Asigna este subcontratista a un proyecto con su PO" />
+            <EmptyState icon="📋" title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
           ) : assignments.map(a => (
             <div key={a.id} style={{ ...panel, padding: '14px 18px', marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -474,7 +474,7 @@ function SubDetail({ sub, onBack }) {
             <Button size="sm" onClick={() => setShowTimelog(true)}>+ Registrar horas</Button>
           </div>
           {timelogs.length === 0 ? (
-            <EmptyState icon="🕐" title="Sin registros de horas" description="Registra las horas trabajadas por el subcontratista" />
+            <EmptyState icon="🕐" title={t('subcontractors.empty_hours_title')} description={t('subcontractors.empty_hours_desc')} />
           ) : (
             <div style={{ ...panel, overflow: 'hidden' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -512,7 +512,7 @@ function SubDetail({ sub, onBack }) {
             <Button size="sm" onClick={() => setShowInvoice(true)}>+ Registrar factura</Button>
           </div>
           {invoices.length === 0 ? (
-            <EmptyState icon="🧾" title="Sin facturas" description="Registra las facturas recibidas del subcontratista" />
+            <EmptyState icon="🧾" title={t('subcontractors.empty_invoices_title')} description={t('subcontractors.empty_invoices_desc')} />
           ) : (
             <div style={{ ...panel, overflow: 'hidden' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -556,7 +556,7 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal registrar horas */}
       {showTimelog && (
-        <Modal open title="⏱ Registrar horas de subcontratista" onClose={() => setShowTimelog(false)} width={480}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowTimelog(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Asignación</label>
@@ -575,11 +575,11 @@ function SubDetail({ sub, onBack }) {
             </div>
             <div>
               <label style={lbl}>Referencia tarea</label>
-              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder="PRJ-001-T003" />
+              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>Descripción</label>
-              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Trabajo realizado..." />
+              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -591,11 +591,11 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal registrar factura */}
       {showInvoice && (
-        <Modal open title="🧾 Registrar factura recibida" onClose={() => setShowInvoice(false)} width={480}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowInvoice(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Nº Factura *</label>
-              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder="F2025-001" />
+              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
             </div>
             <div>
               <label style={lbl}>Fecha emisión</label>
@@ -628,7 +628,7 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal nueva asignación */}
       {showAssign && (
-        <Modal open title="+ Nueva asignación a proyecto" onClose={() => setShowAssign(false)} width={500}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowAssign(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>Proyecto *</label>
@@ -639,7 +639,7 @@ function SubDetail({ sub, onBack }) {
             </div>
             <div>
               <label style={lbl}>Nº Pedido (PO)</label>
-              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder="PO-2025-001" />
+              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
             </div>
             <div>
               <label style={lbl}>Techo PO (€)</label>
@@ -749,7 +749,7 @@ export default function SubcontractorsPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
       ) : subs.length === 0 ? (
-        <EmptyState icon="🤝" title="Sin subcontratistas" description="Añade freelancers y proveedores externos para gestionar su coste y horas" />
+        <EmptyState icon="🤝" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : view === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {sortedSubs.map(s => (
@@ -823,11 +823,11 @@ export default function SubcontractorsPage() {
       )}
 
       {showCreate && (
-        <Modal open title="Nuevo subcontratista" onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre / Razón social *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Juan García / Consultores SL" />
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
             </div>
             <div>
               <label style={lbl}>Empresa (si es persona física)</label>
@@ -864,7 +864,7 @@ export default function SubcontractorsPage() {
       )}
 
       {showEdit && editTarget && (
-        <Modal open title="Editar subcontratista" onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
+        <Modal open title={t(modulo.clave)} onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre / Razón social *</label>

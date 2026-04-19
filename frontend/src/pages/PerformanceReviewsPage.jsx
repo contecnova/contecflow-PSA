@@ -239,12 +239,12 @@ function NewCycleModal({ onClose }) {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   return (
-    <Modal open onClose={onClose} title="Nuevo ciclo de evaluación" width={480}>
+    <Modal open onClose={onClose} title={t(modulo.clave)} width={480}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         <div>
           <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Nombre *</label>
           <input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))}
-            style={IS} placeholder="Ej: Evaluación Q2 2025" autoFocus />
+            style={IS} placeholder={t(modulo.clave)} autoFocus />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div>
@@ -331,8 +331,8 @@ export default function PerformanceReviewsPage() {
       {/* Ciclos */}
       {tab === 'cycles' && (
         loadingCycles ? <Spinner /> : cycles.length === 0 ? (
-          <EmptyState icon="📋" title="Sin ciclos de evaluación"
-            description="Crea un ciclo para lanzar evaluaciones de rendimiento 360°" />
+          <EmptyState icon="📋" title={t(modulo.clave)}
+            description={t(modulo.clave)} />
         ) : (
           cycles.map(c => (
             <CycleCard key={c.id} cycle={c}
@@ -345,8 +345,8 @@ export default function PerformanceReviewsPage() {
       {/* Mis evaluaciones pendientes */}
       {tab === 'pending' && (
         loadingMine ? <Spinner /> : myReviews.length === 0 ? (
-          <EmptyState icon="✅" title="Sin evaluaciones pendientes"
-            description="No tienes evaluaciones que rellenar en este momento" />
+          <EmptyState icon="✅" title={t(modulo.clave)}
+            description={t(modulo.clave)} />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {myReviews.map(r => (

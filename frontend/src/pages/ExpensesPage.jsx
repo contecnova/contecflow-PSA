@@ -174,7 +174,7 @@ function ExpenseModal({ expense, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Descripción *</label>
-          <input value={form.description} onChange={set('description')} style={fs} placeholder="Ej: Vuelo Madrid-Barcelona reunión cliente" />
+          <input value={form.description} onChange={set('description')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Categoría</label>
@@ -191,7 +191,7 @@ function ExpenseModal({ expense, onClose }) {
         </div>
         <div>
           <label style={ls}>Importe *</label>
-          <input type="number" step="0.01" value={form.amount} onChange={set('amount')} style={fs} placeholder="0.00" />
+          <input type="number" step="0.01" value={form.amount} onChange={set('amount')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Moneda</label>
@@ -209,7 +209,7 @@ function ExpenseModal({ expense, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Notas adicionales</label>
-          <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Información adicional, motivo del gasto..." />
+          <textarea value={form.notes} onChange={set('notes')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>URL del justificante / factura (opcional)</label>
@@ -217,7 +217,7 @@ function ExpenseModal({ expense, onClose }) {
             value={form.receipt_url}
             onChange={set('receipt_url')}
             style={fs}
-            placeholder="https://drive.google.com/... o https://s3.amazonaws.com/..."
+            placeholder={t(modulo.clave)}
           />
           {form.receipt_url && (
             <a href={form.receipt_url} target="_blank" rel="noopener noreferrer"
@@ -266,7 +266,7 @@ function ReviewModal({ expense, onClose }) {
       </div>
       <div style={{ marginBottom: 16 }}>
         <label style={ls}>Motivo de rechazo (si aplica)</label>
-        <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder="Motivo de rechazo..." />
+        <input value={reason} onChange={e => setReason(e.target.value)} style={fs} placeholder={t(modulo.clave)} />
       </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -339,7 +339,7 @@ function MyExpenses() {
       </div>
 
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title="Sin gastos" description="Registra tu primer gasto para comenzar" />
+        <EmptyState icon="💸" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
@@ -355,19 +355,19 @@ function MyExpenses() {
             <ExpenseRow key={e.id} expense={e} isManager={false} onAction={(exp) => (
               <div style={{ display: 'flex', gap: 5 }}>
                 {exp.status === 'draft' && <>
-                  <button onClick={() => setEditing(exp)} title="Editar"
+                  <button onClick={() => setEditing(exp)} title={t(modulo.clave)}
                     style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏</button>
-                  <button onClick={() => submit(exp.id)} title="Enviar para aprobación"
+                  <button onClick={() => submit(exp.id)} title={t(modulo.clave)}
                     style={{ background: 'var(--warning-bg)', border: '1px solid #ffb80040', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: 12 }} loading={saving}>↑ Enviar</button>
-                  <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar"
+                  <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title={t(modulo.clave)}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </>}
                 {exp.status === 'submitted' && (
-                  <button onClick={() => recall(exp.id)} title="Retirar"
+                  <button onClick={() => recall(exp.id)} title={t(modulo.clave)}
                     style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>↩ Retirar</button>
                 )}
                 {exp.status === 'rejected' && (
-                  <button onClick={() => setEditing(exp)} title="Editar y reenviar"
+                  <button onClick={() => setEditing(exp)} title={t(modulo.clave)}
                     style={{ background: 'var(--danger-bg)', border: '1px solid #ff475740', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>✏ Editar</button>
                 )}
               </div>
@@ -407,7 +407,7 @@ function PendingApproval() {
         {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + e.amount, 0))} total` : 'No hay gastos pendientes'}
       </div>
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="✅" title="Todo revisado" description="No hay gastos pendientes de aprobación" />
+        <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
@@ -538,7 +538,7 @@ function TeamExpenses() {
 
       {/* Table */}
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
-        <EmptyState icon="💸" title="Sin gastos" description="No hay gastos con los filtros actuales" />
+        <EmptyState icon="💸" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
@@ -586,7 +586,7 @@ export default function ExpensesPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Gestión de gastos"
+        title={t(modulo.clave)}
         subtitle={_t('expenses.subtitle')}
         actions={
           <button

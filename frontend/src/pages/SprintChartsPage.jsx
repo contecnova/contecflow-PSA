@@ -60,7 +60,7 @@ export default function SprintChartsPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1050, margin: '0 auto' }}>
       <PageHeader
-        title="Burnup & Velocity"
+        title={t(modulo.clave)}
         subtitle={_t('sprint_charts.subtitle')}
       />
 
@@ -93,7 +93,7 @@ export default function SprintChartsPage() {
       </div>
 
       {!projectId && (
-        <EmptyState icon="📈" title="Selecciona un proyecto" description="Elige un proyecto para ver los gráficos de velocity y burnup." />
+        <EmptyState icon="📈" title={t(modulo.clave)} description={t(modulo.clave)} />
       )}
 
       {/* Velocity chart */}
@@ -108,7 +108,7 @@ export default function SprintChartsPage() {
             )}
           </div>
           {loadVel ? <Spinner /> : velocity.length === 0 ? (
-            <EmptyState icon="📊" title="Sin sprints completados" description="Los sprints completados aparecerán aquí." />
+            <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={velocity} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
@@ -146,7 +146,7 @@ export default function SprintChartsPage() {
             )}
           </div>
           {loadBU ? <Spinner /> : burnup.length === 0 ? (
-            <EmptyState icon="📈" title="Sin datos de burnup" description="El sprint necesita fechas de inicio y fin configuradas." />
+            <EmptyState icon="📈" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <>
               <p style={{ fontSize: 12, color: '#718096', marginBottom: 16, marginTop: 0 }}>

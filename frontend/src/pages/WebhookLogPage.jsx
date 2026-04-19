@@ -86,7 +86,7 @@ export default function WebhookLogPage() {
       </div>
 
       {isLoading ? <Spinner /> : allLogs.length === 0 ? (
-        <EmptyState icon="📡" title="Sin registros de webhook"
+        <EmptyState icon="📡" title={t(modulo.clave)}
           description={webhooks.length === 0
             ? "Configura webhooks salientes en Empresa → Integraciones"
             : "Los webhooks configurados aún no han disparado llamadas"} />

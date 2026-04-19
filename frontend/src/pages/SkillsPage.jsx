@@ -225,7 +225,7 @@ function UserSkillModal({ user, onClose }) {
           </div>
           <div>
             <label style={ls}>Años exp.</label>
-            <input type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} style={fs} placeholder="0" />
+            <input type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
@@ -234,7 +234,7 @@ function UserSkillModal({ user, onClose }) {
             Tiene certificación
           </label>
           {form.certified && (
-            <input value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder="Ej: AWS Solutions Architect, PMP..." />
+            <input value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder={t(modulo.clave)} />
           )}
         </div>
         <button
@@ -305,7 +305,7 @@ function StaffingSearch() {
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>{results.length} recursos encontrados</div>
           {results.length === 0 ? (
-            <EmptyState icon="🔍" title="Sin resultados" description="Ningún recurso tiene todos los skills requeridos al nivel indicado" />
+            <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {results.map(u => (
@@ -444,7 +444,7 @@ export default function SkillsPage() {
 
       {tab === 'matrix' && (
         loadingMatrix ? <Spinner /> : !matrix ? null : matrix.users.length === 0 ? (
-          <EmptyState icon="🗂" title="Sin datos de skills" description="Añade skills a los perfiles del equipo para ver la matriz" />
+          <EmptyState icon="🗂" title={t(modulo.clave)} description={t(modulo.clave)} />
         ) : (
           <Card style={{ padding: 16 }}>
             <div style={{ marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -496,7 +496,7 @@ export default function SkillsPage() {
           <Card style={{ padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Añadir nuevo skill al catálogo</div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <input value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder="Nombre del skill (ej: React, Python, Inglés...)" />
+              <input value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2 }} placeholder={t(modulo.clave)} />
               <select value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} style={{ ...inputStyle, flex: 1 }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
               </select>

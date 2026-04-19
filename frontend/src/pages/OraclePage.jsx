@@ -66,7 +66,7 @@ export default function OraclePage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('ai.oracle_title')}
-        subtitle="Motor predictivo — anticipa riesgos con inteligencia artificial"
+        subtitle={t(modulo.clave)}
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {defaultProvider && (
@@ -158,7 +158,7 @@ export default function OraclePage() {
 
       {/* Predictions list */}
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔮" title="Sin predicciones" description={preds.length ? "No hay predicciones con este filtro" : "Ejecuta el análisis para detectar riesgos con IA"} />
+        <EmptyState icon="🔮" title={t(modulo.clave)} description={preds.length ? "No hay predicciones con este filtro" : "Ejecuta el análisis para detectar riesgos con IA"} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(p => {

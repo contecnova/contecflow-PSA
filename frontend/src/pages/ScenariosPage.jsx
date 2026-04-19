@@ -58,7 +58,7 @@ export default function ScenariosPage() {
       <div style={{ display:'grid', gridTemplateColumns:'340px 1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
-            <EmptyState icon="🔮" title="Sin escenarios" description="Crea un escenario what-if para simular el impacto de nuevos proyectos" />
+            <EmptyState icon="🔮" title={t(modulo.clave)} description={t(modulo.clave)} />
           ) : scenarios.map(s => (
             <div key={s.id} onClick={()=>setSelected(s.id)}
               style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid var(--color-border-info)' : '.5px solid var(--color-border-tertiary)' }}>
@@ -156,7 +156,7 @@ export default function ScenariosPage() {
       </div>
 
       {showCreate && (
-        <Modal open title="Nuevo escenario what-if" onClose={()=>setShowCreate(false)} width={560}>
+        <Modal open title={t(modulo.clave)} onClose={()=>setShowCreate(false)} width={560}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Descripción</label><input value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={fs} /></div>
@@ -165,8 +165,8 @@ export default function ScenariosPage() {
             <div style={{ borderTop:'.5px solid var(--color-border-tertiary)', paddingTop:14 }}>
               <div style={{ fontSize:13, fontWeight:500, marginBottom:10 }}>Añadir proyectos hipotéticos</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                <input placeholder="Nombre del proyecto" value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
-                <input type="number" placeholder="Horas totales" value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
+                <input placeholder={t(modulo.clave)} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} style={fs} />
+                <input type="number" placeholder={t(modulo.clave)} value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} style={fs} />
                 <div><label style={ls}>Inicio</label><input type="date" value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} style={fs} /></div>
                 <div><label style={ls}>Fin</label><input type="date" value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} style={fs} /></div>
               </div>

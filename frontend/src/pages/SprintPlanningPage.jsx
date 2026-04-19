@@ -74,7 +74,7 @@ function GenerateModal({ projectId, onClose }) {
           <>
             <div>
               <label style={ls}>{t('sprint_planning.plan_name')}</label>
-              <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Sprint 12 — Plan IA" />
+              <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={t(modulo.clave)} />
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
               <div>

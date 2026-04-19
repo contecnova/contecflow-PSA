@@ -57,7 +57,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label style={ls}>Título *</label>
-          <input value={form.title} onChange={s('title')} style={fs} placeholder="Ej: Verificar login con credenciales válidas" />
+          <input value={form.title} onChange={s('title')} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -92,28 +92,28 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
           <label style={ls}>Pasos para ejecutar el test</label>
           <textarea value={form.description} onChange={s('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder="1. Navega a la pantalla de login&#10;2. Introduce usuario y contraseña&#10;3. Haz clic en 'Entrar'" />
+            placeholder={t(modulo.clave)} />
         </div>
 
         <div>
           <label style={ls}>Resultado esperado *</label>
           <textarea value={form.expected_result} onChange={s('expected_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder="El sistema muestra el dashboard del usuario y registra la sesión." />
+            placeholder={t(modulo.clave)} />
         </div>
 
         <div>
           <label style={ls}>Resultado obtenido (rellenar al ejecutar)</label>
           <textarea value={form.actual_result} onChange={s('actual_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder="Completar cuando se ejecute el test..." />
+            placeholder={t(modulo.clave)} />
         </div>
 
         <div>
           <label style={ls}>Notas internas</label>
           <textarea value={form.notes} onChange={s('notes')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder="Contexto adicional, entorno de test, datos necesarios..." />
+            placeholder={t(modulo.clave)} />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
@@ -136,7 +136,7 @@ function ExportModal({ open, onClose, report }) {
     })
   }
   return (
-    <Modal open={open} onClose={onClose} title="Exportar plan UAT para cliente" width={700}>
+    <Modal open={open} onClose={onClose} title={t(modulo.clave)} width={700}>
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <Button variant="secondary" onClick={handleCopy}>
           {copied ? '✓ Copiado' : '📋 Copiar texto'}
@@ -285,16 +285,16 @@ export default function UATPage() {
       {!selectedProject ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title="Selecciona un proyecto"
-          description="Elige un proyecto para ver y gestionar sus casos UAT"
+          title={t(modulo.clave)}
+          description={t(modulo.clave)}
         />
       ) : isLoading ? (
         <Spinner />
       ) : cases.length === 0 ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title="Sin casos UAT"
-          description="Crea el primer caso de aceptación para este proyecto"
+          title={t(modulo.clave)}
+          description={t(modulo.clave)}
           action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
         />
       ) : (
@@ -383,7 +383,7 @@ export default function UATPage() {
       )}
       {/* Delete confirmation modal (no browser confirm()) */}
       {deleteTarget && (
-        <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
+        <Modal open onClose={() => setDeleteTarget(null)} title={t(modulo.clave)} width={420}>
           <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
             ¿Eliminar el caso <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>? Esta acción no se puede deshacer.
           </p>

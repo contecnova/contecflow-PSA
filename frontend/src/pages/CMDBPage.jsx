@@ -68,7 +68,7 @@ function CMDBItemForm({ item, categories, onClose }) {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div>
             <label style={ls}>Nombre</label>
-            <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder="Ej: web-prod-01" />
+            <input style={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={t(modulo.clave)} />
           </div>
           <div>
             <label style={ls}>Tipo</label>
@@ -349,7 +349,7 @@ export default function CMDBPage() {
           <div>
             <label style={ls}>Buscar</label>
             <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-              placeholder="Nombre, hostname, IP..." style={is} />
+              placeholder={t(modulo.clave)} style={is} />
           </div>
           <div>
             <label style={ls}>Tipo</label>
@@ -471,7 +471,7 @@ export default function CMDBPage() {
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',gap:6}}>
                         <button onClick={() => setHistoryItem(item)}
-                          style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}} title="Historial de cambios">📋</button>
+                          style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}} title={t(modulo.clave)}>📋</button>
                         <button onClick={() => setRelItem(item)}
                           style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>🔗</button>
                         <button onClick={() => { setEditing(item); setShowForm(true) }}

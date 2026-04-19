@@ -47,19 +47,19 @@ function StateForm({ projectId, state, onClose }) {
             onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
-            }} placeholder="Ej: En revisión QA" />
+            }} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={labelStyle}>Valor interno</label>
           <input style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder="qa_review" />
+            placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={labelStyle}>Icono (emoji)</label>
           <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: 20 }}
-            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="🔵" />
+            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={labelStyle}>Color</label>
@@ -112,7 +112,7 @@ function TransitionForm({ projectId, states, onClose }) {
   })
 
   return (
-    <Modal open onClose={onClose} title="Nueva transición">
+    <Modal open onClose={onClose} title={t(modulo.clave)}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
@@ -134,7 +134,7 @@ function TransitionForm({ projectId, states, onClose }) {
         </div>
         <div>
           <label style={labelStyle}>Etiqueta de la transición (opcional)</label>
-          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder="Ej: Enviar a revisión" />
+          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={labelStyle}>Solo puede ejecutarla este rol</label>
@@ -204,7 +204,7 @@ export default function WorkflowsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title="Workflows personalizados"
+        title={t(modulo.clave)}
         subtitle={_t('workflows.subtitle')}
         actions={selectedProject && states.length > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -225,7 +225,7 @@ export default function WorkflowsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚙" title="Selecciona un proyecto" description="Cada proyecto puede tener su propio workflow de estados" />
+        <EmptyState icon="⚙" title={t(modulo.clave)} description={t(modulo.clave)} />
       )}
 
       {selectedProject && isLoading && <Spinner />}

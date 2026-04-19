@@ -139,7 +139,7 @@ export default function BudgetsPage() {
 
       {/* Budgets list */}
       {isLoading ? <Spinner /> : budgets.length === 0 ? (
-        <EmptyState icon="💼" title="Sin presupuestos" description={`No hay presupuestos para ${year}`} />
+        <EmptyState icon="💼" title={t(modulo.clave)} description={`No hay presupuestos para ${year}`} />
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
           {budgets.map(b => (
@@ -199,7 +199,7 @@ export default function BudgetsPage() {
       )}
 
       {showCreate && (
-        <Modal open title="Nuevo presupuesto" onClose={()=>setShowCreate(false)} width={480}>
+        <Modal open title={t(modulo.clave)} onClose={()=>setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div>
               <label style={ls}>Nombre</label>

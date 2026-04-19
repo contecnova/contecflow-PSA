@@ -66,7 +66,7 @@ function FTSMode() {
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
-              placeholder="Buscar en todo el sistema..."
+              placeholder={t(modulo.clave)}
               style={{ ...inp, paddingLeft: 42, fontSize: 15 }}
               autoFocus
             />
@@ -93,11 +93,11 @@ function FTSMode() {
 
       {/* Resultados */}
       {q.trim().length < 2 ? (
-        <EmptyState icon="🔍" title="Empieza a escribir" description="Busca en proyectos, tareas, clientes, tickets, contratos y más" />
+        <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : isFetching ? (
         <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
       ) : totalResults === 0 ? (
-        <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description="Prueba con otros términos o filtra por tipo" />
+        <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description={t(modulo.clave)} />
       ) : (
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
@@ -164,7 +164,7 @@ function NQLMode() {
         <textarea
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="projects where status = 'active' and budget_amount > 10000"
+          placeholder={t(modulo.clave)}
           style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: 13, fontFamily: "'Space Mono', monospace" }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
@@ -201,7 +201,7 @@ function NQLMode() {
               pageSize={20}
             />
           ) : (
-            <EmptyState icon="📭" title="Sin resultados" description="La consulta no devolvió ningún registro" />
+            <EmptyState icon="📭" title={t(modulo.clave)} description={t(modulo.clave)} />
           )}
         </div>
       )}

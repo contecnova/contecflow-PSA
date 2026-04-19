@@ -442,7 +442,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="number" placeholder="Minutos" value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
+              <input type="number" placeholder={t(modulo.clave)} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
             </div>
           </div>

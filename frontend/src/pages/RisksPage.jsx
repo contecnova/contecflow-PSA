@@ -156,7 +156,7 @@ function RiskFormModal({ risk, projectId, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Título *</label>
-          <input value={form.title} onChange={set('title')} style={fs} placeholder="Riesgo de retraso por dependencia externa" />
+          <input value={form.title} onChange={set('title')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Categoría</label>
@@ -197,15 +197,15 @@ function RiskFormModal({ risk, projectId, onClose }) {
         </div>
         <div>
           <label style={ls}>Coste mínimo €</label>
-          <input type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} style={fs} placeholder="0" />
+          <input type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Coste máximo €</label>
-          <input type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} style={fs} placeholder="0" />
+          <input type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Impacto en días</label>
-          <input type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder="0" />
+          <input type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Fecha revisión</label>
@@ -217,11 +217,11 @@ function RiskFormModal({ risk, projectId, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Plan de mitigación</label>
-          <textarea value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Acciones para reducir la probabilidad o el impacto..." />
+          <textarea value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Plan de contingencia</label>
-          <textarea value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Qué hacer si el riesgo se materializa..." />
+          <textarea value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -310,7 +310,7 @@ export default function RisksPage() {
       </div>
 
       {isLoading ? <Spinner /> : risks.length === 0 ? (
-        <EmptyState icon="🛡️" title="Sin riesgos registrados" description={selectedProject ? "Este proyecto no tiene riesgos identificados" : "Selecciona un proyecto o no hay riesgos en la cartera"} />
+        <EmptyState icon="🛡️" title={t(modulo.clave)} description={selectedProject ? "Este proyecto no tiene riesgos identificados" : "Selecciona un proyecto o no hay riesgos en la cartera"} />
       ) : tab === 'matrix' ? (
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Matriz de probabilidad × impacto</h3>

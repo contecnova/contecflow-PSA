@@ -96,7 +96,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
   }
 
   return (
-    <Modal title="Nueva solicitud de firma" onClose={onClose} style={{ maxWidth: 560 }}>
+    <Modal title={t(modulo.clave)} onClose={onClose} style={{ maxWidth: 560 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
           <label style={ls}>Documento *</label>
@@ -107,11 +107,11 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
         </div>
         <div>
           <label style={ls}>Asunto *</label>
-          <input value={form.subject} onChange={set('subject')} style={fs} placeholder="Firma del contrato de servicio" />
+          <input value={form.subject} onChange={set('subject')} style={fs} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={ls}>Mensaje (opcional)</label>
-          <textarea value={form.message} onChange={set('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder="Por favor, firma este documento antes de..." />
+          <textarea value={form.message} onChange={set('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
@@ -136,11 +136,11 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
           {signers.map((s, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <input value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
-                placeholder="Nombre" style={{ ...fs, flex: 1 }} />
+                placeholder={t(modulo.clave)} style={{ ...fs, flex: 1 }} />
               <input value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
-                placeholder="Email" type="email" style={{ ...fs, flex: 1 }} />
+                placeholder={t(modulo.clave)} type="email" style={{ ...fs, flex: 1 }} />
               <input value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
-                type="number" min={1} style={{ ...fs, width: 56 }} title="Orden" />
+                type="number" min={1} style={{ ...fs, width: 56 }} title={t(modulo.clave)} />
               {signers.length > 1 && (
                 <button onClick={() => removeSigner(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>✕</button>
               )}
@@ -203,8 +203,8 @@ export default function ESignPage() {
 
       {/* Provider status */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <ProviderBadge label="DocuSign" ok={docusignOk} />
-        <ProviderBadge label="Adobe Sign" ok={adobeOk} />
+        <ProviderBadge label={t(modulo.clave)} ok={docusignOk} />
+        <ProviderBadge label={t(modulo.clave)} ok={adobeOk} />
         {!docusignOk && !adobeOk && (
           <span style={{ fontSize: 12, color: 'var(--text-2)', alignSelf: 'center' }}>
             Configura las credenciales en Settings → E-firma para habilitar las integraciones.

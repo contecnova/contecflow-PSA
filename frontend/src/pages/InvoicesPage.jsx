@@ -137,7 +137,7 @@ function InvoicesTab() {
       </div>
 
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
-        <EmptyState icon="📄" title="Sin facturas" description="Crea tu primera factura o genera una desde las horas imputadas" />
+        <EmptyState icon="📄" title={t(invoices.empty_title)} description={t(invoices.empty_description)} />
       ) : (
         <div style={{...card,overflow:'hidden'}}>
           <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid #1e2d45',fontSize:10,fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
@@ -170,7 +170,7 @@ function InvoicesTab() {
                   {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid #00d4ff40',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>Enviar</button>}
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid #00e5a040',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>✓ Pagada</button>}
                 </div>
-                <button onClick={() => downloadPdf(inv)} title="Descargar PDF" disabled={pdfLoadingId === inv.id}
+                <button onClick={() => downloadPdf(inv)} title={t(invoices.download_pdf)} disabled={pdfLoadingId === inv.id}
                   style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid #1e2d45',borderRadius:6,width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
                   {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
                 </button>
@@ -181,7 +181,7 @@ function InvoicesTab() {
       )}
 
       {showCreate && (
-        <Modal open title="Nueva factura" onClose={() => setShowCreate(false)} width={680}>
+        <Modal open title={t(invoices.new_invoice)} onClose={() => setShowCreate(false)} width={680}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div style={{background:'var(--accent-muted)',border:'1px solid #00d4ff30',borderRadius:8,padding:'12px 16px'}}>
               <div style={{fontSize:12,fontWeight:700,color:'var(--accent)',marginBottom:8}}>Generar desde imputaciones aprobadas</div>

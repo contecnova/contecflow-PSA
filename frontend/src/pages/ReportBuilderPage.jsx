@@ -80,7 +80,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar campo…"
+          placeholder={t(modulo.clave)}
           style={{ ...fs, paddingLeft: 28, fontSize: 12 }}
         />
         <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#718096', fontSize: 13 }}>🔍</span>
@@ -147,7 +147,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }) 
         <input
           value={filter.value}
           onChange={set('value')}
-          placeholder="Valor…"
+          placeholder={t(modulo.clave)}
           style={{ ...fs, flex: 1, fontSize: 11 }}
         />
       ) : (
@@ -472,7 +472,7 @@ export default function ReportBuilderPage() {
               <input
                 value={tplName}
                 onChange={e => setTplName(e.target.value)}
-                placeholder="Nombre de plantilla…"
+                placeholder={t(modulo.clave)}
                 style={{ ...fs, width: 190 }}
               />
               <button

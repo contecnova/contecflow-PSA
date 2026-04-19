@@ -71,7 +71,7 @@ function EntryCard({ entry, onDelete }) {
             <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{entry.entry_date}</span>
             <button onClick={() => onDelete(entry.id)}
               style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: 14, borderRadius: 4 }}
-              title="Eliminar">×</button>
+              title={t(modulo.clave)}>×</button>
           </div>
         </div>
         {entry.description && (
@@ -108,7 +108,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>Versión / etiqueta</label>
-          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder="v2.1.0, Sprint 14..." />
+          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t(modulo.clave)} />
         </div>
         <div>
           <label style={lbStyle}>Fecha</label>
@@ -124,12 +124,12 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
       </div>
       <div>
         <label style={lbStyle}>Título *</label>
-        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder="Descripción concisa del cambio..." />
+        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t(modulo.clave)} />
         {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
       </div>
       <div>
         <label style={lbStyle}>Descripción detallada</label>
-        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder="Más detalle, impacto, instrucciones de actualización..." />
+        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t(modulo.clave)} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -173,7 +173,7 @@ function GenerateModal({ projectId, onClose, onSaved }) {
         </div>
         <div>
           <label style={lbStyle}>Versión / etiqueta (opcional)</label>
-          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder="Sprint 14, v1.5.0..." />
+          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t(modulo.clave)} />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (
@@ -265,12 +265,12 @@ export default function ChangelogPage() {
       )}
 
       {!selectedProject ? (
-        <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver su changelog" />
+        <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando changelog...</span></div>
       ) : entries.length === 0 ? (
-        <EmptyState icon="📝" title="Sin entradas"
-          description="Genera entradas automáticamente desde tareas completadas o añade una manualmente"
+        <EmptyState icon="📝" title={t(modulo.clave)}
+          description={t(modulo.clave)}
           action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: 13, padding: '8px 20px' }}>🤖 Generar automático</button>}
         />
       ) : (
@@ -280,13 +280,13 @@ export default function ChangelogPage() {
       )}
 
       {showManual && (
-        <Modal open title="Nueva entrada de changelog" onClose={() => setShowManual(false)} width={560}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowManual(false)} width={560}>
           <ManualEntryModal projectId={selectedProject} onClose={() => setShowManual(false)} onSaved={invalidate} />
         </Modal>
       )}
 
       {showGenerate && (
-        <Modal open title="Generar changelog automático" onClose={() => setShowGenerate(false)} width={500}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowGenerate(false)} width={500}>
           <GenerateModal projectId={selectedProject} onClose={() => setShowGenerate(false)} onSaved={invalidate} />
         </Modal>
       )}

@@ -109,7 +109,7 @@ function InternalCommentThread({ ticketId }) {
           <div>
             <label style={ls}>Añadir nota interna</label>
             <textarea value={content} onChange={e => setContent(e.target.value)}
-              placeholder="Nota visible solo para el equipo de soporte..."
+              placeholder={t(modulo.clave)}
               rows={3} style={{...is, marginBottom:8, resize:'vertical'}} />
             <Button onClick={() => addComment()} disabled={adding || !content.trim()}>
               {adding ? 'Enviando...' : '🔒 Añadir nota interna'}
@@ -164,7 +164,7 @@ export default function InternalCommentsPage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por número, título o solicitante..."
+              placeholder={t(modulo.clave)}
               style={is}
               autoFocus
             />
@@ -234,7 +234,7 @@ export default function InternalCommentsPage() {
       )}
 
       {!ticketId && (
-        <EmptyState icon="🔒" title="Introduce un ID de ticket" description="Los comentarios internos se muestran por ticket" />
+        <EmptyState icon="🔒" title={t(modulo.clave)} description={t(modulo.clave)} />
       )}
     </div>
   )

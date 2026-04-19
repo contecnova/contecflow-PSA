@@ -1,3 +1,4 @@
+import { useAppT } from "@/hooks/useAppT";
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -40,7 +41,7 @@ function CMDBDetail({ ci, onClose }) {
       {tab === 'relations' && (
         <div>
           {relations.length === 0
-            ? <EmptyState icon="🔗" title="Sin relaciones" description="Este CI no tiene relaciones con otros CIs registradas" />
+            ? <EmptyState icon="🔗" title={t(modulo.clave)} description={t(modulo.clave)} />
             : relations.map(r => (
               <div key={r.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, marginBottom: 6, alignItems: 'center' }}>
                 <span style={{ fontSize: 10, padding: '2px 7px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{r.relation_type?.replace(/_/g, ' ')}</span>
@@ -53,7 +54,7 @@ function CMDBDetail({ ci, onClose }) {
         <div>
           {!impact ? <div style={{ textAlign: 'center', padding: 20 }}><Spinner /></div>
             : (impact.affected || []).length === 0
-              ? <EmptyState icon="💥" title="Sin impacto identificado" description="No hay CIs dependientes de este" />
+              ? <EmptyState icon="💥" title={t(modulo.clave)} description={t(modulo.clave)} />
               : <>
                   <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>Si <strong>{ci.name}</strong> falla, los siguientes CIs se ven afectados:</div>
                   {(impact.affected || []).map(a => (
@@ -113,7 +114,7 @@ export default function CMDBTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Buscar CI..." style={{ ...IS, width: 200 }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t(modulo.clave)} style={{ ...IS, width: 200 }} />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ ...IS, width: 160 }}>
           <option value="">Todos los tipos</option>
           {CI_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -124,7 +125,7 @@ export default function CMDBTab() {
 
       {isLoading ? <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
         : filtered.length === 0
-          ? <EmptyState icon="🖥" title="Sin Configuration Items" description="Registra los activos de TI gestionados en el CMDB" />
+          ? <EmptyState icon="🖥" title={t(modulo.clave)} description={t(modulo.clave)} />
           : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }}>
               {filtered.map(ci => (
@@ -155,12 +156,12 @@ export default function CMDBTab() {
           )}
 
       {showCreate && (
-        <Modal open title="Nuevo Configuration Item" onClose={() => setShowCreate(false)} width={540}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={540}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ gridColumn: '1/-1' }}><label style={LS}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={IS} /></div>
             <div><label style={LS}>Tipo *</label><select value={form.ci_type} onChange={e => setForm(f => ({ ...f, ci_type: e.target.value }))} style={IS}>{CI_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label style={LS}>Estado</label><select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={IS}>{CI_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-            <div><label style={LS}>Entorno</label><input value={form.environment} onChange={e => setForm(f => ({ ...f, environment: e.target.value }))} style={IS} placeholder="prod / staging / dev" /></div>
+            <div><label style={LS}>Entorno</label><input value={form.environment} onChange={e => setForm(f => ({ ...f, environment: e.target.value }))} style={IS} placeholder={t(modulo.clave)} /></div>
             <div><label style={LS}>Criticidad</label><select value={form.criticality} onChange={e => setForm(f => ({ ...f, criticality: e.target.value }))} style={IS}>{['low', 'medium', 'high', 'critical'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             <div><label style={LS}>Version</label><input value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} style={IS} /></div>
             <div><label style={LS}>Vendor</label><input value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} style={IS} /></div>

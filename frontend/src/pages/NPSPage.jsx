@@ -278,13 +278,13 @@ export default function NPSPage() {
                   <div style={{ flex: 1 }}>
                     <label style={ls}>Respondente</label>
                     <input value={respondent} onChange={e => setRespondent(e.target.value)}
-                      style={fs} placeholder="Nombre del cliente…" />
+                      style={fs} placeholder={t(modulo.clave)} />
                   </div>
                 </div>
                 <div>
                   <label style={ls}>Comentario (opcional)</label>
                   <textarea value={comment} onChange={e => setComment(e.target.value)}
-                    style={{ ...fs, resize: 'vertical' }} rows={2} placeholder="Comentario cualitativo…" />
+                    style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t(modulo.clave)} />
                 </div>
                 <button onClick={submitNPS} disabled={submitting} style={{
                   alignSelf: 'flex-start', background: '#2b4a7a', border: 'none', borderRadius: 8,

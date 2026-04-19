@@ -48,7 +48,7 @@ function WebhooksTab() {
         <Button onClick={() => setShowCreate(true)}>+ Nuevo webhook</Button>
       </div>
       {isLoading ? <Spinner /> : triggers.length === 0 ? (
-        <EmptyState icon="🔗" title="Sin webhooks" description="Crea un webhook para que sistemas externos puedan disparar automatizaciones" />
+        <EmptyState icon="🔗" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : triggers.map(t => (
         <div key={t.id} style={{ ...card, padding:'14px 18px', marginBottom:10 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -80,10 +80,10 @@ function WebhooksTab() {
         </div>
       ))}
       {showCreate && (
-        <Modal open title="Nuevo webhook trigger" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} /></div>
-            <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder="mi-webhook" /></div>
+            <div><label style={ls}>Slug (URL)</label><input value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} style={fs} placeholder={t(modulo.clave)} /></div>
             <div><label style={ls}>Workflow</label>
               <select value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} style={fs}>
                 <option value="">Sin workflow</option>
@@ -137,7 +137,7 @@ function GDPRTab() {
         <Button onClick={() => setShowCreate(true)}>+ Nueva solicitud</Button>
       </div>
       {isLoading ? <Spinner /> : requests.length === 0 ? (
-        <EmptyState icon="🔒" title="Sin solicitudes GDPR" description="Las solicitudes de derechos de los interesados aparecerán aquí" />
+        <EmptyState icon="🔒" title={t(modulo.clave)} description={t(modulo.clave)} />
       ) : (
         <div style={{ ...card, overflow:'hidden' }}>
           {requests.map(r => (
@@ -155,7 +155,7 @@ function GDPRTab() {
         </div>
       )}
       {showCreate && (
-        <Modal open title="Nueva solicitud GDPR" onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Tipo</label>
               <select value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} style={fs}>
@@ -236,7 +236,7 @@ function EmailTab() {
         </div>
         <div>
           <div style={{ fontSize:13, fontWeight:500, marginBottom:12 }}>Historial de envíos</div>
-          {logs.length === 0 ? <EmptyState icon="✉" title="Sin envíos" description="Los emails enviados aparecerán aquí" /> : (
+          {logs.length === 0 ? <EmptyState icon="✉" title={t(modulo.clave)} description={t(modulo.clave)} /> : (
             <div style={{ ...card, overflow:'hidden' }}>
               {logs.slice(0,15).map(l => (
                 <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
@@ -253,9 +253,9 @@ function EmailTab() {
         </div>
       </div>
       {showSend && (
-        <Modal open title="Enviar email" onClose={() => setShowSend(false)} width={500}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowSend(false)} width={500}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Para</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder="destinatario@empresa.com" /></div>
+            <div><label style={ls}>Para</label><input value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} style={fs} placeholder={t(modulo.clave)} /></div>
             <div><label style={ls}>Plantilla</label>
               <select value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} style={fs}>
                 <option value="">Sin plantilla</option>
@@ -274,7 +274,7 @@ function EmailTab() {
         </Modal>
       )}
       {showCreate && (
-        <Modal open title="Nueva plantilla" onClose={() => setShowCreate(false)} width={560}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={560}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div><label style={ls}>Nombre</label><input value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} style={fs} /></div>
             <div><label style={ls}>Asunto (usa {'{{variable}}'})</label><input value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} style={fs} /></div>
@@ -570,7 +570,7 @@ function APIKeysTab() {
           <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cerrar</button>
         </div>
       )}
-      {keys.length === 0 ? <EmptyState icon="🗝" title="Sin API keys" description="Crea API keys para integraciones externas" /> : (
+      {keys.length === 0 ? <EmptyState icon="🗝" title={t(modulo.clave)} description={t(modulo.clave)} /> : (
         <div style={{ ...card, overflow:'hidden' }}>
           {keys.map(k => (
             <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--color-border-tertiary)', alignItems:'center', fontSize:12 }}>
@@ -587,9 +587,9 @@ function APIKeysTab() {
         </div>
       )}
       {showCreate && (
-        <Modal open title="Nueva API key" onClose={() => setShowCreate(false)} width={420}>
+        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={420}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder="Ej: Dashboard Power BI" /></div>
+            <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} style={fs} placeholder={t(modulo.clave)} /></div>
             <div><label style={ls}>Límite por hora</label><input type="number" value={form.rate_limit_per_hour} onChange={e => setForm(f => ({...f, rate_limit_per_hour:+e.target.value}))} style={fs} /></div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -697,7 +697,7 @@ function SSOTab() {
             </div>
             <div>
               <label style={labelStyle}>Client ID *</label>
-              <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+              <input value={form.oidc_client_id} onChange={e => setForm(f=>({...f,oidc_client_id:e.target.value}))} style={inputStyle} placeholder={t(modulo.clave)} />
             </div>
             <div>
               <label style={labelStyle}>Client Secret *</label>

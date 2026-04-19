@@ -123,7 +123,7 @@ function BlockEditor({ blocks, onChange }) {
                         ))}
                         {/* AI improve button */}
                         <button
-                          title="✨ Mejorar con IA"
+                          title={t(modulo.clave)}
                           onMouseDown={e=>{
                             e.preventDefault()
                             if(!block.content) return
@@ -254,7 +254,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
           )}
           <div>
             <label style={ls}>Título</label>
-            <input style={is} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder="Título de la página"/>
+            <input style={is} value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={t(modulo.clave)}/>
           </div>
           <div>
             <label style={ls}>Slug</label>
@@ -298,8 +298,8 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
             style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:6,cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize:13}}>
             <span style={{fontSize:11,color:'var(--text-3)'}}>📄</span>
             <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</span>
-            {p.visibility === 'portal' && <span title="Visible en portal cliente" style={{fontSize:10,color:'var(--accent)'}}>🌐</span>}
-            {p.visibility === 'public' && <span title="Público" style={{fontSize:10,color:'var(--success)'}}>🌍</span>}
+            {p.visibility === 'portal' && <span title={t(modulo.clave)} style={{fontSize:10,color:'var(--accent)'}}>🌐</span>}
+            {p.visibility === 'public' && <span title={t(modulo.clave)} style={{fontSize:10,color:'var(--success)'}}>🌍</span>}
             <button onClick={e=>{e.stopPropagation();onNew(p.id)}} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:14,padding:'0 2px'}}>+</button>
           </div>
           {p.children?.length>0 && <PageTree pages={p.children} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
@@ -380,7 +380,7 @@ function WikiTagsInline() {
               <label style={{fontSize:11,fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
               <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
                 style={{background:'var(--surface-3)',border:'1px solid #1e2d45',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
-                placeholder="Nombre de la etiqueta" autoFocus />
+                placeholder={t(modulo.clave)} autoFocus />
             </div>
             <div>
               <label style={{fontSize:11,fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</label>
@@ -521,7 +521,7 @@ export default function WikiPage() {
       {wikiMode === 'wiki' && <div style={{display:'flex',gap:8,marginBottom:20}}>
         <input value={searchQ} onChange={e=>{setSearchQ(e.target.value);if(!e.target.value)setSearchRes(null)}}
           onKeyDown={e=>e.key==='Enter'&&doSearch()}
-          placeholder="Buscar en el wiki..." style={{...is,flex:1}}/>
+          placeholder={t(modulo.clave)} style={{...is,flex:1}}/>
         <Button onClick={doSearch}>Buscar</Button>
         {searchRes&&<Button variant="secondary" onClick={()=>{setSearchRes(null);setSearchQ('')}}>✕</Button>}
       </div>}
@@ -530,7 +530,7 @@ export default function WikiPage() {
         <div style={{...ps,marginBottom:20}}>
           <div style={{fontSize:14,fontWeight:600,marginBottom:12}}>{searchRes.length} resultados para &quot;{searchQ}&quot;</div>
           {searchRes.length===0
-            ? <EmptyState icon="🔍" title="Sin resultados" description="Prueba con otras palabras"/>
+            ? <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)}/>
             : searchRes.map(p=>(
               <div key={p.id} onClick={()=>openPage(p)}
                 style={{padding:'10px 0',borderBottom:'1px solid #1e2d45',cursor:'pointer',color:'var(--accent)'}}>
@@ -574,7 +574,7 @@ export default function WikiPage() {
 
         <div style={ps}>
           {!space
-            ? <EmptyState icon="📚" title="Selecciona un espacio" description="Los espacios organizan la documentación por proyecto o equipo"/>
+            ? <EmptyState icon="📚" title={t(modulo.clave)} description={t(modulo.clave)}/>
             : !page
               ? <div style={{textAlign:'center',padding:'48px 24px'}}>
                   <div style={{fontSize:48,marginBottom:16}}>📄</div>
@@ -611,11 +611,11 @@ export default function WikiPage() {
       </div>
 
       {spaceModal&&(
-        <Modal open onClose={()=>setSpaceModal(false)} title="Nuevo espacio wiki">
+        <Modal open onClose={()=>setSpaceModal(false)} title={t(modulo.clave)}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div><label style={ls}>Nombre</label><input style={is} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
             <div><label style={ls}>Slug</label><input style={{...is,fontFamily:'monospace',fontSize:12}} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
-            <div><label style={ls}>Descripción</label><input style={is} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder="Opcional"/></div>
+            <div><label style={ls}>Descripción</label><input style={is} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={t(modulo.clave)}/></div>
             <div><label style={ls}>Proyecto (opcional)</label>
               <select style={is} value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">Sin proyecto</option>

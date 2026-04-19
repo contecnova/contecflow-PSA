@@ -183,7 +183,7 @@ function QuickAdd({ status, projectId, onCreated }) {
         value={title}
         onChange={e => setTitle(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setOpen(false); setTitle('') } }}
-        placeholder="Título de la tarea..."
+        placeholder={t(modulo.clave)}
         style={{
           flex: 1, background: 'var(--surface-3)', border: '1px solid var(--accent)',
           borderRadius: 6, padding: '6px 8px', color: 'var(--text-1)',
@@ -478,7 +478,7 @@ export default function KanbanAdvancedPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
         <PageHeader
-          title="Kanban Avanzado"
+          title={t(modulo.clave)}
           subtitle={t('kanban.subtitle')}
           actions={
             <Button size="sm" variant="subtle" onClick={() => setShowSettings(s => !s)}>
@@ -494,7 +494,7 @@ export default function KanbanAdvancedPage() {
           ref={searchRef}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar... (/)"
+          placeholder={t(modulo.clave)}
           style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)',
@@ -586,7 +586,7 @@ export default function KanbanAdvancedPage() {
                 <input
                   type="number" min={0} max={50}
                   value={wipLimits[col.id] || ''}
-                  placeholder="∞"
+                  placeholder={t(modulo.clave)}
                   onChange={e => setWipLimits(prev => ({ ...prev, [col.id]: e.target.value ? parseInt(e.target.value) : 0 }))}
                   style={{
                     width: 50, background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -607,7 +607,7 @@ export default function KanbanAdvancedPage() {
         </div>
       ) : rawTasks.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <EmptyState icon="📋" title="Sin tareas" description="Crea tareas en la vista de Tareas para verlas aquí." />
+          <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
         </div>
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>

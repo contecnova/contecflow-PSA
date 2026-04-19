@@ -105,7 +105,7 @@ export default function MFAPage() {
             value={code}
             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             style={fs}
-            placeholder="000000"
+            placeholder={t(modulo.clave)}
             maxLength={6}
             autoFocus
           />
@@ -164,7 +164,7 @@ export default function MFAPage() {
             onClick={e => e.stopPropagation()}>
             <div style={{ fontSize:14, fontWeight:500, marginBottom:14 }}>⚠ Desactivar MFA</div>
             <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:16 }}>Introduce tu código TOTP actual para confirmar que deseas desactivar la autenticación en dos pasos.</div>
-            <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder="000000" autoFocus />
+            <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t(modulo.clave)} autoFocus />
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
               <Button variant="secondary" onClick={() => setShowDisable(false)}>Cancelar</Button>
               <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}

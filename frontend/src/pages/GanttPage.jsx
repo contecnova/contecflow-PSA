@@ -104,7 +104,7 @@ export default function GanttPage() {
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
-                placeholder="Buscar tarea..."
+                placeholder={t(modulo.clave)}
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
                 style={{

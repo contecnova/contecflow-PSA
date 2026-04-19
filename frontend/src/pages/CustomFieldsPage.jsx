@@ -62,7 +62,7 @@ function FieldForm({ field, projectId, onClose }) {
           <input style={inputStyle} value={form.name} onChange={e => {
             const n = e.target.value
             setForm(f => ({ ...f, name: n, field_key: isEdit ? f.field_key : autoKey(n) }))
-          }} placeholder="Ej: Severidad, Cliente final, Sprint objetivo" />
+          }} placeholder={t(modulo.clave)} />
         </div>
 
         <div>
@@ -70,7 +70,7 @@ function FieldForm({ field, projectId, onClose }) {
           <input style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
             value={form.field_key}
             onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder="severidad" disabled={isEdit} />
+            placeholder={t(modulo.clave)} disabled={isEdit} />
           {isEdit && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>La clave no se puede cambiar una vez creado</div>}
         </div>
 
@@ -103,7 +103,7 @@ function FieldForm({ field, projectId, onClose }) {
               <input style={{ ...inputStyle, flex: 1 }} value={optionInput}
                 onChange={e => setOptionInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addOption()}
-                placeholder="Escribe una opción y pulsa Enter" />
+                placeholder={t(modulo.clave)} />
               <Button onClick={addOption}>+</Button>
             </div>
           </div>
@@ -185,7 +185,7 @@ export default function CustomFieldsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🗂" title="Selecciona un proyecto" description="Los campos personalizados se configuran por proyecto" />
+        <EmptyState icon="🗂" title={t(modulo.clave)} description={t(modulo.clave)} />
       )}
 
       {selectedProject && isLoading && <Spinner />}

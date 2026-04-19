@@ -168,7 +168,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
           <label style={LS}>Descripción del trabajo</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             style={{ ...FS, resize: 'vertical' }} rows={3}
-            placeholder="¿En qué has trabajado? (opcional)" autoFocus />
+            placeholder={t(modulo.clave)} autoFocus />
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: 13, color: 'var(--text-1)' }}>
           <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
