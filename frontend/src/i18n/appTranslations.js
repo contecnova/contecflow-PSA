@@ -3,61 +3,6 @@
 import es from './es.mjs';
 
 export default es;
-    dependencies: 'Dependencias', git: 'Git Integration',
-    resource_forecast: 'Forecast recursos', resource_scheduler: 'Planificador visual', skills: 'Skills', org_chart: 'Organigrama',
-    milestone_billing: 'Factura milestones', revenue: 'Reconoc. ingresos',
-    budgets: 'Presupuestos', rate_cards: 'Rate Cards', subcontractors: 'Subcontratistas',
-    scenarios: 'Escenarios what-if', nps: 'NPS & Salud cliente',
-    sla_calendars: 'Calendarios SLA', agent_dashboard: 'Dashboard agente',
-    report_builder: 'Report Builder', evm: 'EVM — Valor Ganado',
-    portfolio: 'Cartera proyectos', sprint_charts: 'Burnup & Velocity',
-    cumulative_flow: 'Flujo acumulado', risk_scores: 'Riesgo proyectos',
-    alerts: 'Alertas', data_exports: 'Exportar datos', workflows: 'Workflows',
-    issue_types: 'Tipos de issue', custom_fields: 'Campos personalizados',
-    project_permissions: 'Permisos proyecto', esign: 'E-Firma', m365: 'Microsoft 365',
-    mfa: 'Seguridad MFA', grc: 'GRC / SoD',
-    group_work: 'Mi Trabajo', group_projects: 'Proyectos & Planif.',
-    group_team: 'Equipo & Personas', group_business: 'Clientes & Finanzas',
-    group_support: 'Soporte & ITSM', group_analytics: 'Analítica & BI',
-    group_ai: 'IA & Automatización', group_settings: 'Configuración',
-  },
-
-  // ── Login ────────────────────────────────────────────────────────────────────
-
-
-  intake_form: {
-    loading_message: 'Cargando formulario...',
-    error_not_found_title: 'Formulario no disponible',
-    error_not_found_message: 'Este formulario no existe o ya no está activo.',
-    success_title: 'Solicitud enviada',
-    success_default_message: 'Hemos recibido tu solicitud correctamente.',
-
-    // Proxy para Vite y otros bundlers: reexporta todo desde .mjs
-    empty_subtitle: 'Crea tu primer formulario público para recibir solicitudes externas.',
-    create_form: 'Crear formulario',
-    form_updated: 'Formulario actualizado', form_created: 'Formulario creado', form_deleted: 'Formulario eliminado',
-    save_error: 'Error al guardar', delete_error: 'Error al eliminar', link_copied: 'Enlace copiado al portapapeles',
-    edit_form: 'Editar', new_form_title: 'Nuevo formulario',
-    name_label: 'Nombre *', name_placeholder: 'Ej: Soporte técnico externo',
-    description_label: 'Descripción', type_label: 'Tipo', type_ticket: 'Ticket de soporte', type_task: 'Tarea',
-    default_priority_label: 'Prioridad por defecto', priority_low: 'Baja', priority_medium: 'Media', priority_high: 'Alta', priority_critical: 'Crítica',
-    default_category_label: 'Categoría por defecto', default_category_placeholder: 'Ej: hardware, software...',
-    success_message_label: 'Mensaje de éxito', success_message_placeholder: '¡Gracias! Tu solicitud ha sido enviada.',
-    active_form_label: 'Formulario activo (acepta envíos)', cancel: 'Cancelar', save_changes: 'Guardar cambios',
-    submissions_title: 'Envíos', no_submissions: 'Sin envíos', no_submissions_subtitle: 'Aún no hay envíos para este formulario.',
-    col_date: 'Fecha', col_sender: 'Remitente', col_subject: 'Asunto', col_priority: 'Prioridad', col_ticket: 'Ticket',
-    status_active: 'Activo', status_inactive: 'Inactivo',
-    submissions_received: '{n} envíos recibidos', copy_link: 'Copiar enlace', submissions: 'Envíos',
-    delete_form: 'Eliminar formulario', delete_confirm: '¿Seguro que quieres eliminar "{name}"?',
-  },
-
-  resource_scheduler: {
-    title: 'Planificador de recursos',
-    subtitle_scheduler: 'Arrastra para crear reserva · arrastra reserva para mover · Delete elimina seleccionada',
-    subtitle_assign: 'Arrastra personas al proyecto para crear reserva',
-    scheduler_mode: '📅 Planificador', assign_mode: '🧑‍🤝‍🧑 Asignación',
-    all_departments: 'Todos los depts',
-    legend_available: 'Disponible', legend_lt_50: '<50%', legend_50_80: '50-80%', legend_80_100: '80-100%', legend_overloaded: 'Sobrecargado',
     legend_shortcuts: 'Esc cancelar · Delete eliminar seleccionada',
     no_active_users: 'Sin usuarios activos', no_active_users_desc: 'No hay usuarios activos para mostrar en el planificador.',
     people: 'Personas', person_drag_hint: 'arrastrar al proyecto',
