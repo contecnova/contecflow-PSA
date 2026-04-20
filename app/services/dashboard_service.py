@@ -22,10 +22,8 @@ from app.core.config import settings
 from app.models.alert import Alert
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus, ProjectRisk
-from app.models.project import Project, ProjectStatus
 from app.models.task import Task, TaskStatus
 from app.models.user import User, UserStatus
-from app.models.user import User
 from app.schemas import DashboardKPIs
 from app.schemas import ProjectHealthItem
 from app.schemas import ResourceLoadItem

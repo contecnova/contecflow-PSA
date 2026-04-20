@@ -1,4 +1,3 @@
-from sqlalchemy import text
 """Tests for new stub endpoints: ai_suggestions, resource_demand, health_composite, ui, templates, ai."""
 
 
@@ -88,30 +87,36 @@ def test_templates_full(client, admin_token, db):
 
 def test_templates_add_document(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    # Limpieza previa para evitar duplicados
-    db.execute(text('DELETE FROM template_document'))
-    db.commit()
-    res = client.post("/api/v1/templates/tpl-1/documents", headers=headers)
+    # Use a template_id with length >= 6 to avoid stub 404
+    res = client.post(
+        "/api/v1/templates/template-abc/documents",
+        json={"name": "SOW", "is_required": True},
+        headers=headers,
+    )
     assert res.status_code in (201, 200)
     data = res.json()
-    assert data.get("ok", True) is True
+    assert data.get("created", True) is True
 
 
 def test_templates_add_role(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    db.execute(text('DELETE FROM template_role'))
-    db.commit()
-    res = client.post("/api/v1/templates/tpl-1/roles", headers=headers)
+    res = client.post(
+        "/api/v1/templates/template-abc/roles",
+        json={"role_name": "Developer", "is_mandatory": True},
+        headers=headers,
+    )
     assert res.status_code in (201, 200)
     data = res.json()
-    assert data.get("ok", True) is True
+    assert data.get("created", True) is True
 
 
 def test_templates_export_project(client, admin_token, db):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    db.execute(text('DELETE FROM template_export'))
-    db.commit()
-    res = client.post("/api/v1/templates/export", headers=headers)
+    res = client.post(
+        "/api/v1/templates/export",
+        json={"name": "My Template"},
+        headers=headers,
+    )
     assert res.status_code in (201, 200)
     assert "template_id" in res.json()
 

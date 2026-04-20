@@ -137,7 +137,7 @@ def week_label(d) -> str:
 
 def get_filtered_project_ids(db, current_user, *, project_id=None, project_type=None, client_id=None):
     if not current_user.organization_id:
-        return None
+        return None  # None = no org filter (super-admin / unscoped user sees all)
     scoped_q = db.query(Project.id).filter(Project.organization_id == current_user.organization_id)
     if project_id:
         proj = db.query(Project).filter(

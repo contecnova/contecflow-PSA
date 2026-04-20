@@ -99,15 +99,19 @@ def get_dashboard_seed(current_user: User = Depends(get_current_user)):
     return {"role": role, "config": seed}
 
 
-_dashboard_widgets: list = []
+_dashboard_widgets: dict = {}  # keyed by user_id for per-user isolation
+_dashboard_widgets_lock = __import__("threading").Lock()
+
 
 @router.post("/widgets", summary="Add dashboard widget", status_code=201)
 def add_dashboard_widget(
     payload: dict = Body(...),
     current_user: User = Depends(get_current_user),
 ):
-    widget = {"id": len(_dashboard_widgets) + 1, **payload}
-    _dashboard_widgets.append(widget)
+    with _dashboard_widgets_lock:
+        user_widgets = _dashboard_widgets.setdefault(current_user.id, [])
+        widget = {"id": len(user_widgets) + 1, **payload}
+        user_widgets.append(widget)
     return widget
 
 

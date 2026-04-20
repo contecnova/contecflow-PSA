@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-from app.api.deps import get_current_user
+from app.core.deps import get_current_user
 from app.services.ai_copilot_service import get_ai_gantt_suggestions
 from sqlalchemy.orm import Session
 from app.db.session import get_db

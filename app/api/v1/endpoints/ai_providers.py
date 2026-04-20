@@ -75,7 +75,7 @@ def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=De
 def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_admin)):
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="AI provider not found")
     p = svc_update_provider(db, p, data, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     return _out(p)
 
@@ -84,7 +84,7 @@ def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_
 def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="AI provider not found")
     svc_delete_provider(db, p)
     return {"ok": True}
 
@@ -93,7 +93,7 @@ def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_a
 def set_default(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
     p = svc_set_default_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="AI provider not found")
     return {"ok": True}
 
 
@@ -102,7 +102,7 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
     """Probar la conexión con el proveedor enviando un mensaje de prueba."""
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="AI provider not found")
 
     t0 = time.time()
     try:
@@ -114,7 +114,7 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
                 "model": result.get("model", p.default_model)}
     except Exception as e:
         update_provider_test_result(db, p, success=False, error=str(e))
-        return {"ok": False, "error": str(e)[:300]}
+        return {"ok": False, "error": "Connection test failed"}
 
 
 @router.get("/stats")
