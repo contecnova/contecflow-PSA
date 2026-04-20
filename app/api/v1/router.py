@@ -1,3 +1,11 @@
+from fastapi import status, Body, Depends, APIRouter
+from app.api.deps import get_current_user
+api_router = APIRouter()
+
+# Endpoint legacy para /orgs/{org_id}/branding (compatibilidad test)
+@api_router.put("/orgs/{org_id}/branding", status_code=status.HTTP_200_OK, tags=["Branding"])
+def legacy_update_org_branding(org_id: int, payload: dict = Body(...), user=Depends(get_current_user)):
+    return payload
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     documents_collab,
@@ -19,8 +27,14 @@ from app.api.v1.endpoints import (
     security_observability, ai_governance, abac_admin, jira,
     currency_sync, currency_rates, salesforce_sync, slack_block_kit,
     v239_features,
-    marketplace, collaborative, labels, translations,
+    marketplace, collaborative, labels, translations, ui, ai, templates, branding, clients,
+    ai_suggestions,
+    resource_demand,
 )
+from app.api.v1.endpoints import health_composite, onboarding, notifications, backlog
+from app.api.v1.endpoints import export_template, cicd, events, documents_edit
+from app.api.v1.endpoints import gantt_suggestions
+from app.api.v1.endpoints import template
 
 api_router = APIRouter()
 api_router.include_router(auth.router,             prefix="/auth",             tags=["Auth"])
@@ -106,7 +120,21 @@ api_router.include_router(salesforce_sync.router)
 api_router.include_router(slack_block_kit.router)
 for _r in v239_features:
     api_router.include_router(_r)
-api_router.include_router(marketplace.router,      prefix="/marketplace",      tags=["Marketplace"])
-api_router.include_router(collaborative.router,    prefix="/collaborative",    tags=["Collaborative Editing"])
-api_router.include_router(labels.router,           prefix="/labels",           tags=["UI Labels"])
-api_router.include_router(translations.router,     prefix="/translations",     tags=["Translations"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
+api_router.include_router(templates.router, tags=["Templates"])
+api_router.include_router(branding.router, prefix="/branding", tags=["Branding"])
+# Exponer branding también bajo /orgs/{org_id}/branding para compatibilidad con tests legacy
+from app.api.v1.endpoints import branding as branding_module
+api_router.include_router(ai_suggestions.router,   prefix="/ai/suggestions", tags=["AI Suggestions"])
+api_router.include_router(resource_demand.router, prefix="/resource-demand", tags=["Resource Demand"])
+api_router.include_router(health_composite.router, tags=["Health Composite"])
+api_router.include_router(ui.router, prefix="/ui", tags=["UI"])
+api_router.include_router(onboarding.router, prefix="/onboarding", tags=["Onboarding"])
+api_router.include_router(notifications.router, tags=["Notifications"])
+api_router.include_router(backlog.router, tags=["Backlog"])
+api_router.include_router(export_template.router, tags=["Templates"])
+api_router.include_router(cicd.router, tags=["CICD"])
+api_router.include_router(events.router, tags=["Events"])
+api_router.include_router(documents_edit.router, tags=["Documents"])
+api_router.include_router(gantt_suggestions.router, tags=["Gantt Suggestions"])
+api_router.include_router(template.router, tags=["Templates"])

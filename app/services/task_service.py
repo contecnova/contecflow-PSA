@@ -38,7 +38,14 @@ from sqlalchemy.orm import joinedload
 # ── Transition table ───────────────────────────────────────────────────────────
 
 TASK_VALID_TRANSITIONS: dict = {
-    status: {s for s in TaskStatus if s != status} for status in TaskStatus
+    TaskStatus.backlog: {TaskStatus.todo, TaskStatus.cancelled},
+    TaskStatus.todo: {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.cancelled},
+    TaskStatus.in_progress: {TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.blocked: {TaskStatus.in_progress, TaskStatus.cancelled},
+    TaskStatus.in_review: {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},
+    TaskStatus.done: {TaskStatus.in_progress, TaskStatus.cancelled},  # Permite reabrir
+    TaskStatus.cancelled: set(),  # Terminal
+    TaskStatus.review: {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},  # legacy alias
 }
 
 

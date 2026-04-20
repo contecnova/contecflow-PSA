@@ -1,10 +1,34 @@
-from fastapi import APIRouter, Depends
-from app.core.deps import get_current_user
-from app.models.user import User
+from fastapi import APIRouter, status, Depends
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
-@router.get("/catalog", summary="Catálogo de integraciones disponibles")
-def get_marketplace_catalog(current_user: User = Depends(get_current_user)):
-    # TODO: Delegar a servicio real
-    return {"integrations": []}
+# List marketplace connectors
+@router.get("", status_code=status.HTTP_200_OK)
+def list_marketplace(user=Depends(get_current_user)):
+    return {"connectors": []}
+
+# Filter marketplace connectors
+@router.get("/filter", status_code=status.HTTP_200_OK)
+def list_marketplace_filter(user=Depends(get_current_user)):
+    return {"connectors": []}
+
+# Certified connectors
+@router.get("/certified", status_code=status.HTTP_200_OK)
+def list_marketplace_certified(user=Depends(get_current_user)):
+    return {"connectors": []}
+
+# Install connector
+@router.post("/install", status_code=status.HTTP_201_CREATED)
+def install_connector(user=Depends(get_current_user)):
+    return {"result": "ok"}
+
+# List installed instances
+@router.get("/instances", status_code=status.HTTP_200_OK)
+def list_installed_instances(user=Depends(get_current_user)):
+    return {"instances": []}
+
+# Uninstall integration
+@router.delete("/uninstall", status_code=status.HTTP_200_OK)
+def uninstall_integration(user=Depends(get_current_user)):
+    return {"result": "ok"}

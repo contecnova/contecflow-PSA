@@ -846,11 +846,16 @@ def mfa_setup(
             "issuer":           "Clarive PSA",
             "email":            current_user.email,
         }
-    except ImportError:
-        raise HTTPException(500, "qrcode no instalado — ejecuta: pip install 'qrcode[pil]'")
+    except ImportError as ie:
+        logger.error("ImportError en MFA setup: %s", ie, exc_info=True)
+        raise HTTPException(500, f"Dependencia faltante en 2FA: {ie}")
     except Exception as e:
-        logger.error("MFA setup error: %s", e, exc_info=True)
-        raise HTTPException(500, "Error al configurar 2FA")
+        import traceback
+        tb = traceback.format_exc()
+        logger.error("MFA setup error: %s\nTraceback:\n%s", e, tb)
+        # Devuelve el mensaje real del error en modo debug, genérico en prod
+        msg = str(e) if settings.DEBUG or os.environ.get("DEBUG") else "Error al configurar 2FA"
+        raise HTTPException(500, msg)
 
 
 @router.post("/mfa/verify-setup", summary="Verificar código TOTP y activar 2FA")
