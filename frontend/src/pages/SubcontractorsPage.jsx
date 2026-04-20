@@ -12,7 +12,12 @@ const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransfo
 const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
 const STATUS_COLOR = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
-const STATUS_LABEL = { received: 'Recibida', approved: 'Aprobada', paid: 'Pagada', rejected: 'Rechazada' }
+const STATUS_LABEL = {
+  received: t('subcontractors.status_received'),
+  approved: t('subcontractors.status_approved'),
+  paid: t('subcontractors.status_paid'),
+  rejected: t('subcontractors.status_rejected')
+}
 const LEVEL_COLOR = { basic: '#6b7280', intermediate: 'var(--accent)', advanced: '#fb923c', expert: 'var(--success)' }
 
 // ── Worker Modal ──────────────────────────────────────────────────────────────
@@ -35,6 +40,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   const [skillForm, setSkillForm] = useState({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' })
   const [showSkillForm, setShowSkillForm] = useState(false)
 
+  const t = useAppT()
   const { data: skillCatalog = [] } = useQuery({
     queryKey: ['skills-catalog'],
     queryFn: () => api.get('/skills/catalog').then(r => r.data),
@@ -86,38 +92,36 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       <Modal open title={t('subcontractors.person_added')} onClose={onClose} width={480}>
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Persona creada como recurso</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
-            Se ha creado un usuario asociado. Comparte estas credenciales una sola vez:
-          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{t('subcontractors.person_added')}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>{t('subcontractors.person_created_user')}</div>
           <div style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-glow)', borderRadius: 12, padding: '16px 20px', textAlign: 'left', marginBottom: 16 }}>
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Usuario</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.username')}</div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, color: 'var(--accent)', userSelect: 'all' }}>{credsInfo.username}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Contraseña temporal</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.temp_password')}</div>
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, color: 'var(--warning)', userSelect: 'all' }}>{credsInfo.password}</div>
             </div>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 20 }}>
-            ⚠ Esta información no volverá a mostrarse. El usuario puede cambiar su contraseña en Configuración.
+            {t('subcontractors.creds_warning')}
           </div>
-          <Button onClick={onClose} style={{ width: '100%' }}>Entendido</Button>
+          <Button onClick={onClose} style={{ width: '100%' }}>{t('subcontractors.understood')}</Button>
         </div>
       </Modal>
     )
   }
 
   return (
-    <Modal open title={isEdit ? `✏ ${worker.name}` : '+ Nueva persona'} onClose={onClose} width={560}>
+    <Modal open title={isEdit ? `${t('subcontractors.edit_person', { name: worker?.name })}` : t('subcontractors.new_person')} onClose={onClose} width={560}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={lbl}>Nombre completo *</label>
+          <label style={lbl}>{t('subcontractors.placeholder_name')} *</label>
           <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_name')} />
         </div>
         <div>
-          <label style={lbl}>Rol / Perfil</label>
+          <label style={lbl}>{t('subcontractors.placeholder_role')}</label>
           <input value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp} placeholder={t('subcontractors.placeholder_role')} />
         </div>
         <div>
@@ -125,23 +129,23 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
           <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>Tarifa coste (€/h)</label>
+          <label style={lbl}>{t('subcontractors.cost_rate')}</label>
           <input type="number" value={form.cost_rate} onChange={e => setForm(f => ({ ...f, cost_rate: e.target.value }))} style={inp} min="0" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>Tarifa venta (€/h)</label>
+          <label style={lbl}>{t('subcontractors.sell_rate')}</label>
           <input type="number" value={form.sell_rate} onChange={e => setForm(f => ({ ...f, sell_rate: e.target.value }))} style={inp} min="0" step="0.5" />
         </div>
         <div>
-          <label style={lbl}>Disponible desde</label>
+          <label style={lbl}>{t('subcontractors.available_from')}</label>
           <input type="date" value={form.available_from} onChange={e => setForm(f => ({ ...f, available_from: e.target.value }))} style={inp} />
         </div>
         <div>
-          <label style={lbl}>Disponible hasta</label>
+          <label style={lbl}>{t('subcontractors.available_until')}</label>
           <input type="date" value={form.available_until} onChange={e => setForm(f => ({ ...f, available_until: e.target.value }))} style={inp} />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={lbl}>Notas</label>
+          <label style={lbl}>{t('subcontractors.notes')}</label>
           <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 52, resize: 'vertical' }} />
         </div>
       </div>
@@ -150,10 +154,10 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       {isEdit && (
         <div style={{ borderTop: '1px solid #1e2d45', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>🎯 Skills</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
             <button onClick={() => setShowSkillForm(s => !s)}
               style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {showSkillForm ? '✕ Cancelar' : '+ Añadir skill'}
+              {showSkillForm ? t('subcontractors.cancel_skill') : t('subcontractors.add_skill')}
             </button>
           </div>
 
@@ -170,7 +174,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
               </span>
             ))}
             {(worker.skills || []).length === 0 && !showSkillForm && (
-              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin skills asignadas</span>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('subcontractors.no_skills')}</span>
             )}
           </div>
 
@@ -178,9 +182,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
           {showSkillForm && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '12px', background: 'var(--surface-3)', borderRadius: 8 }}>
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={lbl}>Skill *</label>
+                <label style={lbl}>{t('subcontractors.add_skill')} *</label>
                 <select value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} style={inp}>
-                  <option value="">Seleccionar skill...</option>
+                  <option value="">{t('subcontractors.select_skill')}</option>
                   {Object.entries(byCategory).map(([cat, skills]) => (
                     <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
                       {skills.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -189,24 +193,24 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
                 </select>
               </div>
               <div>
-                <label style={lbl}>Nivel</label>
+                <label style={lbl}>{t('subcontractors.level')}</label>
                 <select value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} style={inp}>
                   {['basic','intermediate','advanced','expert'].map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label style={lbl}>Años experiencia</label>
+                <label style={lbl}>{t('subcontractors.years_experience')}</label>
                 <input type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} style={inp} min="0" step="0.5" />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1/-1', paddingTop: 4 }}>
                 <input type="checkbox" id="wsCert" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
-                <label htmlFor="wsCert" style={{ fontSize: 12, color: 'var(--text-1)', cursor: 'pointer' }}>Certificado</label>
+                <label htmlFor="wsCert" style={{ fontSize: 12, color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
                 {skillForm.certified && (
                   <input value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
                 )}
               </div>
               <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end' }}>
-                <Button size="sm" onClick={() => addSkill(skillForm)} loading={addingSkill} disabled={!skillForm.skill_id || addingSkill}>Asignar skill</Button>
+                <Button size="sm" onClick={() => addSkill(skillForm)} loading={addingSkill} disabled={!skillForm.skill_id || addingSkill}>{t('subcontractors.assign_skill')}</Button>
               </div>
             </div>
           )}
@@ -215,9 +219,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
-          {isEdit ? 'Cerrar' : 'Cancelar'}
+          {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </button>
-        <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? 'Guardar cambios' : 'Añadir persona'}</Button>
+        <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
       </div>
     </Modal>
   )
@@ -251,7 +255,7 @@ function WorkersPanel({ subId }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-        <Button size="sm" onClick={() => setShowCreate(true)}>+ Añadir persona</Button>
+        <Button size="sm" onClick={() => setShowCreate(true)}>{t('subcontractors.add_person_btn')}</Button>
       </div>
 
       {workers.length === 0 ? (
@@ -265,14 +269,14 @@ function WorkersPanel({ subId }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{w.name}</div>
                     {w.role && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{w.role}</span>}
-                    {!w.is_active && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, #ff475720)', color: 'var(--danger)' }}>Inactivo</span>}
+                    {!w.is_active && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, #ff475720)', color: 'var(--danger)' }}>{t('subcontractors.inactivo')}</span>}
                   </div>
                   {w.email && <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>📧 {w.email}</div>}
                   {(w.cost_rate || w.sell_rate) && (
                     <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>
-                      {w.cost_rate && `💰 Coste: ${w.cost_rate}€/h`}
+                      {w.cost_rate && t('subcontractors.cost', { rate: w.cost_rate })}
                       {w.cost_rate && w.sell_rate && ' · '}
-                      {w.sell_rate && `Venta: ${w.sell_rate}€/h`}
+                      {w.sell_rate && t('subcontractors.sell', { rate: w.sell_rate })}
                     </div>
                   )}
                   {/* Skills */}
@@ -286,7 +290,7 @@ function WorkersPanel({ subId }) {
                         {s.certified && ' 🏆'}
                       </span>
                     ))}
-                    {(w.skills || []).length === 0 && <span style={{ fontSize: 11, color: 'var(--text-4)' }}>Sin skills</span>}
+                    {(w.skills || []).length === 0 && <span style={{ fontSize: 11, color: 'var(--text-4)' }}>{t('subcontractors.no_skills_short')}</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
@@ -296,10 +300,10 @@ function WorkersPanel({ subId }) {
                       {w.available_until && <div>Hasta: {w.available_until}</div>}
                     </div>
                   )}
-                  <button onClick={() => setEditWorker(w)}
-                    style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
-                    ✏ Editar
-                  </button>
+                    <button onClick={() => setEditWorker(w)}
+                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                      {t('subcontractors.edit')}
+                    </button>
                   {w.is_active && (
                     <button onClick={() => setDeactivateTarget(w)}
                       style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
@@ -321,8 +325,8 @@ function WorkersPanel({ subId }) {
             Se desactivará a <strong>{deactivateTarget.name}</strong> y no podrá iniciar sesión ni ser asignado a tareas.
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button variant="ghost" onClick={() => setDeactivateTarget(null)}>Cancelar</Button>
-            <Button variant="danger" onClick={() => { deactivate(deactivateTarget.id); setDeactivateTarget(null) }}>Desactivar</Button>
+            <Button variant="ghost" onClick={() => setDeactivateTarget(null)}>{t('subcontractors.cancel')}</Button>
+            <Button variant="danger" onClick={() => { deactivate(deactivateTarget.id); setDeactivateTarget(null) }}>{t('subcontractors.deactivate')}</Button>
           </div>
         </Modal>
       )}

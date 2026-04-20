@@ -99,7 +99,7 @@ export const approvalsApi = {
   addStep:           (wid, d)      => api.post(`/approvals/workflows/${wid}/steps`, d),
   updateStep:        (wid, sid, d) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
   deleteStep:        (wid, sid)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
-  listRequests:      (params)      => api.get('/approvals/requests', { params }),
+  listRequests:      (params)      => api.get('/approvals/requests', { params }), // ya estaba correcto
   pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
   createRequest:     (d)           => api.post('/approvals/requests', d),
   decide:            (id, d)       => api.post(`/approvals/requests/${id}/decide`, d),
@@ -262,11 +262,11 @@ export const expensesApi = {
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
 export const risksApi = {
-  list:   (projectId, params) => api.get('/risks', { params: { project_id: projectId, ...params } }),
-  get:    (id)                => api.get(`/risks/${id}`),
-  create: (data)              => api.post('/risks', data),
-  update: (id, data)          => api.patch(`/risks/${id}`, data),
-  delete: (id)                => api.delete(`/risks/${id}`),
+  list:   (projectId, params) => api.get(`/risks/${projectId}`, { params }),
+  get:    (projectId, riskId) => api.get(`/risks/${projectId}/${riskId}`),
+  create: (projectId, data)   => api.post(`/risks/${projectId}`, data),
+  update: (projectId, riskId, data) => api.patch(`/risks/${projectId}/${riskId}`, data),
+  delete: (projectId, riskId) => api.delete(`/risks/${projectId}/${riskId}`),
   scores: ()                  => api.get('/risks/scores'),
 }
 

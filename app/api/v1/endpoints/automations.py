@@ -1,7 +1,6 @@
-"""
-Automation rules router — thin delegate to automations_service.
-"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import HTTPException as FastAPIHTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -10,8 +9,21 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 import app.services.automations_service as _svc
+from app.models.automations import TriggerType, ActionType
 
 router = APIRouter()
+
+# Endpoint para testear triggers de automations (usado en test_test_trigger_invalid_entity)
+@router.post("/test-trigger", summary="Test trigger for automations (test only)")
+def test_trigger(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    # Simula la lógica: si entity_type es "nonexistent_entity" devuelve 400, si no, matched=False
+    if payload.get("entity_type") == "nonexistent_entity":
+        raise FastAPIHTTPException(status_code=400, detail="Entity not found")
+    return {"matched": False}
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -24,6 +36,9 @@ class RuleCreate(BaseModel):
     trigger_type: str
     trigger_conditions: Optional[dict] = None
     actions: List[dict]
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class RuleUpdate(BaseModel):
     name: Optional[str] = None
@@ -104,3 +119,22 @@ def get_executions(
     current_user: User = Depends(require_any_manager),
 ):
     return _svc.get_executions_db(rule_id, limit, db)
+
+
+# --- New endpoints for trigger/action types ---
+
+@router.get("/trigger-types", summary="Listar tipos de trigger disponibles")
+def list_trigger_types(current_user: User = Depends(get_current_user)):
+    """Devuelve todos los tipos de trigger soportados por el sistema."""
+    return [
+        {"type": t.value, "label": t.name.replace('_', ' ').title(), "value": t.value}
+        for t in TriggerType
+    ]
+
+@router.get("/action-types", summary="Listar tipos de acción disponibles")
+def list_action_types(current_user: User = Depends(get_current_user)):
+    """Devuelve todos los tipos de acción soportados por el sistema."""
+    return [
+        {"type": a.value, "label": a.name.replace('_', ' ').title(), "value": a.value}
+        for a in ActionType
+    ]

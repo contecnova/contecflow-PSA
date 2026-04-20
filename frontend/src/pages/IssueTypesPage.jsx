@@ -56,28 +56,27 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <div>
-            <label style={ls}>Nombre</label>
+            <label style={ls}>{t('issue_types.name')}</label>
             <input style={is} value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({...f, name:n, value: isEdit ? f.value : autoValue(n)}))
-            }} placeholder={t(modulo.clave)} />
+            }} />
           </div>
           <div>
-            <label style={ls}>Valor interno</label>
+            <label style={ls}>{t('issue_types.value_internal')}</label>
             <input style={{...is, fontFamily:'monospace', fontSize:12}} value={form.value}
               onChange={e => set('value')(e.target.value)} disabled={isEdit}
-              placeholder={t(modulo.clave)} />
+            />
           </div>
         </div>
-
         <div style={{display:'grid',gridTemplateColumns:'80px 1fr',gap:12}}>
           <div>
-            <label style={ls}>Icono</label>
+            <label style={ls}>{t('issue_types.icon')}</label>
             <input style={{...is, textAlign:'center', fontSize:20}} value={form.icon}
-              onChange={e => set('icon')(e.target.value)} placeholder={t(modulo.clave)} />
+              onChange={e => set('icon')(e.target.value)} />
           </div>
           <div>
-            <label style={ls}>Color</label>
+            <label style={ls}>{t('issue_types.color')}</label>
             <div style={{display:'flex',gap:8,flexWrap:'wrap',paddingTop:4}}>
               {COLORS.map(c => (
                 <button key={c} onClick={() => set('color')(c)}
@@ -88,21 +87,17 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
             </div>
           </div>
         </div>
-
         <div>
-          <label style={ls}>Descripción</label>
-          <input style={is} value={form.description} onChange={e => set('description')(e.target.value)}
-            placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('issue_types.description')}</label>
+          <input style={is} value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
-
         <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
           <input type="checkbox" checked={form.is_subtask} onChange={e => set('is_subtask')(e.target.checked)} />
-          Puede usarse como subtarea de otra tarea
+          {t('issue_types.subtask_checkbox')}
         </label>
-
         {customFields.length > 0 && (
           <div>
-            <label style={ls}>Campos requeridos para este tipo</label>
+            <label style={ls}>{t('issue_types.required_fields_label')}</label>
             <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
               {customFields.map(f => (
                 <label key={f.field_key} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',
@@ -116,11 +111,10 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
             </div>
           </div>
         )}
-
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('issue_types.cancel')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.value} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear tipo'}
+            {isPending ? t('issue_types.saving') : isEdit ? t('issue_types.save_changes') : t('issue_types.create_type')}
           </Button>
         </div>
       </div>
@@ -183,17 +177,14 @@ export default function IssueTypesPage() {
       {project && !isLoading && types.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
           <div style={{fontSize:48, marginBottom:16}}>🏷</div>
-          <div style={{fontSize:15, fontWeight:600, marginBottom:8}}>Sin tipos de issue</div>
-          <div style={{fontSize:13, color:'var(--text-2)', marginBottom:24}}>
-            Inicializa con los 7 tipos estándar (Historia, Tarea, Bug, Mejora, Épica, Subtarea, Spike)<br/>
-            o crea tus propios tipos desde cero.
-          </div>
+          <div style={{fontSize:15, fontWeight:600, marginBottom:8}}>{t('issue_types.no_types')}</div>
+          <div style={{fontSize:13, color:'var(--text-2)', marginBottom:24}}>{t('issue_types.no_types_desc')}</div>
           <div style={{display:'flex', gap:12, justifyContent:'center'}}>
             <Button onClick={() => initTypes()} disabled={initing}>
-              {initing ? 'Inicializando...' : '⚡ Tipos estándar (7)'}
+              {initing ? t('issue_types.initializing') : t('issue_types.init_standard')}
             </Button>
             <Button variant="secondary" onClick={() => { setEditing(null); setShowForm(true) }}>
-              + Crear tipo custom
+              {t('issue_types.create_custom')}
             </Button>
           </div>
         </div>
@@ -209,21 +200,20 @@ export default function IssueTypesPage() {
                 <div style={{fontSize:28, marginBottom:4}}>{t.icon || '📌'}</div>
                 <div style={{fontWeight:600, fontSize:13, color:t.color}}>{t.name}</div>
                 <div style={{fontSize:11, color:'var(--text-3)', fontFamily:'monospace'}}>{t.value}</div>
-                {t.is_subtask && <div style={{fontSize:10, color:'var(--text-2)', marginTop:4}}>subtarea</div>}
+                {t.is_subtask && <div style={{fontSize:10, color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
               </div>
             ))}
           </div>
-
           {/* Tabla detallada */}
           <div style={ps}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-              <div style={{fontSize:14, fontWeight:600}}>{types.length} tipos de issue</div>
-              <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo tipo</Button>
+              <div style={{fontSize:14, fontWeight:600}}>{t('issue_types.types_count').replace('{n}', types.length)}</div>
+              <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
             </div>
             <table style={{width:'100%', borderCollapse:'collapse', fontSize:13}}>
               <thead>
                 <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
-                  {['Tipo','Valor','Descripción','Subtarea','Campos req.','Acciones'].map(h => (
+                  {[t('issue_types.type'), t('issue_types.value'), t('issue_types.description'), t('issue_types.subtask'), t('issue_types.required_fields'), t('issue_types.actions')].map(h => (
                     <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize:11, color:'var(--text-2)',
                       textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
                   ))}
@@ -258,12 +248,12 @@ export default function IssueTypesPage() {
                         <button onClick={() => { setEditing(t); setShowForm(true) }}
                           style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
                             padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:11}}>
-                          Editar
+                          {t('issue_types.edit')}
                         </button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el tipo "${t.name}"? Las tareas de este tipo deberán reasignarse.`, onConfirm: () => deleteType(t.id), danger: true }) }}
+                        <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', t.name), onConfirm: () => deleteType(t.id), danger: true }) }}
                           style={{background:'none', border:'1px solid #ff475730', borderRadius:6,
                             padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize:11}}>
-                          Eliminar
+                          {t('issue_types.delete')}
                         </button>
                       </div>
                     </td>
@@ -271,12 +261,9 @@ export default function IssueTypesPage() {
                 ))}
               </tbody>
             </table>
-
             <div style={{marginTop:20, padding:'12px 16px', background:'var(--surface-1)', borderRadius:8,
               border:'1px solid #1a2640', fontSize:12, color:'var(--text-3)', lineHeight:1.7}}>
-              <strong style={{color:'var(--text-2)'}}>Cómo usar:</strong> Asigna el campo <code style={{color:'var(--accent)'}}>issue_type</code> en tus tareas con el valor interno del tipo.
-              Los tipos con campos requeridos exigen que esos campos estén rellenados al crear la tarea.
-              Los tipos marcados como &quot;subtarea&quot; solo pueden ser hijo de otra tarea.
+              <strong style={{color:'var(--text-2)'}}>{t('issue_types.how_to_use')}</strong> {t('issue_types.how_to_use_desc')}
             </div>
           </div>
         </div>

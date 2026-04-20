@@ -28,19 +28,19 @@ function InternalCommentThread({ ticketId }) {
   const { mutate: addComment, isPending: adding } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/internal-comments`, { content }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setContent('') },
-    onError: e => toast.error(extractErr(e, 'Error al añadir comentario')),
+    onError: e => toast.error(extractErr(e, t('internal_comments.error_add'))),
   })
 
   const { mutate: updateComment, isPending: updating } = useMutation({
     mutationFn: ({ id, content: c }) => api.patch(`/sd/tickets/${ticketId}/internal-comments/${id}`, { content: c }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['internal-comments', ticketId]); setEditing(null) },
-    onError: e => toast.error(extractErr(e, 'Error al actualizar')),
+    onError: e => toast.error(extractErr(e, t('internal_comments.error_update'))),
   })
 
   const { mutate: deleteComment } = useMutation({
     mutationFn: id => api.delete(`/sd/tickets/${ticketId}/internal-comments/${id}`),
     onSuccess: () => qc.invalidateQueries(['internal-comments', ticketId]),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onError: e => toast.error(extractErr(e, t('internal_comments.error_delete'))),
   })
 
   const t = useAppT()
@@ -81,8 +81,8 @@ function InternalCommentThread({ ticketId }) {
                     </div>
                     <div style={{display:'flex', gap:6}}>
                       <button onClick={() => { setEditing(c.id); setEditContent(c.content) }}
-                        style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✏ Editar</button>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este comentario interno?', onConfirm: () => deleteComment(c.id), danger: true }) }}
+                        style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✏ {t('internal_comments.edit')}</button>
+                      <button onClick={() => { openConfirmGlobal({ message: t('internal_comments.confirm_delete'), onConfirm: () => deleteComment(c.id), danger: true }) }}
                         style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:12}}>✕</button>
                     </div>
                   </div>
@@ -92,9 +92,9 @@ function InternalCommentThread({ ticketId }) {
                         rows={2} style={{...is, marginBottom:8, resize:'vertical'}} />
                       <div style={{display:'flex', gap:8}}>
                         <Button onClick={() => updateComment({id: c.id, content: editContent})} disabled={updating || !editContent.trim()}>
-                          {updating ? '...' : 'Guardar'}
+                          {updating ? t('internal_comments.saving') : t('internal_comments.save')}
                         </Button>
-                        <Button variant="secondary" onClick={() => setEditing(null)}>Cancelar</Button>
+                        <Button variant="secondary" onClick={() => setEditing(null)}>{t('internal_comments.cancel')}</Button>
                       </div>
                     </div>
                   ) : (
@@ -107,12 +107,12 @@ function InternalCommentThread({ ticketId }) {
 
           {/* Nuevo comentario */}
           <div>
-            <label style={ls}>Añadir nota interna</label>
+            <label style={ls}>{t('internal_comments.add_label')}</label>
             <textarea value={content} onChange={e => setContent(e.target.value)}
               placeholder={t(modulo.clave)}
               rows={3} style={{...is, marginBottom:8, resize:'vertical'}} />
             <Button onClick={() => addComment()} disabled={adding || !content.trim()}>
-              {adding ? 'Enviando...' : '🔒 Añadir nota interna'}
+              {adding ? t('internal_comments.sending') : '🔒 ' + t('internal_comments.add_btn')}
             </Button>
           </div>
         </div>
@@ -160,11 +160,11 @@ export default function InternalCommentsPage() {
       <div style={{...ps, marginBottom:20}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr', gap:12}}>
           <div>
-            <label style={ls}>Buscar ticket</label>
+            <label style={ls}>{t('internal_comments.search_label')}</label>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder={t(modulo.clave)}
+              placeholder={t('internal_comments.search_placeholder')}
               style={is}
               autoFocus
             />
@@ -187,7 +187,7 @@ export default function InternalCommentsPage() {
             </div>
           )}
           {search.length > 0 && filtered.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>No se encontraron tickets con &quot;{search}&quot;</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>{t('internal_comments.no_tickets_found', { search })}</div>
           )}
           {selectedTicket && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
@@ -209,17 +209,15 @@ export default function InternalCommentsPage() {
       {/* Diferencia visual con comentarios normales */}
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24}}>
         <div style={{...ps, padding:'14px 18px', border:'1px solid #1a2640'}}>
-          <div style={{fontSize:12, fontWeight:600, color:'var(--text-2)', marginBottom:8}}>💬 Comentario normal</div>
+          <div style={{fontSize:12, fontWeight:600, color:'var(--text-2)', marginBottom:8}}>💬 {t('internal_comments.normal_label')}</div>
           <div style={{fontSize:12, color:'var(--text-3)', lineHeight:1.7}}>
-            Visible para el agente <strong style={{color:'var(--text-1)'}}>Y para el cliente</strong> en el portal.
-            Se usa para actualizar al cliente del estado.
+            {t('internal_comments.normal_desc')}
           </div>
         </div>
         <div style={{...ps, padding:'14px 18px', border:'1px solid #ffb80030', background:'var(--warning-bg)'}}>
-          <div style={{fontSize:12, fontWeight:600, color:'var(--warning)', marginBottom:8}}>🔒 Comentario interno</div>
+          <div style={{fontSize:12, fontWeight:600, color:'var(--warning)', marginBottom:8}}>🔒 {t('internal_comments.internal_label')}</div>
           <div style={{fontSize:12, color:'var(--text-2)', lineHeight:1.7}}>
-            Visible <strong style={{color:'var(--warning)'}}>solo para el equipo</strong>.
-            El cliente nunca lo ve. Ideal para escalar, notas técnicas o coordinación interna.
+            {t('internal_comments.internal_desc')}
           </div>
         </div>
       </div>
@@ -227,14 +225,14 @@ export default function InternalCommentsPage() {
       {ticketId && (
         <div style={ps}>
           <div style={{fontSize:13, fontWeight:600, marginBottom:16}}>
-            Comentarios internos — ticket <code style={{color:'var(--accent)', fontSize:12}}>{ticketId.slice(0,8)}…</code>
+            {t('internal_comments.thread_title')} — ticket <code style={{color:'var(--accent)', fontSize:12}}>{ticketId.slice(0,8)}…</code>
           </div>
           <InternalCommentThread ticketId={ticketId} />
         </div>
       )}
 
       {!ticketId && (
-        <EmptyState icon="🔒" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="🔒" title={t('internal_comments.empty_title')} description={t('internal_comments.empty_desc')} />
       )}
     </div>
   )

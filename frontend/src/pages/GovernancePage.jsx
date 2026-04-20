@@ -10,15 +10,15 @@ import { useAppT } from '../i18n/AppLangContext'
 const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
 const MODULE_CFG = {
-  nexusassist:          { icon: '💬', label: 'NexusAssist',          desc: 'Chat conversacional con el copiloto IA' },
-  nexusagent:           { icon: '⚡', label: 'NexusAgent',           desc: 'Agente autónomo que ejecuta instrucciones' },
-  nexusoracle:          { icon: '🔮', label: 'NexusOracle',          desc: 'Motor predictivo y detección de anomalías' },
-  meeting_assistant:    { icon: '🎙', label: 'Meeting Assistant',    desc: 'Procesamiento de transcripciones de reuniones' },
-  sprint_planning:      { icon: '✨', label: 'Sprint Planning IA',   desc: 'Planificación de sprints asistida por IA' },
-  contract_intelligence:{ icon: '📄', label: 'Contract Intelligence', desc: 'Análisis automático de contratos' },
-  knowledge_base:       { icon: '📚', label: 'Knowledge Base IA',   desc: 'Generación y búsqueda semántica en KB' },
-  portal_ai:            { icon: '🌐', label: 'Portal IA',            desc: 'Chat IA para el portal de clientes' },
-  voice:                { icon: '🎤', label: 'Comandos de voz',      desc: 'Procesamiento de comandos de voz' },
+  nexusassist:          { icon: '💬', label: t('governance.nexusassist_label'),          desc: t('governance.nexusassist_desc') },
+  nexusagent:           { icon: '⚡', label: t('governance.nexusagent_label'),           desc: t('governance.nexusagent_desc') },
+  nexusoracle:          { icon: '🔮', label: t('governance.nexusoracle_label'),          desc: t('governance.nexusoracle_desc') },
+  meeting_assistant:    { icon: '🎙', label: t('governance.meeting_assistant_label'),    desc: t('governance.meeting_assistant_desc') },
+  sprint_planning:      { icon: '✨', label: t('governance.sprint_planning_label'),      desc: t('governance.sprint_planning_desc') },
+  contract_intelligence:{ icon: '📄', label: t('governance.contract_intelligence_label'), desc: t('governance.contract_intelligence_desc') },
+  knowledge_base:       { icon: '📚', label: t('governance.knowledge_base_label'),       desc: t('governance.knowledge_base_desc') },
+  portal_ai:            { icon: '🌐', label: t('governance.portal_ai_label'),            desc: t('governance.portal_ai_desc') },
+  voice:                { icon: '🎤', label: t('governance.voice_label'),                desc: t('governance.voice_desc') },
 }
 
 export default function GovernancePage() {
@@ -71,10 +71,10 @@ export default function GovernancePage() {
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: '🤖', label: 'Módulos activos',   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
-          { icon: '💬', label: 'Llamadas totales',  value: (stats?.total_calls || 0).toLocaleString(), color: 'var(--accent)' },
-          { icon: '🔤', label: 'Tokens (miles)',    value: `${totalTokens}K`, color: 'var(--warning)' },
-          { icon: '⚙️',  label: 'Proveedor activo', value: defaultProv?.name || 'Sin configurar', color: defaultProv ? 'var(--success)' : 'var(--danger)' },
+          { icon: '🤖', label: t('governance.kpi_active_modules'),   value: `${activeCount}/${configs.length || 9}`, color: 'var(--success)' },
+          { icon: '💬', label: t('governance.kpi_total_calls'),  value: (stats?.total_calls || 0).toLocaleString(), color: 'var(--accent)' },
+          { icon: '🔤', label: t('governance.kpi_tokens'),    value: `${totalTokens}K`, color: 'var(--warning)' },
+          { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '16px 20px' }}>
             <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
@@ -86,7 +86,11 @@ export default function GovernancePage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
-        {[['modules','⚙️ Módulos'],['usage','📊 Uso'],['audit','📋 Auditoría']].map(([id, label]) => (
+        {[
+          ['modules', `⚙️ ${t('governance.tab_modules')}`],
+          ['usage', `📊 ${t('governance.tab_usage')}`],
+          ['audit', `📋 ${t('governance.tab_audit')}`],
+        ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
@@ -131,12 +135,12 @@ export default function GovernancePage() {
           {chartData.length === 0 ? (
             <div style={{ ...card, padding: 48, textAlign: 'center', color: 'var(--text-2)' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
-              <div>Sin datos de uso todavía</div>
+              <div>{t('governance.no_usage_data')}</div>
             </div>
           ) : (
             <>
               <div style={{ ...card, padding: '20px 24px', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Llamadas por módulo</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{t('governance.calls_by_module')}</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ left: -10 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
@@ -150,7 +154,7 @@ export default function GovernancePage() {
               </div>
               <div style={{ ...card, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d45', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
-                  <span>Módulo</span><span>Llamadas</span><span>Tokens (K)</span>
+                  <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
                 {chartData.map((r, i) => (
                   <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d4530', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 13 }}>
@@ -169,15 +173,15 @@ export default function GovernancePage() {
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d45', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
-            <span>Fecha</span><span>Módulo</span><span>Prompt (extracto)</span><span>Tokens</span>
+            <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
           </div>
           {logs.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>Sin registros de auditoría</div>
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
             <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d4520', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 12, alignItems: 'center' }}>
               <span style={{ color: 'var(--text-2)', fontFamily: 'monospace', fontSize: 11 }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module]?.label || l.module}</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || '—'}</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
               <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString()}</span>
             </div>
           ))}

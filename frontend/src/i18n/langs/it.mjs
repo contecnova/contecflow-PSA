@@ -1,3 +1,4 @@
+export default it;
 // Italiano (auto-tradotto)
 const it = {
   issue_types: {

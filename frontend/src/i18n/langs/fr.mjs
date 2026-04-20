@@ -1,3 +1,4 @@
+export default fr;
 // Français (auto-traduit)
 const fr = {
   common: {

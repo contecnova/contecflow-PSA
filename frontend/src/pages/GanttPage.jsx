@@ -14,7 +14,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import GanttChart from '../components/GanttChart'
 
 export default function GanttPage() {
-  const _t            = useAppT()
+  const t            = useAppT()
   const toast         = useToast()
   const _qc           = useQueryClient()
   const { invalidate } = useInvalidate()
@@ -67,8 +67,8 @@ export default function GanttPage() {
   // ── mutations ───────────────────────────────────────────────────────────────
   const { mutate: saveDates } = useMutation({
     mutationFn: updates => api.post('/tasks/bulk-dates', { updates }),
-    onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success('Fechas guardadas') },
-    onError:    (e) => { setLocalDates({}); toast.error(e?.response?.data?.detail || 'Error al guardar') },
+    onSuccess:  () => { invalidate('tasks'); setLocalDates({}); toast.success(t('gantt.dates_saved')) },
+    onError:    (e) => { setLocalDates({}); toast.error(e?.response?.data?.detail || t('gantt.error_save')) },
   })
 
   const { mutate: createDep } = useMutation({
@@ -78,8 +78,8 @@ export default function GanttPage() {
       dep_type: dep.dependency_type || 'blocks',
       lag_days: dep.lag_days || 0,
     }),
-    onSuccess:  () => { invalidate('task-deps'); toast.success('Dependencia creada') },
-    onError:    (e) => toast.error(e?.response?.data?.detail || 'Error al crear dependencia'),
+    onSuccess:  () => { invalidate('task-deps'); toast.success(t('gantt.dependency_created')) },
+    onError:    (e) => toast.error(e?.response?.data?.detail || t('gantt.error_create_dependency')),
   })
 
   // ── handlers ────────────────────────────────────────────────────────────────
@@ -99,12 +99,12 @@ export default function GanttPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
       <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
         <PageHeader
-          title={_t('gantt.title')}
-          subtitle={_t('gantt.subtitle')}
+          title={t('gantt.title')}
+          subtitle={t('gantt.subtitle')}
           actions={
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <input
-                placeholder={t(modulo.clave)}
+                placeholder={t('gantt.filter_ph')}
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
                 style={{
@@ -122,7 +122,7 @@ export default function GanttPage() {
                   fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
                 }}
               >
-                <option value="">Todos los proyectos</option>
+                <option value="">{t('gantt.all_projects')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
               <Button
@@ -130,7 +130,7 @@ export default function GanttPage() {
                 variant={showBaseline ? 'primary' : 'subtle'}
                 onClick={() => setShowBaseline(b => !b)}
               >
-                Baseline
+                {t('gantt.baseline')}
               </Button>
             </div>
           }
@@ -145,10 +145,10 @@ export default function GanttPage() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <EmptyState
             icon="📅"
-            title={rawTasks.length === 0 ? 'Sin tareas' : 'Sin fechas definidas'}
+            title={rawTasks.length === 0 ? t('gantt.no_tasks') : t('gantt.no_dates')}
             description={rawTasks.length === 0
-              ? 'No hay tareas en este proyecto todavía.'
-              : `${rawTasks.length} tarea(s) sin fechas. Añade fechas en la vista de Tareas.`
+              ? t('gantt.no_tasks_desc')
+              : t('gantt.no_dates_desc', { count: rawTasks.length })
             }
           />
         </div>

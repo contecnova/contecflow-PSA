@@ -1,3 +1,49 @@
+# Configuración de SECRET_KEY para cifrado y MFA
+
+La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamiento del sistema, ya que se utiliza para:
+- Cifrado de campos sensibles (por ejemplo, secretos de MFA, contraseñas, datos encriptados).
+- Generación y validación de tokens JWT y TOTP (MFA).
+
+## ¿Qué ocurre si falta?
+- Si `SECRET_KEY` no está definida, cualquier operación que requiera cifrado (como la activación de MFA) fallará con error 500.
+- Los tests de autenticación y MFA también fallarán.
+
+## Cómo definir `SECRET_KEY`
+
+1. **Genera un valor seguro** (mínimo 32 caracteres aleatorios):
+   
+   ```bash
+   export SECRET_KEY="$(openssl rand -base64 48)"
+   ```
+   O usa cualquier generador de strings aleatorios seguros.
+
+2. **Agrega la variable a tu entorno**:
+   - En desarrollo, puedes añadirla a tu `.env`:
+     ```env
+     SECRET_KEY=tu_clave_secreta_segura
+     ```
+   - O exportarla en tu terminal antes de iniciar el backend:
+     ```bash
+     export SECRET_KEY="tu_clave_secreta_segura"
+     ```
+
+3. **Reinicia el backend** para que la variable sea reconocida.
+
+## Requisitos
+- El valor debe ser una cadena segura y secreta, única para cada entorno.
+- No compartas ni subas tu `SECRET_KEY` a repositorios públicos.
+
+## Solución de problemas
+- Si ves errores 500 en endpoints de autenticación/MFA, revisa que `SECRET_KEY` esté correctamente definida y accesible para el proceso del backend.
+- Verifica que la librería `cryptography` esté instalada:
+  ```bash
+  pip install cryptography
+  ```
+
+---
+
+**Importante:** Cambiar `SECRET_KEY` invalidará todos los datos cifrados y tokens activos. Hazlo solo en entornos de desarrollo o con migración controlada.
+
 
 ### v23.10.1 (Abril 2026) — Bus de eventos completo, correcciones de seguridad y deuda técnica
 
@@ -125,9 +171,8 @@ Desde la versión 23.10, **todos los valores de negocio, catálogos, límites, t
 ### Ejemplo de uso en frontend
 
 ```js
-// src/constants/api.js
+6. [API — Endpoints](#6-api--endpoints)
 import constants from './constants/constants.json';
-import businessConfig from './constants/business_config.json';
 
 export const ROLES = constants.ROLES;
 export const INTEGRATION_CATALOG = businessConfig.INTEGRATION_CATALOG;
@@ -214,7 +259,6 @@ Todos los módulos del backend emiten eventos de sistema tras cada acción relev
 
 ```python
 from app.core.events import emit, EventType
-
 # En un servicio — actor leído automáticamente desde db.info["current_user"]
 db.commit()
 emit(db, EventType.TASK_CREATED,
@@ -538,7 +582,118 @@ Organization ─── Users ──── Projects ──── Tasks
 
 ## 6. API — Endpoints
 
-La API completa está disponible en `/api/v1`. Documentación interactiva en **`http://localhost:8000/api/v1/docs`** (Swagger UI) y **`/api/v1/redoc`**.
+
+
+
+#### 🔄 Actualización y buenas prácticas para la tabla de endpoints
+
+> **Liderazgo en transparencia y mantenibilidad:**
+>
+> - La tabla de endpoints y métodos HTTP se genera automáticamente a partir del OpenAPI (`/api/v1/openapi.json`).
+> - Refleja el estado real de la API, incluyendo rutas, métodos y parámetros dinámicos.
+> - Es fundamental mantenerla alineada con la API para garantizar calidad, auditoría y onboarding ágil.
+
+**¿Cómo actualizar la tabla tras cambios en la API?**
+
+```bash
+./scripts/update_endpoints_table.sh
+```
+
+Esto arrancará el backend, extraerá los endpoints actuales y actualizará la tabla en este documento.
+
+**Recomendaciones para equipos líderes:**
+
+- Ejecuta el script tras cada cambio relevante en routers, endpoints o servicios.
+- Considera integrarlo en el pipeline de CI/CD para que la tabla se regenere automáticamente en cada PR o despliegue (ver ejemplo en scripts/ci/).
+- Revisa siempre la tabla antes de releases: es la fuente de verdad para QA, frontend, integradores y auditores.
+- Si introduces versionado de API (v2, v3...), adapta el script para incluir todas las versiones.
+- Usa la tabla como referencia para tests de cobertura de endpoints y validación de seguridad.
+
+**Advertencia:**
+> Si la tabla y el OpenAPI no coinciden, la documentación puede inducir a error. Mantén siempre ambos sincronizados.
+
+### Tabla de endpoints y métodos HTTP (generada automáticamente)
+
+> **Esta tabla se genera automáticamente a partir del OpenAPI (`/api/v1/openapi.json`). Refleja todos los endpoints y métodos HTTP expuestos actualmente por el sistema.**
+
+| Endpoint | Método |
+|---|---|
+| /api/v1/auth/login | POST |
+| /api/v1/auth/refresh | POST |
+| /api/v1/auth/logout | POST |
+| /api/v1/auth/password/forgot | POST |
+| /api/v1/auth/password/reset | POST |
+| /api/v1/auth/sessions/active | GET |
+| /api/v1/auth/sessions/{session_id} | DELETE |
+| /api/v1/auth/sessions/revoke-all | POST |
+| /api/v1/auth/me | GET |
+| /api/v1/auth/sso/providers | GET |
+| /api/v1/auth/sso/{config_id}/authorize | GET |
+| /api/v1/auth/sso/{config_id}/callback | POST |
+| /api/v1/auth/mfa/setup | POST |
+| /api/v1/auth/mfa/verify-setup | POST |
+| /api/v1/auth/mfa/validate | POST |
+| /api/v1/auth/mfa/webauthn/register/start | POST |
+| /api/v1/auth/mfa/webauthn/register/finish | POST |
+| /api/v1/auth/mfa/webauthn/credentials | GET |
+| /api/v1/auth/mfa/webauthn/credentials/{credential_id} | DELETE |
+| /api/v1/auth/mfa/webauthn/authenticate/start | POST |
+| /api/v1/auth/mfa/webauthn/authenticate/finish | POST |
+| /api/v1/auth/mfa/disable | POST |
+| /api/v1/auth/change-password | POST |
+| /api/v1/users | GET |
+| /api/v1/users | POST |
+| /api/v1/users/with-rates | GET |
+| /api/v1/users/load | GET |
+| /api/v1/users/org-chart | GET |
+| /api/v1/users/me/approval-chain | GET |
+| /api/v1/users/me/preferences | GET |
+| /api/v1/users/me/preferences | PATCH |
+| /api/v1/users/me | PATCH |
+| /api/v1/users/{user_id}/approval-chain | GET |
+| /api/v1/users/{user_id} | GET |
+| /api/v1/users/{user_id} | PATCH |
+| /api/v1/users/{user_id} | DELETE |
+| /api/v1/users/{user_id}/permanent | DELETE |
+| /api/v1/users/{user_id}/productivity | GET |
+| /api/v1/users/{user_id}/manager | PATCH |
+| /api/v1/projects | GET |
+| /api/v1/projects | POST |
+| /api/v1/projects/milestones | GET |
+| /api/v1/projects/{project_id} | GET |
+| /api/v1/projects/{project_id} | PATCH |
+| /api/v1/projects/{project_id} | DELETE |
+| /api/v1/projects/{project_id}/phases | POST |
+| /api/v1/projects/{project_id}/team | GET |
+| /api/v1/projects/{project_id}/members | GET |
+| /api/v1/projects/{project_id}/members | POST |
+| /api/v1/projects/{project_id}/members/{member_id} | PATCH |
+| /api/v1/projects/{project_id}/members/{member_id} | DELETE |
+| /api/v1/projects/{project_id}/evm | GET |
+| /api/v1/projects/evm/portfolio | GET |
+| /api/v1/tasks | GET |
+| /api/v1/tasks | POST |
+| /api/v1/tasks/kanban/{project_id} | GET |
+| /api/v1/tasks/{task_id} | GET |
+| /api/v1/tasks/{task_id} | PATCH |
+| /api/v1/tasks/{task_id} | DELETE |
+| /api/v1/tasks/{task_id}/comments | POST |
+| /api/v1/tasks/bulk-dates | POST |
+| /api/v1/tasks/bulk-update | POST |
+| /api/v1/tasks/{task_id}/cascade-reschedule | POST |
+| /api/v1/tasks/dependencies | GET |
+| /api/v1/tasks/dependencies | POST |
+| /api/v1/tasks/dependencies/{project_id} | GET |
+| /api/v1/tasks/dependencies/{dep_id} | DELETE |
+| /api/v1/imputations | GET |
+| /api/v1/imputations | POST |
+| /api/v1/imputations/my/week | GET |
+| /api/v1/imputations/{imputation_id} | PATCH |
+| /api/v1/imputations/{imputation_id} | DELETE |
+| /api/v1/imputations/{imputation_id}/approve | POST |
+| /api/v1/imputations/timer/start | POST |
+| /api/v1/imputations/timer/pause | POST |
+| /api/v1/imputations/timer/resume | POST |
 
 ### Autenticación
 
@@ -715,169 +870,66 @@ get_current_client             # portal de cliente (cookie o header)
 
 ---
 
-## 8. Variables de entorno
+
+# 8. Variables de entorno y configuración de SECRET_KEY
 
 Copia `.env.example` a `.env` y personaliza los valores. **Nunca** incluyas `.env` en el repositorio.
 
-### Obligatorias
+### SECRET_KEY: Cifrado y MFA
+
+La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamiento del sistema, ya que se utiliza para:
+- Cifrado de campos sensibles (por ejemplo, secretos de MFA, contraseñas, datos encriptados).
+- Generación y validación de tokens JWT y TOTP (MFA).
+
+#### ¿Qué ocurre si falta?
+- Si `SECRET_KEY` no está definida, cualquier operación que requiera cifrado (como la activación de MFA) fallará con error 500.
+- Los tests de autenticación y MFA también fallarán.
+
+#### Cómo definir `SECRET_KEY`
+
+1. **Genera un valor seguro** (mínimo 32 caracteres aleatorios):
+   ```bash
+   export SECRET_KEY="$(openssl rand -base64 48)"
+   ```
+   O usa cualquier generador de strings aleatorios seguros.
+
+2. **Agrega la variable a tu entorno**:
+   - En desarrollo, puedes añadirla a tu `.env`:
+     ```env
+     SECRET_KEY=tu_clave_secreta_segura
+     ```
+   - O exportarla en tu terminal antes de iniciar el backend:
+     ```bash
+     export SECRET_KEY="tu_clave_secreta_segura"
+     ```
+
+3. **Reinicia el backend** para que la variable sea reconocida.
+
+#### Requisitos
+- El valor debe ser una cadena segura y secreta, única para cada entorno.
+- No compartas ni subas tu `SECRET_KEY` a repositorios públicos.
+
+#### Solución de problemas
+- Si ves errores 500 en endpoints de autenticación/MFA, revisa que `SECRET_KEY` esté correctamente definida y accesible para el proceso del backend.
+- Verifica que la librería `cryptography` esté instalada:
+  ```bash
+  pip install cryptography
+  ```
+
+---
+
+**Importante:** Cambiar `SECRET_KEY` invalidará todos los datos cifrados y tokens activos. Hazlo solo en entornos de desarrollo o con migración controlada.
+
+### Otras variables obligatorias
 
 | Variable | Descripción |
 |----------|-------------|
-| `SECRET_KEY` | Clave JWT. Genera con `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `DATABASE_URL` | SQLite (`sqlite:///./clarive.db`) o PostgreSQL (`postgresql://user:pass@host:5432/db`) |
 | `SUPERADMIN_EMAIL` | Email del superadministrador inicial |
 | `SUPERADMIN_PASSWORD` | Contraseña del superadministrador |
 | `CLIENT_PORTAL_SECRET` | Clave de firma para tokens del portal de cliente. Generar igual que SECRET_KEY |
 
-### Base de datos
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `DATABASE_URL` | — | URL de conexión |
-
-### Seguridad y tokens
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `SECRET_KEY` | — | **Requerida**. Mínimo 32 caracteres |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Expiración del access token (15-60 min recomendado para producción) |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Expiración del refresh token (7 días recomendado; máx. 30) |
-| `WEBHOOK_SECRET` | `""` | Para verificar webhooks entrantes. Obligatorio en `staging` y `production`; mínimo 24 caracteres |
-| `INBOUND_EMAIL_SECRET` | `""` | Header `X-Clarive-Email-Secret` para relay de email. Obligatorio en `staging` y `production`; mínimo 24 caracteres |
-| `GITHUB_WEBHOOK_SECRET` | `""` | Secret para webhooks de GitHub |
-| `GITLAB_WEBHOOK_SECRET` | `""` | Secret para webhooks de GitLab |
-| `MIN_PASSWORD_LENGTH` | `8` | Longitud mínima de contraseña |
-| `TRUST_PROXY_HEADERS` | `false` | Solo acepta `X-Forwarded-For`/`X-Real-IP` cuando la petición llega desde un proxy confiable |
-| `TRUSTED_PROXY_CIDRS` | `127.0.0.1/32,::1/128` | CIDRs de proxies autorizados a inyectar headers de IP real |
-
-### CORS y URLs
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `ALLOWED_ORIGINS` | `["http://localhost:3000","http://localhost:5173"]` | Lista JSON de orígenes CORS |
-| `BASE_URL` | `http://localhost:8000` | URL base del backend |
-| `FRONTEND_URL` | `http://localhost:5173` | URL del frontend |
-| `VITE_API_URL` | `http://localhost:8000/api/v1` | URL de API para el frontend (variable Vite) |
-
-### Almacenamiento
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `PDF_STORAGE_PATH` | `./storage/pdfs` | Ruta local para PDFs |
-| `AWS_S3_BUCKET` | `nexuspm-documents` | Bucket S3 (vacío = usa filesystem local) |
-| `AWS_REGION` | `eu-west-1` | Región AWS |
-| `AWS_ACCESS_KEY` | `""` | Access key AWS |
-| `AWS_SECRET_KEY` | `""` | Secret key AWS |
-| `S3_URL_EXPIRATION_HOURS` | `24` | Expiración de URLs pre-firmadas S3 |
-| `MAX_FILE_SIZE_MB` | `100` | Tamaño máximo de fichero en MB |
-
-### Notificaciones
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `SLACK_WEBHOOK_URL` | `""` | Webhook de Slack para alertas |
-| `NOTIFICATION_EMAIL_FROM` | `alerts@nexuspm.local` | Remitente de emails de alerta |
-| `TEAMS_WEBHOOK_URL` | `""` | Webhook de Microsoft Teams |
-
-### SSO / OAuth
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `ALLOW_LOCAL_LOGIN` | `true` | Habilitar login con usuario/contraseña local |
-| `MICROSOFT_OAUTH_BASE` | `https://login.microsoftonline.com` | Base URL Azure AD |
-| `GOOGLE_OAUTH_BASE` | `https://accounts.google.com` | Base URL Google |
-| `GOOGLE_TOKEN_URL` | `https://oauth2.googleapis.com/token` | Token endpoint Google |
-
-### Microsoft 365
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `AZURE_TENANT_ID` | `""` | Tenant ID Azure AD |
-| `AZURE_CLIENT_ID` | `""` | Client ID app Azure |
-| `AZURE_CLIENT_SECRET` | `""` | Client secret app Azure |
-| `M365_CALENDAR_SYNC_ENABLED` | `false` | Activar sincronización de calendarios |
-| `M365_TEAMS_NOTIFICATIONS_ENABLED` | `false` | Activar notificaciones Teams |
-
-### Firma electrónica
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `DOCUSIGN_INTEGRATION_KEY` | `""` | Integration key DocuSign |
-| `DOCUSIGN_SECRET_KEY` | `""` | Secret key DocuSign |
-| `DOCUSIGN_ACCOUNT_ID` | `""` | Account ID DocuSign |
-| `DOCUSIGN_BASE_URL` | `https://demo.docusign.net/restapi` | URL DocuSign (demo/prod) |
-| `ADOBE_SIGN_CLIENT_ID` | `""` | Client ID Adobe Sign |
-| `ADOBE_SIGN_CLIENT_SECRET` | `""` | Client secret Adobe Sign |
-| `ADOBE_SIGN_BASE_URL` | `https://api.na1.adobesign.com/api/rest/v6` | URL Adobe Sign |
-
-### IA (proveedores)
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `NEXUS_AI_MODEL` | `claude-haiku-4-5` | Modelo IA por defecto |
-| `ANTHROPIC_API_URL` | `https://api.anthropic.com/v1` | URL Anthropic Claude |
-| `OPENAI_API_URL` | `https://api.openai.com/v1` | URL OpenAI |
-| `GEMINI_API_URL` | `https://generativelanguage.googleapis.com/v1beta` | URL Gemini |
-| `DEEPSEEK_API_URL` | `https://api.deepseek.com/v1` | URL DeepSeek |
-| `GROQ_API_URL` | `https://api.groq.com/openai/v1` | URL Groq |
-| `MISTRAL_API_URL` | `https://api.mistral.ai/v1` | URL Mistral |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | URL Ollama (local) |
-| `AZURE_OPENAI_API_URL` | `https://YOUR_RESOURCE.openai.azure.com/openai` | URL Azure OpenAI |
-
-### Contabilidad
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `XERO_API_BASE` | `https://api.xero.com/api.xro/2.0` | URL Xero |
-| `QB_API_BASE` | `https://quickbooks.api.intuit.com/v3/company` | URL QuickBooks |
-
-### Reglas de negocio
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `DEFAULT_TIMEZONE` | `Europe/Madrid` | Zona horaria por defecto |
-| `DEFAULT_LANGUAGE` | `es` | Idioma por defecto |
-| `DEFAULT_CURRENCY` | `EUR` | Moneda por defecto |
-| `DEFAULT_TAX_RATE` | `21.0` | IVA por defecto (%) |
-| `DEFAULT_WORKING_HOURS_PER_DAY` | `8.0` | Horas laborables/día |
-| `DEFAULT_WEEKLY_CAPACITY_HOURS` | `40.0` | Capacidad semanal |
-| `DEFAULT_VACATION_DAYS_PER_YEAR` | `23` | Días de vacaciones/año |
-| `DEFAULT_IMPUTATION_LOCKOUT_DAYS` | `14` | Días retroactivos permitidos para imputar |
-
-### SLA (Service Desk)
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `SLA_P1_RESPONSE_HOURS` | `1.0` | SLA respuesta prioridad crítica |
-| `SLA_P1_RESOLUTION_HOURS` | `4.0` | SLA resolución prioridad crítica |
-| `SLA_P2_RESPONSE_HOURS` | `4.0` | SLA respuesta prioridad alta |
-| `SLA_P2_RESOLUTION_HOURS` | `8.0` | SLA resolución prioridad alta |
-| `SLA_P3_RESPONSE_HOURS` | `8.0` | SLA respuesta prioridad media |
-| `SLA_P3_RESOLUTION_HOURS` | `24.0` | SLA resolución prioridad media |
-| `SLA_P4_RESPONSE_HOURS` | `24.0` | SLA respuesta prioridad baja |
-| `SLA_P4_RESOLUTION_HOURS` | `72.0` | SLA resolución prioridad baja |
-
-### Infraestructura
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://localhost:6379/0` | URL Redis (Celery + caché) |
-| `SENTRY_DSN` | `""` | DSN Sentry para error tracking |
-| `SENTRY_ENVIRONMENT` | `development` | Entorno para Sentry |
-| `ENVIRONMENT` | `development` | `development` o `production` (afecta Secure cookie) |
-| `HTTP_PORT` | `80` | Puerto HTTP (docker-compose) |
-| `HTTPS_PORT` | `443` | Puerto HTTPS (docker-compose) |
-| `POSTGRES_DB` | `clarive` | Nombre de BD PostgreSQL (docker) |
-| `POSTGRES_USER` | `clarive` | Usuario PostgreSQL (docker) |
-| `POSTGRES_PASSWORD` | — | Contraseña PostgreSQL (docker) |
-
-### MFA / QR
-
-| Variable | Default | Descripción |
-|----------|---------|-------------|
-| `QR_SERVICE_URL` | `https://api.qrserver.com/v1/create-qr-code` | Servicio de generación de QR |
-
----
+... (el resto de variables y tablas siguen igual, consultar histórico de versiones para detalles)
 
 ## 9. Instalación y arranque rápido
 

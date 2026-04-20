@@ -31,8 +31,9 @@ function HealthBadge({ score }) {
 }
 
 function NpsTrendChart({ trend }) {
+  const t = useAppT();
   if (!trend || trend.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>Sin datos de tendencia</div>
+    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>{t('nps.no_trend')}</div>;
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
@@ -50,8 +51,9 @@ function NpsTrendChart({ trend }) {
 }
 
 function HealthChart({ data }) {
+  const t = useAppT();
   if (!data || data.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>Sin snapshots de salud</div>
+    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>{t('nps.no_health_snapshots')}</div>;
   }
   const chartData = [...data].reverse().map(d => ({
     date: new Date(d.snapshot_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
@@ -79,7 +81,8 @@ function HealthChart({ data }) {
 }
 
 function NPSGauge({ nps }) {
-  if (nps === null || nps === undefined) return <div style={{ color: '#4a5568', fontSize: 13, textAlign: 'center', padding: 12 }}>Sin datos</div>
+  const t = useAppT();
+  if (nps === null || nps === undefined) return <div style={{ color: '#4a5568', fontSize: 13, textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
   const color = nps >= 50 ? '#68d391' : nps >= 0 ? '#f6ad55' : '#fc8181'
   return (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
@@ -150,14 +153,12 @@ export default function NPSPage() {
         title={t('nps.title')}
         subtitle={t('nps.subtitle')}
       />
-
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
         {/* Leaderboard sidebar */}
         <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid #2d3748', fontSize: 12, fontWeight: 700, color: '#718096', textTransform: 'uppercase' }}>
-            Ranking salud
+            {t('nps.ranking')}
           </div>
-
           {/* Clients without snapshots */}
           {clients.filter(c => !leaderboard.find(l => l.client_id === c.id)).length > 0 && leaderboard.length === 0 && (
             <div style={{ padding: 12 }}>
@@ -173,7 +174,6 @@ export default function NPSPage() {
               ))}
             </div>
           )}
-
           {leaderboard.map((l, i) => (
             <button key={l.client_id} onClick={() => setClientId(l.client_id)} style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
@@ -186,16 +186,14 @@ export default function NPSPage() {
               <HealthBadge score={l.health_score} />
             </button>
           ))}
-
           {leaderboard.length === 0 && clients.length === 0 && (
-            <div style={{ padding: 20, textAlign: 'center', color: '#4a5568', fontSize: 12 }}>Sin clientes</div>
+            <div style={{ padding: 20, textAlign: 'center', color: '#4a5568', fontSize: 12 }}>{t('nps.no_clients')}</div>
           )}
         </div>
-
         {/* Right panel */}
         {!clientId ? (
           <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 60, textAlign: 'center', color: '#4a5568', fontSize: 14 }}>
-            Selecciona un cliente para ver su NPS y salud
+            {t('nps.select_client')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -208,24 +206,23 @@ export default function NPSPage() {
               {latestHealth !== undefined && (
                 <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: '1px solid #2d3748' }}>
                   <div style={{ fontSize: 28, fontWeight: 900, color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
-                  <div style={{ fontSize: 10, color: '#718096' }}>Salud actual</div>
+                  <div style={{ fontSize: 10, color: '#718096' }}>{t('nps.current_health')}</div>
                 </div>
               )}
               <button
                 onClick={() => computeHealth()}
                 disabled={computing}
                 style={{ background: '#2b4a7a', border: 'none', borderRadius: 8, color: '#90cdf4', padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {computing ? 'Calculando…' : '⚙ Calcular salud'}
+                {computing ? t('nps.calculating') : t('nps.calc_health')}
               </button>
             </div>
-
             {/* NPS summary */}
             <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>NPS</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
                   style={{ ...fs, width: 120 }}>
-                  {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>Últimos {d}d</option>)}
+                  {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', d)}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16, alignItems: 'center' }}>
@@ -233,9 +230,9 @@ export default function NPSPage() {
                   <NPSGauge nps={summary?.nps} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
                     {[
-                      { label: 'Promotores', key: 'promoters', color: '#68d391' },
-                      { label: 'Pasivos',    key: 'passives',  color: '#f6ad55' },
-                      { label: 'Detractores',key: 'detractors',color: '#fc8181' },
+                      { label: t('nps.promoters'), key: 'promoters', color: '#68d391' },
+                      { label: t('nps.passives'),  key: 'passives',  color: '#f6ad55' },
+                      { label: t('nps.detractors'),key: 'detractors',color: '#fc8181' },
                     ].map(({ label, key, color }) => (
                       <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
                         <span style={{ color: '#718096' }}>{label}</span>
@@ -247,19 +244,17 @@ export default function NPSPage() {
                 <NpsTrendChart trend={summary?.trend} />
               </div>
             </div>
-
             {/* Health trend */}
             <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>Evolución de salud</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>{t('nps.health_trend')}</div>
               <HealthChart data={health} />
             </div>
-
             {/* Submit NPS */}
             <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 14 }}>Registrar nueva encuesta NPS</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 14 }}>{t('nps.register_nps')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label style={ls}>Puntuación (0–10)</label>
+                  <label style={ls}>{t('nps.score_label')}</label>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
                       <button key={n} onClick={() => setScoreInput(n)} style={{
@@ -276,22 +271,22 @@ export default function NPSPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={ls}>Respondente</label>
+                    <label style={ls}>{t('nps.respondent')}</label>
                     <input value={respondent} onChange={e => setRespondent(e.target.value)}
-                      style={fs} placeholder={t(modulo.clave)} />
+                      style={fs} placeholder={t('nps.respondent')} />
                   </div>
                 </div>
                 <div>
-                  <label style={ls}>Comentario (opcional)</label>
+                  <label style={ls}>{t('nps.comment')}</label>
                   <textarea value={comment} onChange={e => setComment(e.target.value)}
-                    style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t(modulo.clave)} />
+                    style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('nps.comment')} />
                 </div>
                 <button onClick={submitNPS} disabled={submitting} style={{
                   alignSelf: 'flex-start', background: '#2b4a7a', border: 'none', borderRadius: 8,
                   color: '#90cdf4', padding: '9px 20px', cursor: 'pointer', fontWeight: 700,
                   fontSize: 13, fontFamily: 'inherit',
                 }}>
-                  {submitting ? 'Enviando…' : '📨 Registrar respuesta NPS'}
+                  {submitting ? t('nps.sending') : t('nps.submit_nps')}
                 </button>
               </div>
             </div>
@@ -299,5 +294,5 @@ export default function NPSPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

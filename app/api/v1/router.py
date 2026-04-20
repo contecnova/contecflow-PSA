@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
+    documents_collab,
+    invoices,
     integrations, auth, users, projects, tasks, imputations, dashboard,
     alerts, settings, timesheets, capacity, profitability, pipeline,
     contracts, risks, skills, absences, changes, deliverables,
@@ -17,6 +19,7 @@ from app.api.v1.endpoints import (
     security_observability, ai_governance, abac_admin, jira,
     currency_sync, currency_rates, salesforce_sync, slack_block_kit,
     v239_features,
+    marketplace, collaborative, labels, translations,
 )
 
 api_router = APIRouter()
@@ -78,7 +81,9 @@ api_router.include_router(performance.router)        # prefix="/performance" def
 api_router.include_router(training.router)           # prefix="/training" defined internally
 api_router.include_router(documents.router)          # prefix="/documents" defined internally
 api_router.include_router(resources.router)          # prefix="/resources" defined internally
-api_router.include_router(analytics_extended.router) # prefix="/analytics" defined internally
+api_router.include_router(invoices.router)           # prefix="/invoices" defined internamente
+api_router.include_router(documents_collab.router)   # endpoints de colaboración de documentos
+api_router.include_router(analytics_extended.router) # prefix ya definido en el router
 api_router.include_router(portfolio.router,          prefix="/portfolios",       tags=["Portfolio"])
 api_router.include_router(git_integration.router,    prefix="/git",              tags=["Git Integration"])
 api_router.include_router(esign.router,              prefix="/esign",            tags=["E-Firma"])
@@ -101,3 +106,7 @@ api_router.include_router(salesforce_sync.router)
 api_router.include_router(slack_block_kit.router)
 for _r in v239_features:
     api_router.include_router(_r)
+api_router.include_router(marketplace.router,      prefix="/marketplace",      tags=["Marketplace"])
+api_router.include_router(collaborative.router,    prefix="/collaborative",    tags=["Collaborative Editing"])
+api_router.include_router(labels.router,           prefix="/labels",           tags=["UI Labels"])
+api_router.include_router(translations.router,     prefix="/translations",     tags=["Translations"])

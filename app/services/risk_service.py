@@ -69,7 +69,16 @@ def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
         "closed":        [],
         "materialized":  [],
     }
-    old_status = str(risk.status)
+    old_status = str(risk.status) if hasattr(risk, 'status') and risk.status is not None else "identified"
+    # Permitir explícitamente la transición identificada → monitoring y → mitigating si está bloqueada por enums
+    if old_status == "RiskStatus.identified":
+        allowed_status_transitions[old_status] = ["analyzing", "mitigating", "monitoring", "closed", "materialized"]
+    if old_status == "RiskStatus.analyzing":
+        allowed_status_transitions[old_status] = ["mitigating", "monitoring", "closed", "materialized"]
+    if old_status == "RiskStatus.mitigating":
+        allowed_status_transitions[old_status] = ["monitoring", "closed", "materialized"]
+    if old_status == "RiskStatus.monitoring":
+        allowed_status_transitions[old_status] = ["closed", "materialized"]
     for k, v in updates.items():
         if k not in allowed_fields:
             continue

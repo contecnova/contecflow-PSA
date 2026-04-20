@@ -149,11 +149,20 @@ def test_update_invoice_status_to_sent(client, pm_token, db):
 
 def test_update_invoice_status_to_paid_sets_paid_date(client, pm_token, db):
     inv = client.post("/api/v1/invoices", json=minimal_invoice(), headers=auth(pm_token)).json()
-    client.patch(
+    # First, move to 'sent'
+    res_sent = client.patch(
+        f"/api/v1/invoices/{inv['id']}/status",
+        json={"status": "sent"},
+        headers=auth(pm_token),
+    )
+    assert res_sent.status_code == 200
+    # Then, move to 'paid'
+    res_paid = client.patch(
         f"/api/v1/invoices/{inv['id']}/status",
         json={"status": "paid"},
         headers=auth(pm_token),
     )
+    assert res_paid.status_code == 200
     invoices = client.get("/api/v1/invoices", headers=auth(pm_token)).json()
     paid = next((i for i in invoices if i["id"] == inv["id"]), None)
     assert paid is not None

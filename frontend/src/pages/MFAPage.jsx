@@ -61,25 +61,25 @@ export default function MFAPage() {
           <div>
             <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:6 }}>
               <span style={{ fontSize:24 }}>{status?.enabled ? '🔒' : '🔓'}</span>
-              <div style={{ fontSize:15, fontWeight:500 }}>{status?.enabled ? 'MFA activado' : 'MFA no activado'}</div>
+              <div style={{ fontSize:15, fontWeight:500 }}>{status?.enabled ? t('mfa.enabled') : t('mfa.disabled')}</div>
             </div>
             {status?.enabled ? (
               <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
-                Activado el {status.verified_at || '—'} · {status.backup_codes_remaining} códigos de respaldo restantes
+                {t('mfa.enabled_on', { date: status.verified_at || '—', codes: status.backup_codes_remaining })}
               </div>
             ) : (
               <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
-                Tu cuenta no tiene protección adicional. Activa el MFA para mayor seguridad.
+                {t('mfa.not_protected')}
               </div>
             )}
           </div>
           {status?.enabled ? (
             <button onClick={() => setShowDisable(true)}
               style={{ background:'var(--color-background-danger)', border:'.5px solid var(--color-border-danger)', borderRadius:8, padding:'8px 16px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
-              Desactivar MFA
+              {t('mfa.deactivate')}
             </button>
           ) : (
-            <Button onClick={() => setup()} disabled={setting}>{setting ? 'Generando...' : 'Activar MFA'}</Button>
+            <Button onClick={() => setup()} disabled={setting}>{setting ? t('mfa.generating') : t('mfa.activate')}</Button>
           )}
         </div>
       </div>
@@ -87,33 +87,32 @@ export default function MFAPage() {
       {/* Setup step */}
       {step === 'setup' && setupData && (
         <div style={{ ...card, padding:'24px 28px' }}>
-          <div style={{ fontSize:14, fontWeight:500, marginBottom:16 }}>Paso 1 — Escanea el código QR</div>
+          <div style={{ fontSize:14, fontWeight:500, marginBottom:16 }}>{t('mfa.step1')}</div>
           <div style={{ display:'flex', gap:28, alignItems:'flex-start', marginBottom:20 }}>
             <img src={setupData.qr_url} alt="QR MFA" style={{ width:160, height:160, borderRadius:8, border:'.5px solid var(--color-border-tertiary)' }} />
             <div>
               <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:12, lineHeight:1.6 }}>
-                Abre <strong>Google Authenticator</strong>, <strong>Authy</strong> o cualquier app TOTP y escanea el código QR.
-                Si no puedes escanear, introduce este código manualmente:
+                {t('mfa.scan_qr')}
               </div>
               <code style={{ display:'block', background:'var(--color-background-secondary)', padding:'8px 12px', borderRadius:8, fontSize:13, letterSpacing:2, wordBreak:'break-all' }}>
                 {setupData.secret}
               </code>
             </div>
           </div>
-          <div style={{ fontSize:14, fontWeight:500, marginBottom:10 }}>Paso 2 — Introduce el código de 6 dígitos</div>
+          <div style={{ fontSize:14, fontWeight:500, marginBottom:10 }}>{t('mfa.step2')}</div>
           <input
             value={code}
             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             style={fs}
-            placeholder={t(modulo.clave)}
+            placeholder={t('mfa.code_placeholder')}
             maxLength={6}
             autoFocus
           />
-          {verifyError && <div style={{ color:'var(--color-text-danger)', fontSize:12, marginTop:8 }}>Código incorrecto. Inténtalo de nuevo.</div>}
+          {verifyError && <div style={{ color:'var(--color-text-danger)', fontSize:12, marginTop:8 }}>{t('mfa.code_error')}</div>}
           <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
-            <Button variant="secondary" onClick={() => setStep('status')}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setStep('status')}>{t('mfa.cancel')}</Button>
             <Button onClick={() => verify(code)} disabled={code.length !== 6 || verifying}>
-              {verifying ? 'Verificando...' : 'Activar MFA'}
+              {verifying ? t('mfa.verifying') : t('mfa.activate')}
             </Button>
           </div>
         </div>
@@ -122,28 +121,28 @@ export default function MFAPage() {
       {/* Done step — backup codes */}
       {step === 'done' && backupCodes.length > 0 && (
         <div style={{ ...card, padding:'24px 28px', background:'var(--color-background-success)', border:'.5px solid var(--color-border-success)' }}>
-          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-success)', marginBottom:6 }}>✓ MFA activado correctamente</div>
+          <div style={{ fontSize:14, fontWeight:500, color:'var(--color-text-success)', marginBottom:6 }}>{t('mfa.activated')}</div>
           <div style={{ fontSize:12, color:'var(--color-text-success)', marginBottom:16 }}>
-            Guarda estos códigos de respaldo en un lugar seguro. Cada uno solo se puede usar una vez si pierdes acceso a tu app de autenticación.
+            {t('mfa.backup_codes_info')}
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
             {backupCodes.map((c, i) => (
               <code key={i} style={{ background:'var(--color-background-primary)', padding:'6px 10px', borderRadius:6, fontSize:13, textAlign:'center', border:'.5px solid var(--color-border-success)' }}>{c}</code>
             ))}
           </div>
-          <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>Entendido, ya los he guardado</Button>
+          <Button onClick={() => { setStep('status'); setBackupCodes([]) }}>{t('mfa.understood')}</Button>
         </div>
       )}
 
       {/* How it works */}
       {!status?.enabled && step === 'status' && (
         <div style={{ ...card, padding:'20px 24px' }}>
-          <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>¿Cómo funciona?</div>
+          <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>{t('mfa.how_title')}</div>
           {[
-            ['🔑', 'Activas MFA una sola vez', 'Escaneas un código QR con tu app de autenticación.'],
-            ['📱', 'Al iniciar sesión', 'Además de tu contraseña, introduces un código de 6 dígitos de tu app.'],
-            ['⏱', 'El código cambia cada 30 segundos', 'Aunque alguien robe tu contraseña, no puede acceder sin tu móvil.'],
-            ['🆘', 'Códigos de respaldo', 'Si pierdes tu móvil, 8 códigos de un solo uso te permiten recuperar el acceso.'],
+            ['🔑', t('mfa.how_1_title'), t('mfa.how_1_desc')],
+            ['📱', t('mfa.how_2_title'), t('mfa.how_2_desc')],
+            ['⏱', t('mfa.how_3_title'), t('mfa.how_3_desc')],
+            ['🆘', t('mfa.how_4_title'), t('mfa.how_4_desc')],
           ].map(([icon, title, desc], i) => (
             <div key={i} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom: i < 3 ? '.5px solid var(--color-border-tertiary)' : 'none' }}>
               <span style={{ fontSize:20, flexShrink:0 }}>{icon}</span>
@@ -162,14 +161,14 @@ export default function MFAPage() {
           onClick={() => setShowDisable(false)}>
           <div style={{ background:'var(--color-background-primary)', borderRadius:14, padding:24, width:400, border:'.5px solid var(--color-border-secondary)' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize:14, fontWeight:500, marginBottom:14 }}>⚠ Desactivar MFA</div>
-            <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:16 }}>Introduce tu código TOTP actual para confirmar que deseas desactivar la autenticación en dos pasos.</div>
-            <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t(modulo.clave)} autoFocus />
+            <div style={{ fontSize:14, fontWeight:500, marginBottom:14 }}>{t('mfa.disable_title')}</div>
+            <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:16 }}>{t('mfa.disable_desc')}</div>
+            <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:16 }}>
-              <Button variant="secondary" onClick={() => setShowDisable(false)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
               <button onClick={() => disable(disableCode)} disabled={disableCode.length !== 6 || disabling}
                 style={{ background:'var(--color-background-danger)', border:'.5px solid var(--color-border-danger)', borderRadius:8, padding:'8px 16px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit', opacity: disableCode.length !== 6 ? 0.6 : 1 }}>
-                {disabling ? 'Desactivando...' : 'Confirmar desactivación'}
+                {disabling ? t('mfa.disabling') : t('mfa.confirm_disable')}
               </button>
             </div>
           </div>

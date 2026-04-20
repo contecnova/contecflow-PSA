@@ -12,53 +12,53 @@ const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRa
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
+const { t } = useAppT();
 const DEP_TYPES = [
-  { value:'blocks',      label:'Bloquea',      color:'var(--danger)', desc:'A bloquea a B — B no puede empezar hasta que A termine' },
-  { value:'blocked_by',  label:'Bloqueada por', color:'var(--danger)', desc:'A está bloqueada por B' },
-  { value:'relates_to',  label:'Relacionada',   color:'var(--text-2)', desc:'Relacionadas sin bloqueo' },
-  { value:'duplicates',  label:'Duplica',       color:'var(--warning)', desc:'A es un duplicado de B' },
-  { value:'cloned_from', label:'Clonada de',    color:'var(--accent)', desc:'A fue clonada de B' },
-]
+  { value:'blocks',      label: t('dependencies.blocks'),      color:'var(--danger)', desc: t('dependencies.blocks_desc') },
+  { value:'blocked_by',  label: t('dependencies.blocked_by'), color:'var(--danger)', desc: t('dependencies.blocked_by_desc') },
+  { value:'relates_to',  label: t('dependencies.relates_to'), color:'var(--text-2)', desc: t('dependencies.relates_to_desc') },
+  { value:'duplicates',  label: t('dependencies.duplicates'), color:'var(--warning)', desc: t('dependencies.duplicates_desc') },
+  { value:'cloned_from', label: t('dependencies.cloned_from'),color:'var(--accent)', desc: t('dependencies.cloned_from_desc') },
+];
 const _EPIC_DEP_TYPES = [
-  { value:'finish_to_start',  label:'Fin → Inicio',   color:'var(--danger)', desc:'B no empieza hasta que A termine (más común)' },
-  { value:'start_to_start',   label:'Inicio → Inicio', color:'var(--warning)', desc:'B no empieza hasta que A empiece' },
-  { value:'finish_to_finish', label:'Fin → Fin',       color:'var(--accent)', desc:'B no termina hasta que A termine' },
-  { value:'relates_to',       label:'Relacionada',     color:'var(--text-2)', desc:'Sin bloqueo, solo vinculadas' },
-]
+  { value:'finish_to_start',  label: t('dependencies.finish_to_start'),   color:'var(--danger)', desc: t('dependencies.finish_to_start_desc') },
+  { value:'start_to_start',   label: t('dependencies.start_to_start'),   color:'var(--warning)', desc: t('dependencies.start_to_start_desc') },
+  { value:'finish_to_finish', label: t('dependencies.finish_to_finish'), color:'var(--accent)', desc: t('dependencies.finish_to_finish_desc') },
+  { value:'relates_to',       label: t('dependencies.relates_to_epic'),  color:'var(--text-2)', desc: t('dependencies.relates_to_epic_desc') },
+];
 
 const STATUS_COLOR = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}
 
 function DepForm({ projectId, tasks, onClose }) {
-  const qc = useQueryClient()
-  const toast = useToast()
-  const [form, setForm] = useState({ from_task_id:'', to_task_id:'', dep_type:'blocks', lag_days:0, note:'' })
-  const set = k => v => setForm(f => ({...f, [k]: v}))
-  const selType = DEP_TYPES.find(d => d.value === form.dep_type)
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({ from_task_id:'', to_task_id:'', dep_type:'blocks', lag_days:0, note:'' });
+  const set = k => v => setForm(f => ({...f, [k]: v}));
+  const selType = DEP_TYPES.find(d => d.value === form.dep_type);
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.post('/task-dependencies', form).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['task-deps', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al crear dependencia')),
-  })
+    onSuccess: () => { qc.invalidateQueries(['task-deps', projectId]); onClose(); },
+    onError: e => toast.error(extractErr(e, t('dependencies.error_create'))),
+  });
 
   return (
-    <Modal open onClose={onClose} title={t(modulo.clave)}>
+    <Modal open onClose={onClose} title={t('dependencies.title')}>
       <div style={{display:'flex', flexDirection:'column', gap:14}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
-            <label style={ls}>Tarea origen (A)</label>
+            <label style={ls}>{t('dependencies.from_task')}</label>
             <select style={is} value={form.from_task_id} onChange={e => set('from_task_id')(e.target.value)}>
-              <option value="">Selecciona...</option>
-              {tasks.map(t => <option key={t.id} value={t.id}>{t.title?.slice(0,45)}</option>)}
+              <option value="">{t('dependencies.select')}</option>
+              {tasks.map(tk => <option key={tk.id} value={tk.id}>{tk.title?.slice(0,45)}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Tarea destino (B)</label>
+            <label style={ls}>{t('dependencies.to_task')}</label>
             <select style={is} value={form.to_task_id} onChange={e => set('to_task_id')(e.target.value)}>
-              <option value="">Selecciona...</option>
-              {tasks.filter(t => t.id !== form.from_task_id).map(t => (
-                <option key={t.id} value={t.id}>{t.title?.slice(0,45)}</option>
-              ))}
+              <option value="">{t('dependencies.select')}</option>
+              {tasks.filter(tk => tk.id !== form.from_task_id).map(tk => (
+                <option key={tk.id} value={tk.id}>{tk.title?.slice(0,45)}</option>))}
             </select>
           </div>
         </div>

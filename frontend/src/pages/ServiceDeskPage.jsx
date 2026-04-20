@@ -2553,7 +2553,7 @@ function AnnouncementsConfig() {
       </div>
       {isLoading ? <div style={{ textAlign:'center', padding:30 }}><Spinner /></div>
         : anns.length === 0
-          ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description="" />
+          ? <EmptyState icon="📢" title={t('service_desk.ann_empty')} description={t('service_desk.ann_empty_desc')} />
           : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {anns.map(a => (

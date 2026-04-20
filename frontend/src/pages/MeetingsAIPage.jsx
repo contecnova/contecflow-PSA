@@ -63,52 +63,52 @@ function ProcessModal({ onClose }) {
   const { mutate: process, isPending } = useMutation({
     mutationFn: d => api.post('/meetings/process', d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['ai-meetings']); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onError: e => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
 
   return (
-    <Modal open title={t(modulo.clave)} onClose={onClose} width={700}>
+    <Modal open title={t('meetings_ai.process_title')} onClose={onClose} width={700}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Título *</label>
-          <input value={form.title} onChange={s('title')} style={fs} placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('meetings_ai.title_label')}</label>
+          <input value={form.title} onChange={s('title')} style={fs} placeholder={t('meetings_ai.title_placeholder')} />
         </div>
 
         <div>
-          <label style={ls}>Plataforma</label>
+          <label style={ls}>{t('meetings_ai.platform_label')}</label>
           <select value={form.platform} onChange={s('platform')} style={fs}>
             {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.icon} {p.label}</option>)}
           </select>
         </div>
 
         <div>
-          <label style={ls}>Duración (minutos)</label>
-          <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('meetings_ai.duration_label')}</label>
+          <input type="number" value={form.duration_minutes} onChange={s('duration_minutes')} style={fs} placeholder={t('meetings_ai.duration_placeholder')} />
         </div>
 
         <div style={{ gridColumn: '1/-1' }}>
-          <label style={ls}>Participantes (separados por coma)</label>
-          <input value={form.participants} onChange={s('participants')} style={fs} placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('meetings_ai.participants_label')}</label>
+          <input value={form.participants} onChange={s('participants')} style={fs} placeholder={t('meetings_ai.participants_placeholder')} />
         </div>
 
         <div style={{ gridColumn: '1/-1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-            <label style={{ ...ls, marginBottom: 0 }}>Transcripción *</label>
-            <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || 'Demo — Reunión Q3 Review', participants: 'Pedro García, María López, Carlos Ruiz, Ana Torres, Luis Vega' }))}
+            <label style={{ ...ls, marginBottom: 0 }}>{t('meetings_ai.transcript_label')}</label>
+            <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
               style={{ background: 'transparent', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              📋 Usar demo
+              📋 {t('meetings_ai.use_demo')}
             </button>
           </div>
           <textarea value={form.transcript} onChange={s('transcript')} rows={10}
             style={{ ...fs, resize: 'vertical', lineHeight: 1.5 }}
-            placeholder={t(modulo.clave)} />
+            placeholder={t('meetings_ai.transcript_placeholder')} />
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button variant="secondary" onClick={onClose}>{t('meetings_ai.cancel')}</Button>
         <Button onClick={() => process(form)} disabled={isPending || !form.transcript.trim() || !form.title.trim()}>
-          {isPending ? '⏳ Procesando con IA...' : '✨ Procesar con IA'}
+          {isPending ? t('meetings_ai.processing') : t('meetings_ai.process_btn')}
         </Button>
       </div>
     </Modal>
@@ -144,16 +144,16 @@ export default function MeetingsAIPage() {
       <PageHeader
         title={_t('meetings_ai.title')}
         subtitle={_t('meetings_ai.subtitle')}
-        actions={<Button onClick={() => setShowProcess(true)}>＋ Procesar reunión</Button>}
+        actions={<Button onClick={() => setShowProcess(true)}>＋ {_t('meetings_ai.process_meeting')}</Button>}
       />
 
       {meetings.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-          {[
-            { icon: '🎙', label: 'Reuniones', value: meetings.length, color: 'var(--accent)' },
-            { icon: '📋', label: 'Acciones totales', value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
-            { icon: '✅', label: 'Tareas creadas', value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
-          ].map(k => (
+            {[
+              { icon: '🎙', label: _t('meetings_ai.stats_meetings'), value: meetings.length, color: 'var(--accent)' },
+              { icon: '📋', label: _t('meetings_ai.stats_actions'), value: meetings.reduce((a, m) => a + (m.actions_count || 0), 0), color: 'var(--warning)' },
+              { icon: '✅', label: _t('meetings_ai.stats_created'), value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
+            ].map(k => (
             <div key={k.label} style={{ ...card, padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ fontSize: 24 }}>{k.icon}</span>
               <div>
@@ -171,9 +171,9 @@ export default function MeetingsAIPage() {
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
             <div style={{ ...card, padding: 32, textAlign: 'center' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>🎙</div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Sin reuniones procesadas</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>Pega una transcripción y la IA extrae resumen, decisiones y tareas</div>
-              <Button onClick={() => setShowProcess(true)}>Procesar primera reunión</Button>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.empty_title')}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>{_t('meetings_ai.empty_desc')}</div>
+              <Button onClick={() => setShowProcess(true)}>{_t('meetings_ai.empty_btn')}</Button>
             </div>
           ) : meetings.map(m => {
             const plat = platCfg(m.platform)
@@ -189,11 +189,11 @@ export default function MeetingsAIPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
-                    {m.status === 'done' ? '✅ Procesada' : '⏳ Procesando'}
+                    {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{m.actions_count || 0} acciones</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
                   {(m.created_actions || 0) > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--success)' }}>{m.created_actions} tareas ↗</span>
+                    <span style={{ fontSize: 11, color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
                   )}
                 </div>
               </div>
@@ -206,8 +206,8 @@ export default function MeetingsAIPage() {
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🎙</div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Selecciona una reunión</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>O procesa una nueva transcripción para ver el análisis IA</div>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{_t('meetings_ai.select_desc')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
@@ -224,7 +224,7 @@ export default function MeetingsAIPage() {
               {/* Summary */}
               {detail.summary && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📝 Resumen</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📝 {_t('meetings_ai.summary_label')}</div>
                   <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-2)' }}>{detail.summary}</div>
                 </div>
               )}
@@ -233,7 +233,7 @@ export default function MeetingsAIPage() {
               {detail.decisions?.length > 0 && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    ✅ Decisiones ({detail.decisions.length})
+                    ✅ {_t('meetings_ai.decisions_label', { count: detail.decisions.length })}
                   </div>
                   {detail.decisions.map((d, i) => (
                     <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid #1e2d4530' : 'none', fontSize: 13 }}>
@@ -249,11 +249,11 @@ export default function MeetingsAIPage() {
                 <div style={{ ...card, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      📋 Acciones ({detail.actions.length})
+                      📋 {_t('meetings_ai.actions_label_detail', { count: detail.actions.length })}
                     </div>
                     {detail.actions.some(a => !a.is_created) && (
                       <Button onClick={() => createTasks(selected)} disabled={creating}>
-                        {creating ? 'Creando...' : '➕ Crear tareas en Clarive'}
+                        {creating ? _t('meetings_ai.creating_tasks') : _t('meetings_ai.create_tasks_btn')}
                       </Button>
                     )}
                   </div>
@@ -268,7 +268,7 @@ export default function MeetingsAIPage() {
                         </div>
                       </div>
                       <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 12, background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>
-                        {a.is_created ? '✅ Creada' : 'Pendiente'}
+                        {a.is_created ? _t('meetings_ai.action_created') : _t('meetings_ai.action_pending')}
                       </span>
                     </div>
                   ))}

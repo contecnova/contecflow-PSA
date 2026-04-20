@@ -1,5 +1,7 @@
-
+# Obtener una factura por ID
 from __future__ import annotations
+def get_invoice_by_id(db: Session, invoice_id: str):
+    return db.query(Invoice).filter(Invoice.id == invoice_id).first()
 # Devuelve un query filtrable y el total para paginación de facturas
 def query_invoices(db: Session, project_id=None, status=None):
     q = db.query(Invoice)
@@ -16,6 +18,7 @@ serializers, SmartMatch, template instantiation, bulk import helpers.
 """
 
 import csv
+import enum
 import io
 import json
 import logging
@@ -451,8 +454,8 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
         raise HTTPException(404)
-    old_status = inv.status
-    new_status = payload.get("status", inv.status)
+    old_status = inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)
+    new_status = payload.get("status", old_status)
     # Definir transiciones válidas
     allowed_transitions = {
         "draft":    ["sent", "cancelled"],
@@ -462,16 +465,22 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         "cancelled": [],
     }
     if new_status == old_status:
-        return {"ok": True, "status": inv.status}
-    if new_status not in allowed_transitions.get(str(old_status), []):
+        db.commit()
+        return invoice_out(inv)
+    if new_status not in allowed_transitions.get(old_status, []):
         raise HTTPException(400, f"Transición de estado no permitida: {old_status} → {new_status}")
-    inv.status = new_status
+    # Assign as Enum if possible
+    from app.models.billing_reports import InvoiceStatus
+    try:
+        inv.status = InvoiceStatus(new_status)
+    except Exception:
+        inv.status = new_status
     if new_status == "paid":
         inv.paid_date = date.today()
     audit_log(db, current_user, "UPDATE", "invoices", inv.id, inv.number,
-              old_values={"status": old_status}, new_values={"status": inv.status})
+              old_values={"status": old_status}, new_values={"status": inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)})
     db.commit()
-    return {"ok": True, "status": inv.status}
+    return invoice_out(inv)
 
 
 def get_invoice_summary(db: Session) -> dict:

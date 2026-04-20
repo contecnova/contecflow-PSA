@@ -18,15 +18,21 @@ import { useAppT } from '../i18n/AppLangContext'
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_COLUMNS = [
-  { id: 'backlog',     label: 'Backlog',       color: '#4a5a78' },
-  { id: 'todo',        label: 'Por hacer',     color: '#6366f1' },
-  { id: 'in_progress', label: 'En progreso',   color: '#4f8ef7' },
-  { id: 'in_review',   label: 'En revisión',   color: '#f59e0b' },
-  { id: 'done',        label: 'Hecho',         color: '#34d399' },
+  { id: 'backlog',     label: t('kanban.col_backlog'),       color: '#4a5a78' },
+  { id: 'todo',        label: t('kanban.col_todo'),          color: '#6366f1' },
+  { id: 'in_progress', label: t('kanban.col_in_progress'),   color: '#4f8ef7' },
+  { id: 'in_review',   label: t('kanban.col_in_review'),     color: '#f59e0b' },
+  { id: 'done',        label: t('kanban.col_done'),          color: '#34d399' },
 ]
 
 const PRIORITY_COLORS = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399', none: '#4a5a78' }
-const PRIORITY_LABELS = { critical: 'Crítica', high: 'Alta', medium: 'Media', low: 'Baja', none: '—' }
+const PRIORITY_LABELS = {
+  critical: t('kanban.priority_critical'),
+  high: t('kanban.priority_high'),
+  medium: t('kanban.priority_medium'),
+  low: t('kanban.priority_low'),
+  none: t('kanban.priority_none'),
+}
 
 function getPriority(t) { return t.priority || 'none' }
 function fmtDate(s) { return s ? s.slice(0, 10) : '' }
@@ -159,7 +165,7 @@ function QuickAdd({ status, projectId, onCreated }) {
       setOpen(false)
       onCreated()
     } catch (e) {
-      toast.error(e?.response?.data?.detail || 'Error al crear tarea')
+      toast.error(e?.response?.data?.detail || t('kanban.error_create_task'))
     }
   }
 
@@ -171,7 +177,7 @@ function QuickAdd({ status, projectId, onCreated }) {
         borderRadius: 8, color: 'var(--text-3)', fontSize: 12,
         cursor: 'pointer', fontFamily: 'var(--font-sans)',
       }}>
-        + Añadir tarea
+        + {t('kanban.add_task')}
       </button>
     )
   }
@@ -183,7 +189,7 @@ function QuickAdd({ status, projectId, onCreated }) {
         value={title}
         onChange={e => setTitle(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') { setOpen(false); setTitle('') } }}
-        placeholder={t(modulo.clave)}
+        placeholder={t('kanban.add_task_placeholder')}
         style={{
           flex: 1, background: 'var(--surface-3)', border: '1px solid var(--accent)',
           borderRadius: 6, padding: '6px 8px', color: 'var(--text-1)',
@@ -329,7 +335,7 @@ export default function KanbanAdvancedPage() {
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, status }) => api.patch(`/tasks/${id}`, { status }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['kanban-tasks'] }),
-    onError:    (e) => toast.error(e?.response?.data?.detail || 'Error al mover tarea'),
+    onError:    (e) => toast.error(e?.response?.data?.detail || t('kanban.error_move_task')),
   })
 
   // ── Native drag-and-drop ───────────────────────────────────────────────────
@@ -478,11 +484,11 @@ export default function KanbanAdvancedPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
         <PageHeader
-          title={t(modulo.clave)}
+          title={t('kanban.title')}
           subtitle={t('kanban.subtitle')}
           actions={
             <Button size="sm" variant="subtle" onClick={() => setShowSettings(s => !s)}>
-              ⚙ Configurar
+              ⚙ {t('kanban.settings_btn')}
             </Button>
           }
         />
@@ -494,7 +500,7 @@ export default function KanbanAdvancedPage() {
           ref={searchRef}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder={t(modulo.clave)}
+          placeholder={t('kanban.search_placeholder')}
           style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)',
@@ -546,7 +552,7 @@ export default function KanbanAdvancedPage() {
             borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
             fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
           }}>
-            <option value="">Todos los sprints</option>
+            <option value="">{t('kanban.all_sprints')}</option>
             {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         )}
@@ -557,7 +563,7 @@ export default function KanbanAdvancedPage() {
           borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
           fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)', marginLeft: 'auto',
         }}>
-          <option value="">Todos los proyectos</option>
+          <option value="">{t('kanban.all_projects')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
 
@@ -567,17 +573,17 @@ export default function KanbanAdvancedPage() {
           borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
           fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
         }}>
-          <option value="none">Sin swimlanes</option>
-          <option value="assignee">Por assignee</option>
-          <option value="priority">Por prioridad</option>
-          <option value="epic">Por épica</option>
+          <option value="none">{t('kanban.no_swimlanes')}</option>
+          <option value="assignee">{t('kanban.swimlane_assignee')}</option>
+          <option value="priority">{t('kanban.swimlane_priority')}</option>
+          <option value="epic">{t('kanban.swimlane_epic')}</option>
         </select>
       </div>
 
       {/* Settings panel */}
       {showSettings && (
         <div style={{ padding: '12px 24px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>Límites WIP por columna</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {DEFAULT_COLUMNS.map(col => (
               <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -586,7 +592,7 @@ export default function KanbanAdvancedPage() {
                 <input
                   type="number" min={0} max={50}
                   value={wipLimits[col.id] || ''}
-                  placeholder={t(modulo.clave)}
+                  placeholder={t('kanban.wip_limit_placeholder')}
                   onChange={e => setWipLimits(prev => ({ ...prev, [col.id]: e.target.value ? parseInt(e.target.value) : 0 }))}
                   style={{
                     width: 50, background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -607,7 +613,7 @@ export default function KanbanAdvancedPage() {
         </div>
       ) : rawTasks.length === 0 ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="📋" title={t('kanban.empty_title')} description={t('kanban.empty_desc')} />
         </div>
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px' }}>

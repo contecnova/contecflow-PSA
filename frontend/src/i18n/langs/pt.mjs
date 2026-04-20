@@ -1,3 +1,4 @@
+export default pt;
 // Português (auto-traduzido)
 const pt = {
   issue_types: {

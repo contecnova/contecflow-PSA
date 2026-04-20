@@ -191,28 +191,46 @@ def get_weighted_forecast(
 
 # ── Configurable Stage Management ─────────────────────────────────────────────
 
+
+# --- Compatibilidad: /stage-configs como alias de /stages ---
+from fastapi import status
+
 @router.get("/stages", summary="Listar configuración de etapas del pipeline")
+@router.get("/stage-configs", summary="Listar configuración de etapas del pipeline (alias)")
 def list_stage_configs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     configs = pipeline_service.list_stage_configs(db)
-    return [{
-        "id": c.id, "stage_key": c.stage_key, "label": c.label,
-        "description": c.description, "color": c.color, "order": c.order,
-        "probability_default": c.probability_default,
-        "is_terminal": c.is_terminal, "is_won": c.is_won,
-    } for c in configs]
+    return {
+        "configs": [{
+            "id": c.id, "stage_key": c.stage_key, "label": c.label,
+            "description": c.description, "color": c.color, "order": c.order,
+            "probability_default": c.probability_default,
+            "is_terminal": c.is_terminal, "is_won": c.is_won,
+        } for c in configs],
+        "source": "defaults" if not configs else "db"
+    }
 
 
-@router.post("/stages", summary="Crear etapa personalizada")
+
+@router.post("/stages", summary="Crear etapa personalizada", status_code=status.HTTP_201_CREATED)
+@router.post("/stage-configs", summary="Crear etapa personalizada (alias)", status_code=status.HTTP_201_CREATED)
 def create_stage_config(
     payload: StageConfigIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    stage = pipeline_service.create_stage_config(db, payload.model_dump())
-    return {"ok": True, "id": stage.id, "stage_key": stage.stage_key}
+    try:
+        stage = pipeline_service.create_stage_config(db, payload.model_dump())
+        return {"ok": True, "id": stage.id, "stage_key": stage.stage_key}
+    except Exception as e:
+        # Si es duplicado, devolver 409
+        from fastapi import HTTPException
+        if hasattr(e, 'status_code') and getattr(e, 'status_code', None) == 400 and 'ya existe' in str(e):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        raise
+
 
 
 @router.patch("/stages/{stage_id}", summary="Actualizar etapa del pipeline")
@@ -226,11 +244,13 @@ def update_stage_config(
     return {"ok": True, "id": stage.id}
 
 
-@router.delete("/stages/{stage_id}", summary="Desactivar etapa del pipeline")
+
+@router.delete("/stages/{stage_id}", summary="Desactivar etapa del pipeline", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/stage-configs/{stage_id}", summary="Desactivar etapa del pipeline (alias)", status_code=status.HTTP_204_NO_CONTENT)
 def delete_stage_config(
     stage_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     pipeline_service.delete_stage_config(db, stage_id)
-    return {"ok": True}
+    return None

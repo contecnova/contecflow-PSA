@@ -35,7 +35,9 @@ def test_admin_user(db: Session, test_org: Organization) -> User:
         username=f"admin-{uid}",
         full_name="Admin User",
         organization_id=test_org.id,
-        role="admin",  # Use role enum directly
+        role="admin",
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     db.add(user)
     db.commit()
@@ -54,7 +56,9 @@ def test_manager_user(db: Session, test_org: Organization) -> User:
         username=f"manager-{uid}",
         full_name="Manager User",
         organization_id=test_org.id,
-        role="pm",  # Use PM as manager equivalent
+        role="pm",
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     db.add(user)
     db.commit()
@@ -74,6 +78,8 @@ def test_engineer_user(db: Session, test_org: Organization) -> User:
         full_name="Engineer User",
         organization_id=test_org.id,
         role="employee",
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     db.add(user)
     db.commit()

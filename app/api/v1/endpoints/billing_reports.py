@@ -267,7 +267,7 @@ def create_invoice(
     return _svc.create_invoice(payload, current_user, db)
 
 
-@router.patch("/invoices/{invoice_id}/status", response_model=InvoiceStatusUpdateOut, summary="Cambiar estado de factura")
+@router.patch("/invoices/{invoice_id}/status", response_model=InvoiceOut, summary="Cambiar estado de factura")
 def update_invoice_status(
     invoice_id: str,
     payload: dict = Body(...),

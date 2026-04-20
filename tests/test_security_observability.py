@@ -49,6 +49,8 @@ def soc_user(db: Session, soc_org: Organization) -> User:
         full_name       = "SOC Analyst",
         organization_id = soc_org.id,
         role            = "admin",
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     db.add(user)
     db.commit()

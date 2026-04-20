@@ -74,8 +74,8 @@ function MatrixTab() {
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
     mutationFn: () => api.post('/grc/permissions/seed'),
-    onSuccess: () => { qc.invalidateQueries(['grc-permissions']); toast.success('Matriz restaurada a valores por defecto') },
-    onError: e => toast.error(extractErr(e, 'Error')),
+    onSuccess: () => { qc.invalidateQueries(['grc-permissions']); toast.success(t('grc.matrix_reset_success')) },
+    onError: e => toast.error(extractErr(e, t('grc.error'))),
   })
 
   const togglePerm = async (role, module, action, current) => {
@@ -85,7 +85,7 @@ function MatrixTab() {
       await api.patch(`/grc/permissions/${role}/${module}/${action}`, { allowed: !current })
       qc.invalidateQueries(['grc-permissions'])
     } catch (e) {
-      toast.error(extractErr(e, 'Error al guardar permiso'))
+      toast.error(extractErr(e, t('grc.error_save_permission')))
     } finally {
       setSaving(null)
     }
@@ -99,10 +99,10 @@ function MatrixTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-2)', marginRight: 4 }}>Rol:</span>
+          <span style={{ fontSize: 12, color: 'var(--text-2)', marginRight: 4 }}>{t('grc.role')}:</span>
           <button onClick={() => setSelRole('all')}
             style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Todos
+            {t('grc.all')}
           </button>
           {ROLES.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
@@ -112,11 +112,11 @@ function MatrixTab() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻ Actualizar</button>
-          <button onClick={() => { openConfirmGlobal({ message: '¿Resetear toda la matriz a valores por defecto?', onConfirm: () => resetMatrix(), danger: true }) }}
+          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
+          <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
             style={{ background: 'transparent', border: '1px solid #ff475730', borderRadius: 6, padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}
             disabled={resetting}>
-            {resetting ? 'Reseteando...' : '⟳ Resetear a defecto'}
+            {resetting ? t('grc.resetting') : '⟳ ' + t('grc.reset_to_default')}
           </button>
         </div>
       </div>
@@ -125,7 +125,7 @@ function MatrixTab() {
         <table style={{ borderCollapse: 'collapse', minWidth: 600, width: '100%' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface-2)', textTransform: 'uppercase' }}>Módulo</th>
+              <th style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface-2)', textTransform: 'uppercase' }}>{t('grc.module')}</th>
               {displayRoles.map(r => (
                 <th key={r.id} colSpan={ACTIONS.length}
                   style={{ padding: '8px 6px', fontSize: 11, fontWeight: 700, color: r.color, textAlign: 'center', borderLeft: '2px solid var(--surface-4)' }}>
@@ -137,7 +137,7 @@ function MatrixTab() {
               <th style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }} />
               {displayRoles.map(r => ACTIONS.map(a => (
                 <th key={r.id + a} style={{ padding: '5px 3px', fontSize: 9, color: 'var(--text-3)', textAlign: 'center', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 42 }}>
-                  {ACTION_LABEL[a]}
+                  {t(`grc.action_${a}`)}
                 </th>
               )))}
             </tr>
@@ -148,20 +148,25 @@ function MatrixTab() {
                 <td style={{ padding: '9px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-1)', position: 'sticky', left: 0, background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)', whiteSpace: 'nowrap' }}>
                   {mod.icon} {mod.label}
                 </td>
-                {displayRoles.map(role => ACTIONS.map(action => {
-                  const allowed = matrix[role.id]?.[mod.id]?.[action] ?? false
-                  const key = `${role.id}/${mod.id}/${action}`
-                  const isSaving = saving === key
-                  return (
-                    <td key={key} style={{ padding: '6px 3px', textAlign: 'center', cursor: 'pointer' }}
-                      onClick={() => togglePerm(role.id, mod.id, action, allowed)}
-                      title={`${role.label} · ${mod.label} · ${ACTION_LABEL[action]}: ${allowed ? 'Permitido' : 'Denegado'} — click para cambiar`}>
-                      <span style={{ fontSize: 15, opacity: isSaving ? 0.4 : 1, transition: 'opacity .15s' }}>
-                        {isSaving ? '⟳' : allowed ? '✅' : '❌'}
-                      </span>
-                    </td>
-                  )
-                }))}
+                {displayRoles.map(role =>
+                  ACTIONS.map(action => {
+                    const allowed = matrix[role.id]?.[mod.id]?.[action] ?? false;
+                    const key = `${role.id}/${mod.id}/${action}`;
+                    const isSaving = saving === key;
+                    return (
+                      <td
+                        key={key}
+                        style={{ padding: '6px 3px', textAlign: 'center', cursor: 'pointer' }}
+                        onClick={() => togglePerm(role.id, mod.id, action, allowed)}
+                        title={`${role.label} · ${mod.label} · ${t(`grc.action_${action}`)}: ${allowed ? t('grc.allowed') : t('grc.denied')} — ${t('grc.click_to_change')}`}
+                      >
+                        <span style={{ fontSize: 15, opacity: isSaving ? 0.4 : 1, transition: 'opacity .15s' }}>
+                          {isSaving ? '⟳' : allowed ? '✅' : '❌'}
+                        </span>
+                      </td>
+                    );
+                  })
+                )}
               </tr>
             ))}
           </tbody>
@@ -169,12 +174,12 @@ function MatrixTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
-        {[['✅', 'Permitido', '#00e5a0'], ['❌', 'Denegado', '#ff4757']].map(([sym, label, color]) => (
+        {[['✅', t('grc.allowed'), '#00e5a0'], ['❌', t('grc.denied'), '#ff4757']].map(([sym, label, color]) => (
           <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             <span style={{ fontSize: 15 }}>{sym}</span><span style={{ color }}>{label}</span>
           </div>
         ))}
-        <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>Los cambios se guardan automáticamente y quedan en el Audit Log.</span>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{t('grc.changes_auto_saved')}</span>
       </div>
     </div>
   )
@@ -210,22 +215,21 @@ function SodRuleModal({ rule, workflows, onClose }) {
   }))
 
   return (
-    <Modal open title={isEdit ? 'Editar regla SoD' : 'Nueva regla SoD'} onClose={onClose} width={580}>
+    <Modal open title={isEdit ? t('grc.edit_sod_rule') : t('grc.new_sod_rule')} onClose={onClose} width={580}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
-          Define un par de acciones que <strong style={{ color: 'var(--text-1)' }}>no deben recaer en la misma persona</strong>.
-          La plataforma bloqueará el auto-aprobado cuando el solicitante coincida con el aprobador.
+          {t('grc.sod_rule_desc1')} <strong style={{ color: 'var(--text-1)' }}>{t('grc.sod_rule_desc2')}</strong>. {t('grc.sod_rule_desc3')}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 8, padding: '12px 14px' }}>
           <div>
-            <label style={ls}>Módulo A</label>
+            <label style={ls}>{t('grc.module_a')}</label>
             <select value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} style={fs}>
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Acción A</label>
+            <label style={ls}>{t('grc.action_a')}</label>
             <select value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} style={fs}>
               {ACTIONS.map(a => <option key={a} value={a}>{ACTION_LABEL[a]}</option>)}
             </select>
@@ -234,13 +238,13 @@ function SodRuleModal({ rule, workflows, onClose }) {
         <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>↕ en conflicto con ↕</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 8, padding: '12px 14px' }}>
           <div>
-            <label style={ls}>Módulo B</label>
+            <label style={ls}>{t('grc.module_b')}</label>
             <select value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} style={fs}>
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Acción B</label>
+            <label style={ls}>{t('grc.action_b')}</label>
             <select value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} style={fs}>
               {ACTIONS.map(a => <option key={a} value={a}>{ACTION_LABEL[a]}</option>)}
             </select>
@@ -249,27 +253,27 @@ function SodRuleModal({ rule, workflows, onClose }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
-            <label style={ls}>Nivel de riesgo</label>
+            <label style={ls}>{t('grc.risk_level')}</label>
             <select value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} style={fs}>
               {['critical', 'high', 'medium', 'low'].map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label style={ls}>Flujo de mitigación (opcional)</label>
+            <label style={ls}>{t('grc.mitigation_flow')}</label>
             <select value={form.mitigated_by_workflow_id} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} style={fs}>
-              <option value="">Sin mitigación configurada</option>
+              <option value="">{t('grc.no_mitigation')}</option>
               {(workflows || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
         </div>
 
         <div>
-          <label style={ls}>Descripción del riesgo</label>
+          <label style={ls}>{t('grc.risk_description')}</label>
           <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
         </div>
 
         <div>
-          <label style={ls}>Roles con conflicto potencial</label>
+          <label style={ls}>{t('grc.conflicting_roles')}</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             {ROLES.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
@@ -281,9 +285,9 @@ function SodRuleModal({ rule, workflows, onClose }) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('grc.cancel')}</Button>
           <Button onClick={() => mutate({ ...form, mitigated_by_workflow_id: form.mitigated_by_workflow_id || null })} loading={isPending} disabled={isPending || !form.description}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear regla'}
+            {isPending ? t('grc.saving') : isEdit ? t('grc.save_changes') : t('grc.create_rule')}
           </Button>
         </div>
       </div>
@@ -329,9 +333,9 @@ function SodTab() {
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Reglas SoD activas', value: rules.filter(r => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
-          { label: 'Conflictos detectados', value: violations.length, color: violations.length > 0 ? 'var(--warning)' : 'var(--success)', icon: '🔍' },
-          { label: 'Conflictos críticos', value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
+          { label: t('grc.active_sod_rules'), value: rules.filter(r => r.is_active).length, color: 'var(--accent)', icon: '⚠️' },
+          { label: t('grc.detected_conflicts'), value: violations.length, color: violations.length > 0 ? 'var(--warning)' : 'var(--success)', icon: '🔍' },
+          { label: t('grc.critical_conflicts'), value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
         ].map(({ label, value, color, icon }) => (
           <div key={label} style={{ ...card, padding: '14px 18px' }}>
             <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
@@ -343,13 +347,13 @@ function SodTab() {
 
       {violations.length > 0 && (
         <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid #ff475730', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 Conflictos SoD detectados en la matriz actual:</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {violations.map((v, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk]}20`, color: RISK_COLOR[v.risk], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
-                <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> puede {v.action_a} <em>{v.module_a}</em> y {v.action_b} <em>{v.module_b}</em></span>
-                {v.mitigated && <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ Mitigado</span>}
+                <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
+                {v.mitigated && <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
               </div>
             ))}
           </div>
@@ -357,7 +361,7 @@ function SodTab() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button onClick={() => setShowModal(true)}>+ Nueva regla SoD</Button>
+        <Button onClick={() => setShowModal(true)}>+ {t('grc.new_sod_rule')}</Button>
       </div>
 
       {isLoading ? <Spinner /> : rules.length === 0 ? (

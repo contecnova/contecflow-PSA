@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models.user import User
+from app.core.security import create_access_token
 from app.models.semantic_engine import SemProfile
 from app.db.session import get_db
 
@@ -11,8 +12,32 @@ def test_list_profiles_with_users_tenant_filter(db):
     # Crear dos usuarios en diferentes organizaciones
     org1 = "org-1"
     org2 = "org-2"
-    user1 = User(id="u1", full_name="User Org1", organization_id=org1, is_active=True)
-    user2 = User(id="u2", full_name="User Org2", organization_id=org2, is_active=True)
+    user1 = User(
+        id="u1",
+        username="user1",
+        email="user1@example.com",
+        full_name="User Org1",
+        organization_id=org1,
+        is_active=True,
+        role="employee",
+        status="active",
+        weekly_capacity_hours=40.0,
+        currency="EUR",
+        hashed_password="test"
+    )
+    user2 = User(
+        id="u2",
+        username="user2",
+        email="user2@example.com",
+        full_name="User Org2",
+        organization_id=org2,
+        is_active=True,
+        role="employee",
+        status="active",
+        weekly_capacity_hours=40.0,
+        currency="EUR",
+        hashed_password="test"
+    )
     db.add(user1)
     db.add(user2)
     db.commit()
@@ -24,7 +49,11 @@ def test_list_profiles_with_users_tenant_filter(db):
     db.commit()
     # Simular login como user1 (org1)
     db.info["organization_id"] = org1
-    response = client.get("/api/v1/semantic-engine/profiles")
+    token1 = create_access_token("u1", extra={"organization_id": org1})
+    response = client.get(
+        "/api/v1/semantic/profiles",
+        headers={"Authorization": f"Bearer {token1}"}
+    )
     assert response.status_code == 200
     data = response.json()
     # Solo debe aparecer el perfil de user1
@@ -32,7 +61,11 @@ def test_list_profiles_with_users_tenant_filter(db):
     assert not any(p["user_id"] == "u2" for p in data)
     # Simular login como user2 (org2)
     db.info["organization_id"] = org2
-    response = client.get("/api/v1/semantic-engine/profiles")
+    token2 = create_access_token("u2", extra={"organization_id": org2})
+    response = client.get(
+        "/api/v1/semantic/profiles",
+        headers={"Authorization": f"Bearer {token2}"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert any(p["user_id"] == "u2" for p in data)

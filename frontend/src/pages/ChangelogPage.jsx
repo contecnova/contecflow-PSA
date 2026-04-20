@@ -15,11 +15,11 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 const TYPE_META = {
-  feature:     { label: 'Feature',      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
-  bugfix:      { label: 'Bugfix',       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
-  improvement: { label: 'Mejora',       color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
-  milestone:   { label: 'Milestone',    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
-  breaking:    { label: 'Breaking',     color: '#f97316',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
+  feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
+  bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
+  improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
+  milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
+  breaking:    { label: t('changelog.type_breaking'),     color: '#f97316',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
 }
 
 const inputStyle = {
@@ -62,7 +62,7 @@ function EntryCard({ entry, onDelete }) {
               )}
               <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, background: meta.bg, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
               {entry.is_auto_generated && (
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)' }}>🤖 Auto</span>
+                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
               )}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
@@ -78,7 +78,7 @@ function EntryCard({ entry, onDelete }) {
           <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{entry.description}</div>
         )}
         {entry.author && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>por {entry.author.full_name}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>{t('changelog.by_author', {author: entry.author.full_name})}</div>
         )}
       </div>
     </div>
@@ -107,33 +107,33 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
         <div>
-          <label style={lbStyle}>Versión / etiqueta</label>
-          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t(modulo.clave)} />
+          <label style={lbStyle}>{t('changelog.version_tag')}</label>
+          <input value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
         </div>
         <div>
-          <label style={lbStyle}>Fecha</label>
+          <label style={lbStyle}>{t('changelog.date')}</label>
           <input type="date" value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
           {validation.errors.entry_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.entry_date}</p>}
         </div>
         <div>
-          <label style={lbStyle}>Tipo</label>
+          <label style={lbStyle}>{t('changelog.type')}</label>
           <select value={form.entry_type} onChange={e => { setForm(f => ({ ...f, entry_type: e.target.value })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
             {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
       </div>
       <div>
-        <label style={lbStyle}>Título *</label>
-        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t(modulo.clave)} />
+        <label style={lbStyle}>{t('changelog.title_label')}</label>
+        <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
         {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
       </div>
       <div>
-        <label style={lbStyle}>Descripción detallada</label>
-        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t(modulo.clave)} />
+        <label style={lbStyle}>{t('changelog.description')}</label>
+        <textarea value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} style={validation.inputStyle({ ...inputStyle, resize: 'vertical' }, 'description')} placeholder={t('changelog.description_ph')} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={submit} disabled={isPending}>{isPending ? 'Guardando...' : 'Añadir entrada'}</Button>
+        <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>
+        <Button onClick={submit} disabled={isPending}>{isPending ? t('changelog.saving') : t('changelog.add_entry')}</Button>
       </div>
     </div>
   )
@@ -162,33 +162,32 @@ function GenerateModal({ projectId, onClose, onSaved }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--accent)' }}>
-        🤖 Genera entradas automáticamente desde las tareas completadas en el período seleccionado.
-        Detecta el tipo (feature, bugfix…) según el título y la prioridad de la tarea.
+        {t('changelog.generate_info')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
-          <label style={lbStyle}>Período (semanas)</label>
+          <label style={lbStyle}>{t('changelog.period_weeks')}</label>
           <input type="number" value={weeks} onChange={e => { setWeeks(e.target.value); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
           {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
         </div>
         <div>
-          <label style={lbStyle}>Versión / etiqueta (opcional)</label>
-          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t(modulo.clave)} />
+          <label style={lbStyle}>{t('changelog.version_tag_optional')}</label>
+          <input value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} style={validation.inputStyle(inputStyle, 'version_tag')} placeholder={t('changelog.version_tag_ph')} />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (
         <div style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>
-          ✓ {genResult.generated} entrada{genResult.generated !== 1 ? 's' : ''} generada{genResult.generated !== 1 ? 's' : ''} desde {genResult.period_weeks} semana{genResult.period_weeks !== 1 ? 's' : ''} de tareas completadas.
+          {t('changelog.generated_success', {count: genResult.generated, weeks: genResult.period_weeks})}
         </div>
       )}
       {genResult && genResult.generated === 0 && (
         <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--warning)', fontWeight: 500 }}>
-          ⚠️ {genResult.message || 'No se encontraron tareas completadas en el período indicado. Amplía el número de semanas o completa tareas primero.'}
+          {t('changelog.generated_empty', {message: genResult.message})}
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="secondary" onClick={onClose}>{genResult ? 'Cerrar' : 'Cancelar'}</Button>
-        {!genResult && <Button onClick={submitGenerate} disabled={isPending}>{isPending ? 'Generando...' : '🤖 Generar'}</Button>}
+        <Button variant="secondary" onClick={onClose}>{genResult ? t('changelog.close') : t('changelog.cancel')}</Button>
+        {!genResult && <Button onClick={submitGenerate} disabled={isPending}>{isPending ? t('changelog.generating') : t('changelog.generate')}</Button>}
       </div>
     </div>
   )
@@ -234,13 +233,13 @@ export default function ChangelogPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           style={{ flex: 1, maxWidth: 380, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('changelog.select_project')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
         {selectedProject && (
           <>
-            <Button variant="secondary" onClick={() => setShowGenerate(true)}>🤖 Generar automático</Button>
-            <Button onClick={() => setShowManual(true)}>+ Entrada manual</Button>
+            <Button variant="secondary" onClick={() => setShowGenerate(true)}>{t('changelog.generate')}</Button>
+            <Button onClick={() => setShowManual(true)}>{t('changelog.add_entry')}</Button>
           </>
         )}
       </div>
@@ -250,7 +249,7 @@ export default function ChangelogPage() {
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
           <button onClick={() => setTypeFilter('all')}
             style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)', background: typeFilter === 'all' ? 'var(--accent-muted)' : 'var(--surface-2)', color: typeFilter === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Todos ({entries.length})
+            {t('changelog.all')} ({entries.length})
           </button>
           {Object.entries(TYPE_META).map(([k, v]) => {
             const count = entries.filter(e => e.entry_type === k).length
@@ -265,13 +264,13 @@ export default function ChangelogPage() {
       )}
 
       {!selectedProject ? (
-        <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="📋" title={t('changelog.empty_title')} description={t('changelog.empty_desc')} />
       ) : isLoading ? (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando changelog...</span></div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>{t('changelog.loading')}</span></div>
       ) : entries.length === 0 ? (
-        <EmptyState icon="📝" title={t(modulo.clave)}
-          description={t(modulo.clave)}
-          action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: 13, padding: '8px 20px' }}>🤖 Generar automático</button>}
+        <EmptyState icon="📝" title={t('changelog.empty_title')}
+          description={t('changelog.empty_desc')}
+          action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: 13, padding: '8px 20px' }}>{t('changelog.generate')}</button>}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -280,13 +279,13 @@ export default function ChangelogPage() {
       )}
 
       {showManual && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowManual(false)} width={560}>
+        <Modal open title={t('changelog.add_entry')} onClose={() => setShowManual(false)} width={560}>
           <ManualEntryModal projectId={selectedProject} onClose={() => setShowManual(false)} onSaved={invalidate} />
         </Modal>
       )}
 
       {showGenerate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowGenerate(false)} width={500}>
+        <Modal open title={t('changelog.generate')} onClose={() => setShowGenerate(false)} width={500}>
           <GenerateModal projectId={selectedProject} onClose={() => setShowGenerate(false)} onSaved={invalidate} />
         </Modal>
       )}

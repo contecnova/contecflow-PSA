@@ -73,7 +73,8 @@ const portalClientEditSchema = z.object({
 // STATUS_CFG y FR_STATUS_CFG centralizados en constants/sharedStatus.js
 
 function StatusBadge({ status, cfg }) {
-  const c = cfg[status] || { label: status, color: 'var(--text-2)' }
+  const t = useAppT()
+  const c = cfg[status] || { label: t('client_portal.unknown_status'), color: 'var(--text-2)' }
   return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: c.color + '20', color: c.color, border: `1px solid ${c.color}40`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
 }
 

@@ -97,6 +97,8 @@ def db():
         status=UserStatus.active,
         is_active=True,
         hashed_password=admin_hashed,
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     # PM
     pm = User(
@@ -108,6 +110,8 @@ def db():
         status=UserStatus.active,
         is_active=True,
         hashed_password=get_password_hash(_TEST_PASSWORD),
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     # Employee (anteriormente developer)
     dev = User(
@@ -120,6 +124,8 @@ def db():
         is_active=True,
         hourly_rate=50.0,
         hashed_password=get_password_hash(_TEST_PASSWORD),
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     # HR user
     hr = User(
@@ -131,6 +137,8 @@ def db():
         status=UserStatus.active,
         is_active=True,
         hashed_password=get_password_hash(_TEST_PASSWORD),
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     session.add_all([admin, pm, dev, hr])
     session.commit()

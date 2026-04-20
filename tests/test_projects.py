@@ -102,6 +102,8 @@ def _create_org_and_user(db, role="admin"):
         is_active=True,
         organization_id=org_id,
         hashed_password=get_password_hash("TestPass123!"),
+        weekly_capacity_hours=40.0,
+        currency="EUR"
     )
     db.add(user)
     db.commit()

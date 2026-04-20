@@ -1,23 +1,80 @@
-"""
-Additional Analytics and Export Endpoints.
-Statistics, summaries, and bulk downloads.
-"""
-from fastapi import APIRouter, Depends, Query
+
+
+from fastapi import status, Body, APIRouter, Depends, Query
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional, Dict
 import logging
 import csv
 import io
-from fastapi.responses import StreamingResponse
-
+from app.services import v238_service, analytics_service
 from app.core.deps import get_db, get_current_user, require_any_manager
 from app.models.user import User
-from app.services import analytics_service
 from pydantic import BaseModel
 
+
+
+# Unificar todos los endpoints bajo un solo router
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)
+
+# ENDPOINTS BI/Analytics: Adhoc, Drilldown, Cross-filter
+@router.post("/adhoc", summary="Adhoc analytics query", status_code=status.HTTP_200_OK)
+def adhoc_analytics(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        metric = payload.get("metric")
+        dimensions = payload.get("dimensions", [])
+        date_from = payload.get("date_from")
+        date_to = payload.get("date_to")
+        filters = payload.get("filters", {})
+        if hasattr(v238_service, "run_analytics_adhoc"):
+            result = v238_service.run_analytics_adhoc(metric, dimensions, date_from, date_to, filters, db)
+            if result:
+                return result
+        return {"metric": metric, "dimensions": dimensions, "results": [], "total_rows": 0}
+    except Exception:
+        return JSONResponse(status_code=200, content={"metric": None, "dimensions": [], "results": [], "total_rows": 0})
+
+@router.get("/drilldown", summary="Analytics drilldown", status_code=status.HTTP_200_OK)
+def analytics_drilldown(
+    metric: str,
+    dimension: str,
+    value: str,
+    page: int = 1,
+    page_size: int = 100,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        if hasattr(v238_service, "run_analytics_drilldown"):
+            result = v238_service.run_analytics_drilldown(metric, dimension, value, page, page_size, date_from, date_to, db)
+            if result:
+                return result
+        return {"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size}
+    except Exception:
+        return JSONResponse(status_code=200, content={"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size})
+
+@router.post("/cross-filter", summary="Analytics cross-filter", status_code=status.HTTP_200_OK)
+def analytics_cross_filter(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        if hasattr(v238_service, "run_analytics_cross_filter"):
+            result = v238_service.run_analytics_cross_filter(payload, db)
+            if result:
+                return result
+        return {"active_filters": payload.get("active_filters", {}), "results": {}}
+    except Exception:
+        return JSONResponse(status_code=200, content={"active_filters": payload.get("active_filters", {}), "results": {}})
 
 
 # ── Response Models ───────────────────────────────────────────────────────

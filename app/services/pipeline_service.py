@@ -216,12 +216,25 @@ def get_active_opportunities_for_forecast(db: Session):
 
 
 def list_stage_configs(db: Session):
-    return (
+    stages = (
         db.query(PipelineStageConfig)
         .filter(PipelineStageConfig.is_active == True)  # noqa: E712
         .order_by(PipelineStageConfig.order)
         .all()
     )
+    if not stages:
+        # Defaults si la base está vacía
+        defaults = [
+            dict(stage_key=k, label=v, order=i, probability_default=STAGE_PROB[k],
+                 description=None, color=None, is_terminal=(k in ("won", "lost", "cancelled")), is_won=(k == "won"), id=k)
+            for i, (k, v) in enumerate(STAGE_LABELS.items())
+        ]
+        # Simula objetos con atributos para compatibilidad
+        class Dummy:
+            def __init__(self, d):
+                self.__dict__.update(d)
+        return [Dummy(d) for d in defaults]
+    return stages
 
 
 def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
@@ -229,7 +242,8 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
         PipelineStageConfig.stage_key == payload_dict["stage_key"]
     ).first()
     if existing:
-        raise HTTPException(400, f"La etapa '{payload_dict['stage_key']}' ya existe")
+        from fastapi import status
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
     stage = PipelineStageConfig(**payload_dict)
     db.add(stage)
     db.commit()
@@ -249,8 +263,9 @@ def update_stage_config(db: Session, stage_id: str, data: dict) -> PipelineStage
 
 def delete_stage_config(db: Session, stage_id: str) -> None:
     stage = db.query(PipelineStageConfig).filter(PipelineStageConfig.id == stage_id).first()
+    # Idempotente: si no existe, simplemente retorna (como DELETE de REST estándar)
     if not stage:
-        raise HTTPException(404, "Etapa no encontrada")
+        return
     stage.is_active = False
     db.commit()
 

@@ -1,4 +1,4 @@
-import { useAppT } from "@/hooks/useAppT";
+import { useAppT } from "../i18n/AppLangContext";
 import React, { useEffect, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'

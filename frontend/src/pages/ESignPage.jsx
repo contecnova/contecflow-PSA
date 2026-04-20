@@ -12,13 +12,13 @@ import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_COLORS = {
-  draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  label: 'Borrador' },
-  sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    label: 'Enviado' },
-  delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    label: 'Entregado' },
-  completed: { color: 'var(--success)',  bg: 'var(--success-bg)', label: 'Completado' },
-  declined:  { color: 'var(--danger)',   bg: 'var(--danger-bg)',  label: 'Rechazado' },
-  voided:    { color: 'var(--text-3)',   bg: 'var(--surface-3)',  label: 'Anulado' },
-  error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', label: 'Error' },
+  draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  label: t('esign.status_draft') },
+  sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    label: t('esign.status_sent') },
+  delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    label: t('esign.status_delivered') },
+  completed: { color: 'var(--success)',  bg: 'var(--success-bg)', label: t('esign.status_completed') },
+  declined:  { color: 'var(--danger)',   bg: 'var(--danger-bg)',  label: t('esign.status_declined') },
+  voided:    { color: 'var(--text-3)',   bg: 'var(--surface-3)',  label: t('esign.status_voided') },
+  error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', label: t('esign.status_error') },
 }
 
 function StatusPill({ status }) {
@@ -78,7 +78,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
 
   const submit = async () => {
     if (!form.document_id || !form.subject || signers.some(s => !s.name || !s.email)) {
-      setError('Completa todos los campos obligatorios')
+      setError(t('esign.error_required_fields'))
       return
     }
     setSaving(true)
@@ -89,58 +89,58 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
       onClose()
     } catch (e) {
       const raw = e?.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(e => e.msg).join(', ') : (raw || 'Error al crear la solicitud'))
+      setError(Array.isArray(raw) ? raw.map(e => e.msg).join(', ') : (raw || t('esign.error_create')))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal title={t(modulo.clave)} onClose={onClose} style={{ maxWidth: 560 }}>
+    <Modal title={t('esign.create_title')} onClose={onClose} style={{ maxWidth: 560 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={ls}>Documento *</label>
+          <label style={ls}>{t('esign.document')}</label>
           <select value={form.document_id} onChange={set('document_id')} style={fs}>
-            <option value="">Selecciona un documento...</option>
+            <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
         <div>
-          <label style={ls}>Asunto *</label>
-          <input value={form.subject} onChange={set('subject')} style={fs} placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('esign.subject')}</label>
+          <input value={form.subject} onChange={set('subject')} style={fs} placeholder={t('esign.subject_ph')} />
         </div>
         <div>
-          <label style={ls}>Mensaje (opcional)</label>
-          <textarea value={form.message} onChange={set('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t(modulo.clave)} />
+          <label style={ls}>{t('esign.message')}</label>
+          <textarea value={form.message} onChange={set('message')} style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('esign.message_ph')} />
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <label style={ls}>Proveedor</label>
+            <label style={ls}>{t('esign.provider')}</label>
             <select value={form.provider} onChange={set('provider')} style={fs}>
-              <option value="manual">Manual (sin integración)</option>
+              <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
             </select>
           </div>
           <div style={{ width: 120 }}>
-            <label style={ls}>Válido (días)</label>
+            <label style={ls}>{t('esign.valid_days')}</label>
             <input type="number" value={form.expires_days} onChange={set('expires_days')} style={fs} min={1} max={30} />
           </div>
         </div>
 
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <label style={ls}>Firmantes *</label>
-            <button onClick={addSigner} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>+ Añadir</button>
+            <label style={ls}>{t('esign.signers')}</label>
+            <button onClick={addSigner} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>+ {t('esign.add_signer')}</button>
           </div>
           {signers.map((s, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
               <input value={s.name} onChange={e => setSigner(i, 'name', e.target.value)}
-                placeholder={t(modulo.clave)} style={{ ...fs, flex: 1 }} />
+                placeholder={t('esign.signer_name_ph')} style={{ ...fs, flex: 1 }} />
               <input value={s.email} onChange={e => setSigner(i, 'email', e.target.value)}
-                placeholder={t(modulo.clave)} type="email" style={{ ...fs, flex: 1 }} />
+                placeholder={t('esign.signer_email_ph')} type="email" style={{ ...fs, flex: 1 }} />
               <input value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
-                type="number" min={1} style={{ ...fs, width: 56 }} title={t(modulo.clave)} />
+                type="number" min={1} style={{ ...fs, width: 56 }} title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
                 <button onClick={() => removeSigner(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>✕</button>
               )}
@@ -151,8 +151,8 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
         {error && <div style={{ color: 'var(--danger)', fontSize: 12 }}>⚠ {error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? 'Creando...' : '✍ Solicitar firma'}</Button>
+          <Button variant="secondary" onClick={onClose}>{t('esign.cancel')}</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? t('esign.creating') : t('esign.request_signature')}</Button>
         </div>
       </div>
     </Modal>
