@@ -214,7 +214,8 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
         if payload.role is not None or payload.hourly_rate is not None:
             raise HTTPException(status_code=403, detail="Solo admin puede cambiar rol o tarifa")
 
-    if current_user.organization_id and payload.organization_id not in (None, current_user.organization_id):
+    _payload_org_id = getattr(payload, "organization_id", None)
+    if current_user.organization_id and _payload_org_id not in (None, current_user.organization_id):
         raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
 
     for field, value in payload.model_dump(exclude_unset=True).items():

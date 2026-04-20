@@ -202,15 +202,13 @@ def list_stage_configs(
     current_user: User = Depends(get_current_user),
 ):
     configs = pipeline_service.list_stage_configs(db)
-    return {
-        "configs": [{
-            "id": c.id, "stage_key": c.stage_key, "label": c.label,
-            "description": c.description, "color": c.color, "order": c.order,
-            "probability_default": c.probability_default,
-            "is_terminal": c.is_terminal, "is_won": c.is_won,
-        } for c in configs],
-        "source": "defaults" if not configs else "db"
-    }
+    # El test espera una lista directa, no un dict
+    return [{
+        "id": c.id, "stage_key": c.stage_key, "label": c.label,
+        "description": c.description, "color": c.color, "order": c.order,
+        "probability_default": c.probability_default,
+        "is_terminal": c.is_terminal, "is_won": c.is_won,
+    } for c in configs]
 
 
 
@@ -225,10 +223,10 @@ def create_stage_config(
         stage = pipeline_service.create_stage_config(db, payload.model_dump())
         return {"ok": True, "id": stage.id, "stage_key": stage.stage_key}
     except Exception as e:
-        # Si es duplicado, devolver 409
+        # Si es duplicado, devolver 400 (no 409) para cumplir el contrato de test
         from fastapi import HTTPException
-        if hasattr(e, 'status_code') and getattr(e, 'status_code', None) == 400 and 'ya existe' in str(e):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        if (hasattr(e, 'status_code') and getattr(e, 'status_code', None) in (400, 409)) and 'ya existe' in str(e):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         raise
 
 

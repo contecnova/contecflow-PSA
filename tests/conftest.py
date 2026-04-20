@@ -52,6 +52,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.core.security import get_password_hash
 from app.models.user import User, UserRole, UserStatus
+from app.models.mfa import Organization
 
 # ── BD en memoria para tests ───────────────────────────────────────────────────
 TEST_DB_URL = "sqlite://"  # In-memory — totalmente aislado entre tests
@@ -140,6 +141,18 @@ def db():
         weekly_capacity_hours=40.0,
         currency="EUR"
     )
+    org = Organization(
+        id=1,
+        name="Test Organization",
+        slug="test-org",
+        is_active=True,
+    )
+    session.add(org)
+    # Associate admin user with org
+    admin.organization_id = 1
+    pm.organization_id = 1
+    dev.organization_id = 1
+    hr.organization_id = 1
     session.add_all([admin, pm, dev, hr])
     session.commit()
     session.close()

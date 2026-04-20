@@ -13,26 +13,26 @@ from app.main import app
 
 client = TestClient(app)
 
-
 @pytest.fixture
 def test_org(db: Session) -> Organization:
-    """Create test organization."""
+    """Create test organization, cleaning up previous test data."""
+    db.execute('DELETE FROM organization')
+    db.commit()
     org = Organization(id="test-org-1", name="Test Org", slug="test-org")
     db.add(org)
     db.commit()
     return org
 
-
 @pytest.fixture
 def test_admin_user(db: Session, test_org: Organization) -> User:
-    """Create test admin user."""
-    import time
-    uid = str(int(time.time() * 1000))
+    """Create test admin user, cleaning up previous test data."""
+    db.execute('DELETE FROM "user"')
+    db.commit()
     user = User(
-        id=f"user-admin-{uid}",
-        email=f"admin-{uid}@test.com",
+        id="user-admin-test",
+        email="admin-test@test.com",
         hashed_password="hashed",
-        username=f"admin-{uid}",
+        username="admin-test",
         full_name="Admin User",
         organization_id=test_org.id,
         role="admin",
@@ -43,17 +43,16 @@ def test_admin_user(db: Session, test_org: Organization) -> User:
     db.commit()
     return user
 
-
 @pytest.fixture
 def test_manager_user(db: Session, test_org: Organization) -> User:
-    """Create test manager user."""
-    import time
-    uid = str(int(time.time() * 1000))
+    """Create test manager user, cleaning up previous test data."""
+    db.execute('DELETE FROM "user" WHERE username = :username', {"username": "manager-test"})
+    db.commit()
     user = User(
-        id=f"user-manager-{uid}",
-        email=f"manager-{uid}@test.com",
+        id="user-manager-test",
+        email="manager-test@test.com",
         hashed_password="hashed",
-        username=f"manager-{uid}",
+        username="manager-test",
         full_name="Manager User",
         organization_id=test_org.id,
         role="pm",
@@ -64,17 +63,16 @@ def test_manager_user(db: Session, test_org: Organization) -> User:
     db.commit()
     return user
 
-
 @pytest.fixture
 def test_engineer_user(db: Session, test_org: Organization) -> User:
-    """Create test engineer user."""
-    import time
-    uid = str(int(time.time() * 1000))
+    """Create test engineer user, cleaning up previous test data."""
+    db.execute('DELETE FROM "user" WHERE username = :username', {"username": "engineer-test"})
+    db.commit()
     user = User(
-        id=f"user-eng-{uid}",
-        email=f"engineer-{uid}@test.com",
+        id="user-eng-test",
+        email="engineer-test@test.com",
         hashed_password="hashed",
-        username=f"engineer-{uid}",
+        username="engineer-test",
         full_name="Engineer User",
         organization_id=test_org.id,
         role="employee",
@@ -427,28 +425,26 @@ class TestABACService:
 class TestABACEndpoints:
     """Test ABAC API endpoints."""
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_list_attribute_definitions(self, test_admin_user: User):
-        """Test GET /abac/attribute-definitions."""
-        # This endpoint requires admin authentication
-        # In real test, would use proper auth token
         pass
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_get_user_attributes(self, test_manager_user: User):
-        """Test GET /abac/users/{user_id}/attributes."""
         pass
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_assign_user_attribute(self, test_admin_user: User):
-        """Test POST /abac/users/{user_id}/attributes."""
         pass
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_create_policy(self, test_admin_user: User):
-        """Test POST /abac/policies."""
         pass
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_evaluate_access(self, test_manager_user: User):
-        """Test POST /abac/evaluate."""
         pass
 
+    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_access_denied_on_missing_attribute(self, test_engineer_user: User):
-        """Test that access is denied when attribute doesn't match policy."""
         pass

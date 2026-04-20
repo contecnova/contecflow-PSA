@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from '../App';
+import { MemoryRouter } from 'react-router-dom';
+import { AppLangProvider } from '../i18n/AppLangContext';
+import { AuthProvider } from '../context/AuthContext';
 
 // Mock for i18n context/provider if needed
 // import { AppLangProvider } from '../i18n/AppLangContext';
@@ -25,7 +28,15 @@ async function selectLanguage(langLabel) {
 
 describe('UI Translations', () => {
   beforeEach(() => {
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <AppLangProvider>
+            <App />
+          </AppLangProvider>
+        </AuthProvider>
+      </MemoryRouter>
+    );
   });
 
   LANGUAGES.forEach(({ code, label }) => {

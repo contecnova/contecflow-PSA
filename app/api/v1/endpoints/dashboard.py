@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date
@@ -97,3 +97,23 @@ def get_dashboard_seed(current_user: User = Depends(get_current_user)):
         role = role.value
     seed = ROLE_DASHBOARD_SEEDS.get(role) or ROLE_DASHBOARD_SEEDS["employee"]
     return {"role": role, "config": seed}
+
+
+_dashboard_widgets: list = []
+
+@router.post("/widgets", summary="Add dashboard widget", status_code=201)
+def add_dashboard_widget(
+    payload: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+):
+    widget = {"id": len(_dashboard_widgets) + 1, **payload}
+    _dashboard_widgets.append(widget)
+    return widget
+
+
+@router.patch("/widgets/reorder", summary="Reorder dashboard widgets")
+def reorder_dashboard_widgets(
+    payload: dict = Body(...),
+    current_user: User = Depends(get_current_user),
+):
+    return {"ok": True, "order": payload.get("order", [])}

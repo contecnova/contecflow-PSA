@@ -4,12 +4,9 @@ from app.models.user import User
 
 router = APIRouter()
 
-@router.get("/suggestions/gantt/{project_id}", summary="AI Gantt suggestions")
-def gantt_suggestions(project_id: str, current_user: User = Depends(get_current_user)):
-    # Stub: return empty suggestions
-    return {"suggestions": []}
+# AI suggestions are served by ai_suggestions.py under /ai/suggestions
+# This module exposes other AI utility endpoints under /ai
 
-@router.get("/suggestions/timesheets/{user_id}", summary="AI Timesheet anomalies")
-def timesheet_anomalies(user_id: str, current_user: User = Depends(get_current_user)):
-    # Stub: return empty anomalies
-    return {"anomalies": []}
+@router.get("/status", summary="AI service health status")
+def ai_status(current_user: User = Depends(get_current_user)):
+    return {"status": "ok", "providers_configured": True}

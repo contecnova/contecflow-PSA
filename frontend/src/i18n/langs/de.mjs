@@ -1,4 +1,3 @@
-export default de;
 // Deutsch (automatisch übersetzt)
 const de = {
   issue_types: {

@@ -8,6 +8,7 @@ LEGACY_ASYNC_DB_ENDPOINT_FILES = {
     "activity.py",
     "ai_chat.py",
     "cab.py",
+    "documents_collab.py",
     "esign.py",
     "git_integration.py",
     "integrations_hub.py",

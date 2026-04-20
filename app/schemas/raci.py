@@ -1,13 +1,13 @@
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import date
 from pydantic import BaseModel
 
 class RACIEntryIn(BaseModel):
-    item_type:  str              # deliverable | milestone | phase | custom
+    item_type:  str
     item_label: str
     item_id:    Optional[str] = None
     user_id:    str
-    role:       str              # R | A | C | I
+    role:       Literal["R", "A", "C", "I"]
 
 class RACIBatchIn(BaseModel):
     entries: List[RACIEntryIn]

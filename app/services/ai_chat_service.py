@@ -38,12 +38,16 @@ from app.models.service_desk import Ticket
 from app.models.sprints import Sprint
 from app.models.task import Task
 from app.models.user import User, UserRole
-from app.models.ai_chat import AIActionLog, AIGovernanceConfig, AIKBArticle, AIPromptTemplate
+from app.models.ai_chat import (
+    AIActionLog,
+    AIAgentExecution,
+    AIConversation,
+    AIGovernanceConfig,
+    AIKBArticle,
+    AIMessage,
+    AIPromptTemplate,
+)
 from app.services.ai_chat.context_service import build_tenant_context
-from app.models.ai_chat import AIConversation
-from app.models.ai_chat import AIAgentExecution
-from app.models.ai_chat import AIConversation, AIMessage
-from app.models.ai_chat import AIMessage, AIConversation
 from sqlalchemy.orm import joinedload
 
 _logger = logging.getLogger("v16_core")

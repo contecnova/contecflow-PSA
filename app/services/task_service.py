@@ -39,7 +39,7 @@ from sqlalchemy.orm import joinedload
 
 TASK_VALID_TRANSITIONS: dict = {
     TaskStatus.backlog: {TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.todo: {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.cancelled},
+    TaskStatus.todo: {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.done, TaskStatus.cancelled},
     TaskStatus.in_progress: {TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
     TaskStatus.blocked: {TaskStatus.in_progress, TaskStatus.cancelled},
     TaskStatus.in_review: {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},

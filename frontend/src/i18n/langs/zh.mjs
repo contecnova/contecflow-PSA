@@ -172,6 +172,7 @@ const zh = {
     total_requests: '总请求数',
     usage: '使用情况'
   },
+  public_forms: {
     loading_message: '正在加载表单...',
     error_not_found_title: '表单不可用',
     error_not_found_message: '该表单不存在或已失效。',

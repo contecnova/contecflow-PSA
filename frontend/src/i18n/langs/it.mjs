@@ -1,4 +1,3 @@
-export default it;
 // Italiano (auto-tradotto)
 const it = {
   issue_types: {
@@ -177,30 +176,15 @@ const it = {
     total_requests: 'Totale richieste',
     usage: 'Utilizzo'
   },
-    // ...tutti i testi del modulo intake_form tradotti automaticamente in italiano...
-  },
-  resource_scheduler: {
-    // ...tutti i testi del modulo resource_scheduler tradotti automaticamente in italiano...
-  },
-  dashboard: {
-    // ...tutti i testi del modulo dashboard tradotti automaticamente in italiano...
-  },
-  projects: {
-    // ...tutti i testi del modulo projects tradotti automaticamente in italiano...
-  },
-  tasks: {
-    // ...tutti i testi del modulo tasks tradotti automaticamente in italiano...
-  },
-  timesheet: {
-    // ...tutti i testi del modulo timesheet tradotti automaticamente in italiano...
-  },
-  service_desk: {
-    // ...tutti i testi del modulo service_desk tradotti automaticamente in italiano...
-  },
+  intake_form: {},
+  resource_scheduler: {},
+  dashboard: {},
+  projects: {},
+  tasks: {},
+  timesheet: {},
+  service_desk: {},
   imputa_page: {
-    // ...existing code...
     subtitle: 'Registrazione e modifica rapida delle ore lavorate',
   },
-  // ...aggiungi il resto dei moduli seguendo la struttura di es.mjs, auto-tradotto...
 };
 export default it;

@@ -107,32 +107,6 @@ _PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = _svc.PASSWORD_RESET_REQUEST_MAX_PER_WIN
 
 def _get_sso_redis():
     return _svc.get_sso_redis()
-    _redis_client_init = True
-    try:
-        import redis as _redis_module
-        r = _redis_module.from_url(
-            settings.REDIS_URL,
-            socket_connect_timeout=2,
-            socket_timeout=2,
-            decode_responses=True,
-        )
-        r.ping()
-        _redis_client = r
-        logger.info("SSO state store: using Redis (%s)", settings.REDIS_URL.split("@")[-1])
-    except Exception as _e:
-        if settings.ENVIRONMENT == "development" and os.getenv("TESTING") != "1":
-            logger.info(
-                "SSO state store: Redis unavailable in development (%s). Using in-memory fallback.",
-                _e,
-            )
-        else:
-            logger.warning(
-                "SSO state store: Redis unavailable (%s). Falling back to in-memory — "
-                "NOT SAFE for multi-worker deployments. Set REDIS_URL to fix.",
-                _e,
-            )
-        _redis_client = None
-    return _redis_client
 
 
 def _register_sso_state(state_raw: str) -> None:

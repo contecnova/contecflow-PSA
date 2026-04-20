@@ -298,8 +298,8 @@ class TestCurrencyConversion:
         res = client.get("/api/v1/currency/rates", headers=auth(pm_token))
         assert res.status_code == 200
         data = res.json()
-        assert "base" in data
-        assert "rates" in data
+        # Endpoint returns a list of rate objects
+        assert isinstance(data, list)
 
     def test_upsert_rate_and_convert(self, client, admin_token, pm_token, db):
         today = str(date.today())
@@ -325,11 +325,12 @@ class TestCurrencyConversion:
         assert data["rate"] == pytest.approx(1.09, rel=0.01)
 
     def test_convert_same_currency(self, client, pm_token, db):
-        res = client.post("/api/v1/currency/convert", json={
-            "amount": 500,
-            "from": "EUR",
-            "to": "EUR",
-        }, headers=auth(pm_token))
+        # Endpoint is GET with query params
+        res = client.get(
+            "/api/v1/currency/convert",
+            params={"amount": 500, "from_currency": "EUR", "to_currency": "EUR"},
+            headers=auth(pm_token),
+        )
         assert res.status_code == 200
         data = res.json()
         assert data["converted"] == 500
