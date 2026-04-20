@@ -16,7 +16,8 @@ client = TestClient(app)
 @pytest.fixture
 def test_org(db: Session) -> Organization:
     """Create test organization, cleaning up previous test data."""
-    db.execute('DELETE FROM organization')
+    from sqlalchemy import text
+    db.execute(text('DELETE FROM organization'))
     db.commit()
     org = Organization(id="test-org-1", name="Test Org", slug="test-org")
     db.add(org)
@@ -26,7 +27,8 @@ def test_org(db: Session) -> Organization:
 @pytest.fixture
 def test_admin_user(db: Session, test_org: Organization) -> User:
     """Create test admin user, cleaning up previous test data."""
-    db.execute('DELETE FROM "user"')
+    from sqlalchemy import text
+    db.execute(text('DELETE FROM "user"'))
     db.commit()
     user = User(
         id="user-admin-test",
@@ -46,7 +48,8 @@ def test_admin_user(db: Session, test_org: Organization) -> User:
 @pytest.fixture
 def test_manager_user(db: Session, test_org: Organization) -> User:
     """Create test manager user, cleaning up previous test data."""
-    db.execute('DELETE FROM "user" WHERE username = :username', {"username": "manager-test"})
+    from sqlalchemy import text
+    db.execute(text('DELETE FROM "user" WHERE username = :username'), {"username": "manager-test"})
     db.commit()
     user = User(
         id="user-manager-test",
@@ -66,7 +69,8 @@ def test_manager_user(db: Session, test_org: Organization) -> User:
 @pytest.fixture
 def test_engineer_user(db: Session, test_org: Organization) -> User:
     """Create test engineer user, cleaning up previous test data."""
-    db.execute('DELETE FROM "user" WHERE username = :username', {"username": "engineer-test"})
+    from sqlalchemy import text
+    db.execute(text('DELETE FROM "user" WHERE username = :username'), {"username": "engineer-test"})
     db.commit()
     user = User(
         id="user-eng-test",
@@ -180,6 +184,8 @@ class TestABACService:
     """Test ABAC service functions."""
 
     def test_assign_and_get_user_attributes(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test assigning and retrieving user attributes."""
         service = ABACService(db, test_org.id)
 
@@ -207,6 +213,8 @@ class TestABACService:
         assert attrs["region"] == "us"
 
     def test_attribute_expiry(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test that expired attributes are excluded."""
         service = ABACService(db, test_org.id)
 
@@ -224,6 +232,8 @@ class TestABACService:
         assert "temp_access" not in attrs
 
     def test_revoke_user_attribute(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test revoking user attributes."""
         service = ABACService(db, test_org.id)
 
@@ -247,6 +257,8 @@ class TestABACService:
         assert "project_ids" not in attrs
 
     def test_create_and_list_policies(self, db: Session, test_org: Organization, test_admin_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test creating and listing policies."""
         service = ABACService(db, test_org.id)
 
@@ -271,6 +283,8 @@ class TestABACService:
         assert any(p.id == policy.id for p in policies)
 
     def test_evaluate_access_allow(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test access evaluation that should allow."""
         service = ABACService(db, test_org.id)
 
@@ -305,6 +319,8 @@ class TestABACService:
         assert len(policies) > 0
 
     def test_evaluate_access_deny(self, db: Session, test_org: Organization, test_engineer_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test access evaluation that should deny."""
         service = ABACService(db, test_org.id)
 
@@ -339,6 +355,8 @@ class TestABACService:
         assert decision is False
 
     def test_evaluate_access_with_context(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test evaluation with additional context."""
         service = ABACService(db, test_org.id)
 
@@ -361,6 +379,8 @@ class TestABACService:
         assert decision is True
 
     def test_priority_order(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test that policies are evaluated by priority."""
         service = ABACService(db, test_org.id)
 
@@ -391,6 +411,8 @@ class TestABACService:
         assert decision is False
 
     def test_audit_logging(self, db: Session, test_org: Organization, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         """Test that access decisions are audited."""
         service = ABACService(db, test_org.id)
 
@@ -426,25 +448,37 @@ class TestABACEndpoints:
     """Test ABAC API endpoints."""
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_list_attribute_definitions(self, test_admin_user: User):
+    def test_list_attribute_definitions(self, db: Session, test_admin_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_get_user_attributes(self, test_manager_user: User):
+    def test_get_user_attributes(self, db: Session, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_assign_user_attribute(self, test_admin_user: User):
+    def test_assign_user_attribute(self, db: Session, test_admin_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_create_policy(self, test_admin_user: User):
+    def test_create_policy(self, db: Session, test_admin_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_evaluate_access(self, test_manager_user: User):
+    def test_evaluate_access(self, db: Session, test_manager_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
 
     @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
-    def test_access_denied_on_missing_attribute(self, test_engineer_user: User):
+    def test_access_denied_on_missing_attribute(self, db: Session, test_engineer_user: User):
+        db.execute(text('DELETE FROM organization'))
+        db.commit()
         pass
