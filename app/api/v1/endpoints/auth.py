@@ -55,126 +55,46 @@ from app.services.security_observability import SecurityEventService
 from app.models.security_observability import EventCategory, EventSeverity
 
 
-def _soc_svc(db, user):
-    return _svc.soc_svc(db, user)
-
-
-def _client_ip(request: Request) -> str:
-    return _svc.client_ip(request)
-
-
-def _mfa_challenge_query(db: Session):
-    return _svc.mfa_challenge_query(db)
-
-
-def _issue_mfa_challenge(db: Session, user: User) -> str:
-    return _svc.issue_mfa_challenge(db, user)
-
-
-def _read_mfa_challenge(db: Session, challenge_token: str):
-    return _svc.read_mfa_challenge(db, challenge_token)
-
-
-def _consume_mfa_challenge(row: MFAChallenge) -> None:
-    return _svc.consume_mfa_challenge(row)
-
-
-def _resolve_sso_role(default_role: str):
-    return _svc.resolve_sso_role(default_role)
-
-
-def _resolve_sso_organization_id(db: Session, config, email: str):
-    return _svc.resolve_sso_organization_id(db, config, email)
-
-
-def _validate_https_discovery_url(discovery_url: str) -> str:
-    return _svc.validate_https_discovery_url(discovery_url)
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 import app.services.auth_service as _svc
-
-# ── SSO state / rate-limiting (delegated to auth_service) ──────────────────────
-_SSO_STATE_TTL = _svc.SSO_STATE_TTL
-_SSO_KEY_PREFIX = _svc.SSO_KEY_PREFIX
-_LOGIN_FAIL_PREFIX = _svc.LOGIN_FAIL_PREFIX
-_LOGIN_LOCK_PREFIX = _svc.LOGIN_LOCK_PREFIX
-_PASSWORD_RESET_TTL_SECONDS = _svc.PASSWORD_RESET_TTL_SECONDS
-_PASSWORD_RESET_REQUEST_WINDOW_SECONDS = _svc.PASSWORD_RESET_REQUEST_WINDOW_SECONDS
-_PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = _svc.PASSWORD_RESET_REQUEST_MAX_PER_WINDOW
-
-
-def _get_sso_redis():
-    return _svc.get_sso_redis()
-
-
-def _register_sso_state(state_raw: str) -> None:
-    return _svc.register_sso_state(state_raw)
-
-
-def _consume_sso_state(state_raw: str) -> bool:
-    return _svc.consume_sso_state(state_raw)
-
-
-def _login_bucket(username: str, request: Request) -> str:
-    return _svc.login_bucket(username, request)
-
-
-def _login_lock_ttl(bucket: str) -> int:
-    return _svc.login_lock_ttl(bucket)
-
-
-def _register_login_failure(bucket: str) -> int:
-    return _svc.register_login_failure(bucket)
-
-
-def _clear_login_failure(bucket: str) -> None:
-    return _svc.clear_login_failure(bucket)
-
-
-def _password_reset_bucket(identifier: str, request: Request) -> str:
-    return _svc.password_reset_bucket(identifier, request)
-
-
-def _register_password_reset_request(bucket: str) -> int:
-    return _svc.register_password_reset_request(bucket)
-
-
-def _b64url_encode(data: bytes) -> str:
-    return _svc.b64url_encode(data)
-
-
-def _b64url_decode(data: str) -> bytes:
-    return _svc.b64url_decode(data)
-
-
-def _create_ephemeral_token(token_type: str, subject: str, challenge: str, ttl_seconds: int = 300) -> str:
-    return _svc.create_ephemeral_token(token_type, subject, challenge, ttl_seconds)
-
-
-def _read_ephemeral_token(token: str, expected_type: str) -> dict:
-    return _svc.read_ephemeral_token(token, expected_type)
-
-
-# Cookie settings — Secure=True requires HTTPS (production only)
-_COOKIE_OPTS = _svc.COOKIE_OPTS
-
-
-def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
-    return _svc.set_auth_cookies(response, access_token, refresh_token)
-
-
-def _current_refresh_jti(request: Request) -> Optional[str]:
-    return _svc.current_refresh_jti(request)
-
-
-def _issue_password_reset_token(user: User) -> str:
-    return _svc.issue_password_reset_token(user)
-
-
-def _send_password_reset_email(recipient: str, reset_link: str) -> None:
-    return _svc.send_password_reset_email(recipient, reset_link)
+from app.services.auth_service import (
+    soc_svc as _soc_svc,
+    client_ip as _client_ip,
+    mfa_challenge_query as _mfa_challenge_query,
+    issue_mfa_challenge as _issue_mfa_challenge,
+    read_mfa_challenge as _read_mfa_challenge,
+    consume_mfa_challenge as _consume_mfa_challenge,
+    resolve_sso_role as _resolve_sso_role,
+    resolve_sso_organization_id as _resolve_sso_organization_id,
+    validate_https_discovery_url as _validate_https_discovery_url,
+    get_sso_redis as _get_sso_redis,
+    register_sso_state as _register_sso_state,
+    consume_sso_state as _consume_sso_state,
+    login_bucket as _login_bucket,
+    login_lock_ttl as _login_lock_ttl,
+    register_login_failure as _register_login_failure,
+    clear_login_failure as _clear_login_failure,
+    password_reset_bucket as _password_reset_bucket,
+    register_password_reset_request as _register_password_reset_request,
+    b64url_encode as _b64url_encode,
+    b64url_decode as _b64url_decode,
+    create_ephemeral_token as _create_ephemeral_token,
+    read_ephemeral_token as _read_ephemeral_token,
+    set_auth_cookies as _set_auth_cookies,
+    current_refresh_jti as _current_refresh_jti,
+    issue_password_reset_token as _issue_password_reset_token,
+    send_password_reset_email as _send_password_reset_email,
+    SSO_STATE_TTL as _SSO_STATE_TTL,
+    SSO_KEY_PREFIX as _SSO_KEY_PREFIX,
+    LOGIN_FAIL_PREFIX as _LOGIN_FAIL_PREFIX,
+    LOGIN_LOCK_PREFIX as _LOGIN_LOCK_PREFIX,
+    PASSWORD_RESET_TTL_SECONDS as _PASSWORD_RESET_TTL_SECONDS,
+    PASSWORD_RESET_REQUEST_WINDOW_SECONDS as _PASSWORD_RESET_REQUEST_WINDOW_SECONDS,
+    PASSWORD_RESET_REQUEST_MAX_PER_WINDOW as _PASSWORD_RESET_REQUEST_MAX_PER_WINDOW,
+    COOKIE_OPTS as _COOKIE_OPTS,
+)
 
 
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
@@ -775,7 +695,7 @@ def sso_callback(
 # ── 2FA / MFA — TOTP real con pyotp ──────────────────────────────────────────
 
 @router.post("/mfa/setup", summary="Iniciar configuración 2FA — genera secreto TOTP")
-# @limiter.limit("5/minute")  # Disabled for test reliability
+@limiter.limit("5/minute")
 def mfa_setup(
     request: Request,
     db: Session = Depends(get_db),
@@ -801,7 +721,7 @@ def mfa_setup(
         totp   = pyotp.TOTP(secret)
         uri    = totp.provisioning_uri(
             name=current_user.email,
-            issuer_name="Clarive PSA",
+            issuer_name=settings.PROJECT_NAME,
         )
         qr_img = qrcode.make(uri)
         buf = io.BytesIO()
@@ -817,7 +737,7 @@ def mfa_setup(
             "secret":           secret,
             "provisioning_uri": uri,
             "qr_url":           qr_url,
-            "issuer":           "Clarive PSA",
+            "issuer":           settings.PROJECT_NAME,
             "email":            current_user.email,
         }
     except ImportError as ie:
@@ -833,7 +753,7 @@ def mfa_setup(
 
 
 @router.post("/mfa/verify-setup", summary="Verificar código TOTP y activar 2FA")
-# @limiter.limit("5/minute")  # Disabled for test reliability
+@limiter.limit("5/minute")
 def mfa_verify_setup(
     request: Request,
     payload: dict = Body(...),

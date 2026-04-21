@@ -90,6 +90,94 @@ def _tenant_filter_for_model(query, model, org_id):
     return query
 
 
+def _extract_models_from_select(stmt):
+    """Return ORM model classes referenced by a SA 2.0 Select statement.
+
+    Resolves Table objects from stmt.froms back to their mapped class via
+    SA 2.0's public registry API (Base.registry.mappers).
+    """
+    from sqlalchemy import Table
+
+    models: list = []
+    seen: set = set()
+    try:
+        froms = list(stmt.froms)
+    except Exception:
+        return models
+
+    if not froms:
+        return models
+
+    try:
+        from app.db.base import Base
+        table_to_class = {
+            mapper.persist_selectable: mapper.class_
+            for mapper in Base.registry.mappers
+        }
+    except Exception:
+        return models
+
+    for from_clause in froms:
+        if isinstance(from_clause, Table):
+            cls = table_to_class.get(from_clause)
+            if cls is not None and cls not in seen:
+                seen.add(cls)
+                models.append(cls)
+
+    return models
+
+
+def _tenant_where_for_model(stmt, model, org_id):
+    """Inject tenant isolation into a SA 2.0 Select statement via .where().
+
+    Mirrors _tenant_filter_for_model but operates on Select objects instead
+    of legacy Query objects.
+    """
+    if org_id is None:
+        return stmt
+
+    if hasattr(model, "organization_id"):
+        if getattr(model, "_tenant_filter_include_global", False):
+            from sqlalchemy import or_
+            return stmt.where(or_(model.organization_id == org_id, model.organization_id.is_(None)))
+        return stmt.where(model.organization_id == org_id)
+
+    if hasattr(model, "org_id"):
+        return stmt.where(model.org_id == org_id)
+
+    if hasattr(model, "project_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.project import Project
+        project_ids_sq = (
+            sa_select(Project.id)
+            .where(Project.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return stmt.where(model.project_id.in_(project_ids_sq))
+
+    if hasattr(model, "user_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.user import User
+        user_ids_sq = (
+            sa_select(User.id)
+            .where(User.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return stmt.where(model.user_id.in_(user_ids_sq))
+
+    if hasattr(model, "actor_id"):
+        from sqlalchemy import select as sa_select
+        from app.models.user import User
+        user_ids_sq = (
+            sa_select(User.id)
+            .where(User.organization_id == org_id)
+            .scalar_subquery()
+        )
+        return stmt.where(model.actor_id.in_(user_ids_sq))
+
+    return stmt
+
+
 class TenantSession(Session):
     """SQLAlchemy session that transparently injects tenant (org) isolation.
 
@@ -118,26 +206,31 @@ class TenantSession(Session):
             from sqlalchemy import false as sql_false
             return q.filter(sql_false())
 
-        # Resolve the first entity to a mapped model class (handles both class
+        # Resolve all entities to mapped model classes (handles both class
         # and InstrumentedAttribute patterns, e.g. db.query(Project.id)).
-        model = None
-        if len(entities) == 1:
-            model = _extract_model_class(entities[0])
-        elif len(entities) > 1:
-            # For multi-column queries pick the first entity that maps to a model.
-            for e in entities:
-                candidate = _extract_model_class(e)
-                if candidate is not None:
-                    model = candidate
-                    break
+        # Deduplicate so a model appearing multiple times (e.g. self-join) only
+        # gets one filter clause, preserving query correctness and performance.
+        seen: set = set()
+        models: list = []
+        for e in entities:
+            candidate = _extract_model_class(e)
+            if candidate is not None and candidate not in seen:
+                seen.add(candidate)
+                models.append(candidate)
 
-        if model is None:
+        if not models:
             return q
 
-        try:
-            return _tenant_filter_for_model(q, model, org_id)
-        except Exception:
-            return q
+        # Apply tenant isolation for every resolved model so that all tables
+        # in a multi-entity JOIN are scoped to the current tenant, not just
+        # the first one.
+        for model in models:
+            try:
+                q = _tenant_filter_for_model(q, model, org_id)
+            except Exception:
+                pass
+
+        return q
 
 _url = settings.DATABASE_URL
 _is_sqlite = _url.startswith("sqlite")

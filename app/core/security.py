@@ -36,13 +36,15 @@ def validate_password_policy(password: str) -> tuple[bool, Optional[str]]:
     return True, None
 
 
+_JWT_RESERVED_CLAIMS = {"sub", "exp", "iat", "type", "jti"}
+
+
 def create_access_token(subject: str, extra: dict = None, expires_delta: timedelta = None) -> str:
     default_minutes = min(settings.ACCESS_TOKEN_EXPIRE_MINUTES, settings.ACCESS_TOKEN_MAX_MINUTES)
     delta = expires_delta if expires_delta is not None else timedelta(minutes=default_minutes)
     expire = datetime.now(timezone.utc) + delta
-    payload = {"sub": subject, "exp": expire, "type": "access"}
-    if extra:
-        payload.update(extra)
+    safe_extra = {k: v for k, v in (extra or {}).items() if k not in _JWT_RESERVED_CLAIMS}
+    payload = {"sub": subject, "exp": expire, "type": "access", **safe_extra}
     kid, key = get_jwt_signing_key()
     return jwt.encode(payload, key, algorithm=ALGORITHM, headers={"kid": kid})
 

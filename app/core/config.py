@@ -305,11 +305,17 @@ class Settings(BaseSettings):
 
     @field_validator("DEFAULT_USER_PASSWORD")
     @classmethod
-    def default_user_password_must_not_be_placeholder(cls, v: str) -> str:
+    def default_user_password_must_not_be_placeholder(cls, v: str, info: ValidationInfo) -> str:
         if v.upper().startswith("CHANGE_ME"):
             raise ValueError(
                 "DEFAULT_USER_PASSWORD still has a placeholder value. "
                 "Set a real password in .env or run ./setup.sh before seeding."
+            )
+        environment = info.data.get("ENVIRONMENT", "development")
+        if environment in {"staging", "production"} and v == "contecflow2024!":
+            raise ValueError(
+                "DEFAULT_USER_PASSWORD must be changed from the default value in "
+                f"{environment}. Set a strong password in your .env file."
             )
         return v
 

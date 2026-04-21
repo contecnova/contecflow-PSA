@@ -210,22 +210,22 @@ async def lifespan(_app: FastAPI):
 
 
 # ── Middleware global de manejo de errores ─────────────────────────────
+import uuid as _uuid
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-import traceback
 
 class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
             return await call_next(request)
-        except Exception as exc:
-            logger.error(f"❌ Unhandled exception: {exc}", exc_info=True)
+        except Exception:
+            req_id = str(_uuid.uuid4())
+            logger.error("❌ Unhandled exception [req_id=%s]", req_id, exc_info=True)
             return JSONResponse(
                 status_code=500,
                 content={
                     "detail": "Internal Server Error",
-                    "error": str(exc),
-                    "trace": traceback.format_exc() if settings.ENVIRONMENT != "production" else None
+                    "request_id": req_id,
                 },
             )
 

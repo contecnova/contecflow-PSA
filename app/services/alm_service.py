@@ -11,17 +11,10 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
-from app.models.alm import ALMContract, ALMLicense, ALMAsset, ALMVendor
-from app.models.alm import ALMVendor
-from app.models.alm import ALMContract
-from app.models.alm import ALMLicense
-from app.models.alm import ALMLicense, ALMLicenseAssignment
-from app.models.alm import ALMLicenseAssignment
-from app.models.alm import ALMAsset
-from app.models.alm import ALMCostCenter
-from app.models.alm import ALMSoftwareInstall
-from datetime import date as _date
-from datetime import date as d_
+from app.models.alm import (
+    ALMVendor, ALMContract, ALMLicense, ALMLicenseAssignment,
+    ALMAsset, ALMCostCenter, ALMSoftwareInstall,
+)
 
 
 # ── Input cleaner ─────────────────────────────────────────────────────────────
@@ -42,7 +35,7 @@ def clean_input(data: dict, model_cls, date_fields=None, int_fields=None, float_
         if k in date_fields:
             try:
                 parts = str(v).split("-")
-                out[k] = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+                out[k] = date(int(parts[0]), int(parts[1]), int(parts[2]))
             except Exception:
                 out[k] = None
         elif k in int_fields:
@@ -369,7 +362,7 @@ def update_contract_record(cid: str, data: dict, db: Session) -> dict:
             if k in ["start_date", "end_date", "renewal_date"] and isinstance(v, str) and v:
                 try:
                     parts = v.split("-")
-                    v = d_(int(parts[0]), int(parts[1]), int(parts[2]))
+                    v = date(int(parts[0]), int(parts[1]), int(parts[2]))
                 except Exception:
                     v = None
             setattr(c, k, v)
