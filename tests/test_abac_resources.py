@@ -9,6 +9,30 @@ from tests.conftest import auth
 
 
 @pytest.fixture()
+def admin_no_org_token(client, db):
+    """Admin user with no organization_id — must get 400 on org-scoped endpoints."""
+    from app.models.user import User, UserRole, UserStatus
+    from app.core.security import get_password_hash
+    from tests.conftest import TEST_PASSWORD
+    no_org_admin = User(
+        id="admin-no-org-id",
+        username="admin_no_org",
+        email="noorge@clarive.com",
+        full_name="No Org Admin",
+        role=UserRole.admin,
+        status=UserStatus.active,
+        is_active=True,
+        hashed_password=get_password_hash(TEST_PASSWORD),
+        organization_id=None,
+    )
+    db.add(no_org_admin)
+    db.commit()
+    res = client.post("/api/v1/auth/login", json={"username": "admin_no_org", "password": TEST_PASSWORD})
+    assert res.status_code == 200
+    return res.json()["access_token"]
+
+
+@pytest.fixture()
 def admin_with_org(admin_token, db, client):
     """Ensures admin test user has an organization_id for org-scoped endpoints."""
     from app.models.mfa import Organization
@@ -73,9 +97,9 @@ class TestABACAdminDashboard:
         data = res.json()
         assert "total" in data
 
-    def test_overview_no_org_returns_400(self, client, admin_token):
+    def test_overview_no_org_returns_400(self, client, admin_no_org_token):
         """Admin without org_id returns 400 from org-scoped endpoint."""
-        res = client.get("/api/v1/abac/admin/overview", headers=auth(admin_token))
+        res = client.get("/api/v1/abac/admin/overview", headers=auth(admin_no_org_token))
         assert res.status_code == 400
 
 
