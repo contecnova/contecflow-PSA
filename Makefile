@@ -165,6 +165,16 @@ clean: ## Limpia archivos temporales y caches
 	rm -rf htmlcov/ .coverage coverage.xml test-results/ dist/
 	@echo "$(GREEN)✅ Limpieza completa$(RESET)"
 
+# ── Seguridad ────────────────────────────────────────────────────────────────
+pip-audit: ## Analiza dependencias Python en busca de vulnerabilidades
+	pip install pip-audit
+	pip-audit
+
+# ── Rotación de claves ───────────────────────────────────────────────────────
+rotate-keys: ## Recordatorio/manual para rotar claves y secretos
+	@echo "Recuerda rotar periódicamente las claves y secretos de API, JWT, OAuth y webhooks."
+	@echo "Actualiza los valores en .env, Azure, GitHub Secrets y otros orígenes seguros."
+	@echo "Puedes usar scripts/rotate_keys.sh para automatizar la rotación si está disponible."
 # ── Health check ───────────────────────────────────────────────────────────────
 health: ## Verifica que el backend responde
 	@curl -sf http://localhost:8000/health && \

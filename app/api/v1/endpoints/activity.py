@@ -103,8 +103,7 @@ def parse_mentions(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Call this after saving any comment/description that may contain @mentions.
-    Idempotent (deduplicates per entity_id).
+    Llamar después de guardar comentarios/descripciones con @mentions. Idempotente por entity_id.
     """
     ids = parse_and_store_mentions(
         db, payload.content, current_user,

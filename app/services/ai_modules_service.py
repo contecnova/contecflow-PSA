@@ -53,7 +53,7 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
 def call_claude(messages, system=None, model=None, tools=None, max_tokens=1000):
     import urllib.request
     import json as _json
-    body = {"model": model or settings.NEXUS_AI_MODEL, "max_tokens": max_tokens, "messages": messages}
+    body = {"model": model or settings.CONTECFLOW_AI_MODEL, "max_tokens": max_tokens, "messages": messages}
     if system: body["system"] = system
     if tools:  body["tools"] = tools
     data = _json.dumps(body).encode()
@@ -376,7 +376,7 @@ def run_oracle_analysis(db: Session, current_user) -> dict:
             ))
             generated.append({"type": "budget_overrun", "entity": p.name, "probability": round(ratio - 0.5, 2)})
 
-    log_action(db, current_user.id, "nexusoracle", "run",
+    log_action(db, current_user.id, "contecfloworacle", "run",
                "oracle_full_analysis", f"Generated {len(generated)} predictions")
     db.commit()
 
@@ -457,7 +457,7 @@ def process_voice_core(transcript: str, db, current_user) -> dict:
     status = "done"
 
     try:
-        prompt = f"""Analiza este comando de voz de un usuario de Clarive y extrae:
+        prompt = f"""Analiza este comando de voz de un usuario de Contecflow y extrae:
 - intent: log_hours | create_ticket | query_hours | create_task | get_summary | other
 - entities: objetos relevantes (project_name, hours, task_name, date, ticket_title, priority, etc.)
 
@@ -562,7 +562,7 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
         run_agent_task.delay(str(exec_record.id), transcript, str(current_user.id))
         result["action"] = (
             f"Comando enviado al agente (ID: {str(exec_record.id)[:8]}). "
-            "Revisa el historial de NexusAgent para el resultado."
+            "Revisa el historial de ContecflowAgent para el resultado."
         )
         result["execution_id"] = str(exec_record.id)
 
@@ -1145,7 +1145,7 @@ def update_kb(db: Session, article_id: str, payload: dict, current_user) -> dict
 # CLIENT PORTAL CHAT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Clarive.
+_CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Contecflow.
 Ayudas a los clientes a entender el estado de sus proyectos de forma clara y profesional.
 IMPORTANTE: Solo tienes acceso a los datos del proyecto del cliente. Nunca reveles información de otros clientes,
 datos financieros internos (márgenes, costes internos) ni información confidencial del equipo.

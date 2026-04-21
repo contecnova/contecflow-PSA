@@ -20,7 +20,7 @@ class OrgBranding(Base):
                              nullable=False, unique=True, index=True)
 
     # Visual identity
-    app_name          = Column(String(100), default="NexusPM")
+    app_name          = Column(String(100), default="Contecflow")
     tagline           = Column(String(255), nullable=True)
     logo_url          = Column(String(500), nullable=True)
     favicon_url       = Column(String(500), nullable=True)

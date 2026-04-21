@@ -48,7 +48,7 @@ class ABACDependency:
         if not org_id:
             raise HTTPException(status_code=400, detail="User organization not set")
 
-        user_roles = [r.name for r in current_user.roles]
+        user_roles = [current_user.role] if current_user.role else []
         service = ABACService(db, org_id)
 
         decision, matched_policies, details = service.evaluate_access(

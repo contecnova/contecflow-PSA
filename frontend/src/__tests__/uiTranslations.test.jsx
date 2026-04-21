@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import App from '../App';
 import { MemoryRouter } from 'react-router-dom';
 import { AppLangProvider } from '../i18n/AppLangContext';
@@ -37,6 +37,10 @@ describe('UI Translations', () => {
         </AuthProvider>
       </MemoryRouter>
     );
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   LANGUAGES.forEach(({ code, label }) => {

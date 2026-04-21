@@ -40,10 +40,10 @@ logger = logging.getLogger(__name__)
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 SSO_STATE_TTL = 600  # seconds
-SSO_KEY_PREFIX = "clarive:sso_state:"
+SSO_KEY_PREFIX = "contecflow:sso_state:"
 
-LOGIN_FAIL_PREFIX = "clarive:login:fail:"
-LOGIN_LOCK_PREFIX = "clarive:login:lock:"
+LOGIN_FAIL_PREFIX = "contecflow:login:fail:"
+LOGIN_LOCK_PREFIX = "contecflow:login:lock:"
 
 PASSWORD_RESET_TTL_SECONDS = 30 * 60
 PASSWORD_RESET_REQUEST_WINDOW_SECONDS = 15 * 60
@@ -461,9 +461,9 @@ def issue_password_reset_token(user: User) -> str:
 
 
 def send_password_reset_email(recipient: str, reset_link: str) -> None:
-    subject = "Clarive PSA - Restablecer contraseña"
+    subject = "Contecflow PSA - Restablecer contraseña"
     body = (
-        "Has solicitado restablecer tu contraseña de Clarive PSA.\n\n"
+        "Has solicitado restablecer tu contraseña de Contecflow PSA.\n\n"
         f"Enlace de restablecimiento (válido {PASSWORD_RESET_TTL_SECONDS // 60} minutos):\n"
         f"{reset_link}\n\n"
         "Si no solicitaste este cambio, ignora este correo."

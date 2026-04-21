@@ -79,7 +79,7 @@ def check_project_access(db: Session, project_id: str, organization_id: str) -> 
 
 
 def create_contract(db: Session, current_user_id: str, **kwargs) -> Contract:
-    """Raises IntegrityError on duplicate code — caller must handle."""
+    """Lanza IntegrityError si el código ya existe — el llamador debe manejarlo."""
     c = Contract(code=_next_code(db), created_by=current_user_id, **kwargs)
     db.add(c)
     db.commit()

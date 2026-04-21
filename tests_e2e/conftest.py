@@ -1,5 +1,5 @@
 """
-Fixtures de Playwright E2E para Clarive PSA.
+Fixtures de Playwright E2E para Contecflow PSA.
 
 Uso:
   pip install playwright pytest-playwright
@@ -9,7 +9,7 @@ Uso:
 Variables de entorno:
   BASE_URL       URL del frontend (default: http://localhost)
   ADMIN_USER     Usuario admin (default: admin)
-  ADMIN_PASS     Contraseña admin (default: clarive2024!)
+  ADMIN_PASS     Contraseña admin (default: contecflow2024!)
   HEADLESS       Modo headless (default: true)
 """
 import os
@@ -18,7 +18,7 @@ from playwright.sync_api import Page, BrowserContext
 
 BASE_URL   = os.getenv("BASE_URL",   "http://localhost")
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "clarive2024!")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "contecflow2024!")
 
 
 @pytest.fixture(scope="session")

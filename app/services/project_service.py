@@ -527,7 +527,7 @@ def list_members_payload(db: Session, project_id: str) -> list:
 
 
 def add_member_record(db: Session, project_id: str, data: dict):
-    """Validate, persist, commit, and return a new ProjectMember. Raises on duplicate."""
+    """Valida, persiste y retorna un nuevo ProjectMember. Lanza error si ya existe."""
 
     if not data.get("user_id"):
         raise HTTPException(422, "user_id es obligatorio")

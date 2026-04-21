@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { APP_LANGUAGES, loadLanguage } from './appTranslations'
 import api from '../services/api'
 
-const AppLangContext = createContext(null)
+export const AppLangContext = createContext(null)
 
 export const STORAGE_KEY = 'clarive_operator_lang'
 

@@ -53,12 +53,12 @@ def seed():
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-    print("Seeding Clarive database...")
+    print("Seeding Contecflow database...")
     today = date.today()
 
     # ── AppSettings ────────────────────────────────────────────────────────────
     for key, value in {
-        "company_name":"Consultora Nexus SL","currency":settings.DEFAULT_CURRENCY,
+        "company_name":"Consultora Contecflow SL","currency":settings.DEFAULT_CURRENCY,
         "timezone":settings.DEFAULT_TIMEZONE,"language":settings.DEFAULT_LANGUAGE,
         "work_hours_per_day":str(settings.DEFAULT_WORKING_HOURS_PER_DAY),"work_days_per_week":"5",
         "budget_alert_threshold":"85","overload_threshold":"100"
@@ -92,11 +92,11 @@ def seed():
     from app.models.mfa import Organization
 
     # ── Default Organization ────────────────────────────────────────────────────
-    org = db.query(Organization).filter(Organization.slug == "nexus-demo").first()
+    org = db.query(Organization).filter(Organization.slug == "contecflow-demo").first()
     if not org:
         org = Organization(
-            name="Consultora Nexus SL",
-            slug="nexus-demo",
+            name="Consultora Contecflow SL",
+            slug="contecflow-demo",
             plan="enterprise",
             is_active=True,
             max_users=200,
@@ -450,7 +450,6 @@ def seed():
             dict(code="RSK-0001",title="Retraso entrega API legacy",    description="La integracion con el sistema legacy puede causar retrasos.", project_id=projects["PRJ-0002"].id,probability=RiskProbability.high,    impact=RiskImpact.major,    status=RiskStatus.identified,owner_id=users["luis.vega"].id,  mitigation_plan="Plan de contingencia con API mock"),
             dict(code="RSK-0002",title="Rotacion de personal clave",    description="Riesgo de baja del Tech Lead en proyecto critico.",           project_id=projects["PRJ-0002"].id,probability=RiskProbability.medium,  impact=RiskImpact.critical, status=RiskStatus.mitigating, owner_id=users["ana.torres"].id, mitigation_plan="Documentacion tecnica completa y pair programming"),
             dict(code="RSK-0003",title="Cambio de requisitos cliente",  description="El cliente puede solicitar cambios mayores en alcance.",       project_id=projects["PRJ-0001"].id,probability=RiskProbability.medium,  impact=RiskImpact.moderate, status=RiskStatus.identified,owner_id=users["carlos.ruiz"].id,mitigation_plan="Change control process establecido"),
-            dict(code="RSK-0004",title="Deuda tecnica acumulada",       description="La velocidad del desarrollo puede generar deuda tecnica.",     project_id=projects["PRJ-0001"].id,probability=RiskProbability.low,     impact=RiskImpact.minor,    status=RiskStatus.monitoring,owner_id=users["luis.vega"].id),
             dict(code="RSK-0005",title="Caida proveedores cloud",       description="AWS puede tener incidencias que afecten produccion.",          project_id=projects["PRJ-0005"].id,probability=RiskProbability.very_low,impact=RiskImpact.critical, status=RiskStatus.identified,owner_id=users["sara.lope"].id,  mitigation_plan="Multi-region deployment y backup automatico"),
         ]
         for rd in risks:
@@ -606,7 +605,7 @@ def seed_service_desk():
 
     # CMDB
     ci1 = ConfigurationItem(code="CI-0001",name="Portal Cliente Acme",    ci_type=CIType.application,status=CIStatus.operational,criticality="high",    environment="prod",version="v1.2")
-    ci2 = ConfigurationItem(code="CI-0002",name="API Backend Clarive",    ci_type=CIType.application,status=CIStatus.operational,criticality="critical",environment="prod",version="v8.0")
+    ci2 = ConfigurationItem(code="CI-0002",name="API Backend Contecflow",    ci_type=CIType.application,status=CIStatus.operational,criticality="critical",environment="prod",version="v8.0")
     ci3 = ConfigurationItem(code="CI-0003",name="Base de Datos Principal", ci_type=CIType.database,   status=CIStatus.operational,criticality="critical",environment="prod")
     ci4 = ConfigurationItem(code="CI-0004",name="Infraestructura AWS",     ci_type=CIType.server,     status=CIStatus.operational,criticality="high",    environment="prod")
     db.add_all([ci1,ci2,ci3,ci4]); db.flush()
@@ -872,7 +871,7 @@ def seed_enterprise():
     hooks = [
         Webhook(
             name="Slack — Alertas de proyecto",
-            url="https://hooks.slack.com/services/DEMO/WEBHOOK/clarive",
+            url="https://hooks.slack.com/services/DEMO/WEBHOOK/contecflow",
             events=json.dumps(["project.created","project.closed","risk.created","expense.approved"]),
             is_active=True,
             total_deliveries=47, failed_deliveries=2,
@@ -880,7 +879,7 @@ def seed_enterprise():
         ),
         Webhook(
             name="Microsoft Teams — Notificaciones SD",
-            url="https://outlook.office.com/webhook/demo/clarive",
+            url="https://outlook.office.com/webhook/demo/contecflow",
             events=json.dumps(["ticket.created","ticket.resolved"]),
             is_active=True,
             total_deliveries=128, failed_deliveries=0,
@@ -888,7 +887,7 @@ def seed_enterprise():
         ),
         Webhook(
             name="ERP interno — Sincronización horas",
-            url="https://erp.empresa.com/api/clarive/timesheets",
+            url="https://erp.empresa.com/api/contecflow/timesheets",
             secret="s3cr3t-hmac-key-example",
             events=json.dumps(["timesheet.approved","expense.approved"]),
             is_active=False,
@@ -910,8 +909,8 @@ def seed_enterprise():
         saml_certificate="DEMO-CERTIFICATE-PLACEHOLDER",
         saml_attribute_email="email",
         saml_attribute_name="displayName",
-        saml_attribute_role="clariveRole",
-        role_mapping=json.dumps({"Clarive-Admin": "admin", "Clarive-PM": "pm", "Clarive-Dev": "employee"}),
+        saml_attribute_role="contecflowRole",
+        role_mapping=json.dumps({"Contecflow-Admin": "admin", "Contecflow-PM": "pm", "Contecflow-Dev": "employee"}),
         auto_create_users=True,
         default_role="employee",
         allowed_domains="empresa.com,filial.com",
@@ -1010,7 +1009,7 @@ def seed_enterprise():
     if admin:
         from app.services.notifications import notify_user
         notify_user(db, admin.id, "system",
-                   "🎉 Clarive v11 Enterprise activo",
+                   "🎉 Contecflow v11 Enterprise activo",
                    "Audit log, SSO, webhooks, permisos granulares y previsión de ingresos ya están disponibles.",
                    action_url="/enterprise")
         if ana:
@@ -1241,7 +1240,7 @@ def seed_v13():
     # Spanish holidays 2025
     holidays_es = [
         ("2025-01-01","Año Nuevo"),("2025-01-06","Reyes"),("2025-04-18","Viernes Santo"),
-        ("2025-05-01","Día del Trabajo"),("2025-08-15","Asunción"),("2025-10-12","Fiesta Nacional"),
+        ("2025-05-01","Día del Trabajo"),("2025-08-15","Asuncion"),("2025-10-12","Fiesta Nacional"),
         ("2025-11-01","Todos los Santos"),("2025-12-06","Constitución"),("2025-12-08","Inmaculada"),
         ("2025-12-25","Navidad"),
     ]
@@ -1365,22 +1364,22 @@ def seed_v14(db):
             templates = [
                 EmailTemplate(
                     name="Tarea vencida",
-                    subject="[Clarive] Tarea vencida: {{task_title}}",
+                    subject="[Contecflow] Tarea vencida: {{task_title}}",
                     body_html="<h2>Tarea vencida</h2><p>La tarea <strong>{{task_title}}</strong> en el proyecto {{project_name}} ha vencido.</p><p>Responsable: {{assignee_name}}</p>",
                     category="automation", is_system=True,
                     variables=json.dumps(["task_title","project_name","assignee_name","due_date"]),
                 ),
                 EmailTemplate(
                     name="Alerta de presupuesto",
-                    subject="[Clarive] Presupuesto al {{pct_used}}%: {{project_name}}",
+                    subject="[Contecflow] Presupuesto al {{pct_used}}%: {{project_name}}",
                     body_html="<h2>Alerta de presupuesto</h2><p>El proyecto <strong>{{project_name}}</strong> ha consumido el {{pct_used}}% del presupuesto.</p><p>Total: {{budget_total}}€ | Consumido: {{budget_used}}€</p>",
                     category="alert", is_system=True,
                     variables=json.dumps(["project_name","budget_total","budget_used","pct_used"]),
                 ),
                 EmailTemplate(
                     name="Informe programado",
-                    subject="[Clarive] Informe: {{report_name}}",
-                    body_html="<h2>Informe: {{report_name}}</h2><p>Generado el {{generated_at}} para el período {{period}}.</p><p>Accede a Clarive para ver el informe completo.</p>",
+                    subject="[Contecflow] Informe: {{report_name}}",
+                    body_html="<h2>Informe: {{report_name}}</h2><p>Generado el {{generated_at}} para el período {{period}}.</p><p>Accede a Contecflow para ver el informe completo.</p>",
                     category="report", is_system=True,
                     variables=json.dumps(["report_name","generated_at","period"]),
                 ),
@@ -1409,7 +1408,7 @@ def seed_v15(db):
         db.add(SlackConfig(
             platform="slack",
             workspace_name="Mi empresa",
-            default_channel="#clarive-alerts",
+            default_channel="#contecflow-alerts",
             is_active=False,
             subscriptions='["task_overdue","budget_alert","ticket_sla"]',
         ))
@@ -1646,13 +1645,9 @@ def seed_itsm_v2():
                 attributes=json.dumps({'os':'Ubuntu 22.04 LTS','cpu_cores':'8',
                     'ram_gb':'32','serial_number':'DELL-SRV-001','location':'CPD Madrid Rack A-01'}),
                 owner_id=admin.id if admin else None),
-            _CMDBItem(name='Clarive PSA', ci_type='application', status='active',
-                environment='production', version='v3.1.0',
-                description='Plataforma PSA principal',
-                attributes=json.dumps({'url':'https://clarive.empresa.com',
-                    'tech_stack':'React 18 / FastAPI / PostgreSQL',
-                    'owner_team':'Equipo Platform','sla_tier':'Gold',
-                    'repo_url':'https://github.com/empresa/clarive'}),
+            _CMDBItem(name='Contecflow PSA', ci_type='application', status='active',
+                attributes=json.dumps({'url':'https://contecflow.empresa.com',
+                    'repo_url':'https://github.com/empresa/contecflow'}),
                 owner_id=ana.id if ana else None),
             _CMDBItem(name='db-prod-01', ci_type='database', status='active',
                 environment='production', hostname='db-prod-01.empresa.com',
@@ -1669,8 +1664,6 @@ def seed_itsm_v2():
                     'serial_number':'FGT-SN-12345','location':'CPD Madrid Rack B-01'}),
                 owner_id=admin.id if admin else None),
             _CMDBItem(name='API Gateway', ci_type='service', status='active',
-                environment='production', version='v2.0',
-                description='Gateway de APIs internas y externas',
                 attributes=json.dumps({'url':'https://api.empresa.com',
                     'sla_tier':'Platinum','owner_team':'DevOps',
                     'dependencies':'auth-service, db-primary'}),

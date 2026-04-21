@@ -129,20 +129,11 @@ def verify_admin_or_governance_role(user) -> None:
     """Verify that user has admin or governance role. Raises HTTPException if not."""
     from fastapi import HTTPException, status
 
-    # Check if user is admin
-    if hasattr(user, 'is_superadmin') and user.is_superadmin:
+    # Check if user is admin or governance
+    if getattr(user, 'is_superadmin', False):
         return
-
-    # Check if user has admin role
-    if hasattr(user, 'roles'):
-        role_names = {r.name if hasattr(r, 'name') else str(r) for r in user.roles}
-        if 'admin' in role_names or 'governance' in role_names:
-            return
-
-    # Also check direct 'role' attribute (legacy)
-    if hasattr(user, 'role') and user.role in ('admin', 'governance'):
+    if getattr(user, 'role', None) in ('admin', 'governance'):
         return
-
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Admin or governance role required"

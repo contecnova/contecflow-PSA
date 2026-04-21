@@ -112,9 +112,15 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
         update_provider_test_result(db, p, success=True)
         return {"ok": True, "response": result.get("text", ""), "latency_ms": latency,
                 "model": result.get("model", p.default_model)}
+    except ValueError as e:
+        update_provider_test_result(db, p, success=False, error=str(e))
+        raise HTTPException(400, f"Error de datos: {str(e)}")
+    except ConnectionError as e:
+        update_provider_test_result(db, p, success=False, error=str(e))
+        raise HTTPException(503, f"No se pudo conectar con el proveedor: {str(e)}")
     except Exception as e:
         update_provider_test_result(db, p, success=False, error=str(e))
-        return {"ok": False, "error": "Connection test failed"}
+        raise HTTPException(500, f"Error inesperado: {str(e)}")
 
 
 @router.get("/stats")

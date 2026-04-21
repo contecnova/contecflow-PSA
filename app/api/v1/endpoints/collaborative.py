@@ -6,5 +6,5 @@ router = APIRouter()
 
 @router.get("/status", summary="Estado de colaboración en tiempo real")
 def get_collab_status(current_user: User = Depends(get_current_user)):
-    # TODO: Delegar a servicio real
+    # Servicio real pendiente de implementación
     return {"status": "ok", "active_sessions": 0}

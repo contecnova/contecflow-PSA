@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Calendar } from 'lucide-react'
-import { useAppT } from '../../i18n/AppLangContext'
+import { useAppT } from '../../hooks/useAppT'
 
 const RANGE_PRESETS = {
   week: { key: 'date_range_filter.week', days: 7 },

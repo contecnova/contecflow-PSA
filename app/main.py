@@ -16,9 +16,9 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     force=True,
 )
-logger = logging.getLogger("clarive")
+logger = logging.getLogger("contecflow")
 logging.getLogger().setLevel(_log_level)
-logging.getLogger("clarive").setLevel(_log_level)
+logging.getLogger("contecflow").setLevel(_log_level)
 logging.getLogger("uvicorn").setLevel(_log_level)
 logging.getLogger("uvicorn.error").setLevel(_log_level)
 
@@ -53,7 +53,7 @@ from app.core.ratelimit import limiter
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     logger.info("━" * 54)
-    logger.info("  ◈  CLARIVE PSA — Iniciando servidor")
+    logger.info("  ◈  CONTECFLOW PSA — Iniciando servidor")
     logger.info(f"     Versión : {settings.VERSION}")
     logger.info(f"     API Base: {settings.API_V1_STR}")
     logger.info(f"     BD      : {settings.DATABASE_URL.split('/')[-1]}")
@@ -192,14 +192,14 @@ async def lifespan(_app: FastAPI):
     # Contar endpoints registrados
     total_routes = len([r for r in _app.routes if hasattr(r, 'methods')])
     logger.info("━" * 54)
-    logger.info(f"🚀 Clarive PSA listo — {total_routes} endpoints")
+    logger.info(f"🚀 Contecflow PSA listo — {total_routes} endpoints")
     logger.info(f"   📖 Docs: {settings.BACKEND_URL}{settings.API_V1_STR}/docs")
     logger.info(f"   🔍 Health: {settings.BACKEND_URL}/health")
     logger.info("━" * 54)
 
     yield
 
-    logger.info("🛑 Apagando Clarive PSA...")
+    logger.info("🛑 Apagando Contecflow PSA...")
     if _scheduler:
         try:
             _scheduler.shutdown(wait=False)
@@ -207,6 +207,27 @@ async def lifespan(_app: FastAPI):
             logger.warning(f"Scheduler shutdown error: {e}", exc_info=True)
     logger.info("   ✅ Shutdown completo")
 
+
+
+# ── Middleware global de manejo de errores ─────────────────────────────
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+import traceback
+
+class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        try:
+            return await call_next(request)
+        except Exception as exc:
+            logger.error(f"❌ Unhandled exception: {exc}", exc_info=True)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": "Internal Server Error",
+                    "error": str(exc),
+                    "trace": traceback.format_exc() if settings.ENVIRONMENT != "production" else None
+                },
+            )
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -217,6 +238,9 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
     lifespan=lifespan,
 )
+
+# Registrar el middleware global de excepciones
+app.add_middleware(ExceptionHandlerMiddleware)
 
 # Rate limiter state + 429 handler
 app.state.limiter = limiter
@@ -420,7 +444,7 @@ def ticket_widget_js():
     var s = document.currentScript;
     var token = s && s.getAttribute('data-client-token');
     var apiBase = (s && s.getAttribute('data-api-base')) || window.location.origin + '{settings.API_V1_STR}';
-    if (!token) {{ console.error('Clarive widget: data-client-token is required'); return; }}
+    if (!token) {{ console.error('Contecflow widget: data-client-token is required'); return; }}
 
     var btn = document.createElement('button');
     btn.textContent = 'Abrir soporte';

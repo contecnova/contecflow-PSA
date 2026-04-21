@@ -1,4 +1,4 @@
-import { useAppT } from "@/hooks/useAppT";
+import { useAppT } from "../../hooks/useAppT";
 import { useState } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'

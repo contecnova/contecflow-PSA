@@ -1,9 +1,14 @@
+from app.core.security import create_access_token
+def get_auth_headers(user):
+    token = create_access_token(subject=user.id, extra={"role": getattr(user, "role", None)})
+    return {"Authorization": f"Bearer {token}"}
 """
 ABAC (Attribute-Based Access Control) tests.
 """
 import pytest
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi.testclient import TestClient
 from app.models.user import User, UserRole
 from app.models.mfa import Organization
@@ -13,79 +18,29 @@ from app.main import app
 
 client = TestClient(app)
 
-@pytest.fixture
 def test_org(db: Session) -> Organization:
-    """Create test organization, cleaning up previous test data."""
-    from sqlalchemy import text
-    db.execute(text('DELETE FROM organization'))
-    db.commit()
-    org = Organization(id="test-org-1", name="Test Org", slug="test-org")
-    db.add(org)
-    db.commit()
-    return org
-
 @pytest.fixture
+def test_org(db: Session, seed_multitenant) -> Organization:
+    """Devuelve la organización principal del entorno multi-tenant de test."""
+    return db.query(Organization).filter(Organization.slug == "org-a").first() or db.query(Organization).first()
+
 def test_admin_user(db: Session, test_org: Organization) -> User:
-    """Create test admin user, cleaning up previous test data."""
-    from sqlalchemy import text
-    db.execute(text('DELETE FROM "user"'))
-    db.commit()
-    user = User(
-        id="user-admin-test",
-        email="admin-test@test.com",
-        hashed_password="hashed",
-        username="admin-test",
-        full_name="Admin User",
-        organization_id=test_org.id,
-        role="admin",
-        weekly_capacity_hours=40.0,
-        currency="EUR"
-    )
-    db.add(user)
-    db.commit()
-    return user
-
 @pytest.fixture
+def test_admin_user(db: Session, test_org: Organization, seed_multitenant) -> User:
+    """Devuelve el usuario admin del entorno multi-tenant de test."""
+    return db.query(User).filter(User.username == "admin").first()
+
 def test_manager_user(db: Session, test_org: Organization) -> User:
-    """Create test manager user, cleaning up previous test data."""
-    from sqlalchemy import text
-    db.execute(text('DELETE FROM "user" WHERE username = :username'), {"username": "manager-test"})
-    db.commit()
-    user = User(
-        id="user-manager-test",
-        email="manager-test@test.com",
-        hashed_password="hashed",
-        username="manager-test",
-        full_name="Manager User",
-        organization_id=test_org.id,
-        role="pm",
-        weekly_capacity_hours=40.0,
-        currency="EUR"
-    )
-    db.add(user)
-    db.commit()
-    return user
-
 @pytest.fixture
+def test_manager_user(db: Session, test_org: Organization, seed_multitenant) -> User:
+    """Devuelve el usuario pm del entorno multi-tenant de test."""
+    return db.query(User).filter(User.username == "pm_test").first()
+
 def test_engineer_user(db: Session, test_org: Organization) -> User:
-    """Create test engineer user, cleaning up previous test data."""
-    from sqlalchemy import text
-    db.execute(text('DELETE FROM "user" WHERE username = :username'), {"username": "engineer-test"})
-    db.commit()
-    user = User(
-        id="user-eng-test",
-        email="engineer-test@test.com",
-        hashed_password="hashed",
-        username="engineer-test",
-        full_name="Engineer User",
-        organization_id=test_org.id,
-        role="employee",
-        weekly_capacity_hours=40.0,
-        currency="EUR"
-    )
-    db.add(user)
-    db.commit()
-    return user
+@pytest.fixture
+def test_engineer_user(db: Session, test_org: Organization, seed_multitenant) -> User:
+    """Devuelve el usuario dev del entorno multi-tenant de test."""
+    return db.query(User).filter(User.username == "dev_test").first()
 
 
 class TestABACEngine:
@@ -184,8 +139,6 @@ class TestABACService:
     """Test ABAC service functions."""
 
     def test_assign_and_get_user_attributes(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test assigning and retrieving user attributes."""
         service = ABACService(db, test_org.id)
 
@@ -213,8 +166,6 @@ class TestABACService:
         assert attrs["region"] == "us"
 
     def test_attribute_expiry(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test that expired attributes are excluded."""
         service = ABACService(db, test_org.id)
 
@@ -232,8 +183,6 @@ class TestABACService:
         assert "temp_access" not in attrs
 
     def test_revoke_user_attribute(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test revoking user attributes."""
         service = ABACService(db, test_org.id)
 
@@ -257,8 +206,6 @@ class TestABACService:
         assert "project_ids" not in attrs
 
     def test_create_and_list_policies(self, db: Session, test_org: Organization, test_admin_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test creating and listing policies."""
         service = ABACService(db, test_org.id)
 
@@ -283,8 +230,6 @@ class TestABACService:
         assert any(p.id == policy.id for p in policies)
 
     def test_evaluate_access_allow(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test access evaluation that should allow."""
         service = ABACService(db, test_org.id)
 
@@ -319,8 +264,6 @@ class TestABACService:
         assert len(policies) > 0
 
     def test_evaluate_access_deny(self, db: Session, test_org: Organization, test_engineer_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test access evaluation that should deny."""
         service = ABACService(db, test_org.id)
 
@@ -355,8 +298,6 @@ class TestABACService:
         assert decision is False
 
     def test_evaluate_access_with_context(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test evaluation with additional context."""
         service = ABACService(db, test_org.id)
 
@@ -379,8 +320,6 @@ class TestABACService:
         assert decision is True
 
     def test_priority_order(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test that policies are evaluated by priority."""
         service = ABACService(db, test_org.id)
 
@@ -411,8 +350,6 @@ class TestABACService:
         assert decision is False
 
     def test_audit_logging(self, db: Session, test_org: Organization, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
         """Test that access decisions are audited."""
         service = ABACService(db, test_org.id)
 
@@ -447,38 +384,116 @@ class TestABACService:
 class TestABACEndpoints:
     """Test ABAC API endpoints."""
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_list_attribute_definitions(self, db: Session, test_admin_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
-        pass
+        # Crea un atributo de prueba
+        from app.services.abac import ABACService
+        service = ABACService(db, test_admin_user.organization_id)
+        attr = service.create_attribute_definition(
+            attribute_key="region",
+            attribute_type="string",
+            operators=["equals", "in"],
+            created_by=test_admin_user.id,
+            description="Región de usuario"
+        )
+        headers = get_auth_headers(test_admin_user)
+        response = client.get(f"/api/v1/abac/attribute-definitions", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert any(a["attribute_key"] == "region" for a in data)
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_get_user_attributes(self, db: Session, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
-        pass
+        from app.services.abac import ABACService
+        service = ABACService(db, test_manager_user.organization_id)
+        # Asigna un atributo
+        service.assign_user_attribute(
+            user_id=test_manager_user.id,
+            attribute_key="region",
+            attribute_value="EMEA",
+            assigned_by=test_manager_user.id
+        )
+        headers = get_auth_headers(test_manager_user)
+        response = client.get(f"/api/v1/abac/users/{test_manager_user.id}/attributes", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user_id"] == test_manager_user.id
+        assert data["attributes"]["region"] == "EMEA"
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_assign_user_attribute(self, db: Session, test_admin_user: User):
-        db.execute(text('DELETE FROM organization'))
+        from app.services.abac import ABACService
+        service = ABACService(db, test_admin_user.organization_id)
+        # Crea usuario de prueba
+        from app.models.user import User
+        user = User(
+            id="user-attr-test",
+            email="attr-test@test.com",
+            hashed_password="hashed",
+            username="attr-test",
+            full_name="Attr User",
+            organization_id=test_admin_user.organization_id,
+            role="employee",
+            weekly_capacity_hours=40.0,
+            currency="EUR"
+        )
+        db.add(user)
         db.commit()
-        pass
+        headers = get_auth_headers(test_admin_user)
+        payload = {"attribute_key": "region", "attribute_value": "LATAM"}
+        response = client.post(f"/api/v1/abac/users/{user.id}/attributes", json=payload, headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user_id"] == user.id
+        assert data["attribute_key"] == "region"
+        assert data["attribute_value"] == "LATAM"
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_create_policy(self, db: Session, test_admin_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
-        pass
+        headers = get_auth_headers(test_admin_user)
+        payload = {
+            "policy_name": "Test Policy",
+            "effect": "allow",
+            "rules": [{"attribute": "region", "operator": "equals", "value": "EMEA"}],
+        }
+        response = client.post("/api/v1/abac/policies", json=payload, headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["policy_name"] == "Test Policy"
+        assert data["effect"] == "allow"
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_evaluate_access(self, db: Session, test_manager_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
-        pass
+        from app.services.abac import ABACService
+        service = ABACService(db, test_manager_user.organization_id)
+        # Asigna atributo y política
+        service.assign_user_attribute(
+            user_id=test_manager_user.id,
+            attribute_key="region",
+            attribute_value="EMEA",
+            assigned_by=test_manager_user.id
+        )
+        service.create_policy(
+            policy_name="Allow EMEA",
+            rules=[{"attribute": "region", "operator": "equals", "value": "EMEA"}],
+            effect="allow",
+            created_by=test_manager_user.id
+        )
+        headers = get_auth_headers(test_manager_user)
+        payload = {"resource_type": "test", "action": "read", "context": {}}
+        response = client.post("/api/v1/abac/evaluate", json=payload, headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["decision"] is True
 
-    @pytest.mark.skip(reason="Endpoint test stub - pendiente de implementación")
     def test_access_denied_on_missing_attribute(self, db: Session, test_engineer_user: User):
-        db.execute(text('DELETE FROM organization'))
-        db.commit()
-        pass
+        from app.services.abac import ABACService
+        service = ABACService(db, test_engineer_user.organization_id)
+        # Crea política que requiere atributo que el usuario no tiene
+        service.create_policy(
+            policy_name="Deny if not EMEA",
+            rules=[{"attribute": "region", "operator": "equals", "value": "EMEA"}],
+            effect="deny",
+            created_by=test_engineer_user.id
+        )
+        headers = get_auth_headers(test_engineer_user)
+        payload = {"resource_type": "test", "action": "read", "context": {}}
+        response = client.post("/api/v1/abac/evaluate", json=payload, headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["decision"] is False

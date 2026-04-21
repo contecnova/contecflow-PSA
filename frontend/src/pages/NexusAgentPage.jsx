@@ -56,7 +56,7 @@ function StepBadge({ step }) {
   )
 }
 
-export default function NexusAgentPage() {
+export default function ContecflowAgentPage() {
   const t = useAppT()
   const _qc = useQueryClient()
   const toast = useToast()

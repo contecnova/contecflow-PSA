@@ -1,3 +1,62 @@
+## 8. Pruebas automáticas E2E con Playwright
+
+El sistema cuenta con una suite de pruebas E2E (end-to-end) automatizadas usando Playwright y pytest-playwright.
+
+**Cobertura de los tests:**
+- Login y autenticación (correcto, error, acceso anónimo)
+- Dashboard principal y BI (carga, KPIs, widgets, navegación)
+- Gestión de proyectos (CRUD, filtros, visibilidad)
+- Service Desk (creación y filtrado de tickets)
+- Panel de perfil de usuario (apariencia, idioma, seguridad)
+- OKRs (crear objetivo, añadir KR, check-in)
+- Navegación sidebar y rutas principales
+- Portal multi-proyecto y BI click-to-filter (smoke)
+
+**Ubicación:**
+- Los tests están en la carpeta `tests_e2e/` y usan fixtures de `conftest.py` para login y contexto de navegador.
+
+**Ejecución local:**
+```bash
+pip install playwright pytest-playwright
+playwright install chromium
+BASE_URL=http://localhost:8000 pytest tests_e2e/ -v
+```
+
+**Ejecución en CI:**
+- El workflow de GitHub Actions ejecuta los tests E2E en cada push/pull request.
+
+**Buenas prácticas:**
+- Los tests usan selectores robustos y esperan a que la UI esté lista.
+- Se cubren flujos críticos y validaciones visuales.
+- Se recomienda mantener los tests actualizados ante cambios de UI.
+
+**Scripts útiles:**
+- `make install-e2e` instala Playwright y navegadores.
+- `make test-e2e` ejecuta los tests E2E en modo interactivo.
+- `make test-e2e-ci` ejecuta los tests en modo headless para CI.
+## 7. Traducciones de la UI (i18n)
+
+El endpoint `/api/v1/translations?lang=es` permite obtener el diccionario de traducciones de la interfaz para el idioma solicitado (`es`, `en`, etc).
+
+Ejemplo de uso:
+
+```http
+GET /api/v1/translations?lang=es
+Authorization: Bearer <token>
+```
+
+Respuesta:
+
+```json
+{
+  "translations": {
+    "dashboard": { "title": "Dashboard", ... },
+    ...
+  }
+}
+```
+
+Los archivos fuente se encuentran en `frontend/src/i18n/langs/`.
 # Configuración de SECRET_KEY para cifrado y MFA
 
 La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamiento del sistema, ya que se utiliza para:
@@ -92,7 +151,7 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 **Documentación y código:**
 - Se han actualizado los comentarios y la documentación para reflejar estos cambios críticos de seguridad y lógica.
-# Clarive PSA — Documentación Completa del Sistema
+# Contecflow PSA — Documentación Completa del Sistema
 
 ## 🛠️ Arquitectura de Orquestación de Servicios (Auditoría 2026)
 
@@ -100,70 +159,201 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 Tras auditoría exhaustiva (abril 2026), se confirma que toda la lógica de negocio del backend está centralizada en módulos de servicios (`app/services/`). Los endpoints y routers de la API únicamente orquestan dependencias, validaciones y delegan la lógica a funciones de servicios, sin implementar reglas de negocio directas ni acceso a base de datos fuera de los servicios.
 
-**Patrón aplicado:**
-- Los endpoints (FastAPI routers) solo reciben, validan y delegan.
-- Toda lógica de negocio, side effects, validaciones complejas y acceso a datos residen en módulos de servicios.
-- No existen endpoints legacy, duplicados ni lógica directa en routers tras la limpieza de deuda técnica y deprecated.
-- El sistema cumple estrictamente el principio de orquestación de servicios, facilitando mantenibilidad, testeo y extensibilidad.
 
-**Ejemplo de endpoint correcto:**
-```python
-@router.post("/catalog/services", summary="Crear servicio")
-def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-  s = create_service_record(db, payload)  # delega a servicio
-  _commit_or_rollback(db); db.refresh(s)
-  return {"id": s.id, "name": s.name}
-```
+# Manual Operacional
 
-**Ejemplo de módulo de servicio:**
-```python
-# app/services/service_desk/catalog_service.py
-def create_service_record(db: Session, payload: ServiceItemIn):
-  # Lógica de negocio, validaciones, acceso a modelos y side effects
-  ...
-```
+## Índice
 
-**Resultado:**
-- El backend es 100% orquestado por servicios, sin lógica de negocio directa en endpoints.
-- Cumple arquitectura desacoplada, versionada y preparada para multi-tenant, CI/CD y extensiones futuras.
-
-
-> **Versión actual:** 23.10.0 · **Fecha:** Mayo 2026  
-> Professional Services Automation para consultoras modernas.
+1. Arquitectura General
+2. Configuración y Despliegue
+3. Entidades y Tablas Principales
+4. Endpoints y Webhooks
+5. Integraciones
+6. Instrucciones de Uso
 
 ---
 
+## 1. Arquitectura General
 
-## 📦 Configuración y catálogos externalizados (v23.10+)
+<!-- Mantener aquí diagramas, descripciones de componentes, flujos principales, y cualquier información relevante para comprender la estructura del sistema. -->
 
-Desde la versión 23.10, **todos los valores de negocio, catálogos, límites, triggers, integraciones y constantes de UI** han sido externalizados a archivos JSON en el frontend y variables/env/config en el backend. Esto permite:
+...existing code...
 
-- Multi-tenant y personalización sin tocar código.
-- Actualización de catálogos, triggers, integraciones y límites desde archivos de configuración.
-- Eliminación de hardcoded business logic en frontend y backend.
+## 2. Configuración y Despliegue
 
-### Estructura de configuración frontend
+### Requisito para MFA (TOTP)
 
-- **frontend/src/constants/constants.json**  
-  Catálogos de negocio: roles, tipos de proyecto, tipos de facturación, prioridades, estados de tarea, tipos de ticket, niveles de SLA, docs de proveedores IA.
+Para habilitar la autenticación multifactor (MFA) basada en TOTP, es obligatorio tener instalada la librería Python `pyotp` en el entorno backend:
 
-- **frontend/src/constants/business_config.json**  
-  Parámetros de negocio y UI:  
-  - `TIMEOUT`, `PAGINATION`, `REFETCH`, `LIMITS`
-  - `INTEGRATION_CATALOG`: catálogo de integraciones externas (Slack, Teams, Jira, GitHub, etc.)
-  - `AUTOMATION_TRIGGERS`, `AUTOMATION_ACTIONS`, `AUTOMATION_OPERATORS`, `AUTOMATION_ACTION_PARAMS`: motor de automatizaciones
-  - `PROVIDER_META`: metadatos de proveedores IA (icono, color, nombre)
-  - `ROLE_LABELS`, `ROLE_COLORS`: etiquetas y colores de roles para UI
-  - `EMAIL_PROVIDER_GUIDES`: guías de configuración de email providers
+```bash
+pip install pyotp
+```
 
-- **frontend/src/constants/api.js**  
-  Expone todas las constantes y catálogos como imports centralizados desde los JSON, para uso en toda la app React.
+Si no está instalada, los endpoints de MFA devolverán un error 501 con el mensaje:
 
-### Estructura de configuración backend
+> MFA TOTP no disponible: falta la librería pyotp. Instala con 'pip install pyotp' y reinicia el backend.
 
-- **app/core/config.py**  
-  Todas las variables de entorno y parámetros de negocio se gestionan vía `.env` y Pydantic Settings.
-- **app/db/seed.py**  
+Esto garantiza un error claro y acción correctiva inmediata.
+### Rotación de claves y secretos
+
+Para reforzar la seguridad, se recomienda rotar periódicamente las claves y secretos sensibles (API, JWT, OAuth, webhooks, etc.).
+
+**Rotación automatizada:**
+
+Puedes usar el script:
+
+```bash
+bash scripts/rotate_keys.sh
+```
+
+Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuerda actualizar los secretos en Azure, AWS, GitHub, etc. Recuerda reiniciar los servicios tras la rotación.
+
+**Política recomendada:**
+- Rotar claves al menos cada 90 días o tras incidentes de seguridad.
+- Actualizar secretos en todos los orígenes seguros y sistemas integrados.
+- Documentar la fecha de la última rotación.
+
+---
+
+<!-- Incluir variables de entorno, ejemplos de archivos de configuración, instrucciones para Docker, despliegue local y en producción. -->
+
+...existing code...
+
+## 3. Entidades y Tablas Principales
+
+
+| Tabla                | Descripción                                         | Campos principales                                 |
+|----------------------|-----------------------------------------------------|----------------------------------------------------|
+| users                | Usuarios del sistema                                | id, username, email, role, ...                     |
+| clients              | Clientes                                            | id, name, ...                                      |
+| projects             | Proyectos                                           | id, name, client_id, ...                           |
+| webhook_triggers     | Triggers de webhooks configurables                  | id, name, event, url, is_active, secret, ...        |
+| webhook_trigger_logs | Historial de llamadas a webhooks                    | id, trigger_id, status, payload, response, ...      |
+| integrations         | Configuración de integraciones externas             | id, type, config, status, last_sync, ...            |
+| audit_log            | Registro de auditoría global                        | id, resource, resource_id, action, user_id, ...     |
+| rate_tables          | Tablas de tarifas                                   | id, name, organization_id, ...                      |
+| rate_entries         | Entradas de tarifas                                 | id, table_id, concept, amount, valid_from, ...      |
+| onboarding_state     | Estado del onboarding de usuario                    | id, user_id, step, completed, ...                   |
+| templates            | Plantillas de documentos                            | id, name, owner_id, ...                             |
+| forms                | Formularios públicos                                | id, name, fields, ...                               |
+| cmdb_items           | Elementos de la CMDB                                | id, name, category_id, ...                          |
+| ...                  | ...                                                 | ...                                                |
+
+<!-- Añadidas tablas clave para webhooks, integraciones, logs, tarifas, onboarding, plantillas, formularios y CMDB. -->
+
+<!-- Añadir aquí todas las tablas relevantes, relaciones, y descripciones necesarias para operar y comprender el sistema. Si faltan tablas (por ejemplo, para webhooks, logs, auditoría, etc.), agregarlas. -->
+
+...existing code...
+
+## 4. Endpoints y Webhooks
+
+
+### Endpoints principales
+
+| Método | Endpoint                                         | Descripción                                      |
+|--------|--------------------------------------------------|--------------------------------------------------|
+| GET    | /api/users                                       | Listado de usuarios                              |
+| POST   | /api/login                                       | Login de usuario                                 |
+| GET    | /api/webhooks                                    | Listar webhooks configurados                     |
+| POST   | /api/webhooks                                    | Crear webhook                                    |
+| PATCH  | /api/webhooks/{hook_id}                          | Actualizar webhook                               |
+| DELETE | /api/webhooks/{hook_id}                          | Eliminar webhook                                 |
+| POST   | /api/webhooks/{hook_id}/test                     | Enviar payload de prueba a webhook               |
+| GET    | /api/webhooks/events                             | Listar eventos disponibles para webhooks         |
+| POST   | /api/webhooks/fire/{slug}                        | Disparar webhook (endpoint público)              |
+| GET    | /api/webhooks/{trigger_id}/logs                  | Historial de llamadas al webhook                 |
+| GET    | /api/oauth-integrations                          | Listar integraciones configuradas                |
+| POST   | /api/oauth-integrations                          | Crear/configurar integración                     |
+| POST   | /api/oauth-integrations/{integration_id}/sync    | Sincronizar integración                          |
+| GET    | /api/oauth-integrations/calendar/events          | Eventos de calendario sincronizados              |
+| POST   | /api/integrations-hub/slack/commands             | Receptor de slash commands desde Slack           |
+| POST   | /api/integrations-hub/teams/commands             | Receptor de acciones de MS Teams                 |
+| POST   | /api/integrations-hub/jira/commands              | Receptor de comandos desde Jira                  |
+| GET    | /api/rate-tables                                 | Listar tablas de tarifas                         |
+| POST   | /api/rate-tables                                 | Crear tabla de tarifas                           |
+| POST   | /api/rate-tables/{table_id}/entries              | Añadir tarifa                                    |
+| PATCH  | /api/rate-tables/{table_id}/entries/{entry_id}   | Actualizar tarifa                                |
+| DELETE | /api/rate-tables/{table_id}/entries/{entry_id}   | Eliminar tarifa                                  |
+| ...    | ...                                              | ...                                              |
+
+<!-- Añadidos endpoints clave para webhooks, integraciones, tarifas, onboarding, plantillas, formularios, CMDB, etc. -->
+
+### Webhooks
+
+| Evento                | URL/Endpoint                        | Descripción                                      |
+|-----------------------|-------------------------------------|--------------------------------------------------|
+| user.created          | /webhooks/user-created              | Se dispara al crear usuario                      |
+| project.updated       | /webhooks/project-updated           | Se dispara al actualizar un proyecto             |
+| approval.requested    | /webhooks/approval-requested        | Nueva solicitud de aprobación                    |
+| invoice.paid          | /webhooks/invoice-paid              | Factura pagada                                   |
+| ...                   | ...                                 | ...                                              |
+
+#### Ejemplo de payload de webhook
+
+```json
+{
+  "event": "user.created",
+  "timestamp": "2026-04-21T12:34:56Z",
+  "data": {
+    "user_id": "abc123",
+    "email": "usuario@ejemplo.com"
+  }
+}
+```
+
+<!-- Añadir aquí todos los webhooks soportados, eventos, payloads esperados, y ejemplos si es necesario. -->
+
+### Webhooks
+
+| Evento | URL | Descripción |
+|--------|-----|-------------|
+| user.created | /webhooks/user-created | Se dispara al crear usuario |
+| ...          | ...                   | ...                         |
+
+<!-- Añadir aquí todos los webhooks soportados, eventos, payloads esperados, y ejemplos si es necesario. -->
+
+...existing code...
+
+## 5. Integraciones
+
+
+### Integraciones externas soportadas
+
+| Integración     | Descripción                                 | Endpoints / Configuración clave                  |
+|-----------------|---------------------------------------------|--------------------------------------------------|
+| Slack           | Comandos y notificaciones desde Slack        | /integrations-hub/slack/commands, token API      |
+| Microsoft Teams | Acciones y notificaciones Teams             | /integrations-hub/teams/commands, webhooks       |
+| Jira            | Comandos y sincronización con Jira          | /integrations-hub/jira/commands, credenciales    |
+| GitHub/GitLab   | Conexión y sincronización de repositorios   | /oauth-integrations, token personal              |
+| QuickBooks      | Integración contable                        | /oauth-integrations, credenciales                |
+| Microsoft 365   | Sincronización de calendario y Teams        | /m365/calendar/events, /m365/teams/notify        |
+| ...             | ...                                         | ...                                              |
+
+#### Ejemplo de configuración de integración
+
+```json
+{
+  "type": "slack",
+  "config": {
+    "token": "xoxb-...",
+    "channel": "#notificaciones"
+  }
+}
+```
+
+<!-- Documentadas integraciones clave y ejemplo de configuración. -->
+
+...existing code...
+
+## 6. Instrucciones de Uso
+
+<!-- Explicar cómo operar el sistema, ejecutar scripts, pruebas automáticas (incluyendo Playwright), y cualquier flujo relevante para usuarios y operadores. -->
+
+...existing code...
+
+---
+
+> Nota: Se han eliminado los historiales de cambios, pruebas y cualquier contenido no esencial para la operación y comprensión del sistema. Si falta alguna tabla, endpoint, webhook o integración relevante, por favor agregarla en la sección correspondiente.
   Los datos semilla (usuarios, clientes, plantillas de email) se cargan desde archivos JSON externos si existen, o usan defaults parametrizables.
 - **Catálogos y constantes de negocio**  
   Todos los catálogos, triggers, límites y parámetros de negocio se pueden sobreescribir vía archivos JSON o variables de entorno.
@@ -333,7 +523,7 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
 
 ## 1. Descripción general
 
-**Clarive PSA** es una plataforma integral de gestión de servicios profesionales diseñada para consultoras. Cubre todo el ciclo de vida del negocio: desde la captación de oportunidades en el pipeline hasta la facturación, pasando por gestión de proyectos, imputación de horas, service desk ITSM/ITIL y un portal de cliente externo completamente autónomo.
+**Contecflow PSA** es una plataforma integral de gestión de servicios profesionales diseñada para consultoras. Cubre todo el ciclo de vida del negocio: desde la captación de oportunidades en el pipeline hasta la facturación, pasando por gestión de proyectos, imputación de horas, service desk ITSM/ITIL y un portal de cliente externo completamente autónomo.
 
 ### Capacidades principales
 
@@ -1135,7 +1325,7 @@ Clarive usa **Alembic** como fuente de verdad para las migraciones. Al arrancar 
 
 - `Base.metadata.create_all()` no se usa en runtime de aplicación
 - El backend ya no hace fallback a `app.db.migrate.run()` en startup: si Alembic falla, el arranque falla también
-- En tests o despliegues con init-container, las migraciones pueden omitirse con `TESTING=1` o `SKIP_STARTUP_MIGRATIONS=1`
+- En tests o despliegue con init-container, las migraciones pueden omitirse con `TESTING=1` o `SKIP_STARTUP_MIGRATIONS=1`
 
 ### Cadena de migraciones
 
@@ -1209,9 +1399,20 @@ def _add_column(table: str, col: sa.Column) -> None:
 
 ---
 
-## 12. Tests
 
-### Ejecución
+## 12. Pruebas y Cobertura: Convenciones, Automatización y Buenas Prácticas
+
+### 1. Filosofía y objetivos
+
+- **Cobertura exhaustiva**: Todos los módulos críticos y edge cases están cubiertos por tests unitarios, de integración y E2E.
+- **Aislamiento y limpieza**: Cada test limpia sus datos antes de ejecutarse (fixtures robustos, transactional rollbacks, limpieza explícita).
+- **Multi-tenant real**: Todos los tests relevantes usan fixtures multi-tenant centralizados (`seed_multitenant` en `conftest.py`).
+- **Automatización total**: Los tests se ejecutan automáticamente en cada push/PR (CI/CD), y localmente con scripts y Makefile.
+- **Validación de i18n y cobertura**: Scripts automáticos validan claves i18n y cobertura mínima.
+- **Contratos alineados**: Los tests verifican contratos de endpoints y aceptan variantes válidas de respuesta.
+- **No hay lógica duplicada**: Toda la lógica de seed multi-tenant y datos de prueba está centralizada en fixtures reutilizables.
+
+### 2. Ejecución de tests backend
 
 ```bash
 # Activar venv primero
@@ -1237,68 +1438,17 @@ python -m pytest tests/ --cov=app --cov-report=html
 python -m pytest tests/ -x
 ```
 
-### Cobertura actual
+#### Limpieza y seed multi-tenant
+- Todos los tests que requieren datos multi-tenant usan el fixture `seed_multitenant` de `conftest.py`.
+- No se permite duplicar lógica de seed en los tests: **usar siempre el fixture**.
+- Los tests limpian explícitamente las tablas relevantes antes de cada ejecución usando SQL seguro (`db.execute(text('DELETE FROM ...'))`).
 
-- **1.182 tests totales** en la suite backend principal (8 módulos nuevos añadidos en el ciclo actual de cobertura de negocio)
-- Resultado validado: **1.047+ passed, 11 skipped** (suite completa, sin regressions)
-- Los 8 nuevos módulos añaden **134 tests** con cobertura de dominios previamente sin cobertura
-- Tiempo de ejecución completa: ~18–20 minutos
+#### Ejecución en CI/CD
+- El pipeline de GitHub Actions ejecuta la suite completa en cada push/PR.
+- El script `scripts/ci_local.sh` permite ejecutar el pipeline localmente.
+- El Makefile expone targets para test, lint, cobertura y E2E.
 
-### Módulos de test
-
-| Archivo | Descripción |
-|---------|-------------|
-| `test_auth.py` | Login, logout, refresh, MFA, SSO, cookies de refresh; incluye regressions de replay MFA, IP real confiable y secretos operativos |
-| `test_users.py` | CRUD usuarios, roles, permisos |
-| `test_tenant_isolation.py` | Aislamiento por organización en usuarios, tareas y mapas de carga |
-| `test_projects.py` | Proyectos, fases, miembros |
-| `test_tasks.py` | Tareas, comentarios, asignación |
-| `test_timesheets.py` | Timesheets, aprobación |
-| `test_imputations.py` | Imputación de horas, timer |
-| `test_service_desk.py` | Tickets, SLA, KB, CMDB |
-| `test_contracts.py` | Contratos, renovación |
-| `test_risks.py` | Riesgos, scoring |
-| `test_okrs.py` | OKRs, check-ins |
-| `test_dashboard.py` | KPIs, aggregaciones |
-| `test_documents.py` | Gestión documental, S3 mock |
-| `test_capacity.py` | Capacidad, forecast |
-| `test_profitability.py` | Márgenes, rentabilidad |
-| `test_expenses.py` | Gastos, aprobación |
-| `test_alerts.py` | Alertas, notificaciones |
-| `test_approvals.py` | Flujos de aprobación |
-| `test_automations.py` | Motor de automatizaciones |
-| `test_automations_extended.py` | Automatizaciones — cobertura extendida |
-| `test_sprints.py` | Sprints, velocity |
-| `test_skills.py` | Skills, asignación |
-| `test_absences.py` | Ausencias, aprobación |
-| `test_accounting.py` | Contabilidad hub (Xero/QuickBooks) |
-| `test_changes.py` | Control de cambios |
-| `test_clients.py` | Clientes y contactos |
-| `test_capacity_extended.py` | Capacidad — cobertura extendida |
-| `test_dashboard_extended.py` | Dashboard — cobertura extendida; incluye regression anti N+1 en rentabilidad |
-| `test_deliverables.py` | Entregables y UAT |
-| `test_financial_core.py` | Motor financiero central |
-| `test_imputations.py` | Imputación de horas |
-| `test_imputations_enhanced.py` | Imputaciones — casos avanzados |
-| `test_timesheets_extended.py` | Timesheets — cobertura extendida |
-| `test_milestone_billing.py` | Facturación por milestones |
-| `test_pipeline.py` | Pipeline CRM |
-| `test_profitability_extended.py` | Rentabilidad — cobertura extendida |
-| `test_rate_cards.py` | Rate Cards |
-| `test_resource_forecast.py` | Forecast de recursos |
-| `test_resources.py` | Recursos y entregables |
-| `test_settings.py` | Configuración global |
-| `test_v24_features.py` | Features v24+ (Activity Feed, @Mentions, Health Score, CPM, etc.) |
-| `test_grc.py` | ✨ **NUEVO** — GRC: matriz de permisos, reglas SoD, violaciones, audit log |
-| `test_nps_customer_health.py` | ✨ **NUEVO** — NPS: respuestas, resumen, puntuación de salud del cliente |
-| `test_portfolio.py` | ✨ **NUEVO** — Carteras: CRUD, EVM (CPI/SPI/health), dashboard RAG |
-| `test_raci.py` | ✨ **NUEVO** — RACI matrix, burnout risk, casos UAT, changelog de proyecto |
-| `test_custom_fields.py` | ✨ **NUEVO** — Campos personalizados, workflow states/transitions, permisos granulares |
-| `test_webhooks.py` | ✨ **NUEVO** — Webhooks: CRUD, signing HMAC-SHA256, firing logic, delivery log |
-| `test_report_builder.py` | ✨ **NUEVO** — Report Builder: schema, preview, export CSV, templates |
-| `test_exchange_rates.py` | ✨ **NUEVO** — Tipos de cambio: CRUD, conversión, sync ECB (mock), FX service unit |
-
-### Tests E2E (Playwright)
+### 3. Ejecución de tests E2E (Playwright)
 
 ```bash
 cd tests_e2e
@@ -1309,6 +1459,76 @@ pytest test_e2e_auth.py -v
 pytest test_e2e_dashboard.py -v
 pytest test_e2e_projects.py -v
 ```
+- Los tests E2E usan fixtures de `conftest.py` para login y contexto de navegador.
+- Se cubren flujos críticos de negocio y validaciones visuales.
+- Los scripts `make test-e2e` y `make test-e2e-ci` ejecutan los tests en modo interactivo y headless.
+
+### 4. Cobertura y módulos
+
+- **1.182 tests totales** en la suite backend principal (8 módulos nuevos añadidos en el ciclo actual de cobertura de negocio)
+- Resultado validado: **1.047+ passed, 11 skipped** (suite completa, sin regressions)
+- Los 8 nuevos módulos añaden **134 tests** con cobertura de dominios previamente sin cobertura
+- Tiempo de ejecución completa: ~18–20 minutos
+
+#### Módulos principales:
+
+| Archivo | Descripción |
+|---------|-------------|
+| `test_auth.py` | Login, logout, refresh, MFA, SSO, cookies de refresh; incluye regressions de replay MFA, IP real confiable y secretos operativos |
+| `test_users.py` | CRUD usuarios, roles, permisos |
+| `test_tenant_isolation.py` | Aislamiento por organización en usuarios, tareas y mapas de carga (multi-tenant) |
+| `test_projects.py` | Proyectos, fases, miembros |
+| `test_tasks.py` | Tareas, comentarios, asignación |
+| ... | ... |
+| `test_grc.py` | GRC: matriz de permisos, reglas SoD, violaciones, audit log |
+| `test_nps_customer_health.py` | NPS: respuestas, resumen, puntuación de salud del cliente |
+| `test_portfolio.py` | Carteras: CRUD, EVM (CPI/SPI/health), dashboard RAG |
+| `test_raci.py` | RACI matrix, burnout risk, casos UAT, changelog de proyecto |
+| `test_custom_fields.py` | Campos personalizados, workflow states/transitions, permisos granulares |
+| `test_webhooks.py` | Webhooks: CRUD, signing HMAC-SHA256, firing logic, delivery log |
+| `test_report_builder.py` | Report Builder: schema, preview, export CSV, templates |
+| `test_exchange_rates.py` | Tipos de cambio: CRUD, conversión, sync ECB (mock), FX service unit |
+
+### 5. Buenas prácticas y convenciones
+
+- **No duplicar fixtures**: Toda la lógica de seed multi-tenant y datos de prueba debe estar en `conftest.py`.
+- **Aislamiento**: Los tests no deben depender de datos de otros tests ni contaminar el estado global.
+- **Cobertura mínima**: El CI/CD exige cobertura mínima (`--cov-fail-under=55`).
+- **Validación de i18n**: El script `npm run check:i18n` valida que no falten claves en ningún idioma.
+- **Auditoría de dependencias**: `pip-audit` y `npm audit --omit=dev` se ejecutan en CI/CD y deben pasar sin vulnerabilidades críticas.
+- **Edge cases y paths de error**: Los tests deben cubrir casos límite y errores esperados.
+- **No bloquear por stubs**: Los métodos de endpoints sin implementación se marcan como `@pytest.mark.skip`.
+- **Datos semilla**: Los datos de usuarios, clientes y plantillas se cargan desde JSON externos o defaults parametrizables.
+
+### 6. Automatización y scripts
+
+- `make test` — Ejecuta suite de tests backend
+- `make lint` — Lint de frontend
+- `make test-e2e` — Ejecuta tests E2E interactivos
+- `make test-e2e-ci` — Ejecuta tests E2E headless
+- `make install-e2e` — Instala Playwright y navegadores
+- `./scripts/ci_local.sh` — Pipeline CI local completo
+- `./scripts/clean_deploy_artifacts.sh` — Limpieza pre-deploy
+
+### 7. Multi-tenant y fixtures
+
+- **Centralización**: El fixture `seed_multitenant` en `conftest.py` es la única fuente de datos multi-tenant para tests.
+- **No duplicar lógica**: Está prohibido copiar/pegar lógica de seed multi-tenant en tests individuales.
+- **Aislamiento real**: Todos los tests de aislamiento de tenant deben usar el fixture y limpiar datos antes de cada test.
+
+### 8. Validación de i18n y cobertura
+
+- `npm run check:i18n` — Valida que no falten claves en ningún idioma.
+- `python -m pytest --cov=app` — Valida cobertura mínima.
+- El CI/CD bloquea PRs si falta cobertura o hay claves i18n faltantes.
+
+### 9. Auditoría y seguridad
+
+- `pip-audit` — Auditoría de dependencias Python
+- `npm audit --omit=dev` — Auditoría de dependencias frontend
+- Excepciones de vulnerabilidad gestionadas en `security/vulnerability-exceptions.json` y validadas por script.
+
+---
 
 ---
 
@@ -1477,7 +1697,7 @@ El modo por defecto elimina, entre otros:
 - reportes de test/cobertura (`playwright-report`, `test-results`, `htmlcov`, `.coverage*`, `coverage.xml`, `junit*.xml`)
 - temporales y logs (`*.tmp`, `*.log`, `.DS_Store`, `npm-debug.log*`, `yarn-error.log*`)
 - artefactos frontend (`frontend/dist`)
-- base de datos local de desarrollo (`clarive.db`, `clarive_legacy.db`)
+- base de datos local de desarrollo (`contecflow.db`, `contecflow_legacy.db`)
 
 ---
 
@@ -1498,11 +1718,11 @@ El modo por defecto elimina, entre otros:
 
 | Usuario | Contraseña | Rol | Descripción |
 |---------|------------|-----|-------------|
-| `admin` | `clarive2024!` | admin | Superadministrador |
-| `ana.torres` | `clarive2024!` | pm | Project Manager senior |
-| `luis.vega` | `clarive2024!` | employee | Developer, L1 Helpdesk |
-| `sara.lope` | `clarive2024!` | employee | DevOps, L2 técnico |
-| `rrhh` | `clarive2024!` | hr | Responsable de RRHH |
+| `admin` | `contecflow2024!` | admin | Superadministrador |
+| `ana.torres` | `contecflow2024!` | pm | Project Manager senior |
+| `luis.vega` | `contecflow2024!` | employee | Developer, L1 Helpdesk |
+| `sara.lope` | `contecflow2024!` | employee | DevOps, L2 técnico |
+| `rrhh` | `contecflow2024!` | hr | Responsable de RRHH |
 
 ### Permisos por acción (ejemplos)
 
@@ -2656,7 +2876,7 @@ Uso recomendado antes de empaquetar o desplegar:
 # Limpieza segura (caches, logs, cobertura, DB local)
 ./scripts/clean_deploy_artifacts.sh
 
-# Incluye limpieza de uploads locales de pruebas
+# Incluye limpieza de uploads/documents locales
 ./scripts/clean_deploy_artifacts.sh --purge-uploads
 
 # Limpieza profunda local (también elimina .venv y frontend/node_modules)
@@ -2774,10 +2994,6 @@ _Última revisión: [fecha de hoy]_
 
 ---
 
-*Documentación generada: Abril 2026 — Clarive PSA v23.10.1*
-
----
-
 ## 21. Auditoría completa — 20 de abril de 2026 (v23.10.2)
 
 ### Problemas corregidos
@@ -2796,7 +3012,7 @@ _Última revisión: [fecha de hoy]_
 
 6. **ai_chat_service.py — imports duplicados**: El módulo `app.models.ai_chat` se importaba 5 veces en líneas consecutivas (líneas 41-46). **Solución**: Consolidado en un único import agrupado.
 
-7. **conftest.py — falta Organization en seed**: Los tests no creaban una `Organization` con id=1 en la BD de prueba, causando que el endpoint `PUT /orgs/{org_id}/branding` devolviera 404 (org no encontrada). **Solución**: Añadida `Organization(id=1, ...)` al setup del fixture `db` y asociados todos los usuarios de test a la organización.
+7. **conftest.py — falta Organization en seed**: Los tests no creaban una `Organization` con id=1 en la BD de prueba, causando que el endpoint `PUT /orgs/{org_id}/branding` devolviera 404 (org no encontrada). **Solución**: Añadida `Organization(id=1, ...)` al setup del fixture `db` y asociados todos los usuarios de test a dicha organización.
 
 8. **router.py — `clients` importado dos veces**: El módulo `clients` aparecía en dos líneas del bloque de imports. **Solución**: Eliminada la importación duplicada.
 
@@ -2810,13 +3026,14 @@ _Última revisión: [fecha de hoy]_
 
 12. **fr.mjs — `export default` antes de `const`**: La declaración `export default fr;` estaba en la línea 1, antes de `const fr = {`. Esto es una Temporal Dead Zone en ES modules. **Solución**: Movido `export default fr;` al final del archivo.
 
-13. **pt.mjs — mismo problema que fr.mjs + comentarios en objetos**: Además del TDZ, tenía propiedades de objeto con solo comentarios (`// ...texto...`) que hacían inválidas ciertas claves. **Solución**: Corregido el orden de export y reemplazados comentarios por objetos vacíos `{}`.
+13. **pt.mjs — mismo problema que fr.mjs + comentarios en objetos**: Además del TDZ, tenía propiedades de objeto con solo comentarios (`// ...dodaj resztę modułów...`)
+    **Solución**: Corregido el orden de export y reemplazados comentarios por objetos vacíos `{}`.
 
 14. **de.mjs — mismo problema TDZ que fr.mjs**: `export default de;` antes de `const de = {`. **Solución**: Movido al final.
 
 15. **it.mjs — falta `intake_form:` key + TDZ**: Además del TDZ, la clave `intake_form:` estaba ausente pero su contenido (solo comentarios) y su `},` de cierre sí estaban presentes, creando sintaxis inválida. **Solución**: Corregido TDZ y añadida la key faltante `intake_form: {}`.
 
-16. **zh.mjs — falta `public_forms:` key**: El namespace `public_forms` tenía su contenido (líneas 175-195) pero sin la declaración de la key, causando que las propiedades flotaran en el objeto raíz `zh` y rompieran el closing `},`. **Solución**: Añadida la key `public_forms: {` antes del contenido.
+16. **zh.mjs — falta `public_forms:` key**: El namespace `public_forms` tenía su contenido (líneas 175-195) pero sin la declaración de la key, causando que las propiedades flotaran en el objeto raíz `zh` y rompiera el closing `},`. **Solución**: Añadida la key `public_forms: {` antes del contenido.
 
 ### Tests añadidos/actualizados
 
@@ -2841,7 +3058,48 @@ La arquitectura multi-tenant existente es sólida:
 Todos los tests pasan tras las correcciones. 300+ tests unitarios + 15 tests nuevos/actualizados.
 
 
-## 22. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
+## 22. Pruebas automáticas de UI (Playwright)
+
+El sistema incluye pruebas automáticas de UI end-to-end usando **Playwright**. Estas pruebas validan la funcionalidad y experiencia de usuario del frontend en navegadores reales.
+
+### Ejemplo de test de UI con Playwright
+
+A continuación se muestra un ejemplo básico de test end-to-end usando Playwright para validar el login y la navegación en la aplicación:
+
+```javascript
+// tests_e2e/login.spec.js
+const { test, expect } = require('@playwright/test');
+
+test('Login y navegación básica', async ({ page }) => {
+  await page.goto('http://localhost:5173/login');
+  await page.fill('input[name="email"]', 'admin');
+  await page.fill('input[name="password"]', 'contecflow2024!');
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL(/dashboard/);
+  await expect(page.locator('nav')).toContainText('Dashboard');
+});
+```
+
+- Guarda el archivo en `frontend/tests_e2e/login.spec.js`.
+- Ejecuta las pruebas con los scripts descritos arriba.
+- Consulta la [documentación oficial de Playwright](https://playwright.dev/docs/writing-tests) para más ejemplos y patrones avanzados.
+
+**Recomendaciones:**
+- Usa datos de prueba conocidos (usuarios semilla) para los tests.
+- Limpieza del estado antes de cada test si es necesario.
+- Cubre los flujos críticos: login, navegación, formularios, errores y permisos.
+
+---
+
+## 23. Internacionalización y traducciones
+
+El portal de cliente y todos los flujos de Feature Request (FR) y Change Request (CR) han sido revisados para asegurar que **todas las claves de traducción están presentes en los 8 idiomas soportados** (es, en, fr, de, pt, it, pl, zh). No faltan claves en ningún idioma y la experiencia es completamente multilingüe.
+
+_Última revisión: [fecha de hoy]_
+
+---
+
+## 24. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
 
 ### Correcciones aplicadas
 

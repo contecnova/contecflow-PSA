@@ -7,7 +7,7 @@ from sqlalchemy import text, inspect
 from app.db.session import engine
 from app.db.base import Base
 
-logger = logging.getLogger("clarive.migrate")
+logger = logging.getLogger("contecflow.migrate")
 
 
 def column_exists(table, column):

@@ -111,7 +111,7 @@ def get_user_attributes(
 ) -> Dict[str, Any]:
     """Get all attributes for a user (non-expired)."""
     # Check permission: user can view their own, admins can view others
-    if current_user.id != user_id and "admin" not in [r.name for r in current_user.roles]:
+    if current_user.id != user_id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Cannot view other user's attributes")
     org_id = current_user.organization_id
     if not org_id:
@@ -293,7 +293,7 @@ def evaluate_access(
     This endpoint is typically called by service code to make access decisions,
     but can also be used for testing/debugging.
     """
-    user_roles = [r.name for r in current_user.roles]
+    user_roles = [current_user.role] if current_user.role else []
     org_id = current_user.organization_id
     if not org_id:
         raise HTTPException(status_code=400, detail="User organization not set")
@@ -343,7 +343,7 @@ def evaluate_access_for_user(
 
     service = ABACService(db, org_id)
     user = service.get_user_by_id_and_org(user_id)
-    user_roles = [r.name for r in user.roles]
+    user_roles = [user.role] if user.role else []
     decision, matched_policies, details = service.evaluate_access(
         user_id=user.id,
         user_roles=user_roles,

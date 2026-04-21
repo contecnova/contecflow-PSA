@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.services.abac import ABACService
 
-logger = logging.getLogger("clarive.abac.enforce")
+logger = logging.getLogger("contecflow.abac.enforce")
 
 
 def enforce_abac(

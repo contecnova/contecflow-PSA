@@ -37,23 +37,23 @@ def _create_project(api, token: str, suffix: str) -> str:
 def _ensure_admin_user() -> None:
     db = SessionLocal()
     try:
-        admin = db.query(User).filter(or_(User.username == "admin", User.email == "admin@clarive.com")).first()
+        admin = db.query(User).filter(or_(User.username == "admin", User.email == "admin@contecflow.com")).first()
         if admin:
             admin.username = "admin"
-            admin.email = "admin@clarive.com"
+            admin.email = "admin@contecflow.com"
             admin.is_active = True
             admin.status = UserStatus.active
             admin.role = UserRole.admin
-            admin.hashed_password = get_password_hash("clarive2024!")
+            admin.hashed_password = get_password_hash("contecflow2024!")
         else:
             admin = User(
                 username="admin",
-                email="admin@clarive.com",
+                email="admin@contecflow.com",
                 full_name="Admin Smoke",
                 role=UserRole.admin,
                 status=UserStatus.active,
                 is_active=True,
-                hashed_password=get_password_hash("clarive2024!"),
+                hashed_password=get_password_hash("contecflow2024!"),
             )
             db.add(admin)
         db.commit()
@@ -65,7 +65,7 @@ def _login_backoffice(page):
     page.goto(f"{BASE_URL}/login")
     page.wait_for_load_state("networkidle")
     page.fill('#login-user', 'admin')
-    page.fill('#login-pass', 'clarive2024!')
+    page.fill('#login-pass', 'contecflow2024!')
     page.click('button:has-text("Iniciar"), button:has-text("Login"), button:has-text("Entrar")')
     page.wait_for_url(f"{BASE_URL}/**")
 
@@ -100,7 +100,7 @@ def test_portal_multi_project_selector_smoke(anon_page):
 
     login = api.post(
         f"{BASE_URL}/api/v1/auth/login",
-        data={"username": "admin", "password": "clarive2024!"},
+        data={"username": "admin", "password": "contecflow2024!"},
     )
     assert login.ok, login.text()
     token = login.json()["access_token"]

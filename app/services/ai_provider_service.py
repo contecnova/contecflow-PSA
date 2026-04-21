@@ -464,7 +464,7 @@ def call_ai(
             api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
             if api_key and p.provider != "anthropic":
                 try:
-                    result    = _call_anthropic(api_key, settings.NEXUS_AI_MODEL,
+                    result    = _call_anthropic(api_key, settings.CONTECFLOW_AI_MODEL,
                                                 messages, system, max_tokens or 1500, 0.7)
                     error_msg = None
                 except Exception:
@@ -473,7 +473,7 @@ def call_ai(
         api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
         if api_key:
             try:
-                result = _call_anthropic(api_key, settings.NEXUS_AI_MODEL,
+                result = _call_anthropic(api_key, settings.CONTECFLOW_AI_MODEL,
                                          messages, system, max_tokens or 1500, 0.7)
             except Exception as e:
                 error_msg = str(e)

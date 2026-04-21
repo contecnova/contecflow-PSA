@@ -35,7 +35,7 @@ class AlertEngine:
         return generated
 
     def _alert_exists(self, alert_type: AlertType, user_id=None, project_id=None, task_id=None) -> bool:
-        """Avoid duplicate alerts for the same situation with row lock semantics."""
+        """Evita alertas duplicadas para la misma situación usando bloqueo de fila."""
         q = self.db.query(Alert).filter(
             Alert.alert_type == alert_type,
             Alert.is_resolved == False,

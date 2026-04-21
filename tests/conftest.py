@@ -1,4 +1,3 @@
-
 import os
 # Forzar modo 'plain' para claves JWT en tests (no KMS)
 os.environ["KMS_PROVIDER"] = ""
@@ -211,3 +210,108 @@ def auth(token):
 
 # Export the test password so individual test modules can use it for direct login calls
 TEST_PASSWORD = _TEST_PASSWORD
+
+@pytest.fixture(scope="function")
+def seed_multitenant(db):
+    """
+    Inicializa datos multi-tenant limpios para pruebas de aislamiento:
+    - Crea dos organizaciones (ORG_A, ORG_B)
+    - Asocia admin, pm, dev, hr a ORG_A
+    - Crea un usuario outsider en ORG_B
+    - Crea proyectos y tareas en ambas organizaciones
+    """
+    from app.models.mfa import Organization
+    from app.models.project import Project, ProjectStatus, ProjectType
+    from app.models.task import Task, TaskPriority, TaskStatus
+    from app.models.user import User, UserRole, UserStatus
+    from app.core.security import get_password_hash
+    
+    ORG_A_ID = "org-a-test"
+    ORG_B_ID = "org-b-test"
+    PROJECT_A_ID = "project-a-test"
+    PROJECT_B_ID = "project-b-test"
+    TASK_A_ID = "task-a-test"
+    TASK_B_ID = "task-b-test"
+    OUTSIDER_ID = "outsider-test-id"
+
+    # Limpiar tablas relevantes
+    db.query(Task).delete()
+    db.query(Project).delete()
+    db.query(Organization).delete()
+    db.query(User).filter(User.id == OUTSIDER_ID).delete()
+    db.commit()
+
+    org_a = Organization(id=ORG_A_ID, name="Org A", slug="org-a")
+    org_b = Organization(id=ORG_B_ID, name="Org B", slug="org-b")
+    db.add_all([org_a, org_b])
+    db.flush()
+
+    admin = db.query(User).filter(User.id == "admin-test-id").first()
+    pm = db.query(User).filter(User.id == "pm-test-id").first()
+    dev = db.query(User).filter(User.id == "dev-test-id").first()
+    hr = db.query(User).filter(User.id == "hr-test-id").first()
+    for user in (admin, pm, dev, hr):
+        user.organization_id = ORG_A_ID
+
+    outsider = User(
+        id=OUTSIDER_ID,
+        username="outsider",
+        email="outsider@example.com",
+        full_name="Outsider User",
+        role=UserRole.employee,
+        status=UserStatus.active,
+        is_active=True,
+        organization_id=ORG_B_ID,
+        hourly_rate=999.0,
+        hashed_password=get_password_hash(TEST_PASSWORD),
+    )
+    db.add(outsider)
+    db.flush()
+
+    project_a = Project(
+        id=PROJECT_A_ID,
+        organization_id=ORG_A_ID,
+        code="PRJ-TA",
+        name="Tenant Project A",
+        project_type=ProjectType.consulting,
+        status=ProjectStatus.active,
+        pm_id=pm.id,
+        created_by=admin.id,
+    )
+    project_b = Project(
+        id=PROJECT_B_ID,
+        organization_id=ORG_B_ID,
+        code="PRJ-TB",
+        name="Tenant Project B",
+        project_type=ProjectType.consulting,
+        status=ProjectStatus.active,
+        created_by=OUTSIDER_ID,
+    )
+    db.add_all([project_a, project_b])
+    db.flush()
+
+    task_a = Task(
+        id=TASK_A_ID,
+        code="TSK-TA001",
+        project_id=PROJECT_A_ID,
+        title="Task tenant A",
+        assignee_id=dev.id,
+        reporter_id=admin.id,
+        created_by=admin.id,
+        status=TaskStatus.todo,
+        priority=TaskPriority.medium,
+    )
+    task_b = Task(
+        id=TASK_B_ID,
+        code="TSK-TB001",
+        project_id=PROJECT_B_ID,
+        title="Task tenant B",
+        assignee_id=OUTSIDER_ID,
+        reporter_id=OUTSIDER_ID,
+        created_by=OUTSIDER_ID,
+        status=TaskStatus.todo,
+        priority=TaskPriority.high,
+    )
+    db.add_all([task_a, task_b])
+    db.commit()
+    yield

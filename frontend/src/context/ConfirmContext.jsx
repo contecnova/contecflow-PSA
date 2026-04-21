@@ -14,7 +14,7 @@
  */
 import _React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Button } from '../components/ui'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppT } from '../hooks/useAppT'
 
 const ConfirmContext = createContext(null)
 

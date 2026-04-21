@@ -1,4 +1,4 @@
-import { useAppT } from "@/hooks/useAppT";
+import { useAppT } from "../../hooks/useAppT";
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 

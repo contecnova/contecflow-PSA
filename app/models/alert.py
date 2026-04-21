@@ -39,7 +39,7 @@ class Alert(Base):
     description = Column(Text)
     value = Column(Float, nullable=True)    # e.g. 110 (% load) or 92000 (€ spent)
     threshold = Column(Float, nullable=True)  # e.g. 100 (% limit)
-    dedup_key = Column(String(200), nullable=True, index=True)  # Prevents DB-level duplicates
+    dedup_key = Column(String(200), nullable=True, index=True)  # Previene duplicados a nivel de BD
 
     is_read = Column(Boolean, default=False)
     is_resolved = Column(Boolean, default=False)

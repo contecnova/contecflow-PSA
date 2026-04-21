@@ -137,8 +137,12 @@ def test_jira_connection(
         }
     except httpx.HTTPStatusError as e:
         raise HTTPException(502, f"Jira devolvió {e.response.status_code}: {e.response.text[:200]}")
+    except httpx.RequestError as e:
+        raise HTTPException(503, f"No se pudo conectar con Jira: {str(e)[:200]}")
+    except ValueError as e:
+        raise HTTPException(400, f"Error de datos: {str(e)[:200]}")
     except Exception as e:
-        raise HTTPException(502, f"No se pudo conectar con Jira: {str(e)[:200]}")
+        raise HTTPException(500, f"Error inesperado: {str(e)[:200]}")
 
 
 @router.get("/issues", summary="Listar issues Jira (proxy)")

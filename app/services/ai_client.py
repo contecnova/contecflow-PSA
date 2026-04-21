@@ -40,7 +40,7 @@ def call_claude(
     Args:
         messages:   List of ``{"role": ..., "content": ...}`` dicts.
         system:     Optional system prompt.
-        model:      Model name; defaults to ``settings.NEXUS_AI_MODEL``.
+        model:      Model name; defaults to ``settings.CONTECFLOW_AI_MODEL``.
         tools:      Optional tool definitions for function-calling.
         max_tokens: Maximum tokens to generate.
         api_key:    Override the default API key (e.g. from DB-managed provider).
@@ -65,7 +65,7 @@ def call_claude(
         "anthropic-version": "2023-06-01",
     }
     body: dict = {
-        "model": model or settings.NEXUS_AI_MODEL,
+        "model": model or settings.CONTECFLOW_AI_MODEL,
         "max_tokens": max_tokens,
         "messages": messages,
     }

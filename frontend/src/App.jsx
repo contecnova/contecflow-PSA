@@ -6,7 +6,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
 import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
-import { useAppT } from './i18n/AppLangContext'
+import { useAppT } from './hooks/useAppT'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
   SkeletonKanban, SkeletonGantt, SkeletonServiceDesk,
@@ -52,7 +52,7 @@ const OrganizationsPage      = lazy(() => import('./pages/OrganizationsPage'))
 const ScenariosPage          = lazy(() => import('./pages/ScenariosPage'))
 const BudgetsPage            = lazy(() => import('./pages/BudgetsPage'))
 const AIHubPage              = lazy(() => import('./pages/AIHubPage'))
-const NexusAgentPage         = lazy(() => import('./pages/NexusAgentPage'))
+const ContecflowAgentPage    = lazy(() => import('./pages/NexusAgentPage'))
 const OraclePage             = lazy(() => import('./pages/OraclePage'))
 const MeetingsAIPage         = lazy(() => import('./pages/MeetingsAIPage'))
 const SemanticEnginePage     = lazy(() => import('./pages/SemanticEnginePage'))
@@ -171,7 +171,7 @@ class PageErrorBoundary extends Component {
       this.setState({ error: null })
     }
   }
-  componentDidCatch(error) { console.error('[Clarive] Page render error:', error) }
+  componentDidCatch(error) { console.error('[Contecflow] Page render error:', error) }
   render() {
     if (!this.state.error) return this.props.children
     const isChunk = this.state.error?.message?.includes('Failed to fetch dynamically imported module')
@@ -403,7 +403,7 @@ function AppRoutes() {
       <Route path="/scenarios" element={<ProtectedRoute roles={['admin','pm']}><Layout><ScenariosPage /></Layout></ProtectedRoute>} />
       <Route path="/budgets" element={<ProtectedRoute roles={['admin','pm']}><Layout><BudgetsPage /></Layout></ProtectedRoute>} />
       <Route path="/ai-hub" element={<ProtectedRoute roles={['admin','pm']}><Layout><AIHubPage /></Layout></ProtectedRoute>} />
-      <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><NexusAgentPage /></Layout></ProtectedRoute>} />
+      <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><ContecflowAgentPage /></Layout></ProtectedRoute>} />
       <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><OraclePage /></Layout></ProtectedRoute>} />
       <Route path="/meetings-ai" element={<ProtectedRoute><Layout><MeetingsAIPage /></Layout></ProtectedRoute>} />
       <Route path="/custom-fields" element={

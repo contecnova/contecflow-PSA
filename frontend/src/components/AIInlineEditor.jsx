@@ -20,7 +20,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import api from '../services/api';
-import { useAppT } from '../i18n/AppLangContext';
+import { useAppT } from '../hooks/useAppT';
 
 const COMMANDS = [
   { id: 'completar', label: '✏️ Completar', hint: 'Continúa el texto automáticamente' },

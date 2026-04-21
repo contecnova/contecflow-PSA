@@ -4,7 +4,7 @@ migrate_to_pg.py — Migra todos los datos de SQLite a PostgreSQL.
 
 Uso:
   export DATABASE_URL=postgresql://user:pass@host:5432/dbname
-  python -m app.db.migrate_to_pg --sqlite-path ./clarive.db
+  python -m app.db.migrate_to_pg --sqlite-path ./contecflow.db
 
 El script:
   1. Lee todas las tablas de SQLite
@@ -18,7 +18,7 @@ import os
 import logging
 from pathlib import Path
 
-logger = logging.getLogger("clarive.migrate_to_pg")
+logger = logging.getLogger("contecflow.migrate_to_pg")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
@@ -104,7 +104,7 @@ def migrate(sqlite_path: str, pg_url: str, batch_size: int = 500):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Migra SQLite → PostgreSQL")
-    parser.add_argument("--sqlite-path", default="./clarive.db")
+    parser.add_argument("--sqlite-path", default="./contecflow.db")
     parser.add_argument("--pg-url",      default=os.getenv("DATABASE_URL", ""))
     args = parser.parse_args()
 

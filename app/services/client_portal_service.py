@@ -46,7 +46,7 @@ from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-logger = logging.getLogger("clarive.client_portal")
+logger = logging.getLogger("contecflow.client_portal")
 
 CLIENT_TOKEN_EXPIRE_HOURS = getattr(settings, "CLIENT_TOKEN_EXPIRE_HOURS", 72)
 CLIENT_TOKEN_SECRET = settings.CLIENT_PORTAL_SECRET

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   CLARIVE — Design System v1.0
+   CONTECFLOW — Design System v1.0
    Refined Professional Services Automation Platform
    
    Filosofía: Calma visual · Densidad de información elegante
@@ -228,8 +228,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   padding-bottom: var(--safe-bottom);
 }
 
-/* ── Clarive sidebar customizations ──────────────────────────── */
-.clarive-sidebar-item {
+/* ── Contecflow sidebar customizations ─────────────────────────────── */
+.contecflow-sidebar-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -245,11 +245,11 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   white-space: nowrap;
   overflow: hidden;
 }
-.clarive-sidebar-item:hover {
+.contecflow-sidebar-item:hover {
   background: var(--surface-3);
   color: var(--text-1);
 }
-.clarive-sidebar-item.active {
+.contecflow-sidebar-item.active {
   background: var(--accent-muted);
   color: var(--accent);
   border-color: rgba(79, 142, 247, 0.2);
@@ -266,12 +266,12 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 
 /* ── Table refinements ────────────────────────────────────────── */
-.clarive-table {
+.contecflow-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
-.clarive-table th {
+.contecflow-table th {
   text-align: left;
   padding: 10px 14px;
   font-size: 11px;
@@ -281,16 +281,16 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   letter-spacing: 0.07em;
   border-bottom: 1px solid var(--surface-4);
 }
-.clarive-table td {
+.contecflow-table td {
   padding: 11px 14px;
   border-bottom: 1px solid var(--surface-4);
   color: var(--text-1);
 }
-.clarive-table tr:hover td { background: var(--surface-3); }
-.clarive-table tr:last-child td { border-bottom: none; }
+.contecflow-table tr:hover td { background: var(--surface-3); }
+.contecflow-table tr:last-child td { border-bottom: none; }
 
 /* ── Badge refined ────────────────────────────────────────────── */
-.clarive-badge {
+.contecflow-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -302,17 +302,17 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 
 /* ── Card hover effect ────────────────────────────────────────── */
-.clarive-card {
+.contecflow-card {
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-lg);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.clarive-card:hover {
+.contecflow-card:hover {
   border-color: var(--surface-5);
   box-shadow: var(--shadow-md);
 }
-.clarive-card.accent {
+.contecflow-card.accent {
   border-color: rgba(79, 142, 247, 0.2);
   box-shadow: var(--shadow-accent);
 }

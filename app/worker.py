@@ -3,7 +3,7 @@ from celery.schedules import crontab
 from app.core.config import settings
 
 celery_app = Celery(
-    "clarive",
+    "contecflow",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     include=["app.tasks"],
@@ -150,7 +150,7 @@ def generate_retainer_invoices():
         for proj in retainer_projects:
             if proj.retainer_day != today.day:
                 continue
-            # Check no invoice this month already (avoid duplicates)
+            # Evitar facturas duplicadas este mes
             try:
                 existing = db.query(Invoice).filter(
                     Invoice.project_id == proj.id,
@@ -242,7 +242,7 @@ def run_agent_task(
     auto_approve: bool = False,
 ):
     """
-    Run the NexusAgent agentic loop in a Celery worker.
+    Run the ContecflowAgent agentic loop in a Celery worker.
     Writes results back to AIAgentExecution.  Called by run_agent() via .delay().
     """
     import json
@@ -305,7 +305,7 @@ def run_agent_task(
                     db,
                     messages=[{"role": "user", "content": instruction}],
                     system=SYSTEM + "\n\nNota: ejecuta un análisis y plan de acción sin usar herramientas reales.",
-                    module="nexusagent", user_id=user_id, max_tokens=800,
+                    module="contecflowagent", user_id=user_id, max_tokens=800,
                 )
             except Exception:
                 result_summary = (
@@ -315,7 +315,7 @@ def run_agent_task(
             execution.status = "done"
             execution.result = result_summary
             execution.completed_at = datetime.now(timezone.utc)
-            _log_action(db, current_user.id, "nexusagent", "execute",
+            _log_action(db, current_user.id, "contecflowagent", "execute",
                         instruction[:200], result_summary[:200], status="success")
             db.commit()
             return {"ok": True}
@@ -328,7 +328,7 @@ def run_agent_task(
         agent_model = (
             active_prov.default_model
             if (active_prov and active_prov.provider == "anthropic" and active_prov.default_model)
-            else settings.NEXUS_AI_MODEL
+            else settings.CONTECFLOW_AI_MODEL
         )
 
         messages = [{"role": "user", "content": instruction}]
@@ -387,7 +387,7 @@ def run_agent_task(
         execution.result = result_summary
         execution.steps_count = step_num
         execution.completed_at = datetime.now(timezone.utc)
-        _log_action(db, current_user.id, "nexusagent", "execute",
+        _log_action(db, current_user.id, "contecflowagent", "execute",
                     instruction[:200], result_summary[:200],
                     tokens=0, latency=latency, status="success")
         db.commit()

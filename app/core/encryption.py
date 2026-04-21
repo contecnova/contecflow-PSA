@@ -22,7 +22,7 @@ from typing import Optional
 
 from app.core.config import settings
 
-logger = logging.getLogger("clarive.encryption")
+logger = logging.getLogger("contecflow.encryption")
 
 
 def _kms_enabled() -> bool:
@@ -46,7 +46,7 @@ def _derive_key() -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b"clarive_field_enc_v1",
+        salt=b"contecflow_field_enc_v1",
         iterations=100_000,
     )
     return base64.urlsafe_b64encode(kdf.derive(settings.SECRET_KEY.encode()))
@@ -72,7 +72,7 @@ def _derive_record_key(salt: bytes) -> bytes:
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
-        info=b"clarive_field_enc_v2",
+        info=b"contecflow_field_enc_v2",
     )
     return base64.urlsafe_b64encode(hkdf.derive(settings.SECRET_KEY.encode()))
 

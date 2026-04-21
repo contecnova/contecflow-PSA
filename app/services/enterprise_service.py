@@ -203,7 +203,7 @@ def test_webhook_delivery(hook, current_user) -> dict:
     import httpx, time, json
     test_payload = {
         "event": "test",
-        "message": "This is a test delivery from Clarive",
+        "message": "This is a test delivery from Contecflow",
         "triggered_by": current_user.full_name,
     }
     try:

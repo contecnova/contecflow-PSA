@@ -22,31 +22,23 @@ from fastapi.testclient import TestClient
 # Fixtures
 # ══════════════════════════════════════════════════════════════════════════════
 
-@pytest.fixture()
 def admin_headers(client, admin_token, organization):
+@pytest.fixture()
+def admin_headers(client, admin_token, organization, seed_multitenant):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
-@pytest.fixture()
 def pm_headers(client, pm_token, organization):
+@pytest.fixture()
+def pm_headers(client, pm_token, organization, seed_multitenant):
     return {"Authorization": f"Bearer {pm_token}"}
 
 
-@pytest.fixture()
 def organization(db):
+@pytest.fixture()
+def organization(db, seed_multitenant):
     from app.models.mfa import Organization
-    from app.models.user import User
-
-    org = Organization(name="Acme Org", slug="acme-org-v239")
-    db.add(org)
-    db.flush()
-
-    # Keep test users inside the same tenant so org-scoped endpoints work.
-    db.query(User).filter(User.id.in_(["admin-test-id", "pm-test-id", "dev-test-id"]))\
-        .update({"organization_id": org.id}, synchronize_session=False)
-    db.commit()
-    db.refresh(org)
-    return org
+    return db.query(Organization).filter(Organization.slug == "org-a").first() or db.query(Organization).first()
 
 
 @pytest.fixture()

@@ -74,7 +74,7 @@ from collections import defaultdict
 from fastapi import HTTPException
 from sqlalchemy import or_ as _or
 
-logger = logging.getLogger("clarive.v14")
+logger = logging.getLogger("contecflow.v14")
 
 
 # ─── WebhookTrigger serializer ────────────────────────────────────────────────
@@ -116,7 +116,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_task_overdue",
         "name": "Tarea vencida",
-        "subject": "[Clarive] Tarea vencida: {{task_title}}",
+        "subject": "[Contecflow] Tarea vencida: {{task_title}}",
         "category": "automation",
         "variables": ["task_title", "project_name", "assignee_name", "due_date"],
         "is_system": True,
@@ -124,7 +124,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_budget_alert",
         "name": "Alerta de presupuesto",
-        "subject": "[Clarive] Alerta presupuesto: {{project_name}} al {{pct_used}}%",
+        "subject": "[Contecflow] Alerta presupuesto: {{project_name}} al {{pct_used}}%",
         "category": "alert",
         "variables": ["project_name", "budget_total", "budget_used", "pct_used"],
         "is_system": True,
@@ -140,7 +140,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_sla_breach",
         "name": "SLA incumplido",
-        "subject": "[Clarive] SLA vencido: Ticket #{{ticket_number}}",
+        "subject": "[Contecflow] SLA vencido: Ticket #{{ticket_number}}",
         "category": "alert",
         "variables": ["ticket_number", "ticket_title", "assignee_name", "sla_due"],
         "is_system": True,
@@ -156,7 +156,7 @@ SYSTEM_EMAIL_TEMPLATES = [
     {
         "id": "tpl_report_ready",
         "name": "Informe programado listo",
-        "subject": "[Clarive] Informe: {{report_name}}",
+        "subject": "[Contecflow] Informe: {{report_name}}",
         "category": "report",
         "variables": ["report_name", "generated_at", "period"],
         "is_system": True,
@@ -369,7 +369,7 @@ def sync_calendar(db: Session, config, payload: dict):
     ).limit(10).all()
     synced = 0
     for sprint in sprints:
-        external_id = f"clarive_sprint_{sprint.id}"
+        external_id = f"contecflow_sprint_{sprint.id}"
         existing = db.query(CalendarEvent).filter(
             CalendarEvent.external_id == external_id
         ).first()
@@ -415,8 +415,8 @@ def sync_jira(db: Session, config, payload: dict):
         result = get_jira_issue(cfg_dict, task.jira_issue_key)
         if result.get("ok"):
             jira_status = result["data"].get("fields", {}).get("status", {}).get("name", "")
-            nexus_status = STATUS_MAP.get(str(task.status).lower(), str(task.status))
-            if jira_status.lower() != nexus_status.lower():
+            contecflow_status = STATUS_MAP.get(str(task.status).lower(), str(task.status))
+            if jira_status.lower() != contecflow_status.lower():
                 update_jira_issue(cfg_dict, task.jira_issue_key, {"summary": task.title})
             synced += 1
         elif "error" in result:
@@ -661,8 +661,8 @@ def create_email_template(payload, current_user_id: str, db: Session) -> dict:
 
 
 def send_email_action(payload, db: Session) -> dict:
-    subject = payload.subject or "Notificación Clarive"
-    body_html = payload.body_html or "<p>Notificación de Clarive</p>"
+    subject = payload.subject or "Notificación Contecflow"
+    body_html = payload.body_html or "<p>Notificación de Contecflow</p>"
     template_id_ref = payload.template_id
 
     if payload.template_id:
@@ -772,7 +772,7 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
         anon_id = _secrets.token_hex(8)
         export_data["anonymised"] = {
             "username": f"deleted_{anon_id}",
-            "email": f"deleted_{anon_id}@anonymised.clarive",
+            "email": f"deleted_{anon_id}@anonymised.contecflow",
             "full_name": f"Usuario Eliminado ({anon_id[:6]})",
             "first_name": None, "last_name": None,
             "phone": None, "job_title": None,

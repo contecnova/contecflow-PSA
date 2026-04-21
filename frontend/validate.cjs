@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Clarive v22 — Validador JSX con Babel (CommonJS)
+ * Contecflow v22 — Validador JSX con Babel (CommonJS)
  * Ejecutar: node validate.cjs
  */
 const parser = require('@babel/parser');

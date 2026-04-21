@@ -376,6 +376,7 @@ const es = {
 }
 
 const en = {
+  // ...existing code...
   portal: 'Client Portal',
   nav_dashboard: 'Home',
   nav_uat: 'UAT Testing',
@@ -705,6 +706,7 @@ const en = {
 }
 
 const fr = {
+  // ...existing code...
   portal: 'Portail Client',
   nav_dashboard: 'Accueil',
   nav_uat: 'Tests UAT',
@@ -1104,6 +1106,7 @@ const fr = {
 }
 
 const de = {
+  // ...existing code...
   portal: 'Kundenportal',
   nav_dashboard: 'Startseite',
   nav_uat: 'UAT-Tests',
@@ -1503,6 +1506,7 @@ const de = {
 }
 
 const pt = {
+  // ...existing code...
   portal: 'Portal do Cliente',
   nav_dashboard: 'Início',
   nav_uat: 'Testes UAT',
@@ -1902,6 +1906,7 @@ const pt = {
 }
 
 const it = {
+  // ...existing code...
   portal: 'Portale Cliente',
   nav_dashboard: 'Home',
   nav_uat: 'Test UAT',
@@ -2301,6 +2306,7 @@ const it = {
 }
 
 const pl = {
+  // ...existing code...
   portal: 'Portal Klienta',
   nav_dashboard: 'Strona główna',
   nav_uat: 'Testy UAT',
@@ -2700,6 +2706,7 @@ const pl = {
 }
 
 const zh = {
+  // ...existing code...
   portal: '客户门户',
   nav_dashboard: '首页',
   nav_uat: 'UAT测试',

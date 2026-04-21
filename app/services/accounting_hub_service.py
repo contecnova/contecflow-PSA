@@ -66,7 +66,7 @@ def commit(db: Session) -> None:
 
 
 def import_xero_contacts(db: Session, contacts: list) -> int:
-    """Create Client rows from Xero contacts; skip duplicates by name. Returns import count."""
+    """Crea clientes desde contactos Xero; omite duplicados por nombre. Devuelve el número importado."""
 
     imported = 0
     for c in contacts:

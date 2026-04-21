@@ -4,7 +4,7 @@
  * Uso: const toast = useToast(); toast.success('Guardado'); toast.error('Error')
  */
 import { createContext, useContext, useState, useCallback, useRef } from 'react'
-import { useAppT } from '../i18n/AppLangContext'
+import { useAppT } from '../hooks/useAppT'
 
 const ToastContext = createContext(null)
 

@@ -121,7 +121,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
 
             elif atype == ActionType.send_email:
                 to_addr = params.get("to") or params.get("email")
-                subject = params.get("subject", "Notificación automática — Clarive")
+                subject = params.get("subject", "Notificación automática — Contecflow")
                 body    = params.get("body") or params.get("message", "")
                 if to_addr:
                     try:
@@ -192,7 +192,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
 
             elif atype == ActionType.send_slack_message:
                 webhook_url = params.get("webhook_url")
-                message     = params.get("message", "Notificación automática de Clarive")
+                message     = params.get("message", "Notificación automática de Contecflow")
                 if webhook_url:
                     from app.services.integrations import send_slack_message
                     res = send_slack_message(webhook_url, message)
@@ -217,7 +217,7 @@ def execute_actions(actions: list, context: dict, db: Session) -> list:
 
             elif atype == ActionType.send_teams_message:
                 webhook_url = params.get("webhook_url")
-                title   = params.get("title", "Clarive — Automatización")
+                title   = params.get("title", "Contecflow — Automatización")
                 message = params.get("message", "")
                 if webhook_url:
                     from app.services.integrations import send_teams_message

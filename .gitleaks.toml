@@ -1,4 +1,4 @@
-title = "Clarive Gitleaks Config"
+title = "Contecflow Gitleaks Config"
 
 [allowlist]
 description = "Global allowlist for known test placeholders"
@@ -8,7 +8,7 @@ regexes = [
   '''ci-webhook-secret''',
   '''ci-inbound-secret''',
   '''Test1234!ci''',
-  '''admin@clarive\.test''',
+  '''admin@contecflow.test''',
   '''example\.com'''
 ]
 paths = [

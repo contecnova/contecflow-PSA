@@ -6,5 +6,5 @@ router = APIRouter()
 
 @router.get("", summary="Listado de etiquetas UI")
 def get_labels(current_user: User = Depends(get_current_user)):
-    # TODO: Delegar a servicio real
+    # Servicio real pendiente de implementación
     return {"labels": {}}

@@ -181,7 +181,7 @@ def get_db() -> Generator[Session, None, None]:
     """
     Yield a synchronous SQLAlchemy session for request-scoped DB access.
 
-    Clarive uses synchronous SQLAlchemy ORM as its default persistence layer.
+    Contecflow uses synchronous SQLAlchemy ORM as its default persistence layer.
     Any endpoint that needs database access must be declared as a regular
     synchronous function (`def`) so that database work runs safely in FastAPI's
     threadpool. Async endpoints are allowed only for non-blocking I/O / event

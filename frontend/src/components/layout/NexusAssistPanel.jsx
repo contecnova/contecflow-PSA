@@ -9,7 +9,7 @@ const SUGGESTIONS = [
   '¿Cuántas horas se han imputado en los últimos 7 días?',
 ]
 
-export default function NexusAssistPanel({ open, onClose, context }) {
+export default function ContecflowAssistPanel({ open, onClose, context }) {
   // Derive human-readable page label from path
   const PAGE_LABELS = {
     '/': 'Dashboard', '/projects': 'Proyectos', '/tasks': 'Tareas',

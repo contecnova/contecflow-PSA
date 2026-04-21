@@ -38,18 +38,22 @@ def _upsert_rate(client, token, from_c="EUR", to_c="USD", rate=1.08, eff=None):
 
 # ─── 1. Multi-currency ─────────────────────────────────────────────────────────
 
-class TestMultiCurrency:
+import pytest
+from datetime import date, timedelta
+from tests.conftest import auth
 
+# ...existing code...
+
+@pytest.mark.usefixtures("seed_multitenant")
+class TestMultiCurrency:
     def test_upsert_exchange_rate_creates_new(self, client, admin_token, db):
         result = _upsert_rate(client, admin_token, rate=1.10)
-        # bookings.py returns {"ok": True}; v238 returns {"id":...,"rate":...}
         assert result.get("ok") is True or "rate" in result
 
     def test_upsert_exchange_rate_updates_existing(self, client, admin_token, db):
         today = str(date.today())
         _upsert_rate(client, admin_token, rate=1.10, eff=today)
         result = _upsert_rate(client, admin_token, rate=1.15, eff=today)
-        # Second upsert should succeed
         assert result.get("ok") is True or "rate" in result
 
     def test_upsert_rate_negative_rejected(self, client, admin_token, db):

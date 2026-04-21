@@ -184,8 +184,14 @@ def chat(
             db, messages, system=system,
             module="nexusassist", user_id=current_user.id, max_tokens=1500,
         )
-    except Exception:
-        assistant_text = "\u26a0 Error en el proveedor IA. Contacta con soporte si el problema persiste."
+    except ValueError as e:
+        raise HTTPException(400, f"Error de datos: {str(e)}")
+    except ConnectionError as e:
+        raise HTTPException(503, f"No se pudo conectar con el proveedor IA: {str(e)}")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error inesperado en IA chat: {e}", exc_info=True)
+        raise HTTPException(500, f"Error inesperado en el proveedor IA: {str(e)}")
 
     # Guardrail: PII check on outgoing response
     gr_out = check_output(assistant_text, current_user, "nexusassist", db)
@@ -304,9 +310,15 @@ async def chat_stream(
                                 if chunk:
                                     collected["text"] += chunk
                                     yield f"data: {json.dumps({'text': chunk})}\n\n"
+            except ValueError as exc:
+                _logger.error(f"SSE stream error (datos): {exc}")
+                yield f"data: {json.dumps({'error': 'Error de datos: ' + str(exc)[:100]})}\n\n"
+            except ConnectionError as exc:
+                _logger.error(f"SSE stream error (conexión): {exc}")
+                yield f"data: {json.dumps({'error': 'No se pudo conectar con el proveedor IA: ' + str(exc)[:100]})}\n\n"
             except Exception as exc:
-                _logger.error(f"SSE stream error: {exc}")
-                yield f"data: {json.dumps({'error': str(exc)[:100]})}\n\n"
+                _logger.error(f"SSE stream error: {exc}", exc_info=True)
+                yield f"data: {json.dumps({'error': 'Error inesperado: ' + str(exc)[:100]})}\n\n"
         else:
             # Non-Anthropic provider or no provider: use call_ai() and simulate streaming
             try:
@@ -316,8 +328,18 @@ async def chat_stream(
                     lambda: call_ai(db, messages, system=system, module="nexusassist",
                                     user_id=current_user.id, max_tokens=1500),
                 )
+            except ValueError as exc:
+                _logger.error(f"SSE stream error (datos): {exc}")
+                yield f"data: {json.dumps({'error': 'Error de datos: ' + str(exc)[:100]})}\n\n"
+                return
+            except ConnectionError as exc:
+                _logger.error(f"SSE stream error (conexión): {exc}")
+                yield f"data: {json.dumps({'error': 'No se pudo conectar con el proveedor IA: ' + str(exc)[:100]})}\n\n"
+                return
             except Exception as exc:
-                full_text = f"⚠ Error en el proveedor IA: {str(exc)[:120]}"
+                _logger.error(f"SSE stream error: {exc}", exc_info=True)
+                yield f"data: {json.dumps({'error': 'Error inesperado: ' + str(exc)[:120]})}\n\n"
+                return
             # Stream word by word for UX consistency
             for word in full_text.split(" "):
                 collected["text"] += word + " "
@@ -572,8 +594,14 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
 
             yield _event({"type": "done", "result": f"Agente completó {step_num} pasos.", "steps": steps_done})
 
+        except ValueError as e:
+            yield _event({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
+        except ConnectionError as e:
+            yield _event({"type": "error", "message": f"No se pudo conectar con el recurso externo: {str(e)[:300]}"})
         except Exception as e:
-            yield _event({"type": "error", "message": str(e)[:300]})
+            import logging
+            logging.getLogger(__name__).error(f"Error inesperado en agente IA: {e}", exc_info=True)
+            yield _event({"type": "error", "message": f"Error inesperado: {str(e)[:300]}"})
         finally:
             _db.close()
 

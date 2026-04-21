@@ -1,6 +1,6 @@
 /**
  * DocumentsPanel  Panel embebible de documentos rediseV3ado 
- * Integra el sistema visual de Clarive. Props: projectId?, taskId?, ticketId?, compact?
+ * Integra el sistema visual de Contecflow. Props: projectId?, taskId?, ticketId?, compact?
  */
 import _React, { useState, useRef, useCallback } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext';
@@ -9,7 +9,7 @@ import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X } from 'lucide-react';
-import { useAppT } from '../i18n/AppLangContext';
+import { useAppT } from '../hooks/useAppT';
 
 function fmtBytes(b) {
   if (!b) return '';

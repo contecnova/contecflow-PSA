@@ -126,7 +126,10 @@ def mfa_setup(
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
-            raise HTTPException(503, msg)
+            raise HTTPException(
+                501,
+                "MFA TOTP no disponible: falta la librería pyotp. Instala con 'pip install pyotp' y reinicia el backend."
+            )
         raise HTTPException(400, msg)
 
 
@@ -145,7 +148,10 @@ def mfa_verify(
     except ValueError as e:
         msg = str(e)
         if "pyotp" in msg:
-            raise HTTPException(503, msg)
+            raise HTTPException(
+                501,
+                "MFA TOTP no disponible: falta la librería pyotp. Instala con 'pip install pyotp' y reinicia el backend."
+            )
         raise HTTPException(400, msg)
 
 

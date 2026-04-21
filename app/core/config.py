@@ -5,7 +5,7 @@ from typing import List, Optional
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = Field(default="Clarive", env="PROJECT_NAME")
+    PROJECT_NAME: str = Field(default="Contecflow", env="PROJECT_NAME")
     VERSION: str = Field(default="23.9.3", env="VERSION")
     API_V1_STR: str = Field(default="/api/v1", env="API_V1_STR")
     API_V2_STR: str = Field(default="/api/v2", env="API_V2_STR")
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: str = Field(default="", env="WEBHOOK_SECRET")
     # Secret token for inbound email webhook (Mailgun/SendGrid/Postmark relay)
     # Set this to a long random string and configure your email relay to send it
-    # as the X-Clarive-Email-Secret header on every inbound parse callback.
+    # as the X-Contecflow-Email-Secret header on every inbound parse callback.
     INBOUND_EMAIL_SECRET: str = Field(default="", env="INBOUND_EMAIL_SECRET")
     TRUST_PROXY_HEADERS: bool = Field(default=False, env="TRUST_PROXY_HEADERS")
     TRUSTED_PROXY_CIDRS: str = Field(default="127.0.0.1/32,::1/128", env="TRUSTED_PROXY_CIDRS")
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # ── WebAuthn / Passkeys (FIDO2) ─────────────────────────────────────────
     WEBAUTHN_RP_ID: str = Field(default="localhost", env="WEBAUTHN_RP_ID")
-    WEBAUTHN_RP_NAME: str = Field(default="Clarive PSA", env="WEBAUTHN_RP_NAME")
+    WEBAUTHN_RP_NAME: str = Field(default="Contecflow PSA", env="WEBAUTHN_RP_NAME")
     WEBAUTHN_ORIGIN: str = Field(default="http://localhost:5173", env="WEBAUTHN_ORIGIN")
 
     # ── AI providers (opcionales) ─────────────────────────────────────────────
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     AZURE_OPENAI_DOCS_URL: str = Field(default="https://oai.azure.com", env="AZURE_OPENAI_DOCS_URL")
 
     # Modelo IA de fallback (usado cuando no hay proveedor configurado en BD)
-    NEXUS_AI_MODEL: str = Field(default="claude-haiku-4-5", env="NEXUS_AI_MODEL")
+    CONTECFLOW_AI_MODEL: str = Field(default="claude-haiku-4-5", env="CONTECFLOW_AI_MODEL")
     # Semantic classifier backend: keep HTTP API lean by default.
     # "tfidf" avoids loading heavy torch/transformers dependencies in API pods.
     SEMANTIC_EMBEDDINGS_BACKEND: str = Field(default="tfidf", env="SEMANTIC_EMBEDDINGS_BACKEND")
@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     PDF_STORAGE_PATH: str = Field(default="./storage/pdfs", env="PDF_STORAGE_PATH")
 
     # ── AWS S3 for Document Manager ────────────────────────────────────────────
-    AWS_S3_BUCKET: str = Field(default="nexuspm-documents", env="AWS_S3_BUCKET")
+    AWS_S3_BUCKET: str = Field(default="contecflow-documents", env="AWS_S3_BUCKET")
     AWS_REGION: str = Field(default="eu-west-1", env="AWS_REGION")
     AWS_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY")
     AWS_SECRET_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_KEY")
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
     # ── Notifications ──────────────────────────────────────────────────────
     SLACK_WEBHOOK_URL: Optional[str] = Field(default=None, env="SLACK_WEBHOOK_URL")
-    NOTIFICATION_EMAIL_FROM: str = Field(default="alerts@nexuspm.local", env="NOTIFICATION_EMAIL_FROM")
+    NOTIFICATION_EMAIL_FROM: str = Field(default="alerts@contecflow.local", env="NOTIFICATION_EMAIL_FROM")
 
     # ── Imputation Lockout ─────────────────────────────────────────────────
     DEFAULT_IMPUTATION_LOCKOUT_DAYS: int = Field(default=14, env="DEFAULT_IMPUTATION_LOCKOUT_DAYS")
@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     LOGIN_MAX_ATTEMPTS: int = Field(default=5, env="LOGIN_MAX_ATTEMPTS")
     LOGIN_ATTEMPT_WINDOW_SECONDS: int = Field(default=900, env="LOGIN_ATTEMPT_WINDOW_SECONDS")
     LOGIN_LOCKOUT_SECONDS: int = Field(default=900, env="LOGIN_LOCKOUT_SECONDS")
-    DEFAULT_USER_PASSWORD: str = Field(default="clarive2024!", env="DEFAULT_USER_PASSWORD")
+    DEFAULT_USER_PASSWORD: str = Field(default="contecflow2024!", env="DEFAULT_USER_PASSWORD")
     DEFAULT_WORKING_HOURS_PER_DAY: float = Field(default=8.0, env="DEFAULT_WORKING_HOURS_PER_DAY")
     DEFAULT_WEEKLY_CAPACITY_HOURS: float = Field(default=40.0, env="DEFAULT_WEEKLY_CAPACITY_HOURS")
     DEFAULT_VACATION_DAYS_PER_YEAR: int = Field(default=23, env="DEFAULT_VACATION_DAYS_PER_YEAR")
@@ -290,7 +290,7 @@ class Settings(BaseSettings):
     def secret_key_must_be_strong(cls, v: str) -> str:
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
-        insecure = {"clarive-secret-key-change-in-production-min32chars!!", "REPLACE_ME", "change-me"}
+        insecure = {"contecflow-secret-key-change-in-production-min32chars!!", "REPLACE_ME", "change-me"}
         if v in insecure or v.startswith("REPLACE_ME") or v.upper().startswith("CHANGE_ME"):
             raise ValueError("SECRET_KEY must be changed from the default value before running")
         return v

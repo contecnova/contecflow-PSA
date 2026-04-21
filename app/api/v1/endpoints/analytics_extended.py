@@ -37,8 +37,12 @@ def adhoc_analytics(
             if result:
                 return result
         return {"metric": metric, "dimensions": dimensions, "results": [], "total_rows": 0}
-    except Exception:
-        return JSONResponse(status_code=200, content={"metric": None, "dimensions": [], "results": [], "total_rows": 0})
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error inesperado en analytics_adhoc: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"detail": f"Error interno: {str(e)}"})
 
 @router.get("/drilldown", summary="Analytics drilldown", status_code=status.HTTP_200_OK)
 def analytics_drilldown(
@@ -58,8 +62,12 @@ def analytics_drilldown(
             if result:
                 return result
         return {"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size}
-    except Exception:
-        return JSONResponse(status_code=200, content={"metric": metric, "dimension": dimension, "value": value, "rows": [], "page": page, "page_size": page_size})
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error inesperado en analytics_drilldown: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"detail": f"Error interno: {str(e)}"})
 
 @router.post("/cross-filter", summary="Analytics cross-filter", status_code=status.HTTP_200_OK)
 def analytics_cross_filter(
@@ -73,8 +81,12 @@ def analytics_cross_filter(
             if result:
                 return result
         return {"active_filters": payload.get("active_filters", {}), "results": {}}
-    except Exception:
-        return JSONResponse(status_code=200, content={"active_filters": payload.get("active_filters", {}), "results": {}})
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"detail": f"Error de datos: {str(e)}"})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error inesperado en analytics_cross_filter: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"detail": f"Error interno: {str(e)}"})
 
 
 # ── Response Models ───────────────────────────────────────────────────────
