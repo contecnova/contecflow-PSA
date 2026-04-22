@@ -78,7 +78,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }) {
         </div>
         <div>
           <label style={lbStyle}>Nombre del elemento</label>
-          <input value={form.item_label} onChange={e => setForm(f => ({ ...f, item_label: e.target.value }))} style={inputStyle} placeholder={t(modulo.clave)} />
+          <input value={form.item_label} onChange={e => setForm(f => ({ ...f, item_label: e.target.value }))} style={inputStyle} placeholder="Nombre del elemento" aria-label="Nombre del elemento" />
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
@@ -172,11 +172,11 @@ export default function RACIPage() {
       </div>
 
       {!selectedProject ? (
-        <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar su matriz RACI" />
       ) : isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando RACI...</span></div>
       ) : items.length === 0 ? (
-        <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
+        <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 600 }}>
@@ -218,7 +218,7 @@ export default function RACIPage() {
                               <div style={{ position: 'relative' }}>
                                 <RoleCell role={a.role} editable={false} />
                                 <button onClick={() => deleteEntry(a.entry_id)}
-                                  title={t(modulo.clave)}
+                                  title="Quitar asignacion"
                                   style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                                   ×
                                 </button>
@@ -240,7 +240,7 @@ export default function RACIPage() {
       )}
 
       {showAdd && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowAdd(false)} width={560}>
+        <Modal open title="Anadir entrada RACI" onClose={() => setShowAdd(false)} width={560}>
           <AddEntryModal
             projectId={selectedProject}
             users={usersData}

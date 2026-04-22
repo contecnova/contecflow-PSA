@@ -104,7 +104,7 @@ export default function OrganizationsPage() {
       <div style={{ display:'grid', gridTemplateColumns: selected ? '1fr 360px' : '1fr', gap:20 }}>
         <div>
           {isLoading ? <Spinner /> : orgs.length === 0 ? (
-            <EmptyState icon="🏢" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="🏢" title="Sin organizaciones" description="Crea la primera organizacion para gestionar entornos aislados" />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {orgs.map(o => (
@@ -174,22 +174,22 @@ export default function OrganizationsPage() {
                       {removingUserId && detail && (
                         <Confirm
                           open
-                          title={t(modulo.clave)}
-                          description={t(modulo.clave)}
+                          title="No puedes quitar el ultimo usuario"
+                          description="Asigna otra persona antes de eliminar el ultimo usuario de la organizacion"
                           onCancel={()=>setRemovingUserId(null)}
                           onConfirm={()=>removeUser({ orgId: detail.id, userId: removingUserId })}
                           loading={isRemoving}
                         />
                       )}
                 {showAssignUser && detail && (
-                  <Modal open title={t(modulo.clave)} onClose={() => setShowAssignUser(false)} width={420}>
+                  <Modal open title="Asignar usuario" onClose={() => setShowAssignUser(false)} width={420}>
                     <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
                       <div>
                         <label style={ls}>Usuario</label>
                         <UserSelect
                           value={assignUserId}
                           onChange={id => setAssignUserId(id)}
-                          placeholder={t(modulo.clave)}
+                          placeholder="Buscar usuario activo"
                           style={fs}
                           filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
                         />
@@ -217,7 +217,7 @@ export default function OrganizationsPage() {
       </div>
 
       {showCreate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title="Nueva organizacion" onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div><label style={ls}>Nombre</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
@@ -242,7 +242,7 @@ export default function OrganizationsPage() {
       )}
 
       {showEdit && editForm && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowEdit(false)} width={520}>
+        <Modal open title="Editar organizacion" onClose={() => setShowEdit(false)} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div><label style={ls}>Nombre</label><input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} style={fs} /></div>

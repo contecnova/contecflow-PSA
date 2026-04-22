@@ -166,7 +166,7 @@ export default function ContecflowAgentPage() {
     <div style={{ padding: 32 }}>
       <PageHeader
         title={t('ai.agent_title')}
-        subtitle={t(modulo.clave)}
+        subtitle="Ejecuta instrucciones en lenguaje natural sobre tus proyectos y datos"
       />
 
       {/* Provider indicator */}
@@ -188,7 +188,7 @@ export default function ContecflowAgentPage() {
               value={instruction}
               onChange={e => setInstruction(e.target.value)}
               onKeyDown={handleKey}
-              placeholder={t(modulo.clave)}
+              placeholder="Ej: Resume el estado de todos los proyectos activos..."
               rows={4}
               style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
@@ -265,7 +265,7 @@ export default function ContecflowAgentPage() {
             </div>
             {history.length === 0 ? (
               <div style={{ padding: 32 }}>
-                <EmptyState icon="⚡" title={t(modulo.clave)} description={t(modulo.clave)} />
+                <EmptyState icon="⚡" title="Sin ejecuciones recientes" description="Ejecuta una instruccion para ver el historial" />
               </div>
             ) : history.map(e => {
               const sc = STATUS_CFG[e.status] || STATUS_CFG.pending

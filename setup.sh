@@ -142,10 +142,19 @@ preflight_start_checks() {
 install_homebrew() {
   if ! check_command brew; then
     warn "Homebrew no encontrado. Instalando..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
+      error "No se pudo instalar Homebrew automáticamente."
+      echo "Instálalo manualmente desde https://brew.sh"
+      return 1
+    }
     # Add to PATH for Apple Silicon
     if [ -f "/opt/homebrew/bin/brew" ]; then
       eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+    if ! check_command brew; then
+      error "Homebrew sigue sin estar disponible en PATH."
+      echo "Abre una nueva terminal o ejecuta: eval \"$('/opt/homebrew/bin/brew' shellenv)\""
+      return 1
     fi
   fi
 }
@@ -154,20 +163,65 @@ install_homebrew() {
 install_python() {
   section "Instalando Python 3.12"
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    install_homebrew
-    brew install python@3.12
+    install_homebrew || return 1
+    brew install python@3.12 || {
+      error "No se pudo instalar Python con Homebrew."
+      echo "Instálalo manualmente desde https://www.python.org/downloads/"
+      return 1
+    }
     brew link python@3.12 --force 2>/dev/null || true
   else
     # Linux
     if check_command apt-get; then
       sudo apt-get update -qq
-      sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
+      if ! sudo apt-get install -y python3.12 python3.12-venv python3.12-dev; then
+        warn "No se pudo instalar Python 3.12 desde apt (repos no disponibles). Intentando Python por defecto..."
+        sudo apt-get install -y python3 python3-venv python3-dev || {
+          error "No se pudo instalar Python con apt-get."
+          echo "Prueba manualmente: sudo apt-get install python3 python3-venv python3-dev"
+          return 1
+        }
+      fi
     elif check_command dnf; then
-      sudo dnf install -y python3.12
+      sudo dnf install -y python3.12 || sudo dnf install -y python3 || {
+        error "No se pudo instalar Python con dnf."
+        echo "Prueba manualmente: sudo dnf install python3"
+        return 1
+      }
+    elif check_command yum; then
+      sudo yum install -y python3 || {
+        error "No se pudo instalar Python con yum."
+        echo "Prueba manualmente: sudo yum install python3"
+        return 1
+      }
+    elif check_command pacman; then
+      sudo pacman -Sy --noconfirm python || {
+        error "No se pudo instalar Python con pacman."
+        echo "Prueba manualmente: sudo pacman -Sy python"
+        return 1
+      }
+    elif check_command zypper; then
+      sudo zypper --non-interactive install python311 python311-pip || sudo zypper --non-interactive install python3 python3-pip || {
+        error "No se pudo instalar Python con zypper."
+        echo "Prueba manualmente: sudo zypper install python3 python3-pip"
+        return 1
+      }
+    elif check_command apk; then
+      sudo apk add --no-cache python3 py3-pip || {
+        error "No se pudo instalar Python con apk."
+        echo "Prueba manualmente: sudo apk add --no-cache python3 py3-pip"
+        return 1
+      }
     else
       error "No se pudo instalar Python automáticamente. Instálalo manualmente desde https://python.org"
-      exit 1
+      return 1
     fi
+  fi
+
+  if ! find_python >/dev/null 2>&1; then
+    error "La instalación automática terminó pero Python 3.10+ no está disponible en PATH."
+    echo "Abre una nueva terminal o instala Python manualmente desde https://www.python.org/downloads/"
+    return 1
   fi
 }
 
@@ -175,11 +229,66 @@ install_python() {
 install_node() {
   section "Instalando Node.js"
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    install_homebrew
-    brew install node
+    install_homebrew || return 1
+    brew install node || {
+      error "No se pudo instalar Node.js con Homebrew."
+      echo "Instálalo manualmente desde https://nodejs.org/"
+      return 1
+    }
   else
-    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    if check_command apt-get; then
+      curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - || {
+        warn "No se pudo configurar NodeSource. Intentando paquetes del sistema..."
+      }
+      sudo apt-get install -y nodejs npm || sudo apt-get install -y nodejs || {
+        error "No se pudo instalar Node.js con apt-get."
+        echo "Prueba manualmente: sudo apt-get install nodejs npm"
+        return 1
+      }
+    elif check_command dnf; then
+      sudo dnf install -y nodejs npm || sudo dnf install -y nodejs || {
+        error "No se pudo instalar Node.js con dnf."
+        echo "Prueba manualmente: sudo dnf install nodejs npm"
+        return 1
+      }
+    elif check_command yum; then
+      sudo yum install -y nodejs npm || sudo yum install -y nodejs || {
+        error "No se pudo instalar Node.js con yum."
+        echo "Prueba manualmente: sudo yum install nodejs npm"
+        return 1
+      }
+    elif check_command pacman; then
+      sudo pacman -Sy --noconfirm nodejs npm || {
+        error "No se pudo instalar Node.js con pacman."
+        echo "Prueba manualmente: sudo pacman -Sy nodejs npm"
+        return 1
+      }
+    elif check_command zypper; then
+      sudo zypper --non-interactive install nodejs20 npm20 || sudo zypper --non-interactive install nodejs npm || {
+        error "No se pudo instalar Node.js con zypper."
+        echo "Prueba manualmente: sudo zypper install nodejs npm"
+        return 1
+      }
+    elif check_command apk; then
+      sudo apk add --no-cache nodejs npm || {
+        error "No se pudo instalar Node.js con apk."
+        echo "Prueba manualmente: sudo apk add --no-cache nodejs npm"
+        return 1
+      }
+    else
+      error "No se pudo instalar Node.js automáticamente. Instálalo manualmente desde https://nodejs.org/"
+      return 1
+    fi
+  fi
+
+  if ! check_command node; then
+    error "La instalación automática terminó pero node no está disponible en PATH."
+    echo "Abre una nueva terminal o instala Node.js manualmente desde https://nodejs.org/"
+    return 1
+  fi
+  if ! check_command npm; then
+    warn "Node.js está instalado pero npm no está disponible en PATH."
+    warn "Instala npm manualmente desde el gestor de paquetes de tu distribución."
   fi
 }
 

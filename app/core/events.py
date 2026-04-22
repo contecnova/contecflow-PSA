@@ -163,7 +163,7 @@ def emit_event(
     All errors are caught and logged — events never break the main flow.
 
     Args:
-        db:            Active SQLAlchemy session (used for webhook dispatch).
+        db:            Active SQLAlchemy session (used for webhook task enqueue).
         event_type:    Event type string (use EventType constants).
         payload:       Domain-specific event data.
         actor:         User that triggered the event (optional).
@@ -183,7 +183,7 @@ def emit_event(
             resource_id=resource_id,
             project_id=project_id,
         )
-        _dispatch_webhooks(db, event)
+        _enqueue_webhooks(db, event)
     except Exception as exc:
         logger.debug("emit_event(%s) error: %s", event_type, exc)
 
@@ -239,10 +239,15 @@ def emit(
 
 # ── Internal dispatch ─────────────────────────────────────────────────────────
 
-def _dispatch_webhooks(db: Any, event: SystemEvent) -> None:
-    """Fire matching outbound webhooks. Errors are caught individually."""
+def _enqueue_webhooks(db: Any, event: SystemEvent) -> None:
+    """Enqueue matching outbound webhooks.
+
+    Important: this function must never perform synchronous HTTP delivery in
+    the request path. Actual delivery is delegated to Celery workers.
+    """
     try:
         from app.services.webhooks import fire_webhook
-        fire_webhook(db, event.event_type, event.to_dict(), project_id=event.project_id)
+        enqueued = fire_webhook(db, event.event_type, event.to_dict(), project_id=event.project_id)
+        logger.debug("Event %s enqueued %s webhook task(s)", event.event_type, enqueued)
     except Exception as exc:
-        logger.debug("Webhook dispatch for %s failed: %s", event.event_type, exc)
+        logger.debug("Webhook enqueue for %s failed: %s", event.event_type, exc)

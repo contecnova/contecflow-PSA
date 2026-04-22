@@ -66,7 +66,8 @@ function FTSMode() {
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
-              placeholder={t(modulo.clave)}
+              placeholder="Buscar proyectos, tareas, clientes o tickets"
+              aria-label="Busqueda rapida"
               style={{ ...inp, paddingLeft: 42, fontSize: 15 }}
               autoFocus
             />
@@ -93,11 +94,11 @@ function FTSMode() {
 
       {/* Resultados */}
       {q.trim().length < 2 ? (
-        <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="🔍" title="Empieza a buscar" description="Escribe al menos dos caracteres para lanzar la busqueda" />
       ) : isFetching ? (
         <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
       ) : totalResults === 0 ? (
-        <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description={t(modulo.clave)} />
+        <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description="Prueba con otro termino o cambia el tipo de entidad" />
       ) : (
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
@@ -164,7 +165,8 @@ function NQLMode() {
         <textarea
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder={t(modulo.clave)}
+          placeholder="Ejemplo: tasks where priority = \"critical\""
+          aria-label="Consulta NQL"
           style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: 13, fontFamily: "'Space Mono', monospace" }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
@@ -201,7 +203,7 @@ function NQLMode() {
               pageSize={20}
             />
           ) : (
-            <EmptyState icon="📭" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="📭" title="Sin resultados NQL" description="La consulta no devolvio registros" />
           )}
         </div>
       )}

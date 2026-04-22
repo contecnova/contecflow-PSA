@@ -146,7 +146,7 @@ function EpicDepForm({ projectId, epics, onClose }) {
   })
 
   return (
-    <Modal open onClose={onClose} title={t(modulo.clave)}>
+    <Modal open onClose={onClose} title="Nueva dependencia entre epicas">
       <div style={{display:'flex', flexDirection:'column', gap:14}}>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
@@ -251,7 +251,7 @@ export default function EpicGanttPage() {
         </select>
       </div>
 
-      {!project && <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} />}
+      {!project && <EmptyState icon="📊" title="Selecciona un proyecto" description="Elige un proyecto para ver el Gantt de epicas y sus dependencias" />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && epics.length === 0 && (

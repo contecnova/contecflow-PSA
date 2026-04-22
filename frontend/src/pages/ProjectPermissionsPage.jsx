@@ -151,7 +151,7 @@ export default function ProjectPermissionsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title={t(modulo.clave)}
+        title="Permisos de proyecto"
         subtitle={_t('project_permissions.subtitle')}
         actions={selectedProject && (
           <Button onClick={() => { setEditingPerm(null); setShowForm(true) }}>+ Añadir acceso</Button>
@@ -174,7 +174,7 @@ export default function ProjectPermissionsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="🔐" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="🔐" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar sus permisos de acceso" />
       )}
 
       {selectedProject && isLoading && <Spinner />}

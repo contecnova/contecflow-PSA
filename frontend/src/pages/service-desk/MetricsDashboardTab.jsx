@@ -1,4 +1,3 @@
-import { useAppT } from "../../hooks/useAppT";
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -119,14 +118,14 @@ export default function MetricsDashboardTab() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))', gap: 12, marginBottom: 28 }}>
-        <KpiCard icon="🎫" label={t(modulo.clave)} value={metrics.volume?.total} />
-        <KpiCard icon="🔓" label={t(modulo.clave)} value={metrics.volume?.open} color={metrics.volume?.open > 20 ? COLOR.warning : COLOR.text1} />
-        <KpiCard icon="✅" label={t(modulo.clave)} value={metrics.volume?.resolved} color={COLOR.success} />
-        <KpiCard icon="⏱" label={t(modulo.clave)} value={fmtMinutes(metrics.mttr_minutes)} sub="Tiempo medio resolucion" color={COLOR.accent} />
-        <KpiCard icon="🎯" label={t(modulo.clave)} value={`${metrics.sla_compliance_pct}%`} color={slaColor} />
-        <KpiCard icon="📞" label={t(modulo.clave)} value={`${metrics.fcr_percent}%`} sub="Resolucion 1er contacto" color={metrics.fcr_percent >= 70 ? COLOR.success : COLOR.warning} />
-        <KpiCard icon="⭐" label={t(modulo.clave)} value={metrics.avg_csat ? `${metrics.avg_csat}/5` : '-'} color={COLOR.warning} />
-        <KpiCard icon="🚨" label={t(modulo.clave)} value={metrics.volume?.breached_sla} color={metrics.volume?.breached_sla > 0 ? COLOR.danger : COLOR.success} />
+        <KpiCard icon="🎫" label="Tickets totales" value={metrics.volume?.total} />
+        <KpiCard icon="🔓" label="Tickets abiertos" value={metrics.volume?.open} color={metrics.volume?.open > 20 ? COLOR.warning : COLOR.text1} />
+        <KpiCard icon="✅" label="Tickets resueltos" value={metrics.volume?.resolved} color={COLOR.success} />
+        <KpiCard icon="⏱" label="MTTR" value={fmtMinutes(metrics.mttr_minutes)} sub="Tiempo medio resolucion" color={COLOR.accent} />
+        <KpiCard icon="🎯" label="Cumplimiento SLA" value={`${metrics.sla_compliance_pct}%`} color={slaColor} />
+        <KpiCard icon="📞" label="FCR" value={`${metrics.fcr_percent}%`} sub="Resolucion 1er contacto" color={metrics.fcr_percent >= 70 ? COLOR.success : COLOR.warning} />
+        <KpiCard icon="⭐" label="CSAT medio" value={metrics.avg_csat ? `${metrics.avg_csat}/5` : '-'} color={COLOR.warning} />
+        <KpiCard icon="🚨" label="Brechas SLA" value={metrics.volume?.breached_sla} color={metrics.volume?.breached_sla > 0 ? COLOR.danger : COLOR.success} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>

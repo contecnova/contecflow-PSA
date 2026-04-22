@@ -109,7 +109,7 @@ export default function RiskScoresPage() {
         {/* Lista de proyectos */}
         <div>
           {isLoading ? <Spinner /> : filtered.length === 0 ? (
-            <EmptyState icon="🛡" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="🛡" title="Sin datos de riesgo" description="Los proyectos con calculos de riesgo apareceran aqui" />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {filtered.map(p => {
@@ -189,10 +189,10 @@ export default function RiskScoresPage() {
             </ResponsiveContainer>
 
             <div style={{ marginTop:16 }}>
-              <ScoreBar value={detail.schedule_risk || 0} label={t(modulo.clave)} />
-              <ScoreBar value={detail.budget_risk || 0} label={t(modulo.clave)} />
-              <ScoreBar value={detail.scope_risk || 0} label={t(modulo.clave)} />
-              <ScoreBar value={detail.resource_risk || 0} label={t(modulo.clave)} />
+              <ScoreBar value={detail.schedule_risk || 0} label="Riesgo de cronograma" />
+              <ScoreBar value={detail.budget_risk || 0} label="Riesgo de presupuesto" />
+              <ScoreBar value={detail.scope_risk || 0} label="Riesgo de alcance" />
+              <ScoreBar value={detail.resource_risk || 0} label="Riesgo de recursos" />
             </div>
 
             <div style={{ marginTop:16, background:'var(--color-background-secondary)', borderRadius:8, padding:'12px 14px' }}>

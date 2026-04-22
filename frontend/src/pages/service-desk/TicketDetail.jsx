@@ -29,6 +29,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
     }}>
       <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--surface-4)' }}>
         <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+          aria-label={t('service_desk.canned_search')}
           placeholder={t('service_desk.canned_search')}
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
@@ -44,8 +45,9 @@ function CannedResponsePicker({ onSelect, onClose }) {
             <div key={cat}>
               <div style={{ padding: '6px 12px 2px', fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
               {catItems.map(r => (
-                <div key={r.id} onClick={() => { onSelect(r.body); onClose() }}
-                  style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
+                <button key={r.id} onClick={() => { onSelect(r.body); onClose() }}
+                  aria-label={r.title || t('service_desk.detail_send_comment')}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
@@ -53,7 +55,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
                     {r.title}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body?.slice(0, 80)}</div>
-                </div>
+                </button>
               ))}
             </div>
           )
@@ -397,7 +399,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             </button>
             {editAssign && (
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <select onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} style={{ ...IS, flex: 1 }} defaultValue="">
+                <select aria-label={t('service_desk.detail_select_agent')} onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} style={{ ...IS, flex: 1 }} defaultValue="">
                   <option value="" disabled>{t('service_desk.detail_select_agent')}</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                 </select>
@@ -442,7 +444,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input type="number" placeholder={t(modulo.clave)} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
+              <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
             </div>
           </div>

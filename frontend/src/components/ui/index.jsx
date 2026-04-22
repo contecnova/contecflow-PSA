@@ -3,6 +3,7 @@ import React from 'react'
 import { X } from 'lucide-react'
 
 export { default as Confirm } from './Confirm'
+export { default as IconButton } from './IconButton'
 
 export {
   ClientSelect, UserSelect, ProjectSelect,

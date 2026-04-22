@@ -46,7 +46,7 @@ function ProfileModal({ user, onClose }) {
         <label style={ls}>Texto del perfil *</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={6}
           style={{ ...fs, resize: 'vertical', lineHeight: 1.6 }}
-          placeholder={t(modulo.clave)} />
+          placeholder="Describe las capacidades, rol, tecnologias y area de experiencia..." />
       </div>
       <div style={{ marginBottom: 20 }}>
         <label style={ls}>Carga máxima simultánea (tickets/tareas)</label>
@@ -105,7 +105,7 @@ function TestPanel() {
         <div>
           <label style={ls}>Descripción (opcional)</label>
           <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3}
-            style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
+            style={{ ...fs, resize: 'vertical' }} placeholder="Descripcion opcional del ticket o tarea" />
         </div>
       </div>
       <Button onClick={runTest} disabled={testing || !title.trim()}>
@@ -375,7 +375,7 @@ export default function SemanticEnginePage() {
             </div>
             {profilesWithUsers.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
-                <EmptyState icon="👥" title={t(modulo.clave)} description={t(modulo.clave)} />
+                <EmptyState icon="👥" title="Sin perfiles semanticos" description="Configura perfiles para habilitar la asignacion automatica" />
               </div>
             ) : profilesWithUsers.map(u => (
               <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d4530', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: 13 }}>

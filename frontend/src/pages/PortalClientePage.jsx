@@ -151,8 +151,8 @@ function LoginScreen({ _changeLang, _currentLang }) {
           <p style={{ color: 'var(--text-2)', margin: 0 }}>{t('login_subtitle')}</p>
         </div>
         <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t(modulo.clave)} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
-          <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+          <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t('login_email')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
+          <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} placeholder={t('login_password')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
           {error && <div style={{ fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{error}</div>}
           <button onClick={handleLogin} disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: 15, opacity: loading ? 0.6 : 1 }}>
             {loading ? t('login_loading') : t('login_btn')}
@@ -441,7 +441,7 @@ function PortalUAT() {
 
         <div style={{ ...S.card, marginBottom: 20 }}>
           <label htmlFor={`${issueIdPrefix}-global-notes`} style={S.label}>{_t('uat_notes')}</label>
-          <textarea id={`${issueIdPrefix}-global-notes`} value={globalNotes} onChange={e => setGlobalNotes(e.target.value)} rows={3} placeholder={t(modulo.clave)}
+          <textarea id={`${issueIdPrefix}-global-notes`} value={globalNotes} onChange={e => setGlobalNotes(e.target.value)} rows={3} placeholder={_t('uat_notes')}
             style={{ ...S.input, resize: 'vertical' }} />
         </div>
 
@@ -687,11 +687,11 @@ function PortalFeatureRequests() {
                   </select>
                 </div>
               )}
-              <div><label htmlFor={`${formIdPrefix}-fr-title`} style={S.label}>{_t('fr_title_label')}</label><input id={`${formIdPrefix}-fr-title`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} /></div>
-              <div><label htmlFor={`${formIdPrefix}-fr-description`} style={S.label}>{_t('fr_desc_label')}</label><textarea id={`${formIdPrefix}-fr-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...S.input, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-              <div><label htmlFor={`${formIdPrefix}-fr-justification`} style={S.label}>{_t('fr_justify_label')}</label><textarea id={`${formIdPrefix}-fr-justification`} value={form.business_justification} onChange={e => setForm(f => ({ ...f, business_justification: e.target.value }))} rows={2} style={{ ...S.input, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+              <div><label htmlFor={`${formIdPrefix}-fr-title`} style={S.label}>{_t('fr_title_label')}</label><input id={`${formIdPrefix}-fr-title`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder={_t('fr_title_label')} /></div>
+              <div><label htmlFor={`${formIdPrefix}-fr-description`} style={S.label}>{_t('fr_desc_label')}</label><textarea id={`${formIdPrefix}-fr-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...S.input, resize: 'vertical' }} placeholder={_t('fr_desc_label')} /></div>
+              <div><label htmlFor={`${formIdPrefix}-fr-justification`} style={S.label}>{_t('fr_justify_label')}</label><textarea id={`${formIdPrefix}-fr-justification`} value={form.business_justification} onChange={e => setForm(f => ({ ...f, business_justification: e.target.value }))} rows={2} style={{ ...S.input, resize: 'vertical' }} placeholder={_t('fr_justify_label')} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label htmlFor={`${formIdPrefix}-fr-area`} style={S.label}>{_t('fr_area_label')}</label><input id={`${formIdPrefix}-fr-area`} value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} /></div>
+                <div><label htmlFor={`${formIdPrefix}-fr-area`} style={S.label}>{_t('fr_area_label')}</label><input id={`${formIdPrefix}-fr-area`} value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} style={S.input} placeholder={_t('fr_area_label')} /></div>
                 <div><label htmlFor={`${formIdPrefix}-fr-priority`} style={S.label}>{_t('fr_priority')}</label>
                   <select id={`${formIdPrefix}-fr-priority`} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} style={S.input}>
                     <option value="low">{_t('fr_priority_low')}</option>
@@ -1100,7 +1100,7 @@ function PortalDocuments() {
               </label>
               <input value={signJobTitle}
                 onChange={e => setSignJobTitle(e.target.value)}
-                placeholder={t(modulo.clave)}
+                placeholder={t('doc_job_title_label')}
                 style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8,
                   padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, width: '100%',
                   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -1210,7 +1210,7 @@ function PortalSupportDesk() {
       ))}
 
       {pendingClientTickets > 0 && (
-        <div role="button" tabIndex={0} aria-label={t(modulo.clave)} style={{ background: 'var(--warning-bg)', border: '2px solid #ffb80050', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }} onClick={() => setTab('tickets')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab('tickets') } }}>
+        <div role="button" tabIndex={0} aria-label={t('support_pending_hint')} style={{ background: 'var(--warning-bg)', border: '2px solid #ffb80050', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }} onClick={() => setTab('tickets')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab('tickets') } }}>
           <span style={{ fontSize: 20 }}>⏳</span>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warning)' }}>{pendingClientTickets} {t('support_pending_count')}</div>
@@ -1220,7 +1220,7 @@ function PortalSupportDesk() {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div role="tablist" aria-label={t(modulo.clave)} style={{ display: 'flex', gap: 8 }}>
+        <div role="tablist" aria-label={t('nav_support')} style={{ display: 'flex', gap: 8 }}>
           {[[`tickets`, `${t('support_tab_tickets')} (${tickets.length})`], ['kb', t('support_tab_kb')], ['announcements', `${t('support_tab_ann')} (${announcements.length})`]].map(([tabId, l]) => (
             <button key={tabId} role="tab" aria-selected={tab === tabId} aria-controls={`portal-support-panel-${tabId}`} id={`portal-support-tab-${tabId}`} onClick={() => setTab(tabId)}
               style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1375,7 +1375,7 @@ function PortalSupportDesk() {
             <div style={{ ...S.card }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Tu respuesta</div>
               <textarea value={newComment} onChange={e => setNewComment(e.target.value)} rows={4}
-                placeholder={t(modulo.clave)}
+                placeholder="Escribe tu respuesta"
                 style={{ ...S.input, resize: 'vertical', marginBottom: 12 }} />
               <button onClick={() => { addComment({ body: newComment, is_public: true }); setNewComment('') }}
                 disabled={!newComment}
@@ -1392,7 +1392,7 @@ function PortalSupportDesk() {
       {tab === 'kb' && (
         <div id="portal-support-panel-kb" role="tabpanel" aria-labelledby="portal-support-tab-kb">
           <div style={{ marginBottom: 20 }}>
-            <input aria-label={t(modulo.clave)} value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder={t(modulo.clave)}
+            <input aria-label="Buscar en la base de conocimiento" value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder="Buscar en la base de conocimiento"
               style={{ ...S.input, fontSize: 15, padding: '13px 16px' }} />
           </div>
           {kbArticles.length === 0 ? (
@@ -1454,7 +1454,7 @@ function PortalSupportDesk() {
             <div style={{ background: 'var(--portal-bg)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>💡 Antes de abrir un ticket, ¿has buscado en la base de conocimiento?</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder={t(modulo.clave)} style={{ ...S.input, flex: 1, fontSize: 12, padding: '8px 12px' }}
+                <input placeholder="Buscar artículo relacionado" aria-label="Buscar artículo relacionado" style={{ ...S.input, flex: 1, fontSize: 12, padding: '8px 12px' }}
                   onChange={e => setSearchKB(e.target.value)} />
                 <button onClick={() => { setShowCreate(false); setTab('kb') }}
                   style={{ ...S.btnSec, padding: '7px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>Ver KB</button>
@@ -1488,8 +1488,8 @@ function PortalSupportDesk() {
                   ))}
                 </div>
               </div>
-              <div><label style={S.label}>Título *</label><input value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} /></div>
-              <div><label style={S.label}>Descripción *</label><textarea value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} rows={4} style={{ ...S.input, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+              <div><label style={S.label}>Título *</label><input value={createForm.title} onChange={e => setCreateForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder="Título del ticket" aria-label="Título del ticket" /></div>
+              <div><label style={S.label}>Descripción *</label><textarea value={createForm.description} onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} rows={4} style={{ ...S.input, resize: 'vertical' }} placeholder="Describe el problema o solicitud" aria-label="Descripción del ticket" /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={S.label}>Urgencia</label>
@@ -1644,10 +1644,10 @@ function PortalStats() {
         <KPI icon="💰" label={t('stats_budget')} value={`${budget_used}%`}
           color={budget_used > 90 ? 'var(--danger)' : budget_used > 75 ? 'var(--warning)' : 'var(--success)'}
           sub={t('stats_budget_used')} />
-        <KPI icon="🧪" label={t(modulo.clave)} value={uatPassed} color="#00e5a0" sub={`${uatFailed} rechazadas`} />
-        <KPI icon="💡" label={t(modulo.clave)} value={frs.length} color="#7c3aed"
+        <KPI icon="🧪" label={t('nav_uat')} value={uatPassed} color="#00e5a0" sub={`${uatFailed} rechazadas`} />
+        <KPI icon="💡" label={t('nav_requests')} value={frs.length} color="#7c3aed"
           sub={`${frs.filter(f=>f.status==='approved').length} aprobadas`} />
-        <KPI icon="📄" label={t(modulo.clave)} value={docs.length} color="#ffb800"
+        <KPI icon="📄" label={t('nav_documents')} value={docs.length} color="#ffb800"
           sub={`${docs.filter(d=>d.is_signed).length} firmados`} />
       </div>
 
@@ -1965,7 +1965,7 @@ function PortalMyProfile({ changeLang }) {
             </div>
             <div>
               <label style={S.label}>Teléfono</label>
-              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} />
+              <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={S.input} placeholder="Teléfono" />
             </div>
             <div>
               <label style={S.label}>Idioma del portal</label>
@@ -1997,7 +1997,7 @@ function PortalMyProfile({ changeLang }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={S.label}>Nueva contraseña</label>
-              <input type="password" value={pwdForm.new_pwd} onChange={e => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} />
+              <input type="password" value={pwdForm.new_pwd} onChange={e => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} style={S.input} placeholder="Nueva contraseña" />
             </div>
             <div>
               <label style={S.label}>Confirmar nueva contraseña</label>
@@ -2167,7 +2167,7 @@ export function PortalServiceDesk() {
           </div>
           {ticket.status !== 'closed' && ticket.status !== 'cancelled' && (
             <div style={{ display: 'flex', gap: 10 }}>
-              <textarea value={newComment} onChange={e => setNewComment(e.target.value)} rows={2} placeholder={t(modulo.clave)}
+              <textarea value={newComment} onChange={e => setNewComment(e.target.value)} rows={2} placeholder="Escribe un comentario"
                 style={{ ...S.input, flex: 1, resize: 'vertical' }} />
               <button onClick={() => addComment({ ticketId: selected, body: newComment })} disabled={!newComment} style={{ ...S.btn, alignSelf: 'flex-end', padding: '10px 16px', whiteSpace: 'nowrap' }}>Enviar</button>
             </div>
@@ -2285,7 +2285,7 @@ export function PortalServiceDesk() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div><label style={S.label}>Título *</label><input value={newForm.title} onChange={e => setNewForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder={t(modulo.clave)} /></div>
+              <div><label style={S.label}>Título *</label><input value={newForm.title} onChange={e => setNewForm(f => ({ ...f, title: e.target.value }))} style={S.input} placeholder="Título del ticket" aria-label="Título del ticket" /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div><label style={S.label}>Tipo</label>
                   <select value={newForm.ticket_type} onChange={e => setNewForm(f => ({ ...f, ticket_type: e.target.value }))} style={S.input}>
@@ -2305,7 +2305,7 @@ export function PortalServiceDesk() {
                 </div>
               </div>
               <div><label style={S.label}>Descripción detallada *</label>
-                <textarea value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} rows={5} style={{ ...S.input, resize: 'vertical' }} placeholder={t(modulo.clave)} />
+                <textarea value={newForm.description} onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))} rows={5} style={{ ...S.input, resize: 'vertical' }} placeholder="Describe el problema o solicitud" aria-label="Descripción del ticket" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                 <button onClick={() => setShowNew(false)} style={S.btnSec}>Cancelar</button>

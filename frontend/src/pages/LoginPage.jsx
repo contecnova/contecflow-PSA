@@ -226,7 +226,7 @@ export default function LoginPage() {
                   id="forgot-user"
                   value={forgotInput}
                   onChange={e => setForgotInput(e.target.value)}
-                  placeholder={t(modulo.clave)}
+                  placeholder={t('login.username_placeholder')}
                   autoFocus
                   style={{
                     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
@@ -245,7 +245,7 @@ export default function LoginPage() {
                   type="password"
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
-                  placeholder={t(modulo.clave)}
+                  placeholder={t('login.password_placeholder')}
                   autoFocus
                   style={{
                     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',

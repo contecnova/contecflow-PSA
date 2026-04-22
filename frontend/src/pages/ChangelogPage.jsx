@@ -71,7 +71,7 @@ function EntryCard({ entry, onDelete }) {
             <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{entry.entry_date}</span>
             <button onClick={() => onDelete(entry.id)}
               style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: 14, borderRadius: 4 }}
-              title={t(modulo.clave)}>×</button>
+              title="Eliminar entrada">×</button>
           </div>
         </div>
         {entry.description && (

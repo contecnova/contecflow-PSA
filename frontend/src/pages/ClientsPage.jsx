@@ -146,7 +146,7 @@ function ProjectsTab({ cid }) {
 
       {/* Lista de proyectos vinculados */}
       {loadingLinked ? <Spinner /> : linked.length === 0 ? (
-        <EmptyState icon="⬡" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="⬡" title="Sin proyectos vinculados" description="Vincula el primer proyecto a este cliente" />
       ) : (
         linked.map(p => (
           <div key={p.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
@@ -215,7 +215,7 @@ function ContactsTab({ cid }) {
         <Button onClick={() => setShowAdd(true)} size="sm">+ Añadir contacto</Button>
       </div>
       {contacts.length === 0
-        ? <EmptyState icon="👤" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="👤" title="Sin contactos" description="Anade un contacto principal para este cliente" />
         : contacts.map(ct => (
           <div key={ct.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -243,7 +243,7 @@ function ContactsTab({ cid }) {
         ))
       }
       {showAdd && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowAdd(false)} width={500}>
+        <Modal open title="Nuevo contacto" onClose={() => setShowAdd(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} /></div>
@@ -305,7 +305,7 @@ function LicensesTab({ cid }) {
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular licencia</Button>
       </div>
       {linked.length === 0
-        ? <EmptyState icon="🔑" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="🔑" title="Sin licencias vinculadas" description="Vincula una licencia para este cliente" />
         : linked.map(l => (
           <div key={l.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -327,7 +327,7 @@ function LicensesTab({ cid }) {
         ))
       }
       {showLink && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowLink(false)} width={440}>
+        <Modal open title="Vincular licencia" onClose={() => setShowLink(false)} width={440}>
           <div style={{ marginBottom: 14 }}>
             <label style={lbl}>Licencia</label>
             <select value={selectedLic} onChange={e => setSelectedLic(e.target.value)} style={inp}>
@@ -337,7 +337,7 @@ function LicensesTab({ cid }) {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Notas (opcional)</label>
-            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder={t(modulo.clave)} />
+            <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder="Notas de la licencia" aria-label="Notas de la licencia" />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
@@ -382,7 +382,7 @@ function ContractsTab({ cid }) {
         <Button onClick={() => setShowLink(true)} size="sm">+ Vincular contrato</Button>
       </div>
       {linked.length === 0
-        ? <EmptyState icon="📄" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="📄" title="Sin contratos vinculados" description="Asocia un contrato activo a este cliente" />
         : linked.map(c => (
           <div key={c.link_id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -403,7 +403,7 @@ function ContractsTab({ cid }) {
         ))
       }
       {showLink && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowLink(false)} width={440}>
+        <Modal open title="Vincular contrato" onClose={() => setShowLink(false)} width={440}>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Contrato</label>
             <select value={selectedCon} onChange={e => setSelectedCon(e.target.value)} style={inp}>
@@ -483,7 +483,7 @@ function PortalUATTab({ _cid, projects }) {
   return (
     <div>
       {projects.length === 0 ? (
-        <EmptyState icon="🧪" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="🧪" title="Sin proyectos para UAT" description="Asocia un proyecto para mostrar sesiones UAT" />
       ) : (
         <>
           {projects.length > 1 && (
@@ -496,9 +496,9 @@ function PortalUATTab({ _cid, projects }) {
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="🧪" title={t(modulo.clave)} />
+            <EmptyState icon="🧪" title="Selecciona un proyecto" description="Elige un proyecto para ver las sesiones UAT" />
           ) : isLoading ? <Spinner /> : sessions.length === 0 ? (
-            <EmptyState icon="🧪" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="🧪" title="Sin sesiones UAT" description="Todavia no hay sesiones UAT disponibles para este proyecto" />
           ) : (
             sessions.map(s => (
               <div key={s.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
@@ -627,7 +627,7 @@ function PortalSolicitudesTab({ cid }) {
         </select>
       </div>
       {filteredFrs.length === 0
-        ? <EmptyState icon="💡" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="💡" title="Sin solicitudes" description="No hay solicitudes funcionales del cliente" />
         : filteredFrs.map(fr => (
           <div key={fr.id} style={{
             ...panel,
@@ -702,11 +702,11 @@ function PortalSolicitudesTab({ cid }) {
       {responding && (
         <Modal open title={`Responder a: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={ls}>Respuesta / Análisis *</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+            <div><label style={ls}>Respuesta / Análisis *</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} style={{ ...fs, resize: 'vertical' }} placeholder="Respuesta del equipo" aria-label="Respuesta del equipo" /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
-              <div><label style={ls}>Coste estimado €</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
-              <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+              <div><label style={ls}>Horas estimadas</label><input type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} style={fs} placeholder="Horas" aria-label="Horas estimadas" /></div>
+              <div><label style={ls}>Coste estimado €</label><input type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} style={fs} placeholder="Coste" aria-label="Coste estimado" /></div>
+              <div><label style={ls}>Semanas entrega</label><input type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={fs} placeholder="Semanas" aria-label="Semanas de entrega" /></div>
             </div>
             <div><label style={ls}>Estado</label>
               <select value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} style={fs}>
@@ -769,10 +769,10 @@ function PortalMensajesTab({ cid, projects }) {
         </div>
       )}
       {!selectedProject
-        ? <EmptyState icon="💬" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="💬" title="Selecciona un proyecto" description="Elige un proyecto para ver mensajes" />
         : <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>{messages.length} hilo(s) de mensajes</div>}
       {messages.length === 0
-        ? <EmptyState icon="💬" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="💬" title="Sin mensajes" description="Todavia no hay conversaciones del portal para este proyecto" />
         : messages.map(m => (
           <div key={m.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -816,10 +816,10 @@ function PortalDocumentosTab({ cid, projects }) {
         </div>
       )}
       {!selectedProject
-        ? <EmptyState icon="📄" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="📄" title="Selecciona un proyecto" description="Elige un proyecto para ver documentos" />
         : <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>{docs.length} documento(s) compartido(s)</div>}
       {docs.length === 0
-        ? <EmptyState icon="📄" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="📄" title="Sin documentos" description="No hay documentos compartidos en el portal para este proyecto" />
         : docs.map(d => (
           <div key={d.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -1080,7 +1080,7 @@ function PortalUsersTab({ cid, clientName }) {
       </div>
 
       {users.length === 0
-        ? <EmptyState icon="🔐" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="🔐" title="Sin usuarios de portal" description="Crea el primer acceso del cliente al portal" />
         : users.map(u => {
           const assignedProjects = (u.project_ids || []).map(pid => projectLabelById.get(pid)).filter(Boolean)
           return (
@@ -1139,7 +1139,7 @@ function PortalUsersTab({ cid, clientName }) {
 
       {/* Modal: credenciales creadas */}
       {createdCreds && (
-        <Modal open title={t(modulo.clave)} onClose={() => setCreatedCreds(null)} width={480}>
+        <Modal open title="Credenciales creadas" onClose={() => setCreatedCreds(null)} width={480}>
           <div style={{ background: 'var(--success-bg)', border: '1px solid #00e5a030', borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--success)' }}>Credenciales de acceso al portal</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1170,12 +1170,12 @@ function PortalUsersTab({ cid, clientName }) {
 
       {/* Modal: cambiar contraseña */}
       {showReset && (
-        <Modal open title={t(modulo.clave)} onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
+        <Modal open title="Cambiar contrasena" onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>
           <div style={{ marginBottom: 6, fontSize: 13, color: 'var(--text-2)' }}>Usuario: <strong style={{ color: 'var(--text-1)' }}>{showReset.email}</strong></div>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Nueva contraseña</label>
             <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
-              style={inp} placeholder={t(modulo.clave)} />
+              style={inp} placeholder="Nueva contrasena" aria-label="Nueva contrasena" />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
@@ -1206,13 +1206,13 @@ function PortalUsersTab({ cid, clientName }) {
               <label style={lbl}>Cargo</label>
               <input value={editForm.job_title}
                 onChange={e => setEditForm(f => ({ ...f, job_title: e.target.value }))}
-                style={inp} placeholder={t(modulo.clave)} />
+                style={inp} placeholder="Cargo" aria-label="Cargo" />
             </div>
             <div>
               <label style={lbl}>Teléfono</label>
               <input value={editForm.phone}
                 onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
-                style={inp} placeholder={t(modulo.clave)} />
+                style={inp} placeholder="Telefono" aria-label="Telefono" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Proyectos asociados</label>
@@ -1284,16 +1284,16 @@ function PortalUsersTab({ cid, clientName }) {
 
       {/* Modal: crear usuario */}
       {showAdd && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowAdd(false)} width={560}>
+        <Modal open title="Nuevo usuario de portal" onClose={() => setShowAdd(false)} width={560}>
           <div style={{ background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--text-2)' }}>
             🔐 Crea las credenciales que el cliente usará para entrar en <strong style={{ color: 'var(--text-1)' }}>{portalUrl}</strong>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div><label style={lbl}>Nombre completo *</label><input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Email * (será el usuario de login)</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder={t(modulo.clave)} /></div>
-            <div><label style={lbl}>Contraseña *</label><input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder={t(modulo.clave)} /></div>
+            <div><label style={lbl}>Email * (será el usuario de login)</label><input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} placeholder="Email de acceso" aria-label="Email de acceso" /></div>
+            <div><label style={lbl}>Contraseña *</label><input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inp} placeholder="Contrasena temporal" aria-label="Contrasena temporal" /></div>
             <div><label style={lbl}>Confirmar contraseña</label><input type="password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} style={inp} /></div>
-            <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder={t(modulo.clave)} /></div>
+            <div><label style={lbl}>Cargo</label><input value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} style={inp} placeholder="Cargo" aria-label="Cargo" /></div>
             <div>
               <label style={lbl}>Asociar a proyectos (opcional)</label>
               <select multiple value={form.project_ids} onChange={e => {
@@ -1440,7 +1440,7 @@ export default function ClientsPage() {
           </div>
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={t(modulo.clave)} style={{ ...inp, marginBottom: 8 }} />
+          placeholder="Buscar cliente por nombre o codigo" aria-label="Buscar cliente por nombre o codigo" style={{ ...inp, marginBottom: 8 }} />
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <select value={statusF} onChange={e => setStatusF(e.target.value)} style={{ ...inp, flex: 1 }}>
             <option value="">Todos los estados</option>
@@ -1454,7 +1454,7 @@ export default function ClientsPage() {
           </select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
-          ? <EmptyState icon="🏢" title={t(modulo.clave)} />
+          ? <EmptyState icon="🏢" title="Sin clientes" description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? sortedClients.map(c => (
             <div key={c.id} onClick={() => { setSelected(c); setActiveTab('360') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
@@ -1573,7 +1573,7 @@ export default function ClientsPage() {
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0
-                  ? <EmptyState icon="🎫" title={t(modulo.clave)} description={t(modulo.clave)} />
+                  ? <EmptyState icon="🎫" title="Sin tickets" description="Este cliente todavia no tiene tickets asociados" />
                   : detail?.tickets?.map(t => (
                     <div key={t.id} style={{ ...panel, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -1661,19 +1661,19 @@ export default function ClientsPage() {
               <label style={lbl}>País</label>
               <input value={editClientForm.country}
                 onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
-                style={inp} placeholder={t(modulo.clave)} />
+                style={inp} placeholder="Pais" aria-label="Pais" />
             </div>
             <div>
               <label style={lbl}>Ciudad</label>
               <input value={editClientForm.city}
                 onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
-                style={inp} placeholder={t(modulo.clave)} />
+                style={inp} placeholder="Ciudad" aria-label="Ciudad" />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={lbl}>Website</label>
               <input value={editClientForm.website}
                 onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
-                style={inp} placeholder={t(modulo.clave)} />
+                style={inp} placeholder="https://cliente.com" aria-label="Sitio web" />
             </div>
           </div>
           <div style={{ marginBottom: 16 }}>
@@ -1700,7 +1700,7 @@ export default function ClientsPage() {
 
       {/* Modal nuevo cliente */}
       {showCreate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={600}>
+        <Modal open title="Nuevo cliente" onClose={() => setShowCreate(false)} width={600}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>Nombre *</label><input value={newForm.name} onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))} style={inp} /></div>
             <div><label style={lbl}>Nombre corto</label><input value={newForm.short_name} onChange={e => setNewForm(f => ({ ...f, short_name: e.target.value }))} style={inp} /></div>

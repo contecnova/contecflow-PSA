@@ -70,12 +70,12 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
         <div>
           <label style={LS}>Cargo / Puesto</label>
           <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} style={IS}
-            placeholder={t(modulo.clave)} />
+            placeholder="Ej: Desarrollador Senior" />
         </div>
         <div>
           <label style={LS}>Departamento</label>
           <input value={department} onChange={e => setDepartment(e.target.value)} style={IS}
-            placeholder={t(modulo.clave)} />
+            placeholder="Ej: Tecnologia" />
         </div>
         <div>
           <label style={LS}>Reporta a / Aprobador directo</label>
@@ -212,7 +212,7 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
           <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:10,
             textTransform:'uppercase', letterSpacing:'0.06em' }}>🔍 Buscar persona</div>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t(modulo.clave)}
+            placeholder="Buscar persona..."
             style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
               borderRadius:7, padding:'8px 11px', color:'var(--text-1)', fontSize:12.5,
               outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
@@ -263,7 +263,7 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
       <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
         borderRadius:12, padding:20, overflow:'auto', maxHeight:'calc(100vh - 260px)' }}>
         {nodes.length === 0
-          ? <EmptyState icon="🏢" title={t(modulo.clave)}
+          ? <EmptyState icon="🏢" title="Sin organigrama configurado"
               description={isAdmin
                 ? 'Ve a la pestaña Posiciones para asignar managers y construir la jerarquía'
                 : 'El organigrama aún no ha sido configurado'} />
@@ -321,7 +321,7 @@ function PosicionesTab({ allUsers, isAdmin }) {
       {/* Filtros */}
       <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={t(modulo.clave)}
+          placeholder="Buscar persona..."
           style={{ ...IS, flex:1, minWidth:200 }} />
         <select value={filterDept} onChange={e => setFilterDept(e.target.value)} style={IS}>
           <option value="">Todos los departamentos</option>
@@ -472,7 +472,7 @@ function AprobacionesTab({ allUsers }) {
           👤 Ver cadena de aprobación
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder={t(modulo.clave)}
+          placeholder="Buscar persona..."
           style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
             borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12.5,
             outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />
@@ -676,7 +676,7 @@ export default function OrgChartPage() {
   return (
     <div style={{ padding:'20px 28px' }}>
       <PageHeader
-        title={t(modulo.clave)}
+        title="Organigrama"
         subtitle={_t('org_chart.subtitle', { total })}
       />
 

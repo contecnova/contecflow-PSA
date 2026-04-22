@@ -98,7 +98,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
 // ── Heatmap component ─────────────────────────────────────────────────────────
 function HeatmapChart({ data, meta }) {
   const weeks = meta?.weeks || []
-  if (!data.length || !weeks.length) return <EmptyState icon="▦" title={t(modulo.clave)} />
+  if (!data.length || !weeks.length) return <EmptyState icon="▦" title="Sin datos disponibles" />
   const maxVal = Math.max(...data.flatMap(r => weeks.map(w => r[w] || 0)))
   const getColor = (v) => {
     if (!v) return 'var(--surface-3)'
@@ -148,7 +148,7 @@ function HeatmapChart({ data, meta }) {
 
 // ── Data table ────────────────────────────────────────────────────────────────
 function DataTable({ data, isCurrency, isPercent }) {
-  if (!data.length) return <EmptyState icon="☰" title={t(modulo.clave)} />
+  if (!data.length) return <EmptyState icon="☰" title="Sin datos disponibles" />
   const keys = Object.keys(data[0]).filter(k => k !== 'status')
   const fmt = (v) => {
     if (typeof v !== 'number') return v
@@ -182,7 +182,7 @@ function DataTable({ data, isCurrency, isPercent }) {
 
 // ── Chart renderer ────────────────────────────────────────────────────────────
 function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height = 320 }) {
-  if (!data || data.length === 0) return <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} />
+  if (!data || data.length === 0) return <EmptyState icon="📊" title="Sin datos" description="No hay datos disponibles para este grafico" />
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
@@ -574,7 +574,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             <div style={{ display: 'flex', gap: 8 }}>
               {onSave && (
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder={t(modulo.clave)} style={{ ...fs, width: 200, fontSize: 12 }} />
+                  <input value={reportName} onChange={e => setReportName(e.target.value)} placeholder="Nombre del informe" style={{ ...fs, width: 200, fontSize: 12 }} />
                   <Button size="sm" onClick={() => onSave({ name: reportName || result.meta?.label, metric, chartType, color, dateFrom, dateTo, projectId, userId, department, topN })} disabled={!metric}>💾 Guardar</Button>
                 </div>
               )}
@@ -773,7 +773,7 @@ function ScheduledReportsTab() {
             <div>
               <label style={ls}>Nombre *</label>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder={t(modulo.clave)} style={is} />
+                placeholder="Nombre del informe" style={is} />
             </div>
             <div>
               <label style={ls}>Métrica</label>
@@ -790,7 +790,7 @@ function ScheduledReportsTab() {
             <div>
               <label style={ls}>Destinatarios (emails separados por coma) *</label>
               <input value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
-                placeholder={t(modulo.clave)} style={is} />
+                placeholder="email1@empresa.com, email2@empresa.com" style={is} />
             </div>
           </div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer',
@@ -1035,7 +1035,7 @@ export default function ReportsPage() {
       {/* Dashboard */}
       {mode === 'dashboard' && (
         saved.length === 0 ? (
-          <EmptyState icon="📌" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="📌" title="Sin informes guardados" description="Genera un informe y guardalo para verlo aqui" />
         ) : (
           <ReportsDashboard saved={saved} onRemove={removeReport} onOpen={openReport} />
         )

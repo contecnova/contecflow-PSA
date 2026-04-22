@@ -2,7 +2,7 @@ import { ToastProvider } from './context/ToastContext'
 import { ConfirmProvider } from './context/ConfirmContext'
 import { Component, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
 import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
@@ -114,6 +114,8 @@ const BIPage                 = lazy(() => import('./pages/BIPage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
 const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage'))
+const ForbiddenPage          = lazy(() => import('./pages/ForbiddenPage'))
+const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
@@ -219,6 +221,7 @@ function RouteScopedBoundary({ children }) {
 }
 
 function ProtectedRoute({ children, roles }) {
+  const location = useLocation()
   const { user, loading, hasRole } = useAuth()
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-0)' }}>
@@ -226,7 +229,9 @@ function ProtectedRoute({ children, roles }) {
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !hasRole(...roles)) return <Navigate to="/imputar" replace />
+  if (roles && !hasRole(...roles)) {
+    return <Navigate to="/403" state={{ from: location.pathname }} replace />
+  }
   return children
 }
 
@@ -241,6 +246,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/reset-password" element={user ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />} />
+      <Route path="/403" element={<ProtectedRoute><ForbiddenPage /></ProtectedRoute>} />
 
       <Route path="/" element={
         <ProtectedRoute>
@@ -469,7 +475,7 @@ function AppRoutes() {
       <Route path="/developer"          element={<ProtectedRoute roles={['admin','pm']}><Layout><DeveloperPortalPage /></Layout></ProtectedRoute>} />
       <Route path="/jira-integration"   element={<ProtectedRoute roles={['admin','pm']}><Layout><JiraIntegrationPage /></Layout></ProtectedRoute>} />
         <Route path="/project-templates"   element={<ProtectedRoute roles={['admin','pm']}><Layout><ProjectTemplatesPage /></Layout></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </Suspense>
     </RouteScopedBoundary>

@@ -12,7 +12,7 @@ import './index.css'
 
 // Initialize offline sync — auto-syncs queued imputations when the browser comes back online
 initOfflineSync(api, ({ synced, failed }) => {
-  if (synced > 0) console.warn(`[Clarive] Offline sync: ${synced} imputations uploaded${failed ? `, ${failed} failed` : ''}`)
+  if (synced > 0) console.warn(`[Contecflow] Offline sync: ${synced} imputations uploaded${failed ? `, ${failed} failed` : ''}`)
 })
 
 // ── Error Boundary — captura errores de render Y de lazy loading ──────────────
@@ -27,8 +27,8 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[Clarive] Error capturado:', error)
-    console.error('[Clarive] Componente:', errorInfo?.componentStack)
+    console.error('[Contecflow] Error capturado:', error)
+    console.error('[Contecflow] Componente:', errorInfo?.componentStack)
     this.setState({ errorInfo })
   }
 
@@ -55,14 +55,20 @@ class ErrorBoundary extends React.Component {
               {this.props.t('app_errors.app_outdated_desc')}
             </p>
           ) : (
-            <pre style={{
-              background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8,
-              padding: 20, maxWidth: 700, width: '100%', overflow: 'auto',
-              fontSize: 12, color: 'var(--warning)', lineHeight: 1.6, textAlign: 'left',
-              marginBottom: 24,
-            }}>
-              {err?.message}{'\n\n'}{err?.stack?.split('\n').slice(0, 6).join('\n')}
-            </pre>
+            import.meta.env.DEV ? (
+              <pre style={{
+                background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8,
+                padding: 20, maxWidth: 700, width: '100%', overflow: 'auto',
+                fontSize: 12, color: 'var(--warning)', lineHeight: 1.6, textAlign: 'left',
+                marginBottom: 24,
+              }}>
+                {err?.message}{'\n\n'}{err?.stack?.split('\n').slice(0, 6).join('\n')}
+              </pre>
+            ) : (
+              <p style={{ color: 'var(--text-2)', marginBottom: 24, maxWidth: 500 }}>
+                {this.props.t('app_errors.app_unexpected_desc')}
+              </p>
+            )
           )}
           <button
             onClick={() => {
@@ -70,7 +76,7 @@ class ErrorBoundary extends React.Component {
               if ('caches' in window) {
                 caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
               }
-              window.location.reload(true)
+              window.location.reload()
             }}
             style={{
               padding: '12px 28px', background: 'var(--accent)', border: 'none',

@@ -1321,7 +1321,7 @@ docker compose exec backend alembic upgrade head
 
 ## 11. Migraciones de base de datos
 
-Clarive usa **Alembic** como fuente de verdad para las migraciones. Al arrancar el backend, se ejecuta automáticamente `alembic upgrade head`.
+Contecflow usa **Alembic** como fuente de verdad para las migraciones. Al arrancar el backend, se ejecuta automáticamente `alembic upgrade head`.
 
 - `Base.metadata.create_all()` no se usa en runtime de aplicación
 - El backend ya no hace fallback a `app.db.migrate.run()` en startup: si Alembic falla, el arranque falla también

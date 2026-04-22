@@ -81,8 +81,32 @@ if "!PYTHON!"=="" (
         exit /b 1
     )
     "!PY_INSTALLER!" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0
+    if errorlevel 1 (
+        echo [ERROR] No se pudo instalar Python automáticamente.
+        echo [ERROR] Instálalo manualmente desde https://www.python.org/downloads/ y reinicia el terminal.
+        del "!PY_INSTALLER!" >nul 2>&1
+        exit /b 1
+    )
     del "!PY_INSTALLER!" >nul 2>&1
     set PYTHON=python
+
+    where !PYTHON! >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Python se instaló, pero no está en PATH en esta sesión.
+        echo [ERROR] Cierra y abre el terminal, o instala manualmente desde https://www.python.org/downloads/
+        exit /b 1
+    )
+
+    for /f "tokens=*" %%v in ('!PYTHON! -c "import sys; v=sys.version_info; print(v.major*100+v.minor)" 2^>nul') do set PY_VER_NUM=%%v
+    if not defined PY_VER_NUM (
+        echo [ERROR] No se pudo verificar la versión de Python tras la instalación.
+        exit /b 1
+    )
+    if !PY_VER_NUM! LSS 310 (
+        echo [ERROR] Python detectado no cumple versión mínima 3.10+.
+        echo [ERROR] Instala manualmente una versión compatible desde https://www.python.org/downloads/
+        exit /b 1
+    )
 )
 
 echo [INFO] Python encontrado: !PYTHON!
@@ -206,8 +230,26 @@ if errorlevel 1 (
         exit /b 1
     )
     msiexec /i "!NODE_INSTALLER!" /quiet /norestart
+    if errorlevel 1 (
+        echo [ERROR] No se pudo instalar Node.js automáticamente.
+        echo [ERROR] Instálalo manualmente desde https://nodejs.org/ y reinicia el terminal.
+        del "!NODE_INSTALLER!" >nul 2>&1
+        exit /b 1
+    )
     del "!NODE_INSTALLER!" >nul 2>&1
-    echo [INFO] Node.js instalado. Si hay errores, reinicia el terminal.
+    where node >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Node.js se instaló, pero no está en PATH en esta sesión.
+        echo [ERROR] Cierra y abre el terminal, o instala manualmente desde https://nodejs.org/
+        exit /b 1
+    )
+    where npm >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] npm no está disponible tras la instalación de Node.js.
+        echo [ERROR] Reinstala Node.js desde https://nodejs.org/ y reinicia el terminal.
+        exit /b 1
+    )
+    echo [INFO] Node.js instalado y validado.
 )
 
 for /f "tokens=*" %%v in ('node --version 2^>nul') do echo [INFO] Node.js %%v

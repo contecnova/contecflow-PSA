@@ -134,7 +134,7 @@ function ContractFormModal({ contract, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder={t(modulo.clave)} />
+          <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder="Nombre del contrato" aria-label="Nombre del contrato" />
           {validation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div>
@@ -173,14 +173,14 @@ function ContractFormModal({ contract, onClose }) {
         {form.contract_type === 'fixed_price' && (
           <div>
             <label style={ls}>Importe total (€)</label>
-            <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder={t(modulo.clave)} />
+            <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder="Importe total" aria-label="Importe total" />
             {validation.errors.total_amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_amount}</p>}
           </div>
         )}
         {form.contract_type === 'time_material' && (
           <div>
             <label style={ls}>Tarifa €/hora</label>
-            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={t(modulo.clave)} />
+            <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
             {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
           </div>
         )}
@@ -188,12 +188,12 @@ function ContractFormModal({ contract, onClose }) {
           <>
             <div>
               <label style={ls}>Bolsa de horas</label>
-              <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder={t(modulo.clave)} />
+              <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder="Horas incluidas" aria-label="Horas incluidas" />
               {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
             </div>
             <div>
               <label style={ls}>Tarifa €/hora</label>
-              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder={t(modulo.clave)} />
+              <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
               {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
             </div>
           </>
@@ -201,7 +201,7 @@ function ContractFormModal({ contract, onClose }) {
         {form.contract_type === 'retainer' && (
           <div>
             <label style={ls}>Retainer mensual (€)</label>
-            <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder={t(modulo.clave)} />
+            <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder="Importe mensual" aria-label="Importe mensual" />
             {validation.errors.monthly_retainer && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.monthly_retainer}</p>}
           </div>
         )}
@@ -220,7 +220,7 @@ function ContractFormModal({ contract, onClose }) {
         </div>
         <div>
           <label style={ls}>Condiciones de pago</label>
-          <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder={t(modulo.clave)} />
+          <input value={form.payment_terms} onChange={set('payment_terms')} style={fs} placeholder="Ej. 30 dias fecha factura" aria-label="Condiciones de pago" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Notas</label>
@@ -323,15 +323,15 @@ function ContractDetail({ contract, onClose, onEdit }) {
           <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder={t(modulo.clave)} />
+                <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder="Nombre de la orden" aria-label="Nombre de la orden" />
                 {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
               </div>
               <div>
-                <input type="number" value={woForm.amount} onChange={e => { setWoForm(f => ({ ...f, amount: e.target.value })); woValidation.clearFieldError('amount') }} style={woValidation.inputStyle(fs, 'amount')} placeholder={t(modulo.clave)} />
+                <input type="number" value={woForm.amount} onChange={e => { setWoForm(f => ({ ...f, amount: e.target.value })); woValidation.clearFieldError('amount') }} style={woValidation.inputStyle(fs, 'amount')} placeholder="Importe" aria-label="Importe" />
                 {woValidation.errors.amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.amount}</p>}
               </div>
               <div>
-                <input type="number" value={woForm.hours} onChange={e => { setWoForm(f => ({ ...f, hours: e.target.value })); woValidation.clearFieldError('hours') }} style={woValidation.inputStyle(fs, 'hours')} placeholder={t(modulo.clave)} />
+                <input type="number" value={woForm.hours} onChange={e => { setWoForm(f => ({ ...f, hours: e.target.value })); woValidation.clearFieldError('hours') }} style={woValidation.inputStyle(fs, 'hours')} placeholder="Horas" aria-label="Horas" />
                 {woValidation.errors.hours && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.hours}</p>}
               </div>
               <div><input type="date" value={woForm.start_date} onChange={e => { setWoForm(f => ({ ...f, start_date: e.target.value })); woValidation.clearFieldError('start_date') }} style={woValidation.inputStyle(fs, 'start_date')} /></div>
@@ -451,7 +451,7 @@ export default function ContractsPage() {
       </div>
 
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
-        <EmptyState icon="📄" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="📄" title="Sin contratos" description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
         <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

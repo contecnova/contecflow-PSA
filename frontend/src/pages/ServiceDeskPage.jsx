@@ -1386,7 +1386,7 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }) {
       <div>
         <label style={LS}>{t('service_desk.templates_hint')}</label>
         <textarea value={form.description_template} onChange={set('description_template')} rows={4}
-          style={{...IS, resize:'vertical'}} placeholder={t(modulo.clave)} />
+          style={{...IS, resize:'vertical'}} placeholder="Texto de la plantilla de descripcion..." />
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -1520,7 +1520,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
           <textarea value={form.new_description}
             onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))}
             rows={4} style={{ ...IS, resize: 'vertical' }}
-            placeholder={t(modulo.clave)} />
+            placeholder="Descripcion del nuevo ticket hijo..." />
         </div>
 
         <div>
@@ -1809,7 +1809,7 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
               {t('service_desk.detail_log_time')}
             </div>
             <div style={{ display:'flex', gap:8 }}>
-              <input type="number" placeholder={t(modulo.clave)} value={timeMin}
+              <input type="number" placeholder="Minutos" value={timeMin}
                 onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex:1 }} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>
                 {t('service_desk.detail_add_btn')}
@@ -2120,7 +2120,7 @@ function CreateTicketModal({ onClose, onCreated }) {
         <div style={{ gridColumn:'1/-1' }}>
           <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(IS, 'title')}
-            placeholder={t(modulo.clave)} />
+            placeholder="Titulo del ticket..." />
           {validation.errors.title && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn:'1/-1' }}>
@@ -2156,7 +2156,7 @@ function CreateTicketModal({ onClose, onCreated }) {
             style={{ fontSize:11, color:'var(--accent)', background:'none', border:'none', cursor:'pointer' }}>
             {t('common.save')}
           </button>
-          <select aria-label={t(modulo.clave)} value={form.priority} onChange={set('priority')} style={{...validation.inputStyle(IS, 'priority'), width:'auto', flex:1}}>
+          <select aria-label="Prioridad del ticket" value={form.priority} onChange={set('priority')} style={{...validation.inputStyle(IS, 'priority'), width:'auto', flex:1}}>
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
           </select>
@@ -2509,7 +2509,7 @@ function CannedResponsesManager() {
           <input value={form.shortcut} onChange={e=>setForm(f=>({...f,shortcut:e.target.value}))} style={IS} placeholder={t('service_desk.canned_shortcut')} /></div>
         <div style={{marginBottom:12}}><label style={LS}>{t('service_desk.canned_body_lbl')} *</label>
           <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
-            style={{...IS, resize:'vertical'}} placeholder={t(modulo.clave)} /></div>
+            style={{...IS, resize:'vertical'}} placeholder="Texto de la respuesta enlatada..." /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
           style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize:13,fontFamily:'inherit',fontWeight:600}}>
           + {t('service_desk.canned_add_btn')}
@@ -2580,7 +2580,7 @@ function AnnouncementsConfig() {
           )
       }
       {showCreate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={500}>
+        <Modal open title="Nuevo comunicado" onClose={() => setShowCreate(false)} width={500}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ticket_title')} *</label><input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
             <div><label style={LS}>{t('common.status')}</label>

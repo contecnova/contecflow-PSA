@@ -203,8 +203,8 @@ export default function ESignPage() {
 
       {/* Provider status */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <ProviderBadge label={t(modulo.clave)} ok={docusignOk} />
-        <ProviderBadge label={t(modulo.clave)} ok={adobeOk} />
+        <ProviderBadge label="DocuSign" ok={docusignOk} />
+        <ProviderBadge label="Adobe Sign" ok={adobeOk} />
         {!docusignOk && !adobeOk && (
           <span style={{ fontSize: 12, color: 'var(--text-2)', alignSelf: 'center' }}>
             Configura las credenciales en Settings → E-firma para habilitar las integraciones.

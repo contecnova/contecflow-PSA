@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
-import { useAppT } from '../i18n/AppLangContext'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n, dec = 2) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -97,18 +96,18 @@ function EVMDetail({ projectId, onClose }) {
 
           {/* Progress */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <ProgressBar pct={data.pct_complete} label={t(modulo.clave)} color={HEALTH_COLOR[data.health]} />
-            <ProgressBar pct={data.pct_time_elapsed} label={t(modulo.clave)} color="#6366f1" />
+            <ProgressBar pct={data.pct_complete} label="Avance real" color={HEALTH_COLOR[data.health]} />
+            <ProgressBar pct={data.pct_time_elapsed} label="Tiempo transcurrido" color="#6366f1" />
           </div>
 
           {/* Core values */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Valores base</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label={t(modulo.clave)} value={data.bac} good={Infinity} format={fmtEur} />
-              <IndexBadge label={t(modulo.clave)} value={data.pv} good={Infinity} format={fmtEur} />
-              <IndexBadge label={t(modulo.clave)} value={data.ev} good={Infinity} format={fmtEur} />
-              <IndexBadge label={t(modulo.clave)} value={data.ac} good={Infinity} format={fmtEur} />
+              <IndexBadge label="BAC" value={data.bac} good={Infinity} format={fmtEur} />
+              <IndexBadge label="PV" value={data.pv} good={Infinity} format={fmtEur} />
+              <IndexBadge label="EV" value={data.ev} good={Infinity} format={fmtEur} />
+              <IndexBadge label="AC" value={data.ac} good={Infinity} format={fmtEur} />
             </div>
           </div>
 
@@ -116,9 +115,9 @@ function EVMDetail({ projectId, onClose }) {
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Índices de rendimiento</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label={t(modulo.clave)} value={data.cpi} />
-              <IndexBadge label={t(modulo.clave)} value={data.spi} />
-              <IndexBadge label={t(modulo.clave)} value={data.tcpi} good={1.1} />
+              <IndexBadge label="CPI" value={data.cpi} />
+              <IndexBadge label="SPI" value={data.spi} />
+              <IndexBadge label="TCPI" value={data.tcpi} good={1.1} />
             </div>
           </div>
 
@@ -126,8 +125,8 @@ function EVMDetail({ projectId, onClose }) {
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Varianzas</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <VarianceBadge label={t(modulo.clave)} value={data.cv} />
-              <VarianceBadge label={t(modulo.clave)} value={data.sv} />
+              <VarianceBadge label="CV" value={data.cv} />
+              <VarianceBadge label="SV" value={data.sv} />
             </div>
           </div>
 
@@ -135,9 +134,9 @@ function EVMDetail({ projectId, onClose }) {
           <div>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Previsión final</div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <IndexBadge label={t(modulo.clave)} value={data.eac} good={Infinity} format={fmtEur} />
-              <IndexBadge label={t(modulo.clave)} value={data.etc} good={Infinity} format={fmtEur} />
-              <VarianceBadge label={t(modulo.clave)} value={data.vac} />
+              <IndexBadge label="EAC" value={data.eac} good={Infinity} format={fmtEur} />
+              <IndexBadge label="ETC" value={data.etc} good={Infinity} format={fmtEur} />
+              <VarianceBadge label="VAC" value={data.vac} />
             </div>
           </div>
 
@@ -158,7 +157,6 @@ function EVMDetail({ projectId, onClose }) {
 
 // ── Portfolio table ───────────────────────────────────────────────────────────
 export default function EVMPage() {
-  const _t = useAppT()
   const [selected, setSelected] = useState(null);
 
   const { data: portfolio = [], isLoading } = useQuery({

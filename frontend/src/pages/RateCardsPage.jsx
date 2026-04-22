@@ -54,19 +54,19 @@ function EntryForm({ tableId, entry, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={lbl}>Rol / Perfil *</label>
-          <input value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+          <input value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} style={inp} placeholder="Rol o perfil" aria-label="Rol o perfil" />
         </div>
         <div>
           <label style={lbl}>Tarifa facturación (€/h)</label>
-          <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+          <input type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} style={inp} placeholder="Tarifa facturacion" aria-label="Tarifa de facturacion" />
         </div>
         <div>
           <label style={lbl}>Coste interno (€/h)</label>
-          <input type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+          <input type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} style={inp} placeholder="Coste interno" aria-label="Coste interno" />
         </div>
         <div>
           <label style={lbl}>Escalado anual (%)</label>
-          <input type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder={t(modulo.clave)} min="0" max="20" step="0.5" />
+          <input type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} style={inp} placeholder="% anual" aria-label="Escalado anual" min="0" max="20" step="0.5" />
         </div>
         <div>
           <label style={lbl}>Válido desde</label>
@@ -78,7 +78,7 @@ function EntryForm({ tableId, entry, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={lbl}>Notas</label>
-          <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+          <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={inp} placeholder="Notas internas" aria-label="Notas internas" />
         </div>
       </div>
 
@@ -158,7 +158,7 @@ function RateTableDetail({ tableId, onBack }) {
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon="💰" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="💰" title="Sin tarifas" description="Anade la primera tarifa a esta tabla" />
       ) : (
         <div style={{ ...panel, overflow: 'hidden' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -214,7 +214,7 @@ function RateTableDetail({ tableId, onBack }) {
       )}
 
       {showDupe && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowDupe(false)} width={420}>
+        <Modal open title="Duplicar tabla con escalado" onClose={() => setShowDupe(false)} width={420}>
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Escalado anual (%)</label>
             <input type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
@@ -278,7 +278,7 @@ export default function RateCardsPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
       ) : tables.length === 0 ? (
-        <EmptyState icon="💰" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="💰" title="Sin tablas de tarifas" description="Crea la primera tabla para definir precios y costes" />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {tables.map(t => (
@@ -318,15 +318,15 @@ export default function RateCardsPage() {
       )}
 
       {showCreate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={480}>
+        <Modal open title="Nueva tabla de tarifas" onClose={() => setShowCreate(false)} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre de la tabla" aria-label="Nombre de la tabla" />
             </div>
             <div>
               <label style={lbl}>Descripción</label>
-              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion opcional" aria-label="Descripcion opcional" />
             </div>
             <div>
               <label style={lbl}>Aplicar a</label>

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { Avatar } from '../ui'
+import { Avatar, IconButton } from '../ui'
 import NotificationCenter from './NotificationCenter'
 import GlobalSearch from './GlobalSearch'
 import NexusAssistPanel from './NexusAssistPanel'
 import UserProfilePanel from './UserProfilePanel'
+import Breadcrumbs from './Breadcrumbs'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
 import OfflineIndicator from '../OfflineIndicator'
@@ -397,7 +398,7 @@ function ShortcutsModal({ onClose, text }) {
             <Keyboard size={15} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
             {text.keyboard_shortcuts}
           </span>
-          <button className="modal-close" onClick={onClose} aria-label={text.close}><X size={14} /></button>
+          <IconButton className="modal-close" onClick={onClose} ariaLabel={text.close}><X size={14} /></IconButton>
         </div>
         <div className="shortcuts-grid">
           {SHORTCUTS.map((s, i) => (
@@ -460,6 +461,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
       {!collapsed && hover && onPin && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(item.to) }}
+          aria-label={isPinned ? text.remove_favorite : text.add_favorite}
           title={isPinned ? text.remove_favorite : text.add_favorite}
           style={{
             position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
@@ -657,25 +659,60 @@ function RecentsSection({ recent, collapsed, text, t }) {
 function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text }) {
   const location = useLocation()
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
-  const currentNavItem = allNavItems.find(i => location.pathname === i.to)
-    || allNavItems.find(i => location.pathname.startsWith(i.to + '/'))
-  const pageLabel = currentNavItem
-    ? getNavLabel(currentNavItem.to, currentNavItem.label, t)
-    : location.pathname.replace(/^\//, '').replace(/-/g, ' ')
+  const currentNavItem = allNavItems
+    .filter(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))
+    .sort((a, b) => b.to.length - a.to.length)[0]
+
+  const breadcrumbs = useMemo(() => {
+    const items = []
+    const pathname = location.pathname || '/'
+    const segments = pathname.split('/').filter(Boolean)
+
+    if (section) {
+      items.push({ label: section, to: null })
+    }
+
+    if (currentNavItem) {
+      const baseLabel = getNavLabel(currentNavItem.to, currentNavItem.label, t)
+      const isExactBase = pathname === currentNavItem.to
+      items.push({ label: baseLabel, to: isExactBase ? null : currentNavItem.to })
+
+      if (!isExactBase) {
+        const baseSegments = currentNavItem.to.split('/').filter(Boolean)
+        const extraSegments = segments.slice(baseSegments.length)
+        let accPath = currentNavItem.to
+
+        extraSegments.forEach((seg, idx) => {
+          accPath += `/${seg}`
+          const isLast = idx === extraSegments.length - 1
+          const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
+          const label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+          items.push({ label, to: isLast ? null : accPath })
+        })
+      }
+
+      return items
+    }
+
+    if (!segments.length) {
+      items.push({ label: 'Inicio', to: null })
+      return items
+    }
+
+    let accPath = ''
+    segments.forEach((seg, idx) => {
+      accPath += `/${seg}`
+      const isLast = idx === segments.length - 1
+      const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
+      const label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+      items.push({ label, to: isLast ? null : accPath })
+    })
+    return items
+  }, [location.pathname, section, currentNavItem, t])
 
   return (
     <div className="app-topbar" role="banner">
-      <div className="app-topbar-breadcrumb">
-        {section && (
-          <>
-            <span style={{ color: 'var(--text-3)', fontSize: 12 }}>{section}</span>
-            <ChevronRight size={12} style={{ color: 'var(--text-4)', flexShrink: 0 }} />
-          </>
-        )}
-        <span style={{ color: 'var(--text-1)', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>
-          {pageLabel}
-        </span>
-      </div>
+      <Breadcrumbs items={breadcrumbs} />
       <div className="app-topbar-center">
         <button onClick={onSearchOpen} title={text.global_search_title}
           aria-label={text.open_global_search}
@@ -743,15 +780,16 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
                 {user.full_name}
               </span>
             </button>
-            <button onClick={onLogout} title={t ? t('nav', 'logout') : 'Cerrar sesión'}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)',
+            <IconButton onClick={onLogout}
+              ariaLabel={t ? t('nav', 'logout') : 'Cerrar sesión'}
+              style={{ color: 'var(--text-3)',
                 cursor: 'pointer', padding: '3px 4px', display: 'flex', alignItems: 'center',
                 borderRadius: 5, transition: 'color 0.1s' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
             >
               <LogOut size={13} />
-            </button>
+            </IconButton>
           </div>
         )}
       </div>
@@ -985,7 +1023,7 @@ export default function Layout({ children }) {
           </div>
           {!collapsed && (
             <span style={{ fontWeight: 700, fontSize: 14.5, letterSpacing: '-0.02em',
-              color: 'var(--text-1)', whiteSpace: 'nowrap', userSelect: 'none' }}>Clarive</span>
+              color: 'var(--text-1)', whiteSpace: 'nowrap', userSelect: 'none' }}>Contecflow</span>
           )}
         </div>
 
@@ -1083,7 +1121,8 @@ export default function Layout({ children }) {
           borderTop: '1px solid var(--surface-4)',
           display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0,
         }}>
-          <button onClick={() => setCollapsed(c => !c)} title={collapsed ? text.expand_sidebar : text.collapse_sidebar}
+          <IconButton onClick={() => setCollapsed(c => !c)}
+            ariaLabel={collapsed ? text.expand_sidebar : text.collapse_sidebar}
             style={{
               background: 'transparent', border: '1px solid var(--surface-4)',
               borderRadius: 6, padding: '5px', cursor: 'pointer', color: 'var(--text-3)',
@@ -1094,7 +1133,7 @@ export default function Layout({ children }) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-3)' }}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+          </IconButton>
 
           {!collapsed && (
             <button onClick={() => setShortcutsOpen(true)} title={`${text.keyboard_shortcuts} (?)`}
@@ -1122,8 +1161,8 @@ export default function Layout({ children }) {
       <main id="main-content" aria-label={text.main_content} role="main"
         className="app-main-shell"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}>
-        <button className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
-          aria-label={text.open_menu}
+        <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
+          ariaLabel={text.open_menu}
           style={{
             position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -1131,7 +1170,7 @@ export default function Layout({ children }) {
           }}
         >
           <Menu size={18} color="var(--text-2)" />
-        </button>
+        </IconButton>
         <TopAppBar
           onSearchOpen={() => setSearchOpen(true)}
           onAiToggle={() => setAiOpen(o => !o)}

@@ -96,6 +96,15 @@ export default function KanbanTicketsTab({ onSelect }) {
                   draggable
                   onDragStart={e => onDragStart(e, ticket, col.id)}
                   onClick={() => onSelect(ticket)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSelect(ticket)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${ticket.number} ${ticket.title}`}
                   style={{
                     padding: '10px 12px', background: 'var(--surface-2)',
                     border: '1px solid var(--surface-4)', borderRadius: 10,

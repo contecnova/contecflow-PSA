@@ -109,7 +109,7 @@ function InternalCommentThread({ ticketId }) {
           <div>
             <label style={ls}>{t('internal_comments.add_label')}</label>
             <textarea value={content} onChange={e => setContent(e.target.value)}
-              placeholder={t(modulo.clave)}
+              placeholder="Escribe un comentario privado..."
               rows={3} style={{...is, marginBottom:8, resize:'vertical'}} />
             <Button onClick={() => addComment()} disabled={adding || !content.trim()}>
               {adding ? t('internal_comments.sending') : '🔒 ' + t('internal_comments.add_btn')}

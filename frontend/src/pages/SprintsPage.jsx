@@ -116,7 +116,7 @@ function RetroModal({ sprint, projectId, onClose }) {
           value={manualNotes}
           onChange={e => setManualNotes(e.target.value)}
           rows={3}
-          placeholder={t(modulo.clave)}
+          placeholder="Escribe notas para el equipo..."
           style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
         />
       </div>
@@ -377,7 +377,7 @@ export default function SprintsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚡" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="⚡" title="Selecciona un proyecto" description="Elige un proyecto para gestionar sus sprints" />
       )}
 
       {selectedProject && isLoading && <Spinner />}
@@ -495,7 +495,7 @@ export default function SprintsPage() {
             <div style={{ fontSize: 15, fontWeight: 700 }}>Backlog del proyecto ({backlog.length} tareas sin sprint)</div>
           </div>
           {backlog.length === 0 ? (
-            <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="✅" title="Backlog vacio" description="Todas las tareas estan asignadas a un sprint" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {backlog.map(task => {
@@ -537,7 +537,7 @@ export default function SprintsPage() {
       {selectedProject && !isLoading && activeView === 'velocity' && (
         <div>
           {!velocity || velocity.sprints?.length === 0 ? (
-            <EmptyState icon="📊" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="📊" title="Sin datos de velocidad" description="Completa sprints para ver la evolucion de la velocidad del equipo" />
           ) : (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 28 }}>
@@ -593,10 +593,10 @@ export default function SprintsPage() {
 
       {/* Modal: Create Sprint */}
       {showCreateSprint && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreateSprint(false)} width={500}>
+        <Modal open title="Nuevo sprint" onClose={() => setShowCreateSprint(false)} width={500}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={ls}>Nombre del sprint *</label><input value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
-            <div><label style={ls}>Objetivo del sprint</label><textarea value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+            <div><label style={ls}>Nombre del sprint *</label><input value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre del sprint..." /></div>
+            <div><label style={ls}>Objetivo del sprint</label><textarea value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Objetivo del sprint..." /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div><label style={ls}>Fecha inicio</label><input type="date" value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} style={fs} /></div>
               <div><label style={ls}>Fecha fin</label><input type="date" value={sprintForm.end_date} onChange={e => setSprintForm(f => ({ ...f, end_date: e.target.value }))} style={fs} /></div>
@@ -611,10 +611,10 @@ export default function SprintsPage() {
 
       {/* Modal: Add tasks to sprint */}
       {showAddTasks && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowAddTasks(false)} width={600}>
+        <Modal open title="Anadir tareas al sprint" onClose={() => setShowAddTasks(false)} width={600}>
           <div>
             {backlog.length === 0 ? (
-              <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
+              <EmptyState icon="✅" title="Backlog vacio" description="No hay tareas disponibles para anadir al sprint" />
             ) : (
               <>
                 <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>Selecciona las tareas del backlog para añadir a este sprint:</div>

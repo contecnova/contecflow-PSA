@@ -171,7 +171,7 @@ export default function IssueTypesPage() {
         </select>
       </div>
 
-      {!project && <EmptyState icon="🏷" title={t(modulo.clave)} description={t(modulo.clave)} />}
+      {!project && <EmptyState icon="🏷" title="Selecciona un proyecto" description="Elige un proyecto para gestionar los tipos de issue" />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && types.length === 0 && (

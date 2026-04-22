@@ -79,6 +79,7 @@ function BurnoutRiskCard({ member }) {
 }
 
 function BurnoutMonitorTab() {
+  const t = useAppT()
   const [filter, setFilter] = useState('all')
   const { data, isLoading } = useQuery({
     queryKey: ['burnout-risk', filter],
@@ -149,6 +150,7 @@ function BurnoutMonitorTab() {
 }
 
 function ResourceCard({ resource, onEdit, showRates }) {
+            {load > 100 && <span title="Sobrecarga detectada" style={{ fontSize: 16 }}>⚠️</span>}
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
   return (
@@ -173,7 +175,7 @@ function ResourceCard({ resource, onEdit, showRates }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          {load > 100 && <span title={t(modulo.clave)} style={{ fontSize: 16 }}>⚠️</span>}
+          {load > 100 && <span title="Sobrecarga detectada" style={{ fontSize: 16 }}>⚠️</span>}
           <button onClick={() => onEdit(resource)}
             style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '4px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', transition: 'all .1s' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-1)' }}
@@ -231,14 +233,16 @@ function EditUserModal({ user, open, onClose }) {
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
   return (
-    <Modal open={open} onClose={onClose} title={t(modulo.clave)}>
+    <Modal open={open} onClose={onClose} title="Editar recurso">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Input label={t(modulo.clave)} value={form.full_name} onChange={set('full_name')} />
-        <Input label={t(modulo.clave)} value={form.job_title} onChange={set('job_title')} />
-        <Input label={t(modulo.clave)} value={form.department} onChange={set('department')} />
-        <Select label={t(modulo.clave)} value={form.role} onChange={set('role')} options={ROLES} />
-        <Input label={t(modulo.clave)} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} />
-        {hasRole('admin') && <Input label={t(modulo.clave)} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}
+        <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} />
+        <Input label="Cargo" value={form.job_title} onChange={set('job_title')} />
+        <Input label="Departamento" value={form.department} onChange={set('department')} />
+        <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
+        <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} />
+        {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}
+                    <div><label style={labelStyle}>Tarifa máx. (€/h)</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, cargo o departamento"
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate(form)} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
@@ -321,7 +325,7 @@ function SmartMatchTab() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
             <div><label style={labelStyle}>Horas necesarias</label><input type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Tarifa máx. (€/h)</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder={t(modulo.clave)} /></div>
+            <div><label style={labelStyle}>Tarifa máx. (€/h)</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
             <div><label style={labelStyle}>Inicio</label><input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></div>
             <div><label style={labelStyle}>Fin</label><input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={inputStyle} /></div>
           </div>
@@ -453,7 +457,7 @@ export default function ResourcesPage() {
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>
           <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t(modulo.clave)}
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, cargo o departamento"
               style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
             <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
               style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -472,7 +476,7 @@ export default function ResourcesPage() {
           {isLoading ? (
             <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando recursos...</span></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="👥" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="👥" title="Sin recursos" description="No hay personas que coincidan con el filtro actual" />
           ) : view === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} />)}

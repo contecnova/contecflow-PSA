@@ -108,17 +108,17 @@ function CRFormModal({ cr, projectId, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t(modulo.clave)} />
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Titulo de la solicitud" aria-label="Titulo de la solicitud" />
           {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción *</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder={t(modulo.clave)} />
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder="Describe el cambio solicitado" aria-label="Descripcion del cambio" />
           {validation.errors.description && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.description}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-justification`} style={ls}>Justificación</label>
-          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder={t(modulo.clave)} />
+          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder="Justificacion del cambio" aria-label="Justificacion del cambio" />
           {validation.errors.justification && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.justification}</p>}
         </div>
         <div>
@@ -130,17 +130,17 @@ function CRFormModal({ cr, projectId, onClose }) {
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
-          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder={t(modulo.clave)} />
+          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder="Impacto economico" aria-label="Impacto economico" />
           {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>Impacto en plazo (días)</label>
-          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder={t(modulo.clave)} />
+          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder="Dias adicionales" aria-label="Dias adicionales" />
           {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
-          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder={t(modulo.clave)} />
+          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder="Impacto en el alcance" aria-label="Impacto en el alcance" />
           {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
@@ -402,9 +402,9 @@ export default function ChangesPage() {
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📋" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="📋" title="Selecciona un proyecto" description="Elige un proyecto para ver y gestionar sus solicitudes de cambio" />
           ) : isLoading ? <Spinner /> : crs.length === 0 ? (
-            <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="✅" title="Sin solicitudes de cambio" description="Este proyecto no tiene CRs registradas" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {crs.map(cr => {
@@ -453,7 +453,7 @@ export default function ChangesPage() {
 
       {tab === 'pending' && (
         allPending.length === 0 ? (
-          <EmptyState icon="✅" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="✅" title="Sin pendientes" description="No hay solicitudes de cambio pendientes de revision" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allPending.map(cr => {

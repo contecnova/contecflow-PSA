@@ -237,16 +237,16 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
         <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.15s' }}
           onClick={e => e.stopPropagation()}>
           {lv?.download_url && (
-            <a href={lv.download_url} target="_blank" rel="noreferrer" title={t(modulo.clave)}
+            <a href={lv.download_url} target="_blank" rel="noreferrer" title="Descargar documento"
               style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
               <Download size={11} />
             </a>
           )}
-          <button onClick={() => onSummary(doc.id)} title={t(modulo.clave)}
+          <button onClick={() => onSummary(doc.id)} title="Generar resumen IA"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
             <Sparkles size={11} />
           </button>
-          <button onClick={() => onDelete(doc)} title={t(modulo.clave)}
+          <button onClick={() => onDelete(doc)} title="Eliminar documento"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
             <Trash2 size={11} />
           </button>
@@ -440,7 +440,7 @@ function UploadModal({ open, onClose, onSuccess }) {
             </div>
             <div>
               <label style={ls}>Descripción</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder={t(modulo.clave)} />
+              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} style={{ ...fs, resize: 'none' }} placeholder="Descripcion del documento" aria-label="Descripcion del documento" />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -459,7 +459,7 @@ function UploadModal({ open, onClose, onSuccess }) {
             </div>
             <div>
               <label style={ls}>Etiquetas</label>
-              <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
+              <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} style={fs} placeholder="Etiquetas separadas por comas" aria-label="Etiquetas separadas por comas" />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
@@ -657,7 +657,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                   </div>
                   {(() => {
                     const type = detectFileType(activeVer.file_mime_type, activeVer.file_name);
-                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title={t(modulo.clave)} />;
+                    if (type === 'pdf') return <iframe src={activeVer.download_url} style={{ width: '100%', height: 480, border: 'none' }} title="Vista previa del PDF" />;
                     if (type === 'image') return <img src={activeVer.download_url} alt={activeVer.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', display: 'block', margin: '0 auto', padding: 16 }} />;
                     return (
                       <div style={{ padding: 40, textAlign: 'center' }}>
@@ -724,7 +724,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                           : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />Clic para seleccionar archivo</span>}
                         <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
                       </div>
-                      <input placeholder={t(modulo.clave)} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
+                      <input placeholder="Nota del cambio" value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} aria-label="Nota del cambio" />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => versionMutation.mutate()} disabled={!file || versionMutation.isPending}
                           style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: 13, fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
@@ -936,17 +936,17 @@ export default function DocumentsPage() {
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>
-        <KpiCard icon={Files}      label={t(modulo.clave)}   value={stats.total}    color="#3b82f6" sub="en la plataforma" />
-        <KpiCard icon={FileClock}  label={t(modulo.clave)}  value={stats.pending}  color="#f59e0b" sub="requieren revisión" />
-        <KpiCard icon={FileCheck}  label={t(modulo.clave)}          value={stats.approved} color="#10b981" sub="documentos vlidos" />
-        <KpiCard icon={TrendingUp} label={t(modulo.clave)}        value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
+        <KpiCard icon={Files}      label="Total documentos" value={stats.total} color="#3b82f6" sub="en la plataforma" />
+        <KpiCard icon={FileClock}  label="Pendientes" value={stats.pending} color="#f59e0b" sub="requieren revision" />
+        <KpiCard icon={FileCheck}  label="Aprobados" value={stats.approved} color="#10b981" sub="documentos validos" />
+        <KpiCard icon={TrendingUp} label="Esta semana" value={stats.thisWeek} color="var(--purple)" sub="nuevos documentos" />
       </div>
 
       {/* Filter bar */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '12px 16px', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', pointerEvents: 'none' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t(modulo.clave)}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por titulo, archivo o etiqueta"
             style={{ width: '100%', paddingLeft: 30, paddingRight: 10, paddingTop: 8, paddingBottom: 8, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={ctrlBtn}>

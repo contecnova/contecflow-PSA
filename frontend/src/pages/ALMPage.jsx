@@ -233,7 +233,7 @@ function VendorModal({ vendor, onClose }) {
             {Object.entries(VENDOR_CATS).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
-        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder={t(modulo.clave)} /></div>
+        <div><label htmlFor={`${idPrefix}-country`} style={ls}>{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} value={form.country} onChange={s('country')} style={fs} placeholder="Ej: España" /></div>
         <div><label htmlFor={`${idPrefix}-website`} style={ls}>{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} value={form.website} onChange={s('website')} style={fs} placeholder={t('alm.vendor_placeholder_web')} /></div>
         <div><label htmlFor={`${idPrefix}-support-email`} style={ls}>{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} value={form.support_email} onChange={s('support_email')} style={fs} /></div>
         <div><label htmlFor={`${idPrefix}-support-phone`} style={ls}>{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} value={form.support_phone} onChange={s('support_phone')} style={fs} /></div>
@@ -798,7 +798,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_total_seats')}</label>
-          <input type="number" value={form.total_seats} onChange={s('total_seats')} style={validation.inputStyle(fs, 'total_seats')} placeholder={t(modulo.clave)} />
+          <input type="number" value={form.total_seats} onChange={s('total_seats')} style={validation.inputStyle(fs, 'total_seats')} placeholder="Ej: 50" />
           {validation.errors.total_seats && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_seats}</p>}
         </div>
         <div>
@@ -1068,7 +1068,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
           {validation.errors.depreciation_years && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.depreciation_years}</p>}
         </div>
         {showNetwork && <>
-          <div><label style={ls}>{t('alm.assets_label_ip')}</label><input value={form.ip_address} onChange={s('ip_address')} style={fs} placeholder={t(modulo.clave)} /></div>
+          <div><label style={ls}>{t('alm.assets_label_ip')}</label><input value={form.ip_address} onChange={s('ip_address')} style={fs} placeholder="Ej: 192.168.1.1" /></div>
           <div><label style={ls}>{t('alm.assets_label_hostname')}</label><input value={form.hostname} onChange={s('hostname')} style={fs} /></div>
           <div><label style={ls}>{t('alm.assets_label_os')}</label><input value={form.os} onChange={s('os')} style={fs} placeholder={t('alm.assets_placeholder_os')} /></div>
           <div><label style={ls}>{t('alm.assets_label_cpu')}</label><input value={form.cpu} onChange={s('cpu')} style={fs} placeholder={t('alm.assets_placeholder_cpu')} /></div>

@@ -38,7 +38,7 @@ function GeneralSection() {
   const { mutate: update } = useMutation({ mutationFn: ({ key, value }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries(['settings-general']) , onError: e => toast.error(extractErr(e, 'Error'))})
   const LABELS = { company_name: 'Nombre empresa', company_logo_url: 'URL logotipo', currency: 'Moneda', timezone: 'Zona horaria', language: 'Idioma', work_hours_per_day: 'Horas/día', work_days_per_week: 'Días laborables/semana', budget_alert_threshold: '% alerta presupuesto', overload_threshold: '% carga máxima' }
   return (
-    <Section icon="⚙️" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="⚙️" title="Configuracion general" description="Parametros globales de la organizacion">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {settings.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
@@ -82,9 +82,9 @@ function UsersSection() {
   const { mutate: deletePermanent } = useMutation({ mutationFn: usersApi.deletePermanent, onSuccess: () => { qc.invalidateQueries(['users']); qc.invalidateQueries(['users-settings']); qc.invalidateQueries(['resources']); } , onError: e => toast.error(extractErr(e, 'Error'))})
   const filtered = users.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase()))
   return (
-    <Section icon="👤" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="👤" title="Usuarios" description="Gestiona accesos y datos del equipo">
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t(modulo.clave)} style={{ ...fs, flex: 1 }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar usuario por nombre o alias" aria-label="Buscar usuario por nombre o alias" style={{ ...fs, flex: 1 }} />
         <Button onClick={() => setShowCreate(true)} icon="＋">Nuevo usuario</Button>
       </div>
       {isLoading ? <Spinner /> : (
@@ -169,7 +169,7 @@ function RolesSection() {
   const { mutate: deleteRole } = useMutation({ mutationFn: advancedConfigApi.deleteRole, onSuccess: () => qc.invalidateQueries(['custom-roles']) , onError: e => toast.error(extractErr(e, 'Error'))})
 
   return (
-    <Section icon="🔐" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🔐" title="Roles y permisos" description="Define accesos avanzados por modulo">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {isLoading ? <Spinner /> : roles.map(r => (
           <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'var(--surface-2)', border: `1px solid ${r.color}30`, borderRadius: 10 }}>
@@ -244,7 +244,7 @@ function AlertConfigSection() {
   const { mutate: update } = useMutation({ mutationFn: ({ type, data }) => advancedConfigApi.updateAlertConfig(type, data), onSuccess: () => qc.invalidateQueries(['alert-configs']) , onError: e => toast.error(extractErr(e, 'Error'))})
   const SEV_CFG = { info: 'var(--accent)', warning: 'var(--warning)', critical: 'var(--danger)' }
   return (
-    <Section icon="🔔" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🔔" title="Alertas" description="Configura notificaciones y umbrales">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {configs.map(cfg => (
@@ -307,7 +307,7 @@ function RateTablesSection() {
   const [entryForm, setEntryForm] = useState({ label: '', cost_rate: '', billing_rate: '' })
 
   return (
-    <Section icon="💶" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="💶" title="Tarifas internas" description="Mantiene tablas de coste y facturacion">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {tables.map(t => (
@@ -332,8 +332,8 @@ function RateTablesSection() {
                   editingEntryId === e.id ? (
                     <React.Fragment key={e.id}>
                       <input value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} style={{...fs,padding:'5px 8px'}} autoFocus />
-                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t(modulo.clave)} />
-                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder={t(modulo.clave)} />
+                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder="Coste por hora" aria-label="Coste por hora" />
+                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} style={{...fs,padding:'5px 8px'}} placeholder="Tarifa de facturacion" aria-label="Tarifa de facturacion" />
                       <div style={{display:'flex',gap:4}}>
                         <button onClick={() => updateEntry({ tableId: t.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} style={{background:'var(--accent)',border:'none',borderRadius:5,padding:'4px 8px',color:'#fff',cursor:'pointer',fontSize:12}}>✓</button>
                         <button onClick={() => setEditingEntryId(null)} style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'4px 7px',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✕</button>
@@ -354,9 +354,9 @@ function RateTablesSection() {
               </div>
               {addingEntry === t.id && (
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginTop: 8, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 8 }}>
-                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder={t(modulo.clave)} />
-                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
-                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder={t(modulo.clave)} />
+                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} style={{ ...fs }} placeholder="Etiqueta de la tarifa" aria-label="Etiqueta de la tarifa" />
+                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} style={fs} placeholder="Coste por hora" aria-label="Coste por hora" />
+                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} style={fs} placeholder="Tarifa de facturacion" aria-label="Tarifa de facturacion" />
                   <div style={{ display: 'flex', gap: 6 }}>
                     <Button size="sm" onClick={() => { addEntry({ tableId: t.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>Añadir</Button>
                     <Button size="sm" variant="secondary" onClick={() => setAddingEntry(null)}>×</Button>
@@ -366,7 +366,7 @@ function RateTablesSection() {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10, alignItems: 'flex-end' }}>
-            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+            <div style={{ flex: 2 }}><label style={ls}>Nombre tabla</label><input value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la tabla" aria-label="Nombre de la tabla" /></div>
             <div style={{ flex: 1 }}><label style={ls}>Aplica a</label><select value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} style={fs}><option value="role">Por rol</option><option value="department">Por depto</option><option value="client">Por cliente</option></select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>Crear tabla</Button>
           </div>
@@ -390,7 +390,7 @@ function VacationSection() {
   const [newPolicy, setNewPolicy] = useState({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false })
 
   return (
-    <Section icon="🏖️" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🏖️" title="Vacaciones y permisos" description="Configura politicas y saldos del equipo">
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Políticas configuradas</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -408,7 +408,7 @@ function VacationSection() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+          <div style={{ flex: 2 }}><label style={ls}>Nombre</label><input value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la politica" aria-label="Nombre de la politica" /></div>
           <div style={{ flex: 1 }}><label style={ls}>Días/año</label><input type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} style={fs} /></div>
           <div style={{ flex: 1 }}><label style={ls}>Máx. acumulación</label><input type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} style={fs} /></div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}><input type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />Por defecto</label>
@@ -458,7 +458,7 @@ function NumberingSection() {
   const ENTITY_LABELS = { project: 'Proyecto', task: 'Tarea', contract: 'Contrato', opportunity: 'Oportunidad', change_request: 'Control de cambios', deliverable: 'Entregable', risk: 'Riesgo' }
 
   return (
-    <Section icon="🔢" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🔢" title="Numeracion" description="Prefijos y contadores automaticos">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {seqs.map(s => (
@@ -468,7 +468,7 @@ function NumberingSection() {
                 <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: "'Space Mono', monospace", marginTop: 4 }}>{s.next_preview}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <div><label style={{ ...ls, fontSize: 10 }}>Prefijo</label><input defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder={t(modulo.clave)} /></div>
+                <div><label style={{ ...ls, fontSize: 10 }}>Prefijo</label><input defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} style={{ ...fs, width: 70 }} placeholder="Prefijo" aria-label="Prefijo" /></div>
                 <div><label style={{ ...ls, fontSize: 10 }}>Sep.</label><input defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} style={{ ...fs, width: 40 }} /></div>
                 <div><label style={{ ...ls, fontSize: 10 }}>Dígitos</label><input type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} style={{ ...fs, width: 60 }} /></div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)', paddingBottom: 4 }}>
@@ -506,7 +506,7 @@ function CustomFieldsSection() {
   const byEntity = fields.reduce((a, f) => { if (!a[f.entity]) a[f.entity] = []; a[f.entity].push(f); return a }, {})
 
   return (
-    <Section icon="🧩" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🧩" title="Campos personalizados" description="Define campos extra para entidades">
       {isLoading ? <Spinner /> : (
         <div style={{ marginBottom: 20 }}>
           {Object.entries(byEntity).map(([entity, entityFields]) => (
@@ -533,9 +533,9 @@ function CustomFieldsSection() {
                       <div style={{ display:'flex', gap:8, padding:'10px', background:'var(--accent-muted)',
                         border:'1px solid var(--accent-glow)', borderRadius:8, marginTop:-4, alignItems:'center' }}>
                         <input value={editFieldForm.name} onChange={e=>setEditFieldForm(f=>({...f,name:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder={t(modulo.clave)} autoFocus />
+                          style={{...fs,flex:2}} placeholder="Nombre del campo" aria-label="Nombre del campo" autoFocus />
                         <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm(f=>({...f,placeholder:e.target.value}))}
-                          style={{...fs,flex:2}} placeholder={t(modulo.clave)} />
+                          style={{...fs,flex:2}} placeholder="Placeholder del campo" aria-label="Placeholder del campo" />
                         <label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer',fontSize:12,whiteSpace:'nowrap'}}>
                           <input type="checkbox" checked={editFieldForm.is_required}
                             onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />Obligatorio
@@ -558,8 +558,8 @@ function CustomFieldsSection() {
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 12 }}>Añadir campo personalizado</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'flex-end' }}>
           <div><label style={ls}>Entidad</label><select value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} style={fs}>{ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></div>
-          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder={t(modulo.clave)} /></div>
-          <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+          <div><label style={ls}>Nombre</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} style={fs} placeholder="Nombre del campo" aria-label="Nombre del campo" /></div>
+          <div><label style={ls}>Clave</label><input value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} style={fs} placeholder="Clave interna" aria-label="Clave interna" /></div>
           <div><label style={ls}>Tipo</label><select value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} style={fs}>{TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>Añadir</Button>
         </div>
@@ -578,7 +578,7 @@ function TemplatesSection() {
   const [selected, setSelected] = useState(null)
 
   return (
-    <Section icon="📐" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="📐" title="Plantillas" description="Define plantillas de proyecto y fases">
       {isLoading ? <Spinner /> : templates.length === 0 ? (
         <EmptyState icon="📐" title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
       ) : (
@@ -618,10 +618,10 @@ function CreateTemplateModal({ onClose, onSave }) {
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   return (
-    <Modal open title={t(modulo.clave)} onClose={onClose} width={660}>
+    <Modal open title="Nueva plantilla" onClose={onClose} width={660}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
-          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder={t(modulo.clave)} /></div>
+          <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la plantilla" aria-label="Nombre de la plantilla" /></div>
           <div><label style={ls}>Semanas estimadas</label><input type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} style={fs} /></div>
           <div><label style={ls}>Horas estimadas</label><input type="number" value={form.estimated_hours} onChange={set('estimated_hours')} style={fs} /></div>
         </div>
@@ -642,8 +642,8 @@ function CreateTemplateModal({ onClose, onSave }) {
             </div>
           ))}
           <div style={{ display: 'flex', gap: 8, padding: '8px', background: 'var(--surface-3)', borderRadius: 8 }}>
-            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder={t(modulo.clave)} />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder={t(modulo.clave)} />
+            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Nombre de la fase" aria-label="Nombre de la fase" />
+            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} style={{ ...fs, flex: 1 }} placeholder="Semanas" aria-label="Semanas estimadas" />
             <Button size="sm" onClick={() => { if (phase.name) { setForm(f => ({ ...f, phases: [...f.phases, { ...phase, tasks: [] }] })); setPhase({ name: '', estimated_weeks: '', tasks: [] }) } }}>+ Fase</Button>
           </div>
         </div>
@@ -694,7 +694,7 @@ function OfficesSection() {
   const TIMEZONES = ['Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Shanghai']
 
   return (
-    <Section icon="🏢" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🏢" title="Sedes" description="Gestiona oficinas y zonas horarias">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         {offices.map(o => (
           <div key={o.id}>
@@ -734,11 +734,11 @@ function OfficesSection() {
             )}
           </div>
         ))}
-        {offices.length === 0 && <EmptyState icon="🏢" title={t(modulo.clave)} />}
+        {offices.length === 0 && <EmptyState icon="🏢" title="Sin sedes registradas" description="Anade la primera sede para tu organizacion" />}
       </div>
       <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
-        <div style={{ flex: 1 }}><label style={ls}>País</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+        <div style={{ flex: 2 }}><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre de la sede" aria-label="Nombre de la sede" /></div>
+        <div style={{ flex: 1 }}><label style={ls}>País</label><input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} style={fs} placeholder="Pais" aria-label="Pais" /></div>
         <div style={{ flex: 1 }}><label style={ls}>Ciudad</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} style={fs} /></div>
         <div style={{ flex: 1 }}><label style={ls}>Zona horaria</label><select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} style={fs}>{TIMEZONES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: 'Europe/Madrid' }) }} disabled={!form.name}>Añadir</Button>
@@ -760,7 +760,7 @@ function TaskTypesSection() {
   const [editForm, setEditForm] = useState({ name: '', icon: '📋', color: '#6b7280', is_billable_default: true })
 
   return (
-    <Section icon="🏷️" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🏷️" title="Tipos de tarea" description="Gestiona etiquetas y tipos facturables">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           {types.map(t => (
@@ -789,9 +789,9 @@ function TaskTypesSection() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder={t(modulo.clave)} /></div>
+        <div><label style={ls}>Nombre *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} style={{ ...fs, width: 140 }} placeholder="Nombre" aria-label="Nombre" /></div>
+        <div><label style={ls}>Clave</label><input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} style={{ ...fs, width: 110 }} placeholder="Clave" aria-label="Clave" /></div>
+        <div><label style={ls}>Icono</label><input value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} style={{ ...fs, width: 60 }} placeholder="Icono" aria-label="Icono" /></div>
         <div><label style={ls}>Color</label><div style={{ display: 'flex', gap: 6 }}><input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ width: 38, height: 38, border: 'none', background: 'transparent', cursor: 'pointer' }} /><input value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} style={{ ...fs, width: 90 }} /></div></div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, paddingBottom: 4 }}><input type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />Facturable</label>
         <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '📋', color: 'var(--text-2)', is_billable_default: true }) }} disabled={!form.name || !form.value}>Añadir</Button>
@@ -812,7 +812,7 @@ function DepartmentsSection() {
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', description: '' })
   return (
-    <Section icon="🏢" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="🏢" title="Departamentos" description="Estructura interna de la organizacion">
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
           {data.map(d => (
@@ -821,9 +821,9 @@ function DepartmentsSection() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
                   background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10 }}>
                   <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    style={{ ...fs, flex: 2, padding: '5px 9px' }} placeholder={t(modulo.clave)} autoFocus />
+                    style={{ ...fs, flex: 2, padding: '5px 9px' }} placeholder="Nombre del departamento" aria-label="Nombre del departamento" autoFocus />
                   <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                    style={{ ...fs, flex: 3, padding: '5px 9px' }} placeholder={t(modulo.clave)} />
+                    style={{ ...fs, flex: 3, padding: '5px 9px' }} placeholder="Descripcion" aria-label="Descripcion del departamento" />
                   <button onClick={() => update({ id: d.id, data: editForm })} disabled={!editForm.name}
                     style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
                       color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>✓</button>
@@ -850,8 +850,8 @@ function DepartmentsSection() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, padding: '10px', background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
-        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder={t(modulo.clave)} />
-        <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder={t(modulo.clave)} />
+        <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Nombre del departamento" aria-label="Nombre del departamento" />
+        <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...fs, flex: 2 }} placeholder="Descripcion" aria-label="Descripcion del departamento" />
         <Button onClick={() => { create(form); setForm({ name: '', description: '' }) }} disabled={!form.name}>Añadir</Button>
       </div>
     </Section>
@@ -1042,7 +1042,7 @@ function IdiomasSection() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR CLAVE</div>
               <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
-                placeholder={t(modulo.clave)} style={{ ...fs, width: 280 }} />
+                placeholder="Buscar clave de traduccion" aria-label="Buscar clave de traduccion" style={{ ...fs, width: 280 }} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>MÓDULO</div>
@@ -1131,7 +1131,7 @@ function IdiomasSection() {
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>BUSCAR</div>
               <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
-                placeholder={t(modulo.clave)} style={{ ...fs, width: 260 }} />
+                placeholder="Buscar texto del portal" aria-label="Buscar texto del portal" style={{ ...fs, width: 260 }} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
@@ -1312,7 +1312,7 @@ function LogLevelSection() {
   const LEVEL_COLORS = { DEBUG: 'var(--text-2)', INFO: 'var(--accent)', WARNING: 'var(--warning)', ERROR: 'var(--danger)', CRITICAL: '#c0392b' }
 
   return (
-    <Section icon="📋" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="📋" title="Nivel de log" description="Controla la verbosidad del backend y frontend">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
 
         {/* Backend */}
@@ -1394,7 +1394,7 @@ function EmailInboundSection() {
   const webhookUrl = `${window.location.origin}/api/v1/service-desk/inbound-email`
 
   return (
-    <Section icon="📧" title={t(modulo.clave)} description={t(modulo.clave)}>
+    <Section icon="📧" title="Email a ticket" description="Configura la entrada de correos al Service Desk">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
 
         {/* How it works */}

@@ -275,7 +275,7 @@ export default function ResourceForecastPage() {
         </select>
 
         <input
-          placeholder={t(modulo.clave)}
+          placeholder="Departamento..."
           value={department}
           onChange={e => setDepartment(e.target.value)}
           style={{
@@ -311,8 +311,8 @@ export default function ResourceForecastPage() {
               Calculando proyección...
             </div>
           ) : users.length === 0 ? (
-            <EmptyState icon="📈" title={t(modulo.clave)}
-              description={t(modulo.clave)} />
+            <EmptyState icon="📈" title="Sin datos de prevision"
+              description="Selecciona un horizonte y aplica filtros para ver la prevision" />
           ) : (
             <div>
               {visibleUsers.map(u => (

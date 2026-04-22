@@ -77,6 +77,10 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
     from app.core.encryption import decrypt_value
     from app.services.webhooks import _sign_payload
 
+    # Explicit retry schedule requested for transient webhook failures.
+    retry_schedule = (60, 300, 1800)
+    transient_statuses = {408, 425, 429, 500, 502, 503, 504}
+
     db = SessionLocal()
     try:
         hook = db.query(Webhook).filter(
@@ -174,15 +178,36 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
 
         db.commit()
 
-        # Retry transient network errors with exponential backoff.
+        # Retry transient failures with fixed exponential backoff schedule.
         # Only retry if the circuit breaker has not tripped (hook still active after commit).
-        if http_exc is not None and hook.is_active:
-            countdown = 60 * (5 ** self.request.retries)
-            _worker_logger.warning(
-                "Webhook %s delivery failed (attempt %d/%d), retrying in %ds: %s",
-                webhook_id, self.request.retries + 1, self.max_retries + 1, countdown, http_exc,
+        should_retry = (
+            hook.is_active
+            and (
+                http_exc is not None
+                or (status_code in transient_statuses)
             )
-            raise self.retry(exc=http_exc, countdown=countdown)
+        )
+        if should_retry:
+            if self.request.retries < len(retry_schedule):
+                countdown = retry_schedule[self.request.retries]
+                retry_reason = http_exc or RuntimeError(f"HTTP {status_code}")
+                _worker_logger.warning(
+                    "Webhook %s transient failure (attempt %d/%d), retrying in %ds: %s",
+                    webhook_id,
+                    self.request.retries + 1,
+                    self.max_retries + 1,
+                    countdown,
+                    retry_reason,
+                )
+                raise self.retry(exc=retry_reason, countdown=countdown)
+            _worker_logger.error(
+                "Webhook %s transient failure exhausted retries (attempt %d/%d). Last status=%s error=%s",
+                webhook_id,
+                self.request.retries + 1,
+                self.max_retries + 1,
+                status_code,
+                error,
+            )
 
         return {"success": success, "status_code": status_code, "suspended": not hook.is_active}
 

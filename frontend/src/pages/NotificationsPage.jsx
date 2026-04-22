@@ -206,7 +206,7 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="🔔" title={t(modulo.clave)}
+        <EmptyState icon="🔔" title="Sin notificaciones"
           description={filter === 'unread' ? 'Todo al día — no tienes notificaciones sin leer' : 'Sin notificaciones en este filtro'} />
       ) : (
         <div>

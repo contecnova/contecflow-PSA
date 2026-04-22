@@ -99,7 +99,7 @@ function AssignModal({ prefill, onClose }) {
   }
 
   return (
-    <Modal open title={t(modulo.clave)} onClose={onClose} width={460}>
+    <Modal open title="Nueva asignacion" onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         <div>
           <label style={ls}>Persona *</label>
@@ -135,7 +135,7 @@ function AssignModal({ prefill, onClose }) {
         </div>
         <div>
           <label style={ls}>Notas</label>
-          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder={t(modulo.clave)} />
+          <input value={form.notes} onChange={setField('notes')} style={fs} placeholder="Notas de la asignacion" aria-label="Notas de la asignacion" />
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -355,7 +355,7 @@ export default function CapacityPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>Cargando planificador...</div>
       ) : displayUsers.length === 0 ? (
-        <EmptyState icon="👥" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="👥" title="Sin personas disponibles" description="No hay recursos que coincidan con el filtro actual" />
       ) : (
         <div style={{ overflowX: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 16 }}>
           <table style={{ borderCollapse: 'separate', borderSpacing: '4px 4px', minWidth: '100%' }}>

@@ -88,7 +88,7 @@ function ProjectDetail({ projectId, onClose }) {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
-  if (isLoading) return <Modal open title={t(modulo.clave)} onClose={onClose}><Spinner /></Modal>
+  if (isLoading) return <Modal open title="Cargando rentabilidad" onClose={onClose}><Spinner /></Modal>
   if (!data) return null
 
   const marginColor = data.margin_pct < 0 ? 'var(--danger)' : data.margin_pct < 15 ? 'var(--warning)' : data.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'
@@ -178,7 +178,7 @@ function ProjectDetail({ projectId, onClose }) {
         {/* By person */}
         <Card style={{ padding: 16 }}>
           <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Por persona</h4>
-          {data.by_person?.length === 0 ? <EmptyState icon="👤" title={t(modulo.clave)} /> : (
+          {data.by_person?.length === 0 ? <EmptyState icon="👤" title="Sin detalle por persona" /> : (
             data.by_person?.slice(0, 6).map(p => (
               <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #1e2d4530', fontSize: 12 }}>
                 <span>{p.user_name}</span>
@@ -215,7 +215,7 @@ function ProjectDetail({ projectId, onClose }) {
           <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">Añadir hito</Button>
         </div>
         {data.milestones?.length === 0 ? (
-          <EmptyState icon="🏁" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="🏁" title="Sin hitos de facturacion" description="Anade hitos para seguir la facturacion del proyecto" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {data.milestones.map(m => (
@@ -233,10 +233,10 @@ function ProjectDetail({ projectId, onClose }) {
         {showAddMilestone && (
           <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+              <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre del hito" aria-label="Nombre del hito" /></div>
               <div><label style={ls}>Fecha</label><input type="date" value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
-              <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
-              <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder={t(modulo.clave)} /></div>
+              <div><label style={ls}>Importe €</label><input type="number" value={msForm.billing_amount} onChange={e => setMsForm(f => ({ ...f, billing_amount: e.target.value }))} style={fs} placeholder="Importe del hito" aria-label="Importe del hito" /></div>
+              <div><label style={ls}>% Contrato</label><input type="number" value={msForm.billing_pct} onChange={e => setMsForm(f => ({ ...f, billing_pct: e.target.value }))} style={fs} placeholder="Porcentaje del contrato" aria-label="Porcentaje del contrato" /></div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="sm" onClick={() => addMilestone(msForm)} disabled={!msForm.name}>Añadir</Button>
@@ -297,7 +297,7 @@ export default function ProfitabilityPage() {
       )}
 
       {isLoading ? <Spinner /> : projects.length === 0 ? (
-        <EmptyState icon="💰" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="💰" title="Sin datos de rentabilidad" description="No hay proyectos con informacion de rentabilidad para este filtro" />
       ) : (
         <>
           {/* Chart */}

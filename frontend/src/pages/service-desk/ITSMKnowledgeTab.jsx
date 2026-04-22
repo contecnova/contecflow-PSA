@@ -1,5 +1,5 @@
 import { useAppT } from "../../hooks/useAppT";
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -33,6 +33,7 @@ function PBadge({ v }) {
 }
 
 function KnownErrors() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -60,7 +61,7 @@ function KnownErrors() {
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo error conocido</Button>
       </div>
       {isLoading ? <Spinner /> :
-       kedb.length === 0 ? <EmptyState icon="📚" title={t(modulo.clave)} description={t(modulo.clave)} /> :
+       kedb.length === 0 ? <EmptyState icon="📚" title="Sin errores conocidos" description="Crea el primer error conocido para documentar workaround y causa raíz." /> :
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {kedb.map(ke => (
           <div key={ke.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
@@ -123,6 +124,7 @@ function KnownErrors() {
 }
 
 function KEDBModal({ item, onClose, onSaved, IS, LS }) {
+  const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
     title: item?.title || '',
@@ -138,14 +140,14 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
   return (
     <Modal open title={isEdit ? 'Editar error conocido' : 'Nuevo error conocido (KEDB)'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Workaround (solución temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Solución definitiva</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Título del error conocido" /></div>
+        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Describe el error conocido" /></div>
+        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Causa raíz identificada" /></div>
+        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solución temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Solución temporal disponible" /></div>
+        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solución definitiva</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Solución definitiva aplicada" /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={LS}>Prioridad</label><select value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
-          <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -157,6 +159,7 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
 }
 
 function Problems() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showModal, setShowModal] = useState(false)
@@ -204,7 +207,7 @@ function Problems() {
 
       {isLoading ? <Spinner /> :
        problems.length === 0
-        ? <EmptyState icon="🔍" title={t(modulo.clave)} description={t(modulo.clave)} />
+        ? <EmptyState icon="🔍" title="Sin problemas registrados" description="Crea el primer problema para investigar incidentes recurrentes." />
         : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {problems.map(p => {
               const sc = statusColors[p.status] || COLOR.text2
@@ -266,6 +269,7 @@ function Problems() {
 }
 
 function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
+  const idPrefix = useId()
   const isEdit = !!item
   const [form, setForm] = useState({
     title: item?.title || '',
@@ -280,14 +284,14 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
   return (
     <Modal open title={isEdit ? `Editar - ${item.number}` : 'Nuevo problema'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Descripcion</label><textarea value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Causa raiz</label><textarea value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Workaround (solucion temporal)</label><textarea value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Solucion definitiva (opcional)</label><textarea value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label htmlFor={`${idPrefix}-title`} style={LS}>Titulo *</label><input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={IS} placeholder="Título del problema" /></div>
+        <div><label htmlFor={`${idPrefix}-description`} style={LS}>Descripcion</label><textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Describe el problema" /></div>
+        <div><label htmlFor={`${idPrefix}-root-cause`} style={LS}>Causa raiz</label><textarea id={`${idPrefix}-root-cause`} value={form.root_cause} onChange={set('root_cause')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Causa raíz identificada" /></div>
+        <div><label htmlFor={`${idPrefix}-workaround`} style={LS}>Workaround (solucion temporal)</label><textarea id={`${idPrefix}-workaround`} value={form.workaround} onChange={set('workaround')} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Solución temporal" /></div>
+        <div><label htmlFor={`${idPrefix}-fix-description`} style={LS}>Solucion definitiva (opcional)</label><textarea id={`${idPrefix}-fix-description`} value={form.fix_description} onChange={set('fix_description')} rows={2} style={{ ...IS, resize: 'vertical' }} placeholder="Solución definitiva" /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={LS}>Prioridad</label><select value={form.priority} onChange={set('priority')} style={IS}>{[['p1_critical', 'P1 Critico'], ['p2_high', 'P2 Alto'], ['p3_medium', 'P3 Medio'], ['p4_low', 'P4 Bajo']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
-          <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto'], ['closed', 'Cerrado']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-priority`} style={LS}>Prioridad</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} style={IS}>{[['p1_critical', 'P1 Critico'], ['p2_high', 'P2 Alto'], ['p3_medium', 'P3 Medio'], ['p4_low', 'P4 Bajo']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}>{[['open', 'Abierto'], ['investigating', 'Investigando'], ['known_error', 'Error conocido'], ['resolved', 'Resuelto'], ['closed', 'Cerrado']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -299,6 +303,7 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
 }
 
 function KB() {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -328,11 +333,11 @@ function KB() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-        <input placeholder={t(modulo.clave)} value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
+        <input placeholder="Buscar artículos" aria-label="Buscar artículos" value={search} onChange={e => setSearch(e.target.value)} style={{ ...IS, flex: 1 }} />
         <Button onClick={() => { setEditing(null); setShowNew(true) }}>+ Nuevo articulo</Button>
       </div>
       {isLoading ? <Spinner /> :
-       articles.length === 0 ? <EmptyState icon="📖" title={t(modulo.clave)} description={t(modulo.clave)} /> :
+      articles.length === 0 ? <EmptyState icon="📖" title="Sin artículos" description="Crea el primer artículo de conocimiento." /> :
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 14 }}>
         {articles.map(a => (
           <div key={a.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18 }}>
@@ -363,6 +368,7 @@ function KB() {
 }
 
 function KBArticleModal({ article, onClose, onSaved }) {
+  const idPrefix = useId()
   const toast = useToast()
   const isEdit = !!article
   const [form, setForm] = useState({
@@ -386,11 +392,11 @@ function KBArticleModal({ article, onClose, onSaved }) {
     <Modal open title={isEdit ? 'Editar articulo KB' : 'Nuevo articulo KB'} onClose={onClose} size="lg">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div><label style={LS}>Titulo *</label><input value={form.title} onChange={set('title')} style={IS} /></div>
-        <div><label style={LS}>Resumen</label><input value={form.summary} onChange={set('summary')} style={IS} placeholder={t(modulo.clave)} /></div>
-        <div><label style={LS}>Contenido *</label><textarea value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder={t(modulo.clave)} /></div>
+        <div><label htmlFor={`${idPrefix}-summary`} style={LS}>Resumen</label><input id={`${idPrefix}-summary`} value={form.summary} onChange={set('summary')} style={IS} placeholder="Resumen del artículo" /></div>
+        <div><label htmlFor={`${idPrefix}-body`} style={LS}>Contenido *</label><textarea id={`${idPrefix}-body`} value={form.body} onChange={set('body')} rows={8} style={{ ...IS, resize: 'vertical' }} placeholder="Contenido del artículo" /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div><label style={LS}>Etiquetas (separadas por coma)</label><input value={form.tags} onChange={set('tags')} style={IS} placeholder={t(modulo.clave)} /></div>
-          <div><label style={LS}>Estado</label><select value={form.status} onChange={set('status')} style={IS}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
+          <div><label htmlFor={`${idPrefix}-tags`} style={LS}>Etiquetas (separadas por coma)</label><input id={`${idPrefix}-tags`} value={form.tags} onChange={set('tags')} style={IS} placeholder="etiqueta1, etiqueta2" /></div>
+          <div><label htmlFor={`${idPrefix}-status`} style={LS}>Estado</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} style={IS}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
         </div>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-1)', cursor: 'pointer' }}><input type="checkbox" checked={form.is_public} onChange={set('is_public')} />Visible en el portal cliente</label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

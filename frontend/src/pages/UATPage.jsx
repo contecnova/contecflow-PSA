@@ -3,7 +3,7 @@
  * Define criterios de aceptación por proyecto/tarea y registra su ejecución.
  * Permite exportar el plan para enviar al cliente.
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
@@ -39,6 +39,7 @@ const ls = {
 }
 
 function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
+  const idPrefix = useId()
   const [form, setForm] = useState({
     title: initial?.title || '',
     description: initial?.description || '',
@@ -56,30 +57,30 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar caso UAT' : 'Nuevo caso UAT'} width={640}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={ls}>Título *</label>
-          <input value={form.title} onChange={s('title')} style={fs} placeholder={t(modulo.clave)} />
+          <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
+          <input id={`${idPrefix}-title`} value={form.title} onChange={s('title')} style={fs} placeholder="Título del caso UAT" />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <div>
-            <label style={ls}>Estado</label>
-            <select value={form.status} onChange={s('status')} style={fs}>
+            <label htmlFor={`${idPrefix}-status`} style={ls}>Estado</label>
+            <select id={`${idPrefix}-status`} value={form.status} onChange={s('status')} style={fs}>
               {Object.entries(STATUS_META).map(([v, m]) => (
                 <option key={v} value={v}>{m.icon} {m.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label style={ls}>Prioridad</label>
-            <select value={form.priority} onChange={s('priority')} style={fs}>
+            <label htmlFor={`${idPrefix}-priority`} style={ls}>Prioridad</label>
+            <select id={`${idPrefix}-priority`} value={form.priority} onChange={s('priority')} style={fs}>
               {Object.entries(PRIORITY_META).map(([v, m]) => (
                 <option key={v} value={v}>{m.label}</option>
               ))}
             </select>
           </div>
           <div>
-            <label style={ls}>Tarea vinculada</label>
-            <select value={form.task_id} onChange={s('task_id')} style={fs}>
+            <label htmlFor={`${idPrefix}-task-id`} style={ls}>Tarea vinculada</label>
+            <select id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} style={fs}>
               <option value="">— Sin tarea —</option>
               {tasks.map(t => (
                 <option key={t.id} value={t.id}>{t.title}</option>
@@ -89,31 +90,31 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }) {
         </div>
 
         <div>
-          <label style={ls}>Pasos para ejecutar el test</label>
-          <textarea value={form.description} onChange={s('description')} rows={3}
+          <label htmlFor={`${idPrefix}-description`} style={ls}>Pasos para ejecutar el test</label>
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={s('description')} rows={3}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder={t(modulo.clave)} />
+            placeholder="Pasos para ejecutar el test" />
         </div>
 
         <div>
-          <label style={ls}>Resultado esperado *</label>
-          <textarea value={form.expected_result} onChange={s('expected_result')} rows={2}
+          <label htmlFor={`${idPrefix}-expected-result`} style={ls}>Resultado esperado *</label>
+          <textarea id={`${idPrefix}-expected-result`} value={form.expected_result} onChange={s('expected_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder={t(modulo.clave)} />
+            placeholder="Resultado esperado" />
         </div>
 
         <div>
-          <label style={ls}>Resultado obtenido (rellenar al ejecutar)</label>
-          <textarea value={form.actual_result} onChange={s('actual_result')} rows={2}
+          <label htmlFor={`${idPrefix}-actual-result`} style={ls}>Resultado obtenido (rellenar al ejecutar)</label>
+          <textarea id={`${idPrefix}-actual-result`} value={form.actual_result} onChange={s('actual_result')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder={t(modulo.clave)} />
+            placeholder="Resultado obtenido" />
         </div>
 
         <div>
-          <label style={ls}>Notas internas</label>
-          <textarea value={form.notes} onChange={s('notes')} rows={2}
+          <label htmlFor={`${idPrefix}-notes`} style={ls}>Notas internas</label>
+          <textarea id={`${idPrefix}-notes`} value={form.notes} onChange={s('notes')} rows={2}
             style={{ ...fs, resize: 'vertical' }}
-            placeholder={t(modulo.clave)} />
+            placeholder="Notas internas" />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
@@ -136,7 +137,7 @@ function ExportModal({ open, onClose, report }) {
     })
   }
   return (
-    <Modal open={open} onClose={onClose} title={t(modulo.clave)} width={700}>
+    <Modal open={open} onClose={onClose} title="Exportar plan UAT" width={700}>
       <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <Button variant="secondary" onClick={handleCopy}>
           {copied ? '✓ Copiado' : '📋 Copiar texto'}
@@ -157,7 +158,7 @@ function ExportModal({ open, onClose, report }) {
 }
 
 export default function UATPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
@@ -224,8 +225,8 @@ export default function UATPage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
       <PageHeader
-        title={_t('uat.title')}
-        subtitle={_t('uat.subtitle')}
+        title={t('uat.title')}
+        subtitle={t('uat.subtitle')}
         icon={<ClipboardCheck size={18} />}
         actions={
           selectedProject ? (
@@ -285,16 +286,16 @@ export default function UATPage() {
       {!selectedProject ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title={t(modulo.clave)}
-          description={t(modulo.clave)}
+          title="Selecciona un proyecto"
+          description="Selecciona un proyecto para ver y gestionar casos UAT."
         />
       ) : isLoading ? (
         <Spinner />
       ) : cases.length === 0 ? (
         <EmptyState
           icon={<ClipboardCheck size={40} />}
-          title={t(modulo.clave)}
-          description={t(modulo.clave)}
+          title="Sin casos UAT"
+          description="Crea el primer caso UAT para este proyecto."
           action={<Button onClick={() => setShowCreate(true)} style={{ marginTop: 12 }}>＋ Crear primer caso UAT</Button>}
         />
       ) : (
@@ -383,7 +384,7 @@ export default function UATPage() {
       )}
       {/* Delete confirmation modal (no browser confirm()) */}
       {deleteTarget && (
-        <Modal open onClose={() => setDeleteTarget(null)} title={t(modulo.clave)} width={420}>
+        <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
           <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
             ¿Eliminar el caso <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>? Esta acción no se puede deshacer.
           </p>

@@ -47,17 +47,17 @@ function CourseModal({ course, onClose }) {
         <div><label style={LS}>Título *</label>
           <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} autoFocus /></div>
         <div><label style={LS}>Proveedor</label>
-          <input value={form.provider} onChange={e=>setForm(f=>({...f,provider:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+          <input value={form.provider} onChange={e=>setForm(f=>({...f,provider:e.target.value}))} style={IS} placeholder="Nombre del proveedor" aria-label="Nombre del proveedor" /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div><label style={LS}>Categoría</label>
-            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+            <input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={IS} placeholder="Categoria" aria-label="Categoria" /></div>
           <div><label style={LS}>Horas</label>
-            <input type="number" value={form.duration_h} onChange={e=>setForm(f=>({...f,duration_h:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+            <input type="number" value={form.duration_h} onChange={e=>setForm(f=>({...f,duration_h:e.target.value}))} style={IS} placeholder="Horas del curso" aria-label="Horas del curso" /></div>
           <div><label style={LS}>Coste €</label>
-            <input type="number" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+            <input type="number" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} style={IS} placeholder="Coste del curso" aria-label="Coste del curso" /></div>
         </div>
         <div><label style={LS}>URL</label>
-          <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+          <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder="https://proveedor.com/curso" aria-label="URL del curso" /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.title} loading={isPending}>
@@ -98,7 +98,7 @@ function CertModal({ cert, userId, onClose }) {
           <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={IS} autoFocus /></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div><label style={LS}>Organismo emisor</label>
-            <input value={form.issuer} onChange={e=>setForm(f=>({...f,issuer:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+            <input value={form.issuer} onChange={e=>setForm(f=>({...f,issuer:e.target.value}))} style={IS} placeholder="Entidad emisora" aria-label="Entidad emisora" /></div>
           <div><label style={LS}>ID certificado</label>
             <input value={form.cert_id} onChange={e=>setForm(f=>({...f,cert_id:e.target.value}))} style={IS} /></div>
           <div><label style={LS}>Obtenida</label>
@@ -107,7 +107,7 @@ function CertModal({ cert, userId, onClose }) {
             <input type="date" value={form.expires_at} onChange={e=>setForm(f=>({...f,expires_at:e.target.value}))} style={IS} /></div>
         </div>
         <div><label style={LS}>URL verificación</label>
-          <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder={t(modulo.clave)} /></div>
+          <input value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))} style={IS} placeholder="https://verificacion.com/certificado" aria-label="URL de verificacion" /></div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={()=>mutate(form)} disabled={isPending||!form.name||!form.user_id} loading={isPending}>
@@ -230,7 +230,7 @@ export default function TrainingPage() {
       {/* Catálogo de cursos */}
       {tab === 'courses' && (
         loadC ? <Spinner /> : courses.length === 0 ? (
-          <EmptyState icon="📚" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="📚" title="Sin cursos" description="Crea el primer curso para arrancar el catalogo de formacion" />
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px,1fr))', gap:12 }}>
             {courses.map(c => (
@@ -267,7 +267,7 @@ export default function TrainingPage() {
       {/* Inscripciones */}
       {tab === 'enrollments' && (
         enrollments.length === 0 ? (
-          <EmptyState icon="👤" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="👤" title="Sin inscripciones" description="Todavia no hay empleados inscritos en cursos" />
         ) : (
           <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
@@ -310,7 +310,7 @@ export default function TrainingPage() {
       {/* Certificaciones */}
       {tab === 'certs' && (
         loadCert ? <Spinner /> : certs.length === 0 ? (
-          <EmptyState icon="🏅" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="🏅" title="Sin certificaciones" description="Anade la primera certificacion para hacer seguimiento de vigencias" />
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {certs.map(c => (

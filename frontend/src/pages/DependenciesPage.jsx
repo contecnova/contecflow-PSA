@@ -93,7 +93,7 @@ function DepForm({ projectId, tasks, onClose }) {
           <div>
             <label style={ls}>Nota (opcional)</label>
             <input style={is} value={form.note} onChange={e => set('note')(e.target.value)}
-              placeholder={t(modulo.clave)} />
+              placeholder="Nota sobre la dependencia" aria-label="Nota sobre la dependencia" />
           </div>
         </div>
 
@@ -122,7 +122,7 @@ function DepForm({ projectId, tasks, onClose }) {
 }
 
 function GanttDepsView({ nodes, edges }) {
-  if (!nodes.length) return <EmptyState icon="🔗" title={t(modulo.clave)} description={t(modulo.clave)} />
+  if (!nodes.length) return <EmptyState icon="🔗" title="Sin tareas" description="Este proyecto no tiene tareas para representar dependencias" />
   if (!edges.length) return (
     <div style={{textAlign:'center', padding:'32px', color:'var(--text-2)', fontSize:13}}>
       Sin dependencias definidas. Crea dependencias entre tareas para verlas aquí.
@@ -263,7 +263,7 @@ export default function DependenciesPage() {
         </div>
       </div>
 
-      {!project && <EmptyState icon="🔗" title={t(modulo.clave)} description={t(modulo.clave)} />}
+      {!project && <EmptyState icon="🔗" title="Selecciona un proyecto" description="Elige un proyecto para ver o crear dependencias entre tareas" />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && (

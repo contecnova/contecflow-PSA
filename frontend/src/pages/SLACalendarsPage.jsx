@@ -53,7 +53,7 @@ function CalendarForm({ cal, onClose }) {
         <div>
           <label style={ls}>Nombre</label>
           <input style={is} value={form.name} onChange={e => set('name')(e.target.value)}
-            placeholder={t(modulo.clave)} />
+            placeholder="Ej: Horario laboral estandar" />
         </div>
         <div>
           <label style={ls}>Zona horaria</label>
@@ -152,7 +152,7 @@ function HolidaysModal({ cal, onClose }) {
           </div>
           <div>
             <label style={ls}>Nombre (opcional)</label>
-            <input style={is} value={name} onChange={e => setName(e.target.value)} placeholder={t(modulo.clave)} />
+            <input style={is} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Navidad" />
           </div>
           <Button onClick={() => addH()} disabled={isPending || !date}>
             {isPending ? '...' : 'Añadir'}
@@ -173,7 +173,7 @@ function HolidaysModal({ cal, onClose }) {
                       padding:'3px 7px',color:'var(--text-1)',fontSize:12,fontFamily:'inherit'}} />
                   <input value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
-                    placeholder={t(modulo.clave)}
+                    placeholder="Nombre del festivo"
                     style={{flex:1,background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:5,
                       padding:'3px 7px',color:'var(--text-1)',fontSize:12,fontFamily:'inherit'}} />
                   <button onClick={() => updateH(h.id)}

@@ -47,19 +47,19 @@ function StateForm({ projectId, state, onClose }) {
             onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
-            }} placeholder={t(modulo.clave)} />
+            }} placeholder="Nombre visible del estado" aria-label="Nombre del estado" />
         </div>
         <div>
           <label style={labelStyle}>Valor interno</label>
           <input style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder={t(modulo.clave)} />
+            placeholder="valor_interno" aria-label="Valor interno" />
         </div>
         <div>
           <label style={labelStyle}>Icono (emoji)</label>
           <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: 20 }}
-            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder={t(modulo.clave)} />
+            value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" aria-label="Icono del estado" />
         </div>
         <div>
           <label style={labelStyle}>Color</label>
@@ -112,7 +112,7 @@ function TransitionForm({ projectId, states, onClose }) {
   })
 
   return (
-    <Modal open onClose={onClose} title={t(modulo.clave)}>
+    <Modal open onClose={onClose} title="Nueva transicion">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
@@ -134,7 +134,7 @@ function TransitionForm({ projectId, states, onClose }) {
         </div>
         <div>
           <label style={labelStyle}>Etiqueta de la transición (opcional)</label>
-          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t(modulo.clave)} />
+          <input style={inputStyle} value={form.label} onChange={e => set('label')(e.target.value)} placeholder="Ejecutar, Validar o Cerrar" aria-label="Etiqueta de la transicion" />
         </div>
         <div>
           <label style={labelStyle}>Solo puede ejecutarla este rol</label>
@@ -159,7 +159,7 @@ function TransitionForm({ projectId, states, onClose }) {
 }
 
 export default function WorkflowsPage() {
-  const _t = useAppT()
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
@@ -204,8 +204,8 @@ export default function WorkflowsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
-        title={t(modulo.clave)}
-        subtitle={_t('workflows.subtitle')}
+        title={t('workflows.title')}
+        subtitle={t('workflows.subtitle')}
         actions={selectedProject && states.length > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>+ Transición</Button>
@@ -225,7 +225,7 @@ export default function WorkflowsPage() {
       </div>
 
       {!selectedProject && (
-        <EmptyState icon="⚙" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="⚙" title="Selecciona un proyecto" description="Elige un proyecto para configurar su workflow" />
       )}
 
       {selectedProject && isLoading && <Spinner />}

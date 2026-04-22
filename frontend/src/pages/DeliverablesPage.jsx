@@ -80,11 +80,11 @@ function DeliverableFormModal({ del, projectId, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
-          <input value={form.name} onChange={set('name')} style={fs} placeholder={t(modulo.clave)} />
+          <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del entregable" aria-label="Nombre del entregable" />
         </div>
         <div>
           <label style={ls}>Formato</label>
-          <input value={form.format} onChange={set('format')} style={fs} placeholder={t(modulo.clave)} />
+          <input value={form.format} onChange={set('format')} style={fs} placeholder="Formato de entrega" aria-label="Formato de entrega" />
         </div>
         <div>
           <label style={ls}>Fecha planificada</label>
@@ -99,7 +99,7 @@ function DeliverableFormModal({ del, projectId, onClose }) {
         </div>
         <div>
           <label style={ls}>Contacto cliente</label>
-          <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder={t(modulo.clave)} />
+          <input value={form.client_contact} onChange={set('client_contact')} style={fs} placeholder="Contacto del cliente" aria-label="Contacto del cliente" />
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Descripción</label>
@@ -107,7 +107,7 @@ function DeliverableFormModal({ del, projectId, onClose }) {
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Criterios de aceptación</label>
-          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
+          <textarea value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder="Criterios de aceptacion" aria-label="Criterios de aceptacion" />
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -211,9 +211,9 @@ export default function DeliverablesPage() {
           )}
 
           {!selectedProject ? (
-            <EmptyState icon="📦" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="📦" title="Selecciona un proyecto" description="Elige un proyecto para consultar sus entregables" />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
-            <EmptyState icon="📦" title={t(modulo.clave)} description={t(modulo.clave)} />
+            <EmptyState icon="📦" title="Sin entregables" description="Este proyecto todavia no tiene entregables definidos" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {deliverables.map(d => {
@@ -263,7 +263,7 @@ export default function DeliverablesPage() {
 
       {tab === 'overview' && (
         overview.length === 0 ? (
-          <EmptyState icon="📦" title={t(modulo.clave)} description={t(modulo.clave)} />
+          <EmptyState icon="📦" title="Sin entregables en la vista global" description="No hay entregables registrados en ningun proyecto" />
         ) : (
           <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

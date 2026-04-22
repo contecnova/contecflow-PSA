@@ -112,7 +112,7 @@ export default function ExecutiveDashboardPage() {
         </div>
       )}
       <PageHeader
-        title={t(modulo.clave)}
+        title="Dashboard Ejecutivo"
         subtitle={_t('executive_dashboard.subtitle')}
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
@@ -123,16 +123,16 @@ export default function ExecutiveDashboardPage() {
 
       {/* KPI Row */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:12, marginBottom:24 }}>
-        <KpiCard icon="⬡" label={t(modulo.clave)} value={activeProjects}
+        <KpiCard icon="⬡" label="Proyectos activos" value={activeProjects}
           sub={`${onTrackPct}% en tiempo`} color="var(--accent)" />
-        <KpiCard icon="💰" label={t(modulo.clave)} value={`${budgetPct}%`}
+        <KpiCard icon="💰" label="Presupuesto usado" value={`${budgetPct}%`}
           sub={`${fmtCurrency(totalSpent)} / ${fmtCurrency(totalBudget)}`}
           color={budgetPct > 90 ? 'var(--danger)' : budgetPct > 75 ? 'var(--warning)' : 'var(--success)'} />
-        <KpiCard icon="⏱" label={t(modulo.clave)} value={kpis?.hours_logged_this_week?.toFixed(0) || 0}
+        <KpiCard icon="⏱" label="Horas esta semana" value={kpis?.hours_logged_this_week?.toFixed(0) || 0}
           sub="horas imputadas" color="var(--purple)" />
-        <KpiCard icon="🎪" label={t(modulo.clave)} value={fmtCurrency(pipelineValue)}
+        <KpiCard icon="🎪" label="Pipeline CRM" value={fmtCurrency(pipelineValue)}
           sub={`${pipeline.length} oportunidades`} color="var(--warning)" />
-        <KpiCard icon="🎫" label={t(modulo.clave)} value={kpis?.tasks_open || 0}
+        <KpiCard icon="🎫" label="Tareas abiertas" value={kpis?.tasks_open || 0}
           sub={`${kpis?.tasks_overdue || 0} vencidas`} color="var(--text-1)" />
       </div>
 

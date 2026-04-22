@@ -13,10 +13,10 @@ const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', bor
 
 const STATUS_COLOR = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
 const STATUS_LABEL = {
-  received: t('subcontractors.status_received'),
-  approved: t('subcontractors.status_approved'),
-  paid: t('subcontractors.status_paid'),
-  rejected: t('subcontractors.status_rejected')
+  received: 'Recibida',
+  approved: 'Aprobada',
+  paid: 'Pagada',
+  rejected: 'Rechazada'
 }
 const LEVEL_COLOR = { basic: '#6b7280', intermediate: 'var(--accent)', advanced: '#fb923c', expert: 'var(--success)' }
 
@@ -320,7 +320,7 @@ function WorkersPanel({ subId }) {
       {showCreate && <WorkerModal subId={subId} onClose={() => setShowCreate(false)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
       {editWorker && <WorkerModal subId={subId} worker={editWorker} onClose={() => setEditWorker(null)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
       {deactivateTarget && (
-        <Modal open title={t(modulo.clave)} onClose={() => setDeactivateTarget(null)} width={380}>
+        <Modal open title="Desactivar trabajador" onClose={() => setDeactivateTarget(null)} width={380}>
           <p style={{ fontSize: 14, color: 'var(--text-1)', marginBottom: 20 }}>
             Se desactivará a <strong>{deactivateTarget.name}</strong> y no podrá iniciar sesión ni ser asignado a tareas.
           </p>
@@ -560,7 +560,7 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal registrar horas */}
       {showTimelog && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowTimelog(false)} width={480}>
+        <Modal open title="Registrar horas" onClose={() => setShowTimelog(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Asignación</label>
@@ -579,11 +579,11 @@ function SubDetail({ sub, onBack }) {
             </div>
             <div>
               <label style={lbl}>Referencia tarea</label>
-              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} style={inp} placeholder="Referencia de tarea" aria-label="Referencia de tarea" />
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>Descripción</label>
-              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} style={inp} placeholder="Descripcion del parte" aria-label="Descripcion del parte" />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -595,11 +595,11 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal registrar factura */}
       {showInvoice && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowInvoice(false)} width={480}>
+        <Modal open title="Registrar factura" onClose={() => setShowInvoice(false)} width={480}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
               <label style={lbl}>Nº Factura *</label>
-              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} style={inp} placeholder="Numero de factura" aria-label="Numero de factura" />
             </div>
             <div>
               <label style={lbl}>Fecha emisión</label>
@@ -632,7 +632,7 @@ function SubDetail({ sub, onBack }) {
 
       {/* Modal nueva asignación */}
       {showAssign && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowAssign(false)} width={500}>
+        <Modal open title="Nueva asignacion" onClose={() => setShowAssign(false)} width={500}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={lbl}>Proyecto *</label>
@@ -643,7 +643,7 @@ function SubDetail({ sub, onBack }) {
             </div>
             <div>
               <label style={lbl}>Nº Pedido (PO)</label>
-              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} style={inp} placeholder="Numero de pedido" aria-label="Numero de pedido" />
             </div>
             <div>
               <label style={lbl}>Techo PO (€)</label>
@@ -753,7 +753,7 @@ export default function SubcontractorsPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>Cargando...</div>
       ) : subs.length === 0 ? (
-        <EmptyState icon="🤝" title={t(modulo.clave)} description={t(modulo.clave)} />
+        <EmptyState icon="🤝" title="Sin subcontratistas" description="Crea el primer colaborador externo para empezar" />
       ) : view === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {sortedSubs.map(s => (
@@ -827,11 +827,11 @@ export default function SubcontractorsPage() {
       )}
 
       {showCreate && (
-        <Modal open title={t(modulo.clave)} onClose={() => setShowCreate(false)} width={520}>
+        <Modal open title="Nuevo subcontratista" onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre / Razón social *</label>
-              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder={t(modulo.clave)} />
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Nombre o razon social" aria-label="Nombre o razon social" />
             </div>
             <div>
               <label style={lbl}>Empresa (si es persona física)</label>
@@ -868,7 +868,7 @@ export default function SubcontractorsPage() {
       )}
 
       {showEdit && editTarget && (
-        <Modal open title={t(modulo.clave)} onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
+        <Modal open title="Editar subcontratista" onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={lbl}>Nombre / Razón social *</label>
