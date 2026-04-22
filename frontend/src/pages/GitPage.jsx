@@ -11,39 +11,41 @@ import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_PR = {
-  open:   { label: t('git_integration.status_open'),   color: '#68d391', bg: '#1a3a1a' },
-  draft:  { label: t('git_integration.status_draft'),  color: '#a0aec0', bg: '#1a202c' },
-  merged: { label: t('git_integration.status_merged'), color: '#9f7aea', bg: '#2d1a4a' },
-  closed: { label: t('git_integration.status_closed'), color: '#fc8181', bg: '#2d1a1a' },
+  open:   { key: 'git_integration.status_open',   color: '#68d391', bg: '#1a3a1a' },
+  draft:  { key: 'git_integration.status_draft',  color: '#a0aec0', bg: '#1a202c' },
+  merged: { key: 'git_integration.status_merged', color: '#9f7aea', bg: '#2d1a4a' },
+  closed: { key: 'git_integration.status_closed', color: '#fc8181', bg: '#2d1a1a' },
 }
 
 const STATUS_DEPLOY = {
-  pending:   { label: t('git_integration.status_pending'),  color: '#f6e05e', bg: '#3d3000' },
-  running:   { label: t('git_integration.status_running'),  color: '#63b3ed', bg: '#1a2844' },
-  success:   { label: t('git_integration.status_success'),  color: '#68d391', bg: '#1a3a1a' },
-  failure:   { label: t('git_integration.status_failure'),  color: '#fc8181', bg: '#2d1a1a' },
-  cancelled: { label: t('git_integration.status_cancelled'),color: '#a0aec0', bg: '#1a202c' },
+  pending:   { key: 'git_integration.status_pending',  color: '#f6e05e', bg: '#3d3000' },
+  running:   { key: 'git_integration.status_running',  color: '#63b3ed', bg: '#1a2844' },
+  success:   { key: 'git_integration.status_success',  color: '#68d391', bg: '#1a3a1a' },
+  failure:   { key: 'git_integration.status_failure',  color: '#fc8181', bg: '#2d1a1a' },
+  cancelled: { key: 'git_integration.status_cancelled',color: '#a0aec0', bg: '#1a202c' },
 }
 
 function PRStatusPill({ status }) {
+  const t = useAppT()
   const s = STATUS_PR[status] || STATUS_PR.open
   return (
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
       borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
-    }}>{s.label}</span>
+    }}>{t(s.key)}</span>
   )
 }
 
 function DeployPill({ status }) {
+  const t = useAppT()
   const s = STATUS_DEPLOY[status] || STATUS_DEPLOY.pending
   return (
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
       borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
-    }}>{s.label}</span>
+    }}>{t(s.key)}</span>
   )
 }
 

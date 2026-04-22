@@ -216,7 +216,7 @@ class PageErrorBoundary extends Component {
 
 function RouteScopedBoundary({ children }) {
   const { pathname } = useLocation()
-  const t = useAppT()
+  const { t } = useAppT()
   return <PageErrorBoundary resetKey={pathname} t={t}>{children}</PageErrorBoundary>
 }
 

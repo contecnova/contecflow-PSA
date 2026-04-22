@@ -12,19 +12,18 @@ const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRa
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const { t } = useAppT();
 const DEP_TYPES = [
-  { value:'blocks',      label: t('dependencies.blocks'),      color:'var(--danger)', desc: t('dependencies.blocks_desc') },
-  { value:'blocked_by',  label: t('dependencies.blocked_by'), color:'var(--danger)', desc: t('dependencies.blocked_by_desc') },
-  { value:'relates_to',  label: t('dependencies.relates_to'), color:'var(--text-2)', desc: t('dependencies.relates_to_desc') },
-  { value:'duplicates',  label: t('dependencies.duplicates'), color:'var(--warning)', desc: t('dependencies.duplicates_desc') },
-  { value:'cloned_from', label: t('dependencies.cloned_from'),color:'var(--accent)', desc: t('dependencies.cloned_from_desc') },
+  { value:'blocks',      label: 'Bloquea',            color:'var(--danger)', desc: 'La tarea origen bloquea la tarea destino' },
+  { value:'blocked_by',  label: 'Bloqueada por',      color:'var(--danger)', desc: 'La tarea origen queda bloqueada por la destino' },
+  { value:'relates_to',  label: 'Relacionada con',    color:'var(--text-2)', desc: 'Relación informativa sin bloqueo' },
+  { value:'duplicates',  label: 'Duplica',            color:'var(--warning)', desc: 'Representa trabajo duplicado' },
+  { value:'cloned_from', label: 'Clonada desde',      color:'var(--accent)', desc: 'La tarea origen se creó desde la destino' },
 ];
 const _EPIC_DEP_TYPES = [
-  { value:'finish_to_start',  label: t('dependencies.finish_to_start'),   color:'var(--danger)', desc: t('dependencies.finish_to_start_desc') },
-  { value:'start_to_start',   label: t('dependencies.start_to_start'),   color:'var(--warning)', desc: t('dependencies.start_to_start_desc') },
-  { value:'finish_to_finish', label: t('dependencies.finish_to_finish'), color:'var(--accent)', desc: t('dependencies.finish_to_finish_desc') },
-  { value:'relates_to',       label: t('dependencies.relates_to_epic'),  color:'var(--text-2)', desc: t('dependencies.relates_to_epic_desc') },
+  { value:'finish_to_start',  label: 'Finish to start',   color:'var(--danger)', desc: 'La épica destino comienza cuando la origen finaliza' },
+  { value:'start_to_start',   label: 'Start to start',    color:'var(--warning)', desc: 'Ambas épicas comienzan coordinadas' },
+  { value:'finish_to_finish', label: 'Finish to finish',  color:'var(--accent)', desc: 'Ambas épicas deben cerrarse juntas' },
+  { value:'relates_to',       label: 'Relacionada',       color:'var(--text-2)', desc: 'Relación informativa entre épicas' },
 ];
 
 const STATUS_COLOR = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}

@@ -99,7 +99,7 @@ async def lifespan(_app: FastAPI):
             )
             _out, _ = await _proc.communicate()
             if _out:
-                for _line in _out.decode().splitlines():
+                for _line in _out.decode(errors='replace').splitlines():
                     logger.info("   alembic: %s", _line)
             if _proc.returncode != 0:
                 raise RuntimeError(f"alembic upgrade head exited with code {_proc.returncode}")

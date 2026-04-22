@@ -309,10 +309,12 @@ def seed():
                 account_manager_id=users["carlos.ruiz"].id),
         ])
     clients = {}
+    client_columns = set(Client.__table__.columns.keys())
     for cd in clients_data:
         c = db.query(Client).filter(Client.name == cd["name"]).first()
         if not c:
-            c = Client(**cd, created_by=users["admin"].id)
+            payload = {k: v for k, v in cd.items() if k in client_columns}
+            c = Client(**payload, created_by=users["admin"].id)
             db.add(c)
             db.flush()
             print(f"  Client: {cd['name']}")
@@ -414,33 +416,62 @@ def seed():
     # Fields: code, name, client_name, expected_revenue, stage, probability,
     #         expected_close_date, owner_id, description
     if db.query(Opportunity).count() == 0:
-        opps = [
-            dict(code="OPP-0001",name="Portal B2B RetailCorp",    client_name="RetailCorp SA",  client_id=clients["RetailCorp SA"].id,  expected_revenue=180000,stage=OpportunityStage.proposal,    probability=60, expected_close_date=today+timedelta(days=30), owner_id=users["carlos.ruiz"].id,description="Portal de gestion de proveedores B2B"),
-            dict(code="OPP-0002",name="Sistema RRHH HospitalX",   client_name="Hospital X",     client_id=clients["Hospital X"].id,     expected_revenue=95000, stage=OpportunityStage.negotiation,  probability=80, expected_close_date=today+timedelta(days=15), owner_id=users["carlos.ruiz"].id),
-            dict(code="OPP-0003",name="App Analytics FinanceCo",  client_name="FinanceCo SA",   client_id=clients["FinanceCo SA"].id,   expected_revenue=220000,stage=OpportunityStage.qualification, probability=35, expected_close_date=today+timedelta(days=60), owner_id=users["ana.torres"].id),
-            dict(code="OPP-0004",name="Plataforma IoT Fab",       client_name="FabriTech SL",   client_id=clients["FabriTech SL"].id,   expected_revenue=310000,stage=OpportunityStage.lead,          probability=20, expected_close_date=today+timedelta(days=90), owner_id=users["carlos.ruiz"].id),
-            dict(code="OPP-0005",name="Migracion cloud StartupX", client_name="StartupX",       client_id=clients["StartupX"].id,       expected_revenue=45000, stage=OpportunityStage.won,           probability=100,expected_close_date=today-timedelta(days=5),  owner_id=users["ana.torres"].id),
-            dict(code="OPP-0006",name="CRM PymesGroup",           client_name="PymesGroup",     client_id=clients["PymesGroup"].id,     expected_revenue=78000, stage=OpportunityStage.lost,          probability=0,  expected_close_date=today-timedelta(days=20), owner_id=users["carlos.ruiz"].id),
+        opp_templates = [
+            dict(code="OPP-0001",name="Portal B2B RetailCorp",    client_name="RetailCorp SA",  expected_revenue=180000,stage=OpportunityStage.proposal,    probability=60, expected_close_date=today+timedelta(days=30), owner_id=users["carlos.ruiz"].id,description="Portal de gestion de proveedores B2B"),
+            dict(code="OPP-0002",name="Sistema RRHH HospitalX",   client_name="Hospital X",     expected_revenue=95000, stage=OpportunityStage.negotiation,  probability=80, expected_close_date=today+timedelta(days=15), owner_id=users["carlos.ruiz"].id),
+            dict(code="OPP-0003",name="App Analytics FinanceCo",  client_name="FinanceCo SA",   expected_revenue=220000,stage=OpportunityStage.qualification, probability=35, expected_close_date=today+timedelta(days=60), owner_id=users["ana.torres"].id),
+            dict(code="OPP-0004",name="Plataforma IoT Fab",       client_name="FabriTech SL",   expected_revenue=310000,stage=OpportunityStage.lead,          probability=20, expected_close_date=today+timedelta(days=90), owner_id=users["carlos.ruiz"].id),
+            dict(code="OPP-0005",name="Migracion cloud StartupX", client_name="StartupX",       expected_revenue=45000, stage=OpportunityStage.won,           probability=100,expected_close_date=today-timedelta(days=5),  owner_id=users["ana.torres"].id),
+            dict(code="OPP-0006",name="CRM PymesGroup",           client_name="PymesGroup",     expected_revenue=78000, stage=OpportunityStage.lost,          probability=0,  expected_close_date=today-timedelta(days=20), owner_id=users["carlos.ruiz"].id),
         ]
-        for od in opps:
+        created_opps = 0
+        for tpl in opp_templates:
+            c = clients.get(tpl["client_name"])
+            if not c:
+                continue
+            od = dict(tpl)
+            od["client_id"] = c.id
             db.add(Opportunity(**od))
+            created_opps += 1
         db.commit()
-        print("  Oportunidades creadas")
+        print(f"  Oportunidades creadas: {created_opps}")
 
     # ── Contracts ──────────────────────────────────────────────────────────────
     # Fields: code, name, project_id, client_name, contract_type, status,
     #         total_amount, monthly_retainer, start_date, end_date, signed_date
     # WorkOrder fields: code, contract_id, name, amount, hours, start_date, end_date
     if db.query(Contract).count() == 0:
-        c1 = Contract(code="CNT-0001",name="Contrato ERP Acme Industries",project_id=projects["PRJ-0002"].id,client_name="Acme Industries SA",client_id=clients["Acme Industries SA"].id,contract_type=ContractType.fixed_price,status=ContractStatus.active,start_date=today-timedelta(days=30),end_date=today+timedelta(days=120),total_amount=95000,signed_date=today-timedelta(days=35))
-        c2 = Contract(code="CNT-0002",name="Soporte y mantenimiento TechStart",project_id=projects["PRJ-0004"].id,client_name="TechStart SL",client_id=clients["TechStart SL"].id,contract_type=ContractType.time_material,status=ContractStatus.active,start_date=today-timedelta(days=90),end_date=today+timedelta(days=90),total_amount=36000,monthly_retainer=3000,signed_date=today-timedelta(days=92))
-        c3 = Contract(code="CNT-0003",name="Proyecto Data Analytics RetailCorp",project_id=projects["PRJ-0003"].id,client_name="RetailCorp SA",client_id=clients["RetailCorp SA"].id,contract_type=ContractType.fixed_price,status=ContractStatus.draft,start_date=today+timedelta(days=15),end_date=today+timedelta(days=150),total_amount=180000)
-        db.add_all([c1,c2,c3]); db.flush()
-        db.add(WorkOrder(code="OT-0001",contract_id=c1.id,name="Fase 1 - Analisis y diseno",  amount=23750,hours=190,start_date=today-timedelta(days=30),end_date=today-timedelta(days=10)))
-        db.add(WorkOrder(code="OT-0002",contract_id=c1.id,name="Fase 2 - Desarrollo API",     amount=33250,hours=270,start_date=today-timedelta(days=10),end_date=today+timedelta(days=40)))
-        db.add(WorkOrder(code="OT-0003",contract_id=c2.id,name="Soporte Mensual Marzo",        amount=3000, hours=40, start_date=today,                   end_date=today+timedelta(days=31)))
+        contract_templates = [
+            dict(code="CNT-0001",name="Contrato ERP Acme Industries",project_code="PRJ-0002",client_name="Acme Industries SA",contract_type=ContractType.fixed_price,status=ContractStatus.active,start_date=today-timedelta(days=30),end_date=today+timedelta(days=120),total_amount=95000,signed_date=today-timedelta(days=35)),
+            dict(code="CNT-0002",name="Soporte y mantenimiento TechStart",project_code="PRJ-0004",client_name="TechStart SL",contract_type=ContractType.time_material,status=ContractStatus.active,start_date=today-timedelta(days=90),end_date=today+timedelta(days=90),total_amount=36000,monthly_retainer=3000,signed_date=today-timedelta(days=92)),
+            dict(code="CNT-0003",name="Proyecto Data Analytics RetailCorp",project_code="PRJ-0003",client_name="RetailCorp SA",contract_type=ContractType.fixed_price,status=ContractStatus.draft,start_date=today+timedelta(days=15),end_date=today+timedelta(days=150),total_amount=180000),
+        ]
+
+        created_contracts = {}
+        for tpl in contract_templates:
+            p = projects.get(tpl["project_code"])
+            c = clients.get(tpl["client_name"])
+            if not p or not c:
+                continue
+            payload = dict(tpl)
+            payload["project_id"] = p.id
+            payload["client_id"] = c.id
+            payload.pop("project_code", None)
+            contract = Contract(**payload)
+            db.add(contract)
+            db.flush()
+            created_contracts[payload["code"]] = contract
+
+        c1 = created_contracts.get("CNT-0001")
+        c2 = created_contracts.get("CNT-0002")
+        if c1:
+            db.add(WorkOrder(code="OT-0001",contract_id=c1.id,name="Fase 1 - Analisis y diseno",  amount=23750,hours=190,start_date=today-timedelta(days=30),end_date=today-timedelta(days=10)))
+            db.add(WorkOrder(code="OT-0002",contract_id=c1.id,name="Fase 2 - Desarrollo API",     amount=33250,hours=270,start_date=today-timedelta(days=10),end_date=today+timedelta(days=40)))
+        if c2:
+            db.add(WorkOrder(code="OT-0003",contract_id=c2.id,name="Soporte Mensual Marzo",        amount=3000, hours=40, start_date=today,                   end_date=today+timedelta(days=31)))
+
         db.commit()
-        print("  Contratos creados")
+        print(f"  Contratos creados: {len(created_contracts)}")
 
     # ── Risks ──────────────────────────────────────────────────────────────────
     # Fields: code, project_id, title, description, probability, impact,

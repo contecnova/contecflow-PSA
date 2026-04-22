@@ -82,14 +82,14 @@ api_router.include_router(semantic_engine.router,  prefix="/semantic",         t
 api_router.include_router(rate_cards.router,           prefix="/rate-cards",           tags=["Rate Cards"])
 api_router.include_router(milestones.router,           prefix="/milestones",           tags=["Milestones"])
 api_router.include_router(resource_forecast.router,    prefix="/resource-forecast",    tags=["Resource Forecast"])
-api_router.include_router(approvals.router,            prefix="/approvals",            tags=["Approvals"])
+api_router.include_router(approvals.router,            tags=["Approvals"])
 api_router.include_router(integrations_hub.router,     prefix="/integrations-hub",     tags=["Integrations Hub"])
-api_router.include_router(ws.router,                   prefix="/ws",                   tags=["WebSocket"])
+api_router.include_router(ws.router,                   tags=["WebSocket"])
 api_router.include_router(accounting_hub.router,       prefix="/accounting-hub",       tags=["Accounting Hub"])
 api_router.include_router(okrs.router,                 prefix="/okrs",                 tags=["OKRs"])
 api_router.include_router(performance.router,          prefix="/performance",          tags=["Performance"])
 api_router.include_router(training.router,             prefix="/training",             tags=["Training"])
-api_router.include_router(documents.router,            prefix="/documents",            tags=["Documents"])
+api_router.include_router(documents.router,            tags=["Documents"])
 api_router.include_router(resources.router,            prefix="/resources",            tags=["Resources"])
 api_router.include_router(invoices.router,             prefix="/invoices",             tags=["Invoices"])
 api_router.include_router(documents_collab.router,     prefix="/documents-collab",     tags=["Documents Collab"])
@@ -147,36 +147,36 @@ def _legacy_update_org_branding(
 ):
     return payload
 
-# Agrupación modular de routers
-from app.api.v1.endpoints.admin import users, roles, permissions, abac, abac_admin
-from app.api.v1.endpoints.ai import ai, ai_chat, ai_governance, ai_modules, ai_providers, ai_suggestions
-from app.api.v1.endpoints.integrations import integrations, integrations_hub, erp, crm, slack_block_kit, salesforce_sync
-from app.api.v1.endpoints.billing import billing_reports, invoices, accounting_hub
-from app.api.v1.endpoints.projects import projects, tasks, milestones, sprints, epics, issue_types
+# Agrupación modular de routers - commented out because submodule files don't exist
+# These imports attempted to re-import modules that already imported above
+# from app.api.v1.endpoints.admin import users, roles, permissions, abac, abac_admin
+# from app.api.v1.endpoints.ai import ai, ai_chat, ai_governance, ai_modules, ai_providers, ai_suggestions
+# from app.api.v1.endpoints.integrations import integrations, integrations_hub, erp, crm, slack_block_kit, salesforce_sync
+# from app.api.v1.endpoints.billing import billing_reports, invoices, accounting_hub
+# from app.api.v1.endpoints.projects import projects, tasks, milestones, sprints, epics, issue_types
 
-api_router.include_router(users.router, prefix="/admin/users", tags=["Admin"])
-api_router.include_router(roles.router, prefix="/admin/roles", tags=["Admin"])
-api_router.include_router(permissions.router, prefix="/admin/permissions", tags=["Admin"])
-api_router.include_router(abac.router, prefix="/admin/abac", tags=["Admin"])
-api_router.include_router(abac_admin.router, prefix="/admin/abac-admin", tags=["Admin"])
-
-api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
-api_router.include_router(ai_chat.router, prefix="/ai/chat", tags=["AI"])
-api_router.include_router(ai_governance.router, prefix="/ai/governance", tags=["AI"])
-api_router.include_router(ai_modules.router, prefix="/ai/modules", tags=["AI"])
-api_router.include_router(ai_providers.router, prefix="/ai/providers", tags=["AI"])
-api_router.include_router(ai_suggestions.router, prefix="/ai/suggestions", tags=["AI"])
-
-api_router.include_router(integrations.router, prefix="/integrations", tags=["Integrations"])
-api_router.include_router(integrations_hub.router, prefix="/integrations/hub", tags=["Integrations"])
-api_router.include_router(erp.router, prefix="/integrations/erp", tags=["Integrations"])
-api_router.include_router(crm.router, prefix="/integrations/crm", tags=["Integrations"])
-api_router.include_router(slack_block_kit.router, prefix="/integrations/slack-block-kit", tags=["Integrations"])
-api_router.include_router(salesforce_sync.router, prefix="/integrations/salesforce-sync", tags=["Integrations"])
-
-api_router.include_router(billing_reports.router, prefix="/billing/reports", tags=["Billing"])
-api_router.include_router(invoices.router, prefix="/billing/invoices", tags=["Billing"])
-api_router.include_router(accounting_hub.router, prefix="/billing/accounting-hub", tags=["Billing"])
+# Admin sub-routers (only users.py exists in admin/)
+# from app.api.v1.endpoints.admin import users
+# api_router.include_router(users.router, prefix="/admin/users", tags=["Admin"])
+# api_router.include_router(abac_admin.router, prefix="/admin/abac-admin", tags=["Admin"])
+# 
+# api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
+# api_router.include_router(ai_chat.router, prefix="/ai/chat", tags=["AI"])
+# api_router.include_router(ai_governance.router, prefix="/ai/governance", tags=["AI"])
+# api_router.include_router(ai_modules.router, prefix="/ai/modules", tags=["AI"])
+# api_router.include_router(ai_providers.router, prefix="/ai/providers", tags=["AI"])
+# api_router.include_router(ai_suggestions.router, prefix="/ai/suggestions", tags=["AI"])
+# 
+# api_router.include_router(integrations.router, prefix="/integrations", tags=["Integrations"])
+# api_router.include_router(integrations_hub.router, prefix="/integrations/hub", tags=["Integrations"])
+# api_router.include_router(erp.router, prefix="/integrations/erp", tags=["Integrations"])
+# api_router.include_router(crm.router, prefix="/integrations/crm", tags=["Integrations"])
+# api_router.include_router(slack_block_kit.router, prefix="/integrations/slack-block-kit", tags=["Integrations"])
+# api_router.include_router(salesforce_sync.router, prefix="/integrations/salesforce-sync", tags=["Integrations"])
+# 
+# api_router.include_router(billing_reports.router, prefix="/billing/reports", tags=["Billing"])
+# api_router.include_router(invoices.router, prefix="/billing/invoices", tags=["Billing"])
+# api_router.include_router(accounting_hub.router, prefix="/billing/accounting-hub", tags=["Billing"])
 
 api_router.include_router(projects.router, prefix="/projects", tags=["Projects"])
 api_router.include_router(tasks.router, prefix="/projects/tasks", tags=["Projects"])

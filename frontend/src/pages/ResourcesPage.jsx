@@ -150,7 +150,6 @@ function BurnoutMonitorTab() {
 }
 
 function ResourceCard({ resource, onEdit, showRates }) {
-            {load > 100 && <span title="Sobrecarga detectada" style={{ fontSize: 16 }}>⚠️</span>}
   const load = resource.current_load_pct ?? 0
   const loadColor = load > 100 ? 'var(--danger)' : load > 85 ? 'var(--warning)' : load > 60 ? 'var(--accent)' : 'var(--success)'
   return (
@@ -241,8 +240,6 @@ function EditUserModal({ user, open, onClose }) {
         <Select label="Rol" value={form.role} onChange={set('role')} options={ROLES} />
         <Input label="Capacidad semanal" type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} />
         {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}
-                    <div><label style={labelStyle}>Tarifa máx. (€/h)</label><input type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} style={inputStyle} placeholder="Tarifa maxima" aria-label="Tarifa maxima" /></div>
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, cargo o departamento"
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button onClick={() => mutate(form)} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>

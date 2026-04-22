@@ -12,23 +12,24 @@ import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_COLORS = {
-  draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  label: t('esign.status_draft') },
-  sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    label: t('esign.status_sent') },
-  delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    label: t('esign.status_delivered') },
-  completed: { color: 'var(--success)',  bg: 'var(--success-bg)', label: t('esign.status_completed') },
-  declined:  { color: 'var(--danger)',   bg: 'var(--danger-bg)',  label: t('esign.status_declined') },
-  voided:    { color: 'var(--text-3)',   bg: 'var(--surface-3)',  label: t('esign.status_voided') },
-  error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', label: t('esign.status_error') },
+  draft:     { color: 'var(--text-2)',   bg: 'var(--surface-2)',  key: 'esign.status_draft' },
+  sent:      { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_sent' },
+  delivered: { color: 'var(--info)',     bg: 'var(--info-bg)',    key: 'esign.status_delivered' },
+  completed: { color: 'var(--success)',  bg: 'var(--success-bg)', key: 'esign.status_completed' },
+  declined:  { color: 'var(--danger)',   bg: 'var(--danger-bg)',  key: 'esign.status_declined' },
+  voided:    { color: 'var(--text-3)',   bg: 'var(--surface-3)',  key: 'esign.status_voided' },
+  error:     { color: 'var(--warning)',  bg: 'var(--warning-bg)', key: 'esign.status_error' },
 }
 
 function StatusPill({ status }) {
+  const t = useAppT()
   const s = STATUS_COLORS[status] || STATUS_COLORS.draft
   return (
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
       borderRadius: 'var(--radius-md)', padding: '2px var(--space-3)', fontSize: '11px', fontWeight: 600,
-    }}>{s.label}</span>
+    }}>{t(s.key)}</span>
   )
 }
 
@@ -55,6 +56,7 @@ const ls = {
 }
 
 function CreateEnvelopeModal({ onClose, onCreated }) {
+  const t = useAppT()
   const [form, setForm] = useState({
     document_id: '',
     subject: '',

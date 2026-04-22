@@ -92,17 +92,34 @@ find_python() {
 }
 
 resolve_venv_bins() {
+  # Try Linux/macOS structure first
   if [ -x ".venv/bin/python" ]; then
     VENV_DIR=".venv"
+    PY_BIN="$VENV_DIR/bin/python"
+    PIP_BIN="$VENV_DIR/bin/pip"
   elif [ -x "venv/bin/python" ]; then
     VENV_DIR="venv"
+    PY_BIN="$VENV_DIR/bin/python"
+    PIP_BIN="$VENV_DIR/bin/pip"
+  # Fallback to Windows structure (Git Bash on Windows)
+  elif [ -f ".venv/Scripts/python.exe" ]; then
+    VENV_DIR=".venv"
+    PY_BIN="$VENV_DIR/Scripts/python.exe"
+    PIP_BIN="$VENV_DIR/Scripts/pip.exe"
+  elif [ -f "venv/Scripts/python.exe" ]; then
+    VENV_DIR="venv"
+    PY_BIN="$VENV_DIR/Scripts/python.exe"
+    PIP_BIN="$VENV_DIR/Scripts/pip.exe"
+  # Create default paths (will be created during setup)
   elif [ -d ".venv" ]; then
     VENV_DIR=".venv"
+    PY_BIN="$VENV_DIR/bin/python"
+    PIP_BIN="$VENV_DIR/bin/pip"
   else
     VENV_DIR="venv"
+    PY_BIN="$VENV_DIR/bin/python"
+    PIP_BIN="$VENV_DIR/bin/pip"
   fi
-  PY_BIN="$VENV_DIR/bin/python"
-  PIP_BIN="$VENV_DIR/bin/pip"
 }
 
 get_demo_password() {
@@ -303,9 +320,11 @@ setup_backend() {
   resolve_venv_bins
 
   # Create venv if not exists
-  if [ ! -x "$PY_BIN" ]; then
+  if [ ! -f "$PY_BIN" ]; then
     log "Creando entorno virtual..."
     $PYTHON -m venv "$VENV_DIR"
+    # Re-resolve paths after venv creation in case structure changed
+    resolve_venv_bins
   fi
 
   # Solo instalar si requirements.txt cambió o venv está recién creado
@@ -366,6 +385,46 @@ ENVEOF
       echo "${REQUIRED_VAR}=${VAL}" >> .env
     fi
   done
+
+  # Rotate SECRET_KEY when it still uses placeholders or weak defaults.
+  SECRET_STATUS=$("$PYTHON" - <<'PY'
+import secrets
+from pathlib import Path
+
+env_path = Path('.env')
+if not env_path.exists():
+    print('OK')
+    raise SystemExit(0)
+
+lines = env_path.read_text(encoding='utf-8').splitlines()
+secret_indexes = [i for i, line in enumerate(lines) if line.startswith('SECRET_KEY=')]
+secret_value = lines[secret_indexes[-1]][len('SECRET_KEY='):] if secret_indexes else ''
+
+is_insecure = (
+    len(secret_value) < 32
+    or secret_value.upper().startswith('CHANGE_ME')
+    or secret_value.upper().startswith('REPLACE_ME')
+    or secret_value == 'contecflow-secret-key-change-in-production-min32chars!!'
+)
+
+if not is_insecure:
+    print('OK')
+    raise SystemExit(0)
+
+new_secret = secrets.token_hex(32)
+if secret_indexes:
+    for idx in secret_indexes:
+        lines[idx] = f'SECRET_KEY={new_secret}'
+else:
+    lines.append(f'SECRET_KEY={new_secret}')
+
+env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+print('ROTATED')
+PY
+)
+  if [ "$SECRET_STATUS" = "ROTATED" ]; then
+    warn "SECRET_KEY insegura detectada en .env — regenerada automáticamente"
+  fi
 
   # Solo migrar si la BD no existe o los modelos cambiaron
   MODELS_HASH_FILE="$VENV_DIR/.models_hash"
@@ -501,7 +560,7 @@ start_services() {
   resolve_venv_bins
   preflight_start_checks
 
-  if [ ! -x "$PY_BIN" ]; then
+  if [ ! -f "$PY_BIN" ]; then
     warn "Entorno virtual no encontrado. Inicializando backend automáticamente..."
     setup_backend
     resolve_venv_bins

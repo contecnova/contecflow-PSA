@@ -15,48 +15,47 @@ const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid 
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
-const t = useAppT()
 const PROB_OPTIONS = [
-  { value: 'very_low', label: t('risks.options.prob_very_low') },
-  { value: 'low', label: t('risks.options.prob_low') },
-  { value: 'medium', label: t('risks.options.prob_medium') },
-  { value: 'high', label: t('risks.options.prob_high') },
-  { value: 'very_high', label: t('risks.options.prob_very_high') },
+  { value: 'very_low', label: 'Muy baja' },
+  { value: 'low', label: 'Baja' },
+  { value: 'medium', label: 'Media' },
+  { value: 'high', label: 'Alta' },
+  { value: 'very_high', label: 'Muy alta' },
 ]
 const IMPACT_OPTIONS = [
-  { value: 'negligible', label: t('risks.options.impact_negligible') },
-  { value: 'minor', label: t('risks.options.impact_minor') },
-  { value: 'moderate', label: t('risks.options.impact_moderate') },
-  { value: 'major', label: t('risks.options.impact_major') },
-  { value: 'critical', label: t('risks.options.impact_critical') },
+  { value: 'negligible', label: 'Despreciable' },
+  { value: 'minor', label: 'Menor' },
+  { value: 'moderate', label: 'Moderado' },
+  { value: 'major', label: 'Mayor' },
+  { value: 'critical', label: 'Crítico' },
 ]
 const STATUS_OPTIONS = [
-  { value: 'identified', label: t('risks.options.status_identified') },
-  { value: 'analyzing', label: t('risks.options.status_analyzing') },
-  { value: 'mitigating', label: t('risks.options.status_mitigating') },
-  { value: 'monitoring', label: t('risks.options.status_monitoring') },
-  { value: 'closed', label: t('risks.options.status_closed') },
-  { value: 'materialized', label: t('risks.options.status_materialized') },
+  { value: 'identified', label: 'Identificado' },
+  { value: 'analyzing', label: 'Analizando' },
+  { value: 'mitigating', label: 'Mitigando' },
+  { value: 'monitoring', label: 'Monitorizando' },
+  { value: 'closed', label: 'Cerrado' },
+  { value: 'materialized', label: 'Materializado' },
 ]
 const CATEGORIES = [
-  { value: 'technical', label: t('risks.options.cat_technical') },
-  { value: 'financial', label: t('risks.options.cat_financial') },
-  { value: 'schedule', label: t('risks.options.cat_schedule') },
-  { value: 'resource', label: t('risks.options.cat_resource') },
-  { value: 'external', label: t('risks.options.cat_external') },
-  { value: 'quality', label: t('risks.options.cat_quality') },
+  { value: 'technical', label: 'Técnico' },
+  { value: 'financial', label: 'Financiero' },
+  { value: 'schedule', label: 'Planificación' },
+  { value: 'resource', label: 'Recursos' },
+  { value: 'external', label: 'Externo' },
+  { value: 'quality', label: 'Calidad' },
 ]
 const RESPONSE_TYPES = [
-  { value: 'avoid', label: t('risks.options.resp_avoid') },
-  { value: 'mitigate', label: t('risks.options.resp_mitigate') },
-  { value: 'transfer', label: t('risks.options.resp_transfer') },
-  { value: 'accept', label: t('risks.options.resp_accept') },
+  { value: 'avoid', label: 'Evitar' },
+  { value: 'mitigate', label: 'Mitigar' },
+  { value: 'transfer', label: 'Transferir' },
+  { value: 'accept', label: 'Aceptar' },
 ]
 const LEVEL_CFG = {
-  critical: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: t('risks.options.level_critical') },
-  high:     { color: 'var(--warning)', bg: 'var(--warning-bg)', label: t('risks.options.level_high') },
-  medium:   { color: 'var(--accent)', bg: 'var(--accent-muted)', label: t('risks.options.level_medium') },
-  low:      { color: 'var(--success)', bg: 'var(--success-bg)', label: t('risks.options.level_low') },
+  critical: { color: 'var(--danger)', bg: 'var(--danger-bg)', label: 'Crítico' },
+  high:     { color: 'var(--warning)', bg: 'var(--warning-bg)', label: 'Alto' },
+  medium:   { color: 'var(--accent)', bg: 'var(--accent-muted)', label: 'Medio' },
+  low:      { color: 'var(--success)', bg: 'var(--success-bg)', label: 'Bajo' },
 }
 
 function RiskMatrix({ risks }) {

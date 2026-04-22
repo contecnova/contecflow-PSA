@@ -10,15 +10,15 @@ import { useAppT } from '../i18n/AppLangContext'
 const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
 
 const MODULE_CFG = {
-  nexusassist:          { icon: '💬', label: t('governance.nexusassist_label'),          desc: t('governance.nexusassist_desc') },
-  nexusagent:           { icon: '⚡', label: t('governance.nexusagent_label'),           desc: t('governance.nexusagent_desc') },
-  nexusoracle:          { icon: '🔮', label: t('governance.nexusoracle_label'),          desc: t('governance.nexusoracle_desc') },
-  meeting_assistant:    { icon: '🎙', label: t('governance.meeting_assistant_label'),    desc: t('governance.meeting_assistant_desc') },
-  sprint_planning:      { icon: '✨', label: t('governance.sprint_planning_label'),      desc: t('governance.sprint_planning_desc') },
-  contract_intelligence:{ icon: '📄', label: t('governance.contract_intelligence_label'), desc: t('governance.contract_intelligence_desc') },
-  knowledge_base:       { icon: '📚', label: t('governance.knowledge_base_label'),       desc: t('governance.knowledge_base_desc') },
-  portal_ai:            { icon: '🌐', label: t('governance.portal_ai_label'),            desc: t('governance.portal_ai_desc') },
-  voice:                { icon: '🎤', label: t('governance.voice_label'),                desc: t('governance.voice_desc') },
+  nexusassist:          { icon: '💬', labelKey: 'governance.nexusassist_label',           descKey: 'governance.nexusassist_desc' },
+  nexusagent:           { icon: '⚡', labelKey: 'governance.nexusagent_label',            descKey: 'governance.nexusagent_desc' },
+  nexusoracle:          { icon: '🔮', labelKey: 'governance.nexusoracle_label',           descKey: 'governance.nexusoracle_desc' },
+  meeting_assistant:    { icon: '🎙', labelKey: 'governance.meeting_assistant_label',     descKey: 'governance.meeting_assistant_desc' },
+  sprint_planning:      { icon: '✨', labelKey: 'governance.sprint_planning_label',       descKey: 'governance.sprint_planning_desc' },
+  contract_intelligence:{ icon: '📄', labelKey: 'governance.contract_intelligence_label', descKey: 'governance.contract_intelligence_desc' },
+  knowledge_base:       { icon: '📚', labelKey: 'governance.knowledge_base_label',        descKey: 'governance.knowledge_base_desc' },
+  portal_ai:            { icon: '🌐', labelKey: 'governance.portal_ai_label',             descKey: 'governance.portal_ai_desc' },
+  voice:                { icon: '🎤', labelKey: 'governance.voice_label',                 descKey: 'governance.voice_desc' },
 }
 
 export default function GovernancePage() {
@@ -53,7 +53,7 @@ export default function GovernancePage() {
 
   const chartData = stats?.by_module
     ? Object.entries(stats.by_module).map(([k, v]) => ({
-        name: MODULE_CFG[k]?.label || k,
+        name: MODULE_CFG[k] ? t(MODULE_CFG[k].labelKey) : k,
         calls: v.calls || 0,
         tokens: Math.round((v.tokens || 0) / 1000),
       })).sort((a, b) => b.calls - a.calls)
@@ -111,8 +111,8 @@ export default function GovernancePage() {
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 20 }}>{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{meta.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{meta.desc}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{t(meta.labelKey)}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 10 }}>
@@ -180,7 +180,7 @@ export default function GovernancePage() {
           ) : logs.map(l => (
             <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d4520', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 12, alignItems: 'center' }}>
               <span style={{ color: 'var(--text-2)', fontFamily: 'monospace', fontSize: 11 }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
-              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module]?.label || l.module}</span>
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module] ? t(MODULE_CFG[l.module].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
               <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString()}</span>
             </div>

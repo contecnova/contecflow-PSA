@@ -39,7 +39,7 @@ const PROMPT_MAP = {
 };
 
 export default function AIInlineEditor({ value, onChange, rows = 4, placeholder, style, disabled, inputId, ariaLabel }) {
-  const t = useAppT();
+  const { t } = useAppT();
   const [palette, setPalette] = useState(false);   // palette visible?
   const [filter, setFilter]   = useState('');       // text after "/"
   const [loading, setLoading] = useState(false);    // AI in progress

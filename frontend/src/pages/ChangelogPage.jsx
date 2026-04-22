@@ -14,12 +14,14 @@ import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const TYPE_META = {
-  feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
-  bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
-  improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
-  milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
-  breaking:    { label: t('changelog.type_breaking'),     color: '#f97316',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
+function getTypeMeta(t) {
+  return {
+    feature:     { label: t('changelog.type_feature'),      color: 'var(--accent)',   bg: 'rgba(79,142,247,0.12)',  icon: '✨' },
+    bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
+    improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
+    milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
+    breaking:    { label: t('changelog.type_breaking'),     color: '#f97316',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
+  }
 }
 
 const inputStyle = {
@@ -46,7 +48,9 @@ const generateSchema = z.object({
 })
 
 function EntryCard({ entry, onDelete }) {
-  const meta = TYPE_META[entry.entry_type] || TYPE_META.feature
+  const t = useAppT()
+  const typeMeta = getTypeMeta(t)
+  const meta = typeMeta[entry.entry_type] || typeMeta.feature
   return (
     <div style={{
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
@@ -86,7 +90,9 @@ function EntryCard({ entry, onDelete }) {
 }
 
 function ManualEntryModal({ projectId, onClose, onSaved }) {
+  const t = useAppT()
   const toast = useToast()
+  const typeMeta = getTypeMeta(t)
   const today = new Date().toISOString().split('T')[0]
   const [form, setForm] = useState({ version_tag: '', entry_date: today, entry_type: 'feature', title: '', description: '' })
   const validation = useFormValidation(manualEntrySchema)
@@ -118,7 +124,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
         <div>
           <label style={lbStyle}>{t('changelog.type')}</label>
           <select value={form.entry_type} onChange={e => { setForm(f => ({ ...f, entry_type: e.target.value })); validation.clearFieldError('entry_type') }} style={validation.inputStyle(inputStyle, 'entry_type')}>
-            {Object.entries(TYPE_META).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+            {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
           </select>
         </div>
       </div>
@@ -140,6 +146,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
 }
 
 function GenerateModal({ projectId, onClose, onSaved }) {
+  const t = useAppT()
   const toast = useToast()
   const [weeks, setWeeks] = useState(2)
   const [versionTag, setVersionTag] = useState('')

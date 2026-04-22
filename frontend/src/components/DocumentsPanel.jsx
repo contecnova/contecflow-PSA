@@ -73,7 +73,7 @@ function resolveApiPath(projectId, taskId, ticketId) {
 }
 
 export default function DocumentsPanel({ projectId, taskId, ticketId, _compact = false }) {
-  const t = useAppT();
+  const { t } = useAppT();
   const toast = useToast();
   const qc = useQueryClient();
   const fileRef = useRef();

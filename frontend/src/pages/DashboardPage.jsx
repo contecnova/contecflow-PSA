@@ -885,8 +885,29 @@ function buildDefaultConfig() {
   }
 }
 
+function normalizeConfig(cfg) {
+  const defaults = buildDefaultConfig()
+  if (!cfg || !Array.isArray(cfg.visible) || !Array.isArray(cfg.layout)) return defaults
+
+  const validIds = new Set(ALL_WIDGETS.map(w => w.id))
+  const visible = cfg.visible.filter(id => validIds.has(id))
+
+  const layoutMap = Object.fromEntries(defaults.layout.map(l => [l.i, l]))
+  cfg.layout.forEach((l) => {
+    if (!l || !validIds.has(l.i)) return
+    layoutMap[l.i] = { ...layoutMap[l.i], ...l }
+  })
+
+  return {
+    visible,
+    layout: Object.values(layoutMap),
+  }
+}
+
 function isValidConfig(cfg) {
-  return !!cfg && Array.isArray(cfg.visible) && Array.isArray(cfg.layout)
+  if (!cfg || !Array.isArray(cfg.visible) || !Array.isArray(cfg.layout)) return false
+  const validIds = new Set(ALL_WIDGETS.map(w => w.id))
+  return cfg.layout.some(l => l && validIds.has(l.i))
 }
 
 function migrateOldConfig(old) {
@@ -933,7 +954,7 @@ function useDashboardConfig() {
           return
         }
       } catch {}
-      if (localConfig) { if (mounted) setConfig(localConfig); return }
+      if (localConfig) { if (mounted) setConfig(normalizeConfig(localConfig)); return }
       if (mounted) setConfig(defaultConfig)
     }
 
@@ -941,7 +962,7 @@ function useDashboardConfig() {
     return () => { mounted = false }
   }, [saveLocal, saveBackend])
 
-  const resolvedConfig = config || buildDefaultConfig()
+  const resolvedConfig = normalizeConfig(config || buildDefaultConfig())
 
   const save = React.useCallback((newConfig) => {
     setConfig(newConfig)
@@ -989,6 +1010,10 @@ function useDashboardConfig() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const t = useAppT()
+  const tt = (key, fallback) => {
+    const translated = t(key)
+    return translated === key.split('.').pop() ? fallback : translated
+  }
   const { lang } = useAppLang()
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['dash-kpis'],
@@ -1054,7 +1079,7 @@ export default function DashboardPage() {
             transition: 'all 0.15s',
           }}
         >
-          ⊞ {t('dashboard.customize_dashboard')}
+          ⊞ {tt('dashboard.customize_dashboard', 'Personalizar dashboard')}
         </button>
       </div>
 
@@ -1162,6 +1187,39 @@ export default function DashboardPage() {
               )
             })}
           </GridLayout>
+        )}
+        {config.visible.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            padding: '52px 24px',
+            border: '1px dashed var(--surface-4)',
+            borderRadius: 12,
+            background: 'var(--surface-2)',
+          }}>
+            <div style={{ fontSize: 34, marginBottom: 10 }}>⊞</div>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+              {tt('dashboard.empty_title', 'No hay widgets visibles')}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 14 }}>
+              {tt('dashboard.empty_desc', 'Has ocultado todos los widgets. Puedes restaurar la configuración por defecto.')}
+            </div>
+            <button
+              onClick={reset}
+              style={{
+                background: 'var(--accent-muted)',
+                border: '1px solid rgba(79,142,247,0.35)',
+                borderRadius: 8,
+                color: 'var(--accent)',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontFamily: 'inherit',
+                fontWeight: 600,
+              }}
+            >
+              {tt('dashboard.restore_default_widgets', 'Restaurar widgets por defecto')}
+            </button>
+          </div>
         )}
       </div>
     </div>

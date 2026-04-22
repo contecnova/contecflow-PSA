@@ -1,7 +1,13 @@
-from ..ai import router as ai
-from ..ai_chat import router as ai_chat
-from ..ai_governance import router as ai_governance
-from ..ai_modules import router as ai_modules
-from ..ai_providers import router as ai_providers
-from ..ai_suggestions import router as ai_suggestions
-from .chat import router as chat
+from fastapi import APIRouter, Depends
+from app.core.deps import get_current_user
+from app.models.user import User
+
+router = APIRouter()
+
+# AI suggestions are served by ai_suggestions.py under /ai/suggestions
+# This module exposes other AI utility endpoints under /ai
+
+@router.get("/status", summary="AI service health status")
+def ai_status(current_user: User = Depends(get_current_user)):
+    return {"status": "ok", "providers_configured": True}
+

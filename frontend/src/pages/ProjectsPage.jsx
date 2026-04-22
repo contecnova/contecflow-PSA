@@ -407,10 +407,12 @@ const MEMBER_ROLES = {
 }
 
 function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('info')
   const [addForm, setAddForm] = useState({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' })
+  const projectMemberSchema = useMemo(() => makeProjectMemberSchema(t), [t])
   const addValidation = useFormValidation(projectMemberSchema)
   const [showAdd, setShowAdd] = useState(false)
 

@@ -27,7 +27,7 @@ export function openConfirmGlobal(opts) {
 }
 
 export function ConfirmProvider({ children }) {
-  const t = useAppT()
+  const { t } = useAppT()
   const [state, setState] = useState({
     open: false, title: '', message: '', danger: false, onConfirm: null,
   })

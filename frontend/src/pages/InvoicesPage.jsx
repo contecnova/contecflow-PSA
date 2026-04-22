@@ -19,6 +19,7 @@ const card = { background:'var(--surface-2)', border:'1px solid #1e2d45', border
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab() {
+  const t = useAppT()
   const qc = useQueryClient()
 
   // ── Sync contable ────────────────────────────────────────────────────────

@@ -95,6 +95,7 @@ export function AppLangProvider({ children }) {
   }, [])
 
   // Función de traducción: t('module.key') o t('module', 'key')
+  // Soporta claves anidadas: t('module.section.key')
   // Soporta interpolación: t('module.key', { var1: val1, var2: val2 })
   const t = useCallback((moduleOrFullKey, keyOrParams) => {
     // Detect if second argument is an interpolation params object
@@ -104,18 +105,27 @@ export function AppLangProvider({ children }) {
     const params = isParams ? keyOrParams : null
     const key = isParams ? undefined : keyOrParams
 
-    let module, realKey
+    let module
+    let keyPath = []
     if (key) {
       module = moduleOrFullKey
-      realKey = key
+      keyPath = String(key).split('.')
     } else if (moduleOrFullKey.includes('.')) {
-      [module, realKey] = moduleOrFullKey.split('.', 2)
+      const parts = moduleOrFullKey.split('.')
+      module = parts[0]
+      keyPath = parts.slice(1)
     } else {
       return moduleOrFullKey // fallback: devolver la clave tal cual
     }
 
-    let trans = translations?.[module]?.[realKey]
-    if (!trans) trans = realKey // fallback: clave
+    let trans = translations?.[module]
+    for (const part of keyPath) {
+      if (trans == null) break
+      trans = trans[part]
+    }
+
+    const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey
+    if (trans == null) trans = fallbackKey // fallback: clave
 
     // Apply interpolation: replace {varName} placeholders
     if (params && typeof trans === 'string') {

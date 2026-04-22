@@ -25,7 +25,7 @@ const COLORS = {
 let _id = 0
 
 export function ToastProvider({ children }) {
-  const t = useAppT()
+  const { t } = useAppT()
   const [toasts, setToasts] = useState([])
   const timers = useRef({})
 

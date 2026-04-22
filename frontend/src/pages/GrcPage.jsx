@@ -61,6 +61,7 @@ const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransfor
 // 1. MATRIZ DE PERMISOS (wired to API)
 // ═══════════════════════════════════════════════════════════════════════════════
 function MatrixTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [selRole, setSelRole] = useState('all')
@@ -189,6 +190,7 @@ function MatrixTab() {
 // 2. SEGREGACIÓN SoD (wired to API + CRUD)
 // ═══════════════════════════════════════════════════════════════════════════════
 function SodRuleModal({ rule, workflows, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!rule
@@ -296,6 +298,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
 }
 
 function SodTab() {
+  const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)

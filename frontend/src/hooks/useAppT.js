@@ -34,28 +34,32 @@ export function useAppT() {
      * - t('mod', 'key', { var1, lang })
      */
     return function translate(moduleOrFullKey, keyOrParams, maybeParams) {
-      let module, realKey, params;
+      let module, keyPath = [], params;
       // Soporta t('mod.key', { ... }) o t('mod', 'key', { ... })
       if (typeof keyOrParams === 'object' && keyOrParams !== null && !Array.isArray(keyOrParams)) {
         // t('mod.key', { ... })
         params = keyOrParams;
         if (moduleOrFullKey.includes('.')) {
-          [module, realKey] = moduleOrFullKey.split('.', 2);
+          const parts = moduleOrFullKey.split('.');
+          module = parts[0];
+          keyPath = parts.slice(1);
         } else {
           return moduleOrFullKey;
         }
       } else if (typeof maybeParams === 'object' && maybeParams !== null && !Array.isArray(maybeParams)) {
         // t('mod', 'key', { ... })
         module = moduleOrFullKey;
-        realKey = keyOrParams;
+        keyPath = String(keyOrParams).split('.');
         params = maybeParams;
       } else {
         // t('mod.key') o t('mod', 'key')
         if (keyOrParams) {
           module = moduleOrFullKey;
-          realKey = keyOrParams;
+          keyPath = String(keyOrParams).split('.');
         } else if (moduleOrFullKey.includes('.')) {
-          [module, realKey] = moduleOrFullKey.split('.', 2);
+          const parts = moduleOrFullKey.split('.');
+          module = parts[0];
+          keyPath = parts.slice(1);
         } else {
           return moduleOrFullKey;
         }
@@ -63,10 +67,14 @@ export function useAppT() {
       }
 
       // Permite forzar idioma por llamada
-      const forcedLang = params.lang || lang;
       const dict = ctx?.translations || {};
-      let trans = dict?.[module]?.[realKey];
-      if (!trans) trans = realKey; // fallback clave
+      let trans = dict?.[module];
+      for (const part of keyPath) {
+        if (trans == null) break;
+        trans = trans[part];
+      }
+      const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey;
+      if (trans == null) trans = fallbackKey; // fallback clave
 
       // Interpolación de variables: {var}
       if (params && typeof trans === 'string') {

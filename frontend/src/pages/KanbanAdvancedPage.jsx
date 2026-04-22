@@ -17,21 +17,25 @@ import { useAppT } from '../i18n/AppLangContext'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const DEFAULT_COLUMNS = [
-  { id: 'backlog',     label: t('kanban.col_backlog'),       color: '#4a5a78' },
-  { id: 'todo',        label: t('kanban.col_todo'),          color: '#6366f1' },
-  { id: 'in_progress', label: t('kanban.col_in_progress'),   color: '#4f8ef7' },
-  { id: 'in_review',   label: t('kanban.col_in_review'),     color: '#f59e0b' },
-  { id: 'done',        label: t('kanban.col_done'),          color: '#34d399' },
-]
+function getDefaultColumns(t) {
+  return [
+    { id: 'backlog',     label: t('kanban.col_backlog'),       color: '#4a5a78' },
+    { id: 'todo',        label: t('kanban.col_todo'),          color: '#6366f1' },
+    { id: 'in_progress', label: t('kanban.col_in_progress'),   color: '#4f8ef7' },
+    { id: 'in_review',   label: t('kanban.col_in_review'),     color: '#f59e0b' },
+    { id: 'done',        label: t('kanban.col_done'),          color: '#34d399' },
+  ]
+}
 
 const PRIORITY_COLORS = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399', none: '#4a5a78' }
-const PRIORITY_LABELS = {
-  critical: t('kanban.priority_critical'),
-  high: t('kanban.priority_high'),
-  medium: t('kanban.priority_medium'),
-  low: t('kanban.priority_low'),
-  none: t('kanban.priority_none'),
+function getPriorityLabels(t) {
+  return {
+    critical: t('kanban.priority_critical'),
+    high: t('kanban.priority_high'),
+    medium: t('kanban.priority_medium'),
+    low: t('kanban.priority_low'),
+    none: t('kanban.priority_none'),
+  }
 }
 
 function getPriority(t) { return t.priority || 'none' }
@@ -60,7 +64,7 @@ function WipGauge({ count, limit }) {
 
 // ── Kanban Card ───────────────────────────────────────────────────────────────
 
-function KanbanCard({ task, onDragStart, onClick }) {
+function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
   const overdue    = isOverdue(task)
   const priColor   = PRIORITY_COLORS[getPriority(task)]
   const subtasks   = task.subtask_count || 0
@@ -101,7 +105,7 @@ function KanbanCard({ task, onDragStart, onClick }) {
           fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
           color: priColor, background: priColor + '22', borderRadius: 4, padding: '2px 5px',
         }}>
-          {PRIORITY_LABELS[getPriority(task)]}
+          {priorityLabels[getPriority(task)]}
         </span>
 
         {/* Story points */}
@@ -154,6 +158,7 @@ function QuickAdd({ status, projectId, onCreated }) {
   const [title, setTitle] = useState('')
   const inputRef          = useRef(null)
   const toast             = useToast()
+  const t                 = useAppT()
 
   useEffect(() => { if (open) inputRef.current?.focus() }, [open])
 
@@ -204,7 +209,7 @@ function QuickAdd({ status, projectId, onCreated }) {
 
 // ── Column ───────────────────────────────────────────────────────────────────
 
-function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated }) {
+function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }) {
   const count = tasks.length
   const over  = dragOver
 
@@ -237,7 +242,7 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
       {/* Cards */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 40 }}>
         {tasks.map(t => (
-          <KanbanCard key={t.id} task={t} onDragStart={onTaskDragStart} onClick={() => onTaskClick(t)} />
+          <KanbanCard key={t.id} task={t} onDragStart={onTaskDragStart} onClick={() => onTaskClick(t)} priorityLabels={priorityLabels} />
         ))}
       </div>
 
@@ -252,7 +257,7 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
 // ── Swimlane row ─────────────────────────────────────────────────────────────
 
 function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId, projectSuffix,
-  onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated }) {
+  onTaskDragStart, onColumnEnter, onColumnLeave, onTaskClick, onCreated, priorityLabels }) {
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{
@@ -275,6 +280,7 @@ function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId,
             onColumnLeave={onColumnLeave}
             onTaskClick={onTaskClick}
             onCreated={onCreated}
+            priorityLabels={priorityLabels}
           />
         ))}
       </div>
@@ -288,6 +294,8 @@ export default function KanbanAdvancedPage() {
   const t           = useAppT()
   const toast       = useToast()
   const qc          = useQueryClient()
+  const defaultColumns = useMemo(() => getDefaultColumns(t), [t])
+  const priorityLabels = useMemo(() => getPriorityLabels(t), [t])
 
   const [projectId, setProjectId]       = useState('')
   const [search, setSearch]             = useState('')
@@ -392,7 +400,7 @@ export default function KanbanAdvancedPage() {
       const groups = {}
       for (const t of tasks) {
         const key = getPriority(t)
-        if (!groups[key]) groups[key] = { id: key, label: PRIORITY_LABELS[key], tasks: [] }
+        if (!groups[key]) groups[key] = { id: key, label: priorityLabels[key], tasks: [] }
         groups[key].tasks.push(t)
       }
       return order.filter(k => groups[k]).map(k => groups[k])
@@ -408,7 +416,7 @@ export default function KanbanAdvancedPage() {
       return Object.values(groups)
     }
     return [{ id: 'all', label: 'all', tasks }]
-  }, [tasks, swimlaneBy])
+  }, [tasks, swimlaneBy, priorityLabels])
 
   const handleTaskDragStart = useCallback((e, task, onDragStarted) => {
     const startX = e.clientX
@@ -520,7 +528,7 @@ export default function KanbanAdvancedPage() {
                 color: active ? PRIORITY_COLORS[p] : 'var(--text-3)',
                 fontSize: 11, fontFamily: 'var(--font-sans)', fontWeight: active ? 600 : 400,
               }}>
-                {PRIORITY_LABELS[p]}
+                {priorityLabels[p]}
               </button>
             )
           })}
@@ -585,7 +593,7 @@ export default function KanbanAdvancedPage() {
         <div style={{ padding: '12px 24px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {DEFAULT_COLUMNS.map(col => (
+            {defaultColumns.map(col => (
               <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
                 <span style={{ fontSize: 12, color: 'var(--text-2)', width: 90 }}>{col.label}</span>
@@ -620,7 +628,7 @@ export default function KanbanAdvancedPage() {
           {swimlanes.map(lane => (
             swimlaneBy === 'none' ? (
               <div key={lane.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', paddingTop: 4 }}>
-                {DEFAULT_COLUMNS.map(col => (
+                {defaultColumns.map(col => (
                   <KanbanColumn
                     key={col.id}
                     col={col}
@@ -633,6 +641,7 @@ export default function KanbanAdvancedPage() {
                     onColumnLeave={handleColumnLeave}
                     onTaskClick={t => void t}
                     onCreated={() => qc.invalidateQueries({ queryKey: ['kanban-tasks'] })}
+                    priorityLabels={priorityLabels}
                   />
                 ))}
               </div>
@@ -641,7 +650,7 @@ export default function KanbanAdvancedPage() {
                 key={lane.id}
                 label={lane.label}
                 tasks={lane.tasks}
-                columns={DEFAULT_COLUMNS}
+                columns={defaultColumns}
                 dragOverCol={dropTarget?.swimlane === lane.label + projectId ? dropTarget?.colId : null}
                 wipLimits={wipLimits}
                 projectId={projectId}
@@ -651,6 +660,7 @@ export default function KanbanAdvancedPage() {
                 onColumnLeave={handleColumnLeave}
                 onTaskClick={t => void t}
                 onCreated={() => qc.invalidateQueries({ queryKey: ['kanban-tasks'] })}
+                priorityLabels={priorityLabels}
               />
             )
           ))}

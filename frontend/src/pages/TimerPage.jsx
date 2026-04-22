@@ -198,6 +198,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
 
 export default function TimerPage() {
   const { user } = useAuth()
+  const t       = useAppT()
   const toast   = useToast()
   const qc      = useQueryClient()
   const [elapsed,    setElapsed]   = useState(0)
@@ -277,8 +278,8 @@ export default function TimerPage() {
         </div>
       )}
       <PageHeader
-        title={_t('timer.title')}
-        subtitle={_t('timer.subtitle')}
+        title={t('timer.title')}
+        subtitle={t('timer.subtitle')}
         actions={!currentTimer && (
           <button onClick={() => setShowStart(true)} style={{
             padding: '9px 20px', background: 'var(--accent)', border: 'none',

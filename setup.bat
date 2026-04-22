@@ -14,13 +14,11 @@ set SCRIPT_DIR=%~dp0
 set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
 
 echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║                                          ║
-echo  ║   CONTECFLOW                             ║
-echo  ║   Professional Services Automation       ║
-echo  ║                                          ║
-echo  ╚══════════════════════════════════════════╝
-echo  contecflow2024! — Plataforma PSA Enterprise
+echo  ============================================
+echo    CONTECFLOW
+echo    Professional Services Automation
+echo  ============================================
+echo  contecflow2024! - Plataforma PSA Enterprise
 echo.
 
 if "%1"=="start"  goto :start_only
@@ -49,7 +47,7 @@ if errorlevel 1 goto :error
 call :setup_frontend
 if errorlevel 1 goto :error
 echo.
-echo [OK] Actualización completada. Ejecuta: setup.bat start
+echo [OK] Actualizacion completada. Ejecuta: setup.bat start
 goto :end
 
 :: -----------------------------------------------------------------------
@@ -189,8 +187,20 @@ if errorlevel 1 (
     echo DEFAULT_USER_PASSWORD=contecflow2024! >> .env
 )
 
+:: Regenerar SECRET_KEY si quedó con placeholder/insegura
+set "SECRET_STATUS="
+for /f "delims=" %%S in ('powershell -NoProfile -Command "$p='.env'; if(-not (Test-Path $p)){ Write-Output 'OK'; exit 0 }; $line=(Get-Content $p | Where-Object {$_ -match '^SECRET_KEY='} | Select-Object -Last 1); $v=if($line){$line.Substring(11)} else {''}; $bad=($v.Length -lt 32) -or ($v -match '^(?i:CHANGE_ME|REPLACE_ME)') -or ($v -eq 'contecflow-secret-key-change-in-production-min32chars!!'); if($bad){ $rng=[System.Security.Cryptography.RandomNumberGenerator]::Create(); $bytes=New-Object byte[] 32; $rng.GetBytes($bytes); $new=[System.BitConverter]::ToString($bytes).Replace('-','').ToLower(); $content=Get-Content $p; $seen=$false; $content=$content | ForEach-Object { if($_ -match '^SECRET_KEY='){ $seen=$true; 'SECRET_KEY='+$new } else { $_ } }; if(-not $seen){ $content += 'SECRET_KEY='+$new }; Set-Content -Path $p -Value $content -Encoding ASCII; Write-Output 'ROTATED' } else { Write-Output 'OK' }"') do set "SECRET_STATUS=%%S"
+if /I "!SECRET_STATUS!"=="ROTATED" (
+    echo [WARN] SECRET_KEY insegura detectada en .env - regenerada automaticamente
+)
+
 echo [INFO] Aplicando migraciones de base de datos...
 .venv\Scripts\python -m app.db.migrate
+if errorlevel 1 (
+    echo [ERROR] Fallo al aplicar migraciones.
+    echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat
+    exit /b 1
+)
 
 :: Comprobar si la BD tiene usuarios
 for /f "tokens=*" %%r in ('.venv\Scripts\python -c "from app.db.session import SessionLocal; from app.models.user import User; db=SessionLocal(); c=db.query(User).filter(User.hashed_password!=None).count(); db.close(); print('ok' if c>0 else 'empty')" 2^>nul') do set DB_STATUS=%%r
@@ -199,14 +209,30 @@ if "!DB_STATUS!"=="empty" (
     echo [INFO] Base de datos vacía - ejecutando seed...
     del /f contecflow.db >nul 2>&1
     .venv\Scripts\python -m app.db.migrate
+    if errorlevel 1 (
+        echo [ERROR] Fallo al aplicar migraciones durante inicialización de base de datos.
+        exit /b 1
+    )
     .venv\Scripts\python -m app.db.seed
+    if errorlevel 1 (
+        echo [ERROR] Fallo al ejecutar seed de base de datos.
+        exit /b 1
+    )
 ) else if "!DB_STATUS!"=="ok" (
     echo [INFO] Base de datos OK - datos existentes conservados
 ) else (
     echo [INFO] Inicializando base de datos nueva...
     del /f contecflow.db >nul 2>&1
     .venv\Scripts\python -m app.db.migrate
+    if errorlevel 1 (
+        echo [ERROR] Fallo al aplicar migraciones durante inicialización de base de datos.
+        exit /b 1
+    )
     .venv\Scripts\python -m app.db.seed
+    if errorlevel 1 (
+        echo [ERROR] Fallo al ejecutar seed de base de datos.
+        exit /b 1
+    )
 )
 
 call :sync_demo_passwords
@@ -300,67 +326,91 @@ if not exist "%SCRIPT_DIR%\frontend\node_modules\vite\dist\node\cli.js" (
 :: Always sync demo passwords before starting -- ensures hash matches .env even on 'start only'
 call :sync_demo_passwords
 
-:: Matar procesos en los puertos si ya existen
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%BACKEND_PORT% " ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
+:: Liberar puertos antes de arrancar
+call :kill_port %BACKEND_PORT%
+call :kill_port %FRONTEND_PORT%
+call :wait_port_free %BACKEND_PORT% 15
+if errorlevel 1 (
+    echo [ERROR] El puerto %BACKEND_PORT% sigue ocupado antes de arrancar el backend.
+    exit /b 1
 )
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%FRONTEND_PORT% " ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
+call :wait_port_free %FRONTEND_PORT% 15
+if errorlevel 1 (
+    echo [ERROR] El puerto %FRONTEND_PORT% sigue ocupado antes de arrancar el frontend.
+    exit /b 1
 )
 
 :: Arrancar backend
 echo [INFO] Arrancando backend en puerto %BACKEND_PORT%...
-start "Contecflow Backend" /min cmd /c "cd /d \"%SCRIPT_DIR%\" && .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info > \"%TEMP%\contecflow-backend.log\" 2>&1"
+set "BACKEND_RUNNER=%TEMP%\contecflow-backend-runner.cmd"
+(
+    echo @echo off
+    echo cd /d "%SCRIPT_DIR%"
+    echo .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
+) > "%BACKEND_RUNNER%"
+start "Contecflow Backend" /min "%COMSPEC%" /c call "%BACKEND_RUNNER%"
+if errorlevel 1 (
+    echo [ERROR] No se pudo lanzar el backend.
+    exit /b 1
+)
 
-:: Esperar a que el backend responda (máx. 60 s)
+:: Esperar a que el backend responda (máx. 180 s)
 echo [INFO] Esperando backend
 set BACKEND_ATTEMPTS=0
 :wait_backend
 set /a BACKEND_ATTEMPTS+=1
-if %BACKEND_ATTEMPTS% GTR 60 (
-    echo [ERROR] El backend no respondio en 60 segundos.
-    echo [ERROR] Revisa los logs: %TEMP%\contecflow-backend.log
+if %BACKEND_ATTEMPTS% GTR 180 (
+    echo [ERROR] El backend no respondio en 180 segundos.
+    echo [ERROR] Revisa los logs: %TEMP%\contecflow-backend.log y %TEMP%\contecflow-backend.err.log
     exit /b 1
 )
-timeout /t 1 /nobreak >nul
-curl -s http://localhost:%BACKEND_PORT%/health >nul 2>&1
-if errorlevel 1 goto :wait_backend
+curl --silent --fail --connect-timeout 1 --max-time 1 "http://127.0.0.1:%BACKEND_PORT%/health" >nul 2>&1
+if NOT "%ERRORLEVEL%"=="0" goto :wait_backend
 echo [INFO] Backend listo
 
 :: Arrancar frontend
 echo [INFO] Arrancando frontend en puerto %FRONTEND_PORT%...
-start "Contecflow Frontend" /min cmd /c "cd /d \"%SCRIPT_DIR%\frontend\" && npm run dev -- --port %FRONTEND_PORT% > \"%TEMP%\contecflow-frontend.log\" 2>&1"
+set "FRONTEND_RUNNER=%TEMP%\contecflow-frontend-runner.cmd"
+(
+    echo @echo off
+    echo cd /d "%SCRIPT_DIR%\frontend"
+    echo npm run dev -- --port %FRONTEND_PORT% 1^>"%TEMP%\contecflow-frontend.log" 2^>"%TEMP%\contecflow-frontend.err.log"
+) > "%FRONTEND_RUNNER%"
+start "Contecflow Frontend" /min "%COMSPEC%" /c call "%FRONTEND_RUNNER%"
+if errorlevel 1 (
+    echo [ERROR] No se pudo lanzar el frontend.
+    exit /b 1
+)
 
-:: Esperar frontend (máx. 60 s)
+:: Esperar frontend (máx. 180 s)
 echo [INFO] Esperando frontend
 set FRONTEND_ATTEMPTS=0
 :wait_frontend
 set /a FRONTEND_ATTEMPTS+=1
-if %FRONTEND_ATTEMPTS% GTR 60 (
-    echo [ERROR] El frontend no respondio en 60 segundos.
-    echo [ERROR] Revisa los logs: %TEMP%\contecflow-frontend.log
+if %FRONTEND_ATTEMPTS% GTR 180 (
+    echo [ERROR] El frontend no respondio en 180 segundos.
+    echo [ERROR] Revisa los logs: %TEMP%\contecflow-frontend.log y %TEMP%\contecflow-frontend.err.log
     exit /b 1
 )
-timeout /t 1 /nobreak >nul
-curl -s http://localhost:%FRONTEND_PORT% >nul 2>&1
-if errorlevel 1 goto :wait_frontend
+curl --silent --fail --connect-timeout 1 --max-time 1 "http://localhost:%FRONTEND_PORT%" >nul 2>&1
+if NOT "%ERRORLEVEL%"=="0" goto :wait_frontend
 echo [INFO] Frontend listo
 
 echo.
-echo ╔══════════════════════════════════════════╗
-echo ║         Contecflow listo ✓              ║
-echo ╚══════════════════════════════════════════╝
+echo ============================================
+echo   Contecflow listo [OK]
+echo ============================================
 echo.
-echo   🌐 App:      http://localhost:%FRONTEND_PORT%
-echo   📡 API:      http://localhost:%BACKEND_PORT%/api/v1/docs
-echo   📋 Logs:     %TEMP%\contecflow-backend.log
+echo   App:      http://localhost:%FRONTEND_PORT%
+echo   API:      http://localhost:%BACKEND_PORT%/api/v1/docs
+echo   Logs:     %TEMP%\contecflow-backend.log
 echo.
 call :get_demo_password
 echo   Usuarios de prueba:
-echo     admin      / !DEMO_PASSWORD!   → Dirección
-echo     ana.torres / !DEMO_PASSWORD!   → PM
-echo     luis.vega  / !DEMO_PASSWORD!   → Empleado
-echo     rrhh       / !DEMO_PASSWORD!   → RRHH
+echo     admin      / !DEMO_PASSWORD!   - Direccion
+echo     ana.torres / !DEMO_PASSWORD!   - PM
+echo     luis.vega  / !DEMO_PASSWORD!   - Empleado
+echo     rrhh       / !DEMO_PASSWORD!   - RRHH
 echo.
 echo   Para parar:  setup.bat stop
 echo.
@@ -369,7 +419,7 @@ timeout /t 2 /nobreak >nul
 start "" "http://localhost:%FRONTEND_PORT%"
 
 echo Presiona cualquier tecla para cerrar esta ventana...
-echo ^(Los servicios continúan en segundo plano^)
+echo ^(Los servicios continuan en segundo plano^)
 pause >nul
 goto :end
 
@@ -378,14 +428,49 @@ goto :end
 echo [INFO] Parando Contecflow...
 taskkill /FI "WINDOWTITLE eq Contecflow Backend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq Contecflow Frontend*" /F >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%BACKEND_PORT% " ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%FRONTEND_PORT% " ^| findstr "LISTENING"') do (
-    taskkill /F /PID %%a >nul 2>&1
-)
+call :kill_port %BACKEND_PORT%
+call :kill_port %FRONTEND_PORT%
+call :wait_port_free %BACKEND_PORT% 15 >nul 2>&1
+call :wait_port_free %FRONTEND_PORT% 15 >nul 2>&1
 echo [OK] Servicios parados.
 goto :end
+
+:: -----------------------------------------------------------------------
+:kill_port
+setlocal EnableDelayedExpansion
+set "TARGET_PORT=%~1"
+if "%TARGET_PORT%"=="" (
+    endlocal & exit /b 0
+)
+
+for /f "tokens=5" %%P in ('netstat -ano 2^>nul ^| findstr ":%TARGET_PORT% " ^| findstr "LISTENING"') do (
+    taskkill /F /T /PID %%P >nul 2>&1
+)
+
+endlocal & exit /b 0
+
+:: -----------------------------------------------------------------------
+:wait_port_free
+setlocal EnableDelayedExpansion
+set "TARGET_PORT=%~1"
+set "MAX_WAIT=%~2"
+if not defined MAX_WAIT set "MAX_WAIT=15"
+set /a WAIT_COUNT=0
+
+:wait_port_free_loop
+set /a WAIT_COUNT+=1
+set "PORT_STATE=FREE"
+for /f "tokens=5" %%P in ('netstat -ano 2^>nul ^| findstr ":%TARGET_PORT% " ^| findstr "LISTENING"') do (
+    set "PORT_STATE=BUSY"
+)
+if /I "!PORT_STATE!"=="FREE" (
+    endlocal & exit /b 0
+)
+if !WAIT_COUNT! GEQ %MAX_WAIT% (
+    endlocal & exit /b 1
+)
+timeout /t 1 /nobreak >nul
+goto :wait_port_free_loop
 
 :: -----------------------------------------------------------------------
 :get_demo_password

@@ -94,7 +94,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function RootBoundary({ children }) {
-  const t = useAppT()
+  const { t } = useAppT()
   return <ErrorBoundary t={t}>{children}</ErrorBoundary>
 }
 

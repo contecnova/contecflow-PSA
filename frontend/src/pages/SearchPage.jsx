@@ -165,7 +165,7 @@ function NQLMode() {
         <textarea
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Ejemplo: tasks where priority = \"critical\""
+          placeholder="Ejemplo: tasks where priority = 'critical'"
           aria-label="Consulta NQL"
           style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: 13, fontFamily: "'Space Mono', monospace" }}
         />
