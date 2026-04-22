@@ -74,6 +74,18 @@ export function useAppT() {
         trans = trans[part];
       }
       const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey;
+      // Guard against custom overrides that accidentally store key literals
+      // (e.g. "title"/"subtitle") instead of translated values.
+      if (typeof trans === 'string' && trans === fallbackKey) {
+        let baseTrans = (ctx?.baseTranslations || {})?.[module];
+        for (const part of keyPath) {
+          if (baseTrans == null) break;
+          baseTrans = baseTrans[part];
+        }
+        if (typeof baseTrans === 'string' && baseTrans !== fallbackKey) {
+          trans = baseTrans;
+        }
+      }
       if (trans == null) trans = fallbackKey; // fallback clave
 
       // Interpolación de variables: {var}

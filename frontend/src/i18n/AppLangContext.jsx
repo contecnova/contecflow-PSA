@@ -48,6 +48,7 @@ export function AppLangProvider({ children }) {
       return stored ? JSON.parse(stored) : {}
     } catch { return {} }
   })
+  const [baseTranslations, setBaseTranslations] = useState({})
   const [translations, setTranslations] = useState({})
   const [loading, setLoading] = useState(true)
 
@@ -57,6 +58,7 @@ export function AppLangProvider({ children }) {
     setLoading(true)
     loadLanguage(lang).then(base => {
       if (!cancelled) {
+        setBaseTranslations(base)
         const custom = customTrans[lang] || {}
         setTranslations(mergeCustom(base, custom))
         setLoading(false)
@@ -125,6 +127,18 @@ export function AppLangProvider({ children }) {
     }
 
     const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey
+    // If a custom override accidentally stores a leaf-key literal (e.g. "title"),
+    // recover the base dictionary value for this language.
+    if (typeof trans === 'string' && trans === fallbackKey) {
+      let baseTrans = baseTranslations?.[module]
+      for (const part of keyPath) {
+        if (baseTrans == null) break
+        baseTrans = baseTrans[part]
+      }
+      if (typeof baseTrans === 'string' && baseTrans !== fallbackKey) {
+        trans = baseTrans
+      }
+    }
     if (trans == null) trans = fallbackKey // fallback: clave
 
     // Apply interpolation: replace {varName} placeholders
@@ -135,11 +149,11 @@ export function AppLangProvider({ children }) {
     }
 
     return trans
-  }, [translations])
+  }, [translations, baseTranslations])
 
   if (loading) return null // O un spinner global
   return (
-    <AppLangContext.Provider value={{ lang, setLang, t, translations, setCustomTranslations, customTrans }}>
+    <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans }}>
       {children}
     </AppLangContext.Provider>
   )

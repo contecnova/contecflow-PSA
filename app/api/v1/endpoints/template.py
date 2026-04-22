@@ -4,6 +4,12 @@ from app.models.user import User
 
 router = APIRouter()
 
+@router.get("/templates", summary="List templates")
+def list_templates(current_user: User = Depends(get_current_user)):
+    return [
+        {"id": "tpl-1", "name": "Template base", "documents": ["doc-1"], "roles": ["role-1"], "phases": []}
+    ]
+
 @router.post("/templates", summary="Create template")
 def create_template(payload: dict = Body(...), current_user: User = Depends(get_current_user)):
     return {"template": {"id": "tpl-1", "documents": ["doc-1"], "roles": ["role-1"], "phases": []}}

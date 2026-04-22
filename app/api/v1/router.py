@@ -137,6 +137,26 @@ api_router.include_router(collaborative.router,    prefix="/collaborative",   ta
 api_router.include_router(labels.router,           prefix="/labels",           tags=["Labels"])
 api_router.include_router(translations.router,     prefix="/translations",     tags=["Translations"])
 
+# ── Frontend compatibility aliases (legacy expected paths) ───────────────────
+# Keep existing prefixed routers, but also expose canonical paths expected by
+# the current frontend navigation smoke.
+api_router.include_router(epics.router,            tags=["Epics & Wiki (Compat)"])
+api_router.include_router(ai_modules.router,       tags=["AI Modules (Compat)"])
+api_router.include_router(ai_chat.router,          tags=["AI Assistant (Compat)"])
+api_router.include_router(resource_forecast.router, tags=["Resource Forecast (Compat)"])
+api_router.include_router(bookings.router,         tags=["Bookings (Compat)"])
+api_router.include_router(okrs.router,             tags=["OKRs (Compat)"])
+api_router.include_router(performance.router,      tags=["Performance (Compat)"])
+api_router.include_router(training.router,         tags=["Training (Compat)"])
+api_router.include_router(invoices.router,         tags=["Invoices (Compat)"])
+api_router.include_router(rate_cards.router,       tags=["Rate Cards (Compat)"])
+api_router.include_router(mfa.router,              tags=["MFA & Budgets (Compat)"])
+api_router.include_router(governance.router,       tags=["Governance (Compat)"])
+api_router.include_router(cmdb.router,             tags=["CMDB (Compat)"])
+api_router.include_router(enterprise.router,       tags=["Enterprise (Compat)"])
+api_router.include_router(cab.router,              tags=["CAB & Webhooks (Compat)"])
+api_router.include_router(billing_reports.router,  tags=["Billing & Reports (Compat)"])
+
 # Legacy compatibility: /orgs/{org_id}/branding is handled by v239 branding module
 # This stub echoes back the payload for test compatibility when no org exists in DB
 @api_router.put("/orgs/{org_id}/branding", status_code=status.HTTP_200_OK, tags=["Branding"])
