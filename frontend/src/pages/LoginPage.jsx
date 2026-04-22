@@ -37,7 +37,7 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!forgotInput.trim()) {
-      setError('Introduce tu email o usuario')
+      setError(t('login.forgot_fill_field'))
       return
     }
     setLoading(true)
@@ -45,10 +45,10 @@ export default function LoginPage() {
     setMessage('')
     try {
       const { data } = await authApi.forgotPassword({ email_or_username: forgotInput.trim() })
-      setMessage(data?.message || 'Si la cuenta existe, recibirás un email con instrucciones.')
+      setMessage(data?.message || t('login.forgot_email_sent'))
     } catch (e) {
       const raw = e.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'No se pudo procesar la solicitud'))
+      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.forgot_error')))
     } finally {
       setLoading(false)
     }
@@ -56,11 +56,11 @@ export default function LoginPage() {
 
   const handleResetPassword = async () => {
     if (!resetToken) {
-      setError('Token de restablecimiento inválido')
+      setError(t('login.reset_invalid_token'))
       return
     }
     if (!newPassword) {
-      setError('Introduce la nueva contraseña')
+      setError(t('login.reset_fill_password'))
       return
     }
     setLoading(true)
@@ -68,13 +68,13 @@ export default function LoginPage() {
     setMessage('')
     try {
       const { data } = await authApi.resetPassword({ token: resetToken, new_password: newPassword })
-      setMessage(data?.message || 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.')
+      setMessage(data?.message || t('login.reset_success'))
       setMode('login')
       setNewPassword('')
       setSearchParams({})
     } catch (e) {
       const raw = e.response?.data?.detail
-      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'No se pudo restablecer la contraseña'))
+      setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.reset_error')))
     } finally {
       setLoading(false)
     }

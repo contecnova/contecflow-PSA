@@ -232,6 +232,30 @@ class TenantSession(Session):
 
         return q
 
+    def execute(self, statement, *args, **kwargs):
+        """SA 2.0 execute() override — applies tenant isolation to ORM Select statements.
+
+        db.query() intercepts the legacy SA 1.x API; this method covers the
+        modern SA 2.0 pattern: db.execute(select(Model).where(...)).
+        Non-Select statements (INSERT, UPDATE, DELETE, raw SQL) pass through
+        unchanged — they carry explicit WHERE clauses by design.
+        """
+        from sqlalchemy.sql import Select
+        if isinstance(statement, Select):
+            is_superadmin = self.info.get("is_superadmin", None)
+            if is_superadmin is False:
+                org_id = self.info.get("organization_id")
+                if org_id is None:
+                    from sqlalchemy import false as sql_false
+                    statement = statement.where(sql_false())
+                else:
+                    for model in _extract_models_from_select(statement):
+                        try:
+                            statement = _tenant_where_for_model(statement, model, org_id)
+                        except Exception:
+                            pass
+        return super().execute(statement, *args, **kwargs)
+
 _url = settings.DATABASE_URL
 _is_sqlite = _url.startswith("sqlite")
 

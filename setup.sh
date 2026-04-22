@@ -36,7 +36,7 @@ print_banner() {
   echo -e "  ${CYAN}║   Professional Services Automation       ║${NC}"
   echo -e "  ${CYAN}║                                          ║${NC}"
   echo -e "  ${CYAN}╚══════════════════════════════════════════╝${NC}"
-  echo -e "  contecflow2024! — Plataforma PSA Enterprise${NC}"
+  echo -e "  Plataforma PSA Enterprise${NC}"
   echo ""
 }
 
@@ -228,7 +228,7 @@ SUPERADMIN_EMAIL=admin@company.com
 SUPERADMIN_PASSWORD=contecflow2024!
 DEFAULT_USER_PASSWORD=contecflow2024!
 ANTHROPIC_API_KEY=
-NEXUS_AI_MODEL=claude-haiku-4-5
+CONTECFLOW_AI_MODEL=claude-haiku-4-5
 ENVEOF
     fi
   fi
@@ -358,13 +358,13 @@ sync_demo_passwords() {
   fi
 
   log "Sincronizando contraseñas demo con DEFAULT_USER_PASSWORD..."
-  SYNC_RESULT=$("$PY_BIN" -c "
-import sys
+  SYNC_RESULT=$(DEMO_PWD="$DEMO_PWD" "$PY_BIN" -c "
+import os, sys
 from app.db.session import SessionLocal
 from app.models.user import User
 from app.core.security import get_password_hash
 
-pwd = '''$DEMO_PWD'''
+pwd = os.environ['DEMO_PWD']
 db = SessionLocal()
 updated = 0
 for username in ['admin', 'ana.torres', 'luis.vega', 'rrhh']:
@@ -471,12 +471,16 @@ start_services() {
   if [ -f "frontend/node_modules/@babel/parser/lib/index.js" ]; then
     if [ ! -f "$JSX_HASH_FILE" ] || [ "$(cat $JSX_HASH_FILE)" != "$JSX_HASH" ]; then
       log "Validando JSX con Babel..."
-      if node frontend/validate.cjs; then
-        echo -e "${GREEN}✅ JSX validado correctamente${NC}"
-        echo "$JSX_HASH" > "$JSX_HASH_FILE"
+      if [ -f "frontend/validate.cjs" ]; then
+        if node frontend/validate.cjs; then
+          echo -e "${GREEN}✅ JSX validado correctamente${NC}"
+          echo "$JSX_HASH" > "$JSX_HASH_FILE"
+        else
+          echo -e "${RED}❌ Errores en JSX detectados — revisa los archivos marcados${NC}"
+          exit 1
+        fi
       else
-        echo -e "${RED}❌ Errores en JSX detectados — revisa los archivos marcados${NC}"
-        exit 1
+        warn "frontend/validate.cjs no encontrado — omitiendo validación JSX"
       fi
     else
       log "JSX sin cambios, omitiendo validación Babel"
@@ -519,6 +523,9 @@ start_services() {
   echo -e "  ana.torres / ${DEMO_PASSWORD}  → PM"
   echo -e "  luis.vega  / ${DEMO_PASSWORD}  → Empleado"
   echo -e "  rrhh       / ${DEMO_PASSWORD}  → RRHH"
+  echo ""
+  echo -e "  ${YELLOW}⚠  Contraseña por defecto mostrada arriba.${NC}"
+  echo -e "  ${YELLOW}   Cámbiala en .env (DEFAULT_USER_PASSWORD) antes de usar en producción.${NC}"
   echo ""
   echo -e "  ${YELLOW}Presiona Ctrl+C para parar${NC}"
   echo ""

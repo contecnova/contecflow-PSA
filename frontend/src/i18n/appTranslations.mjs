@@ -19,15 +19,17 @@ export function getAllKeys(obj = es) {
 // Copiado automáticamente desde appTranslations.js
 
 
+// partial: true → translation is incomplete; UI shows a β badge and
+// loadLanguage will fill missing keys with English as fallback.
 export const APP_LANGUAGES = [
 	{ code: 'es', label: 'Español',    flag: '🇪🇸' },
 	{ code: 'en', label: 'English',    flag: '🇬🇧' },
-	{ code: 'fr', label: 'Français',   flag: '🇫🇷' },
-	{ code: 'de', label: 'Deutsch',    flag: '🇩🇪' },
-	{ code: 'pt', label: 'Português',  flag: '🇵🇹' },
-	{ code: 'it', label: 'Italiano',   flag: '🇮🇹' },
-	{ code: 'pl', label: 'Polski',     flag: '🇵🇱' },
-	{ code: 'zh', label: '中文',       flag: '🇨🇳' },
+	{ code: 'fr', label: 'Français',   flag: '🇫🇷', partial: true },
+	{ code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
+	{ code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
+	{ code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
+	{ code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true },
+	{ code: 'zh', label: '中文',       flag: '🇨🇳', partial: true },
 ];
 
 // Carga dinámica de traducciones por idioma
@@ -58,18 +60,44 @@ export { es, en, fr, de, pt, it, pl, zh };
 export const APP_TRANSLATIONS = { es, en, fr, de, pt, it, pl, zh };
 
 /**
+ * Shallow deep-merge: for each top-level namespace, spread base then override.
+ * Keys present in base but absent in override keep their base (English) value.
+ */
+function mergeWithFallback(base, override) {
+	const result = { ...base };
+	for (const ns of Object.keys(base)) {
+		if (override[ns] && typeof override[ns] === 'object') {
+			result[ns] = { ...base[ns], ...override[ns] };
+		}
+		// if override has no namespace at all, base (English) namespace is kept
+	}
+	// Also include any namespace that exists only in override (not in base)
+	for (const ns of Object.keys(override)) {
+		if (!(ns in base)) result[ns] = override[ns];
+	}
+	return result;
+}
+
+/**
  * Carga automática del idioma detectado o forzado.
+ * For partial languages (everything except 'en') English is used as the base
+ * so missing keys always show English text rather than raw key names.
  * @param {string} lang Código de idioma (es, en, ...)
  * @returns {Promise<Object>} Objeto de traducciones
  */
 export async function loadLanguage(lang) {
 	if (!langFiles[lang]) lang = 'es';
 	try {
-		const mod = await langFiles[lang]();
-		return mod.default;
+		const [targetMod, enMod] = await Promise.all([
+			langFiles[lang](),
+			lang !== 'en' ? langFiles['en']() : Promise.resolve(null),
+		]);
+		const target = targetMod.default;
+		if (!enMod) return target; // 'en' needs no fallback
+		return mergeWithFallback(enMod.default, target);
 	} catch (e) {
-		// Fallback a español si falla
-		const mod = await langFiles['es']();
+		// Fallback a inglés si el fichero del idioma falla
+		const mod = await langFiles['en']();
 		return mod.default;
 	}
 }

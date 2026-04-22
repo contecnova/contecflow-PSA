@@ -86,6 +86,8 @@ def trigger_out(t: WebhookTrigger) -> dict:
         "is_active": t.is_active,
         "fire_count": t.fire_count or 0,
         "last_fired_at": str(t.last_fired_at)[:16] if t.last_fired_at else None,
+        "slug_rotated_at": str(t.slug_rotated_at)[:19] if t.slug_rotated_at else None,
+        "slug_expires_at": str(t.slug_expires_at)[:19] if t.slug_expires_at else None,
         "endpoint": f"/api/v1/webhooks/fire/{t.slug}",
     }
 
@@ -610,7 +612,39 @@ def get_active_webhook_trigger_by_slug(db: Session, slug: str) -> WebhookTrigger
     ).first()
     if not trigger:
         raise HTTPException(404, "Webhook trigger no encontrado")
+    if trigger.slug_expires_at and trigger.slug_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(410, "Webhook trigger slug expirado — rota el slug para reactivarlo")
     return trigger
+
+
+def rotate_webhook_trigger_slug(trigger_id: str, expires_in_days: int | None, db: Session) -> dict:
+    """Generate a new random slug for the trigger, invalidating the old one immediately.
+
+    expires_in_days: if provided, sets slug_expires_at that many days from now.
+                     Pass None (or omit) for a non-expiring slug.
+    """
+    import secrets as _secrets
+    t = db.query(WebhookTrigger).filter(WebhookTrigger.id == trigger_id).first()
+    if not t:
+        raise ValueError("Trigger no encontrado")
+    new_slug = _secrets.token_urlsafe(16)
+    # Ensure uniqueness (collision extremely unlikely but guard anyway)
+    while db.query(WebhookTrigger).filter(WebhookTrigger.slug == new_slug).first():
+        new_slug = _secrets.token_urlsafe(16)
+    t.slug = new_slug
+    t.slug_rotated_at = datetime.now(timezone.utc)
+    if expires_in_days is not None:
+        from datetime import timedelta
+        t.slug_expires_at = t.slug_rotated_at + timedelta(days=expires_in_days)
+    else:
+        t.slug_expires_at = None
+    db.commit()
+    return {
+        "ok": True, "id": t.id, "slug": t.slug,
+        "slug_rotated_at": str(t.slug_rotated_at)[:19],
+        "slug_expires_at": str(t.slug_expires_at)[:19] if t.slug_expires_at else None,
+        "endpoint": f"/api/v1/webhooks/fire/{t.slug}",
+    }
 
 
 def get_webhook_logs(trigger_id: str, db: Session) -> list:

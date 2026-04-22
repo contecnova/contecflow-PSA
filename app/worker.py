@@ -54,6 +54,141 @@ celery_app.conf.beat_schedule = {
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
 
+import logging as _logging
+_worker_logger = _logging.getLogger(__name__)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.worker.deliver_webhook",
+    max_retries=3,
+)
+def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
+    """Deliver a single outbound webhook with automatic retry on network errors.
+
+    Retry schedule: 60s → 300s → 1800s (attempt 1 → 2 → 3).
+    Each attempt is logged as a WebhookDelivery row regardless of outcome.
+    """
+    import httpx
+    import time
+    from datetime import datetime, timezone
+    from app.db.session import SessionLocal
+    from app.models.enterprise import Webhook, WebhookDelivery
+    from app.core.encryption import decrypt_value
+    from app.services.webhooks import _sign_payload
+
+    db = SessionLocal()
+    try:
+        hook = db.query(Webhook).filter(
+            Webhook.id == webhook_id,
+            Webhook.is_active == True,
+        ).first()
+
+        if not hook:
+            return {"skipped": True, "reason": "webhook not found or inactive"}
+
+        status_code = None
+        response_text = None
+        success = False
+        error = None
+        duration_ms = None
+        http_exc = None
+
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "Contecflow-Webhooks/1.0",
+                "X-Contecflow-Event": event,
+            }
+            if hook.secret:
+                secret = decrypt_value(hook.secret) or hook.secret
+                headers["X-Contecflow-Signature"] = _sign_payload(secret, body)
+
+            start = time.time()
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(hook.url, content=body, headers=headers)
+            duration_ms = int((time.time() - start) * 1000)
+            status_code = resp.status_code
+            response_text = resp.text[:500]
+            success = 200 <= resp.status_code < 300
+
+        except httpx.HTTPError as exc:
+            error = str(exc)[:500]
+            http_exc = exc
+        except Exception as exc:
+            error = str(exc)[:500]
+
+        # Log every attempt — including failed ones — before deciding to retry.
+        delivery = WebhookDelivery(
+            webhook_id=hook.id,
+            event=event,
+            payload=body[:10000],
+            status_code=status_code,
+            response=response_text,
+            success=success,
+            error=error,
+            duration_ms=duration_ms,
+        )
+        db.add(delivery)
+        hook.total_deliveries = (hook.total_deliveries or 0) + 1
+        hook.last_triggered_at = datetime.now(timezone.utc)
+
+        if success:
+            # Reset circuit-breaker counter on any successful delivery.
+            hook.consecutive_failures = 0
+        else:
+            hook.failed_deliveries = (hook.failed_deliveries or 0) + 1
+            hook.consecutive_failures = (hook.consecutive_failures or 0) + 1
+
+            # Circuit breaker — suspend after WEBHOOK_CB_THRESHOLD consecutive failures
+            # so a permanently dead endpoint stops receiving attempts automatically.
+            cb_threshold = getattr(settings, "WEBHOOK_CB_THRESHOLD", 5)
+            if hook.consecutive_failures >= cb_threshold and hook.is_active:
+                hook.is_active = False
+                hook.suspended_at = datetime.now(timezone.utc)
+                _worker_logger.error(
+                    "Circuit breaker: webhook %s (%s) suspended after %d consecutive "
+                    "failures. Re-enable via the admin panel once the endpoint is fixed.",
+                    hook.id, hook.url, hook.consecutive_failures,
+                )
+                # Emit a system event so admins receive an in-app notification.
+                try:
+                    from app.core.events import emit_event
+                    from app.db.session import SessionLocal as _SL
+                    _db2 = _SL()
+                    try:
+                        emit_event(
+                            _db2,
+                            "webhook.suspended",
+                            {
+                                "webhook_id": hook.id,
+                                "webhook_name": hook.name,
+                                "url": hook.url,
+                                "consecutive_failures": hook.consecutive_failures,
+                            },
+                        )
+                    finally:
+                        _db2.close()
+                except Exception as _ne:
+                    _worker_logger.debug("Could not emit webhook.suspended event: %s", _ne)
+
+        db.commit()
+
+        # Retry transient network errors with exponential backoff.
+        # Only retry if the circuit breaker has not tripped (hook still active after commit).
+        if http_exc is not None and hook.is_active:
+            countdown = 60 * (5 ** self.request.retries)
+            _worker_logger.warning(
+                "Webhook %s delivery failed (attempt %d/%d), retrying in %ds: %s",
+                webhook_id, self.request.retries + 1, self.max_retries + 1, countdown, http_exc,
+            )
+            raise self.retry(exc=http_exc, countdown=countdown)
+
+        return {"success": success, "status_code": status_code, "suspended": not hook.is_active}
+
+    finally:
+        db.close()
+
 
 @celery_app.task(name="app.worker.run_alert_engine")
 def run_alert_engine():

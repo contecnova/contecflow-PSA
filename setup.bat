@@ -133,7 +133,7 @@ if not exist ".env" (
         echo SUPERADMIN_PASSWORD=contecflow2024!
         echo DEFAULT_USER_PASSWORD=contecflow2024!
         echo ANTHROPIC_API_KEY=
-        echo NEXUS_AI_MODEL=claude-haiku-4-5
+        echo CONTECFLOW_AI_MODEL=claude-haiku-4-5
     ) > .env
     echo [INFO] Archivo .env creado. Edita ANTHROPIC_API_KEY para activar la IA completa.
 )
@@ -270,9 +270,16 @@ for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":%FRONTEND_PORT% " ^|
 echo [INFO] Arrancando backend en puerto %BACKEND_PORT%...
 start "Contecflow Backend" /min cmd /c "cd /d \"%SCRIPT_DIR%\" && .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info > \"%TEMP%\contecflow-backend.log\" 2>&1"
 
-:: Esperar a que el backend responda
+:: Esperar a que el backend responda (máx. 60 s)
 echo [INFO] Esperando backend
+set BACKEND_ATTEMPTS=0
 :wait_backend
+set /a BACKEND_ATTEMPTS+=1
+if %BACKEND_ATTEMPTS% GTR 60 (
+    echo [ERROR] El backend no respondio en 60 segundos.
+    echo [ERROR] Revisa los logs: %TEMP%\contecflow-backend.log
+    exit /b 1
+)
 timeout /t 1 /nobreak >nul
 curl -s http://localhost:%BACKEND_PORT%/health >nul 2>&1
 if errorlevel 1 goto :wait_backend
@@ -282,9 +289,16 @@ echo [INFO] Backend listo
 echo [INFO] Arrancando frontend en puerto %FRONTEND_PORT%...
 start "Contecflow Frontend" /min cmd /c "cd /d \"%SCRIPT_DIR%\frontend\" && npm run dev -- --port %FRONTEND_PORT% > \"%TEMP%\contecflow-frontend.log\" 2>&1"
 
-:: Esperar frontend
+:: Esperar frontend (máx. 60 s)
 echo [INFO] Esperando frontend
+set FRONTEND_ATTEMPTS=0
 :wait_frontend
+set /a FRONTEND_ATTEMPTS+=1
+if %FRONTEND_ATTEMPTS% GTR 60 (
+    echo [ERROR] El frontend no respondio en 60 segundos.
+    echo [ERROR] Revisa los logs: %TEMP%\contecflow-frontend.log
+    exit /b 1
+)
 timeout /t 1 /nobreak >nul
 curl -s http://localhost:%FRONTEND_PORT% >nul 2>&1
 if errorlevel 1 goto :wait_frontend

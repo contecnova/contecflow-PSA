@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -53,49 +53,41 @@ const RISK_LEVELS = [
   { value: 'critical', label: '🚨 Crítico' },
 ]
 
-const projectFormSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio'),
-  project_type: z.string().min(1, 'El tipo es obligatorio'),
-  start_date: z.string().optional(),
-  end_date_planned: z.string().optional(),
-  budget_amount: z.union([z.string(), z.number(), z.null()]).optional(),
-  retainer_amount: z.union([z.string(), z.number(), z.null()]).optional(),
-  retainer_day: z.union([z.string(), z.number(), z.null()]).optional(),
-  billing_type: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.start_date && data.end_date_planned && data.end_date_planned < data.start_date) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['end_date_planned'],
-      message: 'La fecha de fin no puede ser anterior a la de inicio',
-    })
-  }
+function makeProjectFormSchema(t) {
+  return z.object({
+    name: z.string().min(1, t('projects.error_name_required')),
+    project_type: z.string().min(1, t('projects.error_type_required')),
+    start_date: z.string().optional(),
+    end_date_planned: z.string().optional(),
+    budget_amount: z.union([z.string(), z.number(), z.null()]).optional(),
+    retainer_amount: z.union([z.string(), z.number(), z.null()]).optional(),
+    retainer_day: z.union([z.string(), z.number(), z.null()]).optional(),
+    billing_type: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.start_date && data.end_date_planned && data.end_date_planned < data.start_date) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['end_date_planned'], message: t('projects.error_date_range') })
+    }
+    const budget = Number(data.budget_amount || 0)
+    if (!Number.isNaN(budget) && budget < 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['budget_amount'], message: t('projects.error_budget_negative') })
+    }
+    const retainerDay = Number(data.retainer_day || 0)
+    if (data.billing_type === 'recurring_retainer' && (retainerDay < 1 || retainerDay > 28)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['retainer_day'], message: t('projects.error_retainer_day') })
+    }
+  })
+}
 
-  const budget = Number(data.budget_amount || 0)
-  if (!Number.isNaN(budget) && budget < 0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['budget_amount'],
-      message: 'El presupuesto no puede ser negativo',
-    })
-  }
-
-  const retainerDay = Number(data.retainer_day || 0)
-  if (data.billing_type === 'recurring_retainer' && (retainerDay < 1 || retainerDay > 28)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['retainer_day'],
-      message: 'El dia de retainer debe estar entre 1 y 28',
-    })
-  }
-})
-
-const projectMemberSchema = z.object({
-  user_id: z.string().trim().min(1, 'La persona es obligatoria'),
-  role: z.string().trim().min(1, 'El rol es obligatorio'),
-  allocation_pct: z.coerce.number().min(1, 'La dedicacion debe ser al menos 1%').max(100, 'La dedicacion no puede superar el 100%'),
-  notes: z.string().optional(),
-})
+function makeProjectMemberSchema(t) {
+  return z.object({
+    user_id: z.string().trim().min(1, t('projects.error_person_required')),
+    role: z.string().trim().min(1, t('projects.error_role_required')),
+    allocation_pct: z.coerce.number()
+      .min(1, t('projects.error_allocation'))
+      .max(100, t('projects.error_allocation')),
+    notes: z.string().optional(),
+  })
+}
 
 function StatusDropdown({ project, onUpdate }) {
   const [open, setOpen] = useState(false)
@@ -207,7 +199,9 @@ function ProjectFormModal({ open, onClose, project = null }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { _invalidate } = useInvalidate()
+  const t = useAppT()
   const isEdit = !!project
+  const projectFormSchema = useMemo(() => makeProjectFormSchema(t), [t])
 
   // Cargar datos completos del proyecto cuando se edita
   const { data: fullProject } = useQuery({
@@ -396,9 +390,9 @@ function ProjectFormModal({ open, onClose, project = null }) {
             style={{ ...fs, resize: 'vertical' }} placeholder={t(modulo.clave)} />
         </div>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => { if (validateForm()) mutate(form) }} disabled={isPending || !form.name || !form.project_type} loading={isPending}>
-            {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear proyecto'}
+            {isPending ? t('common.saving') : isEdit ? t('projects.btn_save') : t('projects.btn_create')}
           </Button>
         </div>
       </div>

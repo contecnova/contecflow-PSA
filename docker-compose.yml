@@ -25,6 +25,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: ${MIGRATE_MEMORY_LIMIT:-256M}
+          cpus: "${MIGRATE_CPU_LIMIT:-0.5}"
     networks:
       - contecflow-net
 
@@ -54,6 +59,11 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: ${BACKEND_MEMORY_LIMIT:-512M}
+          cpus: "${BACKEND_CPU_LIMIT:-1.0}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -88,6 +98,11 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: ${WORKER_MEMORY_LIMIT:-512M}
+          cpus: "${WORKER_CPU_LIMIT:-1.0}"
     networks:
       - contecflow-net
 
@@ -114,6 +129,11 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: ${BEAT_MEMORY_LIMIT:-128M}
+          cpus: "${BEAT_CPU_LIMIT:-0.25}"
     networks:
       - contecflow-net
 
@@ -127,6 +147,11 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: ${FRONTEND_MEMORY_LIMIT:-128M}
+          cpus: "${FRONTEND_CPU_LIMIT:-0.5}"
     networks:
       - contecflow-net
 
@@ -146,6 +171,11 @@ services:
     depends_on:
       - frontend
       - backend
+    deploy:
+      resources:
+        limits:
+          memory: ${NGINX_MEMORY_LIMIT:-64M}
+          cpus: "${NGINX_CPU_LIMIT:-0.25}"
     networks:
       - contecflow-net
 
@@ -160,6 +190,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requerido}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_MEMORY_LIMIT:-512M}
+          cpus: "${DB_CPU_LIMIT:-1.0}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-contecflow} -d ${POSTGRES_DB:-contecflow}"]
       interval: 10s
@@ -176,11 +211,16 @@ services:
     command: redis-server --requirepass ${REDIS_PASSWORD:-contecflow_redis}
     volumes:
       - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-128M}
+          cpus: "${REDIS_CPU_LIMIT:-0.5}"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-contecflow_redis}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - contecflow-net
 

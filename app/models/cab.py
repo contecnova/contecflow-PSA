@@ -89,6 +89,8 @@ class WebhookTrigger(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name        = Column(String(255), nullable=False)
     slug        = Column(String(100), nullable=False, unique=True, index=True)  # URL key
+    slug_rotated_at = Column(DateTime(timezone=True), nullable=True)
+    slug_expires_at = Column(DateTime(timezone=True), nullable=True)
     secret      = Column(String(255), nullable=True)    # HMAC secret for verification
     workflow_id = Column(String(36), ForeignKey("automation_workflows.id"), nullable=True)
     rule_id     = Column(String(36), ForeignKey("automation_rules.id"), nullable=True)

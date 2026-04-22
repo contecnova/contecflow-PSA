@@ -356,7 +356,7 @@ Tareas similares completadas:
 Responde SOLO con JSON: {{"hours": <número>, "confidence": <0-100>, "reasoning": "<explicación breve>"}}"""
 
             data = json.dumps({
-                "model": settings.NEXUS_AI_MODEL,
+                "model": settings.CONTECFLOW_AI_MODEL,
                 "max_tokens": 200,
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()
@@ -483,7 +483,7 @@ Responde SOLO con JSON:
 {{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en español>"}}"""
 
             data = json.dumps({
-                "model": settings.NEXUS_AI_MODEL,
+                "model": settings.CONTECFLOW_AI_MODEL,
                 "max_tokens": 300,
                 "messages": [{"role": "user", "content": prompt}]
             }).encode()

@@ -378,59 +378,70 @@ async def ws_notifications(
 ):
     """
     WebSocket de notificaciones en tiempo real.
-    Conectar: ws://localhost:8000/api/v1/ws/notifications?token=<jwt>
+    Conectar: ws://host/api/v1/ws/notifications?ticket=<one-time-ticket>
+
+    Obtener el ticket previo: GET /api/v1/ws/ticket (requiere cookie de sesión).
+    El parámetro ?token=<JWT> está deshabilitado en production/staging — los JWT
+    en URLs quedan registrados en logs de proxy y en el historial del navegador.
     """
     from app.db.session import SessionLocal
 
-    db = SessionLocal()
-    try:
-        # Accept either a short-lived one-shot ticket (preferred) or a raw JWT
-        user_id: Optional[str] = None
-        if ticket:
-            user_id = await _consume_ws_ticket(ticket)
-            if not user_id:
-                await websocket.close(code=4001, reason="Ticket inválido o expirado")
-                return
-        elif token:
-            user_id = await _validate_jwt(token, db)
-            if not user_id:
-                await websocket.close(code=4001, reason="Token inválido")
-                return
-        else:
-            await websocket.close(code=4001, reason="Se requiere ticket o token")
-            return
-
-        await manager.connect(websocket, user_id)
-
-        # Enviar estado inicial
-        await websocket.send_text(json.dumps({
-            "type":    "connected",
-            "user_id": user_id,
-            "ts":      datetime.now(timezone.utc).isoformat(),
-        }))
-
-        # Iniciar el loop de polling en background
-        poll_task = asyncio.create_task(_poll_and_send(websocket, user_id, db))
-
+    user_id: Optional[str] = None
+    with SessionLocal() as db:
         try:
-            while True:
-                # Escuchar mensajes del cliente (ping/pong, mark_read)
-                data = await websocket.receive_text()
-                try:
-                    msg = json.loads(data)
-                    if msg.get("type") == "ping":
-                        await websocket.send_text(json.dumps({"type": "pong"}))
-                    elif msg.get("type") == "mark_read" and msg.get("id"):
-                        _ws_svc.mark_notification_read(db, msg["id"], user_id)
-                except (json.JSONDecodeError, KeyError, TypeError) as e:
-                    logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
-                except Exception as e:
-                    logging.getLogger(__name__).error(f"Unexpected error processing ws message: {e}")
-        except WebSocketDisconnect:
-            poll_task.cancel()
-    finally:
-        manager.disconnect(websocket, user_id if 'user_id' in locals() else 'unknown')
-        db.close()
+            if ticket:
+                user_id = await _consume_ws_ticket(ticket)
+                if not user_id:
+                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
+                    return
+            elif token:
+                # Raw JWT in URL — only accepted outside production to aid local dev.
+                # In production the JWT would be logged by every proxy/load-balancer
+                # and remain reusable until expiry.
+                if settings.ENVIRONMENT in {"production", "staging"}:
+                    await websocket.close(
+                        code=4003,
+                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/ticket).",
+                    )
+                    return
+                user_id = await _validate_jwt(token, db)
+                if not user_id:
+                    await websocket.close(code=4001, reason="Token inválido")
+                    return
+            else:
+                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/ticket)")
+                return
+
+            await manager.connect(websocket, user_id)
+
+            # Enviar estado inicial
+            await websocket.send_text(json.dumps({
+                "type":    "connected",
+                "user_id": user_id,
+                "ts":      datetime.now(timezone.utc).isoformat(),
+            }))
+
+            # Iniciar el loop de polling en background
+            poll_task = asyncio.create_task(_poll_and_send(websocket, user_id, db))
+
+            try:
+                while True:
+                    # Escuchar mensajes del cliente (ping/pong, mark_read)
+                    data = await websocket.receive_text()
+                    try:
+                        msg = json.loads(data)
+                        if msg.get("type") == "ping":
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                        elif msg.get("type") == "mark_read" and msg.get("id"):
+                            _ws_svc.mark_notification_read(db, msg["id"], user_id)
+                    except (json.JSONDecodeError, KeyError, TypeError) as e:
+                        logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
+                    except Exception as e:
+                        logging.getLogger(__name__).error(f"Unexpected error processing ws message: {e}")
+            except WebSocketDisconnect:
+                poll_task.cancel()
+        finally:
+            manager.disconnect(websocket, user_id if user_id else 'unknown')
 
 
 @router.websocket("/portal-notifications")
@@ -442,48 +453,47 @@ async def ws_portal_notifications(
     """WebSocket notifications for client portal users."""
     from app.db.session import SessionLocal
 
-    db = SessionLocal()
     client_id = None
-    try:
-        if ticket:
-            client_id = await _consume_portal_ws_ticket(ticket)
-            if not client_id:
-                await websocket.close(code=4001, reason="Ticket inválido o expirado")
-                return
-        elif token:
-            client = verify_client_token(token, db)
-            client_id = str(client.id) if client else None
-            if not client_id:
-                await websocket.close(code=4001, reason="Token inválido")
-                return
-        else:
-            await websocket.close(code=4001, reason="Se requiere ticket o token")
-            return
-
-        manager_key = f"client:{client_id}"
-        await manager.connect(websocket, manager_key)
-        await websocket.send_text(json.dumps({
-            "type": "connected",
-            "client_id": client_id,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        }))
-        poll_task = asyncio.create_task(_poll_and_send_client(websocket, client_id, db))
-
+    with SessionLocal() as db:
         try:
-            while True:
-                data = await websocket.receive_text()
-                try:
-                    msg = json.loads(data)
-                    if msg.get("type") == "ping":
-                        await websocket.send_text(json.dumps({"type": "pong"}))
-                except Exception:
-                    pass
-        except WebSocketDisconnect:
-            poll_task.cancel()
-    finally:
-        if client_id:
-            manager.disconnect(websocket, f"client:{client_id}")
-        db.close()
+            if ticket:
+                client_id = await _consume_portal_ws_ticket(ticket)
+                if not client_id:
+                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
+                    return
+            elif token:
+                client = verify_client_token(token, db)
+                client_id = str(client.id) if client else None
+                if not client_id:
+                    await websocket.close(code=4001, reason="Token inválido")
+                    return
+            else:
+                await websocket.close(code=4001, reason="Se requiere ticket o token")
+                return
+
+            manager_key = f"client:{client_id}"
+            await manager.connect(websocket, manager_key)
+            await websocket.send_text(json.dumps({
+                "type": "connected",
+                "client_id": client_id,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            }))
+            poll_task = asyncio.create_task(_poll_and_send_client(websocket, client_id, db))
+
+            try:
+                while True:
+                    data = await websocket.receive_text()
+                    try:
+                        msg = json.loads(data)
+                        if msg.get("type") == "ping":
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                    except Exception:
+                        pass
+            except WebSocketDisconnect:
+                poll_task.cancel()
+        finally:
+            if client_id:
+                manager.disconnect(websocket, f"client:{client_id}")
 
 
 @router.get("/notifications/stats", summary="Estadísticas de conexiones WebSocket activas")
@@ -577,11 +587,15 @@ async def _broadcast_doc_local(doc_id: str, message: dict, exclude: WebSocket = 
 async def ws_doc_collab(
     websocket: WebSocket,
     doc_id: str,
-    token: str = Query(...),
+    ticket: Optional[str] = Query(default=None),
+    token: Optional[str] = Query(default=None),
 ):
     """
     Wiki document collaboration WebSocket.
-    Connect: ws://.../api/v1/ws/doc/<doc_id>?token=<jwt>
+    Connect: ws://.../api/v1/ws/doc/<doc_id>?ticket=<one-time-ticket>
+
+    Obtain the ticket first: GET /api/v1/ws/ticket (requires session cookie).
+    ?token=<JWT> is disabled in production/staging — see /ws/notifications.
 
     Protocol (JSON messages):
       Client → Server:
@@ -599,71 +613,87 @@ async def ws_doc_collab(
     from app.db.session import SessionLocal
     from app.services.documents_service import get_document_or_404, check_document_access
     from app.models.user import User
-    db = SessionLocal()
-    try:
-        user_id = await _validate_jwt(token, db)
-        if not user_id:
-            await websocket.close(code=4001, reason="Token inválido")
-            return
 
-        # Obtener usuario y documento
-        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
-        doc = get_document_or_404(db, doc_id)
+    user_id: Optional[str] = None
+    with SessionLocal() as db:
         try:
-            check_document_access(doc, user, required_level=None)  # viewer mínimo
-        except Exception as e:
-            await websocket.close(code=4003, reason="Sin permiso para acceder al documento")
-            return
+            if ticket:
+                user_id = await _consume_ws_ticket(ticket)
+                if not user_id:
+                    await websocket.close(code=4001, reason="Ticket inválido o expirado")
+                    return
+            elif token:
+                if settings.ENVIRONMENT in {"production", "staging"}:
+                    await websocket.close(
+                        code=4003,
+                        reason="Token en URL no permitido en production. Usa ?ticket= (GET /ws/ticket).",
+                    )
+                    return
+                user_id = await _validate_jwt(token, db)
+                if not user_id:
+                    await websocket.close(code=4001, reason="Token inválido")
+                    return
+            else:
+                await websocket.close(code=4001, reason="Se requiere ?ticket= (obtener via GET /ws/ticket)")
+                return
 
-        await websocket.accept()
+            # Obtener usuario y documento
+            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+            doc = get_document_or_404(db, doc_id)
+            try:
+                check_document_access(doc, user, required_level=None)  # viewer mínimo
+            except Exception:
+                await websocket.close(code=4003, reason="Sin permiso para acceder al documento")
+                return
 
-        async with _doc_rooms_lock:
-            if doc_id not in _doc_rooms:
-                _doc_rooms[doc_id] = []
-            _doc_rooms[doc_id].append(websocket)
+            await websocket.accept()
 
-        await _ensure_doc_redis_sub()
+            async with _doc_rooms_lock:
+                if doc_id not in _doc_rooms:
+                    _doc_rooms[doc_id] = []
+                _doc_rooms[doc_id].append(websocket)
 
-        peer_count = len(_doc_rooms.get(doc_id, []))
-        await websocket.send_text(json.dumps({
-            "type": "joined", "user_id": user_id, "peers": peer_count,
-        }))
+            await _ensure_doc_redis_sub()
 
-        # Notify others
-        await _broadcast_doc(doc_id, {"type": "joined", "user_id": user_id, "peers": peer_count}, exclude=websocket)
+            peer_count = len(_doc_rooms.get(doc_id, []))
+            await websocket.send_text(json.dumps({
+                "type": "joined", "user_id": user_id, "peers": peer_count,
+            }))
 
-        MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB
-        try:
-            while True:
-                raw = await websocket.receive_text()
-                if len(raw) > MAX_MSG_SIZE:
-                    await websocket.close(code=4009, reason="Mensaje demasiado grande")
-                    break
-                try:
-                    msg = json.loads(raw)
-                    msg_type = msg.get("type")
+            # Notify others
+            await _broadcast_doc(doc_id, {"type": "joined", "user_id": user_id, "peers": peer_count}, exclude=websocket)
 
-                    if msg_type == "ping":
-                        await websocket.send_text(json.dumps({"type": "pong"}))
-                    elif msg_type in ("update", "awareness"):
-                        # Broadcast to all other editors of this document
-                        out = {"type": msg_type, "data": msg.get("data"), "from": user_id}
-                        await _broadcast_doc(doc_id, out, exclude=websocket)
-                except Exception:
-                    pass
-        except WebSocketDisconnect:
-            pass
-    finally:
-        async with _doc_rooms_lock:
-            room = _doc_rooms.get(doc_id, [])
-            if websocket in room:
-                room.remove(websocket)
-            if not room:
-                _doc_rooms.pop(doc_id, None)
+            MAX_MSG_SIZE = 2 * 1024 * 1024  # 2 MB
+            try:
+                while True:
+                    raw = await websocket.receive_text()
+                    if len(raw) > MAX_MSG_SIZE:
+                        await websocket.close(code=4009, reason="Mensaje demasiado grande")
+                        break
+                    try:
+                        msg = json.loads(raw)
+                        msg_type = msg.get("type")
 
-        peer_count = len(_doc_rooms.get(doc_id, []))
-        await _broadcast_doc(doc_id, {"type": "left", "user_id": locals().get("user_id", "?"), "peers": peer_count})
-        db.close()
+                        if msg_type == "ping":
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                        elif msg_type in ("update", "awareness"):
+                            # Broadcast to all other editors of this document
+                            out = {"type": msg_type, "data": msg.get("data"), "from": user_id}
+                            await _broadcast_doc(doc_id, out, exclude=websocket)
+                    except Exception:
+                        pass
+            except WebSocketDisconnect:
+                pass
+        finally:
+            async with _doc_rooms_lock:
+                room = _doc_rooms.get(doc_id, [])
+                if websocket in room:
+                    room.remove(websocket)
+                if not room:
+                    _doc_rooms.pop(doc_id, None)
+
+            peer_count = len(_doc_rooms.get(doc_id, []))
+            await _broadcast_doc(doc_id, {"type": "left", "user_id": user_id or "?", "peers": peer_count})
 
 
 async def _broadcast_doc(doc_id: str, message: dict, exclude: WebSocket = None) -> None:
@@ -676,10 +706,8 @@ async def _broadcast_doc(doc_id: str, message: dict, exclude: WebSocket = None) 
     """
     if _REDIS_URL:
         try:
-            import redis.asyncio as aioredis
-            r = aioredis.from_url(_REDIS_URL, decode_responses=True)
+            r = await _get_redis()
             await r.publish(f"clarive:doc:{doc_id}", json.dumps(message))
-            await r.aclose()
             return
         except Exception as exc:
             log.warning("Doc Redis publish failed, falling back to local: %s", exc)

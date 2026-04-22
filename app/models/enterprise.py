@@ -122,9 +122,13 @@ class Webhook(Base):
     project_id  = Column(String(36), ForeignKey("projects.id"), nullable=True)  # None = all projects
 
     # Stats
-    total_deliveries = Column(Integer, default=0)
-    failed_deliveries = Column(Integer, default=0)
-    last_triggered_at = Column(DateTime(timezone=True), nullable=True)
+    total_deliveries     = Column(Integer, default=0)
+    failed_deliveries    = Column(Integer, default=0)
+    last_triggered_at    = Column(DateTime(timezone=True), nullable=True)
+
+    # Circuit breaker — auto-suspends the webhook after consecutive failures
+    consecutive_failures = Column(Integer, default=0, nullable=False)
+    suspended_at         = Column(DateTime(timezone=True), nullable=True)
 
     created_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())

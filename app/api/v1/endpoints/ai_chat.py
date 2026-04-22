@@ -275,7 +275,7 @@ async def chat_stream(
         if is_anthropic_native:
             # Native Anthropic SSE streaming
             api_key_to_use = (active_provider.api_key if active_provider else None) or _api_key()
-            model_to_use = (active_provider.default_model if active_provider else None) or settings.NEXUS_AI_MODEL
+            model_to_use = (active_provider.default_model if active_provider else None) or settings.CONTECFLOW_AI_MODEL
             headers = {
                 "x-api-key": api_key_to_use,
                 "anthropic-version": "2023-06-01",
@@ -491,7 +491,7 @@ def run_agent_stream(
     agent_model = (
         active_prov.default_model
         if (active_prov and active_prov.provider == "anthropic" and active_prov.default_model)
-        else settings.NEXUS_AI_MODEL
+        else settings.CONTECFLOW_AI_MODEL
     )
 
     SYSTEM = f"""Eres NexusAgent, el agente autónomo de Clarive.

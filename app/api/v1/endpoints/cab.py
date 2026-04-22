@@ -234,6 +234,24 @@ def webhook_logs(
     return _svc.get_webhook_logs(trigger_id, db)
 
 
+@router.post("/webhooks/{trigger_id}/rotate", summary="Rotar slug del webhook trigger")
+def rotate_webhook_trigger_slug(
+    trigger_id: str,
+    expires_in_days: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Regenerates the slug immediately, invalidating the previous URL.
+
+    Query param `expires_in_days`: if provided, the new slug will expire after
+    that many days. Omit for a non-expiring slug.
+    """
+    try:
+        return _svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
 @router.delete("/webhooks/{trigger_id}", summary="Eliminar webhook trigger")
 def delete_webhook_trigger(
     trigger_id: str,
