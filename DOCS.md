@@ -211,7 +211,7 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 
 ---
 
-<!-- Incluir variables de entorno, ejemplos de archivos de configuración, instrucciones para Docker, despliegue local y en producción. -->
+<!-- Incluir variables de entorno, ejemplos de archivos de configuración e instrucciones de despliegue. -->
 
 ...existing code...
 
@@ -1343,7 +1343,7 @@ pytest test_e2e_projects.py -v
 ```
 - Los tests E2E usan fixtures de `conftest.py` para login y contexto de navegador.
 - Se cubren flujos críticos de negocio y validaciones visuales.
-- Los scripts `make test-e2e` y `make test-e2e-ci` ejecutan los tests en modo interactivo y headless.
+- El script `make test-e2e` ejecuta los tests en modo interactivo.
 
 ### 4. Cobertura y módulos
 
@@ -1460,7 +1460,7 @@ El portal es una experiencia completamente separada, accesible en `/portal`, par
 
 ### Acceso y autenticación
 
-- URL: `http://localhost:5173/portal`
+- URL: `http://localhost:3000/portal`
 - Login con email + contraseña (cuenta `ClientUser`, no `User`)
 - Token httpOnly cookie `portal_access_token` (separado del token de empleados)
 - Endpoint: `POST /api/v1/client-portal/auth/login`
@@ -1749,7 +1749,7 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 - **Logging contextual**: todos los errores registrados con user_id, operation_type, details
 
 **Verificación Seguridad HTTP — Nginx Headers (Production-Ready)**
-- ✅ Validados todos los security headers presentes en `/nginx/conf.d/clarive.conf`:
+- ✅ Validados todos los security headers presentes en el middleware del backend:
   - X-Content-Type-Options: nosniff
   - X-Frame-Options: DENY
   - Referrer-Policy: strict-origin-when-cross-origin
@@ -1844,10 +1844,8 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 - `ApprovalsPage`: cola de trabajo con filtros por tipo de entidad, orden por antigüedad/recencia y resaltado de items urgentes (`>=24h`).
 - Resumen rápido por entidad para priorizar trabajo pendiente.
 
-**Seguridad y CI/CD:**
-- `frontend/nginx.frontend.conf`: CSP y cabeceras de seguridad (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`).
-- `.github/workflows/ci.yml`: escaneo de secretos en CI estabilizado con Gitleaks; Trivy fijado a versión estable (`v0.33.1`).
-- `.github/workflows/secret-scanning.yml`: eliminado paso inestable de TruffleHog diferencial; Trivy fijado a `v0.33.1`.
+**Seguridad:**
+- CSP y cabeceras de seguridad (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) configuradas en el middleware del backend.
 
 **Auth y sesiones:**
 - Eliminada la lógica dual de JTI (usuario + sesión): ahora la validación de refresh token se realiza exclusivamente por sesión.
@@ -2781,7 +2779,7 @@ A continuación se muestra un ejemplo básico de test end-to-end usando Playwrig
 const { test, expect } = require('@playwright/test');
 
 test('Login y navegación básica', async ({ page }) => {
-  await page.goto('http://localhost:5173/login');
+  await page.goto('http://localhost:3000/login');
   await page.fill('input[name="email"]', 'admin');
   await page.fill('input[name="password"]', 'contecflow2024!');
   await page.click('button[type="submit"]');
