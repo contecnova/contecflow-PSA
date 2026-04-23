@@ -34,7 +34,7 @@ from app.services import jira_service
 from app.services.jira_service import JIRA_STATUS_MAP, JIRA_PRIORITY_MAP
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/jira", tags=["Jira Integration"])
+router = APIRouter(tags=["Jira Integration"])
 
 # NexusPM → Jira status mapping
 NM_TO_JIRA_STATUS = {

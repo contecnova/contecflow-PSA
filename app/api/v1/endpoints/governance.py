@@ -221,3 +221,63 @@ def compliance_control_status(
         },
         "controls": rows,
     }
+
+
+# ── AI module governance ───────────────────────────────────────────────────────
+
+AI_MODULES = [
+    "nexusassist", "nexusagent", "nexusoracle", "meeting_assistant",
+    "sprint_planning", "contract_intelligence", "knowledge_base", "portal_ai", "voice",
+]
+
+
+@router.get("/config", summary="Configuración de módulos de IA gobernados")
+def get_ai_module_config(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    rows = _gsvc.list_ai_module_configs(db, _org_id(current_user))
+    by_module = {r.module: r for r in rows}
+    return [
+        {
+            "module": m,
+            "is_enabled": by_module[m].is_enabled if m in by_module else True,
+        }
+        for m in AI_MODULES
+    ]
+
+
+@router.patch("/config/{module}", summary="Activar/desactivar módulo de IA")
+def patch_ai_module_config(
+    module: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if module not in AI_MODULES:
+        raise HTTPException(404, "Módulo no reconocido")
+    is_enabled = payload.get("is_enabled", True)
+    _gsvc.upsert_ai_module_config(db, _org_id(current_user), module, is_enabled, current_user.id)
+    audit_log(db=db, user=current_user, action="UPDATE", resource="ai_module_config",
+              resource_id=None, resource_name=module, new_values={"is_enabled": is_enabled})
+    return {"ok": True, "module": module, "is_enabled": is_enabled}
+
+
+@router.get("/stats", summary="Estadísticas de uso de módulos de IA")
+def get_ai_governance_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    stats = _gsvc.get_ai_usage_stats(db, _org_id(current_user))
+    return stats
+
+
+@router.get("/logs", summary="Historial de llamadas a módulos de IA gobernados")
+def get_ai_governance_logs(
+    limit: int = Query(default=100, le=500),
+    module: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    logs = _gsvc.list_ai_governance_logs(db, _org_id(current_user), limit=limit, module=module)
+    return logs

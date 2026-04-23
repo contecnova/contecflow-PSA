@@ -24,7 +24,7 @@ from app.models.user import User
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
 
-router = APIRouter(prefix="/grc", tags=["GRC"])
+router = APIRouter(tags=["GRC"])
 
 # ── Default permission matrix (used for DB seeding) ──────────────────────────
 #  Format: role -> module -> action -> allowed (bool)

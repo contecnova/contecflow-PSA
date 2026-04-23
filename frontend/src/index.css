@@ -319,6 +319,56 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 
 /* ── Temas de color configurable por usuario ──────────────────────────────── */
 
+/* ── Tema FREIGHT PRO (ERP industrial oscuro) ─────────────────────────────── */
+[data-theme="freight"] {
+  --surface-0:    #0a0b0f;
+  --surface-1:    #17191e;
+  --surface-2:    #1f2228;
+  --surface-3:    #2a2e36;
+  --surface-4:    #3a3f49;
+  --surface-5:    #4a505b;
+
+  --text-1:       #f2f2f2;
+  --text-2:       #c3c7cf;
+  --text-3:       #8f97a3;
+  --text-4:       #5d6572;
+
+  --accent:         #caa34c;
+  --accent-dim:     #a7843d;
+  --accent-glow:    rgba(202, 163, 76, 0.18);
+  --accent-muted:   rgba(202, 163, 76, 0.1);
+
+  --success:        #59c08c;
+  --success-bg:     rgba(89, 192, 140, 0.1);
+  --success-border: rgba(89, 192, 140, 0.25);
+
+  --warning:        #d5a441;
+  --warning-bg:     rgba(213, 164, 65, 0.1);
+  --warning-border: rgba(213, 164, 65, 0.25);
+
+  --danger:         #e07070;
+  --danger-bg:      rgba(224, 112, 112, 0.1);
+  --danger-border:  rgba(224, 112, 112, 0.25);
+
+  --info:           #77b5ff;
+  --info-bg:        rgba(119, 181, 255, 0.1);
+  --info-border:    rgba(119, 181, 255, 0.25);
+
+  --purple:         #b79df2;
+  --purple-bg:      rgba(183, 157, 242, 0.1);
+
+  --bg:             #0a0b0f;
+  --font-sans:      'Geist', 'DM Sans', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+[data-theme="freight"] body {
+  background: var(--surface-0);
+}
+
+[data-theme="freight"] ::-webkit-scrollbar-track { background: var(--surface-1); }
+[data-theme="freight"] ::-webkit-scrollbar-thumb  { background: var(--surface-4); }
+
 /* ── Tema CLARO (light) ─────────────────────────────────────────────────────  */
 [data-theme="light"] {
   --surface-0:    #f8fafc;

@@ -10,7 +10,7 @@ import api from '../services/api'
 const DEFAULTS = {
   dashboard_widgets: null,
   accent_color:      '#4f8ef7',
-  theme_mode:        'dark',
+  theme_mode:        'freight',
   sidebar_collapsed: false,
   language:          'es',
   ui_density:        'normal',
@@ -51,8 +51,8 @@ export function useUserPreferences() {
       root.style.setProperty('--accent-muted', `${prefs.accent_color}14`)
       root.style.setProperty('--accent-glow',  `${prefs.accent_color}26`)
     }
-    // Tema (dark / light / high-contrast / midnight / slate / system)
-    const theme = prefs.theme_mode || 'dark'
+    // Tema (freight / dark / light / high-contrast / midnight / slate / system)
+    const theme = prefs.theme_mode || 'freight'
     if (theme === 'system') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
       root.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
@@ -86,7 +86,12 @@ export function useUserPreferences() {
       document.documentElement.style.setProperty('--accent-glow',  `${patch.accent_color}26`)
     }
     if (patch.theme_mode) {
-      document.documentElement.setAttribute('data-theme', patch.theme_mode)
+      if (patch.theme_mode === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light')
+      } else {
+        document.documentElement.setAttribute('data-theme', patch.theme_mode)
+      }
     }
     if (patch.ui_density) {
       const density = patch.ui_density

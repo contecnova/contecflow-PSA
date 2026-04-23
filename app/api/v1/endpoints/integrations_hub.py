@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.core.deps import require_any_manager
 from app.models.user import User
 
-router = APIRouter(prefix="/integrations-hub", tags=["integrations-hub"])
+router = APIRouter(tags=["integrations-hub"])
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

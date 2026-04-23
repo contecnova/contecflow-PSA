@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 # ── Capacity: Conflicts & Gantt Leveling (v238) ─────────────────────────────
-@router.get("/bookings/conflicts")
+@router.get("/conflicts")
 def get_booking_conflicts(
     user_id: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -40,7 +40,7 @@ def get_booking_conflicts(
     ed = date.fromisoformat(end_date) if end_date else None
     return v238_service.get_booking_conflicts(user_id, sd, ed, threshold_pct, db)
 
-@router.get("/bookings/gantt-leveling")
+@router.get("/gantt-leveling")
 def get_gantt_leveling(
     project_id: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -59,7 +59,7 @@ def get_gantt_leveling(
 
 # ── Resource Bookings ─────────────────────────────────────────────────────────
 
-@router.get("/bookings")
+@router.get("")
 def list_bookings(
     user_id: Optional[str] = None,
     project_id: Optional[str] = None,
@@ -73,27 +73,27 @@ def list_bookings(
                                      booking_type, current_user.organization_id, db)
 
 
-@router.get("/bookings/heatmap")
+@router.get("/heatmap")
 def bookings_heatmap(weeks: int = Query(12, ge=1, le=52),
                      db: Session = Depends(get_db),
                      current_user: User = Depends(require_any_manager)):
     return svc.get_bookings_heatmap(weeks, current_user.organization_id, db)
 
 
-@router.post("/bookings")
+@router.post("")
 def create_booking(payload: BookingCreate, db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
     return svc.create_booking_record(payload, current_user.id, db)
 
 
-@router.patch("/bookings/{booking_id}")
+@router.patch("/{booking_id}")
 def update_booking(booking_id: str, payload: BookingUpdate,
                    db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
     return svc.update_booking_record(booking_id, payload, db)
 
 
-@router.delete("/bookings/{booking_id}")
+@router.delete("/{booking_id}")
 def delete_booking(booking_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(require_any_manager)):
     return svc.delete_booking_record(booking_id, db)

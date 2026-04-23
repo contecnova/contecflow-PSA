@@ -316,13 +316,13 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
     if not pref:
         return {
             "dashboard_widgets": None, "accent_color": "#4f8ef7",
-            "theme_mode": "dark", "sidebar_collapsed": False,
+            "theme_mode": "freight", "sidebar_collapsed": False,
             "language": settings.DEFAULT_LANGUAGE, "ui_density": "normal", "extra": None,
         }
     return {
         "dashboard_widgets": json.loads(pref.dashboard_widgets) if pref.dashboard_widgets else None,
         "accent_color":      pref.accent_color or "#4f8ef7",
-        "theme_mode":        pref.theme_mode or "dark",
+        "theme_mode":        pref.theme_mode or "freight",
         "sidebar_collapsed": pref.sidebar_collapsed or False,
         "language":          pref.language or settings.DEFAULT_LANGUAGE,
         "ui_density":        pref.ui_density or "normal",

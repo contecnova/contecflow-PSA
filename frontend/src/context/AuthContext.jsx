@@ -3,17 +3,31 @@ import api from '../services/api'
 
 const AuthContext = createContext(null)
 
+// Key used to hint that an active session cookie may exist.
+// The value is never a token — it's only used to avoid a guaranteed-401
+// /auth/me call when the user is definitely not logged in.
+const SESSION_HINT_KEY = 'cf_authed'
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   useEffect(() => {
+    // Only attempt session restoration if a hint says the user logged in before.
+    // This avoids an unnecessary 401 on first visit / after logout.
+    if (!localStorage.getItem(SESSION_HINT_KEY)) {
+      setLoading(false)
+      return
+    }
     // Restore session by validating the httpOnly cookie via /auth/me.
     // No token is read from localStorage — cookies are sent automatically.
     api.get('/auth/me')
-      .then(res => setUser(res.data))
-      .catch(() => setUser(null))
+      .then(res => { setUser(res.data) })
+      .catch(() => {
+        localStorage.removeItem(SESSION_HINT_KEY)
+        setUser(null)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -21,6 +35,7 @@ export function AuthProvider({ children }) {
   // a token refresh fails. Show a brief message before clearing the session.
   useEffect(() => {
     const handler = () => {
+      localStorage.removeItem(SESSION_HINT_KEY)
       setUser(null)
       setSessionExpired(true)
       // Auto-clear the banner after 4 seconds so the login page is clean
@@ -34,6 +49,7 @@ export function AuthProvider({ children }) {
     const { data } = await api.post('/auth/login', { username, password })
     // Tokens are now stored in httpOnly cookies set by the server.
     // We only keep the user profile in React state (never in localStorage).
+    localStorage.setItem(SESSION_HINT_KEY, '1')
     setUser(data.user)
     setSessionExpired(false)
     return data.user
@@ -43,6 +59,7 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/auth/logout')
     } catch { /* noop */ }
+    localStorage.removeItem(SESSION_HINT_KEY)
     setUser(null)
   }, [])
 

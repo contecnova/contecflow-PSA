@@ -15,7 +15,7 @@ from app.services.training_service import (
 )
 from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
 
-router = APIRouter(prefix="/training", tags=["Training"])
+router = APIRouter(tags=["Training"])
 
 
 @router.get("/courses", summary="Listar cursos")

@@ -228,8 +228,8 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`wiki/pages/${editPage.id}`, d).then(r=>r.data)
-      : api.post(`wiki/spaces/${spaceId}/pages`, d).then(r=>r.data),
+      ? api.patch(`epics/wiki/pages/${editPage.id}`, d).then(r=>r.data)
+      : api.post(`epics/wiki/spaces/${spaceId}/pages`, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries(['wiki-pages', spaceId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -344,7 +344,7 @@ function WikiTagsInline() {
 
   const { data: spaces = [] } = useQuery({
     queryKey: ['wiki-spaces-tags'],
-    queryFn: () => api.get('wiki/spaces').then(r => r.data).catch(() => []),
+    queryFn: () => api.get('epics/wiki/spaces').then(r => r.data).catch(() => []),
   })
   const { data: tags = [], isLoading } = useQuery({
     queryKey: ['wiki-tags-inline', space],
@@ -463,45 +463,45 @@ export default function WikiPage() {
   const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:versions=[], isLoading:lVer } = useQuery({
     queryKey:['wiki-versions', page?.id],
-    queryFn:()=>api.get(`wiki/pages/${page.id}/versions`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>api.get(`epics/wiki/pages/${page.id}/versions`).then(r=>r.data).catch(()=>[]),
     enabled:!!page?.id && showHistory,
   })
 
-    const { data:spaces=[],isLoading:lSpaces } = useQuery({queryKey:['wiki-spaces'],queryFn:()=>api.get('wiki/spaces').then(r=>r.data).catch(()=>[])})
-  const { data:pages=[],isLoading:lPages }   = useQuery({queryKey:['wiki-pages',space?.id],queryFn:()=>api.get(`wiki/spaces/${space.id}/pages`).then(r=>r.data).catch(()=>[]),enabled:!!space})
+    const { data:spaces=[],isLoading:lSpaces } = useQuery({queryKey:['wiki-spaces'],queryFn:()=>api.get('epics/wiki/spaces').then(r=>r.data).catch(()=>[])})
+  const { data:pages=[],isLoading:lPages }   = useQuery({queryKey:['wiki-pages',space?.id],queryFn:()=>api.get(`epics/wiki/spaces/${space.id}/pages`).then(r=>r.data).catch(()=>[]),enabled:!!space})
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
-    mutationFn: d=>api.post('wiki/spaces',d).then(r=>r.data),
+    mutationFn: d=>api.post('epics/wiki/spaces',d).then(r=>r.data),
     onSuccess: ()=>{qc.invalidateQueries(['wiki-spaces']);setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
-    mutationFn: (vn)=>api.post(`wiki/pages/${page.id}/restore/${vn}`).then(r=>r.data),
+    mutationFn: (vn)=>api.post(`epics/wiki/pages/${page.id}/restore/${vn}`).then(r=>r.data),
     onSuccess: (d)=>{
       qc.invalidateQueries(['wiki-pages', space?.id])
       qc.invalidateQueries(['wiki-versions', page?.id])
       setShowHistory(false)
       toast.info(`Restaurado a versión ${d.restored_to}. Nueva versión: ${d.new_version}`)
       // Recargar página actual
-      api.get(`wiki/pages/${page.id}`).then(r=>setPage(r.data)).catch(()=>{})
+      api.get(`epics/wiki/pages/${page.id}`).then(r=>setPage(r.data)).catch(()=>{})
     },
     onError: e => toast.error(extractErr(e, 'Error al restaurar')),
   })
 
     const { mutate:deletePage } = useMutation({
-    mutationFn: id=>api.delete(`wiki/pages/${id}`),
+    mutationFn: id=>api.delete(`epics/wiki/pages/${id}`),
     onSuccess: ()=>{qc.invalidateQueries(['wiki-pages',space?.id]);setPage(null)},
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const openPage = async (p) => {
-    const full = await api.get(`wiki/pages/${p.id}`).then(r=>r.data).catch(()=>p)
+    const full = await api.get(`epics/wiki/pages/${p.id}`).then(r=>r.data).catch(()=>p)
     setPage(full)
   }
 
   const doSearch = async () => {
     if(!searchQ.trim()) return
-    const r = await api.get(`wiki/search?q=${encodeURIComponent(searchQ)}${space?`&space_id=${space.id}`:''}`)
+    const r = await api.get(`epics/wiki/search?q=${encodeURIComponent(searchQ)}${space?`&space_id=${space.id}`:''}`)
     setSearchRes(r.data)
   }
 

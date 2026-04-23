@@ -4,9 +4,11 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.governance import ComplianceEvidence, TenantPolicyPack
+from app.models.ai_chat import AIGovernanceConfig, AIActionLog
 from fastapi import HTTPException
 
 
@@ -123,3 +125,63 @@ def get_org_id(user) -> str:
     if not user.organization_id:
         raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
     return user.organization_id
+
+
+# ── AI module governance ──────────────────────────────────────────────────────
+
+def list_ai_module_configs(db: Session, organization_id: str) -> list[AIGovernanceConfig]:
+    return db.query(AIGovernanceConfig).all()
+
+
+def upsert_ai_module_config(
+    db: Session,
+    organization_id: str,
+    module: str,
+    is_enabled: bool,
+    updated_by: str,
+) -> AIGovernanceConfig:
+    row = db.query(AIGovernanceConfig).filter(AIGovernanceConfig.module == module).first()
+    if row is None:
+        row = AIGovernanceConfig(module=module, is_enabled=is_enabled, updated_by=updated_by)
+        db.add(row)
+    else:
+        row.is_enabled = is_enabled
+        row.updated_by = updated_by
+    db.commit()
+    return row
+
+
+def get_ai_usage_stats(db: Session, organization_id: str) -> dict:
+    total_calls = db.query(func.count(AIActionLog.id)).scalar() or 0
+    total_tokens = db.query(func.sum(AIActionLog.tokens_used)).scalar() or 0
+    rows = (
+        db.query(AIActionLog.module, func.count(AIActionLog.id), func.sum(AIActionLog.tokens_used))
+        .group_by(AIActionLog.module)
+        .all()
+    )
+    by_module = {r[0]: {"calls": r[1] or 0, "tokens": r[2] or 0} for r in rows}
+    return {"total_calls": total_calls, "total_tokens": total_tokens, "by_module": by_module}
+
+
+def list_ai_governance_logs(
+    db: Session,
+    organization_id: str,
+    limit: int = 100,
+    module: Optional[str] = None,
+) -> list[dict]:
+    q = db.query(AIActionLog)
+    if module:
+        q = q.filter(AIActionLog.module == module)
+    rows = q.order_by(AIActionLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": r.id,
+            "module": r.module,
+            "action_type": r.action_type,
+            "status": r.status,
+            "tokens_used": r.tokens_used,
+            "created_at": r.created_at,
+            "user_id": r.user_id,
+        }
+        for r in rows
+    ]

@@ -35,7 +35,7 @@ from app.services.resource_analytics import (
     get_forecast_past_imputations,
 )
 
-router = APIRouter(prefix="/resource-forecast", tags=["resource-forecast"])
+router = APIRouter(tags=["resource-forecast"])
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

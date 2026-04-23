@@ -113,6 +113,21 @@ const queryClient = new QueryClient({
   },
 })
 
+// Suppress the React DevTools development hint — informational-only, not actionable.
+if (import.meta.env.DEV) {
+  const _consoleLog = console.log
+  const _consoleInfo = console.info
+  const isDevToolsHint = (msg) => typeof msg === 'string' && msg.includes('Download the React DevTools')
+  console.log = (...args) => {
+    if (isDevToolsHint(args[0])) return
+    _consoleLog.apply(console, args)
+  }
+  console.info = (...args) => {
+    if (isDevToolsHint(args[0])) return
+    _consoleInfo.apply(console, args)
+  }
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

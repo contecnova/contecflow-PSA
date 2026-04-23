@@ -25,7 +25,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 import app.services.rate_card_service as _svc
 
-router = APIRouter(prefix="/rate-cards", tags=["rate-cards"])
+router = APIRouter(tags=["rate-cards"])
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

@@ -102,7 +102,7 @@ class UserPreference(Base):
     dashboard_widgets  = Column(Text, nullable=True)   # JSON: lista ordenada de widgets con size/visible
     # Theming
     accent_color       = Column(String(20), default="#4f8ef7")  # CSS hex
-    theme_mode         = Column(String(10), default="dark")     # dark | light | system
+    theme_mode         = Column(String(10), default="freight")  # freight | dark | light | system
     sidebar_collapsed  = Column(Boolean, default=False)
     # Idioma
     language           = Column(String(10), default=settings.DEFAULT_LANGUAGE)

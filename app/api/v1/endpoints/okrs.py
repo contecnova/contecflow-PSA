@@ -15,7 +15,7 @@ from app.services.okr_service import (
 )
 from app.schemas.okrs import ObjectiveIn, KeyResultIn, ObjectiveUpdate, KeyResultUpdate, OKRCheckinIn as CheckinIn
 
-router = APIRouter(prefix="/okrs", tags=["OKRs"])
+router = APIRouter(tags=["OKRs"])
 
 
 # ── Objectives CRUD ───────────────────────────────────────────────────────────

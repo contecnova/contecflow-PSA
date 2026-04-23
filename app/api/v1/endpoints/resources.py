@@ -22,7 +22,7 @@ from app.services.resource_analytics import (
 )
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/resources", tags=["resources"])
+router = APIRouter(tags=["resources"])
 logger = logging.getLogger(__name__)
 
 

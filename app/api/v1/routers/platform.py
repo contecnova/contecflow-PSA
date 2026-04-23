@@ -37,8 +37,8 @@ router.include_router(abac_admin.router,           prefix="/abac-admin",        
 router.include_router(security_observability.router, prefix="/security-observability", tags=["Security Observability"])
 
 # ── Public-facing & developer surfaces ────────────────────────────────────────
-router.include_router(public_forms.router,         prefix="/public-forms",          tags=["Public Forms"])
-router.include_router(developer_portal.router,     prefix="/developer-portal",      tags=["Developer Portal"])
+router.include_router(public_forms.router,                                          tags=["Public Forms"])
+router.include_router(developer_portal.router,                                          tags=["Developer Portal"])
 
 # ── Customisation & platform tooling ──────────────────────────────────────────
 router.include_router(branding.router,             prefix="/branding",              tags=["Branding"])

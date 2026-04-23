@@ -38,7 +38,7 @@ from app.services.ai_governance import (
     get_org_id as _org,
 )
 
-router = APIRouter(prefix="/ai-governance", tags=["AI Governance"])
+router = APIRouter(tags=["AI Governance"])
 
 
 # _org delegated to ai_governance.get_org_id (see import above)

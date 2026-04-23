@@ -61,7 +61,7 @@ function ProcessModal({ onClose }) {
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const { mutate: process, isPending } = useMutation({
-    mutationFn: d => api.post('/meetings/process', d).then(r => r.data),
+    mutationFn: d => api.post('/ai-modules/meetings/process', d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['ai-meetings']); onClose() },
     onError: e => toast.error(extractErr(e, t('meetings_ai.error_process'))),
   })
@@ -124,15 +124,15 @@ export default function MeetingsAIPage() {
 
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['ai-meetings'],
-    queryFn: () => api.get('/meetings').then(r => r.data),
+    queryFn: () => api.get('/ai-modules/meetings').then(r => r.data),
   })
   const { data: detail } = useQuery({
     queryKey: ['ai-meeting', selected],
-    queryFn: () => api.get(`/meetings/${selected}`).then(r => r.data),
+    queryFn: () => api.get(`/ai-modules/meetings/${selected}`).then(r => r.data),
     enabled: !!selected,
   })
   const { mutate: createTasks, isPending: creating } = useMutation({
-    mutationFn: id => api.post(`/meetings/${id}/create-tasks`, {}).then(r => r.data),
+    mutationFn: id => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}).then(r => r.data),
     onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Clarive`) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

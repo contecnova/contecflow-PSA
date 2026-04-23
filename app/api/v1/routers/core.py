@@ -40,5 +40,5 @@ router.include_router(client_portal.router,   prefix="/portal",          tags=["
 router.include_router(service_desk.router,    prefix="/sd",              tags=["Service Desk"])
 router.include_router(sprints.router,         prefix="/sprints",         tags=["Sprints"])
 router.include_router(expenses.router,        prefix="/expenses",        tags=["Gastos"])
-router.include_router(automations.router,     prefix="/automations",     tags=["Automatizaciones"])
+router.include_router(automations.router,     prefix="/automation-workflows", tags=["Automatizaciones"])
 router.include_router(enterprise.router,      prefix="/enterprise",      tags=["Enterprise"])

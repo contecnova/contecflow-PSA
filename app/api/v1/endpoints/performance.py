@@ -12,7 +12,7 @@ from app.services import performance_service
 from app.services.performance_service import avg_score as _avg, serialize_review as _ser_review
 from app.schemas.performance import ReviewCycleIn as CycleIn, PerformanceReviewIn as ReviewIn
 
-router = APIRouter(prefix="/performance", tags=["Performance Reviews"])
+router = APIRouter(tags=["Performance Reviews"])
 
 
 @router.get("/cycles", summary="Listar ciclos de evaluación")

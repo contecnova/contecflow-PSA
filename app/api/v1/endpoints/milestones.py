@@ -41,7 +41,7 @@ from app.schemas.milestones import (
     MilestoneApprovalDecisionIn as ApprovalDecisionIn,
 )
 
-router = APIRouter(prefix="/milestones", tags=["milestones"])
+router = APIRouter(tags=["milestones"])
 
 
 # ── Helper output ──────────────────────────────────────────────────────────────

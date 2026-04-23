@@ -4,7 +4,7 @@
  * 
  * Secciones:
  * 1. Mi perfil (editar nombre, teléfono, cargo, avatar)
- * 2. Apariencia (tema: dark/light/midnight/slate/high-contrast, acento, densidad)
+ * 2. Apariencia (tema: freight/dark/light/midnight/slate/high-contrast, acento, densidad)
  * 3. Idioma
  * 4. Seguridad (cambio de contraseña, MFA)
  */
@@ -19,7 +19,8 @@ import { Avatar } from '../ui'
 
 // ── Temas disponibles ─────────────────────────────────────────────────────────
 const THEMES = [
-  { id: 'dark',          label: 'Oscuro',         icon: '🌙', desc: 'Azul pizarra — predeterminado' },
+  { id: 'freight',       label: 'Freight Pro',    icon: '🚚', desc: 'Estilo ERP industrial (principal)' },
+  { id: 'dark',          label: 'Oscuro clásico', icon: '🌙', desc: 'Azul pizarra de Contecflow' },
   { id: 'midnight',      label: 'Midnight',        icon: '🌌', desc: 'Oscuro profundo, casi negro' },
   { id: 'slate',         label: 'Slate',           icon: '⬛', desc: 'Gris neutro estilo GitHub' },
   { id: 'light',         label: 'Claro',           icon: '☀️', desc: 'Fondo blanco, texto oscuro' },
@@ -84,7 +85,7 @@ export default function UserProfilePanel({ onClose }) {
   })
 
   // ── Apariencia ──────────────────────────────────────────────────────────────
-  const [localTheme,   setLocalTheme]   = useState(prefs?.theme_mode  || 'dark')
+  const [localTheme,   setLocalTheme]   = useState(prefs?.theme_mode  || 'freight')
   const [localAccent,  setLocalAccent]  = useState(
     (prefs?.accent_color && /^#[0-9a-fA-F]{6}$/.test(prefs.accent_color))
       ? prefs.accent_color

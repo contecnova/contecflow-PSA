@@ -39,11 +39,11 @@ function ImportTab() {
 
   const { data: template } = useQuery({
     queryKey: ['import-template', entityType],
-    queryFn: () => api.get(`/import/template/${entityType}`).then(r => r.data),
+    queryFn: () => api.get(`/billing-reports/import/template/${entityType}`).then(r => r.data),
   })
   const { data: jobs = [] } = useQuery({
     queryKey: ['import-jobs'],
-    queryFn: () => api.get('/import/jobs').then(r => r.data),
+    queryFn: () => api.get('/billing-reports/import/jobs').then(r => r.data),
   })
 
   const validateFile = async (file) => {
@@ -52,7 +52,7 @@ function ImportTab() {
     setOpStartedAt(Date.now())
     try {
       const fd = new FormData(); fd.append('file', file)
-      const resp = await api.post(`/import/validate?entity_type=${entityType}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const resp = await api.post(`/billing-reports/import/validate?entity_type=${entityType}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       setValidation(resp.data); setStep('validate')
       setOpStage(resp.data?.valid ? 'done' : 'failed')
     } catch(e) {
@@ -71,7 +71,7 @@ function ImportTab() {
     setOpStartedAt(Date.now())
     try {
       const fd = new FormData(); fd.append('file', fileRef.current.files[0])
-      const resp = await api.post(`/import/execute?entity_type=${entityType}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const resp = await api.post(`/billing-reports/import/execute?entity_type=${entityType}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
       setResult(resp.data); setStep('result')
       setOpStage(resp.data?.status === 'failed' ? 'failed' : 'done')
     } catch(e) {
