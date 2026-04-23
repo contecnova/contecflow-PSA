@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return
+            if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react'
             if (id.includes('recharts')) return 'vendor-recharts'
             if (id.includes('html2canvas')) return 'vendor-html2canvas'
             if (id.includes('@tanstack')) return 'vendor-react-query'
