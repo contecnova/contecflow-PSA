@@ -8,7 +8,7 @@ Covers:
 
 from __future__ import annotations
 
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def _is_benign_console_error(msg: str) -> bool:
@@ -42,18 +42,20 @@ def test_dashboard_and_reporting_smoke(page):
     js_errors, page_errors, on_console, on_page_error = _attach_error_collectors(page)
 
     # 1) Dashboard should render on first authenticated visit.
-    page.goto(f"{BASE_URL}/dashboard")
+    # /tasks is the home route for authenticated users. No /dashboard route exists.
+    page.goto(f"{BASE_URL}/tasks")
     page.wait_for_load_state("domcontentloaded")
     page.wait_for_timeout(3500)
 
     has_dashboard_title = (
-        page.get_by_text("Dashboard").count() > 0
-        or page.get_by_text("Panel de control").count() > 0
+        page.get_by_text("Tasks").count() > 0
+        or page.get_by_text("Tareas").count() > 0
+        or page.get_by_text("My Work").count() > 0
     )
-    widget_count = page.locator(".react-grid-item").count()
+    has_main = page.locator("main, #main-content").count() > 0
 
-    assert has_dashboard_title, "Dashboard title not rendered on first visit"
-    assert widget_count > 0, "No dashboard widgets rendered on first visit"
+    assert has_dashboard_title, "Tasks title not rendered on first visit"
+    assert has_main, "No main content container rendered on first visit"
 
     # 2) Open reports and run a subset of templates from presets.
     page.goto(f"{BASE_URL}/reports")

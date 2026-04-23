@@ -41,4 +41,6 @@ router.include_router(service_desk.router,    prefix="/sd",              tags=["
 router.include_router(sprints.router,         prefix="/sprints",         tags=["Sprints"])
 router.include_router(expenses.router,        prefix="/expenses",        tags=["Gastos"])
 router.include_router(automations.router,     prefix="/automation-workflows", tags=["Automatizaciones"])
+# Compatibility alias: frontend calls /automations; tests use /automation-workflows.
+router.include_router(automations.router,     prefix="/automations",          tags=["Automatizaciones"])
 router.include_router(enterprise.router,      prefix="/enterprise",      tags=["Enterprise"])

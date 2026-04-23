@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 
 const ROUTE_LABELS = {
-  '/dashboard': 'Dashboard', '/tasks': 'Tasks', '/kanban-advanced': 'Kanban',
+  '/tasks': 'Tasks', '/kanban-advanced': 'Kanban',
   '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
   '/calendar': 'Calendar', '/absences': 'Absences', '/documents': 'Documents',
   '/expenses': 'Expenses', '/approvals': 'Approvals', '/projects': 'Projects',
@@ -234,9 +234,6 @@ const LAYOUT_TEXT = {
 }
 
 const NAV_GROUPS = [
-  { id: 'dashboard', single: true, items: [
-    { to: '/dashboard', icon: <LayoutDashboard size={SZ} />, label: 'Dashboard', roles: ['admin','pm','hr','team_lead','employee'] },
-  ]},
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
     { to: '/search',           icon: <Search size={SZ} />,       label: 'Search',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
@@ -348,7 +345,6 @@ const SHORTCUTS = [
   { keys: ['?'], labelKey: 'shortcut_view_shortcuts' },
   { keys: ['Esc'], labelKey: 'shortcut_close_modal' },
   { keys: ['⌘', 'B'], labelKey: 'shortcut_toggle_sidebar' },
-  { keys: ['G', 'D'], labelKey: 'shortcut_go_dashboard' },
   { keys: ['G', 'T'], labelKey: 'shortcut_go_tasks' },
   { keys: ['G', 'P'], labelKey: 'shortcut_go_projects' },
   { keys: ['G', 'I'], labelKey: 'shortcut_go_log_hours' },

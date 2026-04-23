@@ -1,6 +1,6 @@
 """E2E: Dashboard principal y BI."""
 import pytest
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def test_dashboard_carga(page):

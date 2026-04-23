@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
-import PageHeader from '../components/layout/PageHeader'
+import DashboardGrid from '../components/dashboard/DashboardGrid'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = {
@@ -44,6 +44,14 @@ const TOOLTIP_STYLE = {
   fontSize: '12px',
 }
 
+const AGENT_WIDGETS = [
+  { id: 'kpis', title: 'KPIs', icon: '📌', defaultPos: { x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 } },
+  { id: 'resolved', title: 'Resueltos', icon: '📊', defaultPos: { x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 } },
+  { id: 'sla', title: 'SLA', icon: '⏱', defaultPos: { x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 } },
+  { id: 'csat', title: 'CSAT', icon: '💜', defaultPos: { x: 0, y: 10, w: 8, h: 5, minW: 4, minH: 4 } },
+  { id: 'instructions', title: 'Snapshots', icon: '📸', defaultPos: { x: 8, y: 10, w: 4, h: 5, minW: 3, minH: 3 } },
+]
+
 export default function AgentDashboardPage() {
   const t = useAppT()
   const qc = useQueryClient()
@@ -71,10 +79,94 @@ export default function AgentDashboardPage() {
   const trend = dash?.trend || []
   const kpis  = dash?.kpis || {}
 
+  const renderWidget = (id) => {
+    switch (id) {
+      case 'kpis':
+        return (
+          <div style={{...ps,padding:'14px 16px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))',gap:12}}>
+              {[
+                [t('agent_dashboard.kpi_open_tickets'), dash.current?.open_tickets || 0, 'var(--text-1)'],
+                [t('agent_dashboard.kpi_resolved_period'), kpis.total_resolved || 0, 'var(--success)'],
+                [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
+                [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`, kpis.sla_compliance_pct >= 90 ? 'var(--success)' : kpis.sla_compliance_pct >= 70 ? 'var(--warning)' : 'var(--danger)'],
+                [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
+              ].map(([label,val,color]) => (
+                <div key={label} style={{...ps,padding:'14px 16px'}}>
+                  <div style={{fontSize:24,fontWeight:700,color}}>{val}</div>
+                  <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      case 'resolved':
+        return (
+          <div style={ps}>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_resolved_by_day')}</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
+                <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Bar dataKey="resolved" name={t('agent_dashboard.kpi_resolved_period')} fill="#00e5a0" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      case 'sla':
+        return (
+          <div style={ps}>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_sla_by_day')}</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
+                <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Bar dataKey="sla_ok" name={t('agent_dashboard.sla_within')} fill="#00e5a0" stackId="sla" radius={[0,0,0,0]} />
+                <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="#ff4757" stackId="sla" radius={[4,4,0,0]} />
+                <Legend wrapperStyle={{fontSize:11,color:'var(--text-2)'}} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      case 'csat':
+        return trend.some(d => d.csat !== null) ? (
+          <div style={ps}>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_daily_csat')}</div>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={trend.filter(d=>d.csat!==null)} margin={{top:5,right:10,left:0,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
+                <YAxis domain={[0,5]} tick={{fill:'var(--text-2)',fontSize:10}} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Line type="monotone" dataKey="csat" name="CSAT" stroke="#7c3aed" strokeWidth={2} dot={{r:3}} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div style={{...ps,textAlign:'center',padding:40,color:'var(--text-3)',fontSize:13}}>
+            {t('agent_dashboard.trend_no_data')}
+          </div>
+        )
+      case 'instructions':
+        return (
+          <div style={{...ps,padding:'14px 18px'}}>
+            <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.7}}>
+              <strong style={{color:'var(--text-2)'}}>{t('agent_dashboard.instructions_label')}:</strong> {t('agent_dashboard.instructions_text')}
+              <code style={{color:'var(--accent)',marginLeft:6}}>POST /agent-dashboard/{'{agent_id}'}/snapshot</code>.
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('agent_dashboard.title')} subtitle={t('agent_dashboard.subtitle')} />
-
       <div style={{...ps,marginBottom:20}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto auto',gap:12,alignItems:'flex-end'}}>
           <div>
@@ -113,80 +205,19 @@ export default function AgentDashboardPage() {
       )}
 
       {agentId && dash && (
-        <div>
-          {/* KPIs */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:20}}>
-            {[
-              [t('agent_dashboard.kpi_open_tickets'), dash.current?.open_tickets || 0, 'var(--text-1)'],
-              [t('agent_dashboard.kpi_resolved_period'), kpis.total_resolved || 0, 'var(--success)'],
-              [t('agent_dashboard.kpi_avg_time_hours'), kpis.avg_resolution_hours || 0, 'var(--accent)'],
-              [t('agent_dashboard.kpi_sla_compliance'), `${kpis.sla_compliance_pct || 0}%`, kpis.sla_compliance_pct >= 90 ? 'var(--success)' : kpis.sla_compliance_pct >= 70 ? 'var(--warning)' : 'var(--danger)'],
-              [t('agent_dashboard.kpi_avg_csat'), kpis.avg_csat ? kpis.avg_csat.toFixed(1) + '/5' : t('agent_dashboard.no_data'), 'var(--purple)'],
-            ].map(([label,val,color]) => (
-              <div key={label} style={{...ps,padding:'14px 16px'}}>
-                <div style={{fontSize:24,fontWeight:700,color}}>{val}</div>
-                <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
-              </div>
-            ))}
-          </div>
-
-          {trend.length === 0 ? (
-            <div style={{...ps,textAlign:'center',padding:40,color:'var(--text-3)',fontSize:13}}>
-              {t('agent_dashboard.trend_no_data')}
-            </div>
-          ) : (
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
-              <div style={ps}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_resolved_by_day')}</div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
-                    <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
-                    <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="resolved" name={t('agent_dashboard.kpi_resolved_period')} fill="#00e5a0" radius={[4,4,0,0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div style={ps}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_sla_by_day')}</div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
-                    <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
-                    <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Bar dataKey="sla_ok"   name={t('agent_dashboard.sla_within')}  fill="#00e5a0" stackId="sla" radius={[0,0,0,0]} />
-                    <Bar dataKey="sla_fail" name={t('agent_dashboard.sla_outside')} fill="#ff4757" stackId="sla" radius={[4,4,0,0]} />
-                    <Legend wrapperStyle={{fontSize:11,color:'var(--text-2)'}} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-
-          {trend.some(d => d.csat !== null) && (
-            <div style={ps}>
-              <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_daily_csat')}</div>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={trend.filter(d=>d.csat!==null)} margin={{top:5,right:10,left:0,bottom:0}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
-                  <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
-                  <YAxis domain={[0,5]} tick={{fill:'var(--text-2)',fontSize:10}} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Line type="monotone" dataKey="csat" name="CSAT" stroke="#7c3aed" strokeWidth={2} dot={{r:3}} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          <div style={{...ps,marginTop:16,padding:'14px 18px'}}>
-            <div style={{fontSize:12,color:'var(--text-3)',lineHeight:1.7}}>
-              <strong style={{color:'var(--text-2)'}}>{t('agent_dashboard.instructions_label')}:</strong> {t('agent_dashboard.instructions_text')}
-              <code style={{color:'var(--accent)',marginLeft:6}}>POST /agent-dashboard/{'{agent_id}'}/snapshot</code>.
-            </div>
-          </div>
-        </div>
+        <DashboardGrid
+          storageKey="agent-dashboard-layout"
+          title={t('agent_dashboard.title')}
+          subtitle={t('agent_dashboard.subtitle')}
+          allWidgets={AGENT_WIDGETS}
+          renderWidget={renderWidget}
+          api={api}
+          headerExtra={
+            <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
+              {snapping ? '...' : `📸 ${t('agent_dashboard.snapshot_today')}`}
+            </Button>
+          }
+        />
       )}
     </div>
   )

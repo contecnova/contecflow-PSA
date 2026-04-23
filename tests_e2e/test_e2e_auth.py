@@ -1,6 +1,6 @@
 """E2E: Autenticación y sesión de usuario."""
 import pytest
-from tests_e2e.conftest import BASE_URL, ADMIN_USER, ADMIN_PASS
+from conftest import BASE_URL, ADMIN_USER, ADMIN_PASS
 
 
 def test_login_correcto(anon_page):

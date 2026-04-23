@@ -21,23 +21,26 @@ def metric_license_cost_by_vendor(
 ) -> tuple[list[dict], dict]:
     """Coste anual de licencias por proveedor."""
     try:
-        from app.models.alm import ALMLicense
+        from app.models.alm import ALMLicense, ALMVendor
 
         q = db.query(
-            ALMLicense.vendor,
-            func.sum(ALMLicense.annual_cost).label("cost"),
+            ALMVendor.name.label("vendor_name"),
+            func.sum(func.coalesce(ALMLicense.annual_cost, 0)).label("cost"),
             func.count(ALMLicense.id).label("count")
+        ).outerjoin(
+            ALMVendor,
+            ALMLicense.vendor_id == ALMVendor.id
         ).filter(
             ALMLicense.status != "cancelled"
         ).group_by(
-            ALMLicense.vendor
+            ALMVendor.name
         ).order_by(
-            func.sum(ALMLicense.annual_cost).desc()
+            func.sum(func.coalesce(ALMLicense.annual_cost, 0)).desc()
         ).limit(top_n)
 
         rows = [
             {
-                "label": r.vendor or "Desconocido",
+                "label": r.vendor_name or "Desconocido",
                 "value": round(r.cost or 0, 0),
                 "count": r.count
             }
@@ -62,28 +65,36 @@ def metric_license_utilization(
 ) -> tuple[list[dict], dict]:
     """Utilización de licencias: usuarios activos vs licencias totales."""
     try:
-        from app.models.alm import ALMLicense
+        from app.models.alm import ALMLicense, ALMVendor, ALMLicenseAssignment
 
         q = db.query(
-            ALMLicense.name,
-            ALMLicense.vendor,
-            ALMLicense.quantity,
-            func.count(ALMLicense.id).label("assigned")
+            ALMLicense.name.label("license_name"),
+            ALMVendor.name.label("vendor_name"),
+            ALMLicense.total_seats.label("total_seats"),
+            func.count(ALMLicenseAssignment.id).label("assigned")
+        ).outerjoin(
+            ALMVendor,
+            ALMLicense.vendor_id == ALMVendor.id
+        ).outerjoin(
+            ALMLicenseAssignment,
+            (ALMLicenseAssignment.license_id == ALMLicense.id) &
+            (ALMLicenseAssignment.is_active.is_(True))
         ).filter(
             ALMLicense.status != "cancelled"
         ).group_by(
+            ALMLicense.id,
             ALMLicense.name,
-            ALMLicense.vendor,
-            ALMLicense.quantity
+            ALMVendor.name,
+            ALMLicense.total_seats
         ).limit(top_n)
 
         rows = []
         for r in q.all():
-            total = r.quantity or 1
+            total = r.total_seats or 0
             assigned = r.assigned or 0
-            pct = round(assigned / total * 100, 1) if total > 0 else 0
+            pct = round(assigned / total * 100, 1) if total else 0
             rows.append({
-                "label": f"{r.vendor}/{r.name}",
+                "label": f"{r.vendor_name or 'Desconocido'}/{r.license_name}",
                 "value": pct,
                 "assigned": assigned,
                 "total": total

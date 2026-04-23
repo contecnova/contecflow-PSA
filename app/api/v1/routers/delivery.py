@@ -28,6 +28,9 @@ router.include_router(issue_types.router,      prefix="/issue-types",      tags=
 router.include_router(cmdb.router,             prefix="/cmdb",             tags=["CMDB & Kanban"])
 router.include_router(cmdb.sd_router,          prefix="/sd",               tags=["SD Internal Comments"])
 router.include_router(activity.router,         prefix="/activity",         tags=["Activity & Mentions"])
+# Canonical RACI/UAT paths are defined inside the endpoint module
+# (e.g. /projects/{project_id}/raci). Keep a prefixed alias for compatibility.
+router.include_router(raci.router,                                         tags=["RACI & UAT"])
 router.include_router(raci.router,             prefix="/raci",             tags=["RACI & UAT"])
 
 # ── Canonical modules ──────────────────────────────────────────────────────────

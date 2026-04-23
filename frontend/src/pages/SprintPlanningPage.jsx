@@ -55,7 +55,7 @@ function GenerateModal({ projectId, onClose }) {
   })
 
   const { mutate: generate, isPending } = useMutation({
-    mutationFn: () => api.post('/sprint-plans/generate', {
+    mutationFn: () => api.post('/cmdb/sprint-plans/generate', {
       ...form,
       project_id: projectId,
       sprint_id: form.sprint_id || null,
@@ -185,18 +185,18 @@ export default function SprintPlanningPage() {
   })
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['sprint-plans', project],
-    queryFn: () => api.get(`/sprint-plans/${project}`).then(r => r.data).catch(()=>[]),
+    queryFn: () => api.get(`/cmdb/sprint-plans/${project}`).then(r => r.data).catch(()=>[]),
     enabled: !!project,
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({id, status}) => api.patch(`/sprint-plans/${id}/status?status=${status}`).then(r => r.data),
+    mutationFn: ({id, status}) => api.patch(`/cmdb/sprint-plans/${id}/status?status=${status}`).then(r => r.data),
     onSuccess: () => qc.invalidateQueries(['sprint-plans', project]),
     onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: id => api.delete(`/sprint-plans/${id}`),
+    mutationFn: id => api.delete(`/cmdb/sprint-plans/${id}`),
     onSuccess: () => { qc.invalidateQueries(['sprint-plans', project]); setExpandPlan(null) },
     onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })

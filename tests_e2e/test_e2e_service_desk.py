@@ -1,6 +1,6 @@
 """E2E: Service Desk — tickets, comentarios."""
 import pytest
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def test_service_desk_carga(page):

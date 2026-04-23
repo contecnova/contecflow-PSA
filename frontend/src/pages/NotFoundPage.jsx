@@ -48,7 +48,7 @@ export default function NotFoundPage() {
             Volver al inicio
           </Link>
           <Link
-            to="/dashboard"
+            to="/tasks"
             style={{
               padding: '10px 14px',
               borderRadius: 8,
@@ -59,7 +59,7 @@ export default function NotFoundPage() {
               fontWeight: 600,
             }}
           >
-            Ir al dashboard
+            Ir a tareas
           </Link>
         </div>
       </div>

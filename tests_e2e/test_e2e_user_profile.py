@@ -1,6 +1,6 @@
 """E2E: Panel de perfil de usuario — apariencia, idioma, seguridad."""
 import pytest
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def _open_profile(page):

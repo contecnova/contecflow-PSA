@@ -17,3 +17,13 @@ router.include_router(semantic_engine.router, prefix="/semantic",      tags=["Se
 router.include_router(ai_governance.router,  prefix="/ai-governance",  tags=["AI Governance"])
 router.include_router(ai_suggestions.router, prefix="/ai/suggestions", tags=["AI Suggestions"])
 router.include_router(ai.router,             prefix="/ai",             tags=["AI"])
+
+# ── Compatibility aliases ─────────────────────────────────────────────────────
+# ai_chat routes embed "/ai/" in their paths (e.g. /ai/agent/history).
+# When mounted at prefix="/ai-chat" the effective URL is /ai-chat/ai/... which
+# the frontend never calls.  Mount again with no prefix so the frontend-facing
+# paths like /ai/agent/history and /ai/conversations are reachable.
+router.include_router(ai_chat.router,    prefix="", tags=["AI Assistant"])
+# ai_modules routes embed their resource name (e.g. /oracle/predictions,
+# /meetings, /kb).  Mount again with no prefix for frontend compatibility.
+router.include_router(ai_modules.router, prefix="", tags=["AI Modules"])

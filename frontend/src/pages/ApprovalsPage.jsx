@@ -225,7 +225,14 @@ function WorkflowDetail({ workflowId, onBack }) {
                         {step.approver_department && ` · ${t('approvals.dept_prefix')}: ${step.approver_department}`}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                        ⏱ {step.timeout_hours}h timeout · {step.on_timeout === 'escalate' ? t('approvals.timeout_waiting') : step.on_timeout === 'auto_approve' ? t('approvals.timeout_auto_approve_short') : t('approvals.timeout_auto_reject_short')}
+                        {t('approvals.timeout_summary', {
+                          hours: step.timeout_hours,
+                          action: step.on_timeout === 'escalate'
+                            ? t('approvals.timeout_waiting')
+                            : step.on_timeout === 'auto_approve'
+                              ? t('approvals.timeout_auto_approve_short')
+                              : t('approvals.timeout_auto_reject_short')
+                        })}
                         {step.is_optional && ` · ${t('approvals.optional_short')}`}
                       </div>
                     </div>
@@ -404,7 +411,7 @@ function MyPendingTab() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <input
                 type="checkbox"
-                aria-label={`Seleccionar solicitud ${req.entity_summary || req.entity_id}`}
+                aria-label={t('approvals.select_request_aria', { name: req.entity_summary || req.entity_id })}
                 checked={selectedIds.has(req.id)}
                 onChange={() => toggleSelect(req.id)}
                 style={{ width: 15, height: 15, marginTop: 4, cursor: 'pointer', flexShrink: 0, accentColor: 'var(--accent)' }}
@@ -415,7 +422,7 @@ function MyPendingTab() {
                     {entity.icon} {entity.label}
                   </span>
                   {req.step_name && (
-                    <span style={{ fontSize: 11, color: 'var(--text-2)' }}>Paso {req.step_order}: {req.step_name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{t('approvals.step_n', { order: req.step_order })}: {req.step_name}</span>
                   )}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
@@ -432,7 +439,7 @@ function MyPendingTab() {
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <button
-                  aria-label={`Rechazar ${req.entity_summary || req.entity_id}`}
+                  aria-label={t('approvals.reject_request_aria', { name: req.entity_summary || req.entity_id })}
                   onClick={() => decide({ id: req.id, decision: 'rejected', note: '' })}
                   disabled={deciding}
                   style={{ background: 'var(--danger-bg)', border: '1px solid #ff475730', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
@@ -598,7 +605,7 @@ export default function ApprovalsPage() {
                 <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
                   style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{wf.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} pasos</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} {t('approvals.steps_word')}</div>
                 </div>
               ))}
             </div>

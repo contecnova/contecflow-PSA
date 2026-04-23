@@ -16,7 +16,6 @@ import {
 // ── Lazy page imports (code-splitting) ────────────────────────────────────────
 const LoginPage              = lazy(() => import('./pages/LoginPage'))
 const ResetPasswordPage      = lazy(() => import('./pages/ResetPasswordPage'))
-const DashboardPage          = lazy(() => import('./pages/DashboardPage'))
 const ProjectsPage           = lazy(() => import('./pages/ProjectsPage'))
 const TasksPage              = lazy(() => import('./pages/TasksPage'))
 const ImputarPage            = lazy(() => import('./pages/ImputarPage'))
@@ -132,7 +131,7 @@ const FINANCE_ROUTES = new Set([
 
 function SmartPageLoader() {
   const { pathname } = useLocation()
-  if (pathname === '/dashboard' || pathname === '/executive') return <SkeletonDashboard />
+  if (pathname === '/executive') return <SkeletonDashboard />
   if (pathname === '/projects')                 return <SkeletonProjects />
   if (pathname === '/kanban-advanced')          return <SkeletonKanban />
   if (pathname === '/gantt' || pathname === '/epic-gantt') return <SkeletonGantt />
@@ -236,6 +235,7 @@ function ProtectedRoute({ children, roles }) {
 
 function AppRoutes() {
   const { user } = useAuth()
+  const defaultPath = user?.role === 'employee' ? '/imputar' : '/tasks'
 
   return (
     <>
@@ -243,22 +243,16 @@ function AppRoutes() {
     <RouteScopedBoundary>
     <Suspense fallback={<SmartPageLoader />}>
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-      <Route path="/reset-password" element={user ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />} />
+      <Route path="/login" element={user ? <Navigate to={defaultPath} replace /> : <LoginPage />} />
+      <Route path="/reset-password" element={user ? <Navigate to={defaultPath} replace /> : <ResetPasswordPage />} />
       <Route path="/403" element={<ProtectedRoute><ForbiddenPage /></ProtectedRoute>} />
 
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
-            <Navigate to={user?.role === 'employee' ? '/imputar' : '/dashboard'} replace />
-            {/* team_lead, pm, hr, admin → /dashboard; employee → /imputar */}
+            <Navigate to={defaultPath} replace />
+            {/* Por defecto: employee → /imputar, resto → /tasks */}
           </Layout>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/dashboard" element={
-        <ProtectedRoute roles={['admin', 'pm', 'hr', 'team_lead']}>
-          <Layout><DashboardPage /></Layout>
         </ProtectedRoute>
       } />
 

@@ -1,6 +1,6 @@
 """E2E: Gestión de proyectos — CRUD completo en el navegador."""
 import pytest
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def test_navegar_a_proyectos(page):

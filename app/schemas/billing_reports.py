@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -46,7 +46,7 @@ class InvoiceOut(BaseModel):
     period_from: Optional[date] = None
     period_to: Optional[date] = None
     lines: List[InvoiceLineOut] = []
-    created_at: Optional[date] = None
+    created_at: Optional[datetime] = None
 
 
 # ── Generic ────────────────────────────────────────────────────────────────────

@@ -63,24 +63,24 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
 
   const { data:comments=[], isLoading } = useQuery({
     queryKey:['comments',entityType,entityId],
-    queryFn:()=>api.get(`comments?entity_type=${entityType}&entity_id=${entityId}`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>api.get(`/epics/comments?entity_type=${entityType}&entity_id=${entityId}`).then(r=>r.data).catch(()=>[]),
     enabled:!!entityId,
   })
 
   const { mutate:addComment, isPending:adding } = useMutation({
-    mutationFn: d=>api.post(`comments?entity_type=${entityType}&entity_id=${entityId}`,d).then(r=>r.data),
+    mutationFn: d=>api.post(`/epics/comments?entity_type=${entityType}&entity_id=${entityId}`,d).then(r=>r.data),
     onSuccess: ()=>{ qc.invalidateQueries(['comments',entityType,entityId]); setNewContent(''); setReplyTo(null); setReplyContent('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:resolveComment } = useMutation({
-    mutationFn: id=>api.patch(`comments/${id}/resolve`),
+    mutationFn: id=>api.patch(`/epics/comments/${id}/resolve`),
     onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:deleteComment } = useMutation({
-    mutationFn: id=>api.delete(`comments/${id}`),
+    mutationFn: id=>api.delete(`/epics/comments/${id}`),
     onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
     onError: _e=>toast.info(t('mentions.cannot_delete_with_replies')),
   })
@@ -151,17 +151,17 @@ export default function MentionsPage() {
 
   const { data:mentions=[], isLoading } = useQuery({
     queryKey:['mentions',onlyUnread],
-    queryFn:()=>api.get(`mentions?only_unread=${onlyUnread}`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>api.get(`/epics/mentions?only_unread=${onlyUnread}`).then(r=>r.data).catch(()=>[]),
   })
 
   const { mutate:markRead } = useMutation({
-    mutationFn: id=>api.post(`mentions/${id}/read`),
+    mutationFn: id=>api.post(`/activity/mentions/${id}/read`),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:markAll } = useMutation({
-    mutationFn: ()=>api.post('mentions/read-all'),
+    mutationFn: ()=>api.post('/epics/mentions/read-all'),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

@@ -361,7 +361,6 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 ### Ejemplo de uso en frontend
 
 ```js
-6. [API — Endpoints](#6-api--endpoints)
 import constants from './constants/constants.json';
 
 export const ROLES = constants.ROLES;
@@ -445,8 +444,12 @@ export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
 17. [Novedades por versión](#17-novedades-por-versión)
 18. [Guía de desarrollo](#18-guía-de-desarrollo)
 19. [Flujo coordinado de Feature Requests y Control de Cambios](#19-flujo-coordinado-de-feature-requests-y-control-de-cambios)
-
+20. [Internacionalización y traducciones](#20-internacionalización-y-traducciones)
 21. [Gestión de Organizaciones y Usuarios (Multi-Tenancy)](#21-gestion-de-organizaciones-y-usuarios-multi-tenancy)
+22. [Pruebas automáticas de UI (Playwright)](#22-pruebas-automáticas-de-ui-playwright)
+23. [Internacionalización y traducciones](#23-internacionalización-y-traducciones)
+24. [Auditoría de Calidad — 20 de abril de 2026 (sesión 2)](#24-auditoría-de-calidad--20-de-abril-de-2026-sesión-2)
+25. [Plan de regresion global (backend + frontend)](#25-plan-de-regresion-global-backend--frontend)
 ## 21. Gestión de Organizaciones y Usuarios (Multi-Tenancy)
 
 ### Endpoints principales
@@ -3134,3 +3137,169 @@ Todos los archivos i18n parsean correctamente verificado con `node --input-type=
 ### Estado de los tests tras la sesión
 
 - **1176+ passed**, **15 errors** (todos `test_abac.py` — SQLAlchemy schema pre-existente, no introducido por estos cambios), **0 failures** en tests no-ABAC.
+
+---
+
+## 25. Plan de regresion global (backend + frontend)
+
+Este documento describe la suite de regresion amplia creada para cubrir funcionalidades del sistema en API y paginas frontend de forma automatizada, repetible y util en CI.
+
+### Objetivo
+
+1. Detectar errores 5xx y excepciones no controladas antes de despliegue.
+2. Proteger regresiones criticas de contratos (ejemplo: invoices.created_at).
+3. Detectar roturas de render, errores JS y fallos API durante navegacion.
+4. Ejecutar una pasada global mantenible sin crear miles de tests manuales.
+
+### Cobertura implementada
+
+#### Backend
+
+1. tests/test_regression_invoices_created_at.py
+2. tests/test_regression_api_get_smoke.py
+3. tests/test_regression_api_operations_smoke.py
+
+#### Frontend E2E
+
+1. tests_e2e/test_e2e_sidebar_menu_smoke.py
+2. tests_e2e/test_e2e_dashboard_reporting_smoke.py
+1. tests_e2e/test_e2e_all_pages_regression.py
+2. tests_e2e/test_e2e_public_protected_regression.py
+
+#### Automatizacion
+
+1. scripts/run_regression_suite.sh
+2. Makefile: regression-backend, regression-e2e, regression-all
+
+### Como funciona cada prueba
+
+#### tests/test_regression_invoices_created_at.py
+
+1. Inserta una factura con created_at tipo datetime con hora real.
+2. Ejecuta GET /api/v1/invoices.
+3. Valida que no hay 500 y que la factura aparece.
+
+Proteccion principal:
+
+1. Evita repetir la regresion date_from_datetime_inexact de Pydantic en invoices.
+
+#### tests/test_regression_api_get_smoke.py
+
+1. Lee OpenAPI en /api/v1/openapi.json.
+2. Recorre endpoints GET estaticos (sin path params dinamicos).
+3. Genera query params minimos requeridos.
+4. Falla si cualquier endpoint devuelve 5xx o excepcion.
+
+Proteccion principal:
+
+1. Detecta regresiones transversales de disponibilidad en API de lectura.
+
+#### tests/test_regression_api_operations_smoke.py
+
+1. Lee OpenAPI y recorre operaciones POST/PUT/PATCH/DELETE estaticas.
+2. Construye payloads JSON minimos desde schema (incluye ref/allOf/oneOf/anyOf basico).
+3. Ejecuta llamadas autenticadas con admin_token.
+4. Falla en cualquier 5xx o excepcion.
+
+Proteccion principal:
+
+1. Detecta roturas servidor en operaciones mutables sin depender de casos manuales por modulo.
+
+#### tests_e2e/test_e2e_all_pages_regression.py
+
+1. Extrae rutas estaticas desde frontend/src/App.jsx.
+2. Navega cada ruta en sesion autenticada.
+3. Acumula por ruta:
+  - pageerror
+  - console.error no benignos
+  - respuestas 5xx de /api/v1/
+  - vista vacia o sin contenedor main
+4. Falla con resumen consolidado por ruta.
+
+Proteccion principal:
+
+1. Detecta regresiones funcionales de paginas completas.
+
+#### tests_e2e/test_e2e_sidebar_menu_smoke.py
+
+1. Extrae rutas del menu lateral para rol admin desde frontend/src/components/layout/Layout.jsx.
+2. Navega cada ruta autenticada y valida render minimo.
+3. Acumula pageerror y console.error no benignos por ruta.
+4. Falla con resumen consolidado de rutas afectadas.
+
+Proteccion principal:
+
+1. Detecta roturas de navegacion en rutas de uso diario del menu lateral.
+
+#### tests_e2e/test_e2e_dashboard_reporting_smoke.py
+
+1. Verifica carga inicial de /tasks para usuario autenticado.
+2. Verifica existencia de contenedor principal y cabecera funcional.
+3. Recorre plantillas de reportes y detecta caidas o errores JS criticos.
+4. Falla con detalle de pageerror, console.error o presets no disponibles.
+
+Proteccion principal:
+
+1. Detecta regresiones de experiencia en dashboard y reporting.
+
+#### tests_e2e/test_e2e_public_protected_regression.py
+
+1. Verifica rutas publicas base (login/reset/password/portal) sin crash.
+2. Verifica que rutas protegidas redirigen a login para anonimo.
+
+Proteccion principal:
+
+1. Evita brechas de proteccion de rutas y caidas en pantallas publicas.
+
+### Ejecucion
+
+#### Opcion rapida completa
+
+./scripts/run_regression_suite.sh
+
+#### Makefile
+
+1. make regression-backend
+2. make regression-e2e
+3. make regression-all
+
+#### Pytest directo
+
+1. python -m pytest tests/test_regression_invoices_created_at.py tests/test_regression_api_get_smoke.py tests/test_regression_api_operations_smoke.py -v --tb=short
+2. python -m pytest tests_e2e/test_e2e_sidebar_menu_smoke.py tests_e2e/test_e2e_dashboard_reporting_smoke.py tests_e2e/test_e2e_all_pages_regression.py tests_e2e/test_e2e_public_protected_regression.py -v --tb=short
+
+### Orden recomendado en CI
+
+1. tests/test_regression_invoices_created_at.py
+2. tests/test_regression_api_get_smoke.py
+3. tests/test_regression_api_operations_smoke.py
+4. tests_e2e/test_e2e_public_protected_regression.py
+5. tests_e2e/test_e2e_sidebar_menu_smoke.py
+6. tests_e2e/test_e2e_dashboard_reporting_smoke.py
+7. tests_e2e/test_e2e_all_pages_regression.py
+6. resto de suites funcionales por dominio
+
+Razon:
+
+1. Falla rapido en regresiones criticas de API y contratos.
+2. Ejecuta E2E despues para validar experiencia de uso extremo a extremo.
+
+### Limitaciones actuales
+
+1. Rutas con path params dinamicos no se barren automaticamente sin seed previo.
+2. Operaciones complejas con reglas de negocio profundas pueden devolver 4xx esperados (eso no se considera fallo en esta suite si no hay 5xx).
+3. E2E depende de entorno levantado y credenciales validas.
+
+### Roadmap para cobertura 100 por dominio
+
+1. Anadir seeds deterministas por dominio para cubrir rutas dinamicas (project_id, ticket_id, etc.).
+2. Anadir smoke de export/import con ficheros de fixture.
+3. Anadir test matrix por rol (admin, pm, hr, employee) para cada pagina protegida.
+4. Anadir umbrales de rendimiento (p95) por endpoint y por pagina.
+5. Publicar reportes JUnit/HTML de regresion separados para CI.
+
+### Resumen
+
+1. Queda implementada una base de regresion transversal backend + frontend.
+2. Incluye proteccion del bug de invoices y barrido automatico de endpoints/paginas.
+3. Se ejecuta con un solo comando y ya esta lista para integracion continua.

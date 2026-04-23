@@ -40,8 +40,8 @@ function CalendarForm({ cal, onClose }) {
     mutationFn: () => {
       const d = {...form, work_days: [...form.work_days].sort().join(',')}
       return isEdit
-        ? api.patch(`/sla-calendars/${cal.id}`, d).then(r=>r.data)
-        : api.post('/sla-calendars', d).then(r=>r.data)
+        ? api.patch(`/cmdb/sla-calendars/${cal.id}`, d).then(r=>r.data)
+        : api.post('/cmdb/sla-calendars', d).then(r=>r.data)
     },
     onSuccess: () => { qc.invalidateQueries(['sla-calendars']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
@@ -113,28 +113,28 @@ function HolidaysModal({ cal, onClose }) {
 
   const { data: holidays = [] } = useQuery({
     queryKey: ['holidays', cal.id],
-    queryFn: () => api.get(`/sla-calendars/${cal.id}/holidays`).then(r => r.data).catch(() => []),
+    queryFn: () => api.get(`/cmdb/sla-calendars/${cal.id}/holidays`).then(r => r.data).catch(() => []),
   })
 
   const { mutate: addH, isPending } = useMutation({
-    mutationFn: () => api.post(`/sla-calendars/${cal.id}/holidays`, {holiday_date:date, name:name||null}).then(r=>r.data),
+    mutationFn: () => api.post(`/cmdb/sla-calendars/${cal.id}/holidays`, {holiday_date:date, name:name||null}).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries(['holidays', cal.id]); setDate(''); setName('') },
     onError: e => toast.error(extractErr(e, 'Error al añadir')),
   })
   const { mutate: updateH } = useMutation({
-    mutationFn: id => api.patch(`/sla-calendars/${cal.id}/holidays/${id}`, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
+    mutationFn: id => api.patch(`/cmdb/sla-calendars/${cal.id}/holidays/${id}`, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
     onSuccess: () => { qc.invalidateQueries(['holidays', cal.id]); setEditingId(null) },
     onError: e => toast.error(extractErr(e, 'Error al editar')),
   })
   const { mutate: delH } = useMutation({
-    mutationFn: id => api.delete(`/sla-calendars/${cal.id}/holidays/${id}`),
+    mutationFn: id => api.delete(`/cmdb/sla-calendars/${cal.id}/holidays/${id}`),
     onSuccess: () => qc.invalidateQueries(['holidays', cal.id]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const checkBusinessDay = async () => {
     try {
-      const r = await api.get(`/sla-calendars/${cal.id}/check-date?check_date=${checkDate}`)
+      const r = await api.get(`/cmdb/sla-calendars/${cal.id}/check-date?check_date=${checkDate}`)
       setCheckResult(r.data)
     } catch(e) {
       toast.error(e?.response?.data?.detail || 'Error al verificar')
@@ -235,11 +235,11 @@ export default function SLACalendarsPage() {
 
   const { data: calendars = [], isLoading } = useQuery({
     queryKey: ['sla-calendars'],
-    queryFn: () => api.get('/sla-calendars').then(r => r.data).catch(() => []),
+    queryFn: () => api.get('/cmdb/sla-calendars').then(r => r.data).catch(() => []),
   })
 
   const { mutate: deleteCal } = useMutation({
-    mutationFn: id => api.delete(`/sla-calendars/${id}`),
+    mutationFn: id => api.delete(`/cmdb/sla-calendars/${id}`),
     onSuccess: () => qc.invalidateQueries(['sla-calendars']),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })

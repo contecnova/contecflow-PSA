@@ -2,7 +2,7 @@
 import uuid
 from sqlalchemy import or_
 
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole, UserStatus
 from app.core.security import get_password_hash

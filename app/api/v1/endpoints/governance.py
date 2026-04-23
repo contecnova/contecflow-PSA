@@ -236,7 +236,7 @@ def get_ai_module_config(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    rows = _gsvc.list_ai_module_configs(db, _org_id(current_user))
+    rows = _gsvc.list_ai_module_configs(db, _org_id(current_user, strict=False))
     by_module = {r.module: r for r in rows}
     return [
         {
@@ -268,7 +268,7 @@ def get_ai_governance_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    stats = _gsvc.get_ai_usage_stats(db, _org_id(current_user))
+    stats = _gsvc.get_ai_usage_stats(db, _org_id(current_user, strict=False))
     return stats
 
 
@@ -279,5 +279,5 @@ def get_ai_governance_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    logs = _gsvc.list_ai_governance_logs(db, _org_id(current_user), limit=limit, module=module)
+    logs = _gsvc.list_ai_governance_logs(db, _org_id(current_user, strict=False), limit=limit, module=module)
     return logs

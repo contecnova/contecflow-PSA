@@ -90,3 +90,27 @@ def test_scim_user_provisioning(client, db):
     )
     assert patch.status_code == 200
     assert patch.json()["active"] is False
+
+
+def test_governance_ai_read_endpoints_allow_admin_without_org(client, admin_token, db):
+    admin = db.query(User).filter(User.username == "admin").first()
+    admin.organization_id = None
+    db.commit()
+
+    config_res = client.get("/api/v1/governance/config", headers=auth(admin_token))
+    assert config_res.status_code == 200
+    config_payload = config_res.json()
+    assert isinstance(config_payload, list)
+    assert len(config_payload) > 0
+    assert all("module" in item for item in config_payload)
+    assert all("is_enabled" in item for item in config_payload)
+
+    stats_res = client.get("/api/v1/governance/stats", headers=auth(admin_token))
+    assert stats_res.status_code == 200
+    stats_payload = stats_res.json()
+    assert "total_calls" in stats_payload
+    assert "by_module" in stats_payload
+
+    logs_res = client.get("/api/v1/governance/logs", headers=auth(admin_token))
+    assert logs_res.status_code == 200
+    assert isinstance(logs_res.json(), list)

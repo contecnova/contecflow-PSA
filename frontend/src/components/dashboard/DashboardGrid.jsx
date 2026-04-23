@@ -78,10 +78,20 @@ function useDashboards(storageKey, allWidgets, api) {
   }, [config, updConfig])
 
   const updateLayout = useCallback((newLayout) => {
+    const byId = Object.fromEntries(allWidgets.map(w => [w.id, w]))
     const map = Object.fromEntries(config.layout.map(l => [l.i, l]))
-    newLayout.forEach(item => { map[item.i] = { ...map[item.i], ...item } })
+    newLayout.forEach(item => {
+      const meta = byId[item.i] || {}
+      let normalized = { ...item }
+      if (meta.aspectRatio && Number(meta.aspectRatio) > 0) {
+        const minH = Number(meta.defaultPos?.minH) || 1
+        const expectedH = Math.max(minH, Math.round((item.w || 1) / Number(meta.aspectRatio)))
+        normalized = { ...normalized, h: expectedH }
+      }
+      map[item.i] = { ...map[item.i], ...normalized }
+    })
     updConfig({ ...config, layout: Object.values(map) })
-  }, [config, updConfig])
+  }, [allWidgets, config, updConfig])
 
   const resetConfig = useCallback(() => updConfig(buildDefaultConfig(allWidgets)), [allWidgets, updConfig])
 
@@ -178,9 +188,21 @@ function DateRangePicker({ value, onChange }) {
 }
 
 // ── Celda de widget — mide su altura y la pasa al widget ──────────────────────
-function WidgetCell({ id, allWidgets, renderWidget, dateRange, locked, onFullScreen }) {
+function WidgetCell({
+  id,
+  allWidgets,
+  renderWidget,
+  dateRange,
+  locked,
+  onFullScreen,
+  rowHeight,
+  marginY,
+  currentRows,
+  onAutoHeight,
+}) {
   const contentRef = useRef(null)
   const [height, setHeight] = useState(200)
+  const rafRef = useRef(null)
 
   useEffect(() => {
     const el = contentRef.current
@@ -192,6 +214,42 @@ function WidgetCell({ id, allWidgets, renderWidget, dateRange, locked, onFullScr
   }, [])
 
   const w = allWidgets.find(x => x.id === id)
+
+  useEffect(() => {
+    if (!w?.fitContent || !onAutoHeight) return
+    const el = contentRef.current
+    if (!el) return
+
+    const updateAutoHeight = () => {
+      const contentNode = el.firstElementChild
+      const intrinsicContentPx = contentNode
+        ? Math.ceil(contentNode.getBoundingClientRect().height)
+        : Math.ceil(el.scrollHeight)
+      const bodyPx = Math.max(0, intrinsicContentPx)
+      const headerPx = 28
+      const framePx = 2
+      const breathingPx = Number(w.fitContentExtraPx) || 10
+      const wantedPx = bodyPx + headerPx + framePx + breathingPx
+      const wantedRowsRaw = toGridRows(wantedPx, rowHeight, marginY)
+      const minRows = Number(w.defaultPos?.minH) || 1
+      const maxRows = Number(w.fitContentMaxRows) || null
+      let wantedRows = Math.max(minRows, wantedRowsRaw)
+      if (maxRows) wantedRows = Math.min(wantedRows, maxRows)
+      if (Math.abs(wantedRows - currentRows) >= 1) onAutoHeight(id, wantedRows)
+    }
+
+    updateAutoHeight()
+    const ro = new ResizeObserver(() => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateAutoHeight)
+    })
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
+    }
+  }, [id, currentRows, marginY, onAutoHeight, rowHeight, w])
 
   return (
     <div style={{
@@ -223,11 +281,24 @@ function WidgetCell({ id, allWidgets, renderWidget, dateRange, locked, onFullScr
         >⛶</button>
       </div>
       {/* Widget content with measured height */}
-      <div ref={contentRef} style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      <div
+        ref={contentRef}
+        style={{
+          flex: w?.fitContent ? '0 0 auto' : 1,
+          minHeight: 0,
+          overflow: w?.fitContent ? 'visible' : 'auto',
+        }}
+      >
         {renderWidget(id, { dateRange, height })}
       </div>
     </div>
   )
+}
+
+function toGridRows(px, rowHeight, marginY) {
+  const rh = Number(rowHeight) || 30
+  const my = Number(marginY) || 0
+  return Math.max(1, Math.ceil((Math.max(0, px) + my) / (rh + my)))
 }
 
 // ── DashboardGrid principal ───────────────────────────────────────────────────
@@ -240,6 +311,9 @@ export default function DashboardGrid({
   headerExtra,
   api,
 }) {
+  const GRID_ROW_HEIGHT = 30
+  const GRID_MARGIN_Y = 12
+
   const {
     boards, activeId, setActiveId,
     config, visibleLayout,
@@ -265,6 +339,14 @@ export default function DashboardGrid({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  const autoFitWidgetHeight = useCallback((id, newRows) => {
+    const target = Number(newRows)
+    if (!Number.isFinite(target) || target <= 0) return
+    const current = config.layout.find(l => l.i === id)
+    if (!current || current.h === target) return
+    updateLayout(config.layout.map(l => (l.i === id ? { ...l, h: target } : l)))
+  }, [config.layout, updateLayout])
 
   // Esc cierra pantalla completa
   useEffect(() => {
@@ -427,18 +509,20 @@ export default function DashboardGrid({
             <GridLayout
               layout={visibleLayout}
               cols={12}
-              rowHeight={30}
+              rowHeight={GRID_ROW_HEIGHT}
               width={gridWidth}
               onLayoutChange={locked ? undefined : updateLayout}
               isDraggable={!locked}
               isResizable={!locked}
               draggableHandle=".dash-drag-handle"
-              margin={[12, 12]}
+              margin={[12, GRID_MARGIN_Y]}
               containerPadding={[0, 0]}
               resizeHandles={['se', 's', 'e']}
               useCSSTransforms
             >
-              {config.visible.map(id => (
+              {config.visible.map(id => {
+                const item = visibleLayout.find(l => l.i === id)
+                return (
                 <div key={id}>
                   <WidgetCell
                     id={id}
@@ -447,9 +531,14 @@ export default function DashboardGrid({
                     dateRange={dateRange}
                     locked={locked}
                     onFullScreen={setFullScreenId}
+                    rowHeight={GRID_ROW_HEIGHT}
+                    marginY={GRID_MARGIN_Y}
+                    currentRows={item?.h || 1}
+                    onAutoHeight={autoFitWidgetHeight}
                   />
                 </div>
-              ))}
+                )
+              })}
             </GridLayout>
           )}
           {config.visible.length === 0 && (

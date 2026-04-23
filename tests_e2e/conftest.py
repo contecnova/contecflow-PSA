@@ -7,7 +7,7 @@ Uso:
   BASE_URL=http://localhost:8000 pytest tests_e2e/ -v
 
 Variables de entorno:
-  BASE_URL       URL del frontend (default: http://localhost)
+    BASE_URL       URL del frontend (default: http://localhost:3000)
   ADMIN_USER     Usuario admin (default: admin)
   ADMIN_PASS     Contraseña admin (default: contecflow2024!)
   HEADLESS       Modo headless (default: true)
@@ -16,7 +16,7 @@ import os
 import pytest
 from playwright.sync_api import Page, BrowserContext
 
-BASE_URL   = os.getenv("BASE_URL",   "http://localhost")
+BASE_URL   = os.getenv("BASE_URL",   "http://localhost:3000")
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "contecflow2024!")
 

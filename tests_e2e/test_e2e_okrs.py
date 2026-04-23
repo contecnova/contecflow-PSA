@@ -1,6 +1,6 @@
 """E2E: OKRs — crear objetivo, añadir KR, hacer check-in."""
 import pytest
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 def test_okrs_carga(page):

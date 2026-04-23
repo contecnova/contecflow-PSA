@@ -180,3 +180,12 @@ health: ## Verifica que el backend responde
 	@curl -sf http://localhost:8000/health && \
 		echo "$(GREEN)✅ Backend OK$(RESET)" || \
 		echo "$(YELLOW)⚠ Backend no responde$(RESET)"
+
+# ── Regression ───────────────────────────────────────────────────────────────
+regression-backend: ## Ejecuta 3 tests de regresión backend
+	python -m pytest tests/test_regression_api_get_smoke.py tests/test_regression_api_operations_smoke.py tests/test_regression_invoices_created_at.py -v --tb=short
+
+regression-e2e: ## Ejecuta 4 tests de regresion E2E
+	python -m pytest tests_e2e/test_e2e_sidebar_menu_smoke.py tests_e2e/test_e2e_dashboard_reporting_smoke.py tests_e2e/test_e2e_all_pages_regression.py tests_e2e/test_e2e_public_protected_regression.py -v --tb=short
+
+regression-all: regression-backend regression-e2e ## Ejecuta toda la regresión

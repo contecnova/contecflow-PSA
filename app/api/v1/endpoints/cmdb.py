@@ -208,18 +208,18 @@ class CMDBRelationIn(BaseModel):
     rel_type: str = "depends_on"
 
 
-@router.get("/cmdb/categories")
+@router.get("/categories")
 def list_cmdb_categories(db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return svc.list_cmdb_categories(db)
 
 
-@router.post("/cmdb/categories")
+@router.post("/categories")
 def create_cmdb_category(p: CMDBCategoryIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
     return svc.create_cmdb_category(p.name, p.icon, p.color, db)
 
 
-@router.get("/cmdb/items")
+@router.get("/items")
 def list_cmdb_items(
     ci_type: Optional[str] = None, status: Optional[str] = None,
     category_id: Optional[str] = None, q: Optional[str] = None,
@@ -228,25 +228,25 @@ def list_cmdb_items(
     return svc.list_cmdb_items(ci_type, status, category_id, q, cu.organization_id, db)
 
 
-@router.post("/cmdb/items")
+@router.post("/items")
 def create_cmdb_item(p: CMDBItemIn, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     return svc.create_cmdb_item(p, cu.id, db)
 
 
-@router.patch("/cmdb/items/{item_id}")
+@router.patch("/items/{item_id}")
 def update_cmdb_item(item_id: str, p: CMDBItemUpdate,
                      db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return svc.update_cmdb_item(item_id, p, cu.id, db)
 
 
-@router.delete("/cmdb/items/{item_id}")
+@router.delete("/items/{item_id}")
 def delete_cmdb_item(item_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     return svc.delete_cmdb_item(item_id, db)
 
 
-@router.get("/cmdb/items/{item_id}/changelog", summary="Historial de cambios del activo")
+@router.get("/items/{item_id}/changelog", summary="Historial de cambios del activo")
 def get_cmdb_changelog(
     item_id: str,
     limit: int = Query(50, ge=1, le=200),
@@ -256,19 +256,19 @@ def get_cmdb_changelog(
     return svc.get_cmdb_changelog(item_id, limit, db)
 
 
-@router.get("/cmdb/items/{item_id}/relations")
+@router.get("/items/{item_id}/relations")
 def item_relations(item_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(get_current_user)):
     return svc.get_item_relations(item_id, db)
 
 
-@router.post("/cmdb/relations")
+@router.post("/relations")
 def create_cmdb_relation(p: CMDBRelationIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
     return svc.create_cmdb_relation(p.from_item_id, p.to_item_id, p.rel_type, db)
 
 
-@router.delete("/cmdb/relations/{relation_id}")
+@router.delete("/relations/{relation_id}")
 def delete_cmdb_relation(relation_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
     return svc.delete_cmdb_relation(relation_id, db)

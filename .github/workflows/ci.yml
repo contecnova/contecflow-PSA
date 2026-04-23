@@ -40,6 +40,104 @@ jobs:
           name: coverage-report
           path: test-results/coverage.xml
 
+  regression-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      - name: Run backend regression hard gate
+        run: make regression-backend
+
+  regression-e2e:
+    runs-on: ubuntu-latest
+    needs: regression-backend
+    env:
+      BASE_URL: http://127.0.0.1:3000
+      ADMIN_USER: admin
+      ADMIN_PASS: contecflow2024!
+      SECRET_KEY: ci-regression-secret-key
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-playwright
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Install Playwright browser
+        run: python -m playwright install --with-deps chromium
+      - name: Run E2E regression hard gate
+        run: |
+          set -euo pipefail
+          python -c "from app.db.base import Base; from app.db.session import engine; Base.metadata.create_all(bind=engine)"
+          python -m app.db.seed
+
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > backend.log 2>&1 &
+          BACKEND_PID=$!
+          (cd frontend && npm run dev -- --host 127.0.0.1 --port 3000 > ../frontend.log 2>&1) &
+          FRONTEND_PID=$!
+
+          cleanup() {
+            kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000 >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+
+          curl -sf http://127.0.0.1:8000/health >/dev/null
+          curl -sf http://127.0.0.1:3000 >/dev/null
+
+          python -m pytest \
+            tests_e2e/test_e2e_sidebar_menu_smoke.py \
+            tests_e2e/test_e2e_dashboard_reporting_smoke.py \
+            tests_e2e/test_e2e_all_pages_regression.py \
+            tests_e2e/test_e2e_public_protected_regression.py \
+            -v --tb=short
+      - name: Upload E2E debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-regression-debug
+          path: |
+            backend.log
+            frontend.log
+            playwright-report/
+            frontend/playwright-report/
+            frontend/test-results/
+            test-results/
+          if-no-files-found: ignore
+
   frontend-a11y-lint:
     runs-on: ubuntu-latest
     defaults:

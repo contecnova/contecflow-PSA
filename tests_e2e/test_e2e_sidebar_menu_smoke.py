@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from tests_e2e.conftest import BASE_URL
+from conftest import BASE_URL
 
 
 _LAYOUT_FILE = Path(__file__).resolve().parents[1] / "frontend" / "src" / "components" / "layout" / "Layout.jsx"
@@ -20,8 +20,8 @@ _ROUTE_RE = re.compile(r"\{\s*to:\s*'(?P<route>/[^']+)'.*?roles:\s*\[(?P<roles>[
 
 def _admin_menu_routes() -> list[str]:
     content = _LAYOUT_FILE.read_text(encoding="utf-8")
-    routes: list[str] = ["/dashboard"]
-    seen = {"/dashboard"}
+    routes: list[str] = []
+    seen: set[str] = set()
 
     for m in _ROUTE_RE.finditer(content):
         route = m.group("route")

@@ -7,12 +7,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 
 // ── Definición de tours por ruta ──────────────────────────────────────────────
 const TOURS = {
-  '/dashboard': [
-    { title: '👋 Bienvenido a Clarive', text: 'Este es tu Dashboard ejecutivo. Aquí tienes una visión global de todos tus proyectos, tareas y métricas en tiempo real.', target: null, position: 'center' },
-    { title: '📊 KPIs principales', text: 'Los 6 indicadores clave te muestran el estado de proyectos activos, tareas abiertas, clientes, tickets, presupuesto y horas de la semana.', target: '[data-tour="kpi-row"]', position: 'bottom' },
-    { title: '⚙️ Personalizar widgets', text: 'Haz clic en "Personalizar" para mostrar, ocultar y reordenar los widgets según tus necesidades. El layout se guarda automáticamente.', target: '[data-tour="dashboard-customize"]', position: 'bottom' },
-    { title: '🔍 Búsqueda global', text: 'Usa Cmd+K (o Ctrl+K) para buscar proyectos, tareas, clientes y tickets desde cualquier pantalla.', target: null, position: 'center' },
-  ],
   '/projects': [
     { title: '⬡ Proyectos', text: 'Aquí gestionas todos tus proyectos. Puedes crear proyectos desde cero o instanciar una plantilla predefinida.', target: null, position: 'center' },
     { title: '+ Nuevo proyecto', text: 'Crea un nuevo proyecto con nombre, tipo, fechas y presupuesto. Asigna un PM y vincula al cliente.', target: '[data-tour="btn-new-project"]', position: 'bottom' },

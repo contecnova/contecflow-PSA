@@ -26,7 +26,7 @@ export default function LoginPage() {
     setError('')
     try {
       const user = await login(form.username, form.password)
-      navigate(user.role === 'employee' ? '/imputar' : '/dashboard')
+      navigate(user.role === 'employee' ? '/imputar' : '/tasks')
     } catch (e) {
       const raw = e.response?.data?.detail
       setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || t('login.credentials_error')))

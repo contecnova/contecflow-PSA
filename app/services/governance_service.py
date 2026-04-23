@@ -121,10 +121,17 @@ def get_evidences_by_framework(
 
 # ── Tenant helpers ────────────────────────────────────────────────────────────
 
-def get_org_id(user) -> str:
-    if not user.organization_id:
+def get_org_id(user, *, strict: bool = True) -> Optional[str]:
+    """Resolve tenant context for governance endpoints.
+
+    strict=True keeps legacy behavior for tenant-bound operations.
+    strict=False allows read-only/global views to return defaults instead of 400.
+    """
+    if user.organization_id:
+        return user.organization_id
+    if strict:
         raise HTTPException(400, "El usuario no pertenece a una organización/tenant")
-    return user.organization_id
+    return None
 
 
 # ── AI module governance ──────────────────────────────────────────────────────
