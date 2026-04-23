@@ -60,15 +60,15 @@ export default function ScenariosPage() {
           {isLoading ? <Spinner /> : scenarios.length === 0 ? (
             <EmptyState icon="🔮" title="Sin escenarios" description="Crea un escenario para simular el impacto en capacidad" />
           ) : scenarios.map(s => (
-            <div key={s.id} onClick={()=>setSelected(s.id)}
-              style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid var(--color-border-info)' : '.5px solid var(--color-border-tertiary)' }}>
+            <button key={s.id} type="button" onClick={()=>setSelected(s.id)}
+              style={{ ...card, padding:'14px 18px', marginBottom:10, cursor:'pointer', border: selected===s.id ? '.5px solid var(--color-border-info)' : '.5px solid var(--color-border-tertiary)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
               <div style={{ fontSize:13, fontWeight:500, marginBottom:4 }}>{s.name}</div>
               <div style={{ fontSize:11, color:'var(--color-text-secondary)', marginBottom:6 }}>{s.project_count} proyectos · {s.horizon_weeks} semanas</div>
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background: s.status==='computed'?'var(--color-background-success)':'var(--color-background-secondary)', color: s.status==='computed'?'var(--color-text-success)':'var(--color-text-secondary)' }}>{s.status}</span>
                 <span style={{ fontSize:11, color:'var(--color-text-tertiary)' }}>{s.created_at}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 

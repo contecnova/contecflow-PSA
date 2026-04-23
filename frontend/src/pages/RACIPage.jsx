@@ -29,19 +29,33 @@ const ITEM_TYPES = [
 
 function RoleCell({ role, onClick, editable }) {
   const meta = ROLES_META[role] || null
+  const sharedStyle = {
+    width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontWeight: 800, fontSize: 13, cursor: editable ? 'pointer' : 'default',
+    background: meta ? meta.bg : 'var(--surface-3)',
+    color: meta ? meta.color : 'var(--text-4)',
+    border: `1px solid ${meta ? meta.color + '40' : 'var(--surface-4)'}`,
+    transition: 'all .1s',
+    userSelect: 'none',
+  }
+
+  if (editable) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        title={meta ? `${meta.label} — ${meta.desc}` : 'Sin asignar'}
+        style={{ ...sharedStyle, fontFamily: 'inherit' }}
+      >
+        {meta ? meta.short : '—'}
+      </button>
+    )
+  }
+
   return (
     <div
-      onClick={editable ? onClick : undefined}
       title={meta ? `${meta.label} — ${meta.desc}` : 'Sin asignar'}
-      style={{
-        width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 800, fontSize: 13, cursor: editable ? 'pointer' : 'default',
-        background: meta ? meta.bg : 'var(--surface-3)',
-        color: meta ? meta.color : 'var(--text-4)',
-        border: `1px solid ${meta ? meta.color + '40' : 'var(--surface-4)'}`,
-        transition: 'all .1s',
-        userSelect: 'none',
-      }}
+      style={sharedStyle}
     >
       {meta ? meta.short : '·'}
     </div>

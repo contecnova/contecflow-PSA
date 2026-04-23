@@ -326,6 +326,8 @@ export default function ProfitabilityPage() {
             {projects.map(p => (
               <div key={p.project_id}
                 style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '14px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s' }}
+                role="button" tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProject(p.project_id) } }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setSelectedProject(p.project_id)}>

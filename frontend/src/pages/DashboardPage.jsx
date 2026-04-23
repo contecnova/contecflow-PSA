@@ -64,16 +64,16 @@ function KpiRow({ kpis }) {
   return (
     <div className="grid-kpi grid-kpi-dashboard" style={{ marginBottom: 0 }}>
       {cards.map(c => (
-        <div key={c.label} onClick={() => nav(c.path)}
+        <button key={c.label} type="button" onClick={() => nav(c.path)}
           className="surface-card-interactive"
-          style={{ padding: '18px 16px' }}
+          style={{ padding: '18px 16px', textAlign: 'left', fontFamily: 'inherit' }}
           onMouseEnter={e => e.currentTarget.style.borderColor = c.color + '60'}
           onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
           <div style={{ color: c.color, marginBottom: 10, opacity: 0.85 }}>{c.icon}</div>
           <AnimatedKpi value={c.value} color={c.color} />
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>{c.label}</div>
           <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.sub}</div>
-        </div>
+        </button>
       ))}
     </div>
   )
@@ -335,11 +335,11 @@ function ProjectsHealthWidget() {
               : p.budget_used_pct > 80 || p.alerts_count > 0 ? 1 : 2
             return rank(a) - rank(b)
           }).map(p => (
-            <div key={p.project_id}
+            <button key={p.project_id} type="button"
               onClick={() => nav('/projects')}
               style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 8px',
                 background: 'var(--surface-3)', borderRadius: 7,
-                border: `1px solid ${getColor(p)}25`, cursor: 'pointer' }}>
+                border: `1px solid ${getColor(p)}25`, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
               <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>{getIcon(p)}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)',
@@ -386,7 +386,7 @@ function ProjectsHealthWidget() {
                   </div>
                 )}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -413,7 +413,7 @@ function TopClientsWidget() {
       </div>
       {clients.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('dashboard.no_clients')}</div>
         : clients.map(c => (
-          <div key={c.id} onClick={() => nav('/clients')}
+          <button key={c.id} type="button" onClick={() => nav('/clients')}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--surface-4)', cursor: 'pointer' }}>
             <div style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: 'var(--warning)', flexShrink: 0 }}>
               {c.name?.charAt(0)?.toUpperCase()}
@@ -422,7 +422,7 @@ function TopClientsWidget() {
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
               <div style={{ fontSize: 10, color: 'var(--text-2)' }}>⬡ {c.projects_count} · 🎫 {c.tickets_count}</div>
             </div>
-          </div>
+          </button>
         ))
       }
     </div>

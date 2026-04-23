@@ -944,9 +944,9 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {filtered.map(p => (
-          <div key={p.id} onClick={() => onOpen(p)}
+          <button key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ background: 'var(--surface-2)', border: `1px solid ${p.color}25`, borderRadius: 12,
-              padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
+              padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = p.color + '70'; e.currentTarget.style.background = p.color + '08' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = p.color + '25'; e.currentTarget.style.background = 'var(--surface-2)' }}>
             <div style={{ fontSize: 24, marginBottom: 8 }}>{p.icon}</div>
@@ -954,7 +954,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
             <div style={{ fontSize: 10, color: p.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {p.cat} · {chartLabels[p.chart] || p.chart} →
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

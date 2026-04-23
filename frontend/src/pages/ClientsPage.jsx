@@ -1453,7 +1453,7 @@ export default function ClientsPage() {
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon="🏢" title="Sin clientes" description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? sortedClients.map(c => (
-            <div key={c.id} onClick={() => { setSelected(c); setActiveTab('contacts') }}
+            <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
@@ -1470,7 +1470,7 @@ export default function ClientsPage() {
                 {c.invoices_count > 0 && <span>🧾 {c.invoices_count}</span>}
                 <span>👤 {c.portal_users_count}</span>
               </div>
-            </div>
+            </button>
           ))
           : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, overflow: 'hidden' }}>
@@ -1480,7 +1480,7 @@ export default function ClientsPage() {
                 <span>SD</span>
               </div>
               {sortedClients.map(c => (
-                <div key={c.id} onClick={() => { setSelected(c); setActiveTab('contacts') }}
+                <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
                   style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
@@ -1492,7 +1492,7 @@ export default function ClientsPage() {
                   </div>
                   <span style={{ fontSize: 12, color: 'var(--text-2)', textAlign: 'center' }}>{c.projects_count}</span>
                   <span style={{ fontSize: 12, color: 'var(--text-2)', textAlign: 'center' }}>{c.tickets_count}</span>
-                </div>
+                </button>
               ))}
             </div>
           )

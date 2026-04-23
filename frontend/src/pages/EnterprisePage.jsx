@@ -416,7 +416,8 @@ function IntegrationsTab() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
         {CATALOG.map(cat => (
-          <div key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
+          <button key={cat.type} onClick={() => { setConfiguring(cat); setForm({ name: cat.label, integration_type: cat.type, config: {} }) }}
+            type="button"
             style={{ background: 'var(--surface-1)', border: `1px solid ${configuring?.type === cat.type ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = configuring?.type === cat.type ? 'var(--accent-glow)' : 'var(--surface-4)'}
@@ -424,7 +425,7 @@ function IntegrationsTab() {
             <div style={{ fontSize: 24, marginBottom: 6 }}>{cat.icon}</div>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{cat.label}</div>
             <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{cat.desc}</div>
-          </div>
+          </button>
         ))}
       </div>
 

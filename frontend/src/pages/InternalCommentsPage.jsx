@@ -172,17 +172,19 @@ export default function InternalCommentsPage() {
           {search.length > 0 && filtered.length > 0 && !selectedTicket && (
             <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden', maxHeight: 280, overflowY: 'auto' }}>
               {filtered.map(t => (
-                <div key={t.id}
+                <button key={t.id}
                   onClick={() => { setTicketId(t.id); setSearch(`${t.number} — ${t.title}`) }}
                   style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)',
-                    display: 'flex', alignItems: 'center', gap: 10 }}
+                    display: 'flex', alignItems: 'center', gap: 10, width:'100%', textAlign:'left',
+                    background:'transparent', borderLeft:'none', borderRight:'none', borderTop:'none', fontFamily:'inherit' }}
+                  type="button"
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', minWidth: 80 }}>{t.number}</span>
                   <span style={{ fontSize: 13, color: 'var(--text-1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{t.requester_name}</span>
                   <span style={{ fontSize: 10, background: 'var(--surface-4)', color: 'var(--text-2)', padding: '1px 6px', borderRadius: 4 }}>{t.status?.replace(/_/g,' ')}</span>
-                </div>
+                </button>
               ))}
             </div>
           )}

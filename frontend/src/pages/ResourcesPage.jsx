@@ -491,8 +491,8 @@ export default function ResourcesPage() {
               </div>
               {sortedResources.map(r => (
                 <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                  onPointerLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
                       {r.user?.full_name?.charAt(0) || '?'}

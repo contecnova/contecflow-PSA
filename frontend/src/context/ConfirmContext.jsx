@@ -59,7 +59,8 @@ export function ConfirmProvider({ children }) {
       {children}
       {state.open && (
         <div
-          onClick={close}
+          onMouseDown={close}
+          role="presentation"
           style={{
             position: 'fixed', inset: 0,
             background: 'rgba(8,12,20,0.85)',
@@ -69,7 +70,8 @@ export function ConfirmProvider({ children }) {
           }}
         >
           <div
-            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            role="presentation"
             style={{
               background: 'var(--surface-2)',
               border: `1px solid ${state.danger ? 'var(--danger-border)' : 'var(--surface-4)'}`,

@@ -91,12 +91,14 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
         <div style={{ padding:'12px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', maxHeight:180, overflowY:'auto' }}>
           <div style={{ fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', marginBottom:8 }}>Recientes</div>
           {conversations.slice(0,5).map(c => (
-            <div key={c.id} onClick={() => loadConv(c.id)}
+            <button key={c.id} onClick={() => loadConv(c.id)}
+              type="button"
               style={{ padding:'7px 10px', borderRadius:7, cursor:'pointer', marginBottom:4,
                 background:'var(--color-background-secondary)', fontSize:12,
-                border:'.5px solid var(--color-border-tertiary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                border:'.5px solid var(--color-border-tertiary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                width:'100%', textAlign:'left', color:'var(--color-text-secondary)', fontFamily:'inherit' }}>
               {c.title}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -105,12 +107,13 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
           <div>
             <div style={{ fontSize:13, color:'var(--color-text-secondary)', marginBottom:16, textAlign:'center', paddingTop:20 }}>¿En qué puedo ayudarte hoy?</div>
             {SUGGESTIONS.map((s, i) => (
-              <div key={i} onClick={() => sendMessage(s)}
+              <button key={i} onClick={() => sendMessage(s)}
+                type="button"
                 style={{ padding:'10px 14px', borderRadius:10, border:'.5px solid var(--color-border-secondary)',
                   cursor:'pointer', marginBottom:8, fontSize:12, color:'var(--color-text-secondary)',
-                  background:'var(--color-background-secondary)' }}>
+                  background:'var(--color-background-secondary)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
                 {s}
-              </div>
+              </button>
             ))}
           </div>
         )}

@@ -30,8 +30,8 @@ function HeatCell({ week }) {
 
   return (
     <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
       style={{
         position: 'relative', width: 36, height: 36, borderRadius: 6,
         background: 'var(--surface-1)', border: `1px solid ${color}30`,
@@ -87,7 +87,8 @@ function UserRow({ user, selectedUser, onSelect }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
       {/* Nombre usuario */}
-      <div
+      <button
+        type="button"
         onClick={() => onSelect(isSelected ? null : user.user_id)}
         style={{
           width: 160, flexShrink: 0, fontSize: 12, fontWeight: 600,
@@ -95,12 +96,12 @@ function UserRow({ user, selectedUser, onSelect }) {
           cursor: 'pointer', padding: '4px 6px', borderRadius: 6,
           background: isSelected ? 'var(--accent-muted)' : 'transparent',
           border: isSelected ? '1px solid rgba(79,142,247,0.3)' : '1px solid transparent',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign:'left', fontFamily:'inherit'
         }}
         title={user.user_name}
       >
         {user.user_name.split(' ')[0]} {user.user_name.split(' ')[1]?.[0] || ''}.
-      </div>
+      </button>
 
       {/* Carga media */}
       <div style={{

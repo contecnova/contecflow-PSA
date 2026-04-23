@@ -35,7 +35,7 @@ function StatusDropdown({ del, onUpdate }) {
       </button>
       {open && (
         <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+          <div role="presentation" onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
           <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 10, padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
             {Object.entries(STATUS_CFG).map(([s, c]) => (
               <button key={s} onClick={() => { onUpdate(s); setOpen(false) }}

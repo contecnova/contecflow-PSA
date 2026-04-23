@@ -316,7 +316,7 @@ function TopClientsWidget({ filters, onFilterClient }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: '100%', overflow: 'auto' }}>
       {data.map((c, i) => (
-        <div key={i} onClick={() => onFilterClient?.(filters?.clientId === c.id ? '' : c.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onFilterClient ? 'pointer' : 'default', borderRadius: 6, padding: '2px 4px', background: filters?.clientId === c.id ? 'var(--accent-muted)' : 'transparent', outline: filters?.clientId === c.id ? '1px solid var(--accent-glow)' : 'none' }}>
+        <button key={i} onClick={() => onFilterClient?.(filters?.clientId === c.id ? '' : c.id)} type="button" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onFilterClient ? 'pointer' : 'default', borderRadius: 6, padding: '2px 4px', background: filters?.clientId === c.id ? 'var(--accent-muted)' : 'transparent', outline: filters?.clientId === c.id ? '1px solid var(--accent-glow)' : 'none', width: '100%', border: 'none', textAlign: 'left', fontFamily: 'inherit' }}>
           <div style={{ width: 20, fontSize: 10, color: 'var(--text-3)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 12 }}>
@@ -327,7 +327,7 @@ function TopClientsWidget({ filters, onFilterClient }) {
               <div style={{ height: '100%', borderRadius: 2, width: `${(c.revenue / maxRev) * 100}%`, background: PALETTE[i % PALETTE.length] }} />
             </div>
           </div>
-        </div>
+        </button>
       ))}
     </div>
   )
@@ -398,7 +398,7 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', overflow: 'auto' }}>
       {top.map((p, i) => (
-        <div key={p.project_id || i} onClick={() => onFilterProject?.(filters?.projectId === (p.project_id || p.id) ? '' : (p.project_id || p.id))} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: filters?.projectId && filters.projectId === (p.project_id || p.id) ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 8, cursor: onFilterProject ? 'pointer' : 'default' }}>
+        <button key={p.project_id || i} onClick={() => onFilterProject?.(filters?.projectId === (p.project_id || p.id) ? '' : (p.project_id || p.id))} type="button" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: filters?.projectId && filters.projectId === (p.project_id || p.id) ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 8, cursor: onFilterProject ? 'pointer' : 'default', width: '100%', border: 'none', textAlign: 'left', fontFamily: 'inherit' }}>
           <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', minWidth: 20 }}>#{i + 1}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name || p.name || p.code}</div>
@@ -407,7 +407,7 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
           <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: (p.margin_pct || 0) >= 30 ? GREEN : (p.margin_pct || 0) >= 15 ? AMBER : RED }}>
             {p.margin_pct ? `${p.margin_pct.toFixed(1)}%` : '—'}
           </div>
-        </div>
+        </button>
       ))}
     </div>
   )

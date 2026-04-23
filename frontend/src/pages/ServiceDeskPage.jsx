@@ -2267,6 +2267,7 @@ function KanbanTickets({ onSelect }) {
             onDragEnter={e => onDragEnter(e, col.id)}
             onDragLeave={onDragLeave}
             onDrop={e => onDrop(e, col.id)}
+            role="presentation"
             style={{ minWidth: 220, width: 220, flexShrink: 0,
               outline: dragOverCol === col.id ? `2px solid ${col.color}` : '2px solid transparent',
               borderRadius: 10, transition: 'outline .15s' }}>
@@ -2285,6 +2286,9 @@ function KanbanTickets({ onSelect }) {
                   draggable
                   onDragStart={e => onDragStart(e, t, col.id)}
                   onClick={() => onSelect(t)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(t) } }}
                   style={{ padding: '10px 12px', background: 'var(--surface-2)',
                     border: '1px solid var(--surface-4)', borderRadius: 10,
                     cursor: 'grab', transition: 'border-color .15s, box-shadow .15s',
@@ -2379,9 +2383,10 @@ function CannedResponsePicker({ onSelect, onClose }) {
               <div style={{ padding: '6px 12px 2px', fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
                 textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
               {catItems.map(r => (
-                <div key={r.id}
+                <button key={r.id}
+                  type="button"
                   onClick={() => { onSelect(r.body); onClose() }}
-                  style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)' }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', width:'100%', textAlign:'left', background:'transparent', fontFamily:'inherit', borderLeft:'none', borderRight:'none', borderTop:'none' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
@@ -2391,7 +2396,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden',
                     textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body?.slice(0, 80)}</div>
-                </div>
+                </button>
               ))}
             </div>
           )

@@ -152,6 +152,14 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onView(doc.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onView(doc.id);
+        }
+      }}
       style={{
         background: 'var(--surface-2)',
         border: `1px solid ${selected ? 'var(--accent)' : hover ? 'var(--surface-5)' : 'var(--surface-4)'}`,
@@ -165,7 +173,8 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
       <div style={{ height: 3, backgroundColor: ft.c, flexShrink: 0 }} />
 
       {/* Checkbox */}
-      <div
+      <button
+        type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
         style={{
           position: 'absolute', top: 10, left: 10, zIndex: 2,
@@ -174,9 +183,10 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
           backgroundColor: selected ? 'var(--accent)' : 'var(--surface-1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.12s', opacity: selected || hover ? 1 : 0,
+          padding: 0, cursor: 'pointer',
         }}>
         {selected && <Check size={9} color="white" strokeWidth={3} />}
-      </div>
+      </button>
 
       {/* Body */}
       <div style={{ padding: '14px 14px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -234,19 +244,19 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect })
           <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{relTime(doc.created_at)}</div>
           {lv && <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Space Mono', monospace" }}>{fmtBytes(lv.file_size)}</div>}
         </div>
-        <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.15s' }}
-          onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: 3, opacity: hover ? 1 : 0, transition: 'opacity 0.15s' }}>
           {lv?.download_url && (
             <a href={lv.download_url} target="_blank" rel="noreferrer" title="Descargar documento"
+              onClick={e => e.stopPropagation()}
               style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none' }}>
               <Download size={11} />
             </a>
           )}
-          <button onClick={() => onSummary(doc.id)} title="Generar resumen IA"
+          <button onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title="Generar resumen IA"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--purple)' }}>
             <Sparkles size={11} />
           </button>
-          <button onClick={() => onDelete(doc)} title="Eliminar documento"
+          <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title="Eliminar documento"
             style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
             <Trash2 size={11} />
           </button>
@@ -268,20 +278,29 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }) 
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={() => onView(doc.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onView(doc.id);
+        }
+      }}
       style={{
         backgroundColor: selected ? '#4f8ef710' : hover ? 'var(--surface-2)' : 'transparent',
         cursor: 'pointer', transition: 'background 0.1s',
         borderBottom: '1px solid var(--surface-4)',
       }}>
-      <td style={{ padding: '10px 14px', width: 36 }} onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}>
-        <div style={{
+      <td style={{ padding: '10px 14px', width: 36 }}>
+        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} style={{
           width: 16, height: 16, borderRadius: 4,
           border: `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}`,
           backgroundColor: selected ? 'var(--accent)' : 'transparent',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 0, cursor: 'pointer',
         }}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
-        </div>
+        </button>
       </td>
       <td style={{ padding: '10px 6px', width: 38 }}>
         <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
@@ -379,8 +398,8 @@ function UploadModal({ open, onClose, onSuccess }) {
   const fileFt = fileType ? FILE_COLORS[fileType] : null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'var(--surface-1)', borderRadius: 16, width: '100%', maxWidth: 740, border: '1px solid var(--surface-4)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onMouseDown={onClose}>
+      <div role="presentation" style={{ background: 'var(--surface-1)', borderRadius: 16, width: '100%', maxWidth: 740, border: '1px solid var(--surface-4)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)', overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--surface-4)' }}>
@@ -402,6 +421,14 @@ function UploadModal({ open, onClose, onSuccess }) {
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
               onClick={() => fileRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileRef.current?.click();
+                }
+              }}
               style={{
                 border: `2px dashed ${dragOver ? 'var(--accent)' : file ? (fileFt?.c || '#10b981') : 'var(--surface-5)'}`,
                 borderRadius: 12, padding: '28px 16px', textAlign: 'center', cursor: 'pointer',
@@ -559,7 +586,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
   return (
     <>
       {/* Overlay */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 900, backgroundColor: 'rgba(0,0,0,0.35)' }} onClick={onClose} />
+      <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 900, backgroundColor: 'rgba(0,0,0,0.35)' }} onMouseDown={onClose} />
 
       {/* Drawer */}
       <div style={{
@@ -686,6 +713,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     {(doc.versions || []).map((v, i) => (
                       <div key={v.id}
                         onClick={() => { setPreviewVersion(v); setTab('preview'); }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setPreviewVersion(v);
+                            setTab('preview');
+                          }
+                        }}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
                           backgroundColor: activeVer?.id === v.id ? 'var(--surface-3)' : 'var(--surface-2)',
@@ -719,7 +755,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                     </button>
                   ) : (
                     <div style={{ padding: 14, borderRadius: 10, border: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div onClick={() => fileRef.current?.click()} style={{ border: `2px dashed ${file ? '#10b981' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
+                      <div onClick={() => fileRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }} style={{ border: `2px dashed ${file ? '#10b981' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 16px', textAlign: 'center', cursor: 'pointer' }}>
                         {file ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
                           : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={13} style={{ display: 'inline', marginRight: 4 }} />Clic para seleccionar archivo</span>}
                         <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
@@ -1052,10 +1088,10 @@ export default function DocumentsPage() {
             <thead>
               <tr style={{ backgroundColor: 'var(--surface-3)', borderBottom: '1px solid var(--surface-4)' }}>
                 <th style={{ padding: '10px 14px', width: 36 }}>
-                  <div onClick={selectAll}
+                  <button type="button" onClick={selectAll}
                     style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}`, backgroundColor: selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
-                  </div>
+                  </button>
                 </th>
                 <th style={{ padding: '10px 6px', width: 40 }} />
                 {['Documento', 'Categoría', 'Aprobación', 'Tamaño', 'Fecha', 'Autor', ''].map(h => (

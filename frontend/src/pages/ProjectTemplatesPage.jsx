@@ -30,8 +30,8 @@ function TemplateCard({ tpl, onInstantiate, t }) {
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
       borderRadius: 12, padding: 20, transition: 'box-shadow .15s',
     }}
-      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.08)'}
-      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+      onPointerEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.08)'}
+      onPointerLeave={e => e.currentTarget.style.boxShadow = 'none'}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>

@@ -66,15 +66,15 @@ function EVMDetail({ projectId, onClose }) {
   if (!projectId) return null;
 
   return (
-    <div style={{
+    <div role="presentation" style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
-      <div style={{
+    }} onMouseDown={onClose}>
+      <div role="presentation" style={{
         background: 'var(--surface-1)', borderRadius: 16, padding: 32,
         width: 700, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
         boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
-      }} onClick={e => e.stopPropagation()}>
+      }} onMouseDown={e => e.stopPropagation()}>
         {isLoading && <div style={{ color: 'var(--text-3)' }}>Calculando métricas EVM…</div>}
         {isError  && <div style={{ color: 'var(--danger)' }}>Error al cargar métricas</div>}
         {data && <>

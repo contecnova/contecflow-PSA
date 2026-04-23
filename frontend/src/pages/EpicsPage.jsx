@@ -268,7 +268,7 @@ export default function EpicsPage() {
               const pri = PRIORITY_CFG[epic.priority] || PRIORITY_CFG.medium
               const progress = epic.task_count>0 ? Math.round((epic.done_tasks||0)/epic.task_count*100) : 0
               return (
-                <div key={epic.id} style={{...ps,padding:'16px 20px',border:`1px solid ${epic.color}30`,cursor:'pointer'}}
+                <button key={epic.id} type="button" style={{...ps,padding:'16px 20px',border:`1px solid ${epic.color}30`,cursor:'pointer',width:'100%',textAlign:'left',fontFamily:'inherit'}}
                   onClick={()=>setDetailEpic(epic)}>
                   <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
                     <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>
@@ -297,7 +297,7 @@ export default function EpicsPage() {
                         style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>{t('common.delete')}</button>
                     </div>
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>

@@ -196,10 +196,10 @@ export default function ContecflowAgentPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 11, color: 'var(--text-3)' }}>⌘+Enter para ejecutar</span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}>
-                  <div onClick={() => setStreaming(s => !s)}
-                    style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer' }}>
+                  <button type="button" onClick={() => setStreaming(s => !s)}
+                    style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
-                  </div>
+                  </button>
                   Streaming en vivo
                 </label>
               </div>
@@ -270,7 +270,7 @@ export default function ContecflowAgentPage() {
             ) : history.map(e => {
               const sc = STATUS_CFG[e.status] || STATUS_CFG.pending
               return (
-                <div key={e.id} onClick={() => setResult(e)}
+                <button key={e.id} type="button" onClick={() => setResult(e)}
                   style={{ padding: '14px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', transition: 'background 0.15s' }}
                   onMouseEnter={ev => ev.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
@@ -288,7 +288,7 @@ export default function ContecflowAgentPage() {
                       <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
                     </div>
                   </div>
-                </div>
+                </button>
               )
             })}
           </div>

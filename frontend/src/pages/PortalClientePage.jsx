@@ -1076,12 +1076,12 @@ function PortalDocuments() {
 
       {/* Modal de confirmación de firma */}
       {signModal && (
-        <div onClick={() => setSignModal(null)} style={{
+        <div role="presentation" onMouseDown={() => setSignModal(null)} style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 9999, padding: 20,
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
+          <div role="presentation" onMouseDown={e => e.stopPropagation()} style={{
             background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 16,
             padding: '28px 32px', maxWidth: 460, width: '100%',
             boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
@@ -1581,7 +1581,7 @@ function PortalWiki() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
               {pages.map(p => (
-                <div key={p.id} onClick={() => setSelected(p.id)}
+                <button key={p.id} type="button" onClick={() => setSelected(p.id)}
                   style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
@@ -1590,7 +1590,7 @@ function PortalWiki() {
                   <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
                     {t('last_updated')}: {new Date(p.updated_at).toLocaleDateString()}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -1819,13 +1819,13 @@ function PortalApp({ changeLang, _currentLang }) {
       {/* Content */}
       <main style={{ flex: 1, overflowY: 'auto', padding: 32, color: 'var(--text-1)' }}>
         {pendingSurveys > 0 && (
-          <div style={{ background: 'var(--success-bg)', border: '1px solid #00e5a040', borderRadius: 10, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => setSection('surveys')}>
+          <button type="button" style={{ background: 'var(--success-bg)', border: '1px solid #00e5a040', borderRadius: 10, padding: '12px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }} onClick={() => setSection('surveys')}>
             <span style={{ fontSize: 20 }}>⭐</span>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--success)' }}>Tienes {pendingSurveys} encuesta(s) pendiente(s)</div>
               <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Tu opinión nos ayuda a mejorar. Solo toma 1 minuto.</div>
             </div>
-          </div>
+          </button>
         )}
 
         {section === 'dashboard'  && <PortalDashboard />}
@@ -2240,7 +2240,7 @@ export function PortalServiceDesk() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {myTickets.map(t => (
-            <div key={t.id} onClick={() => setSelected(t.id)} style={{ ...S.card, cursor: 'pointer', border: `1px solid ${(STATUS_COLORS[t.status] || 'var(--surface-4)')}30`, transition: 'border-color 0.15s' }}
+            <button key={t.id} type="button" onClick={() => setSelected(t.id)} style={{ ...S.card, cursor: 'pointer', border: `1px solid ${(STATUS_COLORS[t.status] || 'var(--surface-4)')}30`, transition: 'border-color 0.15s', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = (STATUS_COLORS[t.status] || 'var(--accent)') + '60'}
               onMouseLeave={e => e.currentTarget.style.borderColor = (STATUS_COLORS[t.status] || 'var(--surface-4)') + '30'}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -2258,7 +2258,7 @@ export function PortalServiceDesk() {
                 {t.sla_resolution_status === 'warning' && <span style={{ color: 'var(--warning)' }}>⚠ SLA en riesgo</span>}
                 <span>Hace {t.age_hours < 24 ? `${t.age_hours}h` : `${Math.floor(t.age_hours/24)}d`}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

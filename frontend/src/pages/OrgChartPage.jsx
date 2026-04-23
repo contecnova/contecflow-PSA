@@ -219,12 +219,12 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
           {searchResults.length > 0 && (
             <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
               {searchResults.map(u => (
-                <div key={u.id} onClick={() => { setSearch(''); setEditing(u) }}
+                <button key={u.id} type="button" onClick={() => { setSearch(''); setEditing(u) }}
                   style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:6,
-                    cursor:'pointer', fontSize:12 }}>
+                    cursor:'pointer', fontSize:12, width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
                   <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
                   <div style={{ fontSize:11, color:'var(--text-3)' }}>{u.job_title||u.role}</div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -477,27 +477,30 @@ function AprobacionesTab({ allUsers }) {
             borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12.5,
             outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />
         <div style={{ display:'flex', flexDirection:'column', gap:3, maxHeight:300, overflowY:'auto' }}>
-          <div
+          <button
+            type="button"
             onClick={() => setSelectedUserId('')}
             style={{ padding:'8px 10px', borderRadius:7, cursor:'pointer',
               background: !selectedUserId ? 'var(--accent-muted)' : 'transparent',
               border: !selectedUserId ? '1px solid var(--accent-glow)' : '1px solid transparent',
               fontSize:12, fontWeight: !selectedUserId ? 600 : 400,
-              color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)' }}>
+              color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
             Mi propia cadena
-          </div>
+          </button>
           {filteredUsers.map(u => (
-            <div key={u.id}
+            <button key={u.id}
+              type="button"
               onClick={() => setSelectedUserId(u.id)}
               style={{ padding:'8px 10px', borderRadius:7, cursor:'pointer',
                 background: selectedUserId===u.id ? 'var(--accent-muted)' : 'transparent',
                 border: selectedUserId===u.id ? '1px solid var(--accent-glow)' : '1px solid transparent',
+                width:'100%', textAlign:'left', fontFamily:'inherit',
               }}>
               <div style={{ fontSize:12.5, fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
               <div style={{ fontSize:11, color:'var(--text-3)' }}>
                 {u.job_title || ROLE_LABEL[u.role]}{u.department ? ` · ${u.department}` : ''}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>

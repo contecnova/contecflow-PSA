@@ -313,7 +313,7 @@ export default function ResourceHeatmap() {
                   const cfg = getStatusColor(week.status)
                   const showHours = week.hard_hours > 0 || week.soft_hours > 0
                   return (
-                    <div
+                    <button
                       key={wi}
                       title={`${user.user_name} · ${week.week_label}\nCapacidad: ${week.capacity}h\nHard: ${week.hard_hours}h\nSoft: ${week.soft_hours}h\nDisponible: ${week.available}h\nUtilización: ${week.utilization_pct}%`}
                       onClick={() => { setBookingPrefill({ user_id: user.user_id, week: week.week }); setShowBooking(true) }}
@@ -321,11 +321,17 @@ export default function ResourceHeatmap() {
                         padding:'6px 4px',
                         background: cfg.bg,
                         borderLeft:`1px solid #1e2d4515`,
+                        borderTop:'none',
+                        borderRight:'none',
+                        borderBottom:'none',
                         cursor:'pointer',
                         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2,
                         minHeight:50,
                         transition:'background 0.1s',
+                        width:'100%',
+                        fontFamily:'inherit',
                       }}
+                      type="button"
                       onMouseEnter={e => e.currentTarget.style.background = cfg.border}
                       onMouseLeave={e => e.currentTarget.style.background = cfg.bg}
                     >
@@ -338,7 +344,7 @@ export default function ResourceHeatmap() {
                       ) : (
                         <div style={{ fontSize:10, color:'var(--text-3)' }}>—</div>
                       )}
-                    </div>
+                    </button>
                   )
                 })}
               </div>

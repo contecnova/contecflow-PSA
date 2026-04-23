@@ -583,7 +583,7 @@ function TemplatesSection() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
           {templates.map(t => (
-            <div key={t.id} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: 18, cursor: 'pointer' }}
+            <button key={t.id} type="button" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
               onClick={() => setSelected(t)}>
@@ -599,7 +599,7 @@ function TemplatesSection() {
                 <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
                 <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

@@ -86,6 +86,9 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
     <div
       onMouseDown={e => { e.stopPropagation(); onMouseDown(e) }}
       onClick={e => { e.stopPropagation(); onClick() }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
       title={`${booking.project_name || booking.project_id || t('resource_scheduler.no_project_short')} · ${booking.hours_per_day || 8}h/día · ${booking.booking_type || 'soft'}`}
       style={{
         position: 'absolute',
@@ -508,6 +511,8 @@ export default function ResourceSchedulerPage() {
                 key={u.user_id}
                 onMouseDown={e => handlePersonDragStart(e, u)}
                 title={`${u.user_name} · ${u.avg_load_pct}% ${t('dashboard.load_label').toLowerCase()} · ${t('resource_scheduler.person_drag_hint')}`}
+                role="button"
+                tabIndex={0}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7,
                   padding: '7px 8px', marginBottom: 4, borderRadius: 8,
@@ -581,8 +586,8 @@ export default function ResourceSchedulerPage() {
                       </div>
                     </div>
                     <div
-                      onMouseEnter={() => { assignDropProject.current = proj.id }}
-                      onMouseLeave={() => { assignDropProject.current = null }}
+                      onPointerEnter={() => { assignDropProject.current = proj.id }}
+                      onPointerLeave={() => { assignDropProject.current = null }}
                       style={{
                         height: ROW_H, borderTop: '1px solid #1e2d4530', position: 'relative', display: 'flex',
                         cursor: 'copy',
@@ -687,6 +692,9 @@ export default function ResourceSchedulerPage() {
                         <div
                           key={colIdx}
                           onMouseDown={e => handleCellMouseDown(e, user.user_id, colIdx)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCellMouseDown(e, user.user_id, colIdx) } }}
                           title={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : ''}
                           style={{
                             width: CELL_W, flexShrink: 0, height: '100%',
@@ -754,7 +762,8 @@ export default function ResourceSchedulerPage() {
       {/* Click-away to close panel */}
       {panel && (
         <div
-          onClick={() => { setPanel(null); setSelected(null) }}
+          role="presentation"
+          onMouseDown={() => { setPanel(null); setSelected(null) }}
           style={{ position: 'fixed', inset: 0, zIndex: 199 }}
         />
       )}

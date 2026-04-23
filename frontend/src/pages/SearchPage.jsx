@@ -114,7 +114,7 @@ function FTSMode() {
                 </span>
               </div>
               {results[etype.id].map(item => (
-                <div key={item.id} style={{ ...panel, padding: '12px 16px', marginBottom: 6,
+                <button key={item.id} type="button" style={{ ...panel, padding: '12px 16px', marginBottom: 6,
                   cursor: 'pointer', transition: 'border-color 0.12s' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = etype.color + '40'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
@@ -130,7 +130,7 @@ function FTSMode() {
                     {item.status && `${item.status} · `}
                     {item.client_name || item.project_name || ''}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ))}

@@ -148,8 +148,8 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }) {
 
   return (
     <div style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 10, padding: compact ? '8px 12px' : '12px 14px', cursor: 'pointer', position: 'relative' }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = cfg.color + '60'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = cfg.color + '30'}>
+      onPointerEnter={e => e.currentTarget.style.borderColor = cfg.color + '60'}
+      onPointerLeave={e => e.currentTarget.style.borderColor = cfg.color + '30'}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace', marginBottom: 3 }}>{task.code}</div>
@@ -503,6 +503,8 @@ export default function SprintsPage() {
                 return (
                   <div key={task.id}
                     onClick={() => setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id])}
+                    role="button" tabIndex={0}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id]) } }}
                     style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 80px 80px 120px', gap: 12, padding: '10px 16px', background: selected ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${selected ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 8, alignItems: 'center', cursor: 'pointer' }}>
                     <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
                     <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{task.code}</span>

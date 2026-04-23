@@ -175,6 +175,14 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
         if (data.planId) onDrop(data.planId, userId, weekStart)
       }}
       onClick={() => plans.length === 0 && onAdd({ user_id: userId, week_start: weekStart })}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && plans.length === 0) {
+          e.preventDefault()
+          onAdd({ user_id: userId, week_start: weekStart })
+        }
+      }}
       style={{
         minWidth: 72, minHeight: 60, borderRadius: 8, padding: '4px 6px',
         background: dragOver ? 'var(--accent-muted)' : committed > 0 ? 'var(--surface-2)' : 'var(--surface-0)',
@@ -201,6 +209,8 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
           <div
             key={plan.id}
             draggable
+            role="button"
+            tabIndex={0}
             onDragStart={e => {
               e.stopPropagation()
               e.dataTransfer.setData('application/json', JSON.stringify({ planId: plan.id }))
@@ -212,6 +222,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
               cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               border: '1px solid #2a3a55',
             }}
+            onPointerEnter={() => {}}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 44 }}>
               {(plan.project_name || 'Libre').slice(0, 7)}

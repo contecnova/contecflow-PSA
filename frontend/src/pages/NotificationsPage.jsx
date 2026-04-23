@@ -35,15 +35,47 @@ function NotifItem({ notif, onMarkRead }) {
   const cfg = TYPE_CFG[notif.type] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' }
   const isUnread = !notif.is_read
 
+  if (isUnread) {
+    return (
+      <button type="button" onClick={() => onMarkRead(notif.id)}
+        style={{ display:'flex', gap:12, padding:'12px 16px',
+          background: 'var(--surface-2)',
+          border:`1px solid ${cfg.color + '25'}`,
+          borderRadius:10, cursor:'pointer',
+          transition:'all .15s', marginBottom:4, width:'100%', textAlign:'left', fontFamily:'inherit' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.color + '50' }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = cfg.color + '25' }}>
+        <div style={{ width:8, height:8, borderRadius:'50%',
+          background: cfg.color,
+          flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
+        <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
+          background:`${cfg.color}20`, border:`1px solid ${cfg.color}30`,
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
+          {cfg.icon}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+            <div style={{ fontSize:13, fontWeight:700,
+              color:'var(--text-1)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis' }}>
+              {notif.title}
+            </div>
+          </div>
+          <div style={{ fontSize:11, color:'var(--text-2)', marginTop:4 }}>{cfg.label}</div>
+          {notif.body && <div style={{ fontSize:12, color:'var(--text-2)', marginTop:6, lineHeight:1.45 }}>{notif.body}</div>}
+          <div style={{ fontSize:10, color:'var(--text-3)', marginTop:7 }}>{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
+        </div>
+      </button>
+    )
+  }
+
   return (
-    <div onClick={() => !notif.is_read && onMarkRead(notif.id)}
+    <div
       style={{ display:'flex', gap:12, padding:'12px 16px',
         background: isUnread ? 'var(--surface-2)' : 'transparent',
         border:`1px solid ${isUnread ? cfg.color + '25' : 'transparent'}`,
         borderRadius:10, cursor: isUnread ? 'pointer' : 'default',
         transition:'all .15s', marginBottom:4 }}
-      onMouseEnter={e => { if(isUnread) e.currentTarget.style.borderColor = cfg.color + '50' }}
-      onMouseLeave={e => { if(isUnread) e.currentTarget.style.borderColor = cfg.color + '25' }}>
+      >
       {/* Badge indicador de no leído */}
       <div style={{ width:8, height:8, borderRadius:'50',
         background: isUnread ? cfg.color : 'transparent',

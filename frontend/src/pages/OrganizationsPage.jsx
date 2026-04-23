@@ -109,6 +109,8 @@ export default function OrganizationsPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {orgs.map(o => (
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
+                  role="button" tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
                   style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid var(--color-border-info)':'var(--color-border-tertiary) .5px solid' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>

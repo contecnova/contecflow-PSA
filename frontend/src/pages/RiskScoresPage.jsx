@@ -81,13 +81,13 @@ export default function RiskScoresPage() {
         ].map(s => {
           const cfg = LEVEL_CFG[s.level]
           return (
-            <div key={s.level}
+            <button key={s.level} type="button"
               onClick={() => setFilterLevel(filterLevel === s.level ? 'all' : s.level)}
-              style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:10, padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1 }}>
+              style={{ background:cfg.bg, border:`.5px solid ${cfg.border}`, borderRadius:10, padding:'16px 18px', cursor:'pointer', opacity: filterLevel !== 'all' && filterLevel !== s.level ? 0.5 : 1, textAlign:'left', fontFamily:'inherit' }}>
               <div style={{ fontSize:24, marginBottom:4 }}>{cfg.icon}</div>
               <div style={{ fontSize:26, fontWeight:500, color:cfg.color }}>{s.count}</div>
               <div style={{ fontSize:12, color:cfg.color }}>Riesgo {s.label}</div>
-            </div>
+            </button>
           )
         })}
       </div>
@@ -116,9 +116,9 @@ export default function RiskScoresPage() {
                 const cfg = LEVEL_CFG[p.level] || LEVEL_CFG.low
                 const isSelected = selected === p.project_id
                 return (
-                  <div key={p.project_id}
+                  <button key={p.project_id} type="button"
                     onClick={() => setSelected(isSelected ? null : p.project_id)}
-                    style={{ background:'var(--color-background-primary)', border:`.5px solid ${isSelected ? cfg.border : 'var(--color-border-tertiary)'}`, borderRadius:10, padding:'14px 18px', cursor:'pointer', transition:'border-color .2s' }}>
+                    style={{ background:'var(--color-background-primary)', border:`.5px solid ${isSelected ? cfg.border : 'var(--color-border-tertiary)'}`, borderRadius:10, padding:'14px 18px', cursor:'pointer', transition:'border-color .2s', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <span style={{ fontSize:20 }}>{cfg.icon}</span>
                       <div style={{ flex:1 }}>
@@ -163,7 +163,7 @@ export default function RiskScoresPage() {
                         <span style={{ color:'var(--color-text-tertiary)' }}>Calc: {p.computed_at}</span>
                       </div>
                     )}
-                  </div>
+                  </button>
                 )
               })}
             </div>

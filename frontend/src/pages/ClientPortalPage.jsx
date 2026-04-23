@@ -371,7 +371,7 @@ function UATTab({ projectId }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {sessions.map(s => (
-            <div key={s.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[s.status]?.color + '40' || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer' }}
+            <button key={s.id} type="button" style={{ padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${STATUS_CFG[s.status]?.color + '40' || 'var(--surface-4)'}`, borderRadius: 12, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onClick={() => setSelectedId(s.id)}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--surface-2)'}>
@@ -399,7 +399,7 @@ function UATTab({ projectId }) {
                   {`🐛 ${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
-            </div>
+            </button>
           ))}
         </div>
       )}

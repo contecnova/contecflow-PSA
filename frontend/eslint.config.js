@@ -179,24 +179,25 @@ export default [
     },
   },
   {
-    files: ['src/pages/**/*.{js,jsx}'],
-    rules: {
-      'jsx-a11y/click-events-have-key-events': 'off',
-      'jsx-a11y/no-static-element-interactions': 'off',
-    },
-  },
-  {
     files: [
-      'src/components/ResourceHeatmap.jsx',
-      
-      'src/components/layout/NexusAssistPanel.jsx',
-      
-      'src/context/ConfirmContext.jsx',
-      'src/features/bi/widgets.jsx',
+      'src/pages/DeliverablesPage.jsx',
+      'src/pages/EVMPage.jsx',
+      'src/pages/EnterprisePage.jsx',
+      'src/pages/EpicsPage.jsx',
+      'src/pages/InternalCommentsPage.jsx',
+      'src/pages/MeetingsAIPage.jsx',
+      'src/pages/NotificationsPage.jsx',
+      'src/pages/OrganizationsPage.jsx',
+      'src/pages/OrgChartPage.jsx',
+      'src/pages/ProfitabilityPage.jsx',
+      'src/pages/RACIPage.jsx',
+      'src/pages/RateCardsPage.jsx',
+      'src/pages/ReportsPage.jsx',
+      'src/pages/ClientPortalPage.jsx',
     ],
     rules: {
-      'jsx-a11y/click-events-have-key-events': 'off',
-      'jsx-a11y/no-static-element-interactions': 'off',
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
     },
   },
   {

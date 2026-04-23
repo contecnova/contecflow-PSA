@@ -157,10 +157,10 @@ export default function MFAPage() {
 
       {/* Disable modal */}
       {showDisable && (
-        <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.45)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center' }}
-          onClick={() => setShowDisable(false)}>
-          <div style={{ background:'var(--color-background-primary)', borderRadius:14, padding:24, width:400, border:'.5px solid var(--color-border-secondary)' }}
-            onClick={e => e.stopPropagation()}>
+        <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.45)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center' }}
+          onMouseDown={() => setShowDisable(false)}>
+          <div role="presentation" style={{ background:'var(--color-background-primary)', borderRadius:14, padding:24, width:400, border:'.5px solid var(--color-border-secondary)' }}
+            onMouseDown={e => e.stopPropagation()}>
             <div style={{ fontSize:14, fontWeight:500, marginBottom:14 }}>{t('mfa.disable_title')}</div>
             <div style={{ fontSize:12, color:'var(--color-text-secondary)', marginBottom:16 }}>{t('mfa.disable_desc')}</div>
             <input value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g,'').slice(0,6))} style={fs} placeholder={t('mfa.code_placeholder')} autoFocus />

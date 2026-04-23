@@ -119,7 +119,7 @@ function StatusDropdown({ project, onUpdate }) {
       </button>
       {open && (
         <>
-          <div onClick={e => { e.stopPropagation(); setOpen(false) }}
+          <div role="presentation" onMouseDown={e => { e.stopPropagation(); setOpen(false) }}
             style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
           <div style={{
             position: 'absolute', top: '110%', left: 0, zIndex: 20,
@@ -152,40 +152,40 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
       background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12,
       padding: '20px 24px', transition: 'all 0.2s', position: 'relative',
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
+      onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
+      onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ cursor: 'pointer', flex: 1 }} onClick={() => onClick(project)}>
+        <button type="button" style={{ cursor: 'pointer', flex: 1, background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
           <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>{project.code}</div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>{project.name}</div>
           {project.pm_name && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>PM: {project.pm_name}</div>}
           {project.department && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Depto: {project.department}</div>}
           {project.client_name && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Cliente: {project.client_name}</div>}
-        </div>
+        </button>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} />
         </div>
       </div>
 
-      <div style={{ marginBottom: 12, cursor: 'pointer' }} onClick={() => onClick(project)}>
+      <button type="button" style={{ marginBottom: 12, cursor: 'pointer', width: '100%', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--text-2)' }}>
           <span>{TYPE_LABELS[project.project_type] || project.project_type}</span>
           <span>{project.progress_pct?.toFixed(0) ?? 0}% completado</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
-      </div>
+      </button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-        <div style={{ cursor: 'pointer', display: 'flex', gap: 16 }} onClick={() => onClick(project)}>
+        <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 16, background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
           <span style={{ color: 'var(--text-2)' }}>Equipo: <span style={{ color: 'var(--text-1)' }}>{project.team_size}</span></span>
           {project.budget_amount && (
             <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
               {project.budget_used_pct?.toFixed(0) ?? 0}% presupuesto
             </span>
           )}
-        </div>
+        </button>
         <button onClick={e => { e.stopPropagation(); onEdit(project) }}
           style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
           ✏️ Editar
@@ -906,14 +906,14 @@ export default function ProjectsPage() {
           {sortedProjects.map(p => (
             <div key={p.id}
               style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', transition: 'background 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+              onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               {visCols.includes('name') && (
-                <div style={{ cursor: 'pointer' }} onClick={() => setSelected(p)}>
+                <button type="button" style={{ cursor: 'pointer', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => setSelected(p)}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{p.code}</div>
-                </div>
+                </button>
               )}
               {visCols.includes('type') && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
               {visCols.includes('pm') && <span style={{ fontSize: 12 }}>{p.pm_name || '—'}</span>}

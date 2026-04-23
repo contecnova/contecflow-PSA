@@ -468,9 +468,9 @@ export default function SkillsPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
             {users.filter(u => u.is_active !== false).map(u => (
-              <div key={u.id}
+              <button key={u.id} type="button"
                 onClick={() => setEditingUser(u)}
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.15s' }}
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20, cursor: 'pointer', transition: 'all 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'var(--surface-2)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -483,7 +483,7 @@ export default function SkillsPage() {
                   </div>
                 </div>
                 <UserSkillPreview userId={u.id} />
-              </div>
+              </button>
             ))}
           </div>
         </div>

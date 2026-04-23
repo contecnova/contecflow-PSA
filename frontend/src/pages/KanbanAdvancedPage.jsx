@@ -79,6 +79,9 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
         onDragStart(e, task, () => { wasDragged.current = true })
       }}
       onClick={() => { if (!wasDragged.current) onClick() }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       style={{
         background: 'var(--surface-2)',
         border: `1px solid ${overdue ? 'rgba(248,113,113,0.4)' : 'var(--surface-4)'}`,
@@ -215,8 +218,8 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
 
   return (
     <div
-      onMouseEnter={onColumnEnter}
-      onMouseLeave={onColumnLeave}
+      onPointerEnter={onColumnEnter}
+      onPointerLeave={onColumnLeave}
       style={{
         minWidth: 240, maxWidth: 300, flex: '1 1 240px',
         display: 'flex', flexDirection: 'column',

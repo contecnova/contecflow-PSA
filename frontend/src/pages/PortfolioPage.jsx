@@ -46,8 +46,8 @@ function PortfolioModal({ initial, onClose, onSave }) {
   const ls = { display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', marginBottom: 5 };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
+      <div role="presentation" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 28, width: 480, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>{initial ? 'Editar cartera' : 'Nueva cartera'}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div><label style={ls}>Nombre *</label><input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre de la cartera..." /></div>
@@ -97,15 +97,15 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
     p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseDown={onClose}>
+      <div role="presentation" style={{ background: 'var(--surface-1)', borderRadius: 14, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }} onMouseDown={e => e.stopPropagation()}>
         <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>Añadir proyecto a la cartera</div>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proyectos..."
           style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 13, marginBottom: 12 }} />
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {available.map(p => (
-            <div key={p.id} onClick={() => addProject(p.id)}
-              style={{ padding: '10px 14px', borderRadius: 8, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            <button key={p.id} type="button" onClick={() => addProject(p.id)}
+              style={{ padding: '10px 14px', borderRadius: 8, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               <div>
@@ -113,7 +113,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
                 <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{p.status}</div>
               </div>
               <Plus size={14} color="var(--accent)" />
-            </div>
+            </button>
           ))}
           {available.length === 0 && <div style={{ color: 'var(--text-3)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Sin resultados</div>}
         </div>
@@ -144,8 +144,8 @@ function PortfolioDashboard({ portfolioId, onClose }) {
   if (!portfolioId) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onClick={onClose}>
-      <div style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onClick={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 40, overflowY: 'auto' }} onMouseDown={onClose}>
+      <div role="presentation" style={{ background: 'var(--surface-1)', borderRadius: 16, padding: 32, width: 900, maxWidth: '96vw', boxShadow: '0 24px 80px rgba(0,0,0,0.4)', marginBottom: 40 }} onMouseDown={e => e.stopPropagation()}>
         {isLoading && <div style={{ color: 'var(--text-3)' }}>Cargando dashboard…</div>}
         {dash && <>
           {/* Header */}
@@ -203,7 +203,15 @@ function PortfolioDashboard({ portfolioId, onClose }) {
                       <tr style={{ borderTop: i > 0 ? '1px solid var(--surface-3)' : 'none', cursor: 'pointer' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        onClick={() => setExpandedId(isExpanded ? null : p.project_id)}>
+                        onClick={() => setExpandedId(isExpanded ? null : p.project_id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setExpandedId(isExpanded ? null : p.project_id);
+                          }
+                        }}>
                         <td style={{ padding: '11px 14px' }}><RagPill rag={p.rag} /></td>
                         <td style={{ padding: '11px 14px', fontWeight: 600 }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -337,7 +345,15 @@ export default function PortfolioPage() {
             }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.2)'; e.currentTarget.style.borderColor = 'var(--accent)30'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'transparent'; }}
-              onClick={() => setSelectedId(p.id)}>
+              onClick={() => setSelectedId(p.id)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedId(p.id);
+                }
+              }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>{p.name}</div>

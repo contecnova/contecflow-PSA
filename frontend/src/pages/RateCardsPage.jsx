@@ -282,10 +282,10 @@ export default function RateCardsPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {tables.map(t => (
-            <div key={t.id} style={{
+            <button key={t.id} type="button" style={{
               background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
-              transition: 'border-color 0.15s',
+              transition: 'border-color 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit'
             }}
               onClick={() => setSelected(t.id)}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
@@ -312,7 +312,7 @@ export default function RateCardsPage() {
                   🗑
                 </button>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

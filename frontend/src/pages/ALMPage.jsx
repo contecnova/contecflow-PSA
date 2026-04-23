@@ -295,8 +295,8 @@ function VendorsTab() {
             const cat = VENDOR_CATS[v.category] || VENDOR_CATS.other
             return (
               <div key={v.id} style={{ ...card, padding: '18px 20px', transition: 'border-color 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = cat.color + '50'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
+                onPointerEnter={e => e.currentTarget.style.borderColor = cat.color + '50'}
+                onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>

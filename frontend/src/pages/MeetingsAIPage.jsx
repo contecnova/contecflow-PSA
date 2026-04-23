@@ -178,8 +178,8 @@ export default function MeetingsAIPage() {
           ) : meetings.map(m => {
             const plat = platCfg(m.platform)
             return (
-              <div key={m.id} onClick={() => setSelected(m.id)}
-                style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)' }}>
+              <button key={m.id} type="button" onClick={() => setSelected(m.id)}
+                style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
                   <span style={{ fontSize: 18 }}>{plat.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -196,7 +196,7 @@ export default function MeetingsAIPage() {
                     <span style={{ fontSize: 11, color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
                   )}
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>

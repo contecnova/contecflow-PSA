@@ -413,9 +413,9 @@ export default function ContractsPage() {
             const bdr   = c.daysLeft <= 14 ? '#ff475730' : c.daysLeft <= 30 ? '#ffb80030' : '#00d4ff30'
             const icon  = c.daysLeft <= 14 ? '🔴' : c.daysLeft <= 30 ? '🟡' : '🔵'
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12,
+              <button key={c.id} type="button" style={{ display: 'flex', alignItems: 'center', gap: 12,
                 padding: '10px 16px', background: bg, border: `1px solid ${bdr}`,
-                borderRadius: 10, marginBottom: 6, cursor: 'pointer' }}
+                borderRadius: 10, marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
                 onClick={() => setDetail(c)}>
                 <span style={{ fontSize: 16 }}>{icon}</span>
                 <div style={{ flex: 1 }}>
@@ -429,7 +429,7 @@ export default function ContractsPage() {
                 <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: 'nowrap' }}>
                   {c.daysLeft === 0 ? 'Vence hoy' : `Vence en ${c.daysLeft} día${c.daysLeft > 1 ? 's' : ''}`}
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -465,7 +465,7 @@ export default function ContractsPage() {
           {sortedContracts.map(c => {
             const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
             return (
-              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
+              <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setDetail(c)}>
@@ -481,7 +481,7 @@ export default function ContractsPage() {
                 <span style={{ fontSize: 12, color: c.end_date && new Date(c.end_date) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.work_orders?.length || 0}</span>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -490,7 +490,7 @@ export default function ContractsPage() {
           {sortedContracts.map(c => {
             const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
             return (
-              <div key={c.id} onClick={() => setDetail(c)}
+              <button key={c.id} type="button" onClick={() => setDetail(c)}
                 style={{ background: 'var(--surface-2)', border: `1px solid ${cfg.color}30`, borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = `${cfg.color}30`}>
@@ -514,7 +514,7 @@ export default function ContractsPage() {
                 <div style={{ fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid #1e2d45', paddingTop: 8 }}>
                   {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span style={{ color: new Date(c.end_date) < new Date() ? 'var(--danger)' : 'inherit' }}>{fmtDate(c.end_date)}</span> : '—'}
                 </div>
-              </div>
+              </button>
             )
           })}
         </div>
