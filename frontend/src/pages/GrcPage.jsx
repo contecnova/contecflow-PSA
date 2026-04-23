@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { ShieldCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -53,8 +54,8 @@ const RISK_COLOR = { critical: '#ff4757', high: '#fb923c', medium: '#ffb800', lo
 const SEV_COLOR  = { critical: '#ff4757', warning: '#ffb800', info: '#00d4ff' }
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -113,7 +114,7 @@ function MatrixTab() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
+          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
           <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
             style={{ background: 'transparent', border: '1px solid #ff475730', borderRadius: 6, padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}
             disabled={resetting}>
@@ -388,11 +389,11 @@ function SodTab() {
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
-                      style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
                       {rule.is_active ? '⏸' : '▶'}
                     </button>
                     <button onClick={() => setEditingRule(rule)}
-                      style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
                     <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla SoD?', onConfirm: () => del(rule.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                   </div>
@@ -446,14 +447,14 @@ function ViolationsTab() {
         <strong style={{ color: 'var(--danger)' }}>Violaciones SoD en tiempo real</strong> — Registradas cuando el mismo usuario intenta realizar las dos acciones de un par conflictivo (ej: crear y aprobar su propia solicitud). Cada violación debe revisarse y resolverse explícitamente.
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[[false, 'Pendientes'], [null, 'Todas'], [true, 'Resueltas']].map(([val, label]) => (
           <button key={String(val)} onClick={() => setFilter(val)}
-            style={{ padding: '6px 14px', borderRadius: 6, border: `1px solid ${filter === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${filter === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
@@ -515,15 +516,15 @@ function AuditLogTab() {
         <strong style={{ color: 'var(--text-1)' }}>Audit Log inmutable GRC</strong> — Todos los eventos de seguridad: cambios de permisos, violaciones SoD, resets y aprobaciones críticas. Útil para auditorías SOC-2, ISO 27001 y cumplimiento regulatorio.
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Severidad:</span>
         {[['', 'Todas'], ['info', 'Info'], ['warning', 'Aviso'], ['critical', 'Crítico']].map(([val, label]) => (
           <button key={val} onClick={() => setSeverity(val)}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${severity === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${severity === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
@@ -624,16 +625,17 @@ export default function GrcPage() {
   const [tab, setTab] = useState('matrix')
 
   const TABS = [
-    { id: 'matrix',     label: '📋 Matriz de permisos' },
-    { id: 'sod',        label: '⚠️ Segregación SoD' },
-    { id: 'violations', label: '🚨 Violaciones' },
-    { id: 'approvals',  label: '✅ Flujos de mitigación' },
-    { id: 'auditlog',   label: '📋 Audit Log' },
+    { id: 'matrix',     label: 'Matriz de permisos' },
+    { id: 'sod',        label: 'Segregación SoD' },
+    { id: 'violations', label: 'Violaciones' },
+    { id: 'approvals',  label: 'Flujos de mitigación' },
+    { id: 'auditlog',   label: 'Audit Log' },
   ]
 
   return (
     <div style={{ padding: '20px 28px' }}>
       <PageHeader
+        icon={<ShieldCheck size={18} />}
         title={_t('grc.title')}
         subtitle={_t('grc.subtitle')}
       />
@@ -642,7 +644,7 @@ export default function GrcPage() {
         paddingBottom: 16, flexWrap: 'wrap' }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: '8px 18px', borderRadius: 8,
+            padding: '7px 16px', borderRadius: 8,
             border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
             background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
             color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',

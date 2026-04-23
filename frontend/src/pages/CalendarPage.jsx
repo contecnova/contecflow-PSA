@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -106,16 +107,16 @@ export default function CalendarPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('calendar.title')} subtitle={t('calendar.subtitle')} />
+      <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} />
 
       {/* Controles */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
+          <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
           <div style={{ fontSize: 18, fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
-          <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
+          <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
           <button onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }}
-            style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, color: 'var(--text-2)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
             Hoy
           </button>
         </div>

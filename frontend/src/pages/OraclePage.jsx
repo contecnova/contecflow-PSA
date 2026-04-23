@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const SEV = {
   critical: { label: 'Crítico', color: 'var(--danger)', bg: 'var(--danger-bg)' },
   high:     { label: 'Alto',    color: 'var(--warning)', bg: 'var(--warning-bg)' },
@@ -65,6 +66,7 @@ export default function OraclePage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Brain size={18} />}
         title={t('ai.oracle_title')}
         subtitle="Detecta riesgos y anomalias en tus proyectos con inteligencia artificial"
         actions={
@@ -126,7 +128,7 @@ export default function OraclePage() {
               <BarChart data={typeData} layout="vertical" margin={{ left: 10 }}>
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-2)' }} width={130} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
                 <Bar dataKey="count" fill="#00d4ff" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -138,7 +140,7 @@ export default function OraclePage() {
                 <Pie data={bySev} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={false}>
                   {bySev.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-2)' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -147,10 +149,10 @@ export default function OraclePage() {
       )}
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${filter===s ? SEV[s]?.color+'60' || 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${filter===s ? SEV[s]?.color+'60' || 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
             {s === 'all' ? `Todos (${preds.length})` : `${SEV[s]?.label} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}
@@ -183,7 +185,7 @@ export default function OraclePage() {
                     )}
                     {!p.is_acknowledged && (
                       <button onClick={() => ack(p.id)}
-                        style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
+                        style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
                         ✓ Reconocer
                       </button>
                     )}

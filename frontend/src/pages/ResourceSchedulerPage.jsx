@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { CalendarDays } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -25,7 +26,7 @@ const LABEL_W = 200  // px for the name column
 const HDR_H   = 60   // header height
 
 const UTIL_COLORS = [
-  [0,   10,  '#1e2d45'],  // available
+  [0,   10,  'var(--surface-4)'],  // available
   [10,  50,  '#1a3a5c'],
   [50,  80,  '#1e4a7a'],
   [80,  100, '#2d6099'],
@@ -124,7 +125,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       left: Math.min(position.x + 8, window.innerWidth - 260),
       top:  Math.min(position.y + 8, window.innerHeight - 280),
       width: 240,
-      background: '#0d1424', border: '1px solid #1e2d45',
+      background: '#0d1424', border: '1px solid var(--surface-4)',
       borderRadius: 12, padding: 16,
       boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
       fontFamily: 'var(--font-sans)',
@@ -438,6 +439,7 @@ export default function ResourceSchedulerPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
         <PageHeader
+        icon={<CalendarDays size={18} />}
           title={t('resource_scheduler.title')}
           subtitle={viewMode === 'assign' ? t('resource_scheduler.subtitle_assign') : t('resource_scheduler.subtitle_scheduler')}
           actions={
@@ -482,7 +484,7 @@ export default function ResourceSchedulerPage() {
 
       {/* Legend */}
       <div style={{ padding: '0 24px 8px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-        {[[t('resource_scheduler.legend_available'),'#1e2d45'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'#4f8ef7'],[t('resource_scheduler.legend_overloaded'),'#c2410c']].map(([l,c]) => (
+        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'#4f8ef7'],[t('resource_scheduler.legend_overloaded'),'#c2410c']].map(([l,c]) => (
           <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: c }} />{l}
           </span>
@@ -502,7 +504,7 @@ export default function ResourceSchedulerPage() {
         /* ── Assign view: drag person chip → project row ───────────────────── */
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
           {/* People panel */}
-          <div style={{ width: 160, flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: 12 }}>
+          <div style={{ width: 160, flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
@@ -541,18 +543,18 @@ export default function ResourceSchedulerPage() {
 
           {/* Project rows grid */}
           <div ref={gridRef} style={{ flex: 1, overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid #1e2d45', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
               {/* Corner */}
-              <div style={{ height: HDR_H, borderRight: '1px solid #1e2d45', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
+              <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.project')}</span>
               </div>
               {/* Week headers */}
-              <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'flex-end' }}>
+              <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
                 {weekDates.map((w, i) => {
                   const isToday = fmtISO(w) === fmtISO(today)
                   return (
                     <div key={i} style={{
-                      width: CELL_W, flexShrink: 0, borderLeft: '1px solid #1e2d4530',
+                      width: CELL_W, flexShrink: 0, borderLeft: '1px solid var(--surface-4)30',
                       height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
                       background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
                     }}>
@@ -576,7 +578,7 @@ export default function ResourceSchedulerPage() {
                 return (
                   <div key={proj.id} style={{ display: 'contents' }}>
                     <div style={{
-                      height: ROW_H, borderRight: '1px solid #1e2d45', borderTop: '1px solid #1e2d4530',
+                      height: ROW_H, borderRight: '1px solid var(--surface-4)', borderTop: '1px solid var(--surface-4)30',
                       display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6,
                     }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
@@ -589,14 +591,14 @@ export default function ResourceSchedulerPage() {
                       onPointerEnter={() => { assignDropProject.current = proj.id }}
                       onPointerLeave={() => { assignDropProject.current = null }}
                       style={{
-                        height: ROW_H, borderTop: '1px solid #1e2d4530', position: 'relative', display: 'flex',
+                        height: ROW_H, borderTop: '1px solid var(--surface-4)30', position: 'relative', display: 'flex',
                         cursor: 'copy',
                       }}
                     >
                       {weekDates.map((_, colIdx) => (
                         <div key={colIdx} style={{
                           width: CELL_W, flexShrink: 0, height: '100%',
-                          borderLeft: '1px solid #1e2d4530',
+                          borderLeft: '1px solid var(--surface-4)30',
                           background: 'transparent',
                         }} />
                       ))}
@@ -625,20 +627,20 @@ export default function ResourceSchedulerPage() {
         </div>
       ) : (
         <div ref={gridRef} style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid #1e2d45', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
 
             {/* Label column header */}
-            <div style={{ height: HDR_H, borderRight: '1px solid #1e2d45', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
+            <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.people')}</span>
             </div>
 
             {/* Week headers */}
-            <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid #1e2d45', display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
               {weekDates.map((w, i) => {
                 const isToday = fmtISO(w) === fmtISO(today)
                 return (
                   <div key={i} style={{
-                    width: CELL_W, flexShrink: 0, borderLeft: '1px solid #1e2d4530',
+                    width: CELL_W, flexShrink: 0, borderLeft: '1px solid var(--surface-4)30',
                     height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '0 4px 6px',
                     background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
                   }}>
@@ -663,7 +665,7 @@ export default function ResourceSchedulerPage() {
                 <div key={user.user_id} style={{ display: 'contents' }}>
                   {/* Label */}
                   <div style={{
-                    height: ROW_H, borderRight: '1px solid #1e2d45', borderTop: '1px solid #1e2d4530',
+                    height: ROW_H, borderRight: '1px solid var(--surface-4)', borderTop: '1px solid var(--surface-4)30',
                     display: 'flex', alignItems: 'center', padding: '0 14px', gap: 8,
                   }}>
                     <div style={{
@@ -680,7 +682,7 @@ export default function ResourceSchedulerPage() {
                   </div>
 
                   {/* Grid row */}
-                  <div style={{ height: ROW_H, borderTop: '1px solid #1e2d4530', position: 'relative', display: 'flex' }}>
+                  <div style={{ height: ROW_H, borderTop: '1px solid var(--surface-4)30', position: 'relative', display: 'flex' }}>
                     {/* Utilization cells */}
                     {weekDates.map((w, colIdx) => {
                       const weekData   = user.weeks?.[colIdx]
@@ -698,7 +700,7 @@ export default function ResourceSchedulerPage() {
                           title={weekData ? `${weekData.week} · ${loadPct}% ${t('dashboard.load_label').toLowerCase()} · ${weekData.available_hours}h ${t('resources.available').toLowerCase()}` : ''}
                           style={{
                             width: CELL_W, flexShrink: 0, height: '100%',
-                            borderLeft: '1px solid #1e2d4530',
+                            borderLeft: '1px solid var(--surface-4)30',
                             background: isDrag ? 'rgba(79,142,247,0.25)' : utilColor(loadPct),
                             cursor: 'crosshair',
                             transition: isDrag ? 'none' : 'background 0.15s',

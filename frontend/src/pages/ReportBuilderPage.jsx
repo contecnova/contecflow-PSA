@@ -10,6 +10,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const fs = { width: '100%', background: '#2d3748', border: '1px solid #4a5568', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -169,7 +170,7 @@ function PreviewTable({ rows, columns, entityDef }) {
       </div>
     )
   }
-  const cellBase = { padding: '7px 10px', fontSize: 12, borderBottom: '1px solid #1e2d45', color: '#e2e8f0', whiteSpace: 'nowrap' }
+  const cellBase = { padding: '7px 10px', fontSize: 12, borderBottom: '1px solid var(--surface-4)', color: '#e2e8f0', whiteSpace: 'nowrap' }
   const thStyle  = { ...cellBase, fontWeight: 700, fontSize: 10, color: '#718096', textTransform: 'uppercase', background: '#1a202c' }
 
   return (
@@ -313,6 +314,7 @@ export default function ReportBuilderPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader
+        icon={<BarChart2 size={18} />}
         title={t('report_builder.title')}
         subtitle={t('report_builder.subtitle')}
       />

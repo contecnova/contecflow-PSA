@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const STATUS_CFG = {
   done:    { label: 'Completado', color: 'var(--success)', bg: 'var(--success-bg)' },
   failed:  { label: 'Error',      color: 'var(--danger)', bg: 'var(--danger-bg)' },
@@ -165,6 +166,7 @@ export default function ContecflowAgentPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Bot size={18} />}
         title={t('ai.agent_title')}
         subtitle="Ejecuta instrucciones en lenguaje natural sobre tus proyectos y datos"
       />
@@ -190,7 +192,7 @@ export default function ContecflowAgentPage() {
               onKeyDown={handleKey}
               placeholder="Ej: Resume el estado de todos los proyectos activos..."
               rows={4}
-              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
+              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -260,7 +262,7 @@ export default function ContecflowAgentPage() {
 
           {/* History */}
           <div style={card}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e2d45', fontSize: 14, fontWeight: 700 }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 14, fontWeight: 700 }}>
               Historial de ejecuciones
             </div>
             {history.length === 0 ? (
@@ -271,7 +273,7 @@ export default function ContecflowAgentPage() {
               const sc = STATUS_CFG[e.status] || STATUS_CFG.pending
               return (
                 <button key={e.id} type="button" onClick={() => setResult(e)}
-                  style={{ padding: '14px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', transition: 'background 0.15s' }}
+                  style={{ padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', transition: 'background 0.15s' }}
                   onMouseEnter={ev => ev.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -303,7 +305,7 @@ export default function ContecflowAgentPage() {
             </div>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => { setInstruction(ex.text); textareaRef.current?.focus() }}
-                style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid #1e2d4530' : 'none', textAlign: 'left' }}>
+                style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid var(--surface-4)30' : 'none', textAlign: 'left' }}>
                 <span style={{ flexShrink: 0 }}>{ex.icon}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>{ex.text}</span>
               </button>
@@ -320,7 +322,7 @@ export default function ContecflowAgentPage() {
               </button>
             </div>
             {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(t => (
-              <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #1e2d4520', alignItems: 'center' }}>
+              <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)20', alignItems: 'center' }}>
                 <span style={{ fontSize: 14 }}>{t.icon}</span>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', fontFamily: 'monospace' }}>{t.name}</div>

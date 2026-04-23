@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -60,6 +61,7 @@ export default function SprintChartsPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1050, margin: '0 auto' }}>
       <PageHeader
+        icon={<BarChart2 size={18} />}
         title="Graficas de sprint"
         subtitle={_t('sprint_charts.subtitle')}
       />

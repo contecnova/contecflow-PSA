@@ -13,9 +13,9 @@ import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12 }
+const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 function InvoicesTab() {
@@ -147,7 +147,7 @@ function InvoicesTab() {
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
         <div style={{...card,overflow:'hidden'}}>
-          <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid #1e2d45',fontSize:10,fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
+          <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize:10,fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
             <SortableTH col="client_name" sort={invSort} onSort={setInvSort}>{t('invoices.client')}</SortableTH>
@@ -162,7 +162,7 @@ function InvoicesTab() {
             const cfg = STATUS_CFG[inv.status] || {label:inv.status,color:'var(--text-2)'}
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
-              <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid #1e2d4520',alignItems:'center'}}>
+              <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
                 <span style={{fontSize:12,fontFamily:'monospace',color:'var(--accent)'}}>{inv.number}</span>
                 <span style={{fontSize:11,color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
                 <div>
@@ -178,7 +178,7 @@ function InvoicesTab() {
                   {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid #00e5a040',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
-                  style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid #1e2d45',borderRadius:6,width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
+                  style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid var(--surface-4)',borderRadius:6,width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
                   {pdfLoadingId === inv.id ? '⏳' : <Download size={13} />}
                 </button>
               </div>
@@ -237,7 +237,7 @@ function InvoicesTab() {
               <div style={{background:'var(--surface-3)',borderRadius:8,padding:12}}>
                 <div style={{fontSize:11,fontWeight:700,color:'var(--text-2)',marginBottom:8,textTransform:'uppercase'}}>{t('invoices.invoice_lines')}</div>
                 {form.lines.map((l,i) => (
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid #1e2d4520',fontSize:12}}>
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid var(--surface-4)20',fontSize:12}}>
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price}€/h</span>

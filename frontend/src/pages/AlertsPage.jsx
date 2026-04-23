@@ -129,7 +129,7 @@ export default function AlertsPage() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       {!alert.is_read && (
                         <button onClick={() => markRead(alert.id)}
-                          style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
                           {t('alerts.mark_as_read')}
                         </button>
                       )}

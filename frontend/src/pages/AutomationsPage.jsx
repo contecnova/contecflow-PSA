@@ -161,8 +161,8 @@ const ACTION_PARAMS = {
 const TRIGGER_CATEGORIES = [...new Set(Object.values(TRIGGERS).map(t => t.category))]
 const ACTION_CATEGORIES  = [...new Set(Object.values(ACTIONS).map(a => a.category))]
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ── Rule card ─────────────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
             {t('automations.try_btn')}
           </button>
           <button aria-label={`${t('common.edit')} ${rule.name}`} onClick={() => onEdit(rule)}
-            style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
           <button aria-label={`${t('common.delete')} ${rule.name}`} onClick={() => { openConfirmGlobal({ message: t('common.are_you_sure'), onConfirm: () => onDelete(rule.id), danger: true }) }}
             style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
         </div>
@@ -633,7 +633,7 @@ function WorkflowsTab() {
                       {wf.status === 'active' ? '⏸ ' + t('automations.pause_workflow_btn') : '▶ ' + t('automations.activate_workflow_btn')}
                     </button>
                     <button aria-label={`${t('automations.edit_workflow_btn')} ${wf.name}`} onClick={() => setEditingWf(wf)}
-                      style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏ {t('automations.edit_workflow_btn')}</button>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏ {t('automations.edit_workflow_btn')}</button>
                     <button aria-label={`${t('automations.delete_workflow_btn')} ${wf.name}`} onClick={() => { openConfirmGlobal({ message: t('automations.delete_workflow_confirm'), onConfirm: () => del(wf.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                   </div>
@@ -742,7 +742,7 @@ export default function AutomationsPage() {
           ['workflows', '⚡ ' + t('automations.workflows_tab')],
         ].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} aria-controls={`automations-panel-${id}`} id={`automations-tab-${id}`} onClick={() => setTab(id)}
-            style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -759,7 +759,7 @@ export default function AutomationsPage() {
           { label: t('automations.stats_total_exec'), value: rules.reduce((s, r) => s + (r.run_count || 0), 0), color: 'var(--success)', icon: '▷' },
           { label: t('automations.stats_total_rules'), value: rules.length, color: 'var(--purple)', icon: '⚙️' },
         ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 18px' }}>
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
             <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
             <div style={{ fontSize: 24, fontWeight: 800, color }}>{value}</div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
@@ -775,7 +775,7 @@ export default function AutomationsPage() {
           [false, t('automations.filter_paused')],
         ].map(([val, label]) => (
           <button key={String(val)} aria-pressed={filterActive === val} onClick={() => setFilterActive(val)}
-            style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${filterActive === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filterActive === val ? 'var(--accent-muted)' : 'transparent', color: filterActive === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${filterActive === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filterActive === val ? 'var(--accent-muted)' : 'transparent', color: filterActive === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -814,7 +814,7 @@ export default function AutomationsPage() {
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)', marginBottom: 12 }}>✓ {t('automations.test_rule_success')}</div>
             <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 14 }}>
               {(testResult.results || []).map((r, i) => (
-                <div key={i} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid #1e2d4530', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
+                <div key={i} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--surface-4)30', color: r.ok ? 'var(--success)' : 'var(--danger)' }}>
                   {r.ok ? '✓' : '✗'} {r.action}: {r.ok ? t('automations.executed') : r.error}
                 </div>
               ))}
@@ -833,7 +833,7 @@ export default function AutomationsPage() {
             {templates.map(tpl => {
               const trigger = TRIGGERS[tpl.trigger_type] || { icon: '⚙️', label: tpl.trigger_type }
               return (
-                <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 16px' }}>
+                <div key={tpl.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{tpl.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>
                     {trigger.icon} {t('automations.trig_' + tpl.trigger_type, trigger.label)}

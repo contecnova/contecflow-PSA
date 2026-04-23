@@ -6,10 +6,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { GitMerge } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const DEP_TYPES = [
@@ -137,7 +138,7 @@ function GanttDepsView({ nodes, edges }) {
       <div style={{minWidth:600}}>
         {/* Cabecera */}
         <div style={{display:'grid', gridTemplateColumns:'200px 60px 1fr 80px', gap:0,
-          padding:'8px 12px', background:'var(--surface-1)', borderBottom:'1px solid #1e2d45',
+          padding:'8px 12px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
           fontSize:11, color:'var(--text-2)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em'}}>
           <div>Tarea</div><div>Estado</div><div>Dependencias</div><div>Tipo</div>
         </div>
@@ -233,7 +234,7 @@ export default function DependenciesPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('dependencies.title')} subtitle={t('dependencies.subtitle')}
+      <PageHeader icon={<GitMerge size={18} />} title={t('dependencies.title')} subtitle={t('dependencies.subtitle')}
         actions={project && (
           <Button onClick={() => setShowForm(true)}>+ Nueva dependencia</Button>
         )} />
@@ -251,7 +252,7 @@ export default function DependenciesPage() {
             <div style={{display:'flex', gap:6}}>
               {['list','visual'].map(v => (
                 <button key={v} onClick={() => setView(v)}
-                  style={{padding:'7px 14px', borderRadius:8, border:'1px solid #1e2d45',
+                  style={{padding:'7px 14px', borderRadius:8, border:'1px solid var(--surface-4)',
                     background:view===v?'var(--accent-muted)':'transparent', color:view===v?'var(--accent)':'var(--text-2)',
                     cursor:'pointer', fontFamily:'inherit', fontSize:13}}>
                   {v === 'list' ? '📋 Lista' : '🗺 Mapa visual'}
@@ -300,7 +301,7 @@ export default function DependenciesPage() {
               ) : (
                 <table style={{width:'100%', borderCollapse:'collapse', fontSize:13}}>
                   <thead>
-                    <tr style={{borderBottom:'1px solid #1e2d45'}}>
+                    <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
                       {['Tarea A','Tipo','Tarea B','Lag','Nota',''].map(h => (
                         <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize:11, color:'var(--text-2)',
                           textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>

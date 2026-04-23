@@ -106,7 +106,7 @@ export default function AgentDashboardPage() {
             <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_resolved_by_day')}</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
                 <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -121,7 +121,7 @@ export default function AgentDashboardPage() {
             <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_sla_by_day')}</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={trend} margin={{top:5,right:10,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
                 <YAxis tick={{fill:'var(--text-2)',fontSize:10}} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -138,7 +138,7 @@ export default function AgentDashboardPage() {
             <div style={{fontSize:13,fontWeight:600,marginBottom:16}}>{t('agent_dashboard.chart_daily_csat')}</div>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={trend.filter(d=>d.csat!==null)} margin={{top:5,right:10,left:0,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:10}} tickFormatter={d=>d.slice(5)} />
                 <YAxis domain={[0,5]} tick={{fill:'var(--text-2)',fontSize:10}} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />

@@ -477,11 +477,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <button onClick={() => setShowCanned(s => !s)}
-                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? '#00d4ff40' : '#1e2d45'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? '#00d4ff40' : 'var(--surface-4)'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ⚡ Respuestas rápidas
               </button>
               <button onClick={() => suggestReply()} disabled={suggestingReply}
-                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid #1e2d45', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
                 {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('service_desk.detail_send_comment')}`}
               </button>
             </div>

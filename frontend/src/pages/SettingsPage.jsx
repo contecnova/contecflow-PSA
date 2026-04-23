@@ -14,7 +14,7 @@ import { extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
 function Section({ icon, title, description, children }) {
@@ -49,13 +49,13 @@ function SettingField({ setting, label, onSave }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(setting.value || '')
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 16px' }}>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
       <label style={ls}>{label}</label>
       {editing ? (
         <div style={{ display: 'flex', gap: 8 }}>
           <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
           <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700 }}>✓</button>
-          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer' }}>✕</button>
+          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer' }}>✕</button>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -100,7 +100,7 @@ function UsersSection() {
               <span style={{ fontSize: 11, background: `${ROLE_COLORS[u.role]}15`, color: ROLE_COLORS[u.role], border: `1px solid ${ROLE_COLORS[u.role]}30`, borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>{ROLE_LABELS[u.role] || u.role}</span>
               {u.department && <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{u.department}</span>}
               {!u.is_active && <span style={{ fontSize: 11, color: 'var(--danger)' }}>Inactivo</span>}
-              <button onClick={() => setEditUser(u)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️ Editar</button>
+              <button onClick={() => setEditUser(u)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️ Editar</button>
               {u.is_active ? <button onClick={() => openConfirmGlobal({ message: `¿Desactivar a "${u.full_name}"?`, onConfirm: () => deactivate(u.id) })} style={{ background: 'none', border: '1px solid #ffb80030', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: 11 }}>⏸ Desactivar</button>
                 : <button onClick={() => deactivate(u.id)} style={{ background: 'none', border: '1px solid #00e5a030', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: 11 }}>▶ Activar</button>}
               <button onClick={() => openConfirmGlobal({ title: '⚠️ Eliminar permanentemente', message: `¿Eliminar permanentemente a "${u.full_name}"? Esta acción no se puede deshacer.`, onConfirm: () => deletePermanent(u.id), danger: true })} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑 Eliminar</button>
@@ -184,11 +184,11 @@ function RolesSection() {
               </div>
             </div>
             {r.is_system && <span style={{ fontSize: 10, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 20, padding: '2px 8px' }}>Sistema</span>}
-            <button onClick={() => setEditRole(r)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️ Editar</button>
+            <button onClick={() => setEditRole(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️ Editar</button>
             {!r.is_system && <button onClick={() => deleteRole(r.id)} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>}
           </div>
         ))}
-        <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed #1e2d45', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
+        <button onClick={() => setShowCreate(true)} style={{ padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear rol personalizado</button>
       </div>
       {(showCreate || editRole) && (
         <RoleFormModal role={editRole} modules={modules} onClose={() => { setShowCreate(false); setEditRole(null) }}
@@ -267,7 +267,7 @@ function AlertConfigSection() {
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <label style={{ fontSize: 11, color: 'var(--text-2)' }}>Umbral:</label>
                       <input type="number" defaultValue={cfg.threshold_value} onBlur={e => update({ type: cfg.alert_type, data: { threshold_value: +e.target.value } })}
-                        style={{ width: 70, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
+                        style={{ width: 70, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', textAlign: 'center' }} />
                       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{cfg.threshold_unit}</span>
                     </div>
                   )}
@@ -313,7 +313,7 @@ function RateTablesSection() {
             <div key={t.id} style={{ background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>{t.name}</span>
                   {t.is_default && <span style={{ fontSize: 10, background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 }}>Por defecto</span>}
                   <span style={{ fontSize: 11, color: 'var(--text-2)', marginLeft: 8 }}>{t.applies_to === 'role' ? 'Por rol' : t.applies_to === 'department' ? 'Por departamento' : 'Por cliente'}</span>
                 </div>
@@ -394,9 +394,9 @@ function VacationSection() {
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Políticas configuradas</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {policies.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 10 }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${p.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
               <div style={{ flex: 1 }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</span>
                 {p.is_default && <span style={{ fontSize: 10, background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 20, padding: '1px 8px', marginLeft: 8 }}>Por defecto</span>}
                 <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
                   {p.days_per_year} días/año {p.carries_over ? `· Acumula hasta ${p.max_carryover_days || '∞'} días` : '· No acumula'}
@@ -419,16 +419,16 @@ function VacationSection() {
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700 }}>Saldos del equipo</div>
-          <select value={year} onChange={e => setYear(+e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+          <select value={year} onChange={e => setYear(+e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
             {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             <span>Persona</span><span>Asignados</span><span>Tomados</span><span>Pendientes</span><span>Disponibles</span><span>Editar</span>
           </div>
           {balances.map(b => (
-            <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
+            <div key={b.user_id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{b.user_name}</div>
                 {b.department && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{b.department}</div>}
@@ -438,7 +438,7 @@ function VacationSection() {
               <span style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: 'var(--warning)' }}>{b.days_pending}d</span>
               <span style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: b.days_remaining <= 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 700 }}>{b.days_remaining}d</span>
               <input type="number" defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
-                style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', textAlign: 'center' }} />
             </div>
           ))}
         </div>
@@ -461,7 +461,7 @@ function NumberingSection() {
       {isLoading ? <Spinner /> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {seqs.map(s => (
-            <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10 }}>
+            <div key={s.entity} style={{ display: 'flex', gap: 14, alignItems: 'flex-end', padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
               <div style={{ width: 120, flexShrink: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{ENTITY_LABELS[s.entity] || s.entity}</div>
                 <div style={{ fontSize: 11, color: 'var(--accent)', fontFamily: "'Space Mono', monospace", marginTop: 4 }}>{s.next_preview}</div>
@@ -516,7 +516,7 @@ function CustomFieldsSection() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {entityFields.map(f => (
                   <React.Fragment key={f.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                       <span style={{ fontSize: 16 }}>{TYPE_ICONS[f.field_type] || '📝'}</span>
                       <div style={{ flex: 1 }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>{f.name}</span>
@@ -525,7 +525,7 @@ function CustomFieldsSection() {
                       </div>
                       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{TYPES.find(t => t.value === f.field_type)?.label}</span>
                       <button onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
-                        style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
                       <button onClick={() => deleteField(f.id)} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                     </div>
                     {editingFieldId === f.id && (
@@ -583,7 +583,7 @@ function TemplatesSection() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
           {templates.map(t => (
-            <button key={t.id} type="button" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
+            <button key={t.id} type="button" style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
               onClick={() => setSelected(t)}>
@@ -603,7 +603,7 @@ function TemplatesSection() {
           ))}
         </div>
       )}
-      <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed #1e2d45', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
+      <button onClick={() => setShowCreate(true)} style={{ width: '100%', padding: '10px', border: '1px dashed var(--surface-4)', borderRadius: 10, background: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' }}>＋ Crear plantilla</button>
       {showCreate && <CreateTemplateModal onClose={() => setShowCreate(false)} onSave={(data) => advancedConfigApi.createTemplate(data).then(() => { qc.invalidateQueries(['project-templates']); setShowCreate(false) })} />}
       {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
     </Section>
@@ -630,7 +630,7 @@ function CreateTemplateModal({ onClose, onSave }) {
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Fases ({form.phases.length})</div>
           {form.phases.map((p, i) => (
-            <div key={i} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, marginBottom: 6 }}>
+            <div key={i} style={{ padding: '8px 12px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -665,7 +665,7 @@ function TemplateDetailModal({ template, onClose }) {
           <div key={p.id} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 16px' }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>📋 {p.name}</div>
             {p.tasks?.map(t => (
-              <div key={t.id} style={{ fontSize: 12, color: 'var(--text-2)', padding: '3px 8px', borderLeft: '2px solid #1e2d45', marginBottom: 3 }}>
+              <div key={t.id} style={{ fontSize: 12, color: 'var(--text-2)', padding: '3px 8px', borderLeft: '2px solid var(--surface-4)', marginBottom: 3 }}>
                 {t.title} {t.estimated_hours ? `(${t.estimated_hours}h)` : ''}
               </div>
             ))}
@@ -720,14 +720,14 @@ function OfficesSection() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                 <span style={{ fontSize: 20 }}>🏢</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{o.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
                 <button onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||'Europe/Madrid' }) }}
-                  style={{ background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11 }}>✏</button>
+                  style={{ background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11 }}>✏</button>
                 <button onClick={() => del(o.id)} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
               </div>
             )}
@@ -832,11 +832,11 @@ function DepartmentsSection() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                  background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10 }}>
+                  background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{d.name}</span>
                   {d.description && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{d.description}</span>}
                   <button onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '' }) }}
-                    style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6,
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
                       padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
                   <button onClick={() => del(d.id)}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6,
@@ -978,8 +978,8 @@ function IdiomasSection() {
     URL.revokeObjectURL(url)
   }
 
-  const fs   = { width: '100%', background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }
-  const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+  const fs   = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }
+  const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
   if (loadingAppLang) return <div>Cargando traducciones…</div>
 
@@ -987,10 +987,10 @@ function IdiomasSection() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Tabs principales */}
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid #1e2d45', paddingBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}>
         {[['operator','⚙️ Idioma del operador'],['app','🖥 Traducciones del back-office'],['portal','🌐 Portal cliente']].map(([id, label]) => (
           <button key={id} onClick={() => setActiveTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeTab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeTab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: activeTab === id ? 'var(--accent-muted)' : 'transparent', color: activeTab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -999,7 +999,7 @@ function IdiomasSection() {
       {/* ── OPERADOR ── */}
       {activeTab === 'operator' && (
         <div style={card}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #1e2d45' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--surface-4)' }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Idioma del operador (back-office)</div>
             <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
               Idioma de la interfaz interna. Cada usuario puede configurar el suyo desde aquí. Se guarda en el navegador.
@@ -1032,7 +1032,7 @@ function IdiomasSection() {
               <div style={{ display: 'flex', gap: 6 }}>
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${appLang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${appLang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: appLang === l.code ? 'var(--accent-muted)' : 'transparent', color: appLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -1051,7 +1051,7 @@ function IdiomasSection() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                 📤 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={importJSON} />
               </label>
@@ -1064,13 +1064,13 @@ function IdiomasSection() {
             <span>🇪🇸 Español (base)</span>
             <span>{APP_LANGUAGES.find(l => l.code === appLang)?.flag} {APP_LANGUAGES.find(l => l.code === appLang)?.label}</span>
           </div>
-          <div style={{ border: '1px solid #1e2d45', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
+          <div style={{ border: '1px solid var(--surface-4)', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
             {filteredKeys.slice(0, 200).map((item, idx) => {
               const currentVal = getAppVal(appLang, item.module, item.key)
               const isModified = appEdits[appLang]?.[item.module]?.[item.key] !== undefined
               return (
                 <div key={item.full_key}
-                  style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid #1e2d4520', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                  style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid var(--surface-4)20', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
                   <div>
                     <span style={{ fontSize: 10, color: 'var(--text-3)', display: 'block' }}>{item.module}</span>
                     <span style={{ fontSize: 11, fontFamily: 'monospace', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{item.key}</span>
@@ -1100,7 +1100,7 @@ function IdiomasSection() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={exportJSON}
-                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                 📥 Exportar JSON
               </button>
               <button onClick={saveAppTrans} disabled={!hasUnsaved}
@@ -1121,7 +1121,7 @@ function IdiomasSection() {
               <div style={{ display: 'flex', gap: 6 }}>
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
                   <button key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${portalLang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${portalLang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: portalLang === l.code ? 'var(--accent-muted)' : 'transparent', color: portalLang === l.code ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {l.flag} {l.label}
                   </button>
                 ))}
@@ -1134,7 +1134,7 @@ function IdiomasSection() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>IMPORTAR JSON</div>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                 📤 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
                   const file = e.target.files[0]
@@ -1170,7 +1170,7 @@ function IdiomasSection() {
             <span>🇪🇸 Español (base)</span>
             <span>{PORTAL_LANGUAGES.find(l => l.code === portalLang)?.flag} {PORTAL_LANGUAGES.find(l => l.code === portalLang)?.label}</span>
           </div>
-          <div style={{ border: '1px solid #1e2d45', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
+          <div style={{ border: '1px solid var(--surface-4)', borderTop: 'none', borderRadius: '0 0 8px 8px', maxHeight: 500, overflowY: 'auto' }}>
             {getPortalKeys()
               .filter(({ key, base_es }) => !portalSearch ||
                 key.includes(portalSearch.toLowerCase()) ||
@@ -1180,7 +1180,7 @@ function IdiomasSection() {
                   ?? PORTAL_TRANSLATIONS[portalLang]?.[key] ?? ''
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid #1e2d4520', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 8, padding: '6px 14px', borderBottom: '1px solid var(--surface-4)20', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', alignItems: 'center' }}>
                     <span style={{ fontSize: 11, fontFamily: 'monospace', color: isModified ? 'var(--warning)' : 'var(--text-2)' }}>{key}</span>
                     <span style={{ fontSize: 12, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base_es}</span>
                     <input
@@ -1203,7 +1203,7 @@ function IdiomasSection() {
               {hasUnsaved && <span style={{ color: 'var(--warning)', marginLeft: 8 }}>⚠ Cambios sin guardar</span>}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              <label style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                 📤 Importar JSON
                 <input type="file" accept="application/json" style={{ display: 'none' }} onChange={e => {
                   const file = e.target.files[0]
@@ -1238,7 +1238,7 @@ function IdiomasSection() {
                 const url = URL.createObjectURL(blob); const a = document.createElement('a')
                 a.href = url; a.download = 'portal_translations.json'; a.click()
                 URL.revokeObjectURL(url)
-              }} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              }} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                 📥 Exportar JSON
               </button>
               <button onClick={() => {
@@ -1315,7 +1315,7 @@ function LogLevelSection() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
 
         {/* Backend */}
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '18px 20px' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🖥️ Servidor (FastAPI / Uvicorn)</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>
             Cambia el nivel en tiempo real sin reiniciar. Configurable también por variable de entorno <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>LOG_LEVEL=INFO</code>
@@ -1331,7 +1331,7 @@ function LogLevelSection() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {LEVELS.map(l => (
               <button key={l} onClick={() => handleSetBackend(l)}
-                style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : '#1e2d45'}`,
+                style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`,
                   background: backendLevel === l ? (LEVEL_COLORS[l] + '22') : 'var(--surface-3)',
                   color: backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)',
                   cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
@@ -1342,7 +1342,7 @@ function LogLevelSection() {
         </div>
 
         {/* Frontend */}
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '18px 20px' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🌐 Navegador (React / Vite)</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>
             Controla la consola del navegador. Se guarda en localStorage. También puedes escribir en la consola: <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>{"__clariveLogger.setLevel('debug')"}</code>
@@ -1354,7 +1354,7 @@ function LogLevelSection() {
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
               <button key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
                 style={{ padding: '6px 14px', borderRadius: 8,
-                  border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : '#1e2d45'}`,
+                  border: `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`,
                   background: frontendLevel.toUpperCase() === l ? ((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) + '22') : 'var(--surface-3)',
                   color: frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)',
                   cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
@@ -1370,21 +1370,21 @@ function LogLevelSection() {
 
 
 const TABS = [
-  { id: 'general',      label: '⚙️ General',          roles: ['admin'] },
-  { id: 'users',        label: '👤 Usuarios',          roles: ['admin', 'hr'] },
-  { id: 'roles',        label: '🔐 Roles',             roles: ['admin'] },
-  { id: 'alert-config', label: '🔔 Alertas',           roles: ['admin'] },
-  { id: 'task-types',   label: '🏷️ Tipos tarea',       roles: ['admin', 'pm'] },
-  { id: 'templates',    label: '📐 Plantillas',        roles: ['admin', 'pm'] },
-  { id: 'rates',        label: '💶 Tarifas',           roles: ['admin'] },
-  { id: 'vacations',    label: '🏖️ Vacaciones',        roles: ['admin', 'hr'] },
-  { id: 'depts',        label: '🏢 Departamentos',     roles: ['admin', 'hr'] },
-  { id: 'offices',      label: '🌍 Sedes',             roles: ['admin'] },
-  { id: 'numbering',    label: '🔢 Numeración',        roles: ['admin'] },
-  { id: 'fields',       label: '🧩 Campos extra',      roles: ['admin'] },
-  { id: 'idiomas',      label: '🌐 Idiomas',            roles: ['admin'] },
-  { id: 'email-inbound',label: '📧 Email-to-ticket',  roles: ['admin'] },
-  { id: 'log-level',    label: '📋 Nivel de log',      roles: ['admin'] },
+  { id: 'general',      label: 'General',          roles: ['admin'] },
+  { id: 'users',        label: 'Usuarios',          roles: ['admin', 'hr'] },
+  { id: 'roles',        label: 'Roles',             roles: ['admin'] },
+  { id: 'alert-config', label: 'Alertas',           roles: ['admin'] },
+  { id: 'task-types',   label: 'Tipos tarea',       roles: ['admin', 'pm'] },
+  { id: 'templates',    label: 'Plantillas',        roles: ['admin', 'pm'] },
+  { id: 'rates',        label: 'Tarifas',           roles: ['admin'] },
+  { id: 'vacations',    label: 'Vacaciones',        roles: ['admin', 'hr'] },
+  { id: 'depts',        label: 'Departamentos',     roles: ['admin', 'hr'] },
+  { id: 'offices',      label: 'Sedes',             roles: ['admin'] },
+  { id: 'numbering',    label: 'Numeración',        roles: ['admin'] },
+  { id: 'fields',       label: 'Campos extra',      roles: ['admin'] },
+  { id: 'idiomas',      label: 'Idiomas',            roles: ['admin'] },
+  { id: 'email-inbound',label: 'Email-to-ticket',  roles: ['admin'] },
+  { id: 'log-level',    label: 'Nivel de log',      roles: ['admin'] },
 ]
 
 // ── Email-to-ticket configuration section ─────────────────────────────────────
@@ -1478,7 +1478,7 @@ export default function SettingsPage() {
       <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} />
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {visibleTabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${activeTab === tab.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: activeTab === tab.id ? 'var(--accent-muted)' : 'transparent', color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>

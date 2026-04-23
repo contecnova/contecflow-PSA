@@ -231,52 +231,52 @@ function CABBoard() {
   })
 
   const IMPACT_CFG = {
-    low:{ label:'Bajo', color:'var(--color-text-success)' },
-    medium:{ label:'Medio', color:'var(--color-text-info)' },
-    high:{ label:'Alto', color:'var(--color-text-warning)' },
-    critical:{ label:'Crítico', color:'var(--color-text-danger)' },
+    low:{ label:'Bajo', color:'var(--success)' },
+    medium:{ label:'Medio', color:'var(--accent)' },
+    high:{ label:'Alto', color:'var(--warning)' },
+    critical:{ label:'Crítico', color:'var(--danger)' },
   }
-  const card = { background:'var(--color-background-primary)', border:'.5px solid var(--color-border-tertiary)', borderRadius:12 }
+  const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
         <div>
           <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>CRs pendientes de votación CAB ({pendingCRs.length})</div>
-          {isLoading ? <div style={{ color:'var(--color-text-secondary)', fontSize:13 }}>Cargando...</div> :
+          {isLoading ? <div style={{ color:'var(--text-2)', fontSize:13 }}>Cargando...</div> :
             pendingCRs.length === 0 ? (
-              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--color-text-tertiary)', fontSize:13 }}>Sin CRs pendientes de votación</div>
+              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize:13 }}>Sin CRs pendientes de votación</div>
             ) : pendingCRs.map(cr => {
               const ic = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ ...card, padding:'16px 20px', marginBottom:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                     <div>
-                      <div style={{ fontSize:11, color:'var(--color-text-secondary)', marginBottom:2 }}>{cr.project_code} · {cr.code}</div>
+                      <div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>{cr.project_code} · {cr.code}</div>
                       <div style={{ fontSize:14, fontWeight:500, marginBottom:6 }}>{cr.title}</div>
                       <div style={{ display:'flex', gap:12, fontSize:12 }}>
                         <span style={{ color:ic.color, fontWeight:500 }}>{ic.label} impacto</span>
-                        {cr.cost_impact && <span style={{ color:'var(--color-text-danger)' }}>+{cr.cost_impact}€</span>}
-                        {cr.schedule_impact_days && <span style={{ color:'var(--color-text-warning)' }}>+{cr.schedule_impact_days}d</span>}
+                        {cr.cost_impact && <span style={{ color:'var(--danger)' }}>+{cr.cost_impact}€</span>}
+                        {cr.schedule_impact_days && <span style={{ color:'var(--warning)' }}>+{cr.schedule_impact_days}d</span>}
                       </div>
                     </div>
-                    <div style={{ textAlign:'right', fontSize:12, color:'var(--color-text-secondary)' }}>
+                    <div style={{ textAlign:'right', fontSize:12, color:'var(--text-2)' }}>
                       <div style={{ marginBottom:4 }}>✓ {cr.votes?.approve} | ✗ {cr.votes?.reject}</div>
                       <div>{cr.requester}</div>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
                     {cr.my_vote ? (
-                      <span style={{ fontSize:12, color:'var(--color-text-secondary)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
+                      <span style={{ fontSize:12, color:'var(--text-2)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
                     ) : <>
-                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--color-background-success)', border:'.5px solid var(--color-border-success)', borderRadius:6, padding:'4px 14px', color:'var(--color-text-success)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✓ Aprobar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--color-background-danger)', border:'.5px solid var(--color-border-danger)', borderRadius:6, padding:'4px 14px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✗ Rechazar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--color-border-tertiary)', borderRadius:6, padding:'4px 14px', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Abstener</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--success)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✓ Aprobar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✗ Rechazar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Abstener</button>
                     </>}
                     {cr.votes?.total >= 3 && !['approved','rejected'].includes(cr.status) && (
                       <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                        <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--color-background-success)', border:'.5px solid var(--color-border-success)', borderRadius:6, padding:'4px 12px', color:'var(--color-text-success)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
-                        <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--color-background-danger)', border:'.5px solid var(--color-border-danger)', borderRadius:6, padding:'4px 12px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
+                        <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
+                        <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
                       </div>
                     )}
                   </div>
@@ -289,12 +289,12 @@ function CABBoard() {
         <div>
           <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>Ventanas de mantenimiento</div>
           {windows.length === 0 ? (
-            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--color-text-tertiary)', fontSize:13 }}>Sin ventanas programadas</div>
+            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize:13 }}>Sin ventanas programadas</div>
           ) : windows.slice(0,5).map(w => (
             <div key={w.id} style={{ ...card, padding:'12px 14px', marginBottom:10 }}>
               <div style={{ fontSize:13, fontWeight:500, marginBottom:4 }}>{w.name}</div>
-              <div style={{ fontSize:11, color:'var(--color-text-secondary)', marginBottom:2 }}>{w.start_dt} → {w.end_dt}</div>
-              <div style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-secondary)', color:'var(--color-text-secondary)', display:'inline-block' }}>{w.environment}</div>
+              <div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>{w.start_dt} → {w.end_dt}</div>
+              <div style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', display:'inline-block' }}>{w.environment}</div>
             </div>
           ))}
         </div>
@@ -356,7 +356,7 @@ export default function ChangesPage() {
       <div style={{ display:'flex', gap:8, marginBottom:24 }}>
         {[['changes','🔀 Control de cambios'],['cab','📋 CAB & Ventanas']].map(([id,label]) => (
           <button key={id} onClick={() => setMainTab(id)}
-            style={{ padding:'8px 14px', borderRadius:8, border:`.5px solid ${mainTab===id?'var(--color-border-info)':'var(--color-border-tertiary)'}`, background:mainTab===id?'var(--color-background-info)':'transparent', color:mainTab===id?'var(--color-text-info)':'var(--color-text-secondary)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'8px 14px', borderRadius:8, border:`.5px solid ${mainTab===id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:mainTab===id?'var(--accent-muted)':'transparent', color:mainTab===id?'var(--accent)':'var(--text-2)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
             {label}
           </button>
         ))}
@@ -364,10 +364,10 @@ export default function ChangesPage() {
       {mainTab === 'cab' && <CABBoard />}
       {mainTab === 'changes' && <div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['project', '📁 Por proyecto'], ...(hasRole('admin', 'pm') ? [['pending', `⏳ Pendientes (${allPending.length})`]] : [])].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t ? 'var(--accent-muted)' : 'transparent', color: tab === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t ? 'var(--accent-muted)' : 'transparent', color: tab === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}

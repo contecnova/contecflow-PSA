@@ -9,13 +9,14 @@ import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
+import { Building2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--color-background-secondary)', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'9px 12px', color:'var(--color-text-primary)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--color-background-primary)', border:'.5px solid var(--color-border-tertiary)', borderRadius:12 }
+const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
-const PLAN_COLORS = { starter:'var(--color-text-secondary)', pro:'var(--color-text-info)', enterprise:'var(--color-text-success)' }
+const PLAN_COLORS = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
 
 export default function OrganizationsPage() {
   // ...existing code...
@@ -93,8 +94,8 @@ export default function OrganizationsPage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('organizations.title')} subtitle={t('organizations.subtitle')} />
-      <div style={{ background:'var(--color-background-info)', border:'.5px solid var(--color-border-info)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize:13, color:'var(--color-text-info)' }}>
+      <PageHeader icon={<Building2 size={18} />} title={t('organizations.title')} subtitle={t('organizations.subtitle')} />
+      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize:13, color:'var(--accent)' }}>
         Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Clarive como SaaS multi-empresa.
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -111,22 +112,22 @@ export default function OrganizationsPage() {
                 <div key={o.id} onClick={() => setSelected(selected===o.id?null:o.id)}
                   role="button" tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected===o.id?null:o.id) } }}
-                  style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid var(--color-border-info)':'var(--color-border-tertiary) .5px solid' }}>
+                  style={{ ...card, padding:'16px 20px', cursor:'pointer', opacity: o.is_active ? 1 : 0.6, border:selected===o.id?'.5px solid rgba(0,212,255,0.25)':'var(--surface-4) .5px solid' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                         <span style={{ fontSize:14, fontWeight:500 }}>{o.name}</span>
-                        <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-secondary)', color: PLAN_COLORS[o.plan] || 'var(--color-text-secondary)', fontWeight:500 }}>{o.plan}</span>
-                        {!o.is_active && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-danger)', color:'var(--color-text-danger)' }}>Inactiva</span>}
+                        <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: PLAN_COLORS[o.plan] || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
+                        {!o.is_active && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Inactiva</span>}
                       </div>
-                      <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
+                      <div style={{ fontSize:12, color:'var(--text-2)' }}>
                         {o.slug} · {o.user_count} usuarios · {o.project_count} proyectos · {o.admin_email || '—'}
                       </div>
                     </div>
                     <div style={{ display:'flex', gap:8 }}>
-                      <span style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{o.created_at}</span>
+                      <span style={{ fontSize:12, color:'var(--text-2)' }}>{o.created_at}</span>
                       <button onClick={e => { e.stopPropagation(); toggle({ id:o.id, is_active:!o.is_active }) }}
-                        style={{ background:'transparent', border:'.5px solid var(--color-border-secondary)', borderRadius:6, padding:'3px 10px', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+                        style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
                         {o.is_active ? 'Suspender' : 'Activar'}
                       </button>
                     </div>
@@ -145,8 +146,8 @@ export default function OrganizationsPage() {
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
               {[['Plan', detail.plan], ['Usuarios', `${detail.users?.length}/${detail.max_users}`], ['Zona horaria', detail.timezone], ['Idioma', detail.locale]].map(([k,v]) => (
-                <div key={k} style={{ background:'var(--color-background-secondary)', borderRadius:8, padding:'10px 12px' }}>
-                  <div style={{ fontSize:10, color:'var(--color-text-tertiary)', marginBottom:2 }}>{k}</div>
+                <div key={k} style={{ background:'var(--surface-2)', borderRadius:8, padding:'10px 12px' }}>
+                  <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2 }}>{k}</div>
                   <div style={{ fontSize:12, fontWeight:500 }}>{v}</div>
                 </div>
               ))}
@@ -155,13 +156,13 @@ export default function OrganizationsPage() {
               <span style={{ fontSize:13, fontWeight:500 }}>Usuarios ({detail.users?.length})</span>
               <Button size="sm" onClick={() => setShowAssignUser(true)}>Asignar usuario</Button>
             </div>
-            {(detail.users || []).length === 0 && <div style={{ color:'var(--color-text-tertiary)', fontSize:12, marginBottom:8 }}>No hay usuarios asignados.</div>}
+            {(detail.users || []).length === 0 && <div style={{ color:'var(--text-3)', fontSize:12, marginBottom:8 }}>No hay usuarios asignados.</div>}
             {(detail.users || []).map((u, idx, arr) => {
               const isLast = arr.length === 1
               return (
-                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
+                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize:12 }}>
                   <span>{u.full_name}</span>
-                  <span style={{ color:'var(--color-text-secondary)' }}>{u.role}</span>
+                  <span style={{ color:'var(--text-2)' }}>{u.role}</span>
                   <Button
                     size="xs"
                     variant="danger"
@@ -196,7 +197,7 @@ export default function OrganizationsPage() {
                           filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
                         />
                       </div>
-                      <div style={{ color:'var(--color-danger)', fontSize:12, minHeight:18 }}>
+                      <div style={{ color:'var(--danger)', fontSize:12, minHeight:18 }}>
                         {assignUserId === '' ? '' : (() => {
                           const user = allUsers.find(u => u.id === assignUserId)
                           if (user && user.is_active === false) return 'No puedes asignar usuarios inactivos.'

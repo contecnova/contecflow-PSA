@@ -14,6 +14,7 @@ import { z } from 'zod'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Globe } from 'lucide-react'
 import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
@@ -267,7 +268,7 @@ function EditClientModal({ client, onClose, onSaved }) {
   })
   const validation = useFormValidation(portalClientEditSchema)
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -416,7 +417,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
   const [form, setForm] = useState({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
   const [testCases, setTestCases] = useState([{ title: '', steps: '', expected_result: '' }])
   const validation = useFormValidation(uatSessionSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -480,7 +481,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
             </div>
           ))}
           <button onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])}
-            style={{ background: 'none', border: '1px dashed #1e2d45', borderRadius: 8, padding: '8px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', width: '100%' }}>
+            style={{ background: 'none', border: '1px dashed var(--surface-4)', borderRadius: 8, padding: '8px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', width: '100%' }}>
             {`＋ ${t('client_portal.uat_add_test_case')}`}
           </button>
         </div>
@@ -621,7 +622,7 @@ function FeatureRequestsTab({ projectId }) {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   return (
@@ -747,7 +748,7 @@ function MessagesTab({ projectId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {messages.map(thread => (
             <div key={thread.id} style={{ background: 'var(--surface-2)', border: `1px solid ${!thread.is_read_by_team && thread.sender_type === 'client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}`, borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 18px', borderBottom: thread.replies?.length > 0 ? '1px solid #1e2d4530' : 'none' }}>
+              <div style={{ padding: '14px 18px', borderBottom: thread.replies?.length > 0 ? '1px solid var(--surface-4)30' : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
                     {thread.subject && <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{thread.subject}</div>}
@@ -762,13 +763,13 @@ function MessagesTab({ projectId }) {
                 </div>
               </div>
               {thread.replies?.map(r => (
-                <div key={r.id} style={{ padding: '10px 18px 10px 40px', borderBottom: '1px solid #1e2d4520', background: r.sender_type === 'team' ? 'var(--surface-1)' : 'transparent' }}>
+                <div key={r.id} style={{ padding: '10px 18px 10px 40px', borderBottom: '1px solid var(--surface-4)20', background: r.sender_type === 'team' ? 'var(--surface-1)' : 'transparent' }}>
                   <p style={{ fontSize: 13, color: 'var(--text-1)', margin: '0 0 4px' }}>{r.body}</p>
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.sender_type === 'client' ? '👤' : '💼'} {r.sender_name} · {r.created_at}</div>
                 </div>
               ))}
               <div style={{ padding: '10px 18px' }}>
-                <button onClick={() => setReplyTo(thread)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                <button onClick={() => setReplyTo(thread)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                   {`↩ ${t('client_portal.messages_reply')}`}
                 </button>
               </div>
@@ -781,9 +782,9 @@ function MessagesTab({ projectId }) {
         <Modal open title={replyTo ? `${t('client_portal.messages_modal_reply_to')}: ${replyTo.subject || replyTo.body.slice(0, 40)}` : t('client_portal.messages_modal_new_to_client')} onClose={() => { setShowNew(false); setReplyTo(null) }} width={500}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {!replyTo && <div><label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>{t('client_portal.messages_subject')}</label>
-              <input value={newSubject} onChange={e => setNewSubject(e.target.value)} style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} /></div>}
+              <input value={newSubject} onChange={e => setNewSubject(e.target.value)} style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} /></div>}
             <textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} rows={4} placeholder={t('client_portal.messages_body_placeholder')}
-              style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', width: '100%' }} />
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', width: '100%' }} />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <Button variant="secondary" onClick={() => { setShowNew(false); setReplyTo(null) }}>{t('common.cancel')}</Button>
               <Button onClick={() => sendMsg({ project_id: projectId, body: newMsg, subject: newSubject || undefined, parent_id: replyTo?.id, thread_id: replyTo?.thread_id })} disabled={!newMsg}>{t('client_portal.send')}</Button>
@@ -802,7 +803,7 @@ function DocumentsTab({ projectId }) {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [docForm, setDocForm] = useState({ title: '', description: '', category: 'deliverable', file_url: '', file_name: '', requires_signature: false })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data: docs = [], isLoading } = useQuery({
@@ -838,7 +839,7 @@ function DocumentsTab({ projectId }) {
           {docs.map((doc, i) => {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
-              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid #1e2d4530' : 'none' }}>
+              <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{doc.title}</div>
@@ -913,9 +914,9 @@ function WikiPortalTab({ projectId }) {
   })
 
   const VIS = {
-    team:   { label: `🔒 ${t('client_portal.wiki_vis_team')}`, color: 'var(--text-2)' },
-    portal: { label: `🌐 ${t('client_portal.wiki_vis_portal')}`, color: 'var(--accent)' },
-    public: { label: `🌍 ${t('client_portal.wiki_vis_public')}`, color: 'var(--success)' },
+    team:   { label: `${t('client_portal.wiki_vis_team')}`, color: 'var(--text-2)' },
+    portal: { label: `${t('client_portal.wiki_vis_portal')}`, color: 'var(--accent)' },
+    public: { label: `${t('client_portal.wiki_vis_public')}`, color: 'var(--success)' },
   }
 
   return (
@@ -938,7 +939,7 @@ function WikiPortalTab({ projectId }) {
       {pages.length > 0 && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           {pages.map((page, i) => (
-            <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid #1e2d4530' : 'none' }}>
+            <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
               <span style={{ fontSize: 16 }}>📄</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{page.title}</div>
@@ -1002,17 +1003,18 @@ export default function ClientPortalPage() {
   })
 
   const TABS = [
-    { id: 'clients',  label: `👤 ${t('client_portal.tab_contacts')}` },
-    { id: 'uat',      label: `🧪 ${t('client_portal.tab_uat')}` },
-    { id: 'requests', label: `💡 ${t('client_portal.tab_requests')}` },
-    { id: 'messages', label: `💬 ${t('client_portal.tab_messages')}` },
-    { id: 'documents',label: `📄 ${t('client_portal.tab_documents')}` },
-    { id: 'wiki',     label: `📚 ${t('client_portal.tab_wiki')}` },
+    { id: 'clients',  label: `${t('client_portal.tab_contacts')}` },
+    { id: 'uat',      label: `${t('client_portal.tab_uat')}` },
+    { id: 'requests', label: `${t('client_portal.tab_requests')}` },
+    { id: 'messages', label: `${t('client_portal.tab_messages')}` },
+    { id: 'documents',label: `${t('client_portal.tab_documents')}` },
+    { id: 'wiki',     label: `${t('client_portal.tab_wiki')}` },
   ]
 
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Globe size={18} />}
         title={t('client_portal.title')}
         subtitle={t('client_portal.subtitle')}
         actions={
@@ -1026,10 +1028,10 @@ export default function ClientPortalPage() {
 
       {selectedProject && <StatsPanel projectId={selectedProject} />}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}

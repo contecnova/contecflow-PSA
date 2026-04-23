@@ -16,7 +16,7 @@ import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function onKeyboardActivate(event, action) {
@@ -234,7 +234,7 @@ function TaskDetailModal({ task, open, onClose }) {
   }
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs  = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs  = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls  = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
   const COMPLEXITY_COLORS = { simple: 'var(--success)', medium: 'var(--warning)', complex: 'var(--danger)' }
   const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
@@ -249,12 +249,12 @@ function TaskDetailModal({ task, open, onClose }) {
       width={680}>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 10 }}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}
            role="tablist" aria-label={t('tasks.tab_details')}>
         {[['detail', t('tasks.tab_details')],['comments', t('tasks.tab_comments')],['docs', t('tasks.tab_docs')]].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} aria-controls={`tab-panel-${id}`}
             onClick={() => setTab(id)}
-            style={{ padding: '5px 14px', borderRadius: 7, border: `1px solid ${tab===id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab===id ? 'var(--accent-muted)' : 'transparent', color: tab===id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 7, border: `1px solid ${tab===id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab===id ? 'var(--accent-muted)' : 'transparent', color: tab===id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label} {id === 'comments' && task.comments?.length > 0 && `(${task.comments.length})`}
           </button>
         ))}
@@ -342,7 +342,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Custom fields (read-only) */}
           {customFields.length > 0 && rawCustomValues.length > 0 && (
-            <div style={{ marginBottom: 14, borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
+            <div style={{ marginBottom: 14, borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
               <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{t('tasks.custom_fields_label')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {customFields.map(f => {
@@ -360,7 +360,7 @@ function TaskDetailModal({ task, open, onClose }) {
           )}
 
           {/* Footer actions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTop: '1px solid #1e2d45' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
             <button onClick={() => { openConfirmGlobal({ message: `${t('common.are_you_sure')} ${t('common.delete')}?`, onConfirm: () => deleteTask(), danger: true }) }} disabled={deleting}
               style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               {deleting ? t('tasks.deleting') : `🗑 ${t('common.delete')}`}
@@ -437,7 +437,7 @@ function TaskDetailModal({ task, open, onClose }) {
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={acceptSuggestion} style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
-                  <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '4px 8px', borderRadius: 6, background: 'transparent', border: '1px solid #1e2d45', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✕</button>
+                  <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '4px 8px', borderRadius: 6, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✕</button>
                 </div>
               </div>
             )}
@@ -482,7 +482,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
           {/* Campos personalizados */}
           {customFields.length > 0 && (
-            <div style={{ gridColumn: '1/-1', borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
+            <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
               <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {customFields.map(f => (
@@ -559,7 +559,7 @@ function TaskDetailModal({ task, open, onClose }) {
             <textarea value={comment} onChange={e => setComment(e.target.value)}
               placeholder={t('tasks.add_comment')}
               rows={2}
-              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
+              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
               onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && comment) addComment({ id: task.id, content: comment }) }}
             />
             <Button onClick={() => addComment({ id: task.id, content: comment })} disabled={!comment || commenting}>{t('tasks.send_comment')}</Button>
@@ -769,9 +769,10 @@ export default function TasksPage() {
       <PageHeader
         icon={<CheckSquare size={18} />}
         title={t('tasks.title')}
+        subtitle={t('tasks.subtitle')}
         actions={
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
-            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
               {['kanban', 'list'].map(v => (
                 <button key={v} onClick={() => setView(v)}
                   style={{
@@ -796,26 +797,26 @@ export default function TasksPage() {
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 14 }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('tasks.search_placeholder')}
-            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px 9px 34px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
         </div>
         <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          style={{ flex: 1, minWidth: isMobile ? '100%' : 200, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ flex: 1, minWidth: isMobile ? '100%' : 200, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">{t('tasks.all_projects')}</option>
           {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: priorityFilter ? 'var(--warning)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">{t('tasks.filter_priority')}</option>
           {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
         <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: assigneeFilter ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">{t('tasks.all_assignees')}</option>
           {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </select>
         {view === 'list' && (
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">{t('tasks.filter_status')}</option>
             {TASK_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -827,12 +828,12 @@ export default function TasksPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', marginBottom: 12,
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10,
           flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
             ☑ {selected.size} {t('tasks.selected')}
           </span>
           <div style={{ width: 1, height: 20, background: 'var(--surface-4)' }} />
           <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkStatus ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkStatus ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">{t('tasks.bulk_status_ph')}</option>
             <option value="todo">○ {t('tasks.status_todo')}</option>
             <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
@@ -841,7 +842,7 @@ export default function TasksPage() {
             <option value="done">● {t('tasks.status_done')}</option>
           </select>
           <select value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkPriority ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkPriority ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">{t('tasks.bulk_priority_ph')}</option>
             <option value="low">🟢 {t('tasks.priority_low')}</option>
             <option value="medium">🟡 {t('tasks.priority_medium')}</option>
@@ -849,7 +850,7 @@ export default function TasksPage() {
             <option value="critical">🚨 {t('tasks.priority_critical')}</option>
           </select>
           <select value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
-            style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: bulkAssignee ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: bulkAssignee ? 'var(--text-1)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
             <option value="">{t('tasks.bulk_assignee_ph')}</option>
             {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
@@ -858,7 +859,7 @@ export default function TasksPage() {
             {bulkPending ? '⏳' : t('tasks.bulk_apply')}
           </button>
           <button onClick={() => { setSelected(new Set()); setBulkStatus(''); setBulkPriority(''); setBulkAssignee('') }}
-            style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 10px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 10px', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('common.cancel')}
           </button>
         </div>
@@ -890,11 +891,11 @@ export default function TasksPage() {
           flatTasks.length === 0 ? (
             <EmptyState icon="tasks" title={t('tasks.no_tasks')} description={t('tasks.col_task')} ctaLabel={t('tasks.new_task')} onCta={() => setShowCreate(true)} />
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 12, color: 'var(--text-2)' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 12, color: 'var(--text-2)' }}>
                 💡 {t('tasks.select_project')} · {flatTasks.length} {t('tasks.col_task')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
                 <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
                 <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
@@ -911,7 +912,7 @@ export default function TasksPage() {
                     onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
                     role="button"
                     tabIndex={0}
-                    style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
+                    style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                     onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}>
                     <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
@@ -944,7 +945,7 @@ export default function TasksPage() {
                   role="button"
                   tabIndex={0}
                   style={{
-                    background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10,
+                    background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10,
                     padding: '12px 14px', cursor: 'pointer',
                   }}
                 >
@@ -974,8 +975,8 @@ export default function TasksPage() {
             })}
           </div>
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <input type="checkbox" checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
               <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
               <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
@@ -995,7 +996,7 @@ export default function TasksPage() {
                   onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
                   role="button"
                   tabIndex={0}
-                  style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '14px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                 >
@@ -1072,7 +1073,7 @@ function CreateTaskModal({ open, onClose, projects }) {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   const analyzeWithAI = async () => {
@@ -1180,7 +1181,7 @@ function CreateTaskModal({ open, onClose, projects }) {
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={acceptSuggestion} style={{ padding: '5px 12px', borderRadius: 6, background: 'var(--success-bg)', border: '1px solid #00e5a050', color: 'var(--success)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('tasks.ai_apply')}</button>
-              <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '5px 8px', borderRadius: 6, background: 'transparent', border: '1px solid #1e2d45', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>✕</button>
+              <button onClick={() => { setSemSuggestion(null); setSemEffort(null) }} style={{ padding: '5px 8px', borderRadius: 6, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>✕</button>
             </div>
           </div>
         )}
@@ -1202,7 +1203,7 @@ function CreateTaskModal({ open, onClose, projects }) {
         </div>
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (
-          <div style={{ gridColumn: '1/-1', borderTop: '1px solid #1e2d45', paddingTop: 14 }}>
+          <div style={{ gridColumn: '1/-1', borderTop: '1px solid var(--surface-4)', paddingTop: 14 }}>
             <label style={{ ...ls, marginBottom: 10 }}>{t('tasks.custom_fields_label')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {customFields.map(f => (

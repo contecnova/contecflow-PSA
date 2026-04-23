@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { LayoutGrid } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const fs = { width: '100%', background: '#2d3748', border: '1px solid #4a5568', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -291,6 +292,7 @@ export default function M365Page() {
   return (
     <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
       <PageHeader
+        icon={<LayoutGrid size={18} />}
         title="Microsoft 365"
         subtitle="Integracion con Graph API y Microsoft Teams"
       />

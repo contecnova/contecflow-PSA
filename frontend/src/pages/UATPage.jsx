@@ -29,7 +29,7 @@ const PRIORITY_META = {
 }
 
 const fs = {
-  background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8,
+  background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
   padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none',
   fontFamily: 'inherit', width: '100%',
 }

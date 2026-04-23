@@ -22,7 +22,7 @@ const STATUS_CFG = {
   cancelled:   { color:'var(--danger)',   label:'Cancelado',     icon:'✗' },
 }
 
-const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
   borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
   outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
@@ -158,9 +158,9 @@ export default function TrainingPage() {
   const expired = certs.filter(c => c.is_expired)
 
   const TABS = [
-    { id:'courses', label:'📚 Catálogo' },
-    { id:'enrollments', label:'👤 Inscripciones' },
-    { id:'certs', label:'🏅 Certificaciones' },
+    { id:'courses', label:'Catálogo' },
+    { id:'enrollments', label:'Inscripciones' },
+    { id:'certs', label:'Certificaciones' },
   ]
 
   return (
@@ -214,7 +214,7 @@ export default function TrainingPage() {
       )}
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:6, marginBottom:24 }}>
+      <div style={{ display:'flex', gap:6, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:600,
@@ -234,7 +234,7 @@ export default function TrainingPage() {
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px,1fr))', gap:12 }}>
             {courses.map(c => (
-              <div key={c.id} style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+              <div key={c.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
                 borderRadius:12, padding:'16px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div style={{ flex:1, minWidth:0 }}>
@@ -244,7 +244,7 @@ export default function TrainingPage() {
                   {isAdmin && (
                     <div style={{ display:'flex', gap:4, marginLeft:8 }}>
                       <button onClick={()=>{setEditingCourse(c);setShowCourseModal(true)}}
-                        style={{background:'none',border:'1px solid #1e2d45',borderRadius:5,padding:'3px 7px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'3px 7px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
                       <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar curso?', onConfirm: () => delCourse(c.id), danger: true }) }}
                         style={{background:'none',border:'1px solid #ff475730',borderRadius:5,padding:'3px 7px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
                     </div>
@@ -269,10 +269,10 @@ export default function TrainingPage() {
         enrollments.length === 0 ? (
           <EmptyState icon="👤" title="Sin inscripciones" description="Todavia no hay empleados inscritos en cursos" />
         ) : (
-          <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, overflow:'hidden' }}>
+          <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
-                <tr style={{ borderBottom:'1px solid #1e2d45' }}>
+                <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
                   {['Empleado','Curso','Estado','Inicio','Fin','Nota'].map(h => (
                     <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{h}</th>
                   ))}
@@ -282,7 +282,7 @@ export default function TrainingPage() {
                 {enrollments.map(e => {
                   const sc = STATUS_CFG[e.status] || STATUS_CFG.planned
                   return (
-                    <tr key={e.id} style={{ borderBottom:'1px solid #1e2d4520' }}
+                    <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)20' }}
                       onMouseEnter={el=>el.currentTarget.style.background='var(--surface-3)'}
                       onMouseLeave={el=>el.currentTarget.style.background='transparent'}>
                       <td style={{ padding:'10px 14px', fontSize:13, fontWeight:600 }}>{e.user_name}</td>
@@ -316,7 +316,7 @@ export default function TrainingPage() {
             {certs.map(c => (
               <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12,
                 padding:'12px 16px', background:'var(--surface-2)', borderRadius:10,
-                border:`1px solid ${c.is_expired ? 'rgba(226,75,74,0.3)' : c.expiring_soon ? 'rgba(186,117,23,0.3)' : '#1e2d45'}` }}>
+                border:`1px solid ${c.is_expired ? 'rgba(226,75,74,0.3)' : c.expiring_soon ? 'rgba(186,117,23,0.3)' : 'var(--surface-4)'}` }}>
                 <div style={{ fontSize:24 }}>🏅</div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700 }}>{c.name}
@@ -341,7 +341,7 @@ export default function TrainingPage() {
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize:11, color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
                 <button onClick={()=>{setEditingCert(c);setShowCertModal(true)}}
-                  style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
                 <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar?', onConfirm: () => delCert(c.id), danger: true }) }}
                   style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
               </div>

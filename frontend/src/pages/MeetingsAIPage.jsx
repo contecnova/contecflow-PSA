@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const card = {
@@ -142,6 +143,7 @@ export default function MeetingsAIPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Video size={18} />}
         title={_t('meetings_ai.title')}
         subtitle={_t('meetings_ai.subtitle')}
         actions={<Button onClick={() => setShowProcess(true)}>＋ {_t('meetings_ai.process_meeting')}</Button>}
@@ -183,7 +185,7 @@ export default function MeetingsAIPage() {
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
                   <span style={{ fontSize: 18 }}>{plat.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
                   </div>
                 </div>
@@ -236,7 +238,7 @@ export default function MeetingsAIPage() {
                     ✅ {_t('meetings_ai.decisions_label', { count: detail.decisions.length })}
                   </div>
                   {detail.decisions.map((d, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid #1e2d4530' : 'none', fontSize: 13 }}>
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: 13 }}>
                       <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>◆</span>
                       <span style={{ lineHeight: 1.5 }}>{d}</span>
                     </div>
@@ -258,7 +260,7 @@ export default function MeetingsAIPage() {
                     )}
                   </div>
                   {detail.actions.map(a => (
-                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #1e2d4530', alignItems: 'flex-start', gap: 12 }}>
+                    <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--surface-4)30', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-2)' }}>

@@ -8,14 +8,15 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
-import _PageHeader from '../components/layout/PageHeader'
+import PageHeader from '../components/layout/PageHeader'
 
 import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
+import { Building2 } from 'lucide-react'
 
-const fs = { width:'100%', background:'var(--color-background-secondary)', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'9px 12px', color:'var(--color-text-primary)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--color-background-primary)', border:'.5px solid var(--color-border-tertiary)', borderRadius:12 }
+const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 function WebhooksTab() {
   const qc = useQueryClient()
@@ -41,7 +42,7 @@ function WebhooksTab() {
 
   return (
     <div>
-      <div style={{ background:'var(--color-background-info)', border:'.5px solid var(--color-border-info)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'var(--color-text-info)' }}>
+      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'var(--accent)' }}>
         Los webhooks entrantes permiten que sistemas externos disparen automatizaciones en Clarive mediante un simple HTTP POST a la URL configurada.
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -54,24 +55,24 @@ function WebhooksTab() {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
               <div style={{ fontSize:13, fontWeight:500, marginBottom:4 }}>{t.name}</div>
-              <code style={{ fontSize:11, background:'var(--color-background-secondary)', padding:'2px 8px', borderRadius:4, color:'var(--color-text-secondary)' }}>POST /api/v1{t.endpoint}</code>
-              <span style={{ marginLeft:12, fontSize:11, color:'var(--color-text-secondary)' }}>{t.fire_count} disparos</span>
+              <code style={{ fontSize:11, background:'var(--surface-2)', padding:'2px 8px', borderRadius:4, color:'var(--text-2)' }}>POST /api/v1{t.endpoint}</code>
+              <span style={{ marginLeft:12, fontSize:11, color:'var(--text-2)' }}>{t.fire_count} disparos</span>
             </div>
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--color-border-secondary)', borderRadius:6, padding:'4px 10px', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+              <button onClick={() => setShowLogs(showLogs === t.id ? null : t.id)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
                 {showLogs === t.id ? 'Ocultar' : 'Logs'}
               </button>
-              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar?', onConfirm: () => del(t.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid var(--color-border-danger)', borderRadius:6, padding:'4px 8px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:12 }}>🗑</button>
+              <button onClick={() => { openConfirmGlobal({ message: 'Eliminar?', onConfirm: () => del(t.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 8px', color:'var(--danger)', cursor:'pointer', fontSize:12 }}>🗑</button>
             </div>
           </div>
           {showLogs === t.id && (
-            <div style={{ marginTop:10, borderTop:'.5px solid var(--color-border-tertiary)', paddingTop:8 }}>
-              {logs.length === 0 ? <div style={{ fontSize:12, color:'var(--color-text-tertiary)' }}>Sin llamadas aún</div> :
+            <div style={{ marginTop:10, borderTop:'.5px solid var(--surface-4)', paddingTop:8 }}>
+              {logs.length === 0 ? <div style={{ fontSize:12, color:'var(--text-3)' }}>Sin llamadas aún</div> :
                 logs.slice(0,5).map(l => (
-                  <div key={l.id} style={{ fontSize:11, padding:'3px 0', borderBottom:'.5px solid var(--color-border-tertiary)', display:'flex', gap:10 }}>
-                    <span style={{ color: l.status === 'ok' ? 'var(--color-text-success)' : 'var(--color-text-danger)' }}>{l.status}</span>
-                    <span style={{ color:'var(--color-text-secondary)' }}>{l.received_at}</span>
-                    <span style={{ color:'var(--color-text-tertiary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{l.payload_preview}</span>
+                  <div key={l.id} style={{ fontSize:11, padding:'3px 0', borderBottom:'.5px solid var(--surface-4)', display:'flex', gap:10 }}>
+                    <span style={{ color: l.status === 'ok' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
+                    <span style={{ color:'var(--text-2)' }}>{l.received_at}</span>
+                    <span style={{ color:'var(--text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{l.payload_preview}</span>
                   </div>
                 ))
               }
@@ -90,7 +91,7 @@ function WebhooksTab() {
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
-            <div style={{ background:'var(--color-background-secondary)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--color-text-secondary)' }}>
+            <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--text-2)' }}>
               URL: <code>POST /api/v1/webhooks/fire/{form.slug || 'tu-slug'}</code>
             </div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
@@ -126,11 +127,11 @@ function GDPRTab() {
   })
 
   const TYPE_LABELS = { erasure:'Derecho al olvido', portability:'Portabilidad', access:'Acceso', rectification:'Rectificación' }
-  const STATUS_COLORS = { pending:'var(--color-text-warning)', processing:'var(--color-text-info)', completed:'var(--color-text-success)', rejected:'var(--color-text-danger)' }
+  const STATUS_COLORS = { pending:'var(--warning)', processing:'var(--accent)', completed:'var(--success)', rejected:'var(--danger)' }
 
   return (
     <div>
-      <div style={{ background:'var(--color-background-warning)', border:'.5px solid var(--color-border-warning)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'var(--color-text-warning)' }}>
+      <div style={{ background:'var(--warning-bg)', border:'.5px solid rgba(251,191,36,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'var(--warning)' }}>
         Gestión de solicitudes RGPD. Plazo máximo de respuesta: 30 días (Art. 12 RGPD).
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -141,14 +142,14 @@ function GDPRTab() {
       ) : (
         <div style={{ ...card, overflow:'hidden' }}>
           {requests.map(r => (
-            <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--color-border-tertiary)', alignItems:'center' }}>
+            <div key={r.id} style={{ display:'grid', gridTemplateColumns:'150px 120px 1fr 100px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center' }}>
               <span style={{ fontSize:12, fontWeight:500 }}>{TYPE_LABELS[r.request_type] || r.request_type}</span>
-              <span style={{ fontSize:12, fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--color-text-secondary)' }}>{r.status}</span>
+              <span style={{ fontSize:12, fontWeight:500, color:STATUS_COLORS[r.status] || 'var(--text-2)' }}>{r.status}</span>
               <div>
                 <div style={{ fontSize:13, fontWeight:500 }}>{r.subject_name || r.subject_email || 'Sin identificar'}</div>
-                {r.notes && <div style={{ fontSize:11, color:'var(--color-text-secondary)' }}>{r.notes}</div>}
+                {r.notes && <div style={{ fontSize:11, color:'var(--text-2)' }}>{r.notes}</div>}
               </div>
-              <span style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{r.deadline}</span>
+              <span style={{ fontSize:12, color:'var(--text-2)' }}>{r.deadline}</span>
               {r.status === 'pending' && <Button onClick={() => process(r.id)}>Procesar</Button>}
             </div>
           ))}
@@ -215,7 +216,7 @@ function EmailTab() {
   return (
     <div>
       <div style={{ display:'flex', gap:10, justifyContent:'flex-end', marginBottom:20 }}>
-        <button onClick={() => setShowCreate(true)} style={{ background:'transparent', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'8px 14px', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+        <button onClick={() => setShowCreate(true)} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
           + Plantilla
         </button>
         <Button onClick={() => setShowSend(true)}>✉ Enviar email</Button>
@@ -226,11 +227,11 @@ function EmailTab() {
           {allTpl.map(t => (
             <div key={t.id} style={{ ...card, padding:'12px 14px', marginBottom:8 }}>
               <div style={{ display:'flex', gap:6, marginBottom:4 }}>
-                <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-info)', color:'var(--color-text-info)' }}>{t.category}</span>
-                {t.is_system && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-secondary)', color:'var(--color-text-tertiary)' }}>sistema</span>}
+                <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{t.category}</span>
+                {t.is_system && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-3)' }}>sistema</span>}
               </div>
               <div style={{ fontSize:13, fontWeight:500 }}>{t.name}</div>
-              <div style={{ fontSize:11, color:'var(--color-text-secondary)', marginTop:2, fontFamily:'monospace' }}>{t.subject}</div>
+              <div style={{ fontSize:11, color:'var(--text-2)', marginTop:2, fontFamily:'monospace' }}>{t.subject}</div>
             </div>
           ))}
         </div>
@@ -239,13 +240,13 @@ function EmailTab() {
           {logs.length === 0 ? <EmptyState icon="✉" title="Sin historial de envios" description="Todavia no se han enviado correos desde este modulo" /> : (
             <div style={{ ...card, overflow:'hidden' }}>
               {logs.slice(0,15).map(l => (
-                <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
-                  <span style={{ fontWeight:500, color: l.status === 'sent' ? 'var(--color-text-success)' : 'var(--color-text-danger)' }}>{l.status}</span>
+                <div key={l.id} style={{ display:'grid', gridTemplateColumns:'50px 1fr auto', gap:8, padding:'8px 14px', borderBottom:'.5px solid var(--surface-4)', fontSize:12 }}>
+                  <span style={{ fontWeight:500, color: l.status === 'sent' ? 'var(--success)' : 'var(--danger)' }}>{l.status}</span>
                   <div>
                     <div style={{ fontWeight:500 }}>{l.to}</div>
-                    <div style={{ fontSize:11, color:'var(--color-text-secondary)' }}>{l.subject}</div>
+                    <div style={{ fontSize:11, color:'var(--text-2)' }}>{l.subject}</div>
                   </div>
-                  <span style={{ fontSize:11, color:'var(--color-text-tertiary)', whiteSpace:'nowrap' }}>{(l.sent_at || l.created_at || '').slice(0,16)}</span>
+                  <span style={{ fontSize:11, color:'var(--text-3)', whiteSpace:'nowrap' }}>{(l.sent_at || l.created_at || '').slice(0,16)}</span>
                 </div>
               ))}
             </div>
@@ -359,7 +360,7 @@ function IntegrationsTab() {
   const CATALOG = INTEGRATION_CATALOG
 
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
-  const is = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const is = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
   return (
     <div>
@@ -373,7 +374,7 @@ function IntegrationsTab() {
           {integrations.map(integ => {
             const cat = CATALOG.find(c => c.type === integ.integration_type) || { icon: '🔗', label: integ.integration_type }
             return (
-              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div key={integ.id} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <span style={{ fontSize: 22 }}>{cat.icon}</span>
                   <div>
@@ -386,15 +387,15 @@ function IntegrationsTab() {
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => testIntegration(integ)} disabled={testing === integ.id}
-                    style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                     {testing === integ.id ? '⟳' : '🔧 Probar'}
                   </button>
                   <button onClick={() => sync(integ.id)}
-                    style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                     ↺ Sync
                   </button>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${integ.name}?`, onConfirm: () => del(integ.id), danger: true }) }}
-                    style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                 </div>
               </div>
             )
@@ -454,7 +455,7 @@ function IntegrationsTab() {
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setConfiguring(null)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setConfiguring(null)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <button onClick={() => create({ ...form, integration_type: configuring.type, config: JSON.stringify(form.config) })}
               disabled={isPending}
               style={{ background: 'var(--accent-glow)', border: '1px solid #00d4ff40', borderRadius: 8, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
@@ -490,48 +491,48 @@ function AuditTab() {
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ ...card, padding: '12px 14px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Total eventos</div>
+          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Total eventos</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{logs.length}</div>
           </div>
-          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset solicitados</div>
+          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset solicitados</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{resetRequestLogs.length}</div>
           </div>
-          <div style={{ background: 'var(--color-background-secondary)', border: '.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset completados</div>
+          <div style={{ background: 'var(--surface-2)', border: '.5px solid var(--surface-4)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Reset completados</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>{resetCompleteLogs.length}</div>
           </div>
         </div>
       </div>
 
       <div style={{ ...card, overflow:'hidden' }}>
-        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', borderBottom: '.5px solid var(--color-border-tertiary)' }}>
+        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
           Eventos de recuperacion de contrasena
         </div>
-        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--color-text-tertiary)', fontSize: 12 }}>Sin eventos de recuperacion</div> :
+        {passwordResetLogs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: 12 }}>Sin eventos de recuperacion</div> :
           passwordResetLogs.map((l, i) => (
-            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
-              <span style={{ color:'var(--color-text-secondary)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
-              <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--color-text-success)' : 'var(--color-text-info)' }}>{l.action}</span>
-              <span style={{ color:'var(--color-text-secondary)' }}>{l.resource_name || l.resource || '-'}</span>
-              <span style={{ color:'var(--color-text-tertiary)' }}>{l.user_name||''}</span>
+            <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize:12 }}>
+              <span style={{ color:'var(--text-2)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
+              <span style={{ fontWeight:600, color: l.action === 'PASSWORD_RESET_COMPLETE' ? 'var(--success)' : 'var(--accent)' }}>{l.action}</span>
+              <span style={{ color:'var(--text-2)' }}>{l.resource_name || l.resource || '-'}</span>
+              <span style={{ color:'var(--text-3)' }}>{l.user_name||''}</span>
             </div>
           ))
         }
       </div>
 
       <div style={{ ...card, overflow:'hidden' }}>
-        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', borderBottom: '.5px solid var(--color-border-tertiary)' }}>
+        <div style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'var(--text-2)', borderBottom: '.5px solid var(--surface-4)' }}>
           Audit log general (ultimos 30)
         </div>
-      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--color-text-tertiary)', fontSize: 12 }}>Sin entradas en el audit log</div> :
+      {logs.length === 0 ? <div style={{ padding:18, textAlign:'center', color:'var(--text-3)', fontSize: 12 }}>Sin entradas en el audit log</div> :
         logs.slice(0,30).map((l, i) => (
-          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--color-border-tertiary)', fontSize:12 }}>
-            <span style={{ color:'var(--color-text-secondary)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
+          <div key={l.id||i} style={{ display:'grid', gridTemplateColumns:'140px 220px 1fr 140px', gap:12, padding:'9px 16px', borderBottom:'.5px solid var(--surface-4)', fontSize:12 }}>
+            <span style={{ color:'var(--text-2)', fontFamily:'monospace' }}>{(l.created_at||'').slice(0,16)}</span>
             <span style={{ fontWeight:500 }}>{l.action}</span>
-            <span style={{ color:'var(--color-text-secondary)' }}>{l.resource} {l.resource_name||''}</span>
-            <span style={{ color:'var(--color-text-tertiary)' }}>{l.user_name||''}</span>
+            <span style={{ color:'var(--text-2)' }}>{l.resource} {l.resource_name||''}</span>
+            <span style={{ color:'var(--text-3)' }}>{l.user_name||''}</span>
           </div>
         ))
       }
@@ -565,24 +566,24 @@ function APIKeysTab() {
         <Button onClick={() => setShowCreate(true)}>+ Nueva API key</Button>
       </div>
       {newKey && (
-        <div style={{ background:'var(--color-background-success)', border:'.5px solid var(--color-border-success)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
-          <div style={{ fontWeight:500, color:'var(--color-text-success)', marginBottom:6 }}>Cópiala ahora — no se mostrará de nuevo</div>
-          <code style={{ fontSize:13, background:'var(--color-background-primary)', padding:'8px 12px', borderRadius:6, display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
-          <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cerrar</button>
+        <div style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:10, padding:'14px 18px', marginBottom:20 }}>
+          <div style={{ fontWeight:500, color:'var(--success)', marginBottom:6 }}>Cópiala ahora — no se mostrará de nuevo</div>
+          <code style={{ fontSize:13, background:'var(--surface-1)', padding:'8px 12px', borderRadius:6, display:'block', wordBreak:'break-all' }}>{newKey.key}</code>
+          <button onClick={() => setNewKey(null)} style={{ marginTop:8, background:'transparent', border:'none', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cerrar</button>
         </div>
       )}
       {keys.length === 0 ? <EmptyState icon="🗝" title="Sin API keys" description="Genera una clave para integraciones externas" /> : (
         <div style={{ ...card, overflow:'hidden' }}>
           {keys.map(k => (
-            <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--color-border-tertiary)', alignItems:'center', fontSize:12 }}>
+            <div key={k.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 130px 110px auto', gap:12, padding:'12px 18px', borderBottom:'.5px solid var(--surface-4)', alignItems:'center', fontSize:12 }}>
               <div>
                 <div style={{ fontWeight:500 }}>{k.name}</div>
-                <code style={{ fontSize:11, color:'var(--color-text-secondary)' }}>{k.key_prefix}...</code>
+                <code style={{ fontSize:11, color:'var(--text-2)' }}>{k.key_prefix}...</code>
               </div>
-              <span style={{ color:'var(--color-text-secondary)' }}>{(k.scopes||[]).join(', ')}</span>
-              <span style={{ color:'var(--color-text-secondary)' }}>{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
-              <span style={{ color:'var(--color-text-tertiary)' }}>{k.last_used_at || 'Nunca usado'}</span>
-              <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid var(--color-border-danger)', borderRadius:6, padding:'3px 10px', color:'var(--color-text-danger)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>Revocar</button>
+              <span style={{ color:'var(--text-2)' }}>{(k.scopes||[]).join(', ')}</span>
+              <span style={{ color:'var(--text-2)' }}>{k.requests_today||0}/{k.rate_limit_per_day} hoy</span>
+              <span style={{ color:'var(--text-3)' }}>{k.last_used_at || 'Nunca usado'}</span>
+              <button onClick={() => { openConfirmGlobal({ message: 'Revocar clave?', onConfirm: () => revoke(k.id), danger: true }) }} style={{ background:'transparent', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'3px 10px', color:'var(--danger)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>Revocar</button>
             </div>
           ))}
         </div>
@@ -651,8 +652,8 @@ function SSOTab() {
     saml:     { label: 'SAML 2.0',            icon: '🔐', discovery: '' },
   }
 
-  const cardStyle = { background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
-  const inputStyle = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const cardStyle = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }
+  const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
   const labelStyle = { fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
   return (
@@ -710,7 +711,7 @@ function SSOTab() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 7, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <button onClick={() => create(form)} disabled={creating || !form.oidc_client_id} style={{ background: 'var(--accent-glow)', border: '1px solid #00d4ff40', borderRadius: 7, padding: '6px 14px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
               {creating ? '⟳ Guardando...' : '✓ Guardar SSO'}
             </button>
@@ -747,10 +748,10 @@ function SSOTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                  <button onClick={() => testSSO(c.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                     🔧 Verificar config
                   </button>
-                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${c.name || c.provider}?`, onConfirm: () => del(c.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                  <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar ${c.name || c.provider}?`, onConfirm: () => del(c.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                 </div>
               </div>
             </div>
@@ -783,18 +784,18 @@ export default function EnterprisePage() {
   const [tab, setTab] = useState('webhooks')
 
   const TABS = [
-    { id: 'webhooks',     label: '🔗 Webhooks' },
-    { id: 'gdpr',         label: '🔒 GDPR' },
-    { id: 'email',        label: '📧 Email' },
-    { id: 'integrations', label: '🔌 Integraciones' },
-    { id: 'sso',          label: '🔑 SSO' },
-    { id: 'audit',        label: '📋 Auditoría' },
-    { id: 'apikeys',      label: '🗝 API Keys' },
+    { id: 'webhooks',     label: 'Webhooks' },
+    { id: 'gdpr',         label: 'GDPR' },
+    { id: 'email',        label: 'Email' },
+    { id: 'integrations', label: 'Integraciones' },
+    { id: 'sso',          label: 'SSO' },
+    { id: 'audit',        label: 'Auditoría' },
+    { id: 'apikeys',      label: 'API Keys' },
   ]
 
   const card = {
     background: 'var(--surface-2)',
-    border: '1px solid #1e2d45',
+    border: '1px solid var(--surface-4)',
     borderRadius: 12,
     padding: '20px 24px',
     marginBottom: 16,
@@ -802,15 +803,14 @@ export default function EnterprisePage() {
 
   return (
     <div style={{ padding: 32, maxWidth: 1100 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px' }}>⚙️ Enterprise</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>
-          Configuración avanzada: webhooks, integraciones, SSO, GDPR y auditoría
-        </p>
-      </div>
+      <PageHeader
+        icon={<Building2 size={18} />}
+        title={_t('enterprise.title')}
+        subtitle={_t('enterprise.subtitle')}
+      />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid #1e2d45', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '8px 16px', border: 'none', cursor: 'pointer',

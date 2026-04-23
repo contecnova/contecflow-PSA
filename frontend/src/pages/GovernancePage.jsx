@@ -4,10 +4,11 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Shield } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const MODULE_CFG = {
   nexusassist:          { icon: '💬', labelKey: 'governance.nexusassist_label',           descKey: 'governance.nexusassist_desc' },
@@ -66,7 +67,7 @@ export default function GovernancePage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('governance.title')} subtitle={t('governance.subtitle')} />
+      <PageHeader icon={<Shield size={18} />} title={t('governance.title')} subtitle={t('governance.subtitle')} />
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
@@ -85,14 +86,14 @@ export default function GovernancePage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[
           ['modules', `⚙️ ${t('governance.tab_modules')}`],
           ['usage', `📊 ${t('governance.tab_usage')}`],
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -145,7 +146,7 @@ export default function GovernancePage() {
                   <BarChart data={chartData} margin={{ left: -10 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
                     <Bar dataKey="calls" name="Llamadas" fill="#00d4ff" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => <Cell key={i} fill={['var(--accent)','var(--success)','var(--warning)','var(--purple)','var(--warning)','var(--danger)'][i % 6]} />)}
                     </Bar>
@@ -153,11 +154,11 @@ export default function GovernancePage() {
                 </ResponsiveContainer>
               </div>
               <div style={{ ...card, overflow: 'hidden' }}>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d45', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
                   <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
                 {chartData.map((r, i) => (
-                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d4530', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 13 }}>
+                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 13 }}>
                     <span>{r.name}</span>
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{r.calls}</span>
                     <span style={{ color: 'var(--warning)' }}>{r.tokens}K</span>
@@ -172,13 +173,13 @@ export default function GovernancePage() {
       {/* AUDIT TAB */}
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d45', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
           </div>
           {logs.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
-            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid #1e2d4520', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 12, alignItems: 'center' }}>
+            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)20', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 12, alignItems: 'center' }}>
               <span style={{ color: 'var(--text-2)', fontFamily: 'monospace', fontSize: 11 }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module] ? t(MODULE_CFG[l.module].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>

@@ -16,6 +16,7 @@ import {
 } from 'recharts'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -150,6 +151,7 @@ export default function NPSPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
+        icon={<Star size={18} />}
         title={t('nps.title')}
         subtitle={t('nps.subtitle')}
       />
@@ -179,7 +181,7 @@ export default function NPSPage() {
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
               background: clientId === l.client_id ? '#2d3748' : 'none',
               border: 'none', borderLeft: clientId === l.client_id ? '3px solid #63b3ed' : '3px solid transparent',
-              padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid #1e2d45',
+              padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)',
             }}>
               <span style={{ fontSize: 11, color: '#4a5568', width: 16 }}>{i + 1}</span>
               <span style={{ flex: 1, fontSize: 13, color: '#e2e8f0', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.client_name}</span>

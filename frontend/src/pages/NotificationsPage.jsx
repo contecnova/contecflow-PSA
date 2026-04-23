@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -188,6 +189,7 @@ export default function NotificationsPage() {
   return (
     <div style={{ padding:32 }}>
       <PageHeader
+        icon={<Bell size={18} />}
         title={t('notifications.title')}
         subtitle={t('notifications.subtitle')}
         actions={
@@ -214,7 +216,7 @@ export default function NotificationsPage() {
           { label:'Total hoy', value:notifications.filter(n => n.created_at?.startsWith(new Date().toISOString().slice(0,10))).length, color:'var(--accent)' },
           { label:'Total recientes', value:notifications.length, color:'var(--text-2)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'14px 18px' }}>
             <div style={{ fontSize:26, fontWeight:800, color:kpi.color,
               fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>

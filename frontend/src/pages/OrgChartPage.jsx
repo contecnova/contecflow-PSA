@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Network } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -671,14 +672,15 @@ export default function OrgChartPage() {
   const total = chartData?.total || 0
 
   const TABS = [
-    { id:'arbol',       label:'🌳 Árbol jerárquico',      desc:'Vista visual del organigrama' },
-    { id:'posiciones',  label:'📋 Posiciones',             desc:'Editar cargo, depto y manager de todos' },
-    { id:'aprobaciones',label:'✅ Cadenas de aprobación',  desc:'Quién aprueba qué para quién' },
+    { id:'arbol',       label:'Árbol jerárquico',      desc:'Vista visual del organigrama' },
+    { id:'posiciones',  label:'Posiciones',             desc:'Editar cargo, depto y manager de todos' },
+    { id:'aprobaciones',label:'Cadenas de aprobación',  desc:'Quién aprueba qué para quién' },
   ]
 
   return (
     <div style={{ padding:'20px 28px' }}>
       <PageHeader
+        icon={<Network size={18} />}
         title="Organigrama"
         subtitle={_t('org_chart.subtitle', { total })}
       />

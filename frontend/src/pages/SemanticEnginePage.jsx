@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 const ENGINE_MODES = {
@@ -87,11 +88,11 @@ function TestPanel() {
 
   return (
     <div style={{ ...card, padding: '20px 24px' }}>
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>🧪 Probar asignación</div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>🧪 Probar asignación</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['ticket', 'task'].map(t => (
           <button key={t} onClick={() => setType(t)}
-            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t === 'ticket' ? '🎫 Ticket' : '✅ Tarea'}
           </button>
         ))}
@@ -251,6 +252,7 @@ export default function SemanticEnginePage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Brain size={18} />}
         title={_t('semantic_engine.title')}
         subtitle={_t('semantic_engine.subtitle')}
         actions={
@@ -291,10 +293,10 @@ export default function SemanticEnginePage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['overview','⚙️ Configuración'],['profiles','👥 Perfiles'],['test','🧪 Probar'],['stats','📊 Estadísticas']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -304,15 +306,15 @@ export default function SemanticEnginePage() {
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Modo del motor</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Modo del motor</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
                 <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig}
-                  style={{ padding: '12px 16px', borderRadius: 10, border: `2px solid ${config.engine_mode === key ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
+                  style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 20 }}>{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{meta.desc}</div>
                     </div>
                     {config.engine_mode === key && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 18 }}>{savingConfig ? '⟳' : '✓'}</span>}
@@ -350,7 +352,7 @@ export default function SemanticEnginePage() {
                 { key: 'auto_assign_tickets', label: 'Auto-asignar tickets (sin confirmación)', val: config.auto_assign_tickets },
                 { key: 'auto_assign_tasks',   label: 'Auto-asignar tareas (sin confirmación)',  val: config.auto_assign_tasks },
               ].map(f => (
-                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #1e2d4530' }}>
+                <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--surface-4)30' }}>
                   <span style={{ fontSize: 13 }}>{f.label}</span>
                   <button onClick={() => saveConfig({ [f.key]: !f.val })}
                     style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
@@ -370,7 +372,7 @@ export default function SemanticEnginePage() {
       {tab === 'profiles' && (
         <div>
           <div style={{ ...card, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d45', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
               <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>Acción</span>
             </div>
             {profilesWithUsers.length === 0 ? (
@@ -378,7 +380,7 @@ export default function SemanticEnginePage() {
                 <EmptyState icon="👥" title="Sin perfiles semanticos" description="Configura perfiles para habilitar la asignacion automatica" />
               </div>
             ) : profilesWithUsers.map(u => (
-              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d4530', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: 13 }}>
+              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: 13 }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{u.user_name}</div>
                   {u.profile_text && <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
@@ -395,7 +397,7 @@ export default function SemanticEnginePage() {
                   {u.is_available !== false ? 'Disponible' : 'No disponible'}
                 </span>
                 <button onClick={() => setEditProfile(u)}
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                   ✏️ Editar
                 </button>
               </div>

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Zap } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -134,7 +135,7 @@ function UserSkillModal({ user, onClose }) {
   return (
     <Modal open title={`Skills — ${user.full_name}`} onClose={onClose} width={620}>
       {/* Tabs */}
-      <div style={{ display:'flex', gap:6, marginBottom:20 }}>
+      <div style={{ display:'flex', gap:6, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['skills','🧠 Skills'],['history','📈 Historial']].map(([id,label]) => (
           <button key={id} onClick={() => setModalTab(id)}
             style={{ padding:'6px 14px', borderRadius:7, fontSize:12, fontWeight:600,
@@ -204,7 +205,7 @@ function UserSkillModal({ user, onClose }) {
 
       {/* Add skill */}
       <div style={{ padding: 16, background: 'var(--accent-muted)', border: '2px dashed var(--accent-muted)', borderRadius: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', marginBottom: 14 }}>➕ Añadir nuevo skill</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>➕ Añadir nuevo skill</div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <div>
             <label style={ls}>Skill *</label>
@@ -398,10 +399,10 @@ export default function SkillsPage() {
   const inputStyle = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
 
   const tabs = [
-    { id: 'matrix',   label: '🗂 Matriz' },
-    { id: 'profiles', label: '👤 Perfiles' },
-    { id: 'search',   label: '🔍 Staffing' },
-    ...(hasRole('admin', 'hr') ? [{ id: 'catalog', label: '⚙️ Catálogo' }] : []),
+    { id: 'matrix',   label: 'Matriz' },
+    { id: 'profiles', label: 'Perfiles' },
+    { id: 'search',   label: 'Staffing' },
+    ...(hasRole('admin', 'hr') ? [{ id: 'catalog', label: 'Catálogo' }] : []),
   ]
 
   // KPI stats
@@ -411,7 +412,7 @@ export default function SkillsPage() {
 
   return (
     <div style={{ padding: '28px 32px' }}>
-      <PageHeader title={t('skills.title')} subtitle={t('skills.subtitle')} />
+      <PageHeader icon={<Zap size={18} />} title={t('skills.title')} subtitle={t('skills.subtitle')} />
 
       {/* KPI bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>

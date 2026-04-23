@@ -283,7 +283,7 @@ function PortalDashboard() {
       {/* Estado del proyecto + Próximo hito */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         {/* Presupuesto */}
-        <div style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 22px' }}>
+        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 22px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{t('dashboard_budget_section')}</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('stats_budget_consumed')}</span>
@@ -305,7 +305,7 @@ function PortalDashboard() {
         </div>
 
         {/* Próximo hito */}
-        <div style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 22px' }}>
+        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 22px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{t('dashboard_next_milestone')}</div>
           {next_milestone ? (
             <>
@@ -326,11 +326,11 @@ function PortalDashboard() {
 
       {/* Actividad reciente */}
       {recent_activity?.length > 0 && (
-        <div style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 22px' }}>
+        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 22px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{t('dashboard_activity')}</div>
           {recent_activity.slice(0, 5).map((item, i) => (
             <div key={i} style={{ display: 'flex', gap: 12, padding: '8px 0',
-              borderBottom: i < 4 ? '1px solid #1e2d45' : 'none', alignItems: 'flex-start' }}>
+              borderBottom: i < 4 ? '1px solid var(--surface-4)' : 'none', alignItems: 'flex-start' }}>
               <span style={{ fontSize: 16, flexShrink: 0 }}>
                 {item.type === 'deliverable' ? '📦' : item.type === 'message' ? '💬' : item.type === 'uat' ? '🧪' : '●'}
               </span>
@@ -927,7 +927,7 @@ function PortalRoadmap() {
       <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>{_t('roadmap_title')}</h3>
 
       {milestones.length === 0 && deliverables.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid #1e2d45' }}>
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)', background: 'var(--surface-2)', borderRadius: 12, border: '1px solid var(--surface-4)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{_t('roadmap_no_items')}</div>
           <div style={{ fontSize: 12 }}>{_t('roadmap_no_items_hint')}</div>
@@ -1082,7 +1082,7 @@ function PortalDocuments() {
           zIndex: 9999, padding: 20,
         }}>
           <div role="presentation" onMouseDown={e => e.stopPropagation()} style={{
-            background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 16,
+            background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 16,
             padding: '28px 32px', maxWidth: 460, width: '100%',
             boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
           }}>
@@ -1101,7 +1101,7 @@ function PortalDocuments() {
               <input value={signJobTitle}
                 onChange={e => setSignJobTitle(e.target.value)}
                 placeholder={t('doc_job_title_label')}
-                style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8,
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
                   padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, width: '100%',
                   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
               />
@@ -1114,7 +1114,7 @@ function PortalDocuments() {
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => setSignModal(null)}
-                style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
+                style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                   padding: '9px 20px', color: 'var(--text-2)', cursor: 'pointer',
                   fontSize: 13, fontFamily: 'inherit' }}>
                 {t('cancel')}
@@ -1223,7 +1223,7 @@ function PortalSupportDesk() {
         <div role="tablist" aria-label={t('nav_support')} style={{ display: 'flex', gap: 8 }}>
           {[[`tickets`, `${t('support_tab_tickets')} (${tickets.length})`], ['kb', t('support_tab_kb')], ['announcements', `${t('support_tab_ann')} (${announcements.length})`]].map(([tabId, l]) => (
             <button key={tabId} role="tab" aria-selected={tab === tabId} aria-controls={`portal-support-panel-${tabId}`} id={`portal-support-tab-${tabId}`} onClick={() => setTab(tabId)}
-              style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {l}
             </button>
           ))}
@@ -1561,9 +1561,9 @@ function PortalWiki() {
               if (block.type === 'heading2') return <h2 key={i} style={{ fontSize: 18, fontWeight: 700, margin: '18px 0 8px', color: 'var(--accent)' }}>{block.content}</h2>
               if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 15, fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
               if (block.type === 'bullet') return <li key={i} style={{ marginLeft: 20, marginBottom: 4 }}>{block.content}</li>
-              if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 8, padding: '12px 16px', fontSize: 12, overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
+              if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 16px', fontSize: 12, overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
               if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
-              if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid #1e2d45', margin: '16px 0' }} />
+              if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid var(--surface-4)', margin: '16px 0' }} />
               return <p key={i} style={{ marginBottom: 10 }}>{block.content}</p>
             })}
           </div>
@@ -1869,10 +1869,10 @@ function PortalMyProfile({ changeLang }) {
   })
 
   const LANGUAGES = [
-    { code: 'es', label: '🇪🇸 Español' }, { code: 'en', label: '🇬🇧 English' },
-    { code: 'fr', label: '🇫🇷 Français' }, { code: 'de', label: '🇩🇪 Deutsch' },
-    { code: 'pt', label: '🇵🇹 Português' }, { code: 'it', label: '🇮🇹 Italiano' },
-    { code: 'pl', label: '🇵🇱 Polski' }, { code: 'zh', label: '🇨🇳 中文' },
+    { code: 'es', label: 'Español' }, { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' },
+    { code: 'pt', label: 'Português' }, { code: 'it', label: 'Italiano' },
+    { code: 'pl', label: 'Polski' }, { code: 'zh', label: '中文' },
   ]
 
   const { mutate: saveProfile, isPending: saving } = useMutation({
@@ -1912,9 +1912,9 @@ function PortalMyProfile({ changeLang }) {
   }
 
   const TABS = [
-    { id: 'info',     label: '👤 Mis datos' },
-    { id: 'security', label: '🔑 Seguridad' },
-    { id: 'access',   label: '🔒 Mi acceso' },
+    { id: 'info',     label: 'Mis datos' },
+    { id: 'security', label: 'Seguridad' },
+    { id: 'access',   label: 'Mi acceso' },
   ]
 
   return (
@@ -2025,10 +2025,10 @@ function PortalMyProfile({ changeLang }) {
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Mis permisos en el portal</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>Estos permisos son asignados por tu gestor y no pueden modificarse desde aquí.</div>
           {[
-            { key: 'can_approve_deliverables', label: '✓ Aprobar entregables', desc: 'Puedes validar o rechazar entregables del proyecto' },
+            { key: 'can_approve_deliverables', label: 'Aprobar entregables', desc: 'Puedes validar o rechazar entregables del proyecto' },
             { key: 'can_request_changes', label: '↩ Solicitar cambios', desc: 'Puedes enviar solicitudes de cambio al equipo' },
-            { key: 'can_view_budget', label: '💰 Ver presupuesto', desc: 'Puedes ver el consumo vs presupuesto del proyecto' },
-            { key: 'can_view_team', label: '👥 Ver equipo', desc: 'Puedes ver los miembros del equipo asignado' },
+            { key: 'can_view_budget', label: 'Ver presupuesto', desc: 'Puedes ver el consumo vs presupuesto del proyecto' },
+            { key: 'can_view_team', label: 'Ver equipo', desc: 'Puedes ver los miembros del equipo asignado' },
           ].map(p => (
             <div key={p.key} style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, padding: '10px 12px',
               background: me?.[p.key] ? 'var(--success-bg)' : 'var(--surface-4)', border: `1px solid ${me?.[p.key] ? 'var(--success-bg)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
@@ -2150,12 +2150,12 @@ export function PortalServiceDesk() {
 
         {/* Comments */}
         <div style={{ ...S.card, marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Conversación</div>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 14 }}>Conversación</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
             {(ticket.comments || []).filter(c => !c.is_internal).map(c => (
-              <div key={c.id} style={{ padding: '10px 14px', background: c.author_type === 'client' ? 'var(--accent-muted)' : 'var(--portal-bg)', borderRadius: 10, border: `1px solid ${c.author_type === 'client' ? 'var(--accent-glow)' : 'var(--surface-4)'}` }}>
+              <div key={c.id} style={{ padding: '10px 14px', background: c.author_type === 'client' ? 'var(--accent-muted)' : 'var(--portal-bg)', borderRadius: 8, border: `1px solid ${c.author_type === 'client' ? 'var(--accent-glow)' : 'var(--surface-4)'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{c.author_type === 'client' ? 'Tú' : `Soporte — ${c.author_name}`}</span>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{c.author_type === 'client' ? 'Tú' : `Soporte — ${c.author_name}`}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.created_at}</span>
                 </div>
                 <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap' }}>{c.body}</p>
@@ -2276,7 +2276,7 @@ export function PortalServiceDesk() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {catalog.categories.flatMap(cat => cat.services || []).map(svc => (
                     <button key={svc.id} onClick={() => setNewForm(f => ({ ...f, service_item_id: svc.id, ticket_type: svc.ticket_type, priority: svc.default_priority }))}
-                      style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${newForm.service_item_id === svc.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: newForm.service_item_id === svc.id ? 'var(--accent-muted)' : 'var(--portal-bg)', color: newForm.service_item_id === svc.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${newForm.service_item_id === svc.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: newForm.service_item_id === svc.id ? 'var(--accent-muted)' : 'var(--portal-bg)', color: newForm.service_item_id === svc.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                       {svc.name}
                     </button>
                   ))}

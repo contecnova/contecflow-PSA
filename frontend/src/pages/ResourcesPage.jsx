@@ -102,9 +102,9 @@ function BurnoutMonitorTab() {
         <div style={{ display: 'flex', gap: 6 }}>
           {[
             { id: 'all', label: 'Todos' },
-            { id: 'yellow', label: '⚠️ Atención' },
-            { id: 'orange', label: '🟠 Riesgo' },
-            { id: 'red', label: '🔴 Crítico' },
+            { id: 'yellow', label: 'Atención' },
+            { id: 'orange', label: 'Riesgo' },
+            { id: 'red', label: 'Crítico' },
           ].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)}
               style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)',
@@ -411,10 +411,10 @@ export default function ResourcesPage() {
   const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + r.current_load_pct, 0) / loadData.length).toFixed(0) : 0
 
   const TABS = [
-    { id: 'team',       label: '👥 Equipo' },
-    { id: 'heatmap',    label: '📊 Heatmap' },
-    { id: 'smartmatch', label: '🧠 SmartMatch' },
-    { id: 'burnout',    label: '🔥 Burnout Monitor' },
+    { id: 'team',       label: 'Equipo' },
+    { id: 'heatmap',    label: 'Heatmap' },
+    { id: 'smartmatch', label: 'SmartMatch' },
+    { id: 'burnout',    label: 'Burnout Monitor' },
   ]
 
   return (
@@ -479,8 +479,8 @@ export default function ResourcesPage() {
               {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={hasRole('admin', 'hr')} />)}
             </div>
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="user.full_name" sort={resSort} onSort={setResSort}>Recurso</SortableTH>
                 <SortableTH col="user.department" sort={resSort} onSort={setResSort}>Departamento</SortableTH>
                 <SortableTH col="user.role" sort={resSort} onSort={setResSort}>Rol</SortableTH>
@@ -490,7 +490,7 @@ export default function ResourcesPage() {
                 {hasRole('admin', 'hr') && <SortableTH col="user.hourly_rate" sort={resSort} onSort={setResSort}>Tarifa/h</SortableTH>}
               </div>
               {sortedResources.map(r => (
-                <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
+                <div key={r.user?.id} style={{ display: 'grid', gridTemplateColumns: hasRole('admin', 'hr') ? '2fr 1fr 1fr 1fr 1fr 1fr 80px' : '2fr 1fr 1fr 1fr 1fr 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer' }}
                   onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onPointerLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -1027,7 +1027,7 @@ function SLAConfig() {
           <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
               <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
-              {p.is_default && <span style={{ fontSize:10, background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight:700 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
+              {p.is_default && <span style={{ fontSize:10, background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight: 600 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
               {p.business_hours_only && <span style={{ fontSize:10, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{t('service_desk.sla_business_hours')}</span>}
               <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
                 <button onClick={() => setEditing(p)}
@@ -1401,13 +1401,13 @@ function Config() {
   const t = useAppT()
   const [sub, setSub] = useState('catalog')
   const tabs = [
-    {id:'catalog',  label:`📋 ${t('service_desk.tab_catalog')}`},
+    {id:'catalog',  label:`${t('service_desk.tab_catalog')}`},
     {id:'sla',      label:`⏱ ${t('service_desk.tab_sla')}`},
-    {id:'groups',   label:`👥 ${t('service_desk.tab_groups')}`},
-    {id:'routing',  label:`⚡ ${t('service_desk.tab_routing')}`},
-    {id:'templates',label:`📝 ${t('service_desk.tab_templates')}`},
-    {id:'canned',   label:`💬 ${t('service_desk.tab_canned')}`},
-    {id:'announcements', label:`📢 ${t('service_desk.tab_announcements')}`},
+    {id:'groups',   label:`${t('service_desk.tab_groups')}`},
+    {id:'routing',  label:`${t('service_desk.tab_routing')}`},
+    {id:'templates',label:`${t('service_desk.tab_templates')}`},
+    {id:'canned',   label:`${t('service_desk.tab_canned')}`},
+    {id:'announcements', label:`${t('service_desk.tab_announcements')}`},
   ]
   return (
     <div>
@@ -1848,14 +1848,14 @@ function TicketDetail({ ticketId, onClose, embedded = false }) {
               <button onClick={() => setShowCanned(s => !s)}
                 style={{ fontSize:11, padding:'5px 10px', borderRadius:7,
                   background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)',
-                  border: `1px solid ${showCanned ? '#00d4ff40' : '#1e2d45'}`,
+                  border: `1px solid ${showCanned ? '#00d4ff40' : 'var(--surface-4)'}`,
                   color: showCanned ? 'var(--accent)' : 'var(--text-2)',
                   cursor:'pointer', fontFamily:'inherit' }}>
                 ⚡ Respuestas rápidas
               </button>
               <button onClick={() => suggestReply()} disabled={suggestingReply}
                 style={{ fontSize:11, padding:'5px 10px', borderRadius:7,
-                  background:'var(--surface-3)', border:'1px solid #1e2d45',
+                  background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                   color:'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer',
                   fontFamily:'inherit' }}>
                 {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('service_desk.detail_send_comment')}`}
@@ -2423,7 +2423,7 @@ function CannedResponsesManager() {
     queryKey: ['canned-responses-all'],
     queryFn: () => api.get('/sd/canned-responses').then(r => r.data).catch(() => []),
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8,
+  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
     padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit',
     boxSizing:'border-box' }
   const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
@@ -2479,7 +2479,7 @@ function CannedResponsesManager() {
             </div>
           ) : (
             <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
-              background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:10 }}>
+              background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10 }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700 }}>{r.title}
                   {r.shortcut && <span style={{ fontSize:10, color:'var(--accent)', marginLeft:8,
@@ -2490,7 +2490,7 @@ function CannedResponsesManager() {
                   textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.body?.slice(0,100)}</div>
               </div>
               <button onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
-                style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✏</button>
+                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✏</button>
               <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${r.title}"?`, onConfirm: () => del(r.id), danger: true }) }}
                 style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:12}}>🗑</button>
             </div>
@@ -2532,7 +2532,7 @@ function AnnouncementsConfig() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
 
-  const IS = { background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12, outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
+  const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12, outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
   const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
   const TYPE_COLOR = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'#a855f7' }
 
@@ -2602,7 +2602,7 @@ function AnnouncementsConfig() {
             <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
           </div>
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid #1e2d45', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12 }}>{t('common.cancel')}</button>
+            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12 }}>{t('common.cancel')}</button>
             <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
           </div>
         </Modal>
@@ -2633,17 +2633,17 @@ export default function ServiceDeskPage() {
   }, [tab])
 
   const TABS = [
-    { id: 'queue',    label: `🏃 ${t('service_desk.tab_queue')}` },
-    { id: 'all',      label: `🎫 ${t('service_desk.tab_all')}` },
-    { id: 'kanban',   label: `📋 ${t('service_desk.tab_kanban')}` },
-    { id: 'changes',  label: `🔄 ${t('service_desk.tab_changes')}` },
-    { id: 'mi',       label: `🚨 ${t('service_desk.tab_mi')}` },
-    { id: 'problems', label: `🔍 ${t('service_desk.tab_problems')}` },
-    { id: 'kedb',     label: `📚 ${t('service_desk.tab_kedb')}` },
-    { id: 'kb',       label: `📖 ${t('service_desk.tab_kb')}` },
-    { id: 'cmdb',     label: `🖥 ${t('service_desk.tab_cmdb')}` },
-    { id: 'metrics',  label: `📊 ${t('service_desk.tab_metrics')}` },
-    { id: 'config',   label: `⚙️ ${t('service_desk.tab_config')}` },
+    { id: 'queue',    label: `${t('service_desk.tab_queue')}` },
+    { id: 'all',      label: `${t('service_desk.tab_all')}` },
+    { id: 'kanban',   label: `${t('service_desk.tab_kanban')}` },
+    { id: 'changes',  label: `${t('service_desk.tab_changes')}` },
+    { id: 'mi',       label: `${t('service_desk.tab_mi')}` },
+    { id: 'problems', label: `${t('service_desk.tab_problems')}` },
+    { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
+    { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
+    { id: 'cmdb',     label: `${t('service_desk.tab_cmdb')}` },
+    { id: 'metrics',  label: `${t('service_desk.tab_metrics')}` },
+    { id: 'config',   label: `${t('service_desk.tab_config')}` },
   ]
 
   return (
@@ -2661,7 +2661,7 @@ export default function ServiceDeskPage() {
         borderBottom: '1px solid var(--surface-4)', paddingBottom: 16 }}>
         {TABS.map((t, i) => (
           <button key={t.id} role="tab" aria-selected={tab===t.id} aria-controls={`sd-panel-${t.id}`} id={`sd-tab-${t.id}`} onClick={() => setTab(t.id)} style={{
-            padding: '8px 16px', borderRadius: 8,
+            padding: '7px 16px', borderRadius: 8,
             border: `1px solid ${tab===t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
             background: tab===t.id ? 'var(--accent-muted)' : 'transparent',
             color: tab===t.id ? 'var(--accent)' : 'var(--text-2)',
@@ -2677,7 +2677,7 @@ export default function ServiceDeskPage() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button onClick={() => setMobileView('list')}
             aria-pressed={mobileView === 'list'}
-            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 13,
+            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 12,
               fontWeight: 600, cursor: 'pointer',
               border: `1px solid ${mobileView === 'list' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: mobileView === 'list' ? 'var(--accent-muted)' : 'var(--surface-2)',
@@ -2686,7 +2686,7 @@ export default function ServiceDeskPage() {
           </button>
           <button onClick={() => setMobileView('detail')}
             aria-pressed={mobileView === 'detail'}
-            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 13,
+            style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontFamily: 'inherit', fontSize: 12,
               fontWeight: 600, cursor: 'pointer',
               border: `1px solid ${mobileView === 'detail' ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: mobileView === 'detail' ? 'var(--accent-muted)' : 'var(--surface-2)',

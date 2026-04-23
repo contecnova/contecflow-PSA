@@ -7,10 +7,11 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const STATUS_COLORS = {
@@ -59,7 +60,7 @@ export default function CumulativeFlowPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')}/>
+      <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')}/>
 
       {/* Controles */}
       <div style={{...ps,marginBottom:20}}>
@@ -141,11 +142,11 @@ export default function CumulativeFlowPage() {
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45"/>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)"/>
                 <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:11}}
                   tickFormatter={d=>d.slice(5)} interval="preserveStartEnd"/>
                 <YAxis tick={{fill:'var(--text-2)',fontSize:11}}/>
-                <Tooltip contentStyle={{background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:8,color:'var(--text-1)',fontSize:12}}/>
+                <Tooltip contentStyle={{background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:8,color:'var(--text-1)',fontSize:12}}/>
                 <Legend wrapperStyle={{fontSize:12,color:'var(--text-2)'}}/>
                 {statuses.map((st,i)=>(
                   <Area key={st} type="monotone" dataKey={st}
@@ -165,7 +166,7 @@ export default function CumulativeFlowPage() {
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
                 <thead>
-                  <tr style={{borderBottom:'1px solid #1e2d45'}}>
+                  <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
                     <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_date')}</th>
                     {statuses.map(st=>(
                       <th key={st} style={{textAlign:'center',padding:'8px 12px',color:getColor(st,statuses.indexOf(st)),fontWeight:600}}>{st.replace(/_/g,' ')}</th>

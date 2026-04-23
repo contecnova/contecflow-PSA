@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Receipt } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -37,9 +38,9 @@ const STATUSES = {
   reimbursed: { label: 'Reembolsado', color: 'var(--accent)' },
 }
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 function StatusBadge({ status }) {
   const cfg = STATUSES[status] || { label: status, color: 'var(--text-2)' }
@@ -66,7 +67,7 @@ function fmt(amount, currency = 'EUR') {
 // ── Expense row ───────────────────────────────────────────────────────────────
 function ExpenseRow({ expense, onAction, isManager }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid #1e2d45', alignItems: 'center' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
       <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{expense.code}</span>
       <CatBadge cat={expense.category} />
       <div>
@@ -343,7 +344,7 @@ function MyExpenses() {
         <EmptyState icon="💸" title="Sin gastos" description="Crea tu primer gasto para empezar a registrarlos." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={expSort} onSort={setExpSort}>#</SortableTH>
             <SortableTH col="category" sort={expSort} onSort={setExpSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={expSort} onSort={setExpSort}>Descripción</SortableTH>
@@ -357,7 +358,7 @@ function MyExpenses() {
               <div style={{ display: 'flex', gap: 5 }}>
                 {exp.status === 'draft' && <>
                   <button onClick={() => setEditing(exp)} title="Editar gasto" aria-label="Editar gasto"
-                    style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏</button>
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏</button>
                   <button onClick={() => submit(exp.id)} title="Enviar gasto" aria-label="Enviar gasto"
                     style={{ background: 'var(--warning-bg)', border: '1px solid #ffb80040', borderRadius: 6, padding: '3px 8px', color: 'var(--warning)', cursor: 'pointer', fontSize: 12 }} loading={saving}>↑ Enviar</button>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este gasto?', onConfirm: () => del(exp.id), danger: true }) }} title="Eliminar gasto" aria-label="Eliminar gasto"
@@ -365,7 +366,7 @@ function MyExpenses() {
                 </>}
                 {exp.status === 'submitted' && (
                   <button onClick={() => recall(exp.id)} title="Retirar gasto" aria-label="Retirar gasto"
-                    style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>↩ Retirar</button>
+                    style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>↩ Retirar</button>
                 )}
                 {exp.status === 'rejected' && (
                   <button onClick={() => setEditing(exp)} title="Editar gasto rechazado" aria-label="Editar gasto rechazado"
@@ -411,7 +412,7 @@ function PendingApproval() {
         <EmptyState icon="✅" title="Sin pendientes" description="No hay gastos pendientes de revisión." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={pendSort} onSort={setPendSort}>#</SortableTH>
             <SortableTH col="category" sort={pendSort} onSort={setPendSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={pendSort} onSort={setPendSort}>Descripción</SortableTH>
@@ -510,7 +511,7 @@ function TeamExpenses() {
                 <Pie data={catChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} paddingAngle={2}>
                   {catChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 11 }} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
             {catChartData.map(d => (
@@ -524,10 +525,10 @@ function TeamExpenses() {
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Distribución</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={catChartData} margin={{ top: 0, right: 0, left: -10, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-2)' }} angle={-30} textAnchor="end" />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 11 }} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 11 }} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {catChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Bar>
@@ -542,7 +543,7 @@ function TeamExpenses() {
         <EmptyState icon="💸" title="Sin gastos del equipo" description="No hay gastos para los filtros seleccionados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="code" sort={teamSort} onSort={setTeamSort}>#</SortableTH>
             <SortableTH col="category" sort={teamSort} onSort={setTeamSort}>Tipo</SortableTH>
             <SortableTH col="description" sort={teamSort} onSort={setTeamSort}>Descripción</SortableTH>
@@ -577,16 +578,17 @@ export default function ExpensesPage() {
   const [tab, setTab] = useState('my')
 
   const TABS = [
-    { id: 'my', label: '💸 Mis gastos' },
+    { id: 'my', label: 'Mis gastos' },
     ...(isManager ? [
       { id: 'pending', label: '⏳ Pendientes aprobación' },
-      { id: 'team', label: '👥 Equipo' },
+      { id: 'team', label: 'Equipo' },
     ] : []),
   ]
 
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Receipt size={18} />}
         title={t('expenses.title')}
         subtitle={t('expenses.subtitle')}
         actions={
@@ -596,17 +598,17 @@ export default function ExpensesPage() {
               window.open(url.toString(), '_blank')
             }}
             style={{ display: 'flex', alignItems: 'center', gap: 6,
-              background: 'var(--surface-2)', border: '1px solid #1e2d45',
+              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
               borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)',
               cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
             📊 Exportar Excel
           </button>
         }
       />
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}

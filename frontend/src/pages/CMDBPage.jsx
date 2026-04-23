@@ -6,10 +6,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const CI_TYPES = ['server','application','database','network','service','container','cloud','endpoint','storage','other']
@@ -194,7 +195,7 @@ function RelationsModal({ item, allItems, onClose }) {
             )}
           </div>
         )}
-        <div style={{borderTop:'1px solid #1e2d45',paddingTop:14}}>
+        <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
           <div style={{fontSize:12,fontWeight:600,color:'var(--text-2)',marginBottom:10}}>AÑADIR RELACIÓN</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,alignItems:'center'}}>
             <select style={is} value={toId} onChange={e => setToId(e.target.value)}>
@@ -325,7 +326,7 @@ export default function CMDBPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
+      <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
 
       {/* KPIs */}
@@ -367,7 +368,7 @@ export default function CMDBPage() {
           </div>
           {(filterType||filterStatus||searchQ) && (
             <button onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}
-              style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid #1e2d45',background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+              style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
               ✕ Limpiar
             </button>
           )}
@@ -385,7 +386,7 @@ export default function CMDBPage() {
         <div style={ps}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
             <thead>
-              <tr style={{borderBottom:'1px solid #1e2d45'}}>
+              <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
               {[['name','Activo'],['ci_type','Tipo'],['status','Estado'],['environment','Entorno'],['hostname','Hostname / IP'],['version','Versión']].map(([key, label]) => (
                 <th key={key} onClick={() => toggleSort(key)}
                   style={{textAlign:'left',padding:'8px 12px',fontSize:11,cursor:'pointer',userSelect:'none',whiteSpace:'nowrap',
@@ -471,11 +472,11 @@ export default function CMDBPage() {
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',gap:6}}>
                         <button onClick={() => setHistoryItem(item)}
-                          style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}} title="Ver historial de cambios">📋</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}} title="Ver historial de cambios">📋</button>
                         <button onClick={() => setRelItem(item)}
-                          style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>🔗</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>🔗</button>
                         <button onClick={() => { setEditing(item); setShowForm(true) }}
-                          style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
                         <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${item.name}"?`, onConfirm: () => deleteItem(item.id), danger: true }) }}
                           style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
                       </div>

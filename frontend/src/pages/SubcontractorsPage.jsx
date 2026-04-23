@@ -5,11 +5,12 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Users } from 'lucide-react'
 import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const STATUS_COLOR = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
 const STATUS_LABEL = {
@@ -159,9 +160,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
       {/* Skills section — only shown in edit mode */}
       {isEdit && (
-        <div style={{ borderTop: '1px solid #1e2d45', paddingTop: 14, marginBottom: 14 }}>
+        <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
             <button onClick={() => setShowSkillForm(s => !s)}
               style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
               {showSkillForm ? t('subcontractors.cancel_skill') : t('subcontractors.add_skill')}
@@ -225,7 +226,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </button>
         <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
@@ -308,7 +309,7 @@ function WorkersPanel({ subId }) {
                     </div>
                   )}
                     <button onClick={() => setEditWorker(w)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                       {t('subcontractors.edit')}
                     </button>
                   {w.is_active && (
@@ -406,7 +407,7 @@ function SubDetail({ sub, onBack }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800 }}>{sub.name} <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 400 }}>{sub.code}</span></div>
           {sub.company && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{sub.company} · {sub.email}</div>}
@@ -422,7 +423,7 @@ function SubDetail({ sub, onBack }) {
           { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: 'var(--warning)' },
           { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
         ].map(k => (
-          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+          <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
             <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
           </div>
@@ -432,7 +433,7 @@ function SubDetail({ sub, onBack }) {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 8, padding: 3, marginBottom: 16, width: 'fit-content' }}>
         {[
-          { id: 'workers',     label: `👥 Personas` },
+          { id: 'workers',     label: `Personas` },
           { id: 'assignments', label: `Asignaciones (${assignments.length})` },
           { id: 'timelogs',    label: `Horas (${timelogs.length})` },
           { id: 'invoices',    label: `Facturas (${invoices.length})` },
@@ -490,7 +491,7 @@ function SubDetail({ sub, onBack }) {
             <div style={{ ...panel, overflow: 'hidden' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+                  <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     {['Fecha', 'Horas', 'Descripción', 'Ref. tarea', 'Coste', 'Proyecto'].map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
@@ -528,7 +529,7 @@ function SubDetail({ sub, onBack }) {
             <div style={{ ...panel, overflow: 'hidden' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+                  <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     {['Nº Factura', 'Fecha', 'Importe', 'Total c/IVA', 'Estado', 'Acciones'].map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
@@ -594,7 +595,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>Registrar horas</Button>
           </div>
         </Modal>
@@ -631,7 +632,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>Registrar factura</Button>
           </div>
         </Modal>
@@ -666,7 +667,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>Crear asignación</Button>
           </div>
         </Modal>
@@ -734,7 +735,7 @@ export default function SubcontractorsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')} />
+      <PageHeader icon={<Users size={18} />} title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')} />
 
       {/* KPIs */}
       {dashboard && (
@@ -744,7 +745,7 @@ export default function SubcontractorsPage() {
             { label: 'Horas registradas', value: `${dashboard.total_hours_logged}h`, color: 'var(--success)' },
             { label: 'Facturas pendientes', value: dashboard.pending_invoices,       color: dashboard.pending_invoices > 0 ? 'var(--warning)' : 'var(--text-2)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
             </div>
@@ -768,7 +769,7 @@ export default function SubcontractorsPage() {
               role="button"
               tabIndex={0}
               onKeyDown={e => onKeyboardActivate(e, () => setSelected(s))}
-              style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
             >
@@ -799,8 +800,8 @@ export default function SubcontractorsPage() {
           ))}
         </div>
       ) : (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={subSort} onSort={setSubSort}>Empresa / Nombre</SortableTH>
             <SortableTH col="code" sort={subSort} onSort={setSubSort}>Código</SortableTH>
             <SortableTH col="email" sort={subSort} onSort={setSubSort}>Email</SortableTH>
@@ -810,7 +811,7 @@ export default function SubcontractorsPage() {
             <span>Acciones</span>
           </div>
           {sortedSubs.map(s => (
-            <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '11px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
+            <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '11px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer' }}
               role="button"
               tabIndex={0}
               onKeyDown={e => onKeyboardActivate(e, () => setSelected(s))}
@@ -874,7 +875,7 @@ export default function SubcontractorsPage() {
             <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear subcontratista</Button>
           </div>
         </Modal>
@@ -915,7 +916,7 @@ export default function SubcontractorsPage() {
             <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>Guardar cambios</Button>
           </div>
         </Modal>

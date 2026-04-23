@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { GitBranch } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -49,7 +50,7 @@ function DeployPill({ status }) {
   )
 }
 
-const cell = { padding: '10px 14px', fontSize: 13, color: '#e2e8f0', borderBottom: '1px solid #1e2d45' }
+const cell = { padding: '10px 14px', fontSize: 13, color: '#e2e8f0', borderBottom: '1px solid var(--surface-4)' }
 const th   = { ...cell, fontWeight: 700, fontSize: 11, color: '#718096', textTransform: 'uppercase', background: '#1a202c' }
 
 export default function GitPage() {
@@ -92,6 +93,7 @@ export default function GitPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
+        icon={<GitBranch size={18} />}
         title={t('git_integration.title')}
         subtitle={t('git_integration.subtitle')}
         action={

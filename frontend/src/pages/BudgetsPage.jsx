@@ -8,14 +8,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { PieChart } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width:'100%', background:'var(--color-background-secondary)', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'9px 12px', color:'var(--color-text-primary)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--color-text-secondary)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--color-background-primary)', border:'.5px solid var(--color-border-tertiary)', borderRadius:12 }
+const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const fmtEur = n => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -99,14 +100,14 @@ export default function BudgetsPage() {
 
   return (
     <div style={{ padding:32 }}>
-      <PageHeader title={t('budgets.title')} subtitle={t('budgets.subtitle')} />
+      <PageHeader icon={<PieChart size={18} />} title={t('budgets.title')} subtitle={t('budgets.subtitle')} />
 
       {/* Year selector + summary */}
       <div style={{ display:'flex', gap:16, marginBottom:24, alignItems:'center' }}>
         <div style={{ display:'flex', gap:6 }}>
           {[year-1, year, year+1].map(y => (
             <button key={y} onClick={()=>setYear(y)}
-              style={{ padding:'6px 14px', borderRadius:8, border:`.5px solid ${year===y?'var(--color-border-info)':'var(--color-border-tertiary)'}`, background:year===y?'var(--color-background-info)':'transparent', color:year===y?'var(--color-text-info)':'var(--color-text-secondary)', fontSize:12, cursor:'pointer', fontFamily:'inherit', fontWeight:year===y?500:400 }}>
+              style={{ padding:'6px 14px', borderRadius:8, border:`.5px solid ${year===y?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:year===y?'var(--accent-muted)':'transparent', color:year===y?'var(--accent)':'var(--text-2)', fontSize:12, cursor:'pointer', fontFamily:'inherit', fontWeight:year===y?500:400 }}>
               {y}
             </button>
           ))}
@@ -114,7 +115,7 @@ export default function BudgetsPage() {
         {summary && (
           <div style={{ display:'flex', gap:16, marginLeft:12 }}>
             {[['planned', fmtEur(summary.total_planned)], ['actual', fmtEur(summary.total_actual)], ['deviation', `${summary.deviation_pct > 0 ? '+' : ''}${summary.deviation_pct}%`]].map(([k,v]) => (
-              <div key={k} style={{ fontSize:12 }}><span style={{ color:'var(--color-text-secondary)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
+              <div key={k} style={{ fontSize:12 }}><span style={{ color:'var(--text-2)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
             ))}
           </div>
         )}
@@ -148,18 +149,18 @@ export default function BudgetsPage() {
                 <div>
                   <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
                     <span style={{ fontSize:14, fontWeight:500 }}>{b.name}</span>
-                    {b.department && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-secondary)', color:'var(--color-text-secondary)' }}>{b.department}</span>}
+                    {b.department && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)' }}>{b.department}</span>}
                     {b.is_approved
-                      ? <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--color-background-success)', color:'var(--color-text-success)' }}>✓ {t('budgets.approved')}</span>
-                      : <button onClick={()=>approve(b.id)} style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'var(--color-background-warning)', color:'var(--color-text-warning)', border:'.5px solid var(--color-border-warning)', cursor:'pointer', fontFamily:'inherit' }}>{t('budgets.approve')}</button>
+                      ? <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--success-bg)', color:'var(--success)' }}>✓ {t('budgets.approved')}</span>
+                      : <button onClick={()=>approve(b.id)} style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'var(--warning-bg)', color:'var(--warning)', border:'.5px solid rgba(251,191,36,0.25)', cursor:'pointer', fontFamily:'inherit' }}>{t('budgets.approve')}</button>
                     }
                   </div>
-                  <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>
-                    {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: b.deviation > 0 ? 'var(--color-text-danger)' : 'var(--color-text-success)', fontWeight:500 }}>{b.deviation > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
+                  <div style={{ fontSize:12, color:'var(--text-2)' }}>
+                    {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: b.deviation > 0 ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>{b.deviation > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
                   </div>
                 </div>
                 <button onClick={()=>setSelected(selected===b.id?null:b.id)}
-                  style={{ background:'transparent', border:'.5px solid var(--color-border-secondary)', borderRadius:8, padding:'5px 12px', color:'var(--color-text-secondary)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                  style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
                   {selected===b.id ? t('budgets.hide_detail') : t('budgets.show_detail')}
                 </button>
               </div>
@@ -169,19 +170,19 @@ export default function BudgetsPage() {
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                     <thead>
-                      <tr style={{ background:'var(--color-background-secondary)' }}>
-                        <th style={{ padding:'6px 10px', textAlign:'left', fontWeight:500, color:'var(--color-text-secondary)' }}>Mes</th>
-                        {MONTHS.map(m => <th key={m} style={{ padding:'6px 8px', textAlign:'right', fontWeight:500, color:'var(--color-text-secondary)', minWidth:65 }}>{m}</th>)}
+                      <tr style={{ background:'var(--surface-2)' }}>
+                        <th style={{ padding:'6px 10px', textAlign:'left', fontWeight:500, color:'var(--text-2)' }}>Mes</th>
+                        {MONTHS.map(m => <th key={m} style={{ padding:'6px 8px', textAlign:'right', fontWeight:500, color:'var(--text-2)', minWidth:65 }}>{m}</th>)}
                       </tr>
                     </thead>
                     <tbody>
                       {['planned','actual','committed'].map(field => (
-                        <tr key={field} style={{ borderBottom:'.5px solid var(--color-border-tertiary)' }}>
-                          <td style={{ padding:'6px 10px', fontWeight:500, textTransform:'capitalize', color:'var(--color-text-secondary)' }}>{field}</td>
+                        <tr key={field} style={{ borderBottom:'.5px solid var(--surface-4)' }}>
+                          <td style={{ padding:'6px 10px', fontWeight:500, textTransform:'capitalize', color:'var(--text-2)' }}>{field}</td>
                           {b.entries.map(e => (
                             <td key={e.month} style={{ padding:'6px 8px', textAlign:'right', cursor: field==='actual'&&!e.is_locked?'pointer':'default' }}
                               onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual,committed:e.committed,notes:e.notes||''}) }}}>
-                              <span style={{ color: field==='actual'&&e.actual>e.planned?'var(--color-text-danger)':'var(--color-text-primary)' }}>
+                              <span style={{ color: field==='actual'&&e.actual>e.planned?'var(--danger)':'var(--text-1)' }}>
                                 {e[field] > 0 ? `${(e[field]/1000).toFixed(1)}k` : '—'}
                               </span>
                             </td>
@@ -190,7 +191,7 @@ export default function BudgetsPage() {
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ fontSize:11, color:'var(--color-text-tertiary)', marginTop:6 }}>{t('budgets.edit_actual_hint')}</div>
+                  <div style={{ fontSize:11, color:'var(--text-3)', marginTop:6 }}>{t('budgets.edit_actual_hint')}</div>
                 </div>
               )}
             </div>
@@ -219,7 +220,7 @@ export default function BudgetsPage() {
               <input type="number" value={form.total_amount} onChange={setCreateField('total_amount')} style={createValidation.inputStyle(fs, 'total_amount')} />
               {createValidation.errors.total_amount && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.total_amount}</div>}
             </div>
-            <div style={{ fontSize:12, color:'var(--color-text-secondary)' }}>{t('budgets.monthly_distribution', {amount: fmtEur((form.total_amount||0)/12)})}</div>
+            <div style={{ fontSize:12, color:'var(--text-2)' }}>{t('budgets.monthly_distribution', {amount: fmtEur((form.total_amount||0)/12)})}</div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('budgets.cancel')}</Button>
               <Button onClick={submitCreate} disabled={isPending}>{isPending?t('budgets.creating'):t('budgets.create')}</Button>

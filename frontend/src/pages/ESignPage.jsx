@@ -8,6 +8,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { PenLine } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -198,6 +199,7 @@ export default function ESignPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1080, margin: '0 auto' }}>
       <PageHeader
+        icon={<PenLine size={18} />}
         title={t('esign.title')}
         subtitle={t('esign.subtitle')}
         action={<Button onClick={() => setCreating(true)}>✍ Nueva solicitud</Button>}

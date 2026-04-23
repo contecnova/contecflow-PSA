@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Avatar, Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const LEVELS = [
@@ -16,8 +17,8 @@ const LEVELS = [
   { value: 'owner',   label: 'Propietario', color: 'var(--success)', desc: 'Control total incluyendo eliminar' },
 ]
 
-const panelStyle = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
+const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function PermissionForm({ projectId, users, perm, onClose }) {
@@ -151,6 +152,7 @@ export default function ProjectPermissionsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<ShieldCheck size={18} />}
         title="Permisos de proyecto"
         subtitle={_t('project_permissions.subtitle')}
         actions={selectedProject && (
@@ -210,7 +212,7 @@ export default function ProjectPermissionsPage() {
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+                <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                   {['Usuario', 'Nivel de acceso', 'Finanzas', 'Tarifas', 'Exportar', 'Acciones'].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                   ))}
@@ -220,7 +222,7 @@ export default function ProjectPermissionsPage() {
                 {perms.map((perm, i) => {
                   const level = LEVELS.find(l => l.value === perm.level)
                   return (
-                    <tr key={perm.id} style={{ borderBottom: '1px solid #1e2d45', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
+                    <tr key={perm.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <Avatar name={perm.user?.full_name} size={30} />
@@ -243,7 +245,7 @@ export default function ProjectPermissionsPage() {
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
-                            style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
                             Editar
                           </button>
                           <button onClick={() => { openConfirmGlobal({ message: `¿Revocar acceso de ${perm.user?.full_name}?`, onConfirm: () => revoke(perm.id), danger: true }) }}

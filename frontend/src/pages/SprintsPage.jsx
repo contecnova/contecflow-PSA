@@ -137,7 +137,7 @@ const TASK_STATUS_CFG = {
   blocked:     { label: 'Bloqueado',   color: 'var(--danger)' },
 }
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ── Task card ──────────────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }) {
       </div>
 
       {showMenu && (
-        <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: 8, zIndex: 10, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8, zIndex: 10, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', padding: '4px 8px', marginBottom: 4, textTransform: 'uppercase' }}>Cambiar estado</div>
           {Object.entries(TASK_STATUS_CFG).map(([status, { label, color }]) => (
             <button key={status} onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
@@ -240,11 +240,11 @@ function BurndownChart({ sprintId, projectId }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={points} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
         <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-        <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 11 }} />
-        <Line type="monotone" dataKey="ideal" stroke="#1e2d45" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name="Ideal" />
+        <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 11 }} />
+        <Line type="monotone" dataKey="ideal" stroke="var(--surface-4)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} name="Ideal" />
         <Line type="monotone" dataKey="remaining" stroke="#00d4ff" strokeWidth={2.5} dot={{ r: 3 }} name="Restante" />
       </LineChart>
     </ResponsiveContainer>
@@ -367,7 +367,7 @@ export default function SprintsPage() {
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             {['board','backlog','velocity'].map(v => (
               <button key={v} onClick={() => setActiveView(v)}
-                style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeView === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: activeView === v ? 'var(--accent-muted)' : 'transparent', color: activeView === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeView === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: activeView === v ? 'var(--accent-muted)' : 'transparent', color: activeView === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v === 'board' ? '🎯 Tablero' : v === 'backlog' ? '📋 Backlog' : '📊 Velocidad'}
               </button>
             ))}
@@ -411,7 +411,7 @@ export default function SprintsPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <Button onClick={() => setShowAddTasks(activeSprint.id)}>+ Añadir tareas</Button>
                     <button onClick={() => setShowRetro(activeSprint)}
-                      style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                       📝 Retro
                     </button>
                     <button onClick={() => { openConfirmGlobal({ message: '¿Cerrar este sprint? Las tareas incompletas volverán al backlog.', onConfirm: () => closeSprint(activeSprint.id), danger: true }) }}
@@ -428,7 +428,7 @@ export default function SprintsPage() {
               />
             </div>
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px dashed #1e2d45', borderRadius: 12, padding: '24px', marginBottom: 24, textAlign: 'center', color: 'var(--text-3)' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px dashed var(--surface-4)', borderRadius: 12, padding: '24px', marginBottom: 24, textAlign: 'center', color: 'var(--text-3)' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>⚡</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>No hay sprint activo</div>
               <div style={{ fontSize: 13 }}>Crea un sprint y pulsa &quot;Iniciar&quot; para comenzar</div>
@@ -440,7 +440,7 @@ export default function SprintsPage() {
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>En planificación</div>
               {planningSprints.map(sprint => (
-                <div key={sprint.id} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
+                <div key={sprint.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <span style={{ fontSize: 15, fontWeight: 700 }}>Sprint {sprint.number} — {sprint.name}</span>
@@ -451,7 +451,7 @@ export default function SprintsPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => setShowAddTasks(sprint.id)}
-                        style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                         + Tareas
                       </button>
                       {!activeSprint && (
@@ -508,7 +508,7 @@ export default function SprintsPage() {
                     style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 80px 80px 120px', gap: 12, padding: '10px 16px', background: selected ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${selected ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 8, alignItems: 'center', cursor: 'pointer' }}>
                     <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer' }} />
                     <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{task.code}</span>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{task.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 500 }}>{task.title}</span>
                     <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: (PRIORITY_COLOR[task.priority] || 'var(--text-3)') + '20', color: PRIORITY_COLOR[task.priority] || 'var(--text-3)', textAlign: 'center' }}>{task.priority}</span>
                     <span style={{ fontSize: 12, color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'} pts</span>
                     <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{task.assignee_name || 'Sin asignar'}</span>
@@ -527,7 +527,7 @@ export default function SprintsPage() {
                 </button>
               ))}
               <button onClick={() => setSelectedBacklogTasks([])}
-                style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+                style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
                 Cancelar
               </button>
             </div>
@@ -548,7 +548,7 @@ export default function SprintsPage() {
                   { label: 'Sprints completados', value: velocity.sprints?.length || 0, color: 'var(--success)', icon: '✓' },
                   { label: 'Total puntos entregados', value: velocity.sprints?.reduce((s, x) => s + x.completed, 0) || 0, color: 'var(--purple)', icon: '🎯' },
                 ].map(({ label, value, color, icon }) => (
-                  <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px' }}>
+                  <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px' }}>
                     <div style={{ fontSize: 22, marginBottom: 8 }}>{icon}</div>
                     <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
@@ -556,16 +556,16 @@ export default function SprintsPage() {
                 ))}
               </div>
 
-              <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 24px' }}>
+              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Velocidad por sprint</div>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={velocity.sprints} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
                     <XAxis dataKey="sprint" tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 12 }} />
+                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 12 }} />
                     <ReferenceLine y={velocity.avg_velocity} stroke="#00d4ff" strokeDasharray="5 3" label={{ value: 'Media', fill: 'var(--accent)', fontSize: 11 }} />
-                    <Bar dataKey="planned" fill="#1e2d45" radius={[3, 3, 0, 0]} name="Planificado" />
+                    <Bar dataKey="planned" fill="var(--surface-4)" radius={[3, 3, 0, 0]} name="Planificado" />
                     <Bar dataKey="completed" fill="#00d4ff" radius={[3, 3, 0, 0]} name="Completado" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -577,7 +577,7 @@ export default function SprintsPage() {
                   const sprint = completedSprints.find(x => x.name === s.name)
                   if (!sprint?.went_well && !sprint?.to_improve) return null
                   return (
-                    <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
+                    <div key={s.sprint} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', marginBottom: 10 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{s.sprint} — {s.name}</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, fontSize: 12 }}>
                         {sprint?.went_well && <div><div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 4 }}>✓ Qué fue bien</div><div style={{ color: 'var(--text-2)' }}>{sprint.went_well}</div></div>}
@@ -627,7 +627,7 @@ export default function SprintsPage() {
                       <label key={task.id} style={{ display: 'grid', gridTemplateColumns: '24px 80px 1fr 60px 100px', gap: 10, padding: '8px 12px', background: sel ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${sel ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 8, cursor: 'pointer', alignItems: 'center' }}>
                         <input type="checkbox" checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
                         <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{task.code}</span>
-                        <span style={{ fontSize: 13 }}>{task.title}</span>
+                        <span style={{ fontSize: 12 }}>{task.title}</span>
                         <span style={{ fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>{task.story_points || '—'}pt</span>
                         <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{task.assignee_name?.split(' ')[0] || '—'}</span>
                       </label>

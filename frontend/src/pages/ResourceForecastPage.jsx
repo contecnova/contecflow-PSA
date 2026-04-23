@@ -253,8 +253,8 @@ export default function ResourceForecastPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4 }}>
           {[
-            { id: 'heatmap', label: '🔥 Heatmap' },
-            { id: 'summary', label: '📊 Resumen' },
+            { id: 'heatmap', label: 'Heatmap' },
+            { id: 'summary', label: 'Resumen' },
           ].map(v => (
             <button key={v.id} onClick={() => setView(v.id)} style={{
               padding: '6px 16px', borderRadius: 7, border: 'none',

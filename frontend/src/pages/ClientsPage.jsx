@@ -1,6 +1,6 @@
 // Estilos reutilizables globales (asegurar que siempre estén definidos)
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 // Estado global para clientes (usado en toda la página)
@@ -56,6 +56,7 @@ import { IconFR, IconCR } from '../components/ui/FRCRIcons'
 import _PageHeader from '../components/layout/PageHeader'
 import { fmtCurrency, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
+import { Briefcase } from 'lucide-react'
 
 
 
@@ -125,7 +126,7 @@ function ProjectsTab({ cid }) {
           ) : (
             unlinked.map(p => (
               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 14px', marginBottom: 6, background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1e2d45' }}>
+                padding: '10px 14px', marginBottom: 6, background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
                 <div>
                   <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: 'var(--text-2)', marginRight: 8 }}>{p.code}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</span>
@@ -262,7 +263,7 @@ function ContactsTab({ cid }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => add(form)} disabled={!form.full_name}>Añadir</Button>
           </div>
         </Modal>
@@ -340,7 +341,7 @@ function LicensesTab({ cid }) {
             <input value={licNote} onChange={e => setLicNote(e.target.value)} style={inp} placeholder="Notas de la licencia" aria-label="Notas de la licencia" />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => link({ license_id: selectedLic, notes: licNote })} disabled={!selectedLic}>Vincular</Button>
           </div>
         </Modal>
@@ -412,7 +413,7 @@ function ContractsTab({ cid }) {
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowLink(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => link({ contract_id: selectedCon })} disabled={!selectedCon}>Vincular</Button>
           </div>
         </Modal>
@@ -427,12 +428,12 @@ function PortalConfigTab({ cid, clientDetail }) {
   const [sub, setSub] = useState('accesos')
 
   const SUB_TABS = [
-    { id: 'accesos',      label: '🔐 Accesos' },
-    { id: 'uat',          label: '🧪 UAT' },
-    { id: 'solicitudes',  label: '💡 Solicitudes' },
-    { id: 'mensajes',     label: '💬 Mensajes' },
-    { id: 'documentos',   label: '📄 Documentos' },
-    { id: 'config',       label: '⚙️ Configuración' },
+    { id: 'accesos',      label: 'Accesos' },
+    { id: 'uat',          label: 'UAT' },
+    { id: 'solicitudes',  label: 'Solicitudes' },
+    { id: 'mensajes',     label: 'Mensajes' },
+    { id: 'documentos',   label: 'Documentos' },
+    { id: 'config',       label: 'Configuración' },
   ]
 
   return (
@@ -599,7 +600,7 @@ function PortalSolicitudesTab({ cid }) {
   const STATUS_COLOR = { new: 'var(--text-2)', reviewing: 'var(--accent)', estimated: 'var(--warning)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
   const STATUS_LABEL = { new: 'Nueva', reviewing: 'En revisión', estimated: 'Presupuestada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
   const PRIO_COLOR   = { low: 'var(--text-2)', medium: 'var(--warning)', high: 'var(--warning)', critical: 'var(--danger)' }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   if (isLoading) return <Spinner />
@@ -834,7 +835,7 @@ function PortalDocumentosTab({ cid, projects }) {
             </div>
             {d.file_url && (
               <a href={d.file_url} target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e2d45', color: 'var(--accent)', textDecoration: 'none', background: 'var(--accent-muted)' }}>
+                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', color: 'var(--accent)', textDecoration: 'none', background: 'var(--accent-muted)' }}>
                 ⬇ Descargar
               </a>
             )}
@@ -884,10 +885,10 @@ function PortalSettingsTab({ cid }) {
   const toggleModule = (mod) => setModules(m => m.includes(mod) ? m.filter(x => x !== mod) : [...m, mod])
 
   const LANGUAGES = [
-    { code: 'es', label: '🇪🇸 Español' }, { code: 'en', label: '🇬🇧 English' },
-    { code: 'fr', label: '🇫🇷 Français' }, { code: 'de', label: '🇩🇪 Deutsch' },
-    { code: 'pt', label: '🇵🇹 Português' }, { code: 'it', label: '🇮🇹 Italiano' },
-    { code: 'pl', label: '🇵🇱 Polski' }, { code: 'zh', label: '🇨🇳 中文' },
+    { code: 'es', label: 'Español' }, { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' }, { code: 'de', label: 'Deutsch' },
+    { code: 'pt', label: 'Português' }, { code: 'it', label: 'Italiano' },
+    { code: 'pl', label: 'Polski' }, { code: 'zh', label: '中文' },
   ]
   const SLA_COLOR = { enterprise: 'var(--purple)', gold: 'var(--warning)', silver: 'var(--text-2)', bronze: 'var(--warning)' }
 
@@ -958,7 +959,7 @@ function PortalSettingsTab({ cid }) {
               borderRadius: 8, padding: '10px 12px' }}>
               <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} style={{ width: 15, height: 15, accentColor: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: opt.val ? 'var(--text-1)' : 'var(--text-2)' }}>{opt.label}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{opt.desc}</div>
               </div>
             </label>
@@ -1111,24 +1112,24 @@ function PortalUsersTab({ cid, clientName }) {
                 {u.can_view_team && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>👥 Equipo</span>}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid #1e2d45' }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)' }}>
               <button onClick={() => openEdit(u)}
-                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ✏️ Editar
               </button>
               <button onClick={() => setShowReset({ id: u.id, email: u.email })}
-                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 🔑 Cambiar contraseña
               </button>
               <button onClick={() => toggle({ id: u.id, active: !u.is_active })}
-                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: u.is_active ? 'var(--danger)' : 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: u.is_active ? 'var(--danger)' : 'var(--success)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {u.is_active ? '⏸ Suspender acceso' : '▶ Reactivar acceso'}
               </button>
               <button onClick={() => {
                 const text = `Acceso al portal de ${clientName || 'Clarive'}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
                 navigator.clipboard.writeText(text)
                 toast.info('📋 Info de acceso copiada al portapapeles')
-              }} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              }} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 📋 Copiar datos de acceso
               </button>
             </div>
@@ -1162,7 +1163,7 @@ function PortalUsersTab({ cid, clientName }) {
             <button onClick={() => {
               navigator.clipboard.writeText(`Portal: ${portalUrl}\nEmail: ${createdCreds.email}\nContraseña: ${createdCreds.password}`)
               toast.success('Copiado al portapapeles')
-            }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>📋 Copiar todo</button>
+            }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>📋 Copiar todo</button>
             <Button onClick={() => setCreatedCreds(null)}>Entendido</Button>
           </div>
         </Modal>
@@ -1178,7 +1179,7 @@ function PortalUsersTab({ cid, clientName }) {
               style={inp} placeholder="Nueva contrasena" aria-label="Nueva contrasena" />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowReset(null); setNewPassword('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => resetPwd({ id: showReset.id, password: newPassword })} disabled={newPassword.length < 6 || resetting}>
               {resetting ? '⟳ Guardando...' : '✓ Cambiar contraseña'}
             </Button>
@@ -1232,10 +1233,10 @@ function PortalUsersTab({ cid, clientName }) {
               textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permisos en el portal</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
-                { key: 'can_approve_deliverables', label: '✓ Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
+                { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
                 { key: 'can_request_changes',      label: '↩ Puede solicitar cambios',   desc: 'Enviar solicitudes de cambio' },
-                { key: 'can_view_budget',           label: '💰 Puede ver presupuesto',    desc: 'Ver consumo vs presupuesto' },
-                { key: 'can_view_team',             label: '👥 Puede ver equipo',          desc: 'Ver miembros del equipo asignado' },
+                { key: 'can_view_budget',           label: 'Puede ver presupuesto',    desc: 'Ver consumo vs presupuesto' },
+                { key: 'can_view_team',             label: 'Puede ver equipo',          desc: 'Ver miembros del equipo asignado' },
               ].map(p => (
                 <label key={p.key} style={{
                   display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
@@ -1258,7 +1259,7 @@ function PortalUsersTab({ cid, clientName }) {
 
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setEditUser(null)}
-              style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
+              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               Cancelar
             </button>
@@ -1308,10 +1309,10 @@ function PortalUsersTab({ cid, clientName }) {
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Permisos en el portal</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
-                { key: 'can_approve_deliverables', label: '✓ Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
+                { key: 'can_approve_deliverables', label: 'Puede aprobar entregables', desc: 'Validar o rechazar entregables del proyecto' },
                 { key: 'can_request_changes', label: '↩ Puede solicitar cambios', desc: 'Enviar solicitudes de cambio' },
-                { key: 'can_view_budget', label: '💰 Puede ver presupuesto', desc: 'Ver consumo vs presupuesto' },
-                { key: 'can_view_team', label: '👥 Puede ver equipo', desc: 'Ver miembros del equipo asignado' },
+                { key: 'can_view_budget', label: 'Puede ver presupuesto', desc: 'Ver consumo vs presupuesto' },
+                { key: 'can_view_team', label: 'Puede ver equipo', desc: 'Ver miembros del equipo asignado' },
               ].map(p => (
                 <label key={p.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
                   background: form[p.key] ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${form[p.key] ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
@@ -1332,7 +1333,7 @@ function PortalUsersTab({ cid, clientName }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAdd(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => add({ ...form, client_org_id: cid, project_ids: form.project_ids && form.project_ids.length > 0 ? form.project_ids : undefined })}
               disabled={!form.full_name || !form.email || !form.password || form.password !== form.confirm_password || isPending}>
               {isPending ? '⟳ Creando...' : '🔐 Crear acceso al portal'}
@@ -1415,12 +1416,12 @@ export default function ClientsPage() {
   }
 
   const TABS = [
-    { id: 'contacts', label: '👥 Contactos' },
+    { id: 'contacts', label: 'Contactos' },
     { id: 'projects', label: '⬡ Proyectos' },
-    { id: 'contracts',label: '📄 Contratos' },
-    { id: 'licenses', label: '🔑 Licencias' },
-    { id: 'tickets',  label: '🎫 Tickets SD' },
-    { id: 'portal',   label: '🌐 Portal' },
+    { id: 'contracts',label: 'Contratos' },
+    { id: 'licenses', label: 'Licencias' },
+    { id: 'tickets',  label: 'Tickets SD' },
+    { id: 'portal',   label: 'Portal' },
   ]
 
   const INDUSTRIES = ['technology','finance','healthcare','retail','manufacturing','education','consulting','real_estate','media','other']
@@ -1458,7 +1459,7 @@ export default function ClientsPage() {
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{c.name}</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</div>
                 <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[c.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[c.status] || 'var(--text-2)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {STATUS_LABEL[c.status] || c.status}
                 </span>
@@ -1473,15 +1474,15 @@ export default function ClientsPage() {
             </button>
           ))
           : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '8px 12px', borderBottom: '1px solid #1e2d45', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '8px 12px', borderBottom: '1px solid var(--surface-4)', fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="name" sort={clientSort} onSort={setClientSort}>Cliente</SortableTH>
                 <SortableTH col="projects_count" sort={clientSort} onSort={setClientSort}>Proy</SortableTH>
                 <span>SD</span>
               </div>
               {sortedClients.map(c => (
                 <button key={c.id} type="button" onClick={() => { setSelected(c); setActiveTab('contacts') }}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
                   <div>
@@ -1500,7 +1501,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Detalle del cliente */}
-      <div style={{ borderLeft: '1px solid #1e2d45', paddingLeft: 24 }}>
+      <div style={{ borderLeft: '1px solid var(--surface-4)', paddingLeft: 24 }}>
         {!selected ? (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
             <div style={{ textAlign: 'center' }}>
@@ -1523,7 +1524,7 @@ export default function ClientsPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button onClick={openEditClient}
-                    style={{ fontSize: 12, padding: '5px 14px', borderRadius: 8, border: '1px solid #1e2d45',
+                    style={{ fontSize: 12, padding: '5px 14px', borderRadius: 8, border: '1px solid var(--surface-4)',
                       background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit',
                       fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                     ✏️ Editar
@@ -1548,10 +1549,10 @@ export default function ClientsPage() {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap', borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap', borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${activeTab === t.id ? 'var(--accent-glow)' : 'transparent'}`,
+                  style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${activeTab === t.id ? 'var(--accent-glow)' : 'transparent'}`,
                     background: activeTab === t.id ? 'var(--accent-muted)' : 'transparent', color: activeTab === t.id ? 'var(--accent)' : 'var(--text-2)',
                     fontSize: 12, fontWeight: activeTab === t.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {t.label}
@@ -1678,7 +1679,7 @@ export default function ClientsPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowEdit(false)}
-              style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
+              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               Cancelar
             </button>
@@ -1715,7 +1716,7 @@ export default function ClientsPage() {
           </div>
           <div style={{ marginBottom: 16 }}><label style={lbl}>Notas</label><textarea value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inp, minHeight: 70, resize: 'vertical' }} /></div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(newForm)} disabled={!newForm.name || creating}>
               {creating ? '⟳ Creando...' : '✓ Crear cliente'}
             </Button>

@@ -206,11 +206,11 @@ export default function ChangeManagementTab() {
   const STATUS_ACTIONS = {
     draft: [{ label: 'Enviar a revisión', next: 'submitted', color: COLOR.accent }],
     submitted: [{ label: 'Enviar a CAB', next: 'cab_review', color: COLOR.warning }],
-    cab_review: [{ label: '✓ Aprobar', action: 'approve', color: COLOR.success }, { label: '✗ Rechazar', action: 'reject', color: COLOR.danger }],
+    cab_review: [{ label: 'Aprobar', action: 'approve', color: COLOR.success }, { label: 'Rechazar', action: 'reject', color: COLOR.danger }],
     approved: [{ label: 'Programar', next: 'scheduled', color: COLOR.accent }],
     scheduled: [{ label: 'Iniciar', next: 'in_progress', color: COLOR.accent }],
     in_progress: [{ label: 'Implementado', next: 'implemented', color: COLOR.success }],
-    implemented: [{ label: '✓ Cerrar éxito', next: 'closed_success', color: COLOR.success }, { label: '✗ Cerrar fallo', next: 'closed_failed', color: COLOR.danger }],
+    implemented: [{ label: 'Cerrar éxito', next: 'closed_success', color: COLOR.success }, { label: 'Cerrar fallo', next: 'closed_failed', color: COLOR.danger }],
   }
 
   const handleAction = (c, action) => {

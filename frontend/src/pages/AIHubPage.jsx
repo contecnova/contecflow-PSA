@@ -9,6 +9,7 @@ import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
+import { Cpu } from 'lucide-react'
 
 
 const getStatusCfg = (t) => ({
@@ -17,8 +18,8 @@ const getStatusCfg = (t) => ({
   error:    { label: t('ai.provider_status_error'), color: 'var(--danger)' },
 })
 
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 function ProviderModal({ provider, catalog, onClose }) {
@@ -291,16 +292,17 @@ export default function AIHubPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Cpu size={18} />}
         title={t('ai.hub_title')}
         subtitle={t('ai.hub_subtitle')}
         actions={<Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>}
       />
 
       {/* Tabs */}
-      <div role="tablist" aria-label={t('ai.hub_title')} style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+      <div role="tablist" aria-label={t('ai.hub_title')} style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['providers',t('ai.providers')],['stats',t('ai.usage')],['guide',t('ai.guide')]].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} aria-controls={`aihub-panel-${id}`} id={`aihub-tab-${id}`} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -367,7 +369,7 @@ export default function AIHubPage() {
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
-                        style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                         🔌 {t('ai.provider_test_action')}
                       </button>
                       {!p.is_default && (
@@ -377,7 +379,7 @@ export default function AIHubPage() {
                         </button>
                       )}
                       <button aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
                         {t('ai.provider_edit_action')}
                       </button>
                       <button aria-label={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}
@@ -412,9 +414,9 @@ export default function AIHubPage() {
 
           {byModule.length > 0 && (
             <div style={card}>
-              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #1e2d45', fontWeight: 700, fontSize: 14 }}>{t('ai.module_usage')}</div>
+              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: 14 }}>{t('ai.module_usage')}</div>
               {byModule.map(r => (
-                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid #1e2d4530', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>

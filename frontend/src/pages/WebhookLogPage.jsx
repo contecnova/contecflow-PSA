@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 export default function WebhookLogPage() {
@@ -56,11 +57,12 @@ export default function WebhookLogPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Webhook size={18} />}
         title={t('webhooks.title')}
         subtitle={t('webhooks.subtitle')}
         actions={
           <button onClick={() => refetch()}
-            style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+            style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:8, padding:'7px 14px', color:'var(--text-1)',
               cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
             🔄 Actualizar
@@ -76,7 +78,7 @@ export default function WebhookLogPage() {
           { label:'Exitosas', value: successCount, color:'var(--success)' },
           { label:'Fallidas', value: failCount, color: failCount > 0 ? 'var(--danger)' : 'var(--text-3)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'14px 18px' }}>
             <div style={{ fontSize:24, fontWeight:900, color:kpi.color,
               fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>
@@ -91,11 +93,11 @@ export default function WebhookLogPage() {
             ? "Configura webhooks salientes en Empresa → Integraciones"
             : "Los webhooks configurados aún no han disparado llamadas"} />
       ) : (
-        <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
           borderRadius:12, overflow:'hidden' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
-              <tr style={{ borderBottom:'1px solid #1e2d45' }}>
+              <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
                 {['Timestamp','Webhook','Evento','URL destino','Status','Duración'].map(h => (
                   <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11,
                     fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
@@ -109,7 +111,7 @@ export default function WebhookLogPage() {
                 const ok = log.http_status >= 200 && log.http_status < 300
                 return (
                   <tr key={log.id || i}
-                    style={{ borderBottom:'1px solid #1e2d4520', cursor:'pointer' }}
+                    style={{ borderBottom:'1px solid var(--surface-4)20', cursor:'pointer' }}
                     onClick={() => setSelectedLog(log)}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>

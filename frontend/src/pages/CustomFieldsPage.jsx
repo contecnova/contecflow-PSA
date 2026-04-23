@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { SlidersHorizontal } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const FIELD_TYPES = [
@@ -17,8 +18,8 @@ const FIELD_TYPES = [
   { value: 'user',    label: 'Usuario',          icon: '👤' },
 ]
 
-const panelStyle = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
+const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FieldForm({ field, projectId, onClose }) {
@@ -167,6 +168,7 @@ export default function CustomFieldsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<SlidersHorizontal size={18} />}
         title={_t('custom_fields.title')}
         subtitle={_t('custom_fields.subtitle')}
         actions={selectedProject && (
@@ -209,7 +211,7 @@ export default function CustomFieldsPage() {
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                 {['Campo', 'Clave', 'Tipo', 'Obligatorio', 'En lista', 'Acciones'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                 ))}
@@ -219,7 +221,7 @@ export default function CustomFieldsPage() {
               {fields.map((f, i) => {
                 const type = FIELD_TYPES.find(t => t.value === f.field_type)
                 return (
-                  <tr key={f.id} style={{ borderBottom: '1px solid #1e2d45', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
+                  <tr key={f.id} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.03)' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{f.name}</td>
                     <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-2)' }}>{f.field_key}</td>
                     <td style={{ padding: '10px 12px' }}>
@@ -244,7 +246,7 @@ export default function CustomFieldsPage() {
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => { setEditing(f); setShowForm(true) }}
-                          style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                          style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
                           Editar
                         </button>
                         <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el campo "${f.name}"? Los valores guardados se perderán.`, onConfirm: () => deleteField(f.id), danger: true }) }}

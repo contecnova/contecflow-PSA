@@ -11,9 +11,9 @@ import { CheckCircle } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const entityLabels = (t) => ({
   timesheet: { label: t('approvals.entity_timesheet'), icon: '🕐', color: 'var(--accent)' },
@@ -134,7 +134,7 @@ function StepModal({ workflowId, step, onClose }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
         <Button onClick={() => mutate(form)} loading={isPending} disabled={!form.name || isPending}>
           {isEdit ? t('approvals.save_step') : t('approvals.add_step')}
         </Button>
@@ -176,7 +176,7 @@ function WorkflowDetail({ workflowId, onBack }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('approvals.back')}</button>
+        <button aria-label={t('approvals.back')} onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('approvals.back')}</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 800 }}>{wf.name}</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
@@ -186,7 +186,7 @@ function WorkflowDetail({ workflowId, onBack }) {
           </div>
         </div>
         <button aria-pressed={wf.is_active} onClick={() => toggleActive(!wf.is_active)} style={{
-          background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
+          background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
           padding: '6px 14px', color: wf.is_active ? 'var(--warning)' : 'var(--success)',
           cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
         }}>
@@ -237,8 +237,8 @@ function WorkflowDetail({ workflowId, onBack }) {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
-                      <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      <button aria-label={t('approvals.edit_step_aria', { name: step.name })} onClick={() => setEditStep(step)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
+                      <button aria-label={t('approvals.delete_step_aria', { name: step.name })} onClick={() => { openConfirmGlobal({ message: t('approvals.delete_step_confirm', { name: step.name }), onConfirm: () => delStep(step.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                     </div>
                   </div>
                 </div>
@@ -407,7 +407,7 @@ function MyPendingTab() {
         const ageHours = Math.max(0, Math.floor((Date.now() - new Date(req.created_at || Date.now()).getTime()) / 3600000))
         const isUrgent = ageHours >= 24
         return (
-          <div key={req.id} style={{ background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'rgba(245,158,11,0.35)' : '#1e2d45'}`, borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
+          <div key={req.id} style={{ background: selectedIds.has(req.id) ? 'var(--surface-3)' : 'var(--surface-2)', border: `1px solid ${selectedIds.has(req.id) ? 'var(--accent)' : isUrgent ? 'rgba(245,158,11,0.35)' : 'var(--surface-4)'}`, borderRadius: 12, padding: '16px 20px', marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <input
                 type="checkbox"
@@ -521,7 +521,7 @@ export default function ApprovalsPage() {
             { label: t('approvals.rejected'), value: stats.rejected, color: 'var(--danger)' },
             { label: t('approvals.active_flows'), value: workflows.filter(w => w.is_active).length, color: 'var(--accent)' },
           ].map(k => (
-            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
+            <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
               <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{k.label}</div>
             </div>
@@ -593,7 +593,7 @@ export default function ApprovalsPage() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                         <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })} onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm:()=>del(wf.id),danger:true}) }}
-                          style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
+                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
                           🗑
                         </button>
                       </div>
@@ -603,7 +603,7 @@ export default function ApprovalsPage() {
               })}
               {workflows.filter(w => !Object.keys(entityLabels(t)).includes(w.entity_type)).map(wf => (
                 <div key={wf.id} role="button" tabIndex={0} onClick={() => setSelected(wf.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(wf.id) } }} aria-label={t('approvals.workflow_open_aria', { name: wf.name })}
-                  style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', cursor: 'pointer' }}>
                   <div style={{ fontSize: 14, fontWeight: 700 }}>{wf.name}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{wf.entity_type} · {wf.step_count} {t('approvals.steps_word')}</div>
                 </div>
@@ -636,7 +636,7 @@ export default function ApprovalsPage() {
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
             <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>{t('approvals.create_workflow')}</Button>
           </div>
         </Modal>

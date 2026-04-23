@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -58,7 +59,7 @@ function ReviewForm({ review, onClose }) {
     improvements: review.improvements || '',
     goals_next:   review.goals_next   || '',
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
@@ -94,7 +95,7 @@ function ReviewForm({ review, onClose }) {
                   <button key={n} onClick={() => setScores(s => ({...s, [key]: n}))}
                     style={{ width:32, height:32, borderRadius:6,
                       background: scores[key] >= n ? 'var(--accent)' : 'var(--surface-4)',
-                      border: scores[key] >= n ? '1px solid var(--accent)' : '1px solid #1e2d45',
+                      border: scores[key] >= n ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
                       color: scores[key] >= n ? '#fff' : 'var(--text-3)',
                       cursor:'pointer', fontSize:12, fontWeight:700 }}>
                     {n}
@@ -149,7 +150,7 @@ function CycleCard({ cycle, onActivate, onClose }) {
     : null
 
   return (
-    <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+    <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
       borderRadius:12, padding:'16px 20px', marginBottom:12 }}>
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => setExpanded(s => !s)}
@@ -230,7 +231,7 @@ function NewCycleModal({ onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({ name:'', start_date:'', end_date:'' })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
   const { mutate, isPending } = useMutation({
@@ -298,13 +299,14 @@ export default function PerformanceReviewsPage() {
   })
 
   const TABS = [
-    { id:'cycles',  label:'📋 Ciclos' },
+    { id:'cycles',  label:'Ciclos' },
     { id:'pending', label:`⏳ Mis evaluaciones${myReviews.length > 0 ? ` (${myReviews.length})` : ''}` },
   ]
 
   return (
     <div style={{ padding:32 }}>
       <PageHeader
+        icon={<BarChart2 size={18} />}
         title={t('performance.title')}
         subtitle={t('performance.subtitle')}
         actions={
@@ -315,7 +317,7 @@ export default function PerformanceReviewsPage() {
       />
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:6, marginBottom:24 }}>
+      <div style={{ display:'flex', gap:6, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:600,
@@ -352,7 +354,7 @@ export default function PerformanceReviewsPage() {
             {myReviews.map(r => (
               <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12,
                 padding:'12px 16px', background:'var(--surface-2)',
-                border:'1px solid #1e2d45', borderRadius:10 }}>
+                border:'1px solid var(--surface-4)', borderRadius:10 }}>
                 <div style={{ fontSize:24 }}>{REVIEW_TYPE[r.review_type]?.icon || '📋'}</div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:14, fontWeight:700 }}>

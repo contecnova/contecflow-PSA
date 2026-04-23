@@ -210,7 +210,7 @@ export default function PipelinePage() {
 
   return (
     <div style={{ padding: 20, display: 'grid', gap: 18 }}>
-      <PageHeader icon={<Megaphone size={16} />} title={t('pipeline.title')} />
+      <PageHeader icon={<Megaphone size={18} />} title={t('pipeline.title')} subtitle={t('pipeline.subtitle')} />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <SummaryCard label={t('pipeline.total_pipeline')} value={fmtCurrency(summary.totalRevenue)} tone="var(--accent)" />

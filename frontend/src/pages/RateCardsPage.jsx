@@ -5,12 +5,13 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { rateCardsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Tag } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
+const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 // ── Formulario de entrada ─────────────────────────────────────────────────────
 function EntryForm({ tableId, entry, onClose }) {
@@ -90,7 +91,7 @@ function EntryForm({ tableId, entry, onClose }) {
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background:'transparent', border:'1px solid #1e2d45', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cancelar</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
           {isEdit ? '💾 Guardar' : '+ Añadir'}
         </Button>
@@ -139,7 +140,7 @@ function RateTableDetail({ tableId, onBack }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
           ← Volver
         </button>
         <div style={{ flex: 1 }}>
@@ -151,7 +152,7 @@ function RateTableDetail({ tableId, onBack }) {
             Margen medio: {avgMargin}%
           </div>
         )}
-        <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
           📋 Duplicar con escalado
         </button>
         <Button onClick={() => setShowEntry(true)}>+ Nueva tarifa</Button>
@@ -163,7 +164,7 @@ function RateTableDetail({ tableId, onBack }) {
         <div style={{ ...panel, overflow: 'hidden' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+              <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                 {['Rol / Perfil', 'Facturación', 'Coste', 'Margen', 'Escalado', 'Vigencia', ''].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                 ))}
@@ -197,8 +198,8 @@ function RateTableDetail({ tableId, onBack }) {
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
+                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -223,7 +224,7 @@ function RateTableDetail({ tableId, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
           </div>
         </Modal>
@@ -269,7 +270,7 @@ export default function RateCardsPage() {
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
+      <PageHeader icon={<Tag size={18} />} title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button onClick={() => setShowCreate(true)}>+ Nueva tabla de tarifas</Button>
@@ -292,7 +293,7 @@ export default function RateCardsPage() {
               onMouseLeave={e => e.currentTarget.style.borderColor = t.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{t.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>{t.name}</div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {t.is_default && (
                     <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>DEFAULT</span>
@@ -308,7 +309,7 @@ export default function RateCardsPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar tabla "${t.name}"?`,onConfirm:()=>del(t.id),danger:true}) }}
-                  style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
+                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
                   🗑
                 </button>
               </div>
@@ -342,7 +343,7 @@ export default function RateCardsPage() {
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
           </div>
         </Modal>

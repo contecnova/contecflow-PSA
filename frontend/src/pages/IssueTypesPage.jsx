@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Tag } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
@@ -158,7 +159,7 @@ export default function IssueTypesPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
+      <PageHeader icon={<Tag size={18} />} title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
         actions={project && types.length > 0 && (
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo tipo</Button>
         )} />

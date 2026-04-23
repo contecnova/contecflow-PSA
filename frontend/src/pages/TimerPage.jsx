@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -293,6 +294,7 @@ export default function TimerPage() {
         </div>
       )}
       <PageHeader
+        icon={<Timer size={18} />}
         title={t('timer.title')}
         subtitle={t('timer.subtitle')}
         actions={!currentTimer && (

@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { LayoutGrid } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -495,6 +496,7 @@ export default function KanbanAdvancedPage() {
       {/* Header */}
       <div style={{ padding: '16px 24px 8px', flexShrink: 0 }}>
         <PageHeader
+        icon={<LayoutGrid size={18} />}
           title={t('kanban.title')}
           subtitle={t('kanban.subtitle')}
           actions={

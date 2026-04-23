@@ -6,6 +6,7 @@ import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import { queueImputation } from '../services/offlineQueue'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -159,6 +160,7 @@ export default function ImputarPage() {
   return (
     <div style={{ padding: 32, maxWidth: 680, margin: '0 auto' }}>
       <PageHeader
+        icon={<Clock size={18} />}
         title={t('imputa_page.title')}
         subtitle={t('imputa_page.subtitle', { date: fmtDate(today), hours: todayHours.toFixed(1) })}
       />
@@ -362,7 +364,7 @@ export default function ImputarPage() {
               )}
             </div>
           ))}
-          <div style={{ borderTop: '1px solid #1e2d45', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: 14, fontWeight: 700 }}>
+          <div style={{ borderTop: '1px solid var(--surface-4)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: 14, fontWeight: 700 }}>
             {t('imputa_page.total')}: <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--accent)', marginLeft: 8 }}>{todayHours.toFixed(1)}h</span>
           </div>
         </Card>

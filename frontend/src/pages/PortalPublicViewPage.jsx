@@ -23,7 +23,7 @@ export default function PortalPublicViewPage() {
   if (error || !data) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0b1220', color: '#e5edf8', fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <div style={{ maxWidth: 520, padding: 24, border: '1px solid #1e2d45', borderRadius: 12, background: '#111a2b' }}>
+        <div style={{ maxWidth: 520, padding: 24, border: '1px solid var(--surface-4)', borderRadius: 12, background: '#111a2b' }}>
           <h1 style={{ marginTop: 0 }}>Enlace no valido</h1>
           <p style={{ color: '#9eb0c8' }}>Este enlace ha expirado o no existe.</p>
         </div>

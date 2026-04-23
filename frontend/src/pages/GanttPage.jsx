@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useAppT } from '../i18n/AppLangContext'
@@ -99,6 +100,7 @@ export default function GanttPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 52px)', background: 'var(--surface-0)' }}>
       <div style={{ padding: '16px 24px 12px', flexShrink: 0 }}>
         <PageHeader
+        icon={<BarChart2 size={18} />}
           title={t('gantt.title')}
           subtitle={t('gantt.subtitle')}
           actions={

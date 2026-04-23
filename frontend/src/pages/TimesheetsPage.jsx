@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtHours, fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -175,7 +176,7 @@ function ReviewModal({ timesheet, onClose }) {
         </div>
         <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Notas de revision" aria-label="Notas de revision"
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -227,21 +228,21 @@ export default function TimesheetsPage() {
   })
 
   const tabs = [
-    { id: 'mine', label: '📋 Mis timesheets' },
+    { id: 'mine', label: 'Mis timesheets' },
     ...(hasRole('admin', 'pm', 'hr') ? [
       { id: 'pending', label: `⏳ Pendientes (${pending.length})` },
-      { id: 'team', label: '👥 Equipo' },
+      { id: 'team', label: 'Equipo' },
     ] : []),
   ]
 
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} />
+      <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} />
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -272,7 +273,7 @@ export default function TimesheetsPage() {
                   </div>
                   <StatusBadge status={ts.status} />
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Ver líneas</button>
+                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Ver líneas</button>
                     {(ts.status === 'draft' || ts.status === 'rejected') && ts.total_hours > 0 && (
                       <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
                     )}
@@ -312,8 +313,8 @@ export default function TimesheetsPage() {
           {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
             <EmptyState icon="👥" title="Sin timesheets de equipo" description="Todavia no hay partes semanales del equipo" />
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {[['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => toggleTeamSort(key)}
                     onKeyDown={e => onKeyboardActivate(e, () => toggleTeamSort(key))}
@@ -331,7 +332,7 @@ export default function TimesheetsPage() {
                 const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
                 return teamSortDir === 'asc' ? cmp : -cmp
               }).map(ts => (
-                <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
+                <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{ts.user_name}</span>
                   <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtDate(ts.week_start)}</span>
                   <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{fmtHours(ts.total_hours)}</span>

@@ -90,6 +90,7 @@ const en = {
     },
   client_portal: {
     title: 'Client Portal',
+    subtitle: 'Secure client access to projects and tickets',
     contacts_count: 'contacts',
     add_contact: 'Add contact',
     empty_contacts_title: 'No client contacts',
@@ -899,6 +900,8 @@ const en = {
       save: 'Save',
     },
   subcontractors: {
+    title: 'Subcontractors',
+    subtitle: 'External vendors and contract management',
     person_added: 'Person created as resource',
     person_created_user: 'A user has been created. Share these credentials only once:',
     username: 'Username',
@@ -1007,6 +1010,8 @@ const en = {
     test_rule_success: 'Rule tested successfully'
   },
   risks: {
+    title: 'Risks',
+    subtitle: 'Project risk register and matrix',
     all_projects: 'All projects',
     new_risk: '+ New risk',
     edit_title: 'Edit risk',
@@ -1171,6 +1176,7 @@ const en = {
     sync_error: 'Accounting sync error'
     },
   mfa: {
+    title: 'Two-factor authentication',
     subtitle: 'Protect your account with TOTP authentication',
     enabled: 'MFA enabled',
     disabled: 'MFA not enabled',
@@ -1327,6 +1333,8 @@ const en = {
     reset_error: 'Could not reset the password',
   },
   dependencies: {
+    title: 'Dependencies',
+    subtitle: 'Task and epic dependency map',
     blocks: 'Blocks',
     blocked_by: 'Blocked by',
     relates_to: 'Related',
@@ -1370,6 +1378,8 @@ const en = {
     are_you_sure: 'Are you sure?',
   },
   projects: {
+    title: 'Projects',
+    subtitle: 'Project, portfolio and resource management',
     error_name_required: 'Name is required',
     error_type_required: 'Type is required',
     error_date_range: 'End date cannot be before start date',
@@ -1430,6 +1440,38 @@ const en = {
     comment: 'Comment (optional)',
     sending: 'Sending\u2026',
     submit_nps: '\ud83d\udce8 Register NPS response'
-  }
+  },
+  tasks: {
+    title: 'Tasks',
+    subtitle: 'Team task management',
+  },
+  esign: {
+    title: 'Digital Signature',
+    subtitle: 'Electronic signing of documents and contracts',
+  },
+  enterprise: {
+    title: 'Enterprise',
+    subtitle: 'Advanced configuration: webhooks, integrations, SSO, GDPR and audit',
+  },
+  custom_fields: {
+    title: 'Custom Fields',
+    subtitle: 'Additional attributes per entity type and project',
+  },
+  workflows: {
+    title: 'Workflows',
+    subtitle: 'Process automation and approval flows',
+  },
+  jira_integration: {
+    title: 'Jira Integration',
+    subtitle: 'Sync projects, epics and tasks with Jira',
+  },
+  public_forms: {
+    title: 'Public Forms',
+    subtitle: 'Public intake forms without authentication',
+  },
+  resource_scheduler: {
+    title: 'Resource Scheduler',
+    subtitle: 'Visual resource assignment calendar by project',
+  },
 };
 export default en;

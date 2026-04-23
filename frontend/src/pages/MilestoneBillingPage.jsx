@@ -4,10 +4,11 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { milestonesApi, projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { Flag } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 // ── Colores y labels por estado ───────────────────────────────────────────────
@@ -42,7 +43,7 @@ function RejectModal({ _milestone, onClose, onReject }) {
           placeholder="Describe el motivo del rechazo" aria-label="Motivo del rechazo" />
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
         <Button variant="danger" onClick={() => onReject(reason)} disabled={!reason.trim()}>✗ Confirmar rechazo</Button>
       </div>
     </Modal>
@@ -126,7 +127,7 @@ function MilestoneCard({ m, projectName, onRefresh }) {
           )}
           {m.billing_status === 'completed' && (
             <>
-              <button onClick={() => act('uncomplete')} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 7, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+              <button onClick={() => act('uncomplete')} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
                 ↩ Desmarcar
               </button>
               <Button size="sm" onClick={() => act('request')} loading={loading === 'request'}>
@@ -210,7 +211,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
         <Button onClick={() => mutate()} loading={isPending} disabled={!form.name || isPending}>Crear milestone</Button>
       </div>
     </Modal>
@@ -261,6 +262,7 @@ export default function MilestoneBillingPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Flag size={18} />}
         title={_t('milestone_billing.title')}
         subtitle={_t('milestone_billing.subtitle')}
       />

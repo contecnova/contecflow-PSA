@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { integrationsApi, projectsApi } from '../services/api'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Download } from 'lucide-react'
 import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -62,7 +63,7 @@ export default function ExportsPage() {
 
   return (
     <div style={{ padding: 32, maxWidth: 760, margin: '0 auto' }}>
-      <PageHeader title={t('exports.title')} subtitle={t('exports.subtitle')} />
+      <PageHeader icon={<Download size={18} />} title={t('exports.title')} subtitle={t('exports.subtitle')} />
 
       {message && (
         <div style={{
@@ -86,17 +87,17 @@ export default function ExportsPage() {
             <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Desde</label>
             <input type="date" value={imputForm.date_from}
               onChange={e => setImputForm(f => ({ ...f, date_from: e.target.value }))}
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Hasta</label>
             <input type="date" value={imputForm.date_to}
               onChange={e => setImputForm(f => ({ ...f, date_to: e.target.value }))}
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 16, marginBottom: 16, alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
             {['xlsx', 'csv'].map(fmt => (
               <button key={fmt} onClick={() => setImputForm(f => ({ ...f, format: fmt }))}
                 style={{ padding: '8px 16px', background: imputForm.format === fmt ? 'var(--accent-muted)' : 'transparent', border: 'none', color: imputForm.format === fmt ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -144,7 +145,7 @@ export default function ExportsPage() {
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}
-              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: jiraProject ? 'var(--text-1)' : 'var(--text-2)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: jiraProject ? 'var(--text-1)' : 'var(--text-2)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Selecciona proyecto...</option>
               {projects.filter(p => p.status === 'active').map(p => (
                 <option key={p.id} value={p.id}>{p.code} — {p.name}</option>

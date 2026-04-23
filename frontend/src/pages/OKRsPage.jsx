@@ -100,14 +100,14 @@ function KRRow({ kr, _onCheckin, onDelete }) {
           <div style={{ flex:1 }}>
             <input type="number" value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
-              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
                 fontSize:13, outline:'none', fontFamily:'inherit' }}
               placeholder={`Nuevo valor (actual: ${kr.current_value})`} />
           </div>
           <div style={{ flex:2 }}>
             <input value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
-              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+              style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
                 fontSize:13, outline:'none', fontFamily:'inherit' }}
               placeholder="Nota del check-in..." />
@@ -163,7 +163,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
             + KR
           </button>
           <button onClick={() => onEdit(obj)}
-            style={{ background:'none', border:'1px solid #1e2d45',
+            style={{ background:'none', border:'1px solid var(--surface-4)',
               borderRadius:6, padding:'4px 8px', color:'var(--text-2)',
               cursor:'pointer', fontSize:11 }}>✏</button>
           <button onClick={() => onDeleteObj(obj.id)}
@@ -199,7 +199,7 @@ function ObjModal({ obj, onClose }) {
     period: obj?.period || 'Q1', year: obj?.year || new Date().getFullYear(),
     status: obj?.status || 'active',
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
@@ -260,7 +260,7 @@ function KRModal({ objective, onClose }) {
     objective_id: objective.id, title:'', kr_type:'percentage',
     target_value:100, current_value:0, unit:'', notes:''
   })
-  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45',
+  const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
     borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
@@ -349,14 +349,14 @@ export default function OKRsPage() {
         actions={
           <div style={{ display:'flex', gap:10, alignItems:'center' }}>
             <select value={period} onChange={e => setPeriod(e.target.value)}
-              style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+              style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
                 borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
                 fontSize:13, outline:'none', fontFamily:'inherit' }}>
               <option value="">Todos los periodos</option>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-              style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+              style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
                 borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
                 fontSize:13, outline:'none', fontFamily:'inherit' }}>
               {[2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
@@ -375,7 +375,7 @@ export default function OKRsPage() {
           { label:'Progreso medio', value:`${avgProgress}%`, color: avgProgress >= 60 ? 'var(--success)' : 'var(--warning)' },
           { label:'En camino (≥60%)', value:onTrack, color:'var(--success)' },
         ].map(kpi => (
-          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid #1e2d45',
+          <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'16px 20px' }}>
             <div style={{ fontSize:26, fontWeight:800, color:kpi.color,
               fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>

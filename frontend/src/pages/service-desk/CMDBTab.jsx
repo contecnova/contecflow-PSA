@@ -49,7 +49,7 @@ function CMDBDetail({ ci, onClose }) {
           {relations.length === 0
             ? <EmptyState icon="🔗" title="Sin relaciones" description="Este CI aun no tiene relaciones registradas" />
             : relations.map(r => (
-              <div key={r.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, marginBottom: 6, alignItems: 'center' }}>
+              <div key={r.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6, alignItems: 'center' }}>
                 <span style={{ fontSize: 10, padding: '2px 7px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{r.relation_type?.replace(/_/g, ' ')}</span>
                 <div><div style={{ fontSize: 13, fontWeight: 600 }}>{r.target_name || r.source_name}</div><div style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.target_code || r.source_code}</div></div>
               </div>
@@ -64,7 +64,7 @@ function CMDBDetail({ ci, onClose }) {
               : <>
                   <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>Si <strong>{ci.name}</strong> falla, los siguientes CIs se ven afectados:</div>
                   {(impact.affected || []).map(a => (
-                    <div key={a.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, marginBottom: 6 }}>
+                    <div key={a.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name} <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{a.code}</span></div>
                       <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{a.ci_type} · <span style={{ color: STATUS_COLOR_CI[a.status] }}>{a.status}</span></div>
                     </div>
@@ -85,7 +85,7 @@ export default function CMDBTab() {
   const [showDetail, setShowDetail] = useState(null)
   const [form, setForm] = useState({ name: '', ci_type: 'application', status: 'operational', description: '', environment: '', version: '', vendor: '', criticality: 'medium', notes: '' })
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
   const LS = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
   const { data: cis = [], isLoading } = useQuery({
@@ -139,7 +139,7 @@ export default function CMDBTab() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => onKeyboardActivate(e, () => setShowDetail(ci))}
-                  style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2d45'}>
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>{ci.name}</div>
@@ -156,7 +156,7 @@ export default function CMDBTab() {
                   </div>
                   {ci.vendor && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>🏷 {ci.vendor}{ci.version ? ` v${ci.version}` : ''}</div>}
                   <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                    <button onClick={e => { e.stopPropagation(); update({ id: ci.id, status: ci.status === 'operational' ? 'maintenance' : 'operational' }) }} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 5, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <button onClick={e => { e.stopPropagation(); update({ id: ci.id, status: ci.status === 'operational' ? 'maintenance' : 'operational' }) }} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>
                       {ci.status === 'operational' ? '🔧 Modo mantenimiento' : '✅ Operativo'}
                     </button>
                   </div>
@@ -178,7 +178,7 @@ export default function CMDBTab() {
             <div style={{ gridColumn: '1/-1' }}><label style={LS}>Descripcion</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>Crear CI</Button>
           </div>
         </Modal>

@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
@@ -36,7 +36,7 @@ function StatusDropdown({ del, onUpdate }) {
       {open && (
         <>
           <div role="presentation" onMouseDown={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-          <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 10, padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
+          <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 20, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060' }}>
             {Object.entries(STATUS_CFG).map(([s, c]) => (
               <button key={s} onClick={() => { onUpdate(s); setOpen(false) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', background: del.status === s ? 'var(--accent-muted)' : 'transparent', border: 'none', borderRadius: 6, padding: '8px 12px', color: del.status === s ? 'var(--accent)' : 'var(--text-1)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -66,7 +66,7 @@ function DeliverableFormModal({ del, projectId, onClose }) {
     sort_order: del?.sort_order || 0,
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
@@ -173,10 +173,10 @@ export default function DeliverablesPage() {
     <div style={{ padding: 32 }}>
       <PageHeader icon={<Package size={18} />} title={t('deliverables.title')} subtitle={t('deliverables.subtitle')} />
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['project', '📁 Por proyecto'], ['overview', '🌐 Vista global']].map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t ? 'var(--accent-muted)' : 'transparent', color: tab === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t ? 'var(--accent-muted)' : 'transparent', color: tab === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -186,7 +186,7 @@ export default function DeliverablesPage() {
         <>
           <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Seleccionar proyecto...</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
@@ -202,7 +202,7 @@ export default function DeliverablesPage() {
                 { label: 'En retraso', value: summary.overdue, color: 'var(--danger)' },
                 { label: 'Completado', value: `${summary.completion_pct}%`, color: 'var(--accent)' },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 16px', flex: 1 }}>
+                <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1 }}>
                   <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
                 </div>
@@ -248,7 +248,7 @@ export default function DeliverablesPage() {
                               <Button size="sm" variant="danger" onClick={() => { const r = prompt('Motivo del rechazo:'); if (r) reject({ id: d.id, reason: r }) }}>✕ Rechazar</Button>
                             </>
                           )}
-                          {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️</button>}
+                          {hasRole('admin', 'pm') && <button onClick={() => setEditing(d)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️</button>}
                           {hasRole('admin', 'pm') && <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este entregable?', onConfirm: () => del(d.id), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>}
                         </div>
                       </div>
@@ -265,8 +265,8 @@ export default function DeliverablesPage() {
         overview.length === 0 ? (
           <EmptyState icon="📦" title="Sin entregables en la vista global" description="No hay entregables registrados en ningun proyecto" />
         ) : (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
               <SortableTH col="name" sort={ovSort} onSort={setOvSort}>Entregable</SortableTH>
               <SortableTH col="project_code" sort={ovSort} onSort={setOvSort}>Proyecto</SortableTH>
               <SortableTH col="owner_name" sort={ovSort} onSort={setOvSort}>Responsable</SortableTH>
@@ -277,7 +277,7 @@ export default function DeliverablesPage() {
             {sortedOverview.map(d => {
               const cfg = STATUS_CFG[d.status] || STATUS_CFG.planned
               return (
-                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
+                <div key={d.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{d.name}</div>
                     {d.overdue && <span style={{ fontSize: 10, color: 'var(--danger)' }}>⚠ En retraso</span>}

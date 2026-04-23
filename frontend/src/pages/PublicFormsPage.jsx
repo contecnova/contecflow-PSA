@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { FileText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -185,6 +186,7 @@ export default function PublicFormsPage() {
   return (
     <div style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
       <PageHeader
+        icon={<FileText size={18} />}
         title={t('public_forms.title')}
         subtitle={t('public_forms.subtitle')}
         actions={

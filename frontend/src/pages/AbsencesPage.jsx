@@ -13,7 +13,7 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
@@ -66,7 +66,7 @@ function RequestModal({ onClose }) {
   const toast = useToast()
   const [form, setForm] = useState({ type: 'vacation', start_date: '', end_date: '', reason: '' })
   const validation = useFormValidation(buildAbsenceRequestSchema(t))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = (k) => (e) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -181,7 +181,7 @@ function ReviewModal({ absence, onClose }) {
       <div style={{ marginBottom: 16 }}>
         <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
         <textarea id={`${idPrefix}-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -415,10 +415,10 @@ export default function AbsencesPage() {
         actions={<Button onClick={() => setShowRequest(true)} icon="＋">{t('absences.request_absence_btn')}</Button>}
       />
 
-      <div role="tablist" aria-label={t('absences.sections_aria')} style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
+      <div role="tablist" aria-label={t('absences.sections_aria')} style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {tabs.map(tabItem => (
           <button key={tabItem.id} role="tab" aria-selected={tab === tabItem.id} aria-controls={`absences-panel-${tabItem.id}`} id={`absences-tab-${tabItem.id}`} onClick={() => setTab(tabItem.id)}
-            style={{ padding: '8px 18px', borderRadius: 8, border: `1px solid ${tab === tabItem.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabItem.id ? 'var(--accent-muted)' : 'transparent', color: tab === tabItem.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === tabItem.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabItem.id ? 'var(--accent-muted)' : 'transparent', color: tab === tabItem.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {tabItem.label}
           </button>
         ))}
@@ -463,10 +463,10 @@ export default function AbsencesPage() {
         <div id="absences-panel-calendar" role="tabpanel" aria-labelledby="absences-tab-calendar">
           <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}>
             <button aria-label={t('absences.month_prev_aria')} onClick={() => { if (calMonth === 1) { setCalMonth(12); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}
-              style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
             <span aria-live="polite" style={{ fontSize: 16, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>{MONTH_NAMES[calMonth]} {calYear}</span>
             <button aria-label={t('absences.month_next_aria')} onClick={() => { if (calMonth === 12) { setCalMonth(1); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}
-              style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
           </div>
           <CalendarView year={calYear} month={calMonth} />
         </div>
@@ -501,8 +501,8 @@ export default function AbsencesPage() {
           {teamAbsences.length === 0 ? (
             <EmptyState icon="👥" title={t('absences.empty_team_title')} />
           ) : (
-            <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="user_name" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.person_col')}</SortableTH>
                 <SortableTH col="type" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.type_label')}</SortableTH>
                 <SortableTH col="start_date" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.start_label')}</SortableTH>
@@ -511,7 +511,7 @@ export default function AbsencesPage() {
                 <SortableTH col="status" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('common.status')}</SortableTH>
               </div>
               {sortedTeamAbs.map(a => (
-                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center' }}>
+                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{a.user_name}</span>
                   <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{typeLabels(t)[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
                   <span style={{ fontSize: 12 }}>{fmtDate(a.start_date)}</span>

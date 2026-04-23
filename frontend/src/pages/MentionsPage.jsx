@@ -6,10 +6,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const ENTITY_ICONS = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
@@ -25,7 +26,7 @@ function MentionCard({ mention, onRead }) {
     return t('mentions.time_minutes', { count: m })
   }
   return (
-    <div style={{padding:'14px 16px',background: mention.is_read?'transparent':'var(--accent-muted)',border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`,borderRadius:10,marginBottom:8}}>
+    <div style={{padding:'14px 16px',background: mention.is_read?'transparent':'var(--accent-muted)',border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`,borderRadius: 8,marginBottom:8}}>
       <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
         <div style={{fontSize:20,flexShrink:0,marginTop:2}}>{icon}</div>
         <div style={{flex:1}}>
@@ -35,7 +36,7 @@ function MentionCard({ mention, onRead }) {
             {!mention.is_read&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
           </div>
           {mention.context_text&&(
-            <div style={{fontSize:13,color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,borderLeft:'2px solid #1e2d45'}}>
+            <div style={{fontSize:13,color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,borderLeft:'2px solid var(--surface-4)'}}>
               &quot;...{mention.context_text.slice(0,200)}{mention.context_text.length>200?'...':''}&quot;
             </div>
           )}
@@ -45,7 +46,7 @@ function MentionCard({ mention, onRead }) {
         </div>
         {!mention.is_read&&(
           <button onClick={()=>onRead(mention.id)}
-            style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,flexShrink:0}}>
+            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,flexShrink:0}}>
             {t('mentions.mark_read')}
           </button>
         )}
@@ -170,7 +171,7 @@ export default function MentionsPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('mentions.title')} subtitle={t('mentions.subtitle')}/>
+      <PageHeader icon={<AtSign size={18} />} title={t('mentions.title')} subtitle={t('mentions.subtitle')}/>
 
       {/* Tabs */}
       <div style={{display:'flex',gap:6,marginBottom:20}}>
@@ -179,7 +180,7 @@ export default function MentionsPage() {
           ['comments', t('mentions.tab_comments')],
         ].map(([tabKey, label])=>(
           <button key={tabKey} onClick={()=>setTab(tabKey)}
-            style={{padding:'7px 16px',borderRadius:8,border:'1px solid #1e2d45',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+            style={{padding:'7px 16px',borderRadius:8,border:'1px solid var(--surface-4)',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
             {label}
           </button>
         ))}

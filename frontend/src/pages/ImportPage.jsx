@@ -6,11 +6,12 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
-const card = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12 }
+const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
 function ImportTab() {
@@ -175,9 +176,9 @@ function ImportTab() {
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
                   <div style={{overflowX:'auto'}}>
                     <table style={{borderCollapse:'collapse',fontSize:11}}>
-                      <thead><tr>{Object.keys(validation.preview[0]).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid #1e2d45',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
+                      <thead><tr>{Object.keys(validation.preview[0]).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
-                        {validation.preview.map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid #1e2d4520',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
+                        {validation.preview.map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -211,10 +212,10 @@ function ImportTab() {
 
         {/* Import history */}
         <div style={{...card,overflow:'hidden',alignSelf:'start'}}>
-          <div style={{padding:'14px 18px',borderBottom:'1px solid #1e2d45',fontSize:13,fontWeight:700}}>{t('import_data.import_history')}</div>
+          <div style={{padding:'14px 18px',borderBottom:'1px solid var(--surface-4)',fontSize:13,fontWeight:700}}>{t('import_data.import_history')}</div>
           {jobs.length === 0 ? <div style={{padding:'24px',textAlign:'center',color:'var(--text-3)',fontSize:13}}>{t('import_data.no_imports')}</div> : (
             jobs.slice(0,10).map(j => (
-              <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid #1e2d4520',alignItems:'center'}}>
+              <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
                 <span style={{fontSize:11,fontWeight:700,padding:'2px 6px',borderRadius:4,background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)',color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)'}}>
                   {j.status}
                 </span>
@@ -237,7 +238,7 @@ export default function ImportPage() {
   const t = useAppT()
   return (
     <div style={{ padding: 32 }}>
-      <PageHeader title={t('import_data.title')} subtitle={t('import_data.subtitle')} />
+      <PageHeader icon={<Upload size={18} />} title={t('import_data.title')} subtitle={t('import_data.subtitle')} />
       <ImportTab />
     </div>
   )

@@ -8,6 +8,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
@@ -21,8 +22,8 @@ const ENTITY_TYPES = [
   { id: 'invoice', label: 'Facturas',    icon: '🧾', color: 'var(--accent)' },
 ]
 
-const panel = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const inp   = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const inp   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
@@ -173,7 +174,7 @@ function NQLMode() {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => setQuery(ex)}
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, border: '1px solid #1e2d45',
+                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
                   background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Ejemplo {i+1}
               </button>
@@ -219,10 +220,11 @@ export default function SearchPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Search size={18} />}
         title={_t('search.title')}
         subtitle={_t('search.subtitle')}
         actions={
-          <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: 4 }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 4 }}>
             {[['fts', '🔍 Búsqueda rápida'], ['nql', '⚡ NQL avanzado']].map(([id, label]) => (
               <button key={id} onClick={() => setMode(id)}
                 style={{ padding: '7px 16px', borderRadius: 7, border: 'none',

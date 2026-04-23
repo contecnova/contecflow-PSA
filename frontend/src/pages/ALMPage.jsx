@@ -6,6 +6,7 @@ import { z } from 'zod'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Layers } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
@@ -83,8 +84,8 @@ const ASSET_STATUS_CFG = {
 }
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const card  = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs    = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
+const card  = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs    = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
 const ls    = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }
 
 const StatusBadge = ({ status, cfg }) => {
@@ -160,7 +161,7 @@ function ALMDashboard({ onNavigate }) {
               </div>
             ) : (
               renewals.map(c => (
-                <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid #1e2d4530', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{c.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.vendor_name}</div>
@@ -189,7 +190,7 @@ function ALMDashboard({ onNavigate }) {
               { icon: '📊', label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
             ].map(a => (
               <button key={a.tab} onClick={() => onNavigate(a.tab)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid #1e2d45', background: 'transparent', color: 'var(--text-1)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = a.color + '60'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <span style={{ fontSize: 16 }}>{a.icon}</span>
@@ -308,7 +309,7 @@ function VendorsTab() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
                     <button aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                   </div>
@@ -318,7 +319,7 @@ function VendorsTab() {
                   {v.support_email   && <span>✉️ {v.support_email}</span>}
                   {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: 12 }}>🔗 {v.website}</a>}
                 </div>
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #1e2d4530', fontSize: 11, color: 'var(--text-3)' }}>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)30', fontSize: 11, color: 'var(--text-3)' }}>
                   {v.contracts_count} {t('alm.vendors_contracts_count')}
                 </div>
               </div>
@@ -521,7 +522,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {[true, false].map(v => (
               <button key={String(v)} onClick={() => setForm(f => ({ ...f, auto_renew: v }))}
-                style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${form.auto_renew === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: form.auto_renew === v ? 'var(--accent-muted)' : 'transparent', color: form.auto_renew === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${form.auto_renew === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: form.auto_renew === v ? 'var(--accent-muted)' : 'transparent', color: form.auto_renew === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v ? `✅ ${t('alm.contracts_yes')}` : `❌ ${t('alm.contracts_no')}`}
               </button>
             ))}
@@ -616,7 +617,7 @@ function ContractsTab() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 13, color: 'var(--text-2)' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)' }}>
           {filtered.length} contrato(s) · Coste anual total: <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>
         </div>
       )}
@@ -650,7 +651,7 @@ function ContractsTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button aria-label={`Editar contrato ${c.title}`} onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar contrato ${c.title}`} onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
                   <button aria-label={`Eliminar contrato ${c.title}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el contrato "${c.title}"?`, onConfirm: () => del(c.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
@@ -895,7 +896,7 @@ function LicensesTab() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} licencia(s)</span>
           {totalAnnual > 0 && <span>💰 <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>/año</span>}
           {totalSeats > 0 && <span>🔑 {usedSeats}/{totalSeats} seats usados</span>}
@@ -953,7 +954,7 @@ function LicensesTab() {
                       style={{ background: 'none', border: '1px solid #00d4ff30', borderRadius: 6, padding: '5px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>
                       👤 Asignar
                     </button>
-                    <button aria-label={`Editar licencia ${lic.name}`} onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`Editar licencia ${lic.name}`} onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
                     <button aria-label={`Eliminar licencia ${lic.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar la licencia "${lic.name}"?`, onConfirm: () => del(lic.id), danger: true }) }}
                       style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                   </div>
@@ -1140,7 +1141,7 @@ function AssetsTab() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} activo(s)</span>
           {totalValue > 0 && <span>💰 Valor compra: <strong style={{ color: 'var(--accent)' }}>{fmtCurrency(totalValue)}</strong></span>}
           {totalBookValue > 0 && <span>📊 Valor libros: <strong style={{ color: 'var(--success)' }}>{fmtCurrency(totalBookValue)}</strong></span>}
@@ -1176,7 +1177,7 @@ function AssetsTab() {
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
                   <button aria-label={`Eliminar activo ${a.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el activo "${a.name}"?`, onConfirm: () => del(a.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
@@ -1248,7 +1249,7 @@ function CostCentersTab() {
                   <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{c.name}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
                   <button aria-label={`Eliminar centro de coste ${c.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el centro de coste "${c.name}"?`, onConfirm: () => del(c.id), danger: true }) }}
                     style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
                 </div>
@@ -1338,18 +1339,19 @@ export default function ALMPage() {
   const [tab, setTab] = useState('dashboard')
 
   const TABS = [
-    { id: 'dashboard',   label: `📊 ${t('alm.tab_dashboard')}` },
-    { id: 'vendors',     label: `🏢 ${t('alm.tab_vendors')}` },
-    { id: 'contracts',   label: `📄 ${t('alm.tab_contracts')}` },
-    { id: 'licenses',    label: `🔑 ${t('alm.tab_licenses')}` },
-    { id: 'assets',      label: `🖥️ ${t('alm.tab_assets')}` },
-    { id: 'cost',        label: `💼 ${t('alm.tab_cost_centers')}` },
-    { id: 'compliance',  label: `✅ ${t('alm.tab_compliance')}` },
+    { id: 'dashboard',   label: `${t('alm.tab_dashboard')}` },
+    { id: 'vendors',     label: `${t('alm.tab_vendors')}` },
+    { id: 'contracts',   label: `${t('alm.tab_contracts')}` },
+    { id: 'licenses',    label: `${t('alm.tab_licenses')}` },
+    { id: 'assets',      label: `${t('alm.tab_assets')}` },
+    { id: 'cost',        label: `${t('alm.tab_cost_centers')}` },
+    { id: 'compliance',  label: `${t('alm.tab_compliance')}` },
   ]
 
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<Layers size={18} />}
         title={t('alm.title')}
         subtitle={t('alm.subtitle')}
       />
@@ -1359,11 +1361,11 @@ export default function ALMPage() {
         {TABS.map(t => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} aria-controls={`alm-panel-${t.id}`} id={`alm-tab-${t.id}`} onClick={() => setTab(t.id)}
             style={{
-              padding: '8px 16px', borderRadius: 10,
+              padding: '7px 16px', borderRadius: 8,
               border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
               color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
               transition: 'all 0.15s',
             }}>
             {t.label}

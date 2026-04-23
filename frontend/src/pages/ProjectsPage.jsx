@@ -30,27 +30,27 @@ const PROJ_COLS = [
 ]
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROJECT_STATUSES = [
-  { value: 'planning',  label: '📋 Planificación' },
-  { value: 'active',    label: '🟢 Activo' },
+  { value: 'planning',  label: 'Planificación' },
+  { value: 'active',    label: 'Activo' },
   { value: 'on_hold',   label: '⏳ En espera' },
   { value: 'paused',    label: '⏸ Pausado' },
-  { value: 'completed', label: '🏁 Completado' },
-  { value: 'closed',    label: '✅ Cerrado' },
-  { value: 'cancelled', label: '❌ Cancelado' },
-  { value: 'archived',  label: '📦 Archivado' },
+  { value: 'completed', label: 'Completado' },
+  { value: 'closed',    label: 'Cerrado' },
+  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'archived',  label: 'Archivado' },
 ]
 const PROJECT_TYPES = Object.entries(TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))
 const RISK_LEVELS = [
-  { value: 'low', label: '🟢 Bajo' },
-  { value: 'medium', label: '🟡 Medio' },
-  { value: 'high', label: '🔴 Alto' },
-  { value: 'critical', label: '🚨 Crítico' },
+  { value: 'low', label: 'Bajo' },
+  { value: 'medium', label: 'Medio' },
+  { value: 'high', label: 'Alto' },
+  { value: 'critical', label: 'Crítico' },
 ]
 
 function makeProjectFormSchema(t) {
@@ -123,7 +123,7 @@ function StatusDropdown({ project, onUpdate }) {
             style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
           <div style={{
             position: 'absolute', top: '110%', left: 0, zIndex: 20,
-            background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 10,
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10,
             padding: 6, minWidth: 160, boxShadow: '0 8px 24px #00000060',
           }}>
             {PROJECT_STATUSES.map(s => (
@@ -149,7 +149,7 @@ function StatusDropdown({ project, onUpdate }) {
 function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
   return (
     <div style={{
-      background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12,
+      background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12,
       padding: '20px 24px', transition: 'all 0.2s', position: 'relative',
     }}
       onPointerEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
@@ -187,7 +187,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
           )}
         </button>
         <button onClick={e => { e.stopPropagation(); onEdit(project) }}
-          style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
           ✏️ Editar
         </button>
       </div>
@@ -303,7 +303,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
     setErrors(nextErrors)
     return false
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   return (
@@ -443,9 +443,9 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const TABS = [
     { id: 'info',  label: 'ℹ️ Info' },
-    { id: 'team',  label: `👥 Equipo${members.length > 0 ? ` (${members.length})` : ''}` },
-    { id: 'phases',label: '📅 Fases' },
-    { id: 'docs',  label: '📄 Documentos' },
+    { id: 'team',  label: `Equipo${members.length > 0 ? ` (${members.length})` : ''}` },
+    { id: 'phases',label: 'Fases' },
+    { id: 'docs',  label: 'Documentos' },
   ]
 
   const memberUserIds = new Set(members.map(m => m.user_id))
@@ -473,10 +473,10 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       </div>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid #1e2d45', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -523,12 +523,12 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
           {/* Formulario añadir */}
           {showAdd && (
-            <div style={{ background: 'var(--surface-1)', border: '1px solid #1e2d45', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 10, marginBottom: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
                   <select value={addForm.user_id} onChange={setAddField('user_id')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'user_id')}>
+                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'user_id')}>
                     <option value="">Seleccionar persona...</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
                   </select>
@@ -537,7 +537,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
                   <select value={addForm.role} onChange={setAddField('role')}
-                    style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }}>
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }}>
                     {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
@@ -545,7 +545,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                   <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
                   <input type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
+                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
                   {addValidation.errors.allocation_pct && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
@@ -624,7 +624,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
         <DocumentsPanel projectId={project.id} />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid #1e2d45' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--surface-4)' }}>
         <Button variant="secondary" onClick={onClose}>Cerrar</Button>
         <Button onClick={() => { onClose(); onEdit(detail) }} icon="✏️">Editar proyecto</Button>
       </div>
@@ -697,7 +697,7 @@ function TemplatesTab() {
               </div>
 
               {t.phases?.slice(0,3).map((ph,i) => (
-                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid #1e2d4515',fontSize:12}}>
+                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid var(--surface-4)15',fontSize:12}}>
                   <span style={{color:'var(--text-2)'}}>{i+1}.</span> <span style={{color:'var(--text-1)'}}>{ph.name}</span>
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
                 </div>
@@ -828,7 +828,7 @@ export default function ProjectsPage() {
         subtitle={t('projects.subtitle', { total: stats.total, active: stats.active, atRisk: stats.atRisk })}
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+            <div className="w-full sm:w-auto" style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
               {[['grid', '⊞'], ['list', '☰'], ['gantt', '📅'], ['templates', '📋']].map(([v, icon]) => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent', border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -851,7 +851,7 @@ export default function ProjectsPage() {
           { label: 'En riesgo', value: stats.atRisk, color: 'var(--warning)' },
           { label: '>90% presupuesto', value: stats.overBudget, color: 'var(--danger)' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 22, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: s.color }}>{s.value}</span>
             <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.label}</span>
           </div>
@@ -863,17 +863,17 @@ export default function ProjectsPage() {
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar proyecto por nombre o codigo"
           className="sm:col-span-2"
-          style={{ minWidth: 0, background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+          style={{ minWidth: 0, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
         />
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="w-full"
-          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los estados</option>
           {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           className="w-full"
-          style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Todos los tipos</option>
           {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
@@ -891,9 +891,9 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }}>
+        <div className="overflow-x-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }}>
           <div style={{ minWidth: 920 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             {visibleCols.map(c => (
               c.id === 'risk'
                 ? <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
@@ -905,7 +905,7 @@ export default function ProjectsPage() {
           </div>
           {sortedProjects.map(p => (
             <div key={p.id}
-              style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', transition: 'background 0.15s' }}
+              style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '14px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', transition: 'background 0.15s' }}
               onPointerEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -930,16 +930,16 @@ export default function ProjectsPage() {
       {/* ─── GANTT VIEW ─── */}
       {view === 'gantt' && (
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
             {[['portfolio','📊 Portfolio (todos)'],['project','📁 Por proyecto']].map(([m, label]) => (
               <button key={m} onClick={() => setGanttMode(m)}
-                style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${ganttMode === m ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${ganttMode === m ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {label}
               </button>
             ))}
             {ganttMode === 'project' && (
               <select value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}
-                style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
                 <option value="">Selecciona un proyecto...</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>

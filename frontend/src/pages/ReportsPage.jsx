@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { CHART } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
@@ -19,8 +20,8 @@ import {
 const PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)','var(--accent)',CHART.lime,CHART.pink,'var(--purple)']
 
 // Shared style constants used across sub-components
-const _card = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12 }
-const fs = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', cursor: 'pointer' }
+const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
+const fs = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', cursor: 'pointer' }
 const ls = { fontSize: 10, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const STATUS_COLORS = {
   ok: 'var(--success)', warning: 'var(--warning)', critical: 'var(--danger)',
@@ -89,7 +90,7 @@ const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
     return typeof v === 'number' ? v.toLocaleString('es-ES', { maximumFractionDigits: 1 }) : v
   }
   return (
-    <div style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
+    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text-1)' }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color || 'var(--text-1)', marginBottom: 2 }}>
@@ -165,13 +166,13 @@ function DataTable({ data, isCurrency, isPercent }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
-          <tr style={{ borderBottom: '1px solid #1e2d45' }}>
+          <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
             {keys.map(k => <th key={k} style={{ padding: '8px 12px', textAlign: k === 'label' ? 'left' : 'right', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k === 'label' ? '' : k}</th>)}
           </tr>
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #1e2d4530' }}>
+            <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)30' }}>
               {keys.map(k => (
                 <td key={k} style={{ padding: '10px 12px', textAlign: k === 'label' ? 'left' : 'right', fontFamily: k !== 'label' ? "'Space Mono', monospace" : 'inherit', fontWeight: k === 'value' ? 700 : 400, color: k === 'value' ? (row.status ? STATUS_COLORS[row.status] : 'var(--text-1)') : 'var(--text-1)' }}>
                   {fmt(row[k])}
@@ -239,7 +240,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
     return (
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} angle={-30} textAnchor="end" interval={0} />
           <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -255,7 +256,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
     return (
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} angle={-30} textAnchor="end" interval={0} />
           <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -270,7 +271,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
     return (
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
           <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -290,7 +291,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
               <stop offset="95%" stopColor={color} stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
           <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
           <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -304,7 +305,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
     return (
       <ResponsiveContainer width="100%" height={height}>
         <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
           <XAxis dataKey="label" type="category" tick={{ fontSize: 11, fill: 'var(--text-2)' }} />
           <YAxis dataKey="value" tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
           <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -318,7 +319,7 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
         <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} angle={-30} textAnchor="end" interval={0} />
         <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={fmtY} width={60} />
         <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
@@ -358,7 +359,7 @@ function SummaryBar({ summary, meta, prevSummary }) {
       {kpis.map(({ label, value, prev, raw }) => {
         const t = trend(value, prev)
         return (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 110 }}>
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 110 }}>
             <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
             <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: 'var(--accent)' }}>
               {raw ? value : fmt(value)}
@@ -519,7 +520,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
           <div style={{ display: 'flex', gap: 4 }}>
             {DATE_PRESETS.map(p => (
               <button key={p.label} onClick={() => setDatePreset(p.days)}
-                style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #1e2d45', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                 {p.label}
               </button>
             ))}
@@ -558,11 +559,11 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
               { id: 'cost_vs_budget', label: 'Coste vs Presupuesto', icon: '💸', cat: 'Rentabilidad' },
             ].map(m => (
               <button key={m.id} onClick={() => handleMetricChange(m.id)}
-                style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
                 <div style={{ fontSize: 22, marginBottom: 6 }}>{m.icon}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{m.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{m.label}</div>
                 <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 3 }}>{m.cat}</div>
               </button>
             ))}
@@ -640,7 +641,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 14, fontWeight: 700 }}>{r.name}</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => onOpen(r)} style={{ background: 'none', border: '1px solid #1e2d45', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️ Editar</button>
+              <button onClick={() => onOpen(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️ Editar</button>
               <button onClick={() => onRemove(r.id)} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
             </div>
           </div>
@@ -742,8 +743,8 @@ function ScheduledReportsTab() {
     { id: 'cost_vs_budget',        label: 'Coste vs Presupuesto' },
   ]
 
-  const ps = { background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '18px 22px', marginBottom: 12 }
-  const is = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const ps = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '18px 22px', marginBottom: 12 }
+  const is = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
   const submitForm = () => {
@@ -821,7 +822,7 @@ function ScheduledReportsTab() {
           </label>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)}
-              style={{ background: 'transparent', border: '1px solid #1e2d45', borderRadius: 8,
+              style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
               Cancelar
             </button>
@@ -931,13 +932,13 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {cats.map(c => (
           <button key={c} onClick={() => setFilterCat(c)}
             style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filterCat === c ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
               background: filterCat === c ? 'var(--accent-muted)' : 'transparent',
               color: filterCat === c ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {c === 'all' ? `✦ Todas (${enabledPresets.length})` : `${catIcons[c] || ''} ${c}`}
           </button>
         ))}
@@ -997,6 +998,7 @@ export default function ReportsPage() {
   return (
     <div style={{ padding: 32 }}>
       <PageHeader
+        icon={<BarChart2 size={18} />}
         title={t('reports.title')}
         subtitle={t('reports.subtitle')}
         actions={
@@ -1036,7 +1038,7 @@ export default function ReportsPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {items.map(item => (
                   <button key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}
-                    style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #1e2d45', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
+                    style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.12s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-muted)' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.background = 'var(--surface-2)' }}>
                     <span style={{ marginRight: 6, fontSize: 10, color: 'var(--text-3)' }}>

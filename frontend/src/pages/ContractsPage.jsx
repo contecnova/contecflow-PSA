@@ -11,7 +11,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
@@ -114,7 +114,7 @@ function ContractFormModal({ contract, onClose }) {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
@@ -243,7 +243,7 @@ function ContractDetail({ contract, onClose, onEdit }) {
   const [showWO, setShowWO] = useState(false)
   const [woForm, setWoForm] = useState({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
   const woValidation = useFormValidation(workOrderSchema)
-  const fs = { background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+  const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
 
   const { mutate: createWO } = useMutation({
     mutationFn: (data) => api.post(`/contracts/${contract.id}/work-orders`, data),
@@ -301,7 +301,7 @@ function ContractDetail({ contract, onClose, onEdit }) {
             {contract.work_orders.map(wo => {
               const wocfg = WO_STATUS[wo.status] || WO_STATUS.open
               return (
-                <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8 }}>
+                <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{wo.code} — {wo.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
@@ -394,7 +394,7 @@ export default function ContractsPage() {
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Todos los estados</option>
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
@@ -443,7 +443,7 @@ export default function ContractsPage() {
           { label: 'Valor total', value: fmtCurrency(totalValue), color: 'var(--success)' },
           { label: 'OTs abiertas', value: contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0), color: 'var(--warning)' },
         ].map(({ label, value, color }) => (
-          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
+          <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
             <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
             <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
           </div>
@@ -453,8 +453,8 @@ export default function ContractsPage() {
       {isLoading ? <Spinner /> : contracts.length === 0 ? (
         <EmptyState icon="📄" title="Sin contratos" description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={contractSort} onSort={setContractSort}>Contrato</SortableTH>
             <SortableTH col="contract_type_label" sort={contractSort} onSort={setContractSort}>Tipo</SortableTH>
             <SortableTH col="total_amount" sort={contractSort} onSort={setContractSort}>Importe</SortableTH>
@@ -465,7 +465,7 @@ export default function ContractsPage() {
           {sortedContracts.map(c => {
             const cfg = STATUS_CFG[c.status] || STATUS_CFG.draft
             return (
-              <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
+              <button key={c.id} type="button" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setDetail(c)}>
@@ -511,7 +511,7 @@ export default function ContractsPage() {
                   {c.contract_type_label && <span>📋 {c.contract_type_label}</span>}
                   {c.work_orders?.length > 0 && <span>🔧 {c.work_orders.length} OT{c.work_orders.length !== 1 ? 's' : ''}</span>}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid #1e2d45', paddingTop: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 8 }}>
                   {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span style={{ color: new Date(c.end_date) < new Date() ? 'var(--danger)' : 'inherit' }}>{fmtDate(c.end_date)}</span> : '—'}
                 </div>
               </button>

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { Code2 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
@@ -206,6 +207,7 @@ export default function DeveloperPortalPage() {
   return (
     <div style={{ padding: 32, maxWidth: 960, margin: '0 auto' }}>
       <PageHeader
+        icon={<Code2 size={18} />}
         title={t('developer.portal_title')}
         subtitle={t('developer.portal_subtitle')}
         actions={<Button onClick={() => setShowCreate(true)}>{t('developer.new_app_btn')}</Button>}

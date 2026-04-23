@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const WEEKS_WINDOW_STORAGE_KEY = 'bi_project_detail_weeks_window_v1'
@@ -253,6 +254,7 @@ export default function BIProjectDetailPage() {
   return (
     <div id="bi-project-detail-root" style={{ padding: 24 }}>
       <PageHeader
+        icon={<BarChart2 size={18} />}
         title={t('bi.detail_title')}
         subtitle={t('bi_project_detail.subtitle', { projectName })}
         actions={

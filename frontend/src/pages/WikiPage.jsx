@@ -8,10 +8,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import { BookOpen } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const ps = { background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid #1e2d45', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const BLOCK_TYPES = [
@@ -96,7 +97,7 @@ function BlockEditor({ blocks, onChange }) {
           </div>
           <div style={{flex:1}}>
             {block.type==='divider'
-              ? <hr style={{border:'none',borderTop:'1px solid #1e2d45',margin:'8px 0'}}/>
+              ? <hr style={{border:'none',borderTop:'1px solid var(--surface-4)',margin:'8px 0'}}/>
               : <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
                   {block.type==='bullet'    && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0}}>•</span>}
                   {block.type==='numbered'  && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0,fontSize:12}}>{i+1}.</span>}
@@ -108,7 +109,7 @@ function BlockEditor({ blocks, onChange }) {
                           {label:'B',style:{fontWeight:700},title:'Negrita',wrap:['**','**']},
                           {label:'I',style:{fontStyle:'italic'},title:'Cursiva',wrap:['*','*']},
                           {label:'`',style:{fontFamily:'monospace'},title:'Código',wrap:['`','`']},
-                          {label:'🔗',style:{},title:'Enlace',wrap:['[','](url)']},
+                          {label:'',style:{},title:'Enlace',wrap:['[','](url)']},
                         ].map(({label,style,title,wrap}) => (
                           <button key={label}
                             onMouseDown={e=>{
@@ -122,7 +123,7 @@ function BlockEditor({ blocks, onChange }) {
                               setTimeout(()=>{ta.focus();ta.setSelectionRange(s,s+rep.length)},10)
                             }}
                             title={title}
-                            style={{background:'var(--surface-3)',border:'1px solid #1e2d45',
+                            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',
                               borderRadius:4,padding:'1px 7px',color:'var(--text-2)',
                               cursor:'pointer',fontSize:11,lineHeight:'18px',...style}}>
                             {label}
@@ -159,13 +160,13 @@ function BlockEditor({ blocks, onChange }) {
             }
           </div>
           <select value={block.type} onChange={e=>update(i,'type',e.target.value)}
-            style={{background:'var(--surface-3)',border:'1px solid #1e2d45',borderRadius:6,padding:'3px 6px',color:'var(--text-2)',fontSize:11,cursor:'pointer',flexShrink:0}}>
+            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 6px',color:'var(--text-2)',fontSize:11,cursor:'pointer',flexShrink:0}}>
             {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{bt.icon} {bt.label}</option>)}
           </select>
         </div>
       ))}
       <button onClick={()=>add(blocks.length-1)}
-        style={{alignSelf:'flex-start',background:'var(--surface-3)',border:'1px solid #1e2d45',borderRadius:6,padding:'5px 12px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit',marginTop:8}}>
+        style={{alignSelf:'flex-start',background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'5px 12px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit',marginTop:8}}>
         + Añadir bloque
       </button>
     </div>
@@ -185,7 +186,7 @@ function renderBlocks(blocks) {
       case 'bullet':    return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)'}}>•</span><span>{text}</span></div>
       case 'numbered':  return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)',minWidth:20,fontSize:12}}>{i+1}.</span><span>{text}</span></div>
       case 'task_list': return <div key={i} style={{...st,display:'flex',gap:10,alignItems:'center'}}><input type="checkbox" readOnly/><span>{text}</span></div>
-      case 'divider':   return <hr  key={i} style={{border:'none',borderTop:'1px solid #1e2d45',margin:'16px 0'}}/>
+      case 'divider':   return <hr  key={i} style={{border:'none',borderTop:'1px solid var(--surface-4)',margin:'16px 0'}}/>
       case 'callout':   return <div key={i} style={{...st,background:'var(--accent-muted)',border:'1px solid #00d4ff20',borderRadius:8,padding:'12px 16px'}}>💡 {text}</div>
       default:          return <p   key={i} style={{...st,color:text?'var(--text-1)':'var(--text-3)'}}>{text||<em>Párrafo vacío</em>}</p>
     }
@@ -221,9 +222,9 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
     sendCollabUpdate(blocks)
   }, [blocks, editPage?.id, sendCollabUpdate])
   const VIS_OPTS = [
-    { value: 'team',   label: '🔒 Solo equipo' },
-    { value: 'portal', label: '🌐 Portal cliente' },
-    { value: 'public', label: '🌍 Público' },
+    { value: 'team',   label: 'Solo equipo' },
+    { value: 'portal', label: 'Portal cliente' },
+    { value: 'public', label: 'Público' },
   ]
 
   const { mutate, isPending } = useMutation({
@@ -243,7 +244,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
               {TEMPLATES.map(t=>(
                 <button key={t.id} onClick={()=>{setBlocks(t.blocks);if(!title)setTitle(t.name.replace(/^.\s/,''));setTplStep(false)}}
-                  style={{padding:'10px 14px',borderRadius:8,border:'1px solid #1e2d45',background:'var(--surface-3)',color:'var(--text-1)',cursor:'pointer',fontFamily:'inherit',fontSize:13,textAlign:'left'}}>
+                  style={{padding:'10px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'var(--surface-3)',color:'var(--text-1)',cursor:'pointer',fontFamily:'inherit',fontSize:13,textAlign:'left'}}>
                   {t.name}
                 </button>
               ))}
@@ -253,7 +254,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
         )}
         {!tplStep && <>
           {isEdit && (
-            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:collabConnected?'var(--success-bg)':'var(--surface-3)',border:`1px solid ${collabConnected?'#00e5a050':'#1e2d45'}`}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:collabConnected?'var(--success-bg)':'var(--surface-3)',border:`1px solid ${collabConnected?'#00e5a050':'var(--surface-4)'}`}}>
               <span style={{fontSize:11,color:collabConnected?'var(--success)':'var(--text-2)',fontWeight:700}}>
                 {collabConnected ? `● Colaboración activa (${collabPeers} en vivo)` : '○ Reconectando colaboración...'}
               </span>
@@ -269,7 +270,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
           </div>
           <div>
             <label style={ls}>Contenido</label>
-            <div style={{background:'var(--surface-1)',border:'1px solid #1e2d45',borderRadius:8,padding:16}}>
+            <div style={{background:'var(--surface-1)',border:'1px solid var(--surface-4)',borderRadius:8,padding:16}}>
               <BlockEditor blocks={blocks} onChange={setBlocks}/>
             </div>
           </div>
@@ -375,7 +376,7 @@ function WikiTagsInline() {
     <div>
       <div style={{display:'flex',gap:12,marginBottom:20,alignItems:'center'}}>
         <select value={space} onChange={e=>setSpace(e.target.value)}
-          style={{background:'var(--surface-3)',border:'1px solid #1e2d45',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',minWidth:220}}>
+          style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',minWidth:220}}>
           <option value="">Seleccionar espacio wiki...</option>
           {spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -383,13 +384,13 @@ function WikiTagsInline() {
       </div>
 
       {showForm && (
-        <div style={{background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
+        <div style={{background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
           <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>{editing?'Editar':'Nueva'} etiqueta</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,marginBottom:14}}>
             <div>
               <label style={{fontSize:11,fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
               <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-                style={{background:'var(--surface-3)',border:'1px solid #1e2d45',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
+                style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
                 placeholder="Nombre de la etiqueta" aria-label="Nombre de la etiqueta" autoFocus />
             </div>
             <div>
@@ -404,7 +405,7 @@ function WikiTagsInline() {
           </div>
           <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
             <button onClick={()=>{setShowForm(false);setEditing(null)}}
-              style={{background:'transparent',border:'1px solid #1e2d45',borderRadius:8,padding:'7px 16px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>Cancelar</button>
+              style={{background:'transparent',border:'1px solid var(--surface-4)',borderRadius:8,padding:'7px 16px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>Cancelar</button>
             <Button onClick={()=>save(form)} loading={isPending} disabled={!form.name.trim()}>
               {editing?'Actualizar':'Crear'}
             </Button>
@@ -425,7 +426,7 @@ function WikiTagsInline() {
       ) : (
         <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
           {tags.map(tag=>(
-            <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:10,padding:'10px 14px'}}>
+            <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:'10px 14px'}}>
               <div style={{width:10,height:10,borderRadius:'50%',background:tag.color||'var(--text-2)',flexShrink:0}}/>
               <span style={{fontSize:13,fontWeight:600,color:'var(--text-1)'}}>{tag.name}</span>
               <span style={{fontSize:11,color:'var(--text-2)'}}>{tag.pages_count||0} páginas</span>
@@ -509,10 +510,10 @@ export default function WikiPage() {
 
   return (
     <div style={{padding:32}}>
-      <PageHeader title={t('wiki.title')} subtitle={t('wiki.subtitle')}
+      <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid #1e2d45',borderRadius:10,padding:4}}>
+            <div style={{display:'flex',gap:4,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:4}}>
               {[['wiki','📚 Wiki'],['tags','🏷 Etiquetas']].map(([id,label])=>(
                 <button key={id} onClick={()=>setWikiMode(id)}
                   style={{padding:'6px 14px',borderRadius:7,border:'none',
@@ -546,7 +547,7 @@ export default function WikiPage() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => onKeyboardActivate(e, () => openPage(p))}
-                style={{padding:'10px 0',borderBottom:'1px solid #1e2d45',cursor:'pointer',color:'var(--accent)'}}>
+                style={{padding:'10px 0',borderBottom:'1px solid var(--surface-4)',cursor:'pointer',color:'var(--accent)'}}>
                 <div style={{fontWeight:500}}>{p.title}</div>
                 <div style={{fontSize:11,color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString('es-ES'):''}</div>
               </div>
@@ -618,7 +619,7 @@ export default function WikiPage() {
                       :renderBlocks(Array.isArray(page.content)?page.content:[])
                     }
                   </div>
-                  <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid #1e2d45',fontSize:11,color:'var(--text-3)'}}>
+                  <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid var(--surface-4)',fontSize:11,color:'var(--text-3)'}}>
                     Última actualización: {page.updated_at?new Date(page.updated_at).toLocaleString('es-ES'):'—'}
                   </div>
                 </div>
@@ -656,15 +657,15 @@ export default function WikiPage() {
             </div>
             {lVer && <div style={{textAlign:'center',padding:20,color:'var(--text-2)'}}>Cargando versiones...</div>}
             {!lVer && versions.length===0 && (
-              <div style={{textAlign:'center',padding:20,color:'var(--text-3)',fontSize:13}}>Sin versiones registradas</div>
+              <div style={{textAlign:'center',padding:20,color:'var(--text-3)',fontSize: 12}}>Sin versiones registradas</div>
             )}
             {!lVer && versions.map((v,i)=>(
               <div key={v.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid #1a2640'}}>
-                <div style={{flexShrink:0,width:36,height:36,borderRadius:'50%',background:i===0?'var(--accent-muted)':'var(--surface-3)',border:`1px solid ${i===0?'var(--accent-glow)':'var(--surface-4)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:i===0?'var(--accent)':'var(--text-2)'}}>
+                <div style={{flexShrink:0,width:36,height:36,borderRadius:'50%',background:i===0?'var(--accent-muted)':'var(--surface-3)',border:`1px solid ${i===0?'var(--accent-glow)':'var(--surface-4)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight: 600,color:i===0?'var(--accent)':'var(--text-2)'}}>
                   v{v.version_num}
                 </div>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:500,fontSize:13}}>{v.title}</div>
+                  <div style={{fontWeight:500,fontSize: 12}}>{v.title}</div>
                   <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>
                     {v.change_note||'Actualización'} · {v.created_at?new Date(v.created_at).toLocaleString('es-ES'):'—'}
                   </div>
@@ -673,7 +674,7 @@ export default function WikiPage() {
                   ? <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
                   : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num), danger: true }) }}
                       disabled={restoring}
-                      style={{background:'none',border:'1px solid #1e2d45',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
+                      style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
                       {restoring?'...':'Restaurar'}
                     </button>
                 }
@@ -681,7 +682,7 @@ export default function WikiPage() {
             ))}
             <div style={{display:'flex',justifyContent:'flex-end',marginTop:16}}>
               <button onClick={()=>setShowHistory(false)}
-                style={{background:'none',border:'1px solid #1e2d45',borderRadius:8,padding:'6px 16px',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:8,padding:'6px 16px',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
                 Cerrar
               </button>
             </div>
