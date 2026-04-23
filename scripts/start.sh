@@ -6,7 +6,7 @@ log()  { echo -e "${CYAN}▶ $1${NC}"; }
 ok()   { echo -e "${GREEN}✅ $1${NC}"; }
 err()  { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$DIR"
 CMD="${1:-start}"
 
@@ -65,7 +65,7 @@ setup|install)
   echo ""
   echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
   echo -e "${GREEN}║  Setup completado ✅  Ahora ejecuta:     ║${NC}"
-  echo -e "${GREEN}║         ./start.sh                       ║${NC}"
+  echo -e "${GREEN}║      ./scripts/start.sh                  ║${NC}"
   echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
   ;;
 start|"")

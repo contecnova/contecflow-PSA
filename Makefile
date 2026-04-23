@@ -4,8 +4,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 .PHONY: help install dev docs smoke health test test-fast test-coverage test-e2e \
-        build build-frontend lint docker-build docker-up docker-down \
-        migrate seed clean
+        build build-frontend lint migrate seed clean
 
 # ── Colores ────────────────────────────────────────────────────────────────────
 GREEN  := \033[0;32m
@@ -102,21 +101,9 @@ test-coverage: ## Tests con reporte de cobertura HTML
 	coverage html
 	@echo "$(GREEN)✅ Reporte en htmlcov/index.html$(RESET)"
 
-test-ci: ## Tests en modo CI (sin colores, con JUnit XML)
-	python -m pytest tests/ \
-		--tb=short \
-		--junit-xml=test-results/junit.xml \
-		-p no:warnings \
-		-q
-	coverage run -m pytest tests/ -q
-	coverage xml -o test-results/coverage.xml
-
 test-e2e: ## Tests E2E con Playwright
 	@echo "$(CYAN)Ejecutando tests E2E...$(RESET)"
 	python -m pytest tests_e2e/ -v --tb=short --headed
-
-test-e2e-ci: ## Tests E2E en modo CI (headless)
-	python -m pytest tests_e2e/ -v --tb=short
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 build: build-frontend ## Build completo (frontend)
@@ -126,23 +113,6 @@ build-frontend: ## Build del frontend (Vite)
 	@echo "$(CYAN)Building frontend...$(RESET)"
 	cd frontend && npm run build
 	@echo "$(GREEN)✅ Frontend build OK$(RESET)"
-
-# ── Docker ─────────────────────────────────────────────────────────────────────
-docker-build: ## Construye las imágenes Docker
-	docker compose build
-
-docker-up: ## Levanta todos los servicios
-	docker compose up -d
-	@echo "$(GREEN)✅ Contecflow corriendo en http://localhost$(RESET)"
-
-docker-down: ## Para todos los servicios
-	docker compose down
-
-docker-logs: ## Muestra logs de todos los servicios
-	docker compose logs -f
-
-docker-test: ## Ejecuta los tests dentro del contenedor
-	docker compose run --rm backend python -m pytest tests/ -v --tb=short
 
 # ── Base de datos ──────────────────────────────────────────────────────────────
 migrate: ## Aplica las migraciones de Alembic

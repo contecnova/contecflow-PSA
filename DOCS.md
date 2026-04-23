@@ -22,9 +22,6 @@ playwright install chromium
 BASE_URL=http://localhost:8000 pytest tests_e2e/ -v
 ```
 
-**Ejecución en CI:**
-- El workflow de GitHub Actions ejecuta los tests E2E en cada push/pull request.
-
 **Buenas prácticas:**
 - Los tests usan selectores robustos y esperan a que la UI esté lista.
 - Se cubren flujos críticos y validaciones visuales.
@@ -33,7 +30,6 @@ BASE_URL=http://localhost:8000 pytest tests_e2e/ -v
 **Scripts útiles:**
 - `make install-e2e` instala Playwright y navegadores.
 - `make test-e2e` ejecuta los tests E2E en modo interactivo.
-- `make test-e2e-ci` ejecuta los tests en modo headless para CI.
 ## 7. Traducciones de la UI (i18n)
 
 El endpoint `/api/v1/translations?lang=es` permite obtener el diccionario de traducciones de la interfaz para el idioma solicitado (`es`, `en`, etc).
@@ -303,15 +299,6 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 
 <!-- Añadir aquí todos los webhooks soportados, eventos, payloads esperados, y ejemplos si es necesario. -->
 
-### Webhooks
-
-| Evento | URL | Descripción |
-|--------|-----|-------------|
-| user.created | /webhooks/user-created | Se dispara al crear usuario |
-| ...          | ...                   | ...                         |
-
-<!-- Añadir aquí todos los webhooks soportados, eventos, payloads esperados, y ejemplos si es necesario. -->
-
 ...existing code...
 
 ## 5. Integraciones
@@ -434,11 +421,9 @@ export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
 7. [Seguridad](#7-seguridad)
 8. [Variables de entorno](#8-variables-de-entorno)
 9. [Instalación y arranque rápido](#9-instalación-y-arranque-rápido)
-10. [Despliegue en producción (Docker)](#10-despliegue-en-producción-docker)
-11. [Migraciones de base de datos](#11-migraciones-de-base-de-datos)
-12. [Tests](#12-tests)
-13. [CI/CD](#13-cicd)
-14. [Usuarios y roles](#14-usuarios-y-roles)
+10. [Migraciones de base de datos](#10-migraciones-de-base-de-datos)
+11. [Tests](#11-tests)
+12. [Usuarios y roles](#12-usuarios-y-roles)
 15. [Portal de cliente externo](#15-portal-de-cliente-externo)
 16. [Integraciones externas](#16-integraciones-externas)
 17. [Novedades por versión](#17-novedades-por-versión)
@@ -546,15 +531,9 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
 ## 2. Arquitectura técnica
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         NGINX (reverse proxy)                    │
-│                     puerto 80 / 443                              │
-└────────────┬────────────────────────┬───────────────────────────┘
-             │                        │
-             ▼                        ▼
   ┌──────────────────┐    ┌──────────────────────┐
   │  Frontend React  │    │   Backend FastAPI     │
-  │  (Vite + Nginx)  │    │   (uvicorn + uvloop)  │
+  │  (Vite dev)      │    │   (uvicorn + uvloop)  │
   │  puerto 3000     │◄──►│   puerto 8000         │
   │                  │    │   /api/v1/*           │
   └──────────────────┘    └────────┬─────────────┘
@@ -569,7 +548,7 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
                                                └──────────────┘
                                    │
                           ┌────────┴────────┐
-                          │  AWS S3         │
+                          │  AWS S3 / local │
                           │  (documentos)   │
                           └─────────────────┘
 ```
@@ -577,7 +556,7 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
 ### Estructura de directorios
 
 ```
-nexuspm_v23/
+contecflow-PSA/
 ├── app/                        # Backend FastAPI
 │   ├── main.py                 # Entry point, lifespan, middleware
 │   ├── worker.py               # Celery worker definition
@@ -633,9 +612,7 @@ nexuspm_v23/
 │   └── env.py
 ├── tests/                      # 800+ tests (pytest)
 ├── tests_e2e/                  # Tests Playwright end-to-end
-├── nginx/                      # Configuración nginx producción
-├── docker-compose.yml
-├── Dockerfile
+├── scripts/                    # Scripts de utilidad y arranque
 ├── requirements.txt
 └── .env.example
 ```
@@ -688,11 +665,9 @@ nexuspm_v23/
 
 | Componente | Tecnología |
 |------------|------------|
-| Reverse proxy | Nginx Alpine |
 | Base de datos | PostgreSQL 16 |
 | Caché / broker | Redis 7 |
 | Almacenamiento | AWS S3 (o filesystem local en dev) |
-| Contenedores | Docker + Docker Compose |
 
 ---
 
@@ -844,7 +819,7 @@ Esto arrancará el backend, extraerá los endpoints actuales y actualizará la t
 **Recomendaciones para equipos líderes:**
 
 - Ejecuta el script tras cada cambio relevante en routers, endpoints o servicios.
-- Considera integrarlo en el pipeline de CI/CD para que la tabla se regenere automáticamente en cada PR o despliegue (ver ejemplo en scripts/ci/).
+- Ejecuta el script tras cada cambio relevante en routers o endpoints para mantener la tabla actualizada.
 - Revisa siempre la tabla antes de releases: es la fuente de verdad para QA, frontend, integradores y auditores.
 - Si introduces versionado de API (v2, v3...), adapta el script para incluir todas las versiones.
 - Usa la tabla como referencia para tests de cobertura de endpoints y validación de seguridad.
@@ -1079,7 +1054,7 @@ X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 Referrer-Policy: strict-origin-when-cross-origin
 Permissions-Policy: camera=(), microphone=(), geolocation=()
-Content-Security-Policy: (configurado en nginx)
+Content-Security-Policy: (configurado en middleware)
 ```
 
 ### CORS
@@ -1203,17 +1178,17 @@ npm install
 cd ..
 
 # 5. Arrancar (script unificado)
-chmod +x start.sh && ./start.sh
+chmod +x scripts/start.sh && ./scripts/start.sh
 ```
 
-El script `start.sh` lanza el backend (uvicorn en puerto 8000) y el frontend (Vite en puerto 5173) en paralelo.
+El script `scripts/start.sh` lanza el backend (uvicorn en puerto 8000) y el frontend (Vite en puerto 3000) en paralelo.
 
 ### URLs de acceso (desarrollo)
 
 | Servicio | URL |
 |----------|-----|
-| Frontend | http://localhost:5173 |
-| Portal cliente | http://localhost:5173/portal |
+| Frontend | http://localhost:3000 |
+| Portal cliente | http://localhost:3000/portal |
 | API | http://localhost:8000/api/v1 |
 | Swagger UI | http://localhost:8000/api/v1/docs |
 | ReDoc | http://localhost:8000/api/v1/redoc |
@@ -1222,107 +1197,15 @@ El script `start.sh` lanza el backend (uvicorn en puerto 8000) y el frontend (Vi
 
 | Script | Descripción |
 |--------|-------------|
-| `./start.sh` | Arranca backend + frontend en modo desarrollo |
+| `./scripts/start.sh` | Arranca backend + frontend en modo desarrollo |
 | `./setup.sh` | Configuración inicial completa (venv + npm install + seed BD) |
-| `./clean_and_start.sh` | Limpia BD y reinicia con datos semilla frescos |
+| `./scripts/clean_and_start.sh` | Limpia BD y reinicia con datos semilla frescos |
 | `make test` | Ejecuta suite de tests backend |
 | `make lint` | ESLint frontend |
 
 ---
 
-## 10. Despliegue en producción (Docker)
-
-### Preparación
-
-```bash
-# 1. Crear archivo de entorno de producción
-cp .env.example .env
-# Configurar TODOS los valores marcados como obligatorios
-# Especialmente: SECRET_KEY, CLIENT_PORTAL_SECRET, DATABASE_URL (postgresql://...)
-# ENVIRONMENT=production  <-- activa Secure cookie y otros ajustes de producción
-
-# 2. Generar claves seguras
-python3 -c "import secrets; print(secrets.token_hex(32))"  # para SECRET_KEY
-python3 -c "import secrets; print(secrets.token_hex(32))"  # para CLIENT_PORTAL_SECRET
-
-# 3. (Opcional) Build de imágenes personalizadas
-docker compose build
-
-# 4. Arrancar todo el stack
-docker compose up -d
-
-# 5. Verificar estado
-docker compose ps
-docker compose logs backend --tail 50
-```
-
-### Servicios Docker
-
-| Servicio | Imagen | Puerto interno | Descripción |
-|----------|--------|----------------|-------------|
-| `backend` | Dockerfile | 8000 | API FastAPI |
-| `frontend` | frontend/Dockerfile.prod | 80 | React + Nginx |
-| `nginx` | nginx:alpine | 80, 443 | Reverse proxy principal |
-| `db` | postgres:16-alpine | 5432 | PostgreSQL |
-| `redis` | redis:7-alpine | 6379 | Caché + broker Celery |
-| `worker` | Dockerfile | — | Celery worker |
-
-### Configuración Nginx (producción)
-
-```nginx
-# nginx/conf.d/default.conf
-server {
-    listen 80;
-    server_name _;
-
-    # Frontend React SPA
-    location / {
-        proxy_pass http://frontend:80;
-    }
-
-    # Backend API
-    location /api/ {
-        proxy_pass http://backend:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # WebSocket
-    location /ws {
-        proxy_pass http://backend:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
-### Despliegue continuo (CI/CD)
-
-Ver sección [13. CI/CD](#13-cicd) para el pipeline completo.
-
-### Actualización de versión
-
-```bash
-# Pull de nueva versión
-git pull origin main
-
-# Reconstruir imágenes
-docker compose build
-
-# Reiniciar con zero-downtime (si hay réplicas)
-docker compose up -d --no-deps backend frontend
-
-# Aplicar migraciones (se ejecutan automáticamente al arrancar el backend)
-# Si quieres ejecutarlas manualmente:
-docker compose exec backend alembic upgrade head
-```
-
----
-
-## 11. Migraciones de base de datos
+## 10. Migraciones de base de datos
 
 Contecflow usa **Alembic** como fuente de verdad para las migraciones. Al arrancar el backend, se ejecuta automáticamente `alembic upgrade head`.
 
@@ -1403,14 +1286,13 @@ def _add_column(table: str, col: sa.Column) -> None:
 ---
 
 
-## 12. Pruebas y Cobertura: Convenciones, Automatización y Buenas Prácticas
+## 11. Pruebas y Cobertura: Convenciones, Automatización y Buenas Prácticas
 
 ### 1. Filosofía y objetivos
 
 - **Cobertura exhaustiva**: Todos los módulos críticos y edge cases están cubiertos por tests unitarios, de integración y E2E.
 - **Aislamiento y limpieza**: Cada test limpia sus datos antes de ejecutarse (fixtures robustos, transactional rollbacks, limpieza explícita).
 - **Multi-tenant real**: Todos los tests relevantes usan fixtures multi-tenant centralizados (`seed_multitenant` en `conftest.py`).
-- **Automatización total**: Los tests se ejecutan automáticamente en cada push/PR (CI/CD), y localmente con scripts y Makefile.
 - **Validación de i18n y cobertura**: Scripts automáticos validan claves i18n y cobertura mínima.
 - **Contratos alineados**: Los tests verifican contratos de endpoints y aceptan variantes válidas de respuesta.
 - **No hay lógica duplicada**: Toda la lógica de seed multi-tenant y datos de prueba está centralizada en fixtures reutilizables.
@@ -1446,9 +1328,6 @@ python -m pytest tests/ -x
 - No se permite duplicar lógica de seed en los tests: **usar siempre el fixture**.
 - Los tests limpian explícitamente las tablas relevantes antes de cada ejecución usando SQL seguro (`db.execute(text('DELETE FROM ...'))`).
 
-#### Ejecución en CI/CD
-- El pipeline de GitHub Actions ejecuta la suite completa en cada push/PR.
-- El script `scripts/ci_local.sh` permite ejecutar el pipeline localmente.
 - El Makefile expone targets para test, lint, cobertura y E2E.
 
 ### 3. Ejecución de tests E2E (Playwright)
@@ -1496,9 +1375,8 @@ pytest test_e2e_projects.py -v
 
 - **No duplicar fixtures**: Toda la lógica de seed multi-tenant y datos de prueba debe estar en `conftest.py`.
 - **Aislamiento**: Los tests no deben depender de datos de otros tests ni contaminar el estado global.
-- **Cobertura mínima**: El CI/CD exige cobertura mínima (`--cov-fail-under=55`).
 - **Validación de i18n**: El script `npm run check:i18n` valida que no falten claves en ningún idioma.
-- **Auditoría de dependencias**: `pip-audit` y `npm audit --omit=dev` se ejecutan en CI/CD y deben pasar sin vulnerabilidades críticas.
+- **Auditoría de dependencias**: `pip-audit` y `npm audit --omit=dev` se pueden ejecutar manualmente para revisar vulnerabilidades.
 - **Edge cases y paths de error**: Los tests deben cubrir casos límite y errores esperados.
 - **No bloquear por stubs**: Los métodos de endpoints sin implementación se marcan como `@pytest.mark.skip`.
 - **Datos semilla**: Los datos de usuarios, clientes y plantillas se cargan desde JSON externos o defaults parametrizables.
@@ -1508,10 +1386,8 @@ pytest test_e2e_projects.py -v
 - `make test` — Ejecuta suite de tests backend
 - `make lint` — Lint de frontend
 - `make test-e2e` — Ejecuta tests E2E interactivos
-- `make test-e2e-ci` — Ejecuta tests E2E headless
 - `make install-e2e` — Instala Playwright y navegadores
-- `./scripts/ci_local.sh` — Pipeline CI local completo
-- `./scripts/clean_deploy_artifacts.sh` — Limpieza pre-deploy
+- `./scripts/clean_deploy_artifacts.sh` — Limpieza de artefactos
 
 ### 7. Multi-tenant y fixtures
 
@@ -1522,146 +1398,13 @@ pytest test_e2e_projects.py -v
 ### 8. Validación de i18n y cobertura
 
 - `npm run check:i18n` — Valida que no falten claves en ningún idioma.
-- `python -m pytest --cov=app` — Valida cobertura mínima.
-- El CI/CD bloquea PRs si falta cobertura o hay claves i18n faltantes.
+- `python -m pytest --cov=app` — Genera reporte de cobertura.
 
-### 9. Auditoría y seguridad
-
-- `pip-audit` — Auditoría de dependencias Python
-- `npm audit --omit=dev` — Auditoría de dependencias frontend
-- Excepciones de vulnerabilidad gestionadas en `security/vulnerability-exceptions.json` y validadas por script.
-
----
-
----
-
-## 13. CI/CD
-
-La plataforma dispone de un pipeline completo en **GitHub Actions** con cuatro ficheros de workflow:
-
-### Workflows
-
-| Fichero | Trigger | Descripción |
-|---------|---------|-------------|
-| `.github/workflows/ci.yml` | Push / PR a `main`, `develop` | Pipeline de integración continua |
-| `.github/workflows/cd.yml` | Push a `main`, `develop`, tags `v*.*.*` | Despliegue continuo (GHCR + SSH) |
-| `.github/workflows/security.yml` | Semanal + push / PR | Escaneo de seguridad |
-| `.github/dependabot.yml` | Semanal (lunes 06:00 UTC) | Actualizaciones automáticas de dependencias |
-
-### Pipeline CI (`.github/workflows/ci.yml`)
-
-```
-on: push/PR a main, develop
-
-Jobs:
-├── lint-python
-│   └── ruff check + ruff format --check
-├── lint-frontend
-│   └── npm ci + npm run lint
-├── test-backend
-│   ├── Python 3.12 + SQLite in-memory
-│   ├── TESTING=1 pytest tests/ -q --cov=app
-│   └── Cobertura mínima requerida: 55%
-├── build-frontend
-│   └── npm run build (artefacto en dist/)
-├── build-docker
-│   └── docker build (build check, sin push)
-├── syntax-check
-│   └── python -c "import app.main" + validate imports
-└── ci-ok (gate)
-    └── Depende de todos los jobs anteriores
-```
-
-Variables de entorno requeridas (secrets de GitHub):
-- `SECRET_KEY` — clave JWT
-- `CLIENT_PORTAL_SECRET` — secreto del portal cliente
-- `WEBHOOK_SECRET` — secreto para webhooks salientes
-
-### Pipeline CD (`.github/workflows/cd.yml`)
-
-```
-on:
-  push a develop → staging
-  push a main / tag v*.*.* → producción
-
-Jobs:
-├── resolve-env   — determina entorno (staging / production)
-├── build-and-push
-│   ├── Build imagen Docker backend
-│   └── Push a GHCR (ghcr.io/{owner}/contecflow-backend)
-├── deploy-staging  — SSH + docker compose pull + up -d
-└── deploy-production — SSH + docker compose pull + up -d + alembic upgrade
-```
-
-Secrets requeridos en GitHub:
-- `GHCR_TOKEN` — token con permiso `write:packages`
-- `STAGING_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_KEY`
-- `PROD_HOST`, `PROD_SSH_USER`, `PROD_SSH_KEY`
-
-### Escaneo de seguridad (`.github/workflows/security.yml`)
-
-```
-Jobs:
-├── gitleaks        — búsqueda de secretos en historial completo
-├── pip-audit       — audit de dependencias Python (con excepciones gestionadas)
-├── validate-exceptions — valida que las excepciones de vulnerabilidades tengan justificación
-└── codeql          — SAST estático (python + javascript-typescript)
-```
-
-Las excepciones de vulnerabilidades se gestionan en `security/vulnerability-exceptions.json` y se validan automáticamente con `scripts/validate_vulnerability_exceptions.py`.
-
-**Política de excepciones de vulnerabilidades:**
-- Cada excepción debe incluir ticket, motivo, aprobadores y fecha de expiración.
-- Las excepciones caducadas fallan el CI de inmediato.
-- Las excepciones son aceptación temporal de riesgo, nunca permanentes.
-- Los PRs que modifican el fichero de excepciones requieren doble aprobación.
-- Se requiere un aprobador de seguridad cuando esté definido en `.github/security-approvers.txt`.
-
-### Dependabot (`.github/dependabot.yml`)
-
-- **github-actions**: actualizaciones semanales (lunes)
-- **pip** (directorio `/`): actualizaciones semanales, parches y menores agrupados
-- **npm** (directorio `/frontend`): actualizaciones semanales, parches y menores agrupados
-- Las actualizaciones de versión **major** están bloqueadas (requieren revisión manual)
-
-### Ejecutar CI localmente
-
-```bash
-# Script de CI local
-./scripts/ci_local.sh
-
-# O manualmente:
-source venv/bin/activate
-export TESTING=1 SECRET_KEY=test CLIENT_PORTAL_SECRET=test WEBHOOK_SECRET=test
-python -m pytest tests/ -q --cov=app --cov-fail-under=55
-
-# Lint Python
-ruff check app/ tests/
-ruff format --check app/ tests/
-
-# Lint Frontend
-cd frontend && npm run lint
-```
-
-### Despliegue automático
-
-```bash
-# Script de despliegue a producción
-./scripts/deploy.sh
-
-# Internamente hace:
-# 1. git pull
-# 2. docker compose build
-# 3. docker compose up -d
-# 4. docker compose exec backend alembic upgrade head
-# 5. Health check
-```
-
-### Auditorías de seguridad recomendadas
+### 9. Auditoría de seguridad manual
 
 ```bash
 # Backend (dependencias Python)
-source .venv/bin/activate
+source venv/bin/activate
 pip-audit
 
 # Frontend runtime (sin devDependencies)
@@ -1669,42 +1412,9 @@ cd frontend
 npm audit --omit=dev --audit-level=high
 ```
 
-Notas:
-- El riesgo residual actual puede estar en `pip` del entorno local (herramienta de build, no dependencia runtime de la API).
-- Las dependencias runtime de la aplicación se validan con `pip-audit` y `npm audit --omit=dev`.
-- El stack de embeddings transformer se instala de forma opcional desde `requirements-ml.txt` (no requerido para el API HTTP por defecto).
-
-### Limpieza pre-deploy
-
-Antes de desplegar, usa el script oficial para eliminar artefactos locales y dejar el repo listo:
-
-```bash
-./scripts/clean_deploy_artifacts.sh
-```
-
-Opciones útiles:
-
-```bash
-# Limpieza profunda local (incluye eliminar .venv y node_modules)
-./scripts/clean_deploy_artifacts.sh --full-local
-
-# Limpiar además uploads/documents locales
-./scripts/clean_deploy_artifacts.sh --purge-uploads
-
-# Ambas opciones a la vez
-./scripts/clean_deploy_artifacts.sh --full-local --purge-uploads
-```
-
-El modo por defecto elimina, entre otros:
-- caches (`__pycache__`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.cache`)
-- reportes de test/cobertura (`playwright-report`, `test-results`, `htmlcov`, `.coverage*`, `coverage.xml`, `junit*.xml`)
-- temporales y logs (`*.tmp`, `*.log`, `.DS_Store`, `npm-debug.log*`, `yarn-error.log*`)
-- artefactos frontend (`frontend/dist`)
-- base de datos local de desarrollo (`contecflow.db`, `contecflow_legacy.db`)
-
 ---
 
-## 14. Usuarios y roles
+## 12. Usuarios y roles
 
 ### Roles disponibles
 
@@ -2082,10 +1792,9 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 - Portal migrado a sesión basada en cookie `httpOnly` (`portal_access_token`) con `withCredentials`.
 - `get_current_client` ahora acepta cookie segura además de cabecera Bearer para compatibilidad gradual.
 
-**Ejecución de tareas programadas en producción:**
-- `docker-compose.yml` incorpora servicios `worker` y `beat` para Celery.
-- Backend principal ahora arranca con `ENABLE_APSCHEDULER=0` en compose para evitar doble scheduler.
-- Añadida tarea Celery de rotación programada de claves (`run_scheduled_rotation`) para mantener cobertura funcional.
+**Ejecución de tareas programadas:**
+- Añadida tarea Celery de rotación programada de claves (`run_scheduled_rotation`).
+- Para evitar doble scheduler al usar Celery Beat, establecer `ENABLE_APSCHEDULER=0`.
 
 **Deuda técnica de rendimiento y consistencia:**
 - Corregido N+1 en `GET /projects/{id}/members` usando `joinedload(ProjectMember.user)`.
@@ -2566,9 +2275,7 @@ EXCHANGE_RATES_AUTO_UPDATE=false
 - Soporta todos los métodos de reconocimiento: `percentage_complete`, `time_and_material`, `straight_line`, `milestone_billing`
 
 **Public API SDK — clientes oficiales:**
-- `sdk/python/nexuspm_sdk.py` — cliente Python (sólo requiere `requests`): namespaces `projects`, `tasks`, `imputations`, `users`, `resources`, `financials`, `ai`, `jira`; manejo de errores (`NexusPMError`, `AuthError`, `NotFoundError`); soporte `NEXUSPM_TOKEN` env var
-- `sdk/javascript/nexuspm_sdk.js` — cliente ES6/ESM con `fetch` nativo (Node 18+ o navegador): mismos namespaces; `AbortSignal.timeout`; compatible TypeScript via JSDoc
-- `sdk/README.md` — documentación con ejemplos de uso, tabla de métodos, manejo de errores
+- SDK Python y JavaScript (eliminados en limpieza de repo — pueden recrearse desde el OpenAPI si se necesitan)
 
 **Responsive / tablet CSS (`index.css` extendido):**
 - Tablet 769–1024px: sidebar colapsado a iconos (52px, etiquetas ocultas), reducción de padding, celdas de tabla más compactas, grids de 2 columnas → 1
@@ -3094,15 +2801,7 @@ test('Login y navegación básica', async ({ page }) => {
 
 ---
 
-## 23. Internacionalización y traducciones
-
-El portal de cliente y todos los flujos de Feature Request (FR) y Change Request (CR) han sido revisados para asegurar que **todas las claves de traducción están presentes en los 8 idiomas soportados** (es, en, fr, de, pt, it, pl, zh). No faltan claves en ningún idioma y la experiencia es completamente multilingüe.
-
-_Última revisión: [fecha de hoy]_
-
----
-
-## 24. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
+## 23. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
 
 ### Correcciones aplicadas
 

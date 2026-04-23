@@ -1,6 +1,6 @@
 #!/bin/bash
 # Script para ejecutar pruebas automáticas de UI con Playwright en Linux/Mac
-cd "$(dirname "$0")/frontend"
+cd "$(dirname "$0")/../frontend"
 
 # Instalar navegadores Playwright (solo la primera vez o si hay actualización)
 npx playwright install --with-deps

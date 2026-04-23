@@ -2,6 +2,7 @@
 # test_and_report.sh - Ejecuta tests, genera cobertura y actualiza el reporte resultado.html
 
 set -e
+cd "$(dirname "$0")/.."
 
 # Ejecutar tests backend y generar cobertura
 pytest --maxfail=0 --tb=short --cov=. --cov-report=term --cov-report=html

@@ -1,6 +1,6 @@
 @echo off
 REM Script para ejecutar pruebas automáticas de UI con Playwright en Windows
-cd /d "%~dp0frontend"
+cd /d "%~dp0..\frontend"
 
 REM Instalar navegadores Playwright (solo la primera vez o si hay actualización)
 npx playwright install --with-deps

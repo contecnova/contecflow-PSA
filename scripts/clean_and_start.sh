@@ -3,7 +3,7 @@
 #  Contecflow v21 — Arranque limpio (borra caché Vite)
 # ─────────────────────────────────────────────────
 set -e
-DIR="$(cd "$(dirname "$0")" && pwd)"
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$DIR"
 
 echo "🧹 Borrando caché de Vite..."
