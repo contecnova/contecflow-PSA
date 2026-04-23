@@ -97,6 +97,39 @@ from app.services.auth_service import (
 )
 
 
+def _normalized_origin(uri: str) -> tuple[str, str, int] | None:
+    """Return normalized (scheme, host, port) for origin-style comparisons."""
+    try:
+        parsed = urlparse(uri.strip())
+    except Exception:
+        return None
+    if parsed.scheme not in {"http", "https"}:
+        return None
+    if not parsed.hostname:
+        return None
+    if parsed.username or parsed.password:
+        return None
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    return (parsed.scheme, parsed.hostname.lower(), port)
+
+
+def _is_allowed_redirect_uri(redirect_uri: str, allowed_origins: list[str]) -> bool:
+    target_origin = _normalized_origin(redirect_uri)
+    if not target_origin:
+        return False
+    allowed = {
+        origin
+        for origin in (_normalized_origin(item) for item in allowed_origins if item)
+        if origin is not None
+    }
+    return target_origin in allowed
+
+
 @router.post("/login", response_model=TokenResponse, summary="Login con credenciales locales")
 @limiter.limit("5/minute")
 def login(request: Request, response: Response, payload: LoginRequest, db: Session = Depends(get_db)):
@@ -448,11 +481,8 @@ def sso_authorize(
 
         config = _svc.get_sso_config_or_404(db, config_id)
 
-        # Security: validate redirect_uri against the allowed origins whitelist to
-        # prevent open redirect attacks. The redirect_uri must start with one of the
-        # configured ALLOWED_ORIGINS or the provider's registered redirect URIs.
         _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
-        if not any(redirect_uri.startswith(origin) for origin in _allowed):
+        if not _is_allowed_redirect_uri(redirect_uri, _allowed):
             raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
 
         state_raw = secrets.token_urlsafe(32)
@@ -473,8 +503,12 @@ def sso_authorize(
                     auth_url = disc.get("authorization_endpoint", "")
             except HTTPException:
                 raise
-            except Exception:
-                raise HTTPException(500, "No se pudo obtener el discovery document")
+            except _json.JSONDecodeError as exc:
+                logger.warning("SSO authorize: discovery document JSON inválido url=%r: %s", config.oidc_discovery_url, exc)
+                raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
+            except OSError as exc:
+                logger.warning("SSO authorize: error de red al obtener discovery url=%r: %s", config.oidc_discovery_url, exc)
+                raise HTTPException(502, "No se pudo obtener el discovery document")
         else:
             raise HTTPException(400, "Falta oidc_discovery_url para proveedor OIDC genérico")
 
@@ -520,6 +554,9 @@ def sso_callback(
         state_param  = payload.get("state")
         if not code or not redirect_uri:
             raise HTTPException(400, "Faltan code o redirect_uri")
+        _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
+        if not _is_allowed_redirect_uri(redirect_uri, _allowed):
+            raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
 
         # Validar state para prevenir CSRF
         if not state_param or "." not in state_param:
@@ -556,8 +593,12 @@ def sso_callback(
                         token_url = disc.get("token_endpoint", "")
                 except HTTPException:
                     raise
-                except Exception:
-                    raise HTTPException(500, "No se pudo obtener el token_endpoint")
+                except _json.JSONDecodeError as exc:
+                    logger.warning("SSO callback: discovery JSON inválido url=%r: %s", config.oidc_discovery_url, exc)
+                    raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
+                except OSError as exc:
+                    logger.warning("SSO callback: error de red al obtener discovery url=%r: %s", config.oidc_discovery_url, exc)
+                    raise HTTPException(502, "No se pudo obtener el token_endpoint")
             else:
                 raise HTTPException(400, "Falta oidc_discovery_url")
 
@@ -575,8 +616,12 @@ def sso_callback(
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 tokens = _json.loads(resp.read())
-        except Exception as e:
-            raise HTTPException(502, f"Error al obtener tokens del proveedor SSO: {e}")
+        except _json.JSONDecodeError as exc:
+            logger.warning("SSO callback: token response JSON inválido url=%r: %s", token_url, exc)
+            raise HTTPException(502, "El proveedor devolvió una respuesta de token no válida")
+        except OSError as exc:
+            logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", token_url, exc)
+            raise HTTPException(502, f"Error de red al obtener tokens del proveedor SSO: {exc}")
 
         id_token = tokens.get("id_token", "")
         if not id_token:
@@ -593,8 +638,12 @@ def sso_callback(
                     with urllib.request.urlopen(discovery_url, timeout=5) as resp:
                         disc = _json.loads(resp.read())
                         jwks_uri = disc.get("jwks_uri")
-                except Exception:
-                    pass
+                except (OSError, _json.JSONDecodeError) as exc:
+                    logger.warning(
+                        "SSO callback: no se pudo obtener JWKS URI url=%r: %s",
+                        config.oidc_discovery_url,
+                        exc,
+                    )
 
             if jwks_uri:
                 _validate_https_discovery_url(jwks_uri)

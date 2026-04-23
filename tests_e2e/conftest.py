@@ -43,7 +43,10 @@ def logged_in_context(browser):
     page.fill('#login-user', ADMIN_USER)
     page.fill('#login-pass', ADMIN_PASS)
     page.click('button[type="submit"], button:has-text("Iniciar"), button:has-text("Login")')
+    page.wait_for_timeout(800)
     page.wait_for_url(f"{BASE_URL}/**", timeout=10000)
+    if "/login" in page.url:
+        raise RuntimeError("E2E login failed: still on /login after submit")
     yield context
     context.close()
 

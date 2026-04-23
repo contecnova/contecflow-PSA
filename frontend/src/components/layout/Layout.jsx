@@ -61,6 +61,9 @@ const ROUTE_LABELS = {
   '/raci': 'RACI Matrix', '/changelog': 'Changelog', '/uat': 'UAT',
   '/jira-integration': 'Jira Integration',
   '/project-templates': 'Project Templates',
+  '/search': 'Search',
+  '/public-forms': 'Public Forms',
+  '/developer': 'Developer Portal',
 }
 
 const ROUTE_SECTION = {
@@ -97,6 +100,9 @@ const ROUTE_SECTION = {
   '/enterprise': 'Settings', '/webhook-log': 'Settings',
   '/jira-integration': 'Settings',
   '/project-templates': 'Settings',
+  '/search': 'My Work',
+  '/public-forms': 'Settings',
+  '/developer': 'Settings',
 }
 
 const PATH_NAV_KEY = {
@@ -112,6 +118,8 @@ const PATH_NAV_KEY = {
   '/project-permissions': 'project_permissions', '/sla-calendars': 'sla_calendars',
   '/performance-reviews': 'performance_reviews', '/kanban': 'kanban',
   '/exports': 'data_exports', '/jira-integration': 'jira_integration',
+  '/public-forms': 'public_forms',
+  '/developer': 'developer_portal',
 }
 
 const SZ = 13
@@ -230,6 +238,7 @@ const NAV_GROUPS = [
     { to: '/dashboard', icon: <LayoutDashboard size={SZ} />, label: 'Dashboard', roles: ['admin','pm','hr','team_lead','employee'] },
   ]},
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
+    { to: '/search',           icon: <Search size={SZ} />,       label: 'Search',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
     { to: '/kanban-advanced', icon: <Columns size={SZ} />,      label: 'Kanban',          roles: ['admin','pm','team_lead','employee'] },
     { to: '/imputar',         icon: <Clock size={SZ} />,        label: 'Log hours',       roles: ['admin','pm','team_lead','employee'] },
@@ -327,6 +336,9 @@ const NAV_GROUPS = [
     { to: '/enterprise',          icon: <Globe size={SZ} />,       label: 'Enterprise',             roles: ['admin'] },
     { to: '/webhook-log',         icon: <Activity size={SZ} />,    label: 'Log Webhooks',           roles: ['admin'] },
     { to: '/jira-integration',     icon: <Link size={SZ} />,        label: 'Jira Integration',       roles: ['admin','pm'] },
+    { divider: true },
+    { to: '/public-forms',        icon: <Globe size={SZ} />,       label: 'Public Forms',           roles: ['admin','pm'] },
+    { to: '/developer',           icon: <Wrench size={SZ} />,      label: 'Developer Portal',       roles: ['admin','pm'] },
   ]},
 ]
 

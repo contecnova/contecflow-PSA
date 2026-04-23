@@ -7,8 +7,7 @@ import {
 } from 'recharts'
 import api, { dashboardApi } from '../../services/api'
 import { Spinner, EmptyState } from '../../components/ui'
-import { useAppLang } from '../../i18n/AppLangContext'
-import { useAppT } from '../../hooks/useAppT'
+import { useAppLang, useAppT } from '../../i18n/AppLangContext'
 
 const BLUE = 'var(--accent)'
 const GREEN = 'var(--success)'

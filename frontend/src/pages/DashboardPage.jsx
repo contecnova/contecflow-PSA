@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useRef } from 'react'
 /**
  * DashboardPage v24 — Drag & Resize widgets + extended metrics catalog
  */
@@ -219,7 +219,10 @@ function PipelineWidget() {
   const t = useAppT()
   const { data: opps = [] } = useQuery({
     queryKey: ['dash-pipeline'],
-    queryFn: () => api.get('/pipeline', { params: { limit: 50 } }).then(r => r.data?.items || r.data || []),
+    queryFn: () => api.get('/pipeline', { params: { limit: 50 } }).then(r => {
+      const d = r.data
+      return Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : [])
+    }).catch(() => []),
   })
   const byStage = opps.reduce((acc, o) => { acc[o.stage] = (acc[o.stage] || 0) + 1; return acc }, {})
   const data = Object.entries(byStage).map(([name, value]) => ({ name, value }))
@@ -260,9 +263,23 @@ function ProjectsHealthWidget() {
   const t = useAppT()
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['dash-projects-health'],
-    queryFn: () => api.get('/dashboard/projects-health').then(r => r.data).catch(() => []),
+    queryFn: () => api.get('/dashboard/projects-health').then(r => {
+      const d = r.data
+      return Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : (Array.isArray(d?.data) ? d.data : []))
+    }).catch(() => []),
     staleTime: 60000,
   })
+
+  const safeProjects = (Array.isArray(projects) ? projects : []).map((p) => ({
+    ...p,
+    schedule_deviation_days: Number(p?.schedule_deviation_days) || 0,
+    budget_used_pct: Number(p?.budget_used_pct) || 0,
+    alerts_count: Number(p?.alerts_count) || 0,
+    tasks_total: Number(p?.tasks_total) || 0,
+    tasks_done: Number(p?.tasks_done) || 0,
+    progress_pct: Number(p?.progress_pct) || 0,
+    health_score: p?.health_score == null ? null : Number(p.health_score),
+  }))
 
   const getColor = (p) => {
     if (p.schedule_deviation_days > 0 || p.budget_used_pct > 100) return 'var(--danger)'
@@ -283,9 +300,9 @@ function ProjectsHealthWidget() {
   }
 
   const counts = {
-    ok:   projects.filter(p => getColor(p) === 'var(--success)').length,
-    warn: projects.filter(p => getColor(p) === 'var(--warning)').length,
-    crit: projects.filter(p => getColor(p) === 'var(--danger)').length,
+    ok:   safeProjects.filter(p => getColor(p) === 'var(--success)').length,
+    warn: safeProjects.filter(p => getColor(p) === 'var(--warning)').length,
+    crit: safeProjects.filter(p => getColor(p) === 'var(--danger)').length,
   }
 
   return (
@@ -310,10 +327,10 @@ function ProjectsHealthWidget() {
 
       {isLoading ? <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: 8 }}>{t('dashboard.loading')}</div> : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
-          {projects.length === 0 && (
+          {safeProjects.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: 8 }}>{t('dashboard.no_projects')}</div>
           )}
-          {projects.sort((a,b) => {
+          {safeProjects.sort((a,b) => {
             const rank = p => p.schedule_deviation_days > 0 || p.budget_used_pct > 100 ? 0
               : p.budget_used_pct > 80 || p.alerts_count > 0 ? 1 : 2
             return rank(a) - rank(b)
@@ -383,7 +400,10 @@ function TopClientsWidget() {
   const t = useAppT()
   const { data: clients = [] } = useQuery({
     queryKey: ['dash-top-clients'],
-    queryFn: () => api.get('/clients', { params: { status: 'active', limit: 5 } }).then(r => r.data || []),
+    queryFn: () => api.get('/clients', { params: { status: 'active', limit: 5 } }).then(r => {
+      const d = r.data
+      return Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : [])
+    }).catch(() => []),
   })
   return (
     <div style={{ ...panel, padding: '20px 22px' }}>
@@ -475,7 +495,10 @@ function RecentDocumentsWidget() {
   const t = useAppT()
   const { data: docs = [] } = useQuery({
     queryKey: ['dash-recent-docs'],
-    queryFn: () => api.get('/documents', { params: { limit: 6 } }).then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => api.get('/documents', { params: { limit: 6 } }).then(r => {
+      const d = r.data
+      return Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : [])
+    }).catch(() => []),
   })
 
   const FILE_C = { pdf:'#ef4444', image:'#3b82f6', spreadsheet:'#10b981', word:'#6366f1', presentation:'#f59e0b', other:'#6b7280' }
@@ -1017,29 +1040,45 @@ export default function DashboardPage() {
   const { lang } = useAppLang()
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ['dash-kpis'],
-    queryFn: () => dashboardApi.kpis().then(r => r.data),
+    queryFn: () => dashboardApi.kpis().then(r => r.data).catch(() => ({})),
     staleTime: 30000,
     refetchInterval: 60000,
   })
   const { config, visibleLayout, toggle, updateLayout, reset } = useDashboardConfig()
   const [configOpen, setConfigOpen] = useState(false)
   const containerRef = useRef(null)
-  const [gridWidth, setGridWidth] = useState(0)
+  // Initialize with a positive value so the grid renders on first mount without
+  // waiting for the ResizeObserver. The actual container width is measured and
+  // corrected synchronously by useLayoutEffect below.
+  const [gridWidth, setGridWidth] = useState(() =>
+    typeof window !== 'undefined' ? Math.max(window.innerWidth - 280, 400) : 800
+  )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const update = () => setGridWidth(el.getBoundingClientRect().width)
+    const update = () => {
+      const width = el.getBoundingClientRect().width
+      if (width > 0) setGridWidth(width)
+    }
     update()
+    const raf1 = requestAnimationFrame(update)
+    const raf2 = requestAnimationFrame(update)
     const ro = new ResizeObserver(update)
     ro.observe(el)
-    return () => ro.disconnect()
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
   }, [])
 
-  if (kpisLoading) return <SkeletonDashboard />
+  const effectiveGridWidth = gridWidth
 
   const WIDGET_MAP = {
-    kpis:      <div style={{ padding: '12px 16px 8px', height: '100%', boxSizing: 'border-box' }}><KpiRow kpis={kpis} /></div>,
+    kpis:      <div style={{ padding: '12px 16px 8px', height: '100%', boxSizing: 'border-box' }}>{kpisLoading ? <SkeletonDashboard /> : <KpiRow kpis={kpis} />}</div>,
     tasks:     <MyPendingWidget />,
     alerts:    <AlertsWidget />,
     health:    <ProjectsHealthWidget />,
@@ -1139,12 +1178,12 @@ export default function DashboardPage() {
 
       {/* Grid */}
       <div ref={containerRef}>
-        {gridWidth > 0 && config.visible.length > 0 && (
+        {effectiveGridWidth > 0 && config.visible.length > 0 && (
           <GridLayout
             layout={visibleLayout}
             cols={12}
             rowHeight={60}
-            width={gridWidth}
+            width={effectiveGridWidth}
             onLayoutChange={updateLayout}
             isDraggable
             isResizable

@@ -77,19 +77,6 @@ def upsert_raci(
         response.headers["x-api-version"] = "1"
         response.headers["x-api-deprecated"] = "true"
         response.headers["deprecation"] = "true"
-@router.put("/projects/{project_id}/raci", summary="Guardar/actualizar entradas RACI (batch upsert)",
-            tags=["v25 — RACI"])
-def upsert_raci(
-    project_id: str,
-    payload: RACIBatchIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
-    response: Response = None,
-):
-    if response is not None:
-        response.headers["x-api-version"] = "1"
-        response.headers["x-api-deprecated"] = "true"
-        response.headers["deprecation"] = "true"
     try:
         return _svc.upsert_raci(project_id, payload.entries, db)
     except ValueError as e:

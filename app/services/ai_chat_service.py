@@ -712,14 +712,14 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         elif tool_name == "search_projects":
             q = db.query(Project)
             if tool_input.get("query"):
-                term = f"%{tool.input['query']}%"
+                term = f"%{tool_input['query']}%"
                 q = q.filter(or_(Project.name.ilike(term), Project.client_name.ilike(term),
                                  Project.code.ilike(term)))
-            status = tool.input.get("status")
+            status = tool_input.get("status")
             if status and status != "all":
                 q = q.filter(Project.status == status)
-            if tool.input.get("risk_level"):
-                q = q.filter(Project.risk_level == tool.input["risk_level"])
+            if tool_input.get("risk_level"):
+                q = q.filter(Project.risk_level == tool_input["risk_level"])
             projects = q.order_by(Project.status).limit(30).all()
             return {"projects": [{"id": p.id, "code": p.code, "name": p.name,
                                   "status": p.status, "risk_level": str(p.risk_level),
@@ -729,7 +729,7 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
                                   } for p in projects]}
 
         elif tool_name == "get_project_status":
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             p = db.query(Project).filter(
                 or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
             ).first()
@@ -753,7 +753,7 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             }
 
         elif tool_name == "get_budget_status":
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 projects = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
@@ -790,13 +790,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Risks ─────────────────────────────────────────────────────────────
         elif tool_name == "get_project_risks":
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             p = db.query(Project).filter(
                 or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
             ).first()
             if not p: return {"error": f"Proyecto no encontrado: {pid}"}
             q = db.query(Risk).filter(Risk.project_id == p.id)
-            status_filter = tool.input.get("status", "")
+            status_filter = tool_input.get("status", "")
             if status_filter and status_filter != "all":
                 q = q.filter(Risk.status == status_filter)
             elif not status_filter:
@@ -817,16 +817,16 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         elif tool_name == "get_all_risks":
             q = db.query(Risk).join(Project, Risk.project_id == Project.id)
-            status_filter = tool.input.get("status", "")
+            status_filter = tool_input.get("status", "")
             if status_filter and status_filter != "all":
                 q = q.filter(Risk.status == status_filter)
             else:
                 q = q.filter(Risk.status.notin_(["closed"]))
-            if tool.input.get("impact"):
-                q = q.filter(Risk.impact == tool.input["impact"])
-            if tool.input.get("probability"):
-                q = q.filter(Risk.probability == tool.input["probability"])
-            risks = q.order_by(Risk.risk_score.desc().nullslast()).limit(tool.input.get("limit", 50)).all()
+            if tool_input.get("impact"):
+                q = q.filter(Risk.impact == tool_input["impact"])
+            if tool_input.get("probability"):
+                q = q.filter(Risk.probability == tool_input["probability"])
+            risks = q.order_by(Risk.risk_score.desc().nullslast()).limit(tool_input.get("limit", 50)).all()
             proj_ids = {r.project_id for r in risks}
             proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
             return {
@@ -847,9 +847,9 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Tasks ─────────────────────────────────────────────────────────────
         elif tool_name == "get_overdue_tasks":
             q = db.query(Task).filter(Task.status != "done", Task.due_date < now.date())
-            if tool.input.get("project_id"):
-                q = q.filter(Task.project_id == tool.input["project_id"])
-            tasks = q.order_by(Task.due_date).limit(tool.input.get("limit", 20)).all()
+            if tool_input.get("project_id"):
+                q = q.filter(Task.project_id == tool_input["project_id"])
+            tasks = q.order_by(Task.due_date).limit(tool_input.get("limit", 20)).all()
             proj_ids = {t.project_id for t in tasks}
             proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
             return {"overdue_tasks": [{
@@ -861,36 +861,36 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             } for t in tasks]}
 
         elif tool_name == "create_task":
-            project = db.query(Project).filter(Project.id == tool.input.get("project_id", "")).first()
+            project = db.query(Project).filter(Project.id == tool_input.get("project_id", "")).first()
             if not project: return {"error": "Proyecto no encontrado"}
             assignee = None
-            if tool.input.get("assignee_name"):
+            if tool_input.get("assignee_name"):
                 assignee = db.query(User).filter(
-                    User.full_name.ilike(f"%{tool.input['assignee_name']}%")
+                    User.full_name.ilike(f"%{tool_input['assignee_name']}%")
                 ).first()
             task_code = "TSK-" + str(_uuid.uuid4())[:8].upper()
             task = Task(
-                project_id=project.id, code=task_code, title=tool.input["title"],
-                status="todo", priority=tool.input.get("priority", "medium"),
-                estimated_hours=tool.input.get("estimated_hours"),
+                project_id=project.id, code=task_code, title=tool_input["title"],
+                status="todo", priority=tool_input.get("priority", "medium"),
+                estimated_hours=tool_input.get("estimated_hours"),
                 assignee_id=assignee.id if assignee else None,
                 created_by=user.id,
             )
-            if tool.input.get("due_date"):
-                task.due_date = datetime.strptime(tool.input["due_date"], "%Y-%m-%d").date()
+            if tool_input.get("due_date"):
+                task.due_date = datetime.strptime(tool_input["due_date"], "%Y-%m-%d").date()
             db.add(task); db.flush()
             return {"ok": True, "task_id": task.id, "code": task_code, "title": task.title,
                     "assignee": assignee.full_name if assignee else None}
 
         elif tool_name == "update_task":
-            task = db.query(Task).filter(Task.id == tool.input["task_id"]).first()
+            task = db.query(Task).filter(Task.id == tool_input["task_id"]).first()
             if not task: return {"error": "Tarea no encontrada"}
-            if tool.input.get("status"): task.status = tool.input["status"]
-            if tool.input.get("priority"): task.priority = tool.input["priority"]
-            if tool.input.get("due_date"):
-                task.due_date = datetime.strptime(tool.input["due_date"], "%Y-%m-%d").date()
-            if tool.input.get("assignee_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['assignee_name']}%")).first()
+            if tool_input.get("status"): task.status = tool_input["status"]
+            if tool_input.get("priority"): task.priority = tool_input["priority"]
+            if tool_input.get("due_date"):
+                task.due_date = datetime.strptime(tool_input["due_date"], "%Y-%m-%d").date()
+            if tool_input.get("assignee_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['assignee_name']}%")).first()
                 if u: task.assignee_id = u.id
             db.flush()
             return {"ok": True, "task_id": task.id, "title": task.title,
@@ -899,9 +899,9 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Tickets ──────────────────────────────────────────────────────────
         elif tool_name == "get_open_tickets":
             q = db.query(Ticket).filter(Ticket.status.in_(["open","in_progress"]))
-            if tool.input.get("priority"): q = q.filter(Ticket.priority == tool.input["priority"])
-            if tool.input.get("assignee_id"): q = q.filter(Ticket.assigned_to_user_id == tool.input["assignee_id"])
-            tickets = q.order_by(Ticket.created_at.asc()).limit(tool.input.get("limit", 15)).all()
+            if tool_input.get("priority"): q = q.filter(Ticket.priority == tool_input["priority"])
+            if tool_input.get("assignee_id"): q = q.filter(Ticket.assigned_to_user_id == tool_input["assignee_id"])
+            tickets = q.order_by(Ticket.created_at.asc()).limit(tool_input.get("limit", 15)).all()
             return {"tickets": [{
                 "id": t.id, "number": t.number, "title": t.title,
                 "status": t.status, "priority": t.priority,
@@ -910,22 +910,22 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             } for t in tickets]}
 
         elif tool_name == "update_ticket_status":
-            ticket = db.query(Ticket).filter(Ticket.id == tool.input["ticket_id"]).first()
+            ticket = db.query(Ticket).filter(Ticket.id == tool_input["ticket_id"]).first()
             if not ticket: return {"error": "Ticket no encontrado"}
-            if tool.input.get("status"): ticket.status = tool.input["status"]
-            if tool.input.get("assignee_name"):
+            if tool_input.get("status"): ticket.status = tool_input["status"]
+            if tool_input.get("assignee_name"):
                 agent = db.query(User).filter(
-                    User.full_name.ilike(f"%{tool.input['assignee_name']}%")
+                    User.full_name.ilike(f"%{tool_input['assignee_name']}%")
                 ).first()
                 if agent: ticket.assigned_to_user_id = agent.id
             db.flush()
             return {"ok": True, "ticket_id": ticket.id, "new_status": ticket.status}
 
         elif tool_name == "reassign_tickets":
-            from_user = db.query(User).filter(User.full_name.ilike(f"%{tool.input['from_user_name']}%")).first()
-            to_user   = db.query(User).filter(User.full_name.ilike(f"%{tool.input['to_user_name']}%")).first()
-            if not from_user: return {"error": f"Usuario no encontrado: {tool.input['from_user_name']}"}
-            if not to_user:   return {"error": f"Usuario no encontrado: {tool.input['to_user_name']}"}
+            from_user = db.query(User).filter(User.full_name.ilike(f"%{tool_input['from_user_name']}%")).first()
+            to_user   = db.query(User).filter(User.full_name.ilike(f"%{tool_input['to_user_name']}%")).first()
+            if not from_user: return {"error": f"Usuario no encontrado: {tool_input['from_user_name']}"}
+            if not to_user:   return {"error": f"Usuario no encontrado: {tool_input['to_user_name']}"}
             tickets = db.query(Ticket).filter(
                 Ticket.assigned_to_user_id == from_user.id, Ticket.status.in_(["open","in_progress"])
             ).all()
@@ -937,13 +937,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Milestones ────────────────────────────────────────────────────────
         elif tool_name == "get_milestones":
             q = db.query(ProjectMilestone)
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(ProjectMilestone.project_id == p.id)
-            if tool.input.get("only_pending"): q = q.filter(ProjectMilestone.is_completed == False)
+            if tool_input.get("only_pending"): q = q.filter(ProjectMilestone.is_completed == False)
             milestones = q.order_by(ProjectMilestone.due_date.asc().nullslast()).limit(30).all()
             proj_ids = {m.project_id for m in milestones}
             proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
@@ -958,15 +958,15 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Expenses ──────────────────────────────────────────────────────────
         elif tool_name == "get_expenses":
             q = db.query(Expense)
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(Expense.project_id == p.id)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Expense.status == status)
-            expenses = q.order_by(Expense.date.desc()).limit(tool.input.get("limit", 30)).all()
+            expenses = q.order_by(Expense.date.desc()).limit(tool_input.get("limit", 30)).all()
             proj_ids = {e.project_id for e in expenses if e.project_id}
             proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
             total = sum(e.amount or 0 for e in expenses)
@@ -984,10 +984,10 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── OKRs ─────────────────────────────────────────────────────────────
         elif tool_name == "get_okrs":
             q = db.query(Objective)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Objective.status == status)
             else: q = q.filter(Objective.status.in_(["draft","active"]))
-            year = tool.input.get("year") or now.year
+            year = tool_input.get("year") or now.year
             q = q.filter(Objective.year == year)
             objectives = q.order_by(Objective.progress.desc()).limit(20).all()
             result = []
@@ -1007,13 +1007,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Change Requests ───────────────────────────────────────────────────
         elif tool_name == "get_change_requests":
             q = db.query(ChangeRequest)
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(ChangeRequest.project_id == p.id)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(ChangeRequest.status == status)
             else: q = q.filter(ChangeRequest.status.notin_(["implemented","rejected"]))
             crs = q.order_by(ChangeRequest.created_at.desc()).limit(30).all()
@@ -1029,8 +1029,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Contracts ─────────────────────────────────────────────────────────
         elif tool_name == "get_contracts":
             q = db.query(Contract)
-            if tool.input.get("status"): q = q.filter(Contract.status == tool.input["status"])
-            contracts = q.order_by(Contract.end_date.asc().nullslast()).limit(tool.input.get("limit", 20)).all()
+            if tool_input.get("status"): q = q.filter(Contract.status == tool_input["status"])
+            contracts = q.order_by(Contract.end_date.asc().nullslast()).limit(tool_input.get("limit", 20)).all()
             return {"contracts": [{
                 "id": c.id,
                 "title": getattr(c, "title", None) or getattr(c, "name", None) or getattr(c, "reference", None),
@@ -1044,13 +1044,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Deliverables ──────────────────────────────────────────────────────
         elif tool_name == "get_deliverables":
             q = db.query(Deliverable)
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(Deliverable.project_id == p.id)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Deliverable.status == status)
             else: q = q.filter(Deliverable.status.notin_(["done"]))
             deliverables = q.order_by(Deliverable.due_date.asc().nullslast()).limit(30).all()
@@ -1065,13 +1065,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Sprints ───────────────────────────────────────────────────────────
         elif tool_name == "get_sprints":
             q = db.query(Sprint)
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(Sprint.project_id == p.id)
-            if tool.input.get("only_active"):
+            if tool_input.get("only_active"):
                 q = q.filter(Sprint.status == "active")
             sprints = q.order_by(Sprint.start_date.desc().nullslast()).limit(20).all()
             proj_ids = {s.project_id for s in sprints}
@@ -1090,9 +1090,9 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Alerts ────────────────────────────────────────────────────────────
         elif tool_name == "get_alerts":
             q = db.query(Alert).filter(Alert.is_resolved == False)
-            if tool.input.get("severity"): q = q.filter(Alert.severity == tool.input["severity"])
-            if tool.input.get("project_id"): q = q.filter(Alert.project_id == tool.input["project_id"])
-            alerts = q.order_by(Alert.created_at.desc()).limit(tool.input.get("limit", 20)).all()
+            if tool_input.get("severity"): q = q.filter(Alert.severity == tool_input["severity"])
+            if tool_input.get("project_id"): q = q.filter(Alert.project_id == tool_input["project_id"])
+            alerts = q.order_by(Alert.created_at.desc()).limit(tool_input.get("limit", 20)).all()
             proj_ids = {a.project_id for a in alerts if a.project_id}
             proj_map = {p.id: p for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
             return {"alerts": [{
@@ -1107,8 +1107,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         elif tool_name == "get_resource_availability":
             users = db.query(User).filter(User.is_active == True).limit(30).all()
             week_start = (now - timedelta(days=now.weekday())).date()
-            if tool.input.get("week_offset", 0):
-                week_start += timedelta(weeks=tool.input["week_offset"])
+            if tool_input.get("week_offset", 0):
+                week_start += timedelta(weeks=tool_input["week_offset"])
             week_end = week_start + timedelta(days=6)
             result = []
             for u in users:
@@ -1125,8 +1125,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         elif tool_name == "get_users_list":
             q = db.query(User)
-            if tool.input.get("active_only", True): q = q.filter(User.is_active == True)
-            if tool.input.get("role"): q = q.filter(User.role == tool.input["role"])
+            if tool_input.get("active_only", True): q = q.filter(User.is_active == True)
+            if tool_input.get("role"): q = q.filter(User.role == tool_input["role"])
             users = q.order_by(User.full_name).limit(50).all()
             can_see_rates = user.role in (UserRole.admin, UserRole.hr)
             return {"users": [{
@@ -1137,7 +1137,7 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Write: Risks ──────────────────────────────────────────────────────
         elif tool_name == "create_risk":
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             p = db.query(Project).filter(
                 or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
             ).first()
@@ -1146,16 +1146,16 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             code = f"RSK-{count + 1:03d}"
             _prob_score = {"very_low": 0.05, "low": 0.2, "medium": 0.45, "high": 0.7, "very_high": 0.9}
             _imp_score  = {"negligible": 0.05, "minor": 0.1, "moderate": 0.3, "major": 0.6, "critical": 0.9}
-            prob = tool.input.get("probability", "medium")
-            imp  = tool.input.get("impact", "moderate")
+            prob = tool_input.get("probability", "medium")
+            imp  = tool_input.get("impact", "moderate")
             score = _prob_score.get(prob, 0.45) * _imp_score.get(imp, 0.3) * 100
             risk = Risk(
                 id=str(_uuid.uuid4()), code=code, project_id=p.id,
-                title=tool.input["title"],
-                description=tool.input.get("description"),
-                category=tool.input.get("category"),
+                title=tool_input["title"],
+                description=tool_input.get("description"),
+                category=tool_input.get("category"),
                 probability=prob, impact=imp, risk_score=round(score, 1),
-                mitigation_plan=tool.input.get("mitigation_plan"),
+                mitigation_plan=tool_input.get("mitigation_plan"),
                 identified_by=user.id,
             )
             db.add(risk); db.flush()
@@ -1164,13 +1164,13 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Write: Project ────────────────────────────────────────────────────
         elif tool_name == "update_project_status":
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             p = db.query(Project).filter(
                 or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
             ).first()
             if not p: return {"error": "Proyecto no encontrado"}
-            if tool.input.get("status"): p.status = tool.input["status"]
-            if tool.input.get("risk_level"): p.risk_level = tool.input["risk_level"]
+            if tool_input.get("status"): p.status = tool_input["status"]
+            if tool_input.get("risk_level"): p.risk_level = tool_input["risk_level"]
             db.flush()
             return {"ok": True, "project_id": p.id, "name": p.name,
                     "status": str(p.status), "risk_level": str(p.risk_level)}
@@ -1178,23 +1178,23 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Imputations ───────────────────────────────────────────────────────
         elif tool_name == "get_imputations":
             q = db.query(Imputation)
-            if tool.input.get("project_id"):
-                pid = tool.input["project_id"]
+            if tool_input.get("project_id"):
+                pid = tool_input["project_id"]
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(Imputation.project_id == p.id)
-            if tool.input.get("user_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['user_name']}%")).first()
+            if tool_input.get("user_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
                 if u: q = q.filter(Imputation.user_id == u.id)
-            if tool.input.get("date_from"):
+            if tool_input.get("date_from"):
                 from datetime import date as _date
-                q = q.filter(Imputation.date >= _date.fromisoformat(tool.input["date_from"]))
-            if tool.input.get("date_to"):
+                q = q.filter(Imputation.date >= _date.fromisoformat(tool_input["date_from"]))
+            if tool_input.get("date_to"):
                 from datetime import date as _date
-                q = q.filter(Imputation.date <= _date.fromisoformat(tool.input["date_to"]))
-            imps = q.order_by(Imputation.date.desc()).limit(tool.input.get("limit", 50)).all()
-            group_by = tool.input.get("group_by")
+                q = q.filter(Imputation.date <= _date.fromisoformat(tool_input["date_to"]))
+            imps = q.order_by(Imputation.date.desc()).limit(tool_input.get("limit", 50)).all()
+            group_by = tool_input.get("group_by")
             if group_by == "user":
                 agg = {}
                 for i in imps:
@@ -1240,17 +1240,17 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             if not is_financial_role:
                 return {"error": "Acceso denegado: solo administradores o RRHH pueden ver facturas."}
             q = db.query(Invoice)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Invoice.status == status)
-            if tool.input.get("project_id"):
-                pid = tool.input["project_id"]
+            if tool_input.get("project_id"):
+                pid = tool_input["project_id"]
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(Invoice.project_id == p.id)
-            if tool.input.get("client_name"):
-                q = q.filter(Invoice.client_name.ilike(f"%{tool.input['client_name']}%"))
-            invoices = q.order_by(Invoice.issue_date.desc()).limit(tool.input.get("limit", 30)).all()
+            if tool_input.get("client_name"):
+                q = q.filter(Invoice.client_name.ilike(f"%{tool_input['client_name']}%"))
+            invoices = q.order_by(Invoice.issue_date.desc()).limit(tool_input.get("limit", 30)).all()
             total_paid = sum(inv.total or 0 for inv in invoices if inv.status == "paid")
             total_pending = sum(inv.total or 0 for inv in invoices if inv.status in ("sent", "overdue"))
             return {
@@ -1270,7 +1270,7 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         elif tool_name == "get_profitability":
             if not is_financial_role:
                 return {"error": "Acceso denegado: solo administradores o RRHH pueden ver rentabilidad."}
-            pid = tool.input.get("project_id", "")
+            pid = tool_input.get("project_id", "")
             if pid:
                 projects = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
@@ -1305,12 +1305,12 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Pipeline ──────────────────────────────────────────────────────────
         elif tool_name == "get_pipeline":
             q = db.query(Opportunity)
-            stage = tool.input.get("stage", "")
+            stage = tool_input.get("stage", "")
             if stage and stage != "all":
                 q = q.filter(Opportunity.stage == stage)
             else:
                 q = q.filter(Opportunity.stage.notin_(["won","lost"]))
-            opps = q.order_by(Opportunity.expected_close_date.asc().nullslast()).limit(tool.input.get("limit", 20)).all()
+            opps = q.order_by(Opportunity.expected_close_date.asc().nullslast()).limit(tool_input.get("limit", 20)).all()
             weighted_total = sum((o.expected_revenue or 0) * (o.probability or 0) / 100 for o in opps)
             return {
                 "total_opportunities": len(opps),
@@ -1328,19 +1328,19 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Absences ──────────────────────────────────────────────────────────
         elif tool_name == "get_absences":
             q = db.query(Absence)
-            if tool.input.get("user_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['user_name']}%")).first()
+            if tool_input.get("user_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
                 if u: q = q.filter(Absence.user_id == u.id)
-            if tool.input.get("date_from"):
+            if tool_input.get("date_from"):
                 from datetime import date as _date
-                q = q.filter(Absence.end_date >= _date.fromisoformat(tool.input["date_from"]))
-            if tool.input.get("date_to"):
+                q = q.filter(Absence.end_date >= _date.fromisoformat(tool_input["date_from"]))
+            if tool_input.get("date_to"):
                 from datetime import date as _date
-                q = q.filter(Absence.start_date <= _date.fromisoformat(tool.input["date_to"]))
-            status = tool.input.get("status", "")
+                q = q.filter(Absence.start_date <= _date.fromisoformat(tool_input["date_to"]))
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Absence.status == status)
             else: q = q.filter(Absence.status.notin_(["cancelled"]))
-            absences = q.order_by(Absence.start_date.desc()).limit(tool.input.get("limit", 30)).all()
+            absences = q.order_by(Absence.start_date.desc()).limit(tool_input.get("limit", 30)).all()
             user_ids = {a.user_id for a in absences}
             umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
             return {"absences": [{
@@ -1353,15 +1353,15 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Timesheets ───────────────────────────────────────────────────────
         elif tool_name == "get_timesheets":
             q = db.query(Timesheet)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Timesheet.status == status)
-            if tool.input.get("user_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['user_name']}%")).first()
+            if tool_input.get("user_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
                 if u: q = q.filter(Timesheet.user_id == u.id)
-            if tool.input.get("week_from"):
+            if tool_input.get("week_from"):
                 from datetime import date as _date
-                q = q.filter(Timesheet.week_start >= _date.fromisoformat(tool.input["week_from"]))
-            timesheets = q.order_by(Timesheet.week_start.desc()).limit(tool.input.get("limit", 30)).all()
+                q = q.filter(Timesheet.week_start >= _date.fromisoformat(tool_input["week_from"]))
+            timesheets = q.order_by(Timesheet.week_start.desc()).limit(tool_input.get("limit", 30)).all()
             user_ids = {t.user_id for t in timesheets}
             umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
             return {"timesheets": [{
@@ -1374,12 +1374,12 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Clients ──────────────────────────────────────────────────────────
         elif tool_name == "get_clients":
             q = db.query(Client)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(Client.status == status)
-            if tool.input.get("query"):
-                term = f"%{tool.input['query']}%"
+            if tool_input.get("query"):
+                term = f"%{tool_input['query']}%"
                 q = q.filter(or_(Client.name.ilike(term)))
-            clients = q.order_by(Client.name).limit(tool.input.get("limit", 20)).all()
+            clients = q.order_by(Client.name).limit(tool_input.get("limit", 20)).all()
             result = []
             for c in clients:
                 projects = db.query(Project).filter(Project.client_id == c.id).all()
@@ -1397,12 +1397,12 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Skills ────────────────────────────────────────────────────────────
         elif tool_name == "get_skills":
             q = db.query(UserSkill).join(Skill, UserSkill.skill_id == Skill.id)
-            if tool.input.get("skill_name"):
-                q = q.filter(Skill.name.ilike(f"%{tool.input['skill_name']}%"))
-            if tool.input.get("category"):
-                q = q.filter(Skill.category == tool.input["category"])
-            if tool.input.get("user_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['user_name']}%")).first()
+            if tool_input.get("skill_name"):
+                q = q.filter(Skill.name.ilike(f"%{tool_input['skill_name']}%"))
+            if tool_input.get("category"):
+                q = q.filter(Skill.category == tool_input["category"])
+            if tool_input.get("user_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
                 if u: q = q.filter(UserSkill.user_id == u.id)
             user_skills = q.limit(50).all()
             skill_ids = {us.skill_id for us in user_skills}
@@ -1419,10 +1419,10 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Approvals ────────────────────────────────────────────────────────
         elif tool_name == "get_approvals":
             q = db.query(ApprovalRequest)
-            status = tool.input.get("status", "")
+            status = tool_input.get("status", "")
             if status and status != "all": q = q.filter(ApprovalRequest.status == status)
             else: q = q.filter(ApprovalRequest.status == "pending")
-            approvals = q.order_by(ApprovalRequest.created_at.desc()).limit(tool.input.get("limit", 20)).all()
+            approvals = q.order_by(ApprovalRequest.created_at.desc()).limit(tool_input.get("limit", 20)).all()
             return {"approvals": [{
                 "id": a.id, "entity_type": a.entity_type, "entity_summary": a.entity_summary,
                 "status": a.status, "requested_by": a.requested_by,
@@ -1432,8 +1432,8 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
 
         # ── Universal search ─────────────────────────────────────────────────
         elif tool_name == "search_all":
-            query = tool.input.get("query", "")
-            lim = tool.input.get("limit_per_entity", 5)
+            query = tool_input.get("query", "")
+            lim = tool_input.get("limit_per_entity", 5)
             term = f"%{query}%"
             results = {}
 
@@ -1502,12 +1502,12 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         elif tool_name == "send_notification":
             from app.models.enterprise import Notification
             sent = []
-            for name in (tool.input.get("user_names") or []):
+            for name in (tool_input.get("user_names") or []):
                 u = db.query(User).filter(User.full_name.ilike(f"%{name}%")).first()
                 if u:
                     db.add(Notification(
                         user_id=u.id, title="Mensaje del Agente IA",
-                        body=tool.input["message"], action_url=tool.input.get("link"),
+                        body=tool_input["message"], action_url=tool_input.get("link"),
                     ))
                     sent.append(u.full_name)
             db.flush()
@@ -1518,16 +1518,16 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
             from app.models.financial import CapacityPlan
             from datetime import date as _date
             q = db.query(CapacityPlan)
-            if tool.input.get("user_name"):
-                u = db.query(User).filter(User.full_name.ilike(f"%{tool.input['user_name']}%")).first()
+            if tool_input.get("user_name"):
+                u = db.query(User).filter(User.full_name.ilike(f"%{tool_input['user_name']}%")).first()
                 if u: q = q.filter(CapacityPlan.user_id == u.id)
-            if tool.input.get("project_id"):
-                q = q.filter(CapacityPlan.project_id == tool.input["project_id"])
-            if tool.input.get("week_from"):
-                q = q.filter(CapacityPlan.week_start >= _date.fromisoformat(tool.input["week_from"]))
-            if tool.input.get("week_to"):
-                q = q.filter(CapacityPlan.week_start <= _date.fromisoformat(tool.input["week_to"]))
-            plans = q.order_by(CapacityPlan.week_start.desc()).limit(tool.input.get("limit", 40)).all()
+            if tool_input.get("project_id"):
+                q = q.filter(CapacityPlan.project_id == tool_input["project_id"])
+            if tool_input.get("week_from"):
+                q = q.filter(CapacityPlan.week_start >= _date.fromisoformat(tool_input["week_from"]))
+            if tool_input.get("week_to"):
+                q = q.filter(CapacityPlan.week_start <= _date.fromisoformat(tool_input["week_to"]))
+            plans = q.order_by(CapacityPlan.week_start.desc()).limit(tool_input.get("limit", 40)).all()
             user_ids = {p.user_id for p in plans}
             proj_ids = {p.project_id for p in plans if p.project_id}
             umap = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()}
@@ -1548,16 +1548,16 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> d
         # ── Git activity ──────────────────────────────────────────────────────
         elif tool_name == "get_git_activity":
             q = db.query(GitPullRequest)
-            if tool.input.get("project_id"):
-                pid = tool.input["project_id"]
+            if tool_input.get("project_id"):
+                pid = tool_input["project_id"]
                 p = db.query(Project).filter(
                     or_(Project.id == pid, Project.name.ilike(f"%{pid}%"), Project.code.ilike(f"%{pid}%"))
                 ).first()
                 if p: q = q.filter(GitPullRequest.project_id == p.id)
-            status = tool.input.get("status", "all")
+            status = tool_input.get("status", "all")
             if status and status != "all":
                 q = q.filter(GitPullRequest.status == status)
-            prs = q.order_by(GitPullRequest.created_at.desc()).limit(tool.input.get("limit", 20)).all()
+            prs = q.order_by(GitPullRequest.created_at.desc()).limit(tool_input.get("limit", 20)).all()
             proj_ids = {pr.project_id for pr in prs if pr.project_id}
             pmap = {p.id: p.name for p in db.query(Project).filter(Project.id.in_(proj_ids)).all()}
             return {

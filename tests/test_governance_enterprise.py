@@ -56,7 +56,8 @@ def test_policy_pack_and_evidence_flow(client, admin_token, db):
 
 def test_scim_user_provisioning(client, db):
     org_id = _seed_org_for_admin(db)
-    token = settings.SCIM_BEARER_TOKEN or settings.CLIENT_PORTAL_SECRET
+    token = settings.SCIM_BEARER_TOKEN
+    assert token
     headers = {"Authorization": f"Bearer {token}"}
 
     create = client.post(

@@ -52,6 +52,20 @@ from app.core.ratelimit import limiter
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # ── Dependency preflight check ─────────────────────────────────────────
+    _missing_deps: list[str] = []
+    for _dep in ("qrcode", "pyotp", "PIL"):
+        try:
+            __import__(_dep)
+        except ImportError:
+            _missing_deps.append(_dep)
+    if _missing_deps:
+        logger.warning(
+            "⚠️  MFA dependencies missing — MFA setup will return HTTP 500: %s. "
+            "Run: pip install qrcode[pil] pyotp",
+            ", ".join(_missing_deps),
+        )
+
     logger.info("━" * 54)
     logger.info("  ◈  CONTECFLOW PSA — Iniciando servidor")
     logger.info(f"     Versión : {settings.VERSION}")
@@ -71,6 +85,7 @@ async def lifespan(_app: FastAPI):
     if not _skip_migrations:
         logger.info("🔄 Ejecutando migraciones Alembic (startup)...")
         alembic_cfg = None
+        _alembic_out_text = ""
         try:
             import asyncio as _asyncio
             import sys as _sys
@@ -99,23 +114,28 @@ async def lifespan(_app: FastAPI):
             )
             _out, _ = await _proc.communicate()
             if _out:
-                for _line in _out.decode(errors='replace').splitlines():
+                _alembic_out_text = _out.decode(errors='replace')
+                for _line in _alembic_out_text.splitlines():
                     logger.info("   alembic: %s", _line)
             if _proc.returncode != 0:
-                raise RuntimeError(f"alembic upgrade head exited with code {_proc.returncode}")
+                _tail = _alembic_out_text[-1500:].strip()
+                raise RuntimeError(
+                    f"alembic upgrade head exited with code {_proc.returncode}. output_tail={_tail}"
+                )
             logger.info("   ✅ Alembic migrations applied")
         except Exception as _ae:
             _err = str(_ae).lower()
             _is_sqlite = settings.DATABASE_URL.lower().startswith("sqlite")
+            _is_dev_or_test = settings.ENVIRONMENT not in {"production", "staging"}
             _known_local_schema_drift = (
                 "already exists" in _err
                 or "duplicate column" in _err
                 or "no such table" in _err
             )
-            if _is_sqlite and _known_local_schema_drift:
+            if _is_sqlite and _known_local_schema_drift and _is_dev_or_test:
                 logger.warning(
                     "   ⚠️  Alembic detectó esquema local preexistente/inconsistente "
-                    "(SQLite). Marcando head y continuando startup..."
+                    "(SQLite dev). Marcando head y continuando startup..."
                 )
                 try:
                     _stamp_proc = await _asyncio.create_subprocess_exec(
@@ -129,7 +149,15 @@ async def lifespan(_app: FastAPI):
                 except Exception as _se:
                     logger.warning(f"   ⚠️  No se pudo hacer Alembic stamp: {_se}")
             else:
-                logger.error(f"   ❌ Alembic upgrade error: {_ae}")
+                if _is_sqlite and _known_local_schema_drift:
+                    logger.error(
+                        "   ❌ Alembic schema drift detectado en entorno %s — "
+                        "auto-stamp desactivado en staging/production. "
+                        "Ejecuta 'alembic upgrade head' manualmente antes de arrancar.",
+                        settings.ENVIRONMENT,
+                    )
+                else:
+                    logger.error(f"   ❌ Alembic upgrade error: {_ae}")
                 raise
     else:
         logger.info("⏭️  Migraciones omitidas (testing/init-container)")

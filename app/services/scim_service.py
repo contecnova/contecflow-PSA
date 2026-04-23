@@ -15,7 +15,7 @@ from app.models.user import User, UserRole, UserStatus
 
 
 def scim_token_expected() -> str:
-    return settings.SCIM_BEARER_TOKEN or settings.CLIENT_PORTAL_SECRET
+    return settings.SCIM_BEARER_TOKEN
 
 
 def require_scim_token(authorization: Optional[str]) -> None:

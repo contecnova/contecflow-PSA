@@ -109,7 +109,6 @@ const UATPage                = lazy(() => import('./pages/UATPage'))
 const PublicFormsPage        = lazy(() => import('./pages/PublicFormsPage'))
 const IntakeFormPage         = lazy(() => import('./pages/IntakeFormPage'))
 const DeveloperPortalPage    = lazy(() => import('./pages/DeveloperPortalPage'))
-const ExecutiveDashboardPage = lazy(() => import('./pages/ExecutiveDashboardPage'))
 const BIPage                 = lazy(() => import('./pages/BIPage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
@@ -464,7 +463,7 @@ function AppRoutes() {
       <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />
       <Route path="/performance-reviews" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
-      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><ExecutiveDashboardPage /></Layout></ProtectedRoute>} />
+      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><Navigate to="/bi" replace /></Layout></ProtectedRoute>} />
       <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<ProtectedRoute><Layout><NotificationsPage /></Layout></ProtectedRoute>} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />

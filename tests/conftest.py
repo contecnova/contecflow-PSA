@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker
 # Variables de entorno necesarias para pydantic-settings en tests
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-tests-only-not-production-use")
 os.environ.setdefault("CLIENT_PORTAL_SECRET", "test-client-portal-secret-unit-tests-only")
+os.environ.setdefault("SCIM_BEARER_TOKEN", "test-scim-token-unit-tests-only")
 os.environ.setdefault("WEBHOOK_SECRET", "test-webhook-secret-for-unit-tests")
 os.environ.setdefault("INBOUND_EMAIL_SECRET", "test-inbound-email-secret-for-unit-tests")
 os.environ.setdefault("ANTHROPIC_API_URL", "https://api.anthropic.test")
@@ -225,7 +226,7 @@ def seed_multitenant(db):
     from app.models.task import Task, TaskPriority, TaskStatus
     from app.models.user import User, UserRole, UserStatus
     from app.core.security import get_password_hash
-    
+
     ORG_A_ID = "org-a-test"
     ORG_B_ID = "org-b-test"
     PROJECT_A_ID = "project-a-test"

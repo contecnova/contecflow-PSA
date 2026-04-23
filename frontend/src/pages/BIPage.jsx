@@ -101,6 +101,13 @@ const buildApiParamsFromFilters = (filters) => ({
   department: filters.department || undefined,
 })
 
+const normalizeBiLayout = (rawWidgets) => {
+  // `dashboard_widgets` can come from dashboard page as an object ({visible, layout}).
+  // BI expects its own array layout; fallback to default when shape is incompatible.
+  if (!Array.isArray(rawWidgets)) return DEFAULT_LAYOUT
+  return rawWidgets
+}
+
 export default function BIPage() {
   const navigate = useNavigate()
   const t = useAppT()
@@ -115,12 +122,12 @@ export default function BIPage() {
     queryFn: () => api.get('/analytics/filters/options').then(r => r.data).catch(() => ({})),
   })
 
-  const [layout, setLayout] = useState(() => prefs.dashboard_widgets || DEFAULT_LAYOUT)
+  const [layout, setLayout] = useState(() => normalizeBiLayout(prefs.dashboard_widgets))
 
   const prefsLoaded = useRef(false)
-  if (!prefsLoaded.current && prefs.dashboard_widgets) {
+  if (!prefsLoaded.current && Array.isArray(prefs.dashboard_widgets)) {
     prefsLoaded.current = true
-    const savedIds = (prefs.dashboard_widgets || []).map(w => w.id)
+    const savedIds = prefs.dashboard_widgets.map(w => w.id)
     const newWidgets = DEFAULT_LAYOUT.filter(w => !savedIds.includes(w.id))
     setLayout([...(prefs.dashboard_widgets || DEFAULT_LAYOUT), ...newWidgets])
   }

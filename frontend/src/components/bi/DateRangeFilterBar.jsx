@@ -10,7 +10,7 @@ const RANGE_PRESETS = {
 }
 
 export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, disabled = false }) {
-  const t = useAppT()
+  const { t } = useAppT()
   const [customOpen, setCustomOpen] = useState(false)
   const [localFrom, setLocalFrom] = useState(dateFrom || '')
   const [localTo, setLocalTo] = useState(dateTo || '')

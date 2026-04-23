@@ -5,10 +5,86 @@ Covers: serializers, subcontractor worker creation, revenue forecast aggregation
 """
 from __future__ import annotations
 
+import ipaddress
+import logging
+import socket
+import urllib.parse as _urlparse
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
+
+# Networks that must never be reachable from an outbound webhook delivery.
+# Covers: loopback, RFC 1918, link-local (incl. AWS/GCP/Azure metadata),
+# CGN (RFC 6598), documentation, IPv6 ULA, IPv6 link-local.
+_BLOCKED_NETWORKS: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),   # link-local / AWS+GCP metadata
+    ipaddress.ip_network("100.64.0.0/10"),    # CGN (RFC 6598)
+    ipaddress.ip_network("192.0.2.0/24"),     # TEST-NET-1 (RFC 5737)
+    ipaddress.ip_network("198.51.100.0/24"),  # TEST-NET-2
+    ipaddress.ip_network("203.0.113.0/24"),   # TEST-NET-3
+    ipaddress.ip_network("::1/128"),          # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),         # IPv6 ULA
+    ipaddress.ip_network("fe80::/10"),        # IPv6 link-local
+]
+_BLOCKED_HOSTNAMES: frozenset[str] = frozenset({
+    "169.254.169.254",           # AWS/GCP/Azure IMDS
+    "metadata.google.internal",
+    "metadata.google",
+    "metadata",
+})
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Raise ValueError if *url* is not safe for outbound webhook delivery.
+
+    Checks:
+    - Scheme must be https.
+    - Hostname must not be a known metadata endpoint.
+    - Resolved IP addresses must not fall in any RFC 1918 / loopback /
+      link-local / reserved range (SSRF prevention).
+
+    Raises:
+        ValueError: with a human-readable reason; caller should log this.
+    """
+    try:
+        parsed = _urlparse.urlparse(url)
+    except Exception as exc:  # noqa: BLE001 — urlparse rarely raises, be safe
+        raise ValueError(f"URL malformada: {url!r}") from exc
+
+    if parsed.scheme != "https":
+        raise ValueError("Solo se permiten destinos HTTPS en webhooks")
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise ValueError("URL de webhook sin hostname")
+
+    if hostname in _BLOCKED_HOSTNAMES:
+        raise ValueError(f"Hostname de metadata bloqueado: {hostname!r}")
+
+    # Resolve all addresses the hostname maps to and reject any internal one.
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as exc:
+        raise ValueError(f"No se pudo resolver el hostname {hostname!r}: {exc}") from exc
+
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
+            raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
+        for net in _BLOCKED_NETWORKS:
+            if ip in net:
+                raise ValueError(f"Destino bloqueado — red interna {net}: {ip_str}")
 
 from app.core.config import settings
 from app.core.encryption import encrypt_value
@@ -199,8 +275,29 @@ def compute_audit_stats(db: Session, days: int) -> dict:
 
 
 def test_webhook_delivery(hook, current_user) -> dict:
-    """Send a test payload to a webhook URL and return result."""
-    import httpx, time, json
+    """Send a test payload to a webhook URL and return result.
+
+    The destination URL is validated against SSRF risks before the request
+    is made.  Blocked attempts are logged as warnings for audit purposes.
+    """
+    import httpx
+    import json
+    import time
+
+    # ── SSRF guard — must happen before any network I/O ──────────────────────
+    try:
+        _validate_webhook_url(hook.url)
+    except ValueError as exc:
+        actor = getattr(current_user, "email", "unknown")
+        logger.warning(
+            "Webhook SSRF attempt blocked: actor=%s hook_id=%s url=%r reason=%s",
+            actor,
+            getattr(hook, "id", "?"),
+            hook.url,
+            exc,
+        )
+        return {"ok": False, "blocked": True, "error": f"URL no permitida: {exc}"}
+
     test_payload = {
         "event": "test",
         "message": "This is a test delivery from Contecflow",
@@ -210,17 +307,26 @@ def test_webhook_delivery(hook, current_user) -> dict:
         body = json.dumps({"event": "test", "data": test_payload}, default=str)
         start = time.time()
         with httpx.Client(timeout=10.0) as client:
-            resp = client.post(hook.url, content=body,
-                               headers={"Content-Type": "application/json",
-                                        "User-Agent": "Clarive-Test/11.0"})
+            resp = client.post(
+                hook.url,
+                content=body,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Clarive-Test/11.0",
+                },
+            )
         return {
             "ok": resp.status_code < 400,
             "status_code": resp.status_code,
             "response": resp.text[:200],
             "duration_ms": int((time.time() - start) * 1000),
         }
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+    except httpx.TimeoutException as exc:
+        logger.warning("Webhook delivery timeout: url=%r error=%s", hook.url, exc)
+        return {"ok": False, "error": "Timeout al conectar con el destino del webhook"}
+    except httpx.RequestError as exc:
+        logger.warning("Webhook delivery network error: url=%r error=%s", hook.url, exc)
+        return {"ok": False, "error": f"Error de red: {exc}"}
 
 
 def validate_sso_config(config) -> dict:

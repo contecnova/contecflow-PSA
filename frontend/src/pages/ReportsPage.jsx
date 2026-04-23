@@ -82,7 +82,12 @@ const CHART_TYPES = [
 // ── Tooltip customizado ───────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label, isCurrency, isPercent }) => {
   if (!active || !payload?.length) return null
-  const fmt = (v) => isCurrency ? fmtCurrency(v) : isPercent ? `${v}%` : typeof v === 'number' ? v.toLocaleString('es-ES', { maximumFractionDigits: 1 }) : v
+  const fmt = (v) => {
+    if (v == null) return '—'
+    if (isCurrency) return fmtCurrency(Number(v) || 0)
+    if (isPercent) return `${Number(v) || 0}%`
+    return typeof v === 'number' ? v.toLocaleString('es-ES', { maximumFractionDigits: 1 }) : v
+  }
   return (
     <div style={{ background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text-1)' }}>{label}</div>
@@ -186,7 +191,10 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
 
   const isCurrency = meta?.y_label?.includes('€')
   const isPercent = meta?.y_label?.includes('%')
-  const fmtY = (v) => isCurrency ? `${(v/1000).toFixed(0)}k€` : isPercent ? `${v}%` : v
+  const fmtY = (v) => {
+    const n = Number(v) || 0
+    return isCurrency ? `${(n / 1000).toFixed(0)}k€` : isPercent ? `${n}%` : n
+  }
 
   if (chartType === 'heatmap') return <HeatmapChart data={data} meta={meta} />
   if (chartType === 'table') return <DataTable data={data} isCurrency={isCurrency} isPercent={isPercent} />
@@ -213,7 +221,9 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: PALETTE[i % PALETTE.length], flexShrink: 0 }} />
                 <span style={{ color: 'var(--text-1)', flex: 1 }}>{row.label}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", color: PALETTE[i % PALETTE.length], fontWeight: 700 }}>
-                  {isCurrency ? fmtCurrency(row.value) : row.value.toLocaleString('es-ES', { maximumFractionDigits: 1 })}
+                  {isCurrency
+                    ? fmtCurrency(Number(row.value) || 0)
+                    : (Number(row.value) || 0).toLocaleString('es-ES', { maximumFractionDigits: 1 })}
                 </span>
                 <span style={{ color: 'var(--text-2)', fontSize: 11 }}>{pct}%</span>
               </div>
@@ -382,13 +392,14 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
   const [color, setColor] = useState('var(--accent)')
   const [reportName, setReportName] = useState('')
 
-  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => api.get('/analytics/catalogue').then(r => r.data) })
-  const { data: filters } = useQuery({ queryKey: ['analytics-filters'], queryFn: () => api.get('/analytics/filters/options').then(r => r.data) })
+  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => api.get('/analytics/catalogue').then(r => r.data).catch(() => ({})) })
+  const { data: filters } = useQuery({ queryKey: ['analytics-filters'], queryFn: () => api.get('/analytics/filters/options').then(r => r.data).catch(() => ({})) })
 
   const { data: result, isLoading, isFetching } = useQuery({
     queryKey: ['analytics-query', metric, dateFrom, dateTo, projectId, userId, department, topN],
-    queryFn: () => api.get(`/analytics/query/${metric}`, { params: { date_from: dateFrom, date_to: dateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN } }).then(r => r.data),
+    queryFn: () => api.get(`/analytics/query/${metric}`, { params: { date_from: dateFrom, date_to: dateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN } }).then(r => r.data).catch(() => null),
     enabled: !!metric,
+    retry: false,
   })
 
   // Período anterior para comparativa en SummaryBar
@@ -401,9 +412,10 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
 
   const { data: prevResult } = useQuery({
     queryKey: ['analytics-prev', metric, prevDateFrom, prevDateTo, projectId, userId, department, topN],
-    queryFn: () => api.get(`/analytics/query/${metric}`, { params: { date_from: prevDateFrom, date_to: prevDateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN } }).then(r => r.data),
+    queryFn: () => api.get(`/analytics/query/${metric}`, { params: { date_from: prevDateFrom, date_to: prevDateTo, project_id: projectId || undefined, user_id: userId || undefined, department: department || undefined, top_n: topN } }).then(r => r.data).catch(() => null),
     enabled: !!metric && !!prevDateFrom,
     staleTime: 60000,
+    retry: false,
   })
 
   // Auto-set chart type from metric default
@@ -605,7 +617,13 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
             </div>
           )}
         </div>
-      ) : null}
+      ) : (
+        <EmptyState
+          icon="⚠️"
+          title="Plantilla no disponible"
+          description="La métrica seleccionada no está disponible en este entorno o devolvió un error."
+        />
+      )}
     </div>
   )
 }
@@ -638,8 +656,9 @@ function MiniPanel({ config }) {
     queryKey: ['analytics-mini', config.metric, config.dateFrom, config.dateTo, config.projectId, config.userId],
     queryFn: () => api.get(`/analytics/query/${config.metric}`, {
       params: { date_from: config.dateFrom, date_to: config.dateTo, project_id: config.projectId || undefined, user_id: config.userId || undefined, top_n: 10 }
-    }).then(r => r.data),
+    }).then(r => r.data).catch(() => null),
     enabled: !!config.metric,
+    retry: false,
   })
   if (isLoading) return <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>
   if (!result) return null
@@ -896,10 +915,15 @@ function ScheduledReportsTab() {
 
 
 // ── PresetsTab ─────────────────────────────────────────────────────────────────
-function PresetsTab({ presets, onOpen }) {
+function PresetsTab({ presets, supportedMetrics, onOpen }) {
   const [filterCat, setFilterCat] = useState('all')
-  const cats = ['all', ...new Set(presets.map(p => p.cat).filter(Boolean))]
-  const filtered = filterCat === 'all' ? presets : presets.filter(p => p.cat === filterCat)
+  // When supportedMetrics is null the analytics catalogue is unavailable (e.g. 503).
+  // In that case show all presets so the user can still browse and attempt to run them.
+  const enabledPresets = supportedMetrics !== null
+    ? presets.filter(p => supportedMetrics.has(p.metric))
+    : presets
+  const cats = ['all', ...new Set(enabledPresets.map(p => p.cat).filter(Boolean))]
+  const filtered = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
   const catIcons = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
     Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
   const chartLabels = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
@@ -914,7 +938,7 @@ function PresetsTab({ presets, onOpen }) {
               background: filterCat === c ? 'var(--accent-muted)' : 'transparent',
               color: filterCat === c ? 'var(--accent)' : 'var(--text-2)',
               fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {c === 'all' ? `✦ Todas (${presets.length})` : `${catIcons[c] || ''} ${c}`}
+            {c === 'all' ? `✦ Todas (${enabledPresets.length})` : `${catIcons[c] || ''} ${c}`}
           </button>
         ))}
       </div>
@@ -960,8 +984,14 @@ export default function ReportsPage() {
 
   const openReport = (r) => { setEditingReport(r); setMode('explorer') }
 
-  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => api.get('/analytics/catalogue').then(r => r.data) })
+  const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => api.get('/analytics/catalogue').then(r => r.data).catch(() => ({})) })
+  const catalogueLoaded = catalogue !== undefined
+  const catalogueHasData = catalogueLoaded && Object.keys(catalogue || {}).length > 0
   const totalMetrics = Object.values(catalogue || {}).flat().length
+  // null means catalogue not yet loaded or unavailable — PresetsTab will show all presets
+  const supportedMetrics = catalogueHasData
+    ? new Set(Object.values(catalogue).flat().map(m => m.id))
+    : null
 
   const [_schedTab, _setSchedTab] = useState('main')
   return (
@@ -988,7 +1018,7 @@ export default function ReportsPage() {
       />
 
       {/* Plantillas */}
-      {mode === 'presets' && <PresetsTab presets={PRESETS} onOpen={(p) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
+      {mode === 'presets' && <PresetsTab presets={PRESETS} supportedMetrics={supportedMetrics} onOpen={(p) => { setEditingReport({ metric: p.metric, chartType: p.chart, color: p.color }); setMode('explorer') }} />}
 
       {/* Overview — todas las métricas organizadas por categoría */}
       {mode === 'overview' && (
