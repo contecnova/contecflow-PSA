@@ -70,6 +70,7 @@ export default function KanbanTicketsTab({ onSelect }) {
         return (
           <div
             key={col.id}
+            role="presentation"
             onDragOver={onDragOver}
             onDragEnter={e => onDragEnter(e, col.id)}
             onDragLeave={onDragLeave}

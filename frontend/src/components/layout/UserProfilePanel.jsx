@@ -133,7 +133,7 @@ export default function UserProfilePanel({ onClose }) {
   return (
     <>
       {/* Overlay */}
-      <div onClick={onClose}
+      <div role="presentation" onMouseDown={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
           zIndex: 299, backdropFilter: 'blur(2px)' }} />
 

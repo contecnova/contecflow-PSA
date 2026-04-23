@@ -104,12 +104,12 @@ export default function GlobalSearchModal({ open, onClose }) {
   ]
 
   return (
-    <div onClick={onClose} style={{
+    <div role="presentation" onMouseDown={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       paddingTop: '12vh', zIndex: 99998, backdropFilter: 'blur(4px)',
     }}>
-      <div onClick={e => e.stopPropagation()} style={{
+      <div role="presentation" onMouseDown={e => e.stopPropagation()} style={{
         background: 'var(--surface-1)', border: '1px solid #1e2d45',
         borderRadius: 16, width: '100%', maxWidth: 600,
         boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
@@ -165,13 +165,14 @@ export default function GlobalSearchModal({ open, onClose }) {
                 const cfg = ENTITY_CFG[r.type] || {}
                 const isSelected = i === clampedSelected
                 return (
-                  <div key={r.id} onClick={() => go(r)}
+                  <button key={r.id} onClick={() => go(r)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
                       borderRadius: 8, cursor: 'pointer', marginBottom: 2,
                       background: isSelected ? 'var(--surface-4)' : 'transparent',
                       transition: 'background 0.1s',
                     }}
+                    type="button"
                     onMouseEnter={() => setSelected(i)}
                   >
                     <div style={{
@@ -197,7 +198,7 @@ export default function GlobalSearchModal({ open, onClose }) {
                     )}
                     <kbd style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-4)',
                       borderRadius: 4, padding: '2px 6px', opacity: isSelected ? 1 : 0 }}>↵</kbd>
-                  </div>
+                  </button>
                 )
               })}
             </div>

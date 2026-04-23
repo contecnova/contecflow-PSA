@@ -31,10 +31,10 @@ export default function GlobalSearch({ onClose }) {
   const grouped = data?.grouped || {}
 
   return (
-    <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
-      onClick={onClose}>
-      <div style={{ width:'100%', maxWidth:620, background:'var(--color-background-primary)', borderRadius:16, border:'.5px solid var(--color-border-secondary)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
-        onClick={e => e.stopPropagation()}>
+    <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
+      onMouseDown={onClose}>
+      <div role="presentation" style={{ width:'100%', maxWidth:620, background:'var(--color-background-primary)', borderRadius:16, border:'.5px solid var(--color-border-secondary)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+        onMouseDown={e => e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', padding:'14px 18px', borderBottom:'.5px solid var(--color-border-tertiary)', gap:10 }}>
           <span style={{ fontSize:16, color:'var(--color-text-secondary)' }}>⌕</span>
           <input
@@ -65,11 +65,12 @@ export default function GlobalSearch({ onClose }) {
                   {TYPE_LABELS[type] || type}s
                 </div>
                 {(items || []).map(item => (
-                  <div key={item.id}
+                  <button key={item.id}
                     style={{ display:'flex', gap:12, padding:'10px 18px', cursor:'pointer', alignItems:'center', borderBottom:'.5px solid var(--color-border-tertiary)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--color-background-secondary)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     onClick={() => { window.location.hash = item.url || '#'; onClose() }}
+                    type="button"
                   >
                     <span style={{ fontSize:16, flexShrink:0 }}>{ICON_MAP[item.type] || '•'}</span>
                     <div style={{ flex:1, minWidth:0 }}>
@@ -79,7 +80,7 @@ export default function GlobalSearch({ onClose }) {
                     {item.status && (
                       <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:'var(--color-background-secondary)', color:'var(--color-text-secondary)', whiteSpace:'nowrap' }}>{item.status}</span>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             ))

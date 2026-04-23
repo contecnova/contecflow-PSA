@@ -36,7 +36,7 @@ const STATUS_COLOR = {
   resolved: COLOR.success, closed: COLOR.text2, cancelled: COLOR.text3,
 }
 
-function getCreateTicketSchema(t) {
+function _getCreateTicketSchema(t) {
   return z.object({
   ticket_type: z.enum(['incident', 'service_request', 'change', 'problem', 'question']),
   title: z.string().trim().min(1, t('service_desk.zod_title_required')),

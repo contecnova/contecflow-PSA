@@ -1,6 +1,9 @@
 import { useContext, useMemo } from 'react';
 import { AppLangContext } from '../i18n/AppLangContext';
 
+const NOOP = () => {};
+const EMPTY_OBJ = {};
+
 /**
  * useAppT — Hook de traducción empresarial
  * - Traducción con interpolación de variables
@@ -19,10 +22,10 @@ export function useAppT() {
   const ctx = useContext(AppLangContext);
   // Fallbacks seguros
   const lang = ctx?.lang || 'es';
-  const setLang = ctx?.setLang || (() => {});
+  const setLang = ctx?.setLang || NOOP;
   const loading = ctx?.loading || false;
-  const translations = ctx?.translations || {};
-  const setCustomTranslations = ctx?.setCustomTranslations || (() => {});
+  const translations = ctx?.translations || EMPTY_OBJ;
+  const setCustomTranslations = ctx?.setCustomTranslations || NOOP;
 
   // Traducción robusta con interpolación y fallback
   const t = useMemo(() => {
@@ -96,7 +99,7 @@ export function useAppT() {
       }
       return trans;
     };
-  }, [ctx, lang]);
+  }, [ctx]);
 
   return useMemo(() => ({
     t,

@@ -19,6 +19,13 @@ import { useAppT } from '../i18n/AppLangContext'
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid #1e2d45', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 
 const STATUSES = ['todo', 'in_progress', 'blocked', 'review', 'done']
 const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review: '◐', done: '●' }
@@ -79,8 +86,8 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
   const color = colors[status]
   return (
     <div
-      onMouseEnter={onColumnEnter}
-      onMouseLeave={onColumnLeave}
+      onPointerEnter={onColumnEnter}
+      onPointerLeave={onColumnLeave}
       style={{
         minWidth: 240, flex: 1,
         background: dragOver ? 'rgba(79,142,247,0.06)' : 'transparent',
@@ -900,19 +907,23 @@ export default function TasksPage() {
                 const proj = projects.find(p => p.id === t.project_id)
                 return (
                   <div key={t.id}
+                    onClick={() => setSelectedTask(t)}
+                    onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
+                    role="button"
+                    tabIndex={0}
                     style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 100px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                     onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}>
                     <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-                    <div onClick={() => setSelectedTask(t)}>
+                    <div>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
                       <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t.code}</div>
                     </div>
-                    <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12, color: 'var(--text-2)' }}>{proj ? `${proj.code}` : '—'}</span>
-                    <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12 }}>{t.assignee?.full_name?.split(' ')[0] || '—'}</span>
-                    <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12, color: 'var(--text-2)' }}>{t.estimated_hours ? `${t.estimated_hours}h` : '—'}</span>
-                    <span onClick={() => setSelectedTask(t)}><Badge label={t.status} /></span>
-                    <span onClick={() => setSelectedTask(t)}><Badge label={t.priority} /></span>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{proj ? `${proj.code}` : '—'}</span>
+                    <span style={{ fontSize: 12 }}>{t.assignee?.full_name?.split(' ')[0] || '—'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{t.estimated_hours ? `${t.estimated_hours}h` : '—'}</span>
+                    <span><Badge label={t.status} /></span>
+                    <span><Badge label={t.priority} /></span>
                   </div>
                 )
               })}
@@ -929,6 +940,9 @@ export default function TasksPage() {
               return (
                 <div key={t.id}
                   onClick={() => setSelectedTask(t)}
+                  onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
+                  role="button"
+                  tabIndex={0}
                   style={{
                     background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 10,
                     padding: '12px 14px', cursor: 'pointer',
@@ -977,23 +991,27 @@ export default function TasksPage() {
               height={Math.min(flatTasks.length * 52, 600)}
               renderRow={(t) => (
                 <div
+                  onClick={() => setSelectedTask(t)}
+                  onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
+                  role="button"
+                  tabIndex={0}
                   style={{ display: 'grid', gridTemplateColumns: '28px 2.5fr 1.5fr 1fr 80px 80px 100px 100px', gap: 16, padding: '14px 20px', borderBottom: '1px solid #1e2d4530', cursor: 'pointer', transition: 'background 0.1s', alignItems: 'center', background: selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (!selected.has(t.id)) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = selected.has(t.id) ? 'var(--accent-muted)' : 'transparent' }}
                 >
                   <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: 'var(--accent)' }} />
-                  <div onClick={() => setSelectedTask(t)}>
+                  <div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{t.code}</div>
                   </div>
-                  <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
                     {projects.find(p => p.id === t.project_id)?.code || t.project_id?.slice(0,8) || '—'}
                   </span>
-                  <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12 }}>{t.assignee?.full_name?.split(' ')[0] || '—'}</span>
-                  <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{t.estimated_hours ? `${t.estimated_hours}h` : '—'}</span>
-                  <span onClick={() => setSelectedTask(t)} style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: t.real_hours > t.estimated_hours ? 'var(--danger)' : 'var(--text-2)' }}>{t.real_hours?.toFixed(1) ?? 0}h</span>
-                  <span onClick={() => setSelectedTask(t)}><Badge label={t.status} /></span>
-                  <span onClick={() => setSelectedTask(t)}><Badge label={t.priority} /></span>
+                  <span style={{ fontSize: 12 }}>{t.assignee?.full_name?.split(' ')[0] || '—'}</span>
+                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{t.estimated_hours ? `${t.estimated_hours}h` : '—'}</span>
+                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: t.real_hours > t.estimated_hours ? 'var(--danger)' : 'var(--text-2)' }}>{t.real_hours?.toFixed(1) ?? 0}h</span>
+                  <span><Badge label={t.status} /></span>
+                  <span><Badge label={t.priority} /></span>
                 </div>
               )}
             />

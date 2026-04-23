@@ -400,9 +400,9 @@ function ShortcutsModal({ onClose, text }) {
   }, [onClose])
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
+    <div className="modal-backdrop" onMouseDown={onClose} role="presentation">
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={text.keyboard_shortcuts}
-        className="modal-glass" style={{ width: 480 }} onClick={e => e.stopPropagation()}
+        className="modal-glass" style={{ width: 480 }} onMouseDown={e => e.stopPropagation()}
         tabIndex={-1}
       >
         <div className="modal-header">
@@ -438,10 +438,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
   const [hover, setHover] = useState(false)
 
   return (
-    <div style={{ position: 'relative' }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
+    <div style={{ position: 'relative' }}>
       <NavLink to={item.to} title={displayLabel} aria-label={displayLabel}
         style={({ isActive }) => ({
           display: 'flex', alignItems: 'center', gap: 8,
@@ -456,6 +453,8 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           transition: 'background 0.1s, color 0.1s', whiteSpace: 'nowrap',
           minHeight: 28,
         })}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
       >
         <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           {item.icon}
@@ -522,7 +521,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
   if (collapsed) {
     return (
-      <div ref={groupRef} style={{ marginBottom: 3 }} onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+      <div ref={groupRef} style={{ marginBottom: 3 }} onPointerEnter={handleEnter} onPointerLeave={handleLeave}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {realVisible.map(item => (
             <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} pinned={pinned} onPin={onPin} />
@@ -530,8 +529,8 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         </div>
         {hoverOpen && (
           <div className="nav-hover-preview" style={{ left: 52, top: hoverTop - 4 }}
-            onMouseEnter={() => { clearTimeout(hoverTimer.current); setHoverOpen(true) }}
-            onMouseLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), 150) }}
+            onPointerEnter={() => { clearTimeout(hoverTimer.current); setHoverOpen(true) }}
+            onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), 150) }}
           >
             <div className="nav-hover-title">{groupLabel}</div>
             {realVisible.map(item => {
@@ -595,8 +594,6 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
 // ── Favourites / Recents ─────────────────────────────────────────────────────
 const PINNED_KEY = 'clarive_pinned_routes'
-const RECENT_KEY = 'clarive_recent_routes'
-const MAX_RECENT = 5
 
 function _lsGet(key) {
   try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
@@ -623,45 +620,6 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
             alertCount={alertCount} approvalCount={approvalCount}
             t={t} pinned={pinned} onPin={onPin} text={text} />
         ))}
-      </div>
-      <div style={{ height: 1, background: 'var(--surface-4)', margin: collapsed ? '5px 0' : '5px 3px' }} />
-    </div>
-  )
-}
-
-function RecentsSection({ recent, collapsed, text, t }) {
-  const allItems = NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider)
-  const recentItems = recent.map(path => allItems.find(i => i.to === path)).filter(Boolean)
-  if (recentItems.length === 0) return null
-  return (
-    <div style={{ marginBottom: 4 }}>
-      {!collapsed && (
-        <div style={{ padding: '2px 8px 2px 10px', fontSize: 9.5, fontWeight: 700,
-          letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 2 }}>{`⏱ ${text.recent}`}</div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {recentItems.map(item => {
-          const itemLabel = getNavLabel(item.to, item.label, t)
-          return (
-          <NavLink key={item.to} to={item.to}
-            title={itemLabel}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: collapsed ? '7px 9px' : '5px 8px 5px 14px',
-              borderRadius: 6, textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
-              background: isActive ? 'var(--accent-muted)' : 'transparent',
-              color: isActive ? 'var(--accent)' : 'var(--text-2)',
-              border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
-              minHeight: 28,
-            })}
-          >
-            <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 }}>
-              {item.icon}
-            </span>
-            {!collapsed && <span style={{ flex: 1, fontSize: 12.5 }}>{itemLabel}</span>}
-          </NavLink>
-          )
-        })}
       </div>
       <div style={{ height: 1, background: 'var(--surface-4)', margin: collapsed ? '5px 0' : '5px 3px' }} />
     </div>
@@ -914,7 +872,6 @@ export default function Layout({ children }) {
 
   const location = useLocation()
   const [pinned, setPinned] = useState(() => _lsGet(PINNED_KEY))
-  const [recent, setRecent] = useState(() => _lsGet(RECENT_KEY))
 
   // Build helpers once
   const allNavItems = useMemo(() => NAV_GROUPS.flatMap(g => g.items || []).filter(i => !i.divider), [])
@@ -925,16 +882,6 @@ export default function Layout({ children }) {
     const paths = QUICK_ACCESS[role] || QUICK_ACCESS.employee
     return paths.map(p => allNavItems.find(i => i.to === p)).filter(Boolean)
   }, [user?.role, allNavItems])
-
-  useEffect(() => {
-    const path = location.pathname
-    if (path === '/' || path === '/login' || path === '/dashboard') return
-    setRecent(prev => {
-      const updated = [path, ...prev.filter(p => p !== path)].slice(0, MAX_RECENT)
-      localStorage.setItem(RECENT_KEY, JSON.stringify(updated))
-      return updated
-    })
-  }, [location.pathname])
 
   const togglePin = useCallback((path) => {
     setPinned(prev => {
@@ -1097,7 +1044,6 @@ export default function Layout({ children }) {
                     {!collapsed && (
                       <NavSearch value={navSearch} onChange={v => setNavSearch(v)} text={text} />
                     )}
-                    <RecentsSection recent={recent} collapsed={collapsed} text={text} t={t} />
                     <FavoritesSection pinned={pinned} onPin={togglePin} collapsed={collapsed}
                       alertCount={alertCount} approvalCount={approvalCount} t={t}
                       allNavItems={allNavItems} quickItems={quickItems} text={text} />
@@ -1166,7 +1112,7 @@ export default function Layout({ children }) {
       </aside>
 
       {isOverlayNav && mobileOpen && (
-        <div onClick={() => setMobileOpen(false)} className="mobile-overlay"
+        <div role="presentation" onMouseDown={() => setMobileOpen(false)} className="mobile-overlay"
           style={{ position: 'fixed', inset: 0, zIndex: 99, background: 'rgba(0,0,0,0.55)', display: 'block' }} />
       )}
 

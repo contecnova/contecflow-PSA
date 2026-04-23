@@ -172,8 +172,8 @@ export function useDocCollab(docId, onRemoteUpdate) {
       ydocRef.current = null
       ytextRef.current = null
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docId])
+   
+  }, [docId, onRemoteUpdate])
 
   return { connected, peers, sendUpdate: applyLocalBlocks }
 }

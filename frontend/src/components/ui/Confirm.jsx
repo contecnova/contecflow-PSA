@@ -1,4 +1,3 @@
-import React from 'react';
 import { Modal, Button, Spinner } from './index';
 import { useAppT } from '../../i18n/AppLangContext';
 

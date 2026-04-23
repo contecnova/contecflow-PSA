@@ -164,14 +164,20 @@ export default function NotificationCenter({ collapsed }) {
                 Sin notificaciones pendientes
               </div>
             ) : alerts.slice(0, 20).map(a => (
-              <div key={a.id}
+              <button key={a.id}
                 onClick={() => { markRead(a.id); setOpen(false); nav('/alerts') }}
                 style={{
                   padding: '12px 16px', borderBottom: '1px solid #1e2d45',
                   cursor: 'pointer', background: a.is_read ? 'transparent' : 'rgba(79,142,247,0.02)',
                   display: 'flex', gap: 10, alignItems: 'flex-start',
                   transition: 'background 0.1s',
+                  width: '100%',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderTop: 'none',
+                  textAlign: 'left',
                 }}
+                type="button"
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
                 onMouseLeave={e => e.currentTarget.style.background = a.is_read ? 'transparent' : 'rgba(79,142,247,0.02)'}
               >
@@ -197,7 +203,7 @@ export default function NotificationCenter({ collapsed }) {
                 {!a.is_read && (
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, marginTop: 4 }} />
                 )}
-              </div>
+              </button>
             ))}
           </div>
 

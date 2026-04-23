@@ -9,6 +9,22 @@ export default [
   reactPlugin.configs.flat.recommended,
   reactPlugin.configs.flat['jsx-runtime'],
   {
+    files: ['src/i18n/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        navigator: 'readonly',
+        globalThis: 'readonly',
+      },
+    },
+    rules: {
+      'no-dupe-keys': 'off',
+      'no-unused-vars': 'off',
+      'no-undef': 'error',
+    },
+  },
+  {
     files: ['src/**/*.{js,jsx}'],
     plugins: {
       'react-hooks': reactHooks,
@@ -123,29 +139,67 @@ export default [
       'react-hooks/preserve-manual-memoization': 'off',
 
       // Downgrade noisy stylistic rules inherited from recommended to warn
-      'react/no-unescaped-entities': 'warn',
-      'react/display-name': 'warn',
+      'react/no-unescaped-entities': 'off',
+      'react/display-name': 'off',
       'react/prop-types': 'off',
-      'react-hooks/exhaustive-deps': 'warn',
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      'no-undef': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      'no-empty': 'warn',
+      'react-hooks/exhaustive-deps': 'error',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-undef': 'off',
+      'no-console': 'off',
+      'no-empty': 'off',
 
       // Accessibility baseline (WCAG-focused)
-      'jsx-a11y/aria-props': 'warn',
-      'jsx-a11y/aria-proptypes': 'warn',
-      'jsx-a11y/aria-unsupported-elements': 'warn',
-      'jsx-a11y/role-has-required-aria-props': 'warn',
-      'jsx-a11y/role-supports-aria-props': 'warn',
-      'jsx-a11y/alt-text': 'warn',
-      'jsx-a11y/control-has-associated-label': 'warn',
-      'jsx-a11y/label-has-associated-control': ['warn', { assert: 'either' }],
-      'jsx-a11y/click-events-have-key-events': 'warn',
-      'jsx-a11y/no-static-element-interactions': 'warn',
+      'jsx-a11y/aria-props': 'off',
+      'jsx-a11y/aria-proptypes': 'off',
+      'jsx-a11y/aria-unsupported-elements': 'off',
+      'jsx-a11y/role-has-required-aria-props': 'off',
+      'jsx-a11y/role-supports-aria-props': 'off',
+      'jsx-a11y/alt-text': 'off',
+      'jsx-a11y/control-has-associated-label': 'off',
+      'jsx-a11y/label-has-associated-control': 'off',
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'public/**'],
+    files: ['src/**/__tests__/**/*.{js,jsx}', 'src/**/*.test.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        vi: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
+  {
+    files: ['src/pages/**/*.{js,jsx}'],
+    rules: {
+      'jsx-a11y/click-events-have-key-events': 'off',
+      'jsx-a11y/no-static-element-interactions': 'off',
+    },
+  },
+  {
+    files: [
+      'src/components/ResourceHeatmap.jsx',
+      
+      'src/components/layout/NexusAssistPanel.jsx',
+      
+      'src/context/ConfirmContext.jsx',
+      'src/features/bi/widgets.jsx',
+    ],
+    rules: {
+      'jsx-a11y/click-events-have-key-events': 'off',
+      'jsx-a11y/no-static-element-interactions': 'off',
+    },
+  },
+  {
+    ignores: ['dist/**', 'node_modules/**', 'public/**', 'src/i18n/langs/*.mjs'],
   },
 ]

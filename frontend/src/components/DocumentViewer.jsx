@@ -243,12 +243,16 @@ const DocumentViewer = ({ documentId }) => {
         {showVersions && (
           <div>
             {versions.map((v, i) => (
-              <div key={v.id}
+              <button key={v.id}
                 onClick={() => setPreviewVer(v)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer',
                   borderTop: '1px solid var(--surface-4)', transition: 'background 0.1s',
                   backgroundColor: activeVer?.id === v.id ? 'var(--surface-2)' : 'transparent',
+                  width: '100%',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  textAlign: 'left',
                 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: activeVer?.id === v.id ? 'white' : 'var(--text-2)', flexShrink: 0 }}>
                   v{v.version_num}
@@ -265,7 +269,7 @@ const DocumentViewer = ({ documentId }) => {
                     <Download size={12} />
                   </a>
                 )}
-              </div>
+              </button>
             ))}
 
             {/* Upload new version */}
@@ -277,12 +281,12 @@ const DocumentViewer = ({ documentId }) => {
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div onClick={() => fileRef.current?.click()}
+                  <button type="button" onClick={() => fileRef.current?.click()}
                     style={{ border: `2px dashed ${file ? '#10b981' : 'var(--surface-5)'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }}>
                     {file ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
                       : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('document_viewer.click_select_file')}</span>}
                     <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
-                  </div>
+                  </button>
                   <input placeholder={t('document_viewer.change_note_placeholder')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}

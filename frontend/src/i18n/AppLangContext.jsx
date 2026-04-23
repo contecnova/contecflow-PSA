@@ -40,7 +40,7 @@ export function AppLangProvider({ children }) {
     return navLang in APP_LANGUAGES ? navLang : 'es'
   })
   // Obtener usuario autenticado
-  const { user } = useAuth ? useAuth() : { user: null }
+  const { user } = useAuth()
 
   const [customTrans, setCustomTrans] = useState(() => {
     try {
@@ -65,7 +65,7 @@ export function AppLangProvider({ children }) {
       }
     })
     return () => { cancelled = true }
-    // eslint-disable-next-line
+     
   }, [lang, customTrans])
 
   const setLang = useCallback((code) => {

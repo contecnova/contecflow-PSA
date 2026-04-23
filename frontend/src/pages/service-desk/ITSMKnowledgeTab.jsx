@@ -33,7 +33,7 @@ function PBadge({ v }) {
 }
 
 function KnownErrors() {
-  const { t } = useAppT()
+  useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
@@ -159,7 +159,7 @@ function KEDBModal({ item, onClose, onSaved, IS, LS }) {
 }
 
 function Problems() {
-  const { t } = useAppT()
+  useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showModal, setShowModal] = useState(false)
@@ -303,7 +303,7 @@ function ProblemModal({ item, onClose, onSaved, isPending, IS, LS }) {
 }
 
 function KB() {
-  const { t } = useAppT()
+  useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')

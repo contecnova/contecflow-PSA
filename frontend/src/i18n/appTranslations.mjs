@@ -95,7 +95,7 @@ export async function loadLanguage(lang) {
 		const target = targetMod.default;
 		if (!enMod) return target; // 'en' needs no fallback
 		return mergeWithFallback(enMod.default, target);
-	} catch (e) {
+	} catch {
 		// Fallback a inglés si el fichero del idioma falla
 		const mod = await langFiles['en']();
 		return mod.default;
@@ -107,6 +107,6 @@ export async function loadLanguage(lang) {
  * @returns {Promise<Object>} Objeto de traducciones
  */
 export async function loadAutoLanguage() {
-	const navLang = (navigator.language || 'es').slice(0,2);
+	const navLang = (globalThis.navigator?.language || 'es').slice(0,2);
 	return await loadLanguage(navLang);
 }

@@ -56,18 +56,19 @@ _consume_portal_ws_ticket_local = _ws_svc.consume_portal_ws_ticket_local
 async def _issue_ws_ticket(user_id: str) -> str:
     """Emit a one-time WS ticket.
 
-    When REDIS_URL is configured, the ticket is stored in Redis so ANY worker
-    can consume it.  Errors propagate to the caller (route handler converts them
-    to HTTP 503).  Without Redis, the local in-memory store is used — only safe
-    for single-worker / dev deployments.
+    When REDIS_URL is configured and Redis is reachable, the ticket is stored
+    in Redis so any worker can consume it.  If Redis is unreachable (e.g. local
+    dev without a running Redis), falls back to the in-memory store — safe for
+    single-worker deployments.
     """
     ticket = secrets.token_urlsafe(24)
     if _REDIS_URL:
-        # Do NOT fall back to in-memory on Redis errors: a ticket written to
-        # worker-1's dict would be invisible to worker-2's consume call.
-        r = await _get_redis()
-        await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
-        return ticket
+        try:
+            r = await _get_redis()
+            await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
+            return ticket
+        except Exception as exc:
+            log.warning("Redis unreachable, falling back to in-memory WS ticket store: %s", exc)
     return _issue_ws_ticket_local(user_id)
 
 
@@ -83,12 +84,12 @@ async def _consume_ws_ticket(ticket: str) -> Optional[str]:
                 1,
                 key,
             )
-            return consumed if consumed else None
+            if consumed:
+                return consumed
+            # Redis reachable but ticket not found — fall through to in-memory
+            # in case it was issued during a prior Redis outage.
         except Exception as exc:
-            # Do NOT fall back to in-memory: reject the ticket to avoid
-            # accepting unverified connections when Redis is unreachable.
-            log.error("WS ticket Redis consume failed — rejecting ticket: %s", exc)
-            return None
+            log.warning("Redis unreachable during WS ticket consume, falling back to in-memory: %s", exc)
     return _consume_ws_ticket_local(ticket)
 
 

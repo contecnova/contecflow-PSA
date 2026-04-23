@@ -243,8 +243,8 @@ function ProjectFormModal({ open, onClose, project = null }) {
         retainer_day: src.retainer_day || '',
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src?.id, fullProject])
+     
+  }, [src, src?.id, fullProject])
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments-select'],
@@ -633,6 +633,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 }
 
 // ── Templates Tab ─────────────────────────────────────────────────────────────
+ 
 // eslint-disable-next-line no-unused-vars
 function TemplatesTab() {
   const toast = useToast()

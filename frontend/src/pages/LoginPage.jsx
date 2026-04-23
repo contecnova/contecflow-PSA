@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useAppT, useAppLang } from '../i18n/AppLangContext'
+import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { authApi } from '../services/api'
 

@@ -59,6 +59,13 @@ const TEMPLATES = [
   { id:'blank', name:'📄 Página en blanco', blocks:[{type:'paragraph',content:''}] },
 ]
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 function BlockEditor({ blocks, onChange }) {
   const update = (i, k, v) => { const n=[...blocks]; n[i]={...n[i],[k]:v}; onChange(n) }
   const add    = (after, type='paragraph') => { const n=[...blocks]; n.splice(after+1,0,{type,content:''}); onChange(n) }
@@ -80,8 +87,8 @@ function BlockEditor({ blocks, onChange }) {
     <div style={{display:'flex',flexDirection:'column',gap:4}}>
       {blocks.map((block,i) => (
         <div key={i} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'2px 0'}}
-          onMouseEnter={e=>e.currentTarget.querySelector('.bc').style.opacity='1'}
-          onMouseLeave={e=>e.currentTarget.querySelector('.bc').style.opacity='0'}>
+          onPointerEnter={e=>e.currentTarget.querySelector('.bc').style.opacity='1'}
+          onPointerLeave={e=>e.currentTarget.querySelector('.bc').style.opacity='0'}>
           <div className="bc" style={{display:'flex',flexDirection:'column',gap:2,opacity:0,transition:'opacity .15s',flexShrink:0,paddingTop:4}}>
             <button onClick={()=>move(i,-1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:10,padding:'1px 4px'}}>▲</button>
             <button onClick={()=>move(i, 1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:10,padding:'1px 4px'}}>▼</button>
@@ -295,6 +302,9 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
       {pages.map(p=>(
         <div key={p.id}>
           <div onClick={()=>onSelect(p)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => onKeyboardActivate(e, () => onSelect(p))}
             style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:6,cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize:13}}>
             <span style={{fontSize:11,color:'var(--text-3)'}}>📄</span>
             <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</span>
@@ -533,6 +543,9 @@ export default function WikiPage() {
             ? <EmptyState icon="🔍" title="Sin resultados" description="No se encontraron paginas para la busqueda actual"/>
             : searchRes.map(p=>(
               <div key={p.id} onClick={()=>openPage(p)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => onKeyboardActivate(e, () => openPage(p))}
                 style={{padding:'10px 0',borderBottom:'1px solid #1e2d45',cursor:'pointer',color:'var(--accent)'}}>
                 <div style={{fontWeight:500}}>{p.title}</div>
                 <div style={{fontSize:11,color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString('es-ES'):''}</div>
@@ -550,6 +563,9 @@ export default function WikiPage() {
               ?<div style={{color:'var(--text-3)',fontSize:12}}>Sin espacios aún</div>
               :spaces.map(s=>(
                 <div key={s.id} onClick={()=>{setSpace(s);setPage(null)}}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => onKeyboardActivate(e, () => { setSpace(s); setPage(null) })}
                   style={{padding:'8px 10px',borderRadius:6,cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize:13}}>
                   <div style={{fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>📁 {s.name}</div>
                   <div style={{fontSize:11,color:'var(--text-3)'}}>{s.page_count||0} páginas</div>

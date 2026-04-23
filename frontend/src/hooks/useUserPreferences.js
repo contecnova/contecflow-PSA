@@ -72,8 +72,8 @@ export function useUserPreferences() {
       root.style.setProperty('--space-item', '7px')
       root.style.setProperty('--font-size-base', '13px')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs.accent_color, prefs.theme_mode, prefs.ui_density, prefs.language])
+     
+  }, [prefs])
 
   // Guardar con debounce (500ms) para no saturar el backend
   const save = useCallback((patch) => {

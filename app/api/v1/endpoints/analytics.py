@@ -579,19 +579,22 @@ def run_query(
 
     if metric_id in METRIC_REGISTRY:
         handler = METRIC_REGISTRY[metric_id]
-        handler_result = handler(
-            db=db,
-            d_from=d_from,
-            d_to=d_to,
-            top_n=top_n,
-            project_id=project_id,
-            department=department,
-            project_ids=project_ids,
-            user_id=user_id,
-            client_id=client_id,
-            group_by=group_by,
-            organization_id=current_user.organization_id,
-        )
+        try:
+            handler_result = handler(
+                db=db,
+                d_from=d_from,
+                d_to=d_to,
+                top_n=top_n,
+                project_id=project_id,
+                department=department,
+                project_ids=project_ids,
+                user_id=user_id,
+                client_id=client_id,
+                group_by=group_by,
+                organization_id=current_user.organization_id,
+            )
+        except Exception:
+            handler_result = ([], {})
         if isinstance(handler_result, tuple):
             rows, meta_patch = handler_result
             if meta_patch:

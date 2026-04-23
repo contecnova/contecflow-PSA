@@ -48,7 +48,8 @@ export function SortableTH({ col, sort, onSort, children, style = {}, align = 'l
   const dir = sort?.dir ?? 'asc'
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onSort(col)}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
@@ -57,6 +58,7 @@ export function SortableTH({ col, sort, onSort, children, style = {}, align = 'l
         color: isActive ? 'var(--accent)' : 'var(--text-2)',
         fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
         transition: 'color 0.15s',
+        background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
         ...style,
       }}
       onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-1)' }}
@@ -64,7 +66,7 @@ export function SortableTH({ col, sort, onSort, children, style = {}, align = 'l
     >
       {children}
       <SortArrow active={isActive} dir={dir} />
-    </div>
+    </button>
   )
 }
 

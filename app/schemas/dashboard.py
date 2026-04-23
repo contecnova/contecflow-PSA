@@ -14,6 +14,7 @@ class DashboardKPIs(BaseModel):
     total_resources: int
     overloaded_resources: int
     avg_load_pct: float
+    tasks_open: int
     tasks_blocked: int
     tasks_overdue: int
     avg_efficiency_ratio: float

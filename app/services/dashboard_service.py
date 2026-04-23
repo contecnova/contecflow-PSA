@@ -105,6 +105,11 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
         *org_user_filters,
     ).scalar() or 0
 
+    tasks_open = db.query(func.count(Task.id)).filter(
+        Task.status.in_([TaskStatus.todo, TaskStatus.in_progress]),
+        *([Task.project_id.in_(active_project_ids)] if org else []),
+    ).scalar() or 0
+
     tasks_blocked = db.query(func.count(Task.id)).filter(
         Task.status == TaskStatus.blocked,
         *([Task.project_id.in_(active_project_ids)] if org else []),
@@ -157,6 +162,7 @@ def get_global_kpis(db: Session, current_user: Optional[User] = None):
         total_resources=total_resources,
         overloaded_resources=overloaded,
         avg_load_pct=0.0,
+        tasks_open=tasks_open,
         tasks_blocked=tasks_blocked,
         tasks_overdue=tasks_overdue,
         avg_efficiency_ratio=avg_efficiency,

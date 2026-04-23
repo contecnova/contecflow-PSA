@@ -20,6 +20,13 @@ const STATUS_LABEL = {
 }
 const LEVEL_COLOR = { basic: '#6b7280', intermediate: 'var(--accent)', advanced: '#fb923c', expert: 'var(--success)' }
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 // ── Worker Modal ──────────────────────────────────────────────────────────────
 function WorkerModal({ subId, worker, onClose, onSaved }) {
   const toast = useToast()
@@ -758,6 +765,9 @@ export default function SubcontractorsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {sortedSubs.map(s => (
             <div key={s.id} onClick={() => setSelected(s)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => onKeyboardActivate(e, () => setSelected(s))}
               style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
@@ -801,6 +811,9 @@ export default function SubcontractorsPage() {
           </div>
           {sortedSubs.map(s => (
             <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '11px 20px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => onKeyboardActivate(e, () => setSelected(s))}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               onClick={() => setSelected(s)}>
@@ -815,10 +828,10 @@ export default function SubcontractorsPage() {
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
                 {s.is_active ? 'Activo' : 'Inactivo'}
               </span>
-              <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => { setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>✏</button>
-                <button onClick={() => { openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
+                <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
                   style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid #ff475720', background: 'transparent', color: 'var(--danger)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
               </div>
             </div>

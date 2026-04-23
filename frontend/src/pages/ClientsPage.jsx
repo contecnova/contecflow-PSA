@@ -565,14 +565,14 @@ function PortalSolicitudesTab({ cid }) {
                 toast.info(`El estado de la Change Request vinculada a "${msg.title}" ha cambiado a: ${msg.cr_status}`)
                 qc.invalidateQueries(['portal-frs-client', cid])
               }
-            } catch (_e) { /* ignore parse errors */ } // eslint-disable-line no-unused-vars
+            } catch (_e) { /* ignore parse errors */ }  
           }
         })
       }
       connectWS()
       return () => { ws && ws.close(); clearTimeout(reconnectTimer) }
-      // eslint-disable-next-line
-    }, [cid])
+       
+    }, [cid, qc, toast])
   const [responding, setResponding] = useState(null)
   const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
   const [crDetail, setCrDetail] = useState(null)
@@ -1353,7 +1353,7 @@ export default function ClientsPage() {
   const [statusF, setStatusF] = useState('')
   const [sortBy, setSortBy] = useState('name')
   const [selected, setSelected] = useState(null)
-  const [activeTab, setActiveTab] = useState('360')
+  const [activeTab, setActiveTab] = useState('contacts')
   const [showCreate, setShowCreate] = useState(false)
   const [newForm, setNewForm] = useState({ name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' })
   const [showEdit, setShowEdit] = useState(false)
@@ -1415,13 +1415,10 @@ export default function ClientsPage() {
   }
 
   const TABS = [
-    { id: '360',      label: '🎯 Vista 360' },
     { id: 'contacts', label: '👥 Contactos' },
     { id: 'projects', label: '⬡ Proyectos' },
-    { id: 'timeline', label: '📅 Timeline' },
     { id: 'contracts',label: '📄 Contratos' },
     { id: 'licenses', label: '🔑 Licencias' },
-    { id: 'invoices', label: '🧾 Facturas' },
     { id: 'tickets',  label: '🎫 Tickets SD' },
     { id: 'portal',   label: '🌐 Portal' },
   ]
@@ -1456,7 +1453,7 @@ export default function ClientsPage() {
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon="🏢" title="Sin clientes" description="Crea el primer cliente para empezar" />
           : clientView === 'grid' ? sortedClients.map(c => (
-            <div key={c.id} onClick={() => { setSelected(c); setActiveTab('360') }}
+            <div key={c.id} onClick={() => { setSelected(c); setActiveTab('contacts') }}
               style={{ ...panel, padding: '14px 16px', marginBottom: 8, cursor: 'pointer', borderColor: selected?.id === c.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected?.id === c.id ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.12s' }}
               onMouseEnter={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-5)' } }}
               onMouseLeave={e => { if (selected?.id !== c.id) { e.currentTarget.style.borderColor = 'var(--surface-4)' } }}>
@@ -1483,7 +1480,7 @@ export default function ClientsPage() {
                 <span>SD</span>
               </div>
               {sortedClients.map(c => (
-                <div key={c.id} onClick={() => { setSelected(c); setActiveTab('360') }}
+                <div key={c.id} onClick={() => { setSelected(c); setActiveTab('contacts') }}
                   style={{ display: 'grid', gridTemplateColumns: '1fr 50px 40px', gap: 8, padding: '9px 12px', borderBottom: '1px solid #1e2d4530', alignItems: 'center', cursor: 'pointer', background: selected?.id === c.id ? 'var(--accent-muted)' : 'transparent' }}
                   onMouseEnter={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => { if (selected?.id !== c.id) e.currentTarget.style.background = 'transparent' }}>
@@ -1563,13 +1560,10 @@ export default function ClientsPage() {
             </div>
 
             {/* Contenido de cada tab */}
-            {activeTab === '360'      && <Client360 cid={selected.id} />}
             {activeTab === 'contacts' && <ContactsTab cid={selected.id} />}
             {activeTab === 'projects' && <ProjectsTab cid={selected.id} />}
-            {activeTab === 'timeline'  && <ClientTimelineTab cid={selected.id} clientName={detail?.name} />}
             {activeTab === 'contracts' && <ContractsTab cid={selected.id} />}
             {activeTab === 'licenses'  && <LicensesTab cid={selected.id} />}
-            {activeTab === 'invoices' && <InvoicesClientTab cid={selected.id} />}
             {activeTab === 'tickets' && (
               <div>
                 {detail?.tickets?.length === 0

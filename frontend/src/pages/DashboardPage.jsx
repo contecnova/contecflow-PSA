@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef } from 'react'
+import React, { useLayoutEffect, useState, useRef } from 'react'
 /**
  * DashboardPage v24 — Drag & Resize widgets + extended metrics catalog
  */
@@ -987,12 +987,6 @@ function useDashboardConfig() {
 
   const resolvedConfig = normalizeConfig(config || buildDefaultConfig())
 
-  const save = React.useCallback((newConfig) => {
-    setConfig(newConfig)
-    saveLocal(newConfig)
-    saveBackend(newConfig)
-  }, [saveLocal, saveBackend])
-
   const toggle = React.useCallback((id) => {
     setConfig(prev => {
       const cur = prev || buildDefaultConfig()
@@ -1063,7 +1057,9 @@ export default function DashboardPage() {
     }
     update()
     const raf1 = requestAnimationFrame(update)
-    const raf2 = requestAnimationFrame(update)
+    // Fire again after the sidebar's 200ms CSS transition so the container
+    // width is stable before react-grid-layout computes column positions.
+    const tid = setTimeout(update, 260)
     const ro = new ResizeObserver(update)
     ro.observe(el)
     window.addEventListener('resize', update)
@@ -1071,7 +1067,7 @@ export default function DashboardPage() {
       ro.disconnect()
       window.removeEventListener('resize', update)
       cancelAnimationFrame(raf1)
-      cancelAnimationFrame(raf2)
+      clearTimeout(tid)
     }
   }, [])
 

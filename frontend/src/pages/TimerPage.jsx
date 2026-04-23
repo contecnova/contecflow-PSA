@@ -48,6 +48,13 @@ function computeElapsed(timer) {
   return Math.max(0, Math.floor((Date.now() - startedAt) / 1000) - totalPausedSecs)
 }
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 function StartModal({ onClose, onStart, isPending, user }) {
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
@@ -77,12 +84,16 @@ function StartModal({ onClose, onStart, isPending, user }) {
       position: 'fixed', inset: 0, zIndex: 500,
       background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
+    }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => onKeyboardActivate(e, onClose)}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 14, padding: 28, width: 440, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-      }} onClick={e => e.stopPropagation()}>
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>⏱ Iniciar cronómetro</div>
@@ -149,12 +160,16 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
       position: 'fixed', inset: 0, zIndex: 500,
       background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
+    }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => onKeyboardActivate(e, onClose)}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 14, padding: 28, width: 420, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-      }} onClick={e => e.stopPropagation()}>
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>⏹ Detener sesión</div>

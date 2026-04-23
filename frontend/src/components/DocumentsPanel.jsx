@@ -156,12 +156,12 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
 
       {/* Upload form */}
       {showForm && (
-        <div
+        <div role="presentation"
           onDragOver={e => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div onClick={() => fileRef.current?.click()}
+          <button type="button" onClick={() => fileRef.current?.click()}
             style={{ border: `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '12px 10px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
             <input ref={fileRef} type="file" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
@@ -170,7 +170,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
               : <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
                   <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
                 </span>}
-          </div>
+          </button>
           <input
             value={title}
             onChange={e => setTitle(e.target.value)}
@@ -210,9 +210,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             const approval = doc.requires_approval ? APPROVAL_ICON[doc.approval_status || 'pending'] : null;
             return (
               <div key={doc.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none', transition: 'background 0.1s' }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-2)'}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
                 <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>

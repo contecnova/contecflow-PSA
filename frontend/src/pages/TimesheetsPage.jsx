@@ -17,6 +17,13 @@ const STATUS_CFG = {
   rejected:  { label: 'Rechazado', color: 'var(--danger)', bg: 'var(--danger-bg)', border: 'var(--danger-border)' },
 }
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return (
@@ -308,11 +315,13 @@ export default function TimesheetsPage() {
             <div style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid #1e2d45', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {[['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']].map(([key, label]) => (
-                  <span key={key} onClick={() => toggleTeamSort(key)}
-                    style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+                  <button key={key} type="button" onClick={() => toggleTeamSort(key)}
+                    onKeyDown={e => onKeyboardActivate(e, () => toggleTeamSort(key))}
+                    style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: 0,
+                      cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
                       color: teamSortKey === key ? 'var(--accent)' : 'var(--text-2)' }}>
                     {label}{teamSortIcon(key)}
-                  </span>
+                  </button>
                 ))}
                 <span></span>
               </div>

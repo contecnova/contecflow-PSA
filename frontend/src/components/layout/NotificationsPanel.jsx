@@ -129,7 +129,7 @@ export default function NotificationsPanel() {
               </div>
             ) : (
               notifications.map(n => (
-                <div
+                <button
                   key={n.id}
                   onClick={() => { if (!n.is_read) markRead(n.id); if (n.action_url) { window.location.href = n.action_url; setOpen(false) } }}
                   style={{
@@ -140,7 +140,13 @@ export default function NotificationsPanel() {
                     cursor: n.action_url ? 'pointer' : 'default',
                     background: n.is_read ? 'transparent' : 'rgba(79,142,247,0.04)',
                     transition: 'background 0.1s',
+                    width: '100%',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    borderTop: 'none',
+                    textAlign: 'left',
                   }}
+                  type="button"
                   onMouseEnter={e => { if (n.action_url) e.currentTarget.style.background = 'var(--surface-3)' }}
                   onMouseLeave={e => e.currentTarget.style.background = n.is_read ? 'transparent' : 'rgba(79,142,247,0.04)'}
                 >
@@ -166,7 +172,7 @@ export default function NotificationsPanel() {
                   {!n.is_read && (
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: n.color, flexShrink: 0, marginTop: 4 }} />
                   )}
-                </div>
+                </button>
               ))
             )}
           </div>

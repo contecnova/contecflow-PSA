@@ -1,4 +1,3 @@
-import React from 'react';
 import { APP_LANGUAGES } from '../i18n/appTranslations';
 import { useAppLang } from '../i18n/AppLangContext';
 

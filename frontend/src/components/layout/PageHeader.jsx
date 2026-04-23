@@ -16,11 +16,18 @@ export default function PageHeader({ title, subtitle, actions, breadcrumb, meta,
           {breadcrumb.map((crumb, i) => (
             <span key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: 11 }}>›</span>}
-              <span style={{
-                fontSize: 11, fontWeight: 500, color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)',
-                cursor: crumb.onClick ? 'pointer' : 'default',
-                textTransform: 'uppercase', letterSpacing: '0.06em',
-              }} onClick={crumb.onClick}>{crumb.label}</span>
+              {crumb.onClick ? (
+                <button type="button" style={{
+                  fontSize: 11, fontWeight: 500, color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)',
+                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
+                  background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
+                }} onClick={crumb.onClick}>{crumb.label}</button>
+              ) : (
+                <span style={{
+                  fontSize: 11, fontWeight: 500, color: i === breadcrumb.length - 1 ? 'var(--text-2)' : 'var(--accent)',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>{crumb.label}</span>
+              )}
             </span>
           ))}
         </div>

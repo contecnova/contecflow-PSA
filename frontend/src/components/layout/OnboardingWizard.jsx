@@ -131,7 +131,7 @@ export default function OnboardingWizard() {
       }
     }
     verify()
-  }, [state?.steps?.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state?.steps, state?.completed_steps, completeStep])
 
   if (!state || state.is_complete || state.is_dismissed) return null
 
@@ -172,11 +172,11 @@ export default function OnboardingWizard() {
   }
 
   return (
-    <div style={{
+    <div role="presentation" style={{
       position: 'fixed', inset: 0, zIndex: 2000,
       background: 'rgba(0,0,0,0.6)', display: 'flex',
       alignItems: 'center', justifyContent: 'center',
-    }} onClick={e => e.target === e.currentTarget && dismiss()}>
+    }} onMouseDown={e => e.target === e.currentTarget && dismiss()}>
       <div style={{
         background: 'var(--surface-1)', border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: 18, width: 560, maxWidth: '96vw',

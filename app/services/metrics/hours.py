@@ -198,6 +198,41 @@ def metric_hours_billable_vs_internal(
     return rows, {}
 
 
+@register_metric("hours_by_person")
+def metric_hours_by_person(
+    db: Session,
+    d_from: date,
+    d_to: date,
+    top_n: int,
+    project_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    project_ids: Optional[list[str]] = None,
+    **kwargs
+) -> tuple[list[dict], dict]:
+    """Horas totales imputadas por persona en rango de fechas."""
+    q = db.query(
+        User.full_name.label("name"),
+        func.sum(Imputation.hours).label("value")
+    ).join(
+        Imputation,
+        Imputation.user_id == User.id,
+    ).filter(Imputation.date.between(d_from, d_to))
+
+    if project_ids is not None:
+        q = q.filter(Imputation.project_id.in_(project_ids))
+    if project_id:
+        q = q.filter(Imputation.project_id == project_id)
+
+    rows = [
+        {"label": r.name, "value": round(r.value or 0, 1)}
+        for r in q.group_by(User.full_name)
+        .order_by(func.sum(Imputation.hours).desc())
+        .limit(top_n)
+        .all()
+    ]
+    return rows, {}
+
+
 @register_metric("hours_heatmap")
 def metric_hours_heatmap(
     db: Session,

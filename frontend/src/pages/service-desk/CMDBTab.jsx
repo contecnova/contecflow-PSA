@@ -6,6 +6,13 @@ import { useToast } from '../../context/ToastContext'
 import api from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 
+function onKeyboardActivate(event, action) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 function CMDBDetail({ ci, onClose }) {
   const [tab, setTab] = useState('info')
   const { data: relations = [] } = useQuery({
@@ -128,7 +135,11 @@ export default function CMDBTab() {
           : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))', gap: 12 }}>
               {filtered.map(ci => (
-                <div key={ci.id} onClick={() => setShowDetail(ci)} style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2d45'}>
+                <div key={ci.id} onClick={() => setShowDetail(ci)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => onKeyboardActivate(e, () => setShowDetail(ci))}
+                  style={{ background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2d45'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>{ci.name}</div>

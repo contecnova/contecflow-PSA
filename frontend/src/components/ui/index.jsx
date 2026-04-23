@@ -165,27 +165,56 @@ export function Avatar({ name = '', size = 34, url }) {
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 export function Card({ children, style = {}, accent, onClick }) {
+  if (onClick) {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onClick(e)
+      }
+    }
+
+    return (
+      <div
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        style={{
+          background: 'var(--surface-2)',
+          border: `1px solid ${accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'}`,
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-6)',
+          boxShadow: accent ? 'var(--shadow-accent)' : 'none',
+          cursor: 'pointer',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+          ...style,
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.4)' : 'var(--surface-5)'
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'
+          e.currentTarget.style.boxShadow = accent ? 'var(--shadow-accent)' : 'none'
+        }}
+      >
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div
-      onClick={onClick}
       style={{
         background: 'var(--surface-2)',
         border: `1px solid ${accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'}`,
         borderRadius: 'var(--radius-lg)',
         padding: 'var(--space-6)',
         boxShadow: accent ? 'var(--shadow-accent)' : 'none',
-        cursor: onClick ? 'pointer' : 'default',
+        cursor: 'default',
         transition: 'border-color 0.15s, box-shadow 0.15s',
         ...style,
       }}
-      onMouseEnter={onClick ? e => {
-        e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.4)' : 'var(--surface-5)'
-        e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-      } : undefined}
-      onMouseLeave={onClick ? e => {
-        e.currentTarget.style.borderColor = accent ? 'rgba(79,142,247,0.25)' : 'var(--surface-4)'
-        e.currentTarget.style.boxShadow = accent ? 'var(--shadow-accent)' : 'none'
-      } : undefined}
     >
       {children}
     </div>
@@ -478,7 +507,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
   if (!open) return null
   return (
     <div
-      onClick={onClose}
+      onMouseDown={onClose}
       role="presentation"
       style={{
         position: 'fixed', inset: 0,
@@ -493,7 +522,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : undefined}
-        onClick={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}
         style={{
           background: 'var(--surface-2)',
           border: '1px solid var(--surface-4)',
@@ -640,6 +669,14 @@ export function Table({ columns, data, onRowClick }) {
               borderBottom: '1px solid var(--surface-4)',
               cursor: onRowClick ? 'pointer' : 'default', transition: 'background 0.1s',
             }}
+              role={onRowClick ? 'button' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+              onKeyDown={onRowClick ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onRowClick(row)
+                }
+              } : undefined}
               onMouseEnter={e => onRowClick && (e.currentTarget.style.background = 'var(--surface-3)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >

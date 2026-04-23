@@ -1,27 +1,13 @@
-﻿import { useState, useRef, useCallback } from 'react'
-import { openConfirmGlobal } from '../context/ConfirmContext'
-import { useToast } from '../context/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
-import { Button, Modal, Spinner, ClientSelect, EmptyState } from '../components/ui'
+﻿import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Megaphone } from 'lucide-react'
-import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
-import { useAuth } from '../context/AuthContext'
 
 export default function PipelinePage() {
+  const t = useAppT()
   return (
     <div style={{ padding: 20 }}>
-      <PageHeader icon={<Megaphone size={16} />} title="Pipeline" />
-      <p>Pipeline functionality</p>
+      <PageHeader icon={<Megaphone size={16} />} title={t('pipeline.title')} />
+      <p>{t('pipeline.placeholder')}</p>
     </div>
-  )
-}
-
-function OppFormModal({ opp, onClose }) {
-  return (
-    <Modal onClose={onClose}>
-      <h2>Oportunidad Modal</h2>
-    </Modal>
   )
 }

@@ -5,7 +5,7 @@
  * Nivel 2: Pantalla completa por widget (Esc para cerrar)
  * Nivel 3: Pestañas multi-dashboard, filtro global de fechas, exportar
  */
-import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useRef, useEffect, useCallback, createContext, useContext, useMemo } from 'react'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -26,7 +26,10 @@ function useDashboards(storageKey, allWidgets, api) {
   const [dashboards, setDashboards] = useState(null)
   const [activeId, setActiveId] = useState('main')
 
-  const defaultDashboards = [{ id: 'main', name: 'Principal', config: buildDefaultConfig(allWidgets) }]
+  const defaultDashboards = useMemo(
+    () => [{ id: 'main', name: 'Principal', config: buildDefaultConfig(allWidgets) }],
+    [allWidgets],
+  )
 
   const saveLocal = useCallback((d) => {
     try { localStorage.setItem(storageKey, JSON.stringify(d)) } catch {}
@@ -51,7 +54,7 @@ function useDashboards(storageKey, allWidgets, api) {
     } catch {}
     if (ok) setDashboards(defaultDashboards)
     return () => { ok = false }
-  }, [storageKey]) // eslint-disable-line
+  }, [storageKey, defaultDashboards])
 
   const boards = dashboards || defaultDashboards
   const active = boards.find(d => d.id === activeId) || boards[0]

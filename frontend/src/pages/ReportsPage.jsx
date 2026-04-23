@@ -1055,6 +1055,7 @@ export default function ReportsPage() {
       {mode === 'explorer' && (
         <Card style={{ padding: 24 }}>
           <ReportPanel
+            key={editingReport ? `${editingReport.metric}-${editingReport.chartType || 'bar'}` : 'new'}
             initialMetric={editingReport?.metric}
             initialChart={editingReport?.chartType}
             onSave={saveReport}
