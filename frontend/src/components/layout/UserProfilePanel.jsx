@@ -65,6 +65,9 @@ export default function UserProfilePanel({ onClose }) {
 
   const [tab, setTab] = useState('profile')
 
+  // ── Idioma (local pending antes de guardar) ─────────────────────────────────
+  const [pendingLang, setPendingLang] = useState(activeLang)
+
   // ── Perfil ──────────────────────────────────────────────────────────────────
   const [profileForm, setProfileForm] = useState({
     first_name: user?.first_name || '',
@@ -379,29 +382,39 @@ export default function UserProfilePanel({ onClose }) {
                 </div>
               </div>
               {LANGUAGES.map(lang => {
-                const isActive = activeLang === lang.code
+                const isPending = pendingLang === lang.code
                 return (
                   <button key={lang.code}
-                    onClick={() => {
-                      setLang(lang.code)
-                      savePrefs({ language: lang.code })
-                      toast.success(`Idioma cambiado a ${lang.label}`)
-                    }}
+                    onClick={() => setPendingLang(lang.code)}
                     style={{ display: 'flex', alignItems: 'center', gap: 14,
                       padding: '12px 16px', borderRadius: 10, textAlign: 'left',
-                      background: isActive ? 'var(--accent-muted)' : 'var(--surface-3)',
-                      border: `1px solid ${isActive ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
+                      background: isPending ? 'var(--accent-muted)' : 'var(--surface-3)',
+                      border: `1px solid ${isPending ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
                       cursor: 'pointer', fontFamily: 'inherit', width: '100%',
                       transition: 'all .15s' }}>
                     <span style={{ fontSize: 24 }}>{lang.flag}</span>
                     <span style={{ fontSize: 13, fontWeight: 600,
-                      color: isActive ? 'var(--accent)' : 'var(--text-1)', flex: 1 }}>
+                      color: isPending ? 'var(--accent)' : 'var(--text-1)', flex: 1 }}>
                       {lang.label}
                     </span>
-                    {isActive && <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700 }}>✓</span>}
+                    {isPending && <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700 }}>✓</span>}
                   </button>
                 )
               })}
+              <button
+                onClick={() => {
+                  setLang(pendingLang)
+                  savePrefs({ language: pendingLang })
+                  const label = LANGUAGES.find(l => l.code === pendingLang)?.label
+                  toast.success(`Idioma cambiado a ${label}`)
+                }}
+                disabled={pendingLang === activeLang}
+                style={{ padding: '10px', background: 'var(--accent)', border: 'none',
+                  borderRadius: 8, color: '#fff', cursor: pendingLang === activeLang ? 'default' : 'pointer',
+                  fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                  opacity: pendingLang === activeLang ? 0.5 : 1, marginTop: 4 }}>
+                ✓ Guardar idioma
+              </button>
             </div>
           )}
 
@@ -426,45 +439,30 @@ export default function UserProfilePanel({ onClose }) {
 
               {/* Cambio de contraseña */}
               {!user?.sso_provider && (
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)',
-                    textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+                    textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
                     Cambiar contraseña
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[
-                      ['current', 'Contraseña actual', 'Tu contraseña actual'],
-                      ['new',     'Nueva contraseña',  'Mínimo 8 caracteres'],
-                      ['confirm', 'Confirmar nueva',   'Repite la nueva contraseña'],
-                    ].map(([key, label, ph]) => (
-                      <div key={key}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
-                          textTransform: 'uppercase', letterSpacing: '0.07em',
-                          display: 'block', marginBottom: 4 }}>{label}</label>
-                        <input type="password" value={pwForm[key]}
-                          onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
-                          style={IS} placeholder={ph} />
-                      </div>
-                    ))}
-                    {pwForm.new && pwForm.confirm && pwForm.new !== pwForm.confirm && (
-                      <div style={{ fontSize: 11, color: 'var(--danger)' }}>
-                        ✗ Las contraseñas no coinciden
-                      </div>
-                    )}
-                    <button
-                      disabled={changingPw || !pwForm.current || !pwForm.new ||
-                        pwForm.new !== pwForm.confirm || pwForm.new.length < 8}
-                      onClick={() => changePassword({
-                        current_password: pwForm.current,
-                        new_password: pwForm.new
-                      })}
-                      style={{ padding: '9px', background: 'var(--accent)', border: 'none',
-                        borderRadius: 8, color: '#fff', fontSize: 12,
-                        fontFamily: 'inherit', fontWeight: 600,
-                        cursor: 'pointer', opacity: changingPw ? 0.7 : 1 }}>
-                      {changingPw ? 'Cambiando...' : '🔐 Cambiar contraseña'}
-                    </button>
-                  </div>
+                  {[
+                    ['current', 'Contraseña actual', 'Tu contraseña actual'],
+                    ['new',     'Nueva contraseña',  'Mínimo 8 caracteres'],
+                    ['confirm', 'Confirmar nueva',   'Repite la nueva contraseña'],
+                  ].map(([key, label, ph]) => (
+                    <div key={key}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                        textTransform: 'uppercase', letterSpacing: '0.07em',
+                        display: 'block', marginBottom: 4 }}>{label}</label>
+                      <input type="password" value={pwForm[key]}
+                        onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                        style={IS} placeholder={ph} />
+                    </div>
+                  ))}
+                  {pwForm.new && pwForm.confirm && pwForm.new !== pwForm.confirm && (
+                    <div style={{ fontSize: 11, color: 'var(--danger)' }}>
+                      ✗ Las contraseñas no coinciden
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -495,6 +493,25 @@ export default function UserProfilePanel({ onClose }) {
                   {user?.mfa_enabled ? 'Gestionar MFA' : '🛡 Activar MFA'}
                 </button>
               </div>
+
+              {!user?.sso_provider && (
+                <button
+                  disabled={changingPw || !pwForm.current || !pwForm.new ||
+                    pwForm.new !== pwForm.confirm || pwForm.new.length < 8}
+                  onClick={() => changePassword({
+                    current_password: pwForm.current,
+                    new_password: pwForm.new,
+                  })}
+                  style={{ padding: '10px', background: 'var(--accent)', border: 'none',
+                    borderRadius: 8, color: '#fff', fontSize: 13,
+                    fontFamily: 'inherit', fontWeight: 600,
+                    cursor: changingPw || !pwForm.current || !pwForm.new ||
+                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'default' : 'pointer',
+                    opacity: changingPw || !pwForm.current || !pwForm.new ||
+                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 0.5 : 1 }}>
+                  {changingPw ? 'Guardando...' : '✓ Guardar seguridad'}
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -87,7 +87,9 @@ def get_project_or_404(project_id: str, db: Session):
 # ── Custom fields ─────────────────────────────────────────────────────────────
 
 def list_project_custom_fields(project_id: str, db: Session) -> list:
-    get_project_or_404(project_id, db)
+    p = db.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        return []
     fields = (
         db.query(ProjectCustomField)
         .filter(ProjectCustomField.project_id == project_id)

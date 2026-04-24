@@ -156,13 +156,15 @@ function TaskDetailModal({ task, open, onClose }) {
 
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', task?.project_id],
-    queryFn: () => api.get(`/custom-fields/${task.project_id}`).then(r => r.data),
+    queryFn: () => api.get(`/custom-fields/${task.project_id}`).then(r => r.data).catch(() => []),
     enabled: !!task?.project_id,
+    retry: false,
   })
   const { data: rawCustomValues } = useQuery({
     queryKey: ['custom-field-values', task?.id],
-    queryFn: () => api.get(`/custom-fields/${task.project_id}/values/${task.id}`).then(r => r.data),
+    queryFn: () => api.get(`/custom-fields/${task.project_id}/values/${task.id}`).then(r => r.data).catch(() => []),
     enabled: !!task?.id && !!task?.project_id,
+    retry: false,
   })
   const [customValues, setCustomValues] = useState({})
   useEffect(() => {
@@ -1045,8 +1047,9 @@ function CreateTaskModal({ open, onClose, projects }) {
 
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', form.project_id],
-    queryFn: () => api.get(`/custom-fields/${form.project_id}`).then(r => r.data),
+    queryFn: () => api.get(`/custom-fields/${form.project_id}`).then(r => r.data).catch(() => []),
     enabled: !!form.project_id,
+    retry: false,
   })
 
   const { mutate, isPending } = useMutation({

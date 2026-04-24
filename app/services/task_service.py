@@ -38,14 +38,14 @@ from sqlalchemy.orm import joinedload
 # ── Transition table ───────────────────────────────────────────────────────────
 
 TASK_VALID_TRANSITIONS: dict = {
-    TaskStatus.backlog: {TaskStatus.todo, TaskStatus.cancelled},
-    TaskStatus.todo: {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.in_progress: {TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.blocked: {TaskStatus.in_progress, TaskStatus.cancelled},
-    TaskStatus.in_review: {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},
-    TaskStatus.done: {TaskStatus.in_progress, TaskStatus.cancelled},  # Permite reabrir
-    TaskStatus.cancelled: set(),  # Terminal
-    TaskStatus.review: {TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},  # legacy alias
+    TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.in_progress: {TaskStatus.todo, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.blocked:     {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.in_review:   {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.done, TaskStatus.cancelled},
+    TaskStatus.done:        {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.cancelled},  # Permite reabrir
+    TaskStatus.cancelled:   set(),  # Terminal
+    TaskStatus.review:      {TaskStatus.todo, TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},  # legacy alias
 }
 
 
