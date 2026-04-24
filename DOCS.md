@@ -3030,3 +3030,65 @@ Razon:
 1. Queda implementada una base de regresion transversal backend + frontend.
 2. Incluye proteccion del bug de invoices y barrido automatico de endpoints/paginas.
 3. Se ejecuta con un solo comando y ya esta lista para integracion continua.
+
+---
+
+## Matriz de rutas canónicas vs legacy
+
+> Actualizado: 2026-04-24. Fuente de verdad: `app/api/v1/router.py`, `app/api/v1/routers/`.
+
+### Prefijo base: `/api/v1`
+
+### Rutas canónicas activas
+
+| Ruta canónica | Módulo | Estado |
+|---|---|---|
+| `/auth/*` | `routers/auth_core`, `auth_mfa`, `auth_sso`, `auth_saml`, `auth_sessions` | Activo |
+| `/users/*` | `endpoints/users` | Activo |
+| `/projects/*` | `endpoints/projects` | Activo |
+| `/tasks/*` | `endpoints/tasks` | Activo |
+| `/sprints/*` | `endpoints/sprints` | Activo |
+| `/epics/*` | `endpoints/epics` | Activo |
+| `/issue-types/*` | `endpoints/issue_types` | Activo |
+| `/milestones/*` | `endpoints/milestones` | Activo |
+| `/imputations/*` | `endpoints/imputations` | Activo |
+| `/dashboard/*` | `endpoints/dashboard` | Activo |
+| `/timesheets/*` | `endpoints/timesheets` | Activo |
+| `/billing-reports/*` | `endpoints/billing_reports` | Activo |
+| `/cmdb/*` | `endpoints/cmdb` | Activo |
+| `/currency-rates/*` | `endpoints/currency_rates` | Activo |
+| `/currency/sync-ecb` | `endpoints/currency_sync` | Activo |
+| `/currency/sync-openexchangerates` | `endpoints/currency_sync` | Activo |
+| `/notifications/slack/block-kit` | `endpoints/slack_block_kit` | Activo |
+| `/notifications/slack/block-kit/preview` | `endpoints/slack_block_kit` | Activo |
+| `/orgs/{org_id}/branding` | `endpoints/v239/branding` | Activo (v239) |
+| `/projects/{project_id}/baselines/*` | `endpoints/v239/baselines` | Activo (v239) |
+| `/approval-workflows/builder/schema` | `endpoints/v239/approval_builder` | Activo (v239) |
+| `/approval-workflows/builder/validate` | `endpoints/v239/approval_builder` | Activo (v239) |
+| `/profitability/*` | `endpoints/profitability` | Activo |
+| `/ai-chat/*` | `endpoints/ai_chat` | Activo |
+| `/integrations/*` | `endpoints/integrations` | Activo |
+| `/abac/*` | `endpoints/abac` | Activo |
+| `/service-desk/*` | `endpoints/service_desk` | Activo |
+| `/clients/*` | `endpoints/clients` | Activo |
+
+### Aliases legacy (deprecados)
+
+Estos aliases se mantienen por compatibilidad hacia atrás con clientes que usaban los prefijos `/projects/*` para recursos que ahora tienen rutas propias. **Fecha de retirada prevista: 2026-12-31.**
+
+| Alias legacy | Ruta canónica equivalente | Deprecado desde |
+|---|---|---|
+| `/projects/tasks/*` | `/tasks/*` | 2026-04-01 |
+| `/projects/milestones/*` | `/milestones/*` | 2026-04-01 |
+| `/projects/sprints/*` | `/sprints/*` | 2026-04-01 |
+| `/projects/epics/*` | `/epics/*` | 2026-04-01 |
+| `/projects/issue-types/*` | `/issue-types/*` | 2026-04-01 |
+
+**Comportamiento:** Los aliases legacy están registrados en `router.py` con los mismos handlers que las rutas canónicas. No emiten cabecera `Deprecation` todavía — añadirla es trabajo de S1-EP3-T1.
+
+### API v2
+
+| Ruta | Módulo | Notas |
+|---|---|---|
+| `/api/v2/profitability/summary` | `api/v2/endpoints/profitability` | Responde con cabecera `x-api-version: 2` |
+| `/api/v1/profitability/summary` | `api/v1/endpoints/profitability` | Deprecado — cabecera `x-api-deprecated: true` |

@@ -234,6 +234,12 @@ S2 listo cuando:
 - Cobertura y regression tests en verde.
 - Reduccion medible de lineas y acoplamiento por archivo.
 
+**S2 COMPLETADO** (2025-07-18):
+- auth.py: 1216 lineas → aggregator 28 lineas + 5 sub-routers (auth_core, auth_mfa, auth_sso, auth_saml, auth_sessions).
+- ai_chat_service.py: 1978 lineas → aggregator 80 lineas + 8 modulos especializados (rate_limit, rag, core, prompt, conversation, governance, agent_execution, tool_execution).
+- service_desk.py: analizado y confirmado como ya bien descompuesto; sin accion requerida.
+- Tests: 37 tests en verde (test_ai_chat_service_execute_tool + test_ai_governance), 0 regresiones.
+
 S3 listo cuando:
 - Paginas frontend grandes segmentadas sin regresion funcional.
 - i18n con chequeo automatico de claves en CI.

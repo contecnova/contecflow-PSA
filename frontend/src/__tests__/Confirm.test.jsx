@@ -1,9 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { toHaveStyle } from '@testing-library/jest-dom/matchers';
 import Confirm from '../components/ui/Confirm';
 
-expect.extend({ toHaveStyle });
+// Confirm uses useAppT() for button labels
+vi.mock('../i18n/AppLangContext', () => ({
+  useAppT: () => (key) => {
+    const map = { 'common.cancel': 'Cancelar', 'common.confirm': 'Confirmar' };
+    return map[key] ?? key;
+  },
+  useAppLang: () => ({ t: (key) => key, lang: 'es' }),
+}));
 
 describe('Confirm', () => {
   it('muestra el título y la descripción', () => {
@@ -18,11 +24,12 @@ describe('Confirm', () => {
     const onCancel = vi.fn();
     const onConfirm = vi.fn();
     render(
-      <Confirm open={true} title="Confirmar" description="¿Seguro?" onCancel={onCancel} onConfirm={onConfirm} loading={false} />
+      <Confirm open={true} title="¿Seguro?" description="Esta acción no se puede deshacer." onCancel={onCancel} onConfirm={onConfirm} loading={false} />
     );
-    fireEvent.click(screen.getByText('Cancelar'));
+    // Use getByRole to target buttons specifically, not the title text
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
     expect(onCancel).toHaveBeenCalled();
-    fireEvent.click(screen.getByText('Confirmar'));
+    fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
     expect(onConfirm).toHaveBeenCalled();
   });
 });

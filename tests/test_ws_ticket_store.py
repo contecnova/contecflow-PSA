@@ -6,11 +6,13 @@ from app.api.v1.endpoints import ws
 class _FakeRedis:
     def __init__(self):
         self.store = {}
+        self.eval_calls = 0
 
     async def setex(self, key, ttl, value):
         self.store[key] = value
 
     async def eval(self, script, nkeys, key):
+        self.eval_calls += 1
         return self.store.pop(key, None)
 
 
@@ -48,3 +50,35 @@ async def test_portal_ws_ticket_redis_issue_and_single_use_consume(monkeypatch):
 
     assert first == "client-1"
     assert second is None
+
+
+@pytest.mark.anyio
+async def test_ws_ticket_rejects_malformed_value_without_hitting_redis(monkeypatch):
+    fake = _FakeRedis()
+
+    async def _fake_get_redis():
+        return fake
+
+    monkeypatch.setattr(ws, "_REDIS_URL", "redis://fake")
+    monkeypatch.setattr(ws, "_get_redis", _fake_get_redis)
+
+    consumed = await ws._consume_ws_ticket("../etc/passwd")
+
+    assert consumed is None
+    assert fake.eval_calls == 0
+
+
+@pytest.mark.anyio
+async def test_portal_ws_ticket_rejects_malformed_value_without_hitting_redis(monkeypatch):
+    fake = _FakeRedis()
+
+    async def _fake_get_redis():
+        return fake
+
+    monkeypatch.setattr(ws, "_REDIS_URL", "redis://fake")
+    monkeypatch.setattr(ws, "_get_redis", _fake_get_redis)
+
+    consumed = await ws._consume_portal_ws_ticket("bad ticket with spaces")
+
+    assert consumed is None
+    assert fake.eval_calls == 0

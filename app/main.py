@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 import logging
 import os
 import time
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
 # ── Logging rico ──────────────────────────────────────────────────────────────
@@ -27,6 +29,20 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 from app.api.v1.router import api_router
 from app.api.v2.router import api_v2_router
+
+
+def _read_alembic_revision(database_url: str) -> str | None:
+    """Read the current Alembic revision from DB without mutating schema."""
+    engine = create_engine(database_url, poolclass=NullPool)
+    try:
+        inspector = inspect(engine)
+        if not inspector.has_table("alembic_version"):
+            return None
+        with engine.connect() as conn:
+            row = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).first()
+            return str(row[0]) if row and row[0] else None
+    finally:
+        engine.dispose()
 
 
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
@@ -73,77 +89,40 @@ async def lifespan(_app: FastAPI):
     logger.info(f"     BD      : {settings.DATABASE_URL.split('/')[-1]}")
     logger.info("━" * 54)
 
-    # ── Migrations ────────────────────────────────────────────────────────────
-    # In production, Alembic migrations are run by the migrate init-container
-    # (see docker-compose.yml) BEFORE the backend starts, so multiple replicas
-    # don't race on schema changes during a rolling deploy.
-    #
-    # In development / SQLite mode we still run them here for convenience.
-    # SKIP_STARTUP_MIGRATIONS=1 lets the init-container pattern opt out.
+    # ── Schema preflight (no in-process migrations) ──────────────────────────
+    # Migrations must run outside application startup (CI/CD, init-container, or
+    # explicit operator action). Startup only checks for obvious schema drift.
     import os as _os
-    _skip_migrations = _os.getenv("SKIP_STARTUP_MIGRATIONS", "0") == "1" or _os.getenv("TESTING", "0") == "1"
-    if not _skip_migrations:
-        logger.info("🔄 Ejecutando migraciones Alembic (startup)...")
-        _alembic_out_text = ""
-        try:
-            import asyncio as _asyncio
-            import sys as _sys
-            from app.db.base import Base
-            from app.core.config import settings as _settings
-            from sqlalchemy import create_engine as _ce
-            from sqlalchemy.pool import NullPool as _NullPool
+    _is_testing = _os.getenv("TESTING", "0") == "1"
+    _expected_rev = (_os.getenv("EXPECTED_ALEMBIC_REVISION") or "").strip() or None
+    _enforce_drift = _os.getenv("FAIL_ON_SCHEMA_DRIFT", "1" if settings.ENVIRONMENT in {"production", "staging"} else "0") == "1"
 
-            from sqlalchemy import inspect as _inspect
-
-            _project_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-
-            # Detect whether this is a fresh database (alembic_version table absent).
-            # create_all is safe only on a truly empty DB; on existing DBs it would
-            # silently create stale tables that diverge from the migration history.
-            _tmp_engine = _ce(_settings.DATABASE_URL, poolclass=_NullPool)
-            _is_fresh_db = not _inspect(_tmp_engine).has_table("alembic_version")
-            if _is_fresh_db:
-                logger.info("   📦 BD nueva detectada — creando esquema base con SQLAlchemy...")
-                Base.metadata.create_all(bind=_tmp_engine)
-                logger.info("   ✅ Esquema base creado")
-            _tmp_engine.dispose()
-            del _tmp_engine
-
-            if _is_fresh_db:
-                # Schema already created; stamp so Alembic knows we are at head.
-                _stamp_proc = await _asyncio.create_subprocess_exec(
-                    _sys.executable, "-m", "alembic", "stamp", "head",
-                    cwd=_project_root,
-                    stdout=_asyncio.subprocess.PIPE,
-                    stderr=_asyncio.subprocess.STDOUT,
-                )
-                await _stamp_proc.communicate()
-                logger.info("   ✅ Alembic stamp head aplicado (BD nueva)")
-            else:
-                # Existing DB: apply pending migrations normally via subprocess
-                # (isolated from uvicorn's asyncio context to avoid SQLite WAL locks).
-                _proc = await _asyncio.create_subprocess_exec(
-                    _sys.executable, "-m", "alembic", "upgrade", "head",
-                    cwd=_project_root,
-                    stdout=_asyncio.subprocess.PIPE,
-                    stderr=_asyncio.subprocess.STDOUT,
-                )
-                _out, _ = await _proc.communicate()
-                if _out:
-                    _alembic_out_text = _out.decode(errors='replace')
-                    for _line in _alembic_out_text.splitlines():
-                        logger.info("   alembic: %s", _line)
-                if _proc.returncode != 0:
-                    _tail = _alembic_out_text[-1500:].strip()
-                    raise RuntimeError(
-                        f"alembic upgrade head exited with code {_proc.returncode}. output_tail={_tail}"
-                    )
-                logger.info("   ✅ Alembic migrations applied")
-        except Exception as _ae:
-            logger.error(f"   ❌ Alembic migration error: {_ae}")
-            raise
+    if _is_testing:
+        logger.info("⏭️  Schema preflight omitido en testing")
     else:
-        logger.info("⏭️  Migraciones omitidas (testing/init-container)")
+        try:
+            _current_rev = _read_alembic_revision(settings.DATABASE_URL)
+            if _current_rev is None:
+                _msg = (
+                    "No existe tabla alembic_version. Ejecuta migraciones fuera del startup "
+                    "(p.ej. `python -m alembic upgrade head`) antes de arrancar."
+                )
+                if _enforce_drift:
+                    raise RuntimeError(_msg)
+                logger.warning("⚠️  %s", _msg)
+            elif _expected_rev and _current_rev != _expected_rev:
+                _msg = (
+                    f"Schema drift detectado: expected={_expected_rev} current={_current_rev}. "
+                    "Aplica migraciones fuera del proceso web."
+                )
+                if _enforce_drift:
+                    raise RuntimeError(_msg)
+                logger.warning("⚠️  %s", _msg)
+            else:
+                logger.info("✅ Schema preflight OK (alembic_revision=%s)", _current_rev)
+        except Exception as _schema_exc:
+            logger.error("❌ Schema preflight failed: %s", _schema_exc)
+            raise
 
     # Key management bootstrap (JWT keyring + integration secret rotation policy)
     try:

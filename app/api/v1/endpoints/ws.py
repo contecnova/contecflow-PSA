@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import secrets
+import re
 from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.deps import get_current_user
@@ -44,11 +45,17 @@ _portal_ws_tickets = _ws_svc._portal_ws_tickets
 
 _WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:user:"
 _PORTAL_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:portal:"
+_SAFE_TICKET_RE = re.compile(r"^[A-Za-z0-9_-]{20,200}$")
+_REDIS_ATOMIC_CONSUME_SCRIPT = "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v"
 
 _issue_ws_ticket_local = _ws_svc.issue_ws_ticket_local
 _consume_ws_ticket_local = _ws_svc.consume_ws_ticket_local
 _issue_portal_ws_ticket_local = _ws_svc.issue_portal_ws_ticket_local
 _consume_portal_ws_ticket_local = _ws_svc.consume_portal_ws_ticket_local
+
+
+def _is_safe_ticket(ticket: str) -> bool:
+    return bool(ticket and isinstance(ticket, str) and _SAFE_TICKET_RE.fullmatch(ticket))
 
 
 async def _issue_ws_ticket(user_id: str) -> str:
@@ -72,13 +79,16 @@ async def _issue_ws_ticket(user_id: str) -> str:
 
 async def _consume_ws_ticket(ticket: str) -> Optional[str]:
     """Consume a one-time WS ticket, returning user_id or None."""
+    if not _is_safe_ticket(ticket):
+        log.warning("WS ticket rechazado por formato inválido")
+        return None
     if _REDIS_URL:
         try:
             r = await _get_redis()
             key = f"{_WS_TICKET_KEY_PREFIX}{ticket}"
             # Atomic single-use consume (GET + DEL in one server-side script).
             consumed = await r.eval(
-                "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v",
+                _REDIS_ATOMIC_CONSUME_SCRIPT,
                 1,
                 key,
             )
@@ -106,12 +116,15 @@ async def _issue_portal_ws_ticket(client_id: str) -> str:
 
 async def _consume_portal_ws_ticket(ticket: str) -> Optional[str]:
     """Consume a one-time portal WS ticket, returning client_id or None."""
+    if not _is_safe_ticket(ticket):
+        log.warning("Portal WS ticket rechazado por formato inválido")
+        return None
     if _REDIS_URL:
         try:
             r = await _get_redis()
             key = f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}"
             consumed = await r.eval(
-                "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v",
+                _REDIS_ATOMIC_CONSUME_SCRIPT,
                 1,
                 key,
             )

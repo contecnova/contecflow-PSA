@@ -41,7 +41,7 @@ router.include_router(rate_cards.router,       prefix="/rate-cards",       tags=
 router.include_router(milestones.router,       prefix="/milestones",       tags=["Milestones"])
 router.include_router(resource_forecast.router, prefix="/resource-forecast", tags=["Resource Forecast"])
 router.include_router(approvals.router,        tags=["Approvals"])
-router.include_router(accounting_hub.router,   prefix="/accounting-hub",   tags=["Accounting Hub"])
+router.include_router(accounting_hub.router,   tags=["Accounting Hub"])
 router.include_router(okrs.router,             prefix="/okrs",             tags=["OKRs"])
 router.include_router(performance.router,      prefix="/performance",      tags=["Performance"])
 router.include_router(training.router,         prefix="/training",         tags=["Training"])

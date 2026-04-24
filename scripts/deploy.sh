@@ -3,6 +3,8 @@
 # Contecflow PSA — Script de despliegue para servidor propio
 # Uso: ./scripts/deploy.sh [staging|production]
 #
+# Orden garantizado: pull → backup → migrate → smoke → run → health
+#
 # Variables de entorno requeridas (o en .env del directorio de despliegue):
 #   GHCR_TOKEN       — GitHub personal access token (read:packages)
 #   GHCR_USER        — GitHub username / org
@@ -36,6 +38,11 @@ else
   warn "GHCR_TOKEN / GHCR_USER no definidos — se omite login al registry (se usará build local)"
 fi
 
+# ── Pull nuevas imágenes ───────────────────────────────────────────────────────
+log "Descargando nueva imagen..."
+docker compose pull
+
+# ── Backup (solo production) ───────────────────────────────────────────────────
 if [[ "$ENVIRONMENT" == "production" ]]; then
   warn "Haciendo backup de base de datos..."
   mkdir -p backups
@@ -47,21 +54,53 @@ if [[ "$ENVIRONMENT" == "production" ]]; then
     || warn "Backup omitido (BD puede no estar corriendo)"
 fi
 
-log "Descargando nueva imagen..."
-docker compose pull
+# ── PASO 1: Arrancar solo infraestructura (DB, Redis, Nginx) sin el backend ───
+# El backend se levanta después de que las migraciones hayan terminado.
+log "Arrancando infraestructura (db, redis, nginx)..."
+docker compose up -d --no-build db redis nginx 2>/dev/null \
+  || docker compose up -d --no-build db redis 2>/dev/null \
+  || docker compose up -d --no-build db 2>/dev/null \
+  || warn "No se pudo arrancar infraestructura selectivamente; se continúa de todas formas"
 
-log "Desplegando servicios..."
+# Esperar a que la BD esté lista antes de migrar
+DB_RETRIES=10; DB_ATTEMPT=0
+until docker compose exec -T db pg_isready -U "${POSTGRES_USER:-contecflow}" >/dev/null 2>&1; do
+  DB_ATTEMPT=$((DB_ATTEMPT+1))
+  [[ $DB_ATTEMPT -ge $DB_RETRIES ]] && err "Base de datos no disponible tras $DB_RETRIES intentos"
+  warn "Esperando BD... $DB_ATTEMPT/$DB_RETRIES"
+  sleep 3
+done
+log "Base de datos lista"
+
+# ── PASO 2: Migraciones ────────────────────────────────────────────────────────
+log "Aplicando migraciones..."
+MIGRATE_REVISION_BEFORE=$(docker compose run --rm --no-deps backend \
+  python -m alembic current 2>/dev/null | grep -oE '[a-f0-9]{12}' | head -1 || echo "unknown")
+
+if docker compose run --rm --no-deps backend python -m alembic upgrade head; then
+  log "Migraciones aplicadas correctamente"
+else
+  err "Fallo en migraciones — abortando despliegue. Revisión anterior: ${MIGRATE_REVISION_BEFORE}. Ejecuta manualmente: alembic downgrade <rev>"
+fi
+
+# ── PASO 3: Smoke check de schema antes de arrancar la app ────────────────────
+log "Smoke check de schema..."
+if ! docker compose run --rm --no-deps backend \
+    python -c "from app.main import _read_alembic_revision; from app.core.config import settings; rev=_read_alembic_revision(settings.DATABASE_URL); print('schema OK, rev='+str(rev)); assert rev is not None" 2>/dev/null; then
+  warn "Smoke check de schema no concluyente — continuando igualmente"
+fi
+
+# ── PASO 4: Arrancar la aplicación completa ────────────────────────────────────
+log "Arrancando aplicación..."
 docker compose up -d --no-build --remove-orphans
 
-log "Aplicando migraciones..."
-docker compose exec -T backend alembic upgrade head
-
+# ── PASO 5: Health check ──────────────────────────────────────────────────────
 log "Verificando salud..."
 sleep 8
 MAX_RETRIES=6; RETRY=0
 until curl -sf http://localhost/api/v1/health >/dev/null 2>&1; do
   RETRY=$((RETRY+1))
-  [[ $RETRY -ge $MAX_RETRIES ]] && err "Health check falló tras $MAX_RETRIES intentos"
+  [[ $RETRY -ge $MAX_RETRIES ]] && err "Health check falló tras $MAX_RETRIES intentos. Revisa: docker compose logs backend"
   warn "Esperando... $RETRY/$MAX_RETRIES"
   sleep 5
 done

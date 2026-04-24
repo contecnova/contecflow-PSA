@@ -18,7 +18,8 @@ describe('Pagination', () => {
 
   it('deshabilita el botón anterior en la primera página', () => {
     render(<Pagination page={1} totalPages={3} onChange={() => {}} />);
-    const prevBtn = screen.getByLabelText('Anterior');
+    // Pagination button uses title="Anterior" (not aria-label); query by title
+    const prevBtn = screen.getByTitle('Anterior');
     expect(prevBtn).toBeDisabled();
   });
 });

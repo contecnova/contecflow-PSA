@@ -1,16 +1,44 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import App from '../App';
-import { MemoryRouter } from 'react-router-dom';
-import { AppLangProvider } from '../i18n/AppLangContext';
-import { AuthProvider } from '../context/AuthContext';
+/**
+ * uiTranslations.test.jsx
+ * Tests that AppLangProvider correctly loads translations and responds to language changes.
+ * Renders a minimal test UI instead of the full App to avoid authentication/routing dependencies.
+ */
+import { vi, describe, it, expect, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { AppLangProvider, useAppLang } from '../i18n/AppLangContext';
+import React from 'react';
 
-// Mock for i18n context/provider if needed
-// import { AppLangProvider } from '../i18n/AppLangContext';
+// AppLangProvider needs useAuth() to optionally persist lang to backend
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({ user: null }),
+}));
+
+vi.mock('../services/api', () => ({
+  default: {
+    patch: vi.fn().mockResolvedValue({ data: {} }),
+  },
+}));
+
+// Mock loadLanguage so tests don't depend on actual translation files
+vi.mock('../i18n/appTranslations', () => ({
+  APP_LANGUAGES: [
+    { code: 'es', label: 'Español',    flag: '🇪🇸' },
+    { code: 'en', label: 'English',    flag: '🇬🇧' },
+    { code: 'fr', label: 'Français',   flag: '🇫🇷', partial: true },
+    { code: 'de', label: 'Deutsch',    flag: '🇩🇪', partial: true },
+    { code: 'pt', label: 'Português',  flag: '🇵🇹', partial: true },
+    { code: 'it', label: 'Italiano',   flag: '🇮🇹', partial: true },
+    { code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true },
+    { code: 'zh', label: '中文',       flag: '🇨🇳', partial: true },
+  ],
+  loadLanguage: vi.fn().mockImplementation((code) =>
+    Promise.resolve({ nav: { projects: code === 'es' ? 'Proyectos' : 'Projects' } })
+  ),
+}));
 
 const LANGUAGES = [
-  { code: 'en', label: 'English' },
   { code: 'es', label: 'Español' },
+  { code: 'en', label: 'English' },
   { code: 'fr', label: 'Français' },
   { code: 'de', label: 'Deutsch' },
   { code: 'pt', label: 'Português' },
@@ -19,39 +47,41 @@ const LANGUAGES = [
   { code: 'zh', label: '中文' },
 ];
 
-// Helper to select language in the UI
-async function selectLanguage(langLabel) {
-  // Find the language selector (adjust selector as needed)
-  const select = screen.getByRole('combobox');
-  fireEvent.change(select, { target: { value: langLabel } });
+function LangTestUI() {
+  const { lang, setLang } = useAppLang();
+  return (
+    <select
+      data-testid="lang-select"
+      value={lang}
+      onChange={(e) => setLang(e.target.value)}
+    >
+      {LANGUAGES.map((l) => (
+        <option key={l.code} value={l.code}>{l.label}</option>
+      ))}
+    </select>
+  );
 }
 
-describe('UI Translations', () => {
-  beforeEach(() => {
-    render(
-      <MemoryRouter>
-        <AuthProvider>
-          <AppLangProvider>
-            <App />
-          </AppLangProvider>
-        </AuthProvider>
-      </MemoryRouter>
-    );
-  });
+afterEach(cleanup);
 
-  afterEach(() => {
-    cleanup();
-  });
-
+describe('UI Translations — AppLangProvider', () => {
   LANGUAGES.forEach(({ code, label }) => {
-    it(`changes UI to ${label} (${code})`, async () => {
-      await selectLanguage(label);
-      // Check that a known translated string appears (adjust as needed)
-      // Example: check for main menu or page title
-      const mainTitle = screen.getByTestId('main-title');
-      expect(mainTitle).toBeTruthy();
-      // Optionally, check for language-specific text
-      // expect(mainTitle.textContent).toMatch(/expected text/i);
+    it(`cambia la interfaz a ${label} (${code})`, async () => {
+      render(
+        <AppLangProvider>
+          <LangTestUI />
+        </AppLangProvider>
+      );
+      // Wait for initial language load (AppLangProvider returns null while loading)
+      const select = await waitFor(() => screen.getByTestId('lang-select'));
+
+      // Switch to target language
+      fireEvent.change(select, { target: { value: code } });
+
+      // After language reload, select reappears with new value
+      await waitFor(() =>
+        expect(screen.getByTestId('lang-select')).toHaveValue(code)
+      );
     });
   });
 });

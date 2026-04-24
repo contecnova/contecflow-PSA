@@ -91,6 +91,7 @@ const es = {
   },
   client_portal: {
     title: 'Portal de Cliente',
+    subtitle: 'Acceso de cliente, contactos, sesiones UAT y más',
     contacts_count: 'contactos',
     add_contact: 'Añadir contacto',
     empty_contacts_title: 'Sin contactos de cliente',
@@ -723,6 +724,8 @@ const es = {
     cancel: 'Cancelar',
   },
   esign: {
+    title: 'Firma electrónica',
+    subtitle: 'Gestiona solicitudes de firma electrónica y documentos legales',
     status_draft: 'Borrador',
     status_sent: 'Enviado',
     status_delivered: 'Entregado',
@@ -956,6 +959,8 @@ const es = {
     test_rule_error: 'Error al probar la regla',
   },
   risks: {
+    title: 'Gestión de riesgos',
+    subtitle: 'Crea, gestiona y rastrea riesgos',
     all_projects: 'Todos los proyectos',
     new_risk: '+ Nuevo riesgo',
     edit_title: 'Editar riesgo',
@@ -1120,6 +1125,7 @@ const es = {
     sync_error: 'Error de sincronización contable',
   },
   mfa: {
+    title: 'Autenticación de dos factores (MFA)',
     subtitle: 'Protege tu cuenta con autenticación TOTP',
     enabled: 'MFA activado',
     disabled: 'MFA no activado',
@@ -1325,6 +1331,8 @@ const es = {
     submit_nps: '📨 Registrar respuesta NPS',
   },
   tasks: {
+    title: 'Tareas',
+    subtitle: 'Panel de tareas',
     status_backlog: 'Pendiente',
     status_todo: 'Por hacer',
     status_in_progress: 'En progreso',
@@ -1469,7 +1477,9 @@ const es = {
   },
 
   timesheet: {
-    title: 'Imputar Horas', week_summary: 'Resumen semanal',
+    title: 'Imputar Horas', 
+    subtitle: 'Registra tus horas trabajadas y gestiona tus imputaciones',
+    week_summary: 'Resumen semanal',
     hours_worked: 'Horas trabajadas', add_imputation: 'Añadir imputación',
     date: 'Fecha', project: 'Proyecto', task: 'Tarea', hours: 'Horas',
     billable: 'Facturable', description: 'Descripción',
@@ -1837,6 +1847,7 @@ const es = {
   },
 
   documents_panel: {
+    title: 'Documentos', subtitle: 'Gestión de documentos, versiones y aprobaciones',
     close: 'Cerrar',
     add: 'Añadir',
     click_or_drag: 'Arrastra o clic para seleccionar',
@@ -1981,7 +1992,9 @@ const es = {
   },
 
   alerts: {
-    title: 'Alertas', run_now: '▶ Ejecutar ahora', mark_read: 'Marcar leída',
+    title: 'Alertas', 
+    subtitle: 'Alertas proactivas para gestión de riesgos y oportunidades', new_alert: 'Nueva alerta',
+    run_now: '▶ Ejecutar ahora', mark_read: 'Marcar leída',
     resolve: 'Resolver', no_alerts: 'Sin alertas activas',
     type_budget: 'Alerta presupuesto', type_overload: 'Sobrecarga',
     type_sla: 'SLA en riesgo', type_deadline: 'Fecha límite',
@@ -2482,7 +2495,9 @@ const es = {
   },
 
   enterprise: {
-    title: 'Configuración Enterprise', webhooks: 'Webhooks salientes',
+    title: 'Configuración Enterprise', 
+    subtitle: 'Ajustes avanzados para empresas con necesidades específicas',
+    webhooks: 'Webhooks salientes',
     gdpr: 'GDPR y privacidad', api_keys: 'API Keys',
     email_templates: 'Plantillas de email', sso: 'Single Sign-On',
     storage: 'Almacenamiento', backup: 'Backups',
