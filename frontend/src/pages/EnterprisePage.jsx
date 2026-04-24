@@ -793,16 +793,8 @@ export default function EnterprisePage() {
     { id: 'apikeys',      label: 'API Keys' },
   ]
 
-  const card = {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--surface-4)',
-    borderRadius: 12,
-    padding: '20px 24px',
-    marginBottom: 16,
-  }
-
   return (
-    <div style={{ padding: 32, maxWidth: 1100 }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<Building2 size={18} />}
         title={_t('enterprise.title')}
@@ -813,11 +805,12 @@ export default function EnterprisePage() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
-            padding: '8px 16px', border: 'none', cursor: 'pointer',
-            background: 'transparent', fontFamily: 'inherit', fontSize: 13,
-            fontWeight: tab === t.id ? 700 : 400,
+            padding: '7px 16px', border: 'none', cursor: 'pointer',
+            background: 'transparent', fontFamily: 'inherit', fontSize: 12,
+            borderRadius: '8px 8px 0 0',
+            fontWeight: 600,
             color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-            borderBottom: tab === t.id ? '2px solid #00d4ff' : '2px solid transparent',
+            borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
             marginBottom: -1, transition: 'all 0.15s',
           }}>
             {t.label}
@@ -826,15 +819,13 @@ export default function EnterprisePage() {
       </div>
 
       {/* Contenido */}
-      <div style={card}>
-        {tab === 'webhooks'     && <WebhooksTab />}
-        {tab === 'gdpr'         && <GDPRTab />}
-        {tab === 'email'        && <EmailTab />}
-        {tab === 'integrations' && <IntegrationsTab />}
-        {tab === 'sso'          && <SSOTab />}
-        {tab === 'audit'        && <AuditTab />}
-        {tab === 'apikeys'      && <APIKeysTab />}
-      </div>
+      {tab === 'webhooks'     && <WebhooksTab />}
+      {tab === 'gdpr'         && <GDPRTab />}
+      {tab === 'email'        && <EmailTab />}
+      {tab === 'integrations' && <IntegrationsTab />}
+      {tab === 'sso'          && <SSOTab />}
+      {tab === 'audit'        && <AuditTab />}
+      {tab === 'apikeys'      && <APIKeysTab />}
     </div>
   )
 }
