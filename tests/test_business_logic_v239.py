@@ -14,27 +14,23 @@ Business logic tests for v23.9.0 features:
 """
 import json
 import pytest
-from datetime import date, datetime, timedelta
-from fastapi.testclient import TestClient
+from datetime import date, timedelta
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Fixtures
 # ══════════════════════════════════════════════════════════════════════════════
 
-def admin_headers(client, admin_token, organization):
 @pytest.fixture()
 def admin_headers(client, admin_token, organization, seed_multitenant):
     return {"Authorization": f"Bearer {admin_token}"}
 
 
-def pm_headers(client, pm_token, organization):
 @pytest.fixture()
 def pm_headers(client, pm_token, organization, seed_multitenant):
     return {"Authorization": f"Bearer {pm_token}"}
 
 
-def organization(db):
 @pytest.fixture()
 def organization(db, seed_multitenant):
     from app.models.mfa import Organization
@@ -761,7 +757,6 @@ class TestI18nV239:
 
     def test_v239_section_exists_in_all_8_languages(self):
         """v239 section must appear exactly once per language."""
-        import re
         path = "frontend/src/i18n/appTranslations.js"
         content = open(path).read()
         count = content.count("v239:")

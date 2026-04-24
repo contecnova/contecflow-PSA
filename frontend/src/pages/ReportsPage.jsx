@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 
 // ── Colours ───────────────────────────────────────────────────────────────────
-const PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)','var(--accent)',CHART.lime,CHART.pink,'var(--purple)']
+const PALETTE = ['#4f8ef7','#22c55e','#f59e0b','#ef4444','#7c3aed','#f97316','#0ea5e9',CHART.lime,CHART.pink,'#ec4899']
 
 // Shared style constants used across sub-components
 const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
@@ -37,34 +37,34 @@ function setSaved(r) { _savedStore.reports = r }
 // ── Presets ───────────────────────────────────────────────────────────────────
 const PRESETS = [
   // Horas y costes
-  { id: 'p1',  label: 'Horas mensuales',        icon: '⏱️', metric: 'hours_by_month',            chart: 'area',        color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p2',  label: 'Carga por persona',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: 'var(--success)', cat: 'Horas' },
-  { id: 'p3',  label: 'Heatmap horas',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: 'var(--accent)', cat: 'Horas' },
-  { id: 'p4',  label: 'Facturables vs internas', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: 'var(--accent)', cat: 'Horas' },
+  { id: 'p1',  label: 'Horas mensuales',        icon: '⏱️', metric: 'hours_by_month',            chart: 'area',        color: '#4f8ef7', cat: 'Horas' },
+  { id: 'p2',  label: 'Carga por persona',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: '#22c55e', cat: 'Horas' },
+  { id: 'p3',  label: 'Heatmap horas',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: '#4f8ef7', cat: 'Horas' },
+  { id: 'p4',  label: 'Facturables vs internas', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: '#4f8ef7', cat: 'Horas' },
   // Rentabilidad y costes
-  { id: 'p5',  label: 'Margen por proyecto',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: 'var(--warning)', cat: 'Rentabilidad' },
-  { id: 'p6',  label: 'Coste vs Presupuesto',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: 'var(--danger)', cat: 'Rentabilidad' },
-  { id: 'p7',  label: 'Evolución del margen',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: 'var(--success)', cat: 'Rentabilidad' },
-  { id: 'p8',  label: 'Consumo de presupuesto',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: 'var(--warning)', cat: 'Rentabilidad' },
+  { id: 'p5',  label: 'Margen por proyecto',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: '#f59e0b', cat: 'Rentabilidad' },
+  { id: 'p6',  label: 'Coste vs Presupuesto',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: '#ef4444', cat: 'Rentabilidad' },
+  { id: 'p7',  label: 'Evolución del margen',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: '#22c55e', cat: 'Rentabilidad' },
+  { id: 'p8',  label: 'Consumo de presupuesto',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: '#f59e0b', cat: 'Rentabilidad' },
   // Proyectos y agilidad
-  { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: 'var(--accent)', cat: 'Proyectos' },
-  { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: 'var(--purple)', cat: 'Agilidad' },
-  { id: 'p11', label: 'Tareas con retraso',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: 'var(--danger)', cat: 'Agilidad' },
-  { id: 'p12', label: 'Lead time por proyecto',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: 'var(--warning)', cat: 'Agilidad' },
+  { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: '#4f8ef7', cat: 'Proyectos' },
+  { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: '#7c3aed', cat: 'Agilidad' },
+  { id: 'p11', label: 'Tareas con retraso',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: '#ef4444', cat: 'Agilidad' },
+  { id: 'p12', label: 'Lead time por proyecto',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: '#f59e0b', cat: 'Agilidad' },
   // Service Desk
-  { id: 'p13', label: 'Volumen de tickets',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: 'var(--accent)', cat: 'Service Desk' },
-  { id: 'p14', label: 'Cumplimiento SLA',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: 'var(--success)', cat: 'Service Desk' },
-  { id: 'p15', label: 'Tiempo de resolución',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: 'var(--purple)', cat: 'Service Desk' },
-  { id: 'p16', label: 'CSAT por agente',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: 'var(--warning)', cat: 'Service Desk' },
+  { id: 'p13', label: 'Volumen de tickets',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: '#4f8ef7', cat: 'Service Desk' },
+  { id: 'p14', label: 'Cumplimiento SLA',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: '#22c55e', cat: 'Service Desk' },
+  { id: 'p15', label: 'Tiempo de resolución',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: '#7c3aed', cat: 'Service Desk' },
+  { id: 'p16', label: 'CSAT por agente',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: '#f59e0b', cat: 'Service Desk' },
   // Negocio y RRHH
-  { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: 'var(--purple)', cat: 'Negocio' },
-  { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: 'var(--success)', cat: 'Negocio' },
-  { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: 'var(--warning)', cat: 'Negocio' },
+  { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: '#7c3aed', cat: 'Negocio' },
+  { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: '#22c55e', cat: 'Negocio' },
+  { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: '#f59e0b', cat: 'Negocio' },
   { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: CHART.lime, cat: 'RRHH' },
-  { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: 'var(--warning)', cat: 'RRHH' },
+  { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: '#f59e0b', cat: 'RRHH' },
   // ALM e IA
-  { id: 'p22', label: 'Coste licencias/proveedor',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: 'var(--accent)', cat: 'ALM' },
-  { id: 'p23', label: 'Precisión asignación IA',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: 'var(--purple)', cat: 'IA' },
+  { id: 'p22', label: 'Coste licencias/proveedor',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: '#4f8ef7', cat: 'ALM' },
+  { id: 'p23', label: 'Precisión asignación IA',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: '#7c3aed', cat: 'IA' },
 ]
 
 const CHART_TYPES = [
@@ -390,7 +390,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
   const [userId, setUserId] = useState('')
   const [department, setDepartment] = useState('')
   const [topN, setTopN] = useState(20)
-  const [color, setColor] = useState('var(--accent)')
+  const [color, setColor] = useState('#4f8ef7')
   const [reportName, setReportName] = useState('')
 
   const { data: catalogue } = useQuery({ queryKey: ['analytics-catalogue'], queryFn: () => api.get('/analytics/catalogue').then(r => r.data).catch(() => ({})) })
@@ -502,7 +502,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }) {
                 <button key={c} onClick={() => setColor(c)}
                   style={{ width: 24, height: 24, borderRadius: 6, background: c, border: color === c ? `2px solid #fff` : '2px solid transparent', cursor: 'pointer' }} />
               ))}
-              <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
+              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#4f8ef7'} onChange={e => setColor(e.target.value)} style={{ width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
             </div>
           </div>
         </div>

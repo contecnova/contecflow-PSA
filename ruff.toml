@@ -9,7 +9,6 @@ ignore = [
     "E711",   # none-comparison
     "E712",   # true-false-comparison
     "E741",   # ambiguous-variable-name
-    "F401",   # unused-import
-    "F811",   # redefined-while-unused
-    "F841",   # unused-variable
+    # F401/F811/F841 removed — these catch real dead code and should not be silenced globally.
+    # Use per-line "# noqa: F401" for intentional re-exports or conditional imports.
 ]

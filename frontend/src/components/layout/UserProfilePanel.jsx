@@ -29,7 +29,7 @@ const THEMES = [
 ]
 
 const ACCENT_PRESETS = [
-  { label: 'Azul',    color: 'var(--accent)' },
+  { label: 'Azul',    color: '#4f8ef7' },
   { label: 'Índigo',  color: '#7c3aed' },
   { label: 'Teal',    color: '#1d9e75' },
   { label: 'Cyan',    color: '#0ea5e9' },

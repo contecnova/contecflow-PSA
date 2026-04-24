@@ -14,7 +14,7 @@ const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px
 const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const ROLES = ['admin', 'pm', 'team_lead', 'employee', 'hr']
-const COLORS = ['var(--text-2)', 'var(--accent)', 'var(--success)', 'var(--warning)', 'var(--danger)', 'var(--purple)', 'var(--warning)', 'var(--accent)']
+const COLORS = ['#6b7280', '#4f8ef7', '#22c55e', '#f59e0b', '#ef4444', '#7c3aed', '#f97316', '#0ea5e9']
 
 function StateForm({ projectId, state, onClose }) {
   const qc = useQueryClient()
@@ -23,7 +23,7 @@ function StateForm({ projectId, state, onClose }) {
   const [form, setForm] = useState({
     name:       state?.name      || '',
     value:      state?.value     || '',
-    color:      state?.color     || 'var(--text-2)',
+    color:      state?.color     || '#6b7280',
     icon:       state?.icon      || '',
     is_initial: state?.is_initial || false,
     is_final:   state?.is_final  || false,
@@ -69,7 +69,7 @@ function StateForm({ projectId, state, onClose }) {
               <button key={c} onClick={() => set('color')(c)}
                 style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
             ))}
-            <input type="color" value={form.color} onChange={e => set('color')(e.target.value)}
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#6b7280'} onChange={e => set('color')(e.target.value)}
               style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0 }} />
           </div>
         </div>

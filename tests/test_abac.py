@@ -1,42 +1,40 @@
-from app.core.security import create_access_token
-def get_auth_headers(user):
-    token = create_access_token(subject=user.id, extra={"role": getattr(user, "role", None)})
-    return {"Authorization": f"Bearer {token}"}
 """
 ABAC (Attribute-Based Access Control) tests.
 """
 import pytest
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from fastapi.testclient import TestClient
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.mfa import Organization
 from app.services.abac import ABACService, ABACEngine
+from app.core.security import create_access_token
 from app.main import app
 
 
 client = TestClient(app)
 
-def test_org(db: Session) -> Organization:
+
+def get_auth_headers(user):
+    token = create_access_token(subject=user.id, extra={"role": getattr(user, "role", None)})
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest.fixture
 def test_org(db: Session, seed_multitenant) -> Organization:
     """Devuelve la organización principal del entorno multi-tenant de test."""
     return db.query(Organization).filter(Organization.slug == "org-a").first() or db.query(Organization).first()
 
-def test_admin_user(db: Session, test_org: Organization) -> User:
 @pytest.fixture
 def test_admin_user(db: Session, test_org: Organization, seed_multitenant) -> User:
     """Devuelve el usuario admin del entorno multi-tenant de test."""
     return db.query(User).filter(User.username == "admin").first()
 
-def test_manager_user(db: Session, test_org: Organization) -> User:
 @pytest.fixture
 def test_manager_user(db: Session, test_org: Organization, seed_multitenant) -> User:
     """Devuelve el usuario pm del entorno multi-tenant de test."""
     return db.query(User).filter(User.username == "pm_test").first()
 
-def test_engineer_user(db: Session, test_org: Organization) -> User:
 @pytest.fixture
 def test_engineer_user(db: Session, test_org: Organization, seed_multitenant) -> User:
     """Devuelve el usuario dev del entorno multi-tenant de test."""
@@ -153,7 +151,7 @@ class TestABACService:
         assert attr1.id is not None
         assert attr1.attribute_value == ["proj1", "proj2"]
 
-        attr2 = service.assign_user_attribute(
+        service.assign_user_attribute(
             user_id=test_manager_user.id,
             attribute_key="region",
             attribute_value="us",
@@ -388,7 +386,7 @@ class TestABACEndpoints:
         # Crea un atributo de prueba
         from app.services.abac import ABACService
         service = ABACService(db, test_admin_user.organization_id)
-        attr = service.create_attribute_definition(
+        service.create_attribute_definition(
             attribute_key="region",
             attribute_type="string",
             operators=["equals", "in"],
@@ -396,7 +394,7 @@ class TestABACEndpoints:
             description="Región de usuario"
         )
         headers = get_auth_headers(test_admin_user)
-        response = client.get(f"/api/v1/abac/attribute-definitions", headers=headers)
+        response = client.get("/api/v1/abac/attribute-definitions", headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert any(a["attribute_key"] == "region" for a in data)
@@ -419,8 +417,6 @@ class TestABACEndpoints:
         assert data["attributes"]["region"] == "EMEA"
 
     def test_assign_user_attribute(self, db: Session, test_admin_user: User):
-        from app.services.abac import ABACService
-        service = ABACService(db, test_admin_user.organization_id)
         # Crea usuario de prueba
         from app.models.user import User
         user = User(

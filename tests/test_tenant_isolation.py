@@ -1,14 +1,6 @@
-import pytest
-from tests.conftest import auth, TEST_PASSWORD
-
-from app.models.mfa import Organization
-from app.models.project import Project, ProjectStatus, ProjectType
-from app.models.task import Task, TaskPriority, TaskStatus
-from app.models.user import User, UserRole, UserStatus
-from app.core.security import get_password_hash
+from tests.conftest import auth
 
 
-def _seed_multitenant_data(db):
 
 ## Todos los tests usan el fixture seed_multitenant de conftest.py
 
@@ -46,12 +38,12 @@ def test_tasks_endpoint_is_scoped_to_current_tenant(client, pm_token, db, seed_m
 
 
 def test_foreign_tenant_task_detail_is_not_exposed(client, pm_token, db, seed_multitenant):
-    res = client.get(f"/api/v1/tasks/task-b-test", headers=auth(pm_token))
+    res = client.get("/api/v1/tasks/task-b-test", headers=auth(pm_token))
     assert res.status_code == 404
 
 
 def test_deliverables_for_foreign_tenant_project_are_not_exposed(client, pm_token, db, seed_multitenant):
-    res = client.get(f"/api/v1/deliverables/project-b-test", headers=auth(pm_token))
+    res = client.get("/api/v1/deliverables/project-b-test", headers=auth(pm_token))
     assert res.status_code == 200
     payload = res.json()
     assert payload["deliverables"] == []

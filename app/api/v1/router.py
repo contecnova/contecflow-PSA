@@ -41,7 +41,7 @@ api_router.include_router(framework.router)
 def _legacy_update_org_branding(
     org_id: int,
     payload: dict = Body(...),
-    user=Depends(get_current_user),
+    user=Depends(require_admin_or_pm),
 ):
     """Stub for legacy org-branding path; the real logic lives in v239/branding."""
     return payload

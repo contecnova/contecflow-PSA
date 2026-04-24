@@ -14,7 +14,7 @@ const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)',
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const COLORS = ['var(--purple)','var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--warning)','var(--accent)',CHART.pink]
+const COLORS = ['#7c3aed','#4f8ef7','#22c55e','#f59e0b','#ef4444','#f97316','#0ea5e9',CHART.pink]
 
 const daysBetween = (a, b) => {
   if(!a||!b) return 0
@@ -29,7 +29,7 @@ function EpicForm({ projectId, epic, onClose }) {
   const [form, setForm] = useState({
     title:       epic?.title       || '',
     description: epic?.description || '',
-    color:       epic?.color       || 'var(--purple)',
+    color:       epic?.color       || '#7c3aed',
     status:      epic?.status      || 'open',
     priority:    epic?.priority    || 'medium',
     start_date:  epic?.start_date  || '',
@@ -86,7 +86,7 @@ function EpicForm({ projectId, epic, onClose }) {
               <button key={c} onClick={()=>set('color')(c)}
                 style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}}/>
             ))}
-            <input type="color" value={form.color} onChange={e=>set('color')(e.target.value)}
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7c3aed'} onChange={e=>set('color')(e.target.value)}
               style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}}/>
           </div>
         </div>

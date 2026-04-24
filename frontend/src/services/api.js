@@ -19,6 +19,11 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Singleton refresh promise — ensures only one /auth/refresh call is in flight at a time.
+// All concurrent 401s wait for the same promise instead of each firing their own refresh,
+// which would invalidate the rotating refresh token for all but the first caller.
+let _refreshPromise = null
+
 // Auto-refresh on 401 — cookies are sent automatically; no localStorage needed
 api.interceptors.response.use(
   (res) => res,
@@ -37,10 +42,18 @@ api.interceptors.response.use(
     if (status === 401) {
       original._retry = true
       try {
-        await axios.post(`${BASE_URL}/auth/refresh`, null, { withCredentials: true })
+        // Reuse an in-flight refresh instead of firing a new one — prevents token rotation
+        // from invalidating the refresh token before all concurrent callers have retried.
+        if (!_refreshPromise) {
+          _refreshPromise = axios
+            .post(`${BASE_URL}/auth/refresh`, null, { withCredentials: true })
+            .finally(() => { _refreshPromise = null })
+        }
+        await _refreshPromise
         // New access_token cookie is now set — retry original request
         return api(original)
       } catch {
+        _refreshPromise = null
         // Refresh falló — notificar a la UI para que el usuario vuelva a hacer login
         window.dispatchEvent(new CustomEvent('auth:session-expired'))
       }

@@ -529,7 +529,7 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
 }
 
 const ACCENT_PRESETS = [
-  { labelKey: 'bi.classic_blue', color: 'var(--accent)' },
+  { labelKey: 'bi.classic_blue', color: '#4f8ef7' },
   { label: 'Índigo', color: '#7c3aed' },
   { label: 'Teal', color: '#1d9e75' },
   { label: 'Cyan', color: '#0ea5e9' },

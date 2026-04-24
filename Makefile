@@ -6,6 +6,12 @@
 .PHONY: help install dev docs smoke health test test-fast test-coverage test-e2e \
         build build-frontend lint migrate seed clean
 
+# ── Python interpreter — prefers venv, falls back to python3 ─────────────────
+PYTHON := $(shell \
+  if [ -x .venv/bin/python ]; then echo .venv/bin/python; \
+  elif [ -x venv/bin/python ]; then echo venv/bin/python; \
+  else command -v python3 2>/dev/null || echo python3; fi)
+
 # ── Colores ────────────────────────────────────────────────────────────────────
 GREEN  := \033[0;32m
 YELLOW := \033[1;33m
@@ -78,21 +84,21 @@ smoke: ## Verificación integral: health + docs + login + ticket sin cliente
 		echo "$(YELLOW)⚠ /api/v1/docs no responde (HTTP $$status)$(RESET)"; \
 		exit 1; \
 	fi
-	@python3 scripts/smoke_check.py
+	@$(PYTHON) scripts/smoke_check.py
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 test: ## Ejecuta todos los tests de API
 	@echo "$(CYAN)Ejecutando tests de backend...$(RESET)"
-	python -m pytest tests/ -v --tb=short
+	$(PYTHON) -m pytest tests/ -v --tb=short
 
 test-fast: ## Tests rápidos (excluye los lentos)
-	python -m pytest tests/ -v --tb=short -m "not slow" --timeout=10
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "not slow" --timeout=10
 
 test-smoke: ## Solo smoke tests (sanidad básica)
-	python -m pytest tests/ -v --tb=short -m "smoke or auth"
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "smoke or auth"
 
 test-module: ## Tests de un módulo específico: make test-module M=test_okrs
-	python -m pytest tests/$(M).py -v --tb=long
+	$(PYTHON) -m pytest tests/$(M).py -v --tb=long
 
 test-coverage: ## Tests con reporte de cobertura HTML
 	@echo "$(CYAN)Ejecutando tests con cobertura...$(RESET)"
@@ -103,7 +109,7 @@ test-coverage: ## Tests con reporte de cobertura HTML
 
 test-e2e: ## Tests E2E con Playwright
 	@echo "$(CYAN)Ejecutando tests E2E...$(RESET)"
-	python -m pytest tests_e2e/ -v --tb=short --headed
+	$(PYTHON) -m pytest tests_e2e/ -v --tb=short --headed
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 build: build-frontend ## Build completo (frontend)
@@ -122,7 +128,7 @@ migrate-create: ## Crea una migración nueva: make migrate-create MSG="descripci
 	alembic revision --autogenerate -m "$(MSG)"
 
 seed: ## Carga datos de ejemplo
-	python scripts/seed_data.py
+	$(PYTHON) scripts/seed_data.py
 
 init-admin: ## Crea el usuario admin inicial
 	bash init_admin.sh
@@ -153,9 +159,9 @@ health: ## Verifica que el backend responde
 
 # ── Regression ───────────────────────────────────────────────────────────────
 regression-backend: ## Ejecuta 3 tests de regresión backend
-	python -m pytest tests/test_regression_api_get_smoke.py tests/test_regression_api_operations_smoke.py tests/test_regression_invoices_created_at.py -v --tb=short
+	$(PYTHON) -m pytest tests/test_regression_api_get_smoke.py tests/test_regression_api_operations_smoke.py tests/test_regression_invoices_created_at.py -v --tb=short
 
 regression-e2e: ## Ejecuta 4 tests de regresion E2E
-	python -m pytest tests_e2e/test_e2e_sidebar_menu_smoke.py tests_e2e/test_e2e_dashboard_reporting_smoke.py tests_e2e/test_e2e_all_pages_regression.py tests_e2e/test_e2e_public_protected_regression.py -v --tb=short
+	$(PYTHON) -m pytest tests_e2e/test_e2e_sidebar_menu_smoke.py tests_e2e/test_e2e_dashboard_reporting_smoke.py tests_e2e/test_e2e_all_pages_regression.py tests_e2e/test_e2e_public_protected_regression.py -v --tb=short
 
 regression-all: regression-backend regression-e2e ## Ejecuta toda la regresión

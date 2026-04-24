@@ -97,9 +97,12 @@ async def _issue_portal_ws_ticket(client_id: str) -> str:
     """Emit a one-time portal WS ticket (see _issue_ws_ticket for rationale)."""
     ticket = secrets.token_urlsafe(24)
     if _REDIS_URL:
-        r = await _get_redis()
-        await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
-        return ticket
+        try:
+            r = await _get_redis()
+            await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
+            return ticket
+        except Exception as exc:
+            log.warning("Redis unreachable, falling back to in-memory portal WS ticket store: %s", exc)
     return _issue_portal_ws_ticket_local(client_id)
 
 

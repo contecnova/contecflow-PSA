@@ -97,68 +97,55 @@ async def lifespan(_app: FastAPI):
             from sqlalchemy import create_engine as _ce
             from sqlalchemy.pool import NullPool as _NullPool
 
-            # create_all for fresh DBs using an isolated NullPool engine
+            from sqlalchemy import inspect as _inspect
+
+            _project_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+
+            # Detect whether this is a fresh database (alembic_version table absent).
+            # create_all is safe only on a truly empty DB; on existing DBs it would
+            # silently create stale tables that diverge from the migration history.
             _tmp_engine = _ce(_settings.DATABASE_URL, poolclass=_NullPool)
-            Base.metadata.create_all(bind=_tmp_engine)
+            _is_fresh_db = not _inspect(_tmp_engine).has_table("alembic_version")
+            if _is_fresh_db:
+                logger.info("   📦 BD nueva detectada — creando esquema base con SQLAlchemy...")
+                Base.metadata.create_all(bind=_tmp_engine)
+                logger.info("   ✅ Esquema base creado")
             _tmp_engine.dispose()
             del _tmp_engine
 
-            # Run alembic upgrade in a subprocess so it is fully isolated from
-            # uvicorn's process/asyncio context, preventing SQLite WAL lock hangs.
-            _project_root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-            _proc = await _asyncio.create_subprocess_exec(
-                _sys.executable, "-m", "alembic", "upgrade", "head",
-                cwd=_project_root,
-                stdout=_asyncio.subprocess.PIPE,
-                stderr=_asyncio.subprocess.STDOUT,
-            )
-            _out, _ = await _proc.communicate()
-            if _out:
-                _alembic_out_text = _out.decode(errors='replace')
-                for _line in _alembic_out_text.splitlines():
-                    logger.info("   alembic: %s", _line)
-            if _proc.returncode != 0:
-                _tail = _alembic_out_text[-1500:].strip()
-                raise RuntimeError(
-                    f"alembic upgrade head exited with code {_proc.returncode}. output_tail={_tail}"
+            if _is_fresh_db:
+                # Schema already created; stamp so Alembic knows we are at head.
+                _stamp_proc = await _asyncio.create_subprocess_exec(
+                    _sys.executable, "-m", "alembic", "stamp", "head",
+                    cwd=_project_root,
+                    stdout=_asyncio.subprocess.PIPE,
+                    stderr=_asyncio.subprocess.STDOUT,
                 )
-            logger.info("   ✅ Alembic migrations applied")
-        except Exception as _ae:
-            _err = str(_ae).lower()
-            _is_sqlite = settings.DATABASE_URL.lower().startswith("sqlite")
-            _is_dev_or_test = settings.ENVIRONMENT not in {"production", "staging"}
-            _known_local_schema_drift = (
-                "already exists" in _err
-                or "duplicate column" in _err
-                or "no such table" in _err
-            )
-            if _is_sqlite and _known_local_schema_drift and _is_dev_or_test:
-                logger.warning(
-                    "   ⚠️  Alembic detectó esquema local preexistente/inconsistente "
-                    "(SQLite dev). Marcando head y continuando startup..."
-                )
-                try:
-                    _stamp_proc = await _asyncio.create_subprocess_exec(
-                        _sys.executable, "-m", "alembic", "stamp", "head",
-                        cwd=_project_root,
-                        stdout=_asyncio.subprocess.PIPE,
-                        stderr=_asyncio.subprocess.STDOUT,
-                    )
-                    await _stamp_proc.communicate()
-                    logger.info("   ✅ Alembic stamp head aplicado (SQLite local)")
-                except Exception as _se:
-                    logger.warning(f"   ⚠️  No se pudo hacer Alembic stamp: {_se}")
+                await _stamp_proc.communicate()
+                logger.info("   ✅ Alembic stamp head aplicado (BD nueva)")
             else:
-                if _is_sqlite and _known_local_schema_drift:
-                    logger.error(
-                        "   ❌ Alembic schema drift detectado en entorno %s — "
-                        "auto-stamp desactivado en staging/production. "
-                        "Ejecuta 'alembic upgrade head' manualmente antes de arrancar.",
-                        settings.ENVIRONMENT,
+                # Existing DB: apply pending migrations normally via subprocess
+                # (isolated from uvicorn's asyncio context to avoid SQLite WAL locks).
+                _proc = await _asyncio.create_subprocess_exec(
+                    _sys.executable, "-m", "alembic", "upgrade", "head",
+                    cwd=_project_root,
+                    stdout=_asyncio.subprocess.PIPE,
+                    stderr=_asyncio.subprocess.STDOUT,
+                )
+                _out, _ = await _proc.communicate()
+                if _out:
+                    _alembic_out_text = _out.decode(errors='replace')
+                    for _line in _alembic_out_text.splitlines():
+                        logger.info("   alembic: %s", _line)
+                if _proc.returncode != 0:
+                    _tail = _alembic_out_text[-1500:].strip()
+                    raise RuntimeError(
+                        f"alembic upgrade head exited with code {_proc.returncode}. output_tail={_tail}"
                     )
-                else:
-                    logger.error(f"   ❌ Alembic upgrade error: {_ae}")
-                raise
+                logger.info("   ✅ Alembic migrations applied")
+        except Exception as _ae:
+            logger.error(f"   ❌ Alembic migration error: {_ae}")
+            raise
     else:
         logger.info("⏭️  Migraciones omitidas (testing/init-container)")
 

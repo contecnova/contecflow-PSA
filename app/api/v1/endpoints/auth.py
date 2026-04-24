@@ -763,6 +763,11 @@ def mfa_setup(
         raise HTTPException(500, "pyotp no instalado — ejecuta: pip install pyotp")
 
     try:
+        import qrcode  # noqa: F401
+    except ImportError:
+        raise HTTPException(500, "qrcode no instalado — ejecuta: pip install qrcode[pil]")
+
+    try:
         import io
         import base64
         import qrcode
