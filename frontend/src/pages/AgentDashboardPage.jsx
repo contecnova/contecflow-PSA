@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
-import DashboardGrid from '../components/dashboard/DashboardGrid'
+import PageHeader from '../components/layout/PageHeader'
 import { useAppT } from '../i18n/AppLangContext'
+import { BarChart2 } from 'lucide-react'
 
 const ps = {
   background: 'var(--surface-2)',
@@ -44,13 +45,6 @@ const TOOLTIP_STYLE = {
   fontSize: '12px',
 }
 
-const AGENT_WIDGETS = [
-  { id: 'kpis', title: 'KPIs', icon: '📌', defaultPos: { x: 0, y: 0, w: 12, h: 4, minW: 6, minH: 3 } },
-  { id: 'resolved', title: 'Resueltos', icon: '📊', defaultPos: { x: 0, y: 4, w: 6, h: 6, minW: 4, minH: 4 } },
-  { id: 'sla', title: 'SLA', icon: '⏱', defaultPos: { x: 6, y: 4, w: 6, h: 6, minW: 4, minH: 4 } },
-  { id: 'csat', title: 'CSAT', icon: '💜', defaultPos: { x: 0, y: 10, w: 8, h: 5, minW: 4, minH: 4 } },
-  { id: 'instructions', title: 'Snapshots', icon: '📸', defaultPos: { x: 8, y: 10, w: 4, h: 5, minW: 3, minH: 3 } },
-]
 
 export default function AgentDashboardPage() {
   const t = useAppT()
@@ -166,9 +160,21 @@ export default function AgentDashboardPage() {
   }
 
   return (
-    <div style={{padding:32}}>
-      <div style={{...ps,marginBottom:20}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr auto auto',gap:12,alignItems:'flex-end'}}>
+    <div style={{ padding: 32 }}>
+      <PageHeader
+        icon={<BarChart2 size={18} />}
+        title={t('agent_dashboard.title')}
+        subtitle={t('agent_dashboard.subtitle')}
+        actions={
+          <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
+            {snapping ? '...' : `📸 ${t('agent_dashboard.snapshot_today')}`}
+          </Button>
+        }
+      />
+
+      {/* Filters */}
+      <div style={{ ...ps, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'flex-end' }}>
           <div>
             <label style={ls}>{t('agent_dashboard.agent')}</label>
             <select value={agentId} onChange={e => setAgentId(e.target.value)} style={is}>
@@ -196,28 +202,26 @@ export default function AgentDashboardPage() {
       {agentId && isLoading && <Spinner />}
 
       {agentId && !isLoading && !dash && (
-        <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:48,marginBottom:16}}>📸</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('agent_dashboard.no_history')}</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('agent_dashboard.no_history_desc')}</div>
+        <div style={{ ...ps, textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📸</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{t('agent_dashboard.no_history')}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>{t('agent_dashboard.no_history_desc')}</div>
           <Button onClick={() => snapshot()} disabled={snapping}>{snapping ? '...' : t('agent_dashboard.create_snapshot')}</Button>
         </div>
       )}
 
       {agentId && dash && (
-        <DashboardGrid
-          storageKey="agent-dashboard-layout"
-          title={t('agent_dashboard.title')}
-          subtitle={t('agent_dashboard.subtitle')}
-          allWidgets={AGENT_WIDGETS}
-          renderWidget={renderWidget}
-          api={api}
-          headerExtra={
-            <Button onClick={() => snapshot()} disabled={!agentId || snapping}>
-              {snapping ? '...' : `📸 ${t('agent_dashboard.snapshot_today')}`}
-            </Button>
-          }
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {renderWidget('kpis')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {renderWidget('resolved')}
+            {renderWidget('sla')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+            {renderWidget('csat')}
+            {renderWidget('instructions')}
+          </div>
+        </div>
       )}
     </div>
   )

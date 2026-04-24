@@ -16,6 +16,7 @@ import {
   FileClock, TrendingUp, Eye, Info,
   CheckCircle, XCircle, ExternalLink, Loader
 } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b) {
@@ -953,22 +954,17 @@ export default function DocumentsPage() {
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1440, margin: '0 auto' }}>
 
-      {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#3b82f620', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Files size={20} style={{ color: '#3b82f6' }} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-1)', margin: 0 }}>Documentos</h1>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', margin: 0 }}>Gestión centralizada de archivos, contratos y documentación del proyecto.</p>
-          </div>
-        </div>
-        <button onClick={() => setShowUpload(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 10, border: 'none', backgroundColor: 'var(--accent)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-          <Plus size={16} /> Nuevo documento
-        </button>
-      </div>
+      <PageHeader
+        icon={<Files size={18} />}
+        title={_t('documents.title')}
+        subtitle={_t('documents.subtitle')}
+        actions={
+          <button onClick={() => setShowUpload(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, border: 'none', backgroundColor: 'var(--accent)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <Plus size={15} /> {_t('documents.upload')}
+          </button>
+        }
+      />
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 22 }}>

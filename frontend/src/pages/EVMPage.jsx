@@ -7,6 +7,8 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
+import PageHeader from '../components/layout/PageHeader';
+import { useAppT } from '../i18n/AppLangContext';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n, dec = 2) => n == null ? '—' : Number(n).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -157,6 +159,7 @@ function EVMDetail({ projectId, onClose }) {
 
 // ── Portfolio table ───────────────────────────────────────────────────────────
 export default function EVMPage() {
+  const t = useAppT();
   const [selected, setSelected] = useState(null);
 
   const { data: portfolio = [], isLoading } = useQuery({
@@ -167,15 +170,11 @@ export default function EVMPage() {
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1100, margin: '0 auto' }}>
-      {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <BarChart2 size={22} color="var(--accent)" />
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>EVM — Gestión de Valor Ganado</h1>
-      </div>
-      <p style={{ color: 'var(--text-3)', fontSize: 13, marginBottom: 28 }}>
-        Métricas estándar PMI/PMBOK de rendimiento de costes y plazo para toda la cartera activa.
-        Haz clic en un proyecto para ver el análisis completo.
-      </p>
+      <PageHeader
+        icon={<BarChart2 size={18} />}
+        title={t('evm.title')}
+        subtitle={t('evm.subtitle')}
+      />
 
       {/* Summary KPIs */}
       {portfolio.length > 0 && (() => {

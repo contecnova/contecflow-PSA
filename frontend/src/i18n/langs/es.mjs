@@ -1427,6 +1427,8 @@ const es = {
     are_you_sure: '¿Estás seguro?',
   },
   projects: {
+    title: 'Cartera de Proyectos',
+    subtitle: '{total} proyectos en cartera · {active} activos · {atRisk} en riesgo',
     error_name_required: 'El nombre es obligatorio',
     error_type_required: 'El tipo es obligatorio',
     error_date_range: 'La fecha de fin no puede ser anterior a la de inicio',
@@ -1476,7 +1478,8 @@ const es = {
   },
 
   service_desk: {
-    title: 'Service Desk', new_ticket: 'Nuevo ticket', my_queue: 'Mi cola',
+    title: 'Service Desk',
+    subtitle: 'Gestión centralizada de tickets, incidencias y solicitudes de soporte', new_ticket: 'Nuevo ticket', my_queue: 'Mi cola',
     all_tickets: 'Todos los tickets', ticket_title: 'Título del ticket',
     ticket_type: 'Tipo', ticket_priority: 'Prioridad', ticket_status: 'Estado',
     ticket_urgency: 'Urgencia', ticket_impact: 'Impacto',
@@ -1862,7 +1865,8 @@ const es = {
   },
 
   pipeline: {
-    title: 'Pipeline Comercial', new_opportunity: 'Nueva oportunidad',
+    title: 'Pipeline Comercial',
+    subtitle: 'Seguimiento de oportunidades comerciales y conversión', new_opportunity: 'Nueva oportunidad',
     opportunity_name: 'Nombre', client_name: 'Cliente', value: 'Valor estimado',
     probability: 'Probabilidad', expected_close: 'Cierre esperado',
     stage: 'Etapa', account_manager: 'Gestor de cuenta',
@@ -1874,7 +1878,8 @@ const es = {
   },
 
   clients: {
-    title: 'Clientes', new_client: 'Nuevo cliente', client_name: 'Nombre',
+    title: 'Clientes',
+    subtitle: 'Gestión de cuentas de cliente, contactos y actividad comercial', new_client: 'Nuevo cliente', client_name: 'Nombre',
     short_name: 'Nombre corto', tax_id: 'CIF/NIF', industry: 'Sector',
     contact_name: 'Nombre contacto', contact_email: 'Email contacto',
     contact_phone: 'Teléfono contacto', website: 'Web',
@@ -1923,7 +1928,8 @@ const es = {
   },
 
   expenses: {
-    title: 'Gestión de Gastos', new_expense: 'Nuevo gasto',
+    title: 'Gestión de Gastos',
+    subtitle: 'Control y seguimiento de gastos del proyecto', new_expense: 'Nuevo gasto',
     category: 'Categoría', amount: 'Importe', currency: 'Moneda',
     expense_date: 'Fecha', receipt: 'Justificante', billable: 'Facturable',
     reimbursable: 'Reembolsable', approve: 'Aprobar',
@@ -1942,7 +1948,8 @@ const es = {
   },
 
   reports: {
-    title: 'Análisis e Informes', builder: 'Constructor', dashboard: 'Dashboard',
+    title: 'Análisis e Informes',
+    subtitle: 'Informes personalizados y dashboards de inteligencia de negocio', builder: 'Constructor', dashboard: 'Dashboard',
     presets: 'Presets', scheduled: 'Programados', new_report: 'Nuevo informe',
     report_name: 'Nombre del informe', metric: 'Métrica', chart_type: 'Tipo gráfico',
     date_from: 'Desde', date_to: 'Hasta', run: 'Ejecutar', save_report: 'Guardar',
@@ -2009,7 +2016,8 @@ const es = {
   },
 
   okrs: {
-    title: 'OKRs', objectives: 'Objetivos', key_results: 'Resultados clave',
+    title: 'OKRs',
+    subtitle: 'Objetivos y resultados clave para alinear equipos y estrategia', objectives: 'Objetivos', key_results: 'Resultados clave',
     new_objective: 'Nuevo objetivo', add_kr: 'Añadir KR', update_progress: 'Actualizar progreso',
     period: 'Periodo', year: 'Año', status_draft: 'Borrador', status_active: 'Activo',
     status_completed: 'Completado', status_cancelled: 'Cancelado',
@@ -2021,7 +2029,8 @@ const es = {
   },
 
   performance: {
-    title: 'Evaluaciones de rendimiento', cycles: 'Ciclos', new_cycle: 'Nuevo ciclo',
+    title: 'Evaluaciones de rendimiento',
+    subtitle: 'Ciclos de evaluación y feedback continuo del equipo', cycles: 'Ciclos', new_cycle: 'Nuevo ciclo',
     cycle_active: 'Activo', cycle_draft: 'Borrador', cycle_closed: 'Cerrado',
     activate: 'Activar', close_cycle: 'Cerrar ciclo',
     my_reviews: 'Mis evaluaciones pendientes', fill_review: 'Rellenar evaluación',
@@ -2034,7 +2043,8 @@ const es = {
   },
 
   training: {
-    title: 'Formación & Certificaciones', courses: 'Cursos', enrollments: 'Inscripciones',
+    title: 'Formación & Certificaciones',
+    subtitle: 'Gestión de cursos, certificaciones y desarrollo profesional', courses: 'Cursos', enrollments: 'Inscripciones',
     certifications: 'Certificaciones', new_course: 'Nuevo curso', new_cert: 'Nueva certificación',
     provider: 'Proveedor', category: 'Categoría', duration: 'Duración (h)', cost: 'Coste €',
     status_planned: 'Planificado', status_in_progress: 'En curso',
@@ -2346,14 +2356,16 @@ const es = {
   },
 
   grc: {
-    title: 'GRC — Governance, Risk & Compliance', controls: 'Controles',
+    title: 'GRC — Governance, Risk & Compliance',
+    subtitle: 'Marco de gobernanza, gestión de riesgos y cumplimiento normativo', controls: 'Controles',
     risks: 'Riesgos', compliance: 'Cumplimiento', sod: 'Segregación de funciones',
     new_control: 'Nuevo control', audit: 'Auditoría', policy: 'Política',
     no_controls: 'Sin controles',
   },
 
   evm: {
-    title: 'EVM — Valor Ganado', pv: 'Valor planificado (PV)',
+    title: 'EVM — Valor Ganado',
+    subtitle: 'Métricas PMI/PMBOK de rendimiento de costes y plazo para toda la cartera', pv: 'Valor planificado (PV)',
     ev: 'Valor ganado (EV)', ac: 'Coste real (AC)',
     spi: 'SPI (Índice rendimiento cronograma)',
     cpi: 'CPI (Índice eficiencia coste)',
@@ -2418,21 +2430,24 @@ const es = {
   },
 
   uat: {
-    title: 'UAT', new_session: 'Nueva sesión',
+    title: 'UAT',
+    subtitle: 'Gestión de sesiones de pruebas de aceptación del usuario', new_session: 'Nueva sesión',
     session_name: 'Nombre', test_cases: 'Casos de prueba', results: 'Resultados',
     passed: 'Superado', failed: 'Fallido', pending: 'Pendiente',
     sign_off: 'Aprobar UAT', no_sessions: 'Sin sesiones UAT',
   },
 
   documents: {
-    title: 'Documentos', upload: 'Subir documento', folder: 'Carpeta',
+    title: 'Documentos',
+    subtitle: 'Gestión centralizada de archivos, contratos y documentación del proyecto', upload: 'Subir documento', folder: 'Carpeta',
     new_folder: 'Nueva carpeta', file_name: 'Nombre', file_type: 'Tipo',
     size: 'Tamaño', version: 'Versión', preview: 'Vista previa',
     download: 'Descargar', no_documents: 'Sin documentos',
   },
 
   search: {
-    title: 'Búsqueda global', placeholder: 'Buscar en todo el sistema...',
+    title: 'Búsqueda global',
+    subtitle: 'Busca proyectos, tareas, tickets y recursos en toda la plataforma', placeholder: 'Buscar en todo el sistema...',
     results: 'Resultados', no_results: 'Sin resultados',
     category_tasks: 'Tareas', category_projects: 'Proyectos',
     category_tickets: 'Tickets', category_documents: 'Documentos',
@@ -2440,7 +2455,8 @@ const es = {
   },
 
   timer: {
-    title: 'Timer', start: 'Iniciar', stop: 'Parar', reset: 'Resetear',
+    title: 'Timer',
+    subtitle: 'Registro de tiempo por actividad y proyecto', start: 'Iniciar', stop: 'Parar', reset: 'Resetear',
     running: 'En marcha', paused: 'Pausado', log_time: 'Registrar tiempo',
     elapsed: 'Tiempo transcurrido',
   },
@@ -2614,6 +2630,38 @@ const es = {
     cancel_btn: 'Cancelar',
     save_btn: 'Guardar',
     create_btn: 'Crear app',
+  },
+  project_permissions: {
+    title: 'Permisos de Proyecto',
+    subtitle: 'Control de acceso y permisos por usuario y rol dentro del proyecto',
+    add_member: 'Añadir miembro',
+    role_admin: 'Administrador',
+    role_member: 'Miembro',
+    role_viewer: 'Solo lectura',
+    remove_confirm: '¿Eliminar permiso de este usuario?',
+    empty_title: 'Sin permisos configurados',
+    empty_desc: 'Añade miembros al proyecto para controlar el acceso',
+  },
+  resource_scheduler: {
+    title: 'Planificador de Recursos',
+    subtitle: 'Planificación y asignación de recursos por proyecto y período',
+    subtitle_assign: 'Asignación inteligente de recursos con IA',
+    subtitle_scheduler: 'Vista de planificación de recursos por semana y proyecto',
+    assign: 'Asignar',
+    scheduler: 'Planificador',
+    resource: 'Recurso',
+    period: 'Período',
+    hours: 'Horas',
+    suggest: 'Sugerir con IA',
+  },
+  project_templates: {
+    title: 'Plantillas de Proyecto',
+    subtitle: 'Crea proyectos a partir de plantillas predefinidas con tareas, riesgos y entregables',
+    empty_title: 'Sin plantillas disponibles',
+    empty_subtitle: 'Solicita al administrador que cree plantillas para tu organización',
+    created_ok: 'Proyecto "{project_name}" ({project_code}) creado correctamente',
+    use_template: 'Usar plantilla',
+    preview: 'Vista previa',
   },
 
 };

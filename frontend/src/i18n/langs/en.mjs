@@ -1473,5 +1473,81 @@ const en = {
     title: 'Resource Scheduler',
     subtitle: 'Visual resource assignment calendar by project',
   },
+  search: {
+    title: 'Global Search',
+    subtitle: 'Search projects, tasks, tickets and resources across the entire platform',
+  },
+  timer: {
+    title: 'Timer',
+    subtitle: 'Time tracking by activity and project',
+  },
+  expenses: {
+    title: 'Expense Management',
+    subtitle: 'Track and control project expenses',
+  },
+  uat: {
+    title: 'UAT',
+    subtitle: 'User acceptance testing session management',
+  },
+  okrs: {
+    title: 'OKRs',
+    subtitle: 'Objectives and key results to align teams and strategy',
+  },
+  performance: {
+    title: 'Performance Reviews',
+    subtitle: 'Review cycles and continuous team feedback',
+  },
+  training: {
+    title: 'Training & Certifications',
+    subtitle: 'Courses, certifications and professional development management',
+  },
+  pipeline: {
+    title: 'Commercial Pipeline',
+    subtitle: 'Track commercial opportunities and conversion rates',
+  },
+  service_desk: {
+    title: 'Service Desk',
+    subtitle: 'Centralized ticket, incident and support request management',
+  },
+  reports: {
+    title: 'Analytics & Reports',
+    subtitle: 'Custom reports and business intelligence dashboards',
+  },
+  grc: {
+    title: 'GRC — Governance, Risk & Compliance',
+    subtitle: 'Governance framework, risk management and regulatory compliance',
+  },
+  documents: {
+    title: 'Documents',
+    subtitle: 'Centralized management of files, contracts and project documentation',
+  },
+  evm: {
+    title: 'EVM — Earned Value Management',
+    subtitle: 'PMI/PMBOK cost and schedule performance metrics for the entire portfolio',
+  },
+  clients: {
+    title: 'Clients',
+    subtitle: 'Client account management, contacts and commercial activity',
+  },
+  project_permissions: {
+    title: 'Project Permissions',
+    subtitle: 'Access control and permissions by user and role within the project',
+    add_member: 'Add member',
+    role_admin: 'Administrator',
+    role_member: 'Member',
+    role_viewer: 'Read only',
+    empty_title: 'No permissions configured',
+    empty_desc: 'Add members to the project to control access',
+  },
+  project_templates: {
+    title: 'Project Templates',
+    subtitle: 'Create projects from predefined templates with tasks, risks and deliverables',
+    empty_title: 'No templates available',
+    empty_subtitle: 'Ask your administrator to create templates for your organization',
+    created_ok: 'Project "{project_name}" ({project_code}) created successfully',
+    use_template: 'Use template',
+    preview: 'Preview',
+  },
+
 };
 export default en;

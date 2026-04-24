@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
+import PageHeader from '../components/layout/PageHeader'
+import { LayoutTemplate } from 'lucide-react'
 
 const PHASE_COLOR = '#6366F1'
 const TASK_COLOR  = '#10B981'
@@ -278,15 +280,11 @@ export default function ProjectTemplatesPage() {
 
   return (
     <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)', marginBottom: 4 }}>
-          {t('project_templates.title')}
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-3)', margin: 0 }}>
-          {t('project_templates.subtitle')}
-        </p>
-      </div>
+      <PageHeader
+        icon={<LayoutTemplate size={18} />}
+        title={t('project_templates.title')}
+        subtitle={t('project_templates.subtitle')}
+      />
 
       {/* Success banner */}
       {successMsg && (

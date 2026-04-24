@@ -246,31 +246,31 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 
 ### Endpoints principales
 
-| Método | Endpoint                                         | Descripción                                      |
-|--------|--------------------------------------------------|--------------------------------------------------|
-| GET    | /api/users                                       | Listado de usuarios                              |
-| POST   | /api/login                                       | Login de usuario                                 |
-| GET    | /api/webhooks                                    | Listar webhooks configurados                     |
-| POST   | /api/webhooks                                    | Crear webhook                                    |
-| PATCH  | /api/webhooks/{hook_id}                          | Actualizar webhook                               |
-| DELETE | /api/webhooks/{hook_id}                          | Eliminar webhook                                 |
-| POST   | /api/webhooks/{hook_id}/test                     | Enviar payload de prueba a webhook               |
-| GET    | /api/webhooks/events                             | Listar eventos disponibles para webhooks         |
-| POST   | /api/webhooks/fire/{slug}                        | Disparar webhook (endpoint público)              |
-| GET    | /api/webhooks/{trigger_id}/logs                  | Historial de llamadas al webhook                 |
-| GET    | /api/oauth-integrations                          | Listar integraciones configuradas                |
-| POST   | /api/oauth-integrations                          | Crear/configurar integración                     |
-| POST   | /api/oauth-integrations/{integration_id}/sync    | Sincronizar integración                          |
-| GET    | /api/oauth-integrations/calendar/events          | Eventos de calendario sincronizados              |
-| POST   | /api/integrations-hub/slack/commands             | Receptor de slash commands desde Slack           |
-| POST   | /api/integrations-hub/teams/commands             | Receptor de acciones de MS Teams                 |
-| POST   | /api/integrations-hub/jira/commands              | Receptor de comandos desde Jira                  |
-| GET    | /api/rate-tables                                 | Listar tablas de tarifas                         |
-| POST   | /api/rate-tables                                 | Crear tabla de tarifas                           |
-| POST   | /api/rate-tables/{table_id}/entries              | Añadir tarifa                                    |
-| PATCH  | /api/rate-tables/{table_id}/entries/{entry_id}   | Actualizar tarifa                                |
-| DELETE | /api/rate-tables/{table_id}/entries/{entry_id}   | Eliminar tarifa                                  |
-| ...    | ...                                              | ...                                              |
+| Método | Endpoint                                              | Descripción                                      |
+|--------|-------------------------------------------------------|--------------------------------------------------|
+| GET    | /api/v1/users                                         | Listado de usuarios                              |
+| POST   | /api/v1/auth/login                                    | Login de usuario                                 |
+| GET    | /api/v1/webhooks                                      | Listar webhooks configurados                     |
+| POST   | /api/v1/webhooks                                      | Crear webhook                                    |
+| PATCH  | /api/v1/webhooks/{hook_id}                            | Actualizar webhook                               |
+| DELETE | /api/v1/webhooks/{hook_id}                            | Eliminar webhook                                 |
+| POST   | /api/v1/webhooks/{hook_id}/test                       | Enviar payload de prueba a webhook               |
+| GET    | /api/v1/webhooks/events                               | Listar eventos disponibles para webhooks         |
+| POST   | /api/v1/webhooks/fire/{slug}                          | Disparar webhook (endpoint público)              |
+| GET    | /api/v1/webhooks/{trigger_id}/logs                    | Historial de llamadas al webhook                 |
+| GET    | /api/v1/oauth-integrations                            | Listar integraciones configuradas                |
+| POST   | /api/v1/oauth-integrations                            | Crear/configurar integración                     |
+| POST   | /api/v1/oauth-integrations/{integration_id}/sync      | Sincronizar integración                          |
+| GET    | /api/v1/oauth-integrations/calendar/events            | Eventos de calendario sincronizados              |
+| POST   | /api/v1/integrations-hub/slack/commands               | Receptor de slash commands desde Slack           |
+| POST   | /api/v1/integrations-hub/teams/commands               | Receptor de acciones de MS Teams                 |
+| POST   | /api/v1/integrations-hub/jira/commands                | Receptor de comandos desde Jira                  |
+| GET    | /api/v1/rate-tables                                   | Listar tablas de tarifas                         |
+| POST   | /api/v1/rate-tables                                   | Crear tabla de tarifas                           |
+| POST   | /api/v1/rate-tables/{table_id}/entries                | Añadir tarifa                                    |
+| PATCH  | /api/v1/rate-tables/{table_id}/entries/{entry_id}     | Actualizar tarifa                                |
+| DELETE | /api/v1/rate-tables/{table_id}/entries/{entry_id}     | Eliminar tarifa                                  |
+| ...    | ...                                                   | ...                                              |
 
 <!-- Añadidos endpoints clave para webhooks, integraciones, tarifas, onboarding, plantillas, formularios, CMDB, etc. -->
 
@@ -424,6 +424,8 @@ export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
 10. [Migraciones de base de datos](#10-migraciones-de-base-de-datos)
 11. [Tests](#11-tests)
 12. [Usuarios y roles](#12-usuarios-y-roles)
+13. [Timesheets y aprobaciones de tiempo](#13-timesheets-y-aprobaciones-de-tiempo)
+14. [Gestión de capacidad y recursos](#14-gestión-de-capacidad-y-recursos)
 15. [Portal de cliente externo](#15-portal-de-cliente-externo)
 16. [Integraciones externas](#16-integraciones-externas)
 17. [Novedades por versión](#17-novedades-por-versión)
@@ -432,7 +434,7 @@ export const AUTOMATION_TRIGGERS = businessConfig.AUTOMATION_TRIGGERS;
 20. [Internacionalización y traducciones](#20-internacionalización-y-traducciones)
 21. [Gestión de Organizaciones y Usuarios (Multi-Tenancy)](#21-gestion-de-organizaciones-y-usuarios-multi-tenancy)
 22. [Pruebas automáticas de UI (Playwright)](#22-pruebas-automáticas-de-ui-playwright)
-23. [Internacionalización y traducciones](#23-internacionalización-y-traducciones)
+23. [Auditoría completa — 20 de abril de 2026 (v23.10.2)](#23-auditoría-completa--20-de-abril-de-2026-v231002)
 24. [Auditoría de Calidad — 20 de abril de 2026 (sesión 2)](#24-auditoría-de-calidad--20-de-abril-de-2026-sesión-2)
 25. [Plan de regresion global (backend + frontend)](#25-plan-de-regresion-global-backend--frontend)
 ## 21. Gestión de Organizaciones y Usuarios (Multi-Tenancy)
@@ -505,7 +507,7 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
 ### Notas
 
 - Para más detalles, consulta `app/core/events.py` (catálogo completo `EventType`) y los servicios en `app/services/`.
-- El módulo `app/services/mfa_service.py` gestiona asignación/desvinculación de usuarios a organizaciones.
+- La lógica de asignación/desvinculación de usuarios a organizaciones está implementada en los endpoints de `/organizations` (ver `app/api/v1/endpoints/enterprise.py`).
 
 ---
 
@@ -1070,6 +1072,9 @@ Content-Security-Policy: (configurado en middleware)
 require_admin                  # solo admin
 require_admin_or_hr            # admin o RRHH
 require_admin_or_pm            # admin o PM
+require_any_manager            # admin, pm, team_lead, hr
+require_internal_user          # todos menos subcontractor
+get_current_client             # portal de cliente (cookie o header)
 ```
 
 ### Aislamiento multitenant y ABAC
@@ -1078,10 +1083,6 @@ require_admin_or_pm            # admin o PM
 - Los endpoints de usuarios, tareas, mapas de carga y vistas derivadas no deben exponer registros de otras organizaciones aunque el rol sea `admin`, `pm` o `hr`
 - ABAC existe como segunda capa sobre RBAC: para endpoints sensibles debe llamarse `enforce_abac(...)` además del guardado por rol
 - Regla práctica: `RBAC` decide si el usuario puede entrar en el módulo; `tenant scoping` decide qué filas puede ver; `ABAC` decide si la acción concreta está permitida
-require_any_manager            # admin, pm, team_lead, hr
-require_internal_user          # todos menos subcontractor
-get_current_client             # portal de cliente (cookie o header)
-```
 
 ---
 
@@ -1454,6 +1455,35 @@ npm audit --omit=dev --audit-level=high
 
 ---
 
+## 13. Timesheets y aprobaciones de tiempo
+
+Los timesheets permiten a los empleados registrar y someter sus horas semanales para aprobación. El módulo está disponible en `/api/v1/timesheets`.
+
+- **Vista semanal**: agrupación de imputaciones por semana (`GET /timesheets/my/week`)
+- **Envío a aprobación**: los empleados someten su timesheet semanal; PM o team_lead aprueban o rechazan
+- **Lockout configurable**: se puede impedir imputar horas en días anteriores a un umbral configurable
+- **Aprobación masiva**: los managers pueden aprobar múltiples timesheets en una sola operación
+- **Integración con capacidad**: las horas aprobadas alimentan los reportes de utilización y carga del equipo
+
+Para más detalles de la API, consulta el prefijo `/timesheets` en la [tabla de módulos de API](#6-api--endpoints).
+
+---
+
+## 14. Gestión de capacidad y recursos
+
+El módulo de capacidad ofrece visibilidad de la carga de trabajo del equipo y permite planificar asignaciones futuras.
+
+- **Heatmap de carga**: vista de utilización semanal por usuario y proyecto (`GET /capacity`)
+- **Forecast de recursos**: proyección de disponibilidad combinando bookings y plan de capacidad (`GET /resource-forecast/weeks`)
+- **Alertas de sobrecarga**: detección automática de usuarios con >100% de carga
+- **Resource Scheduler**: interfaz visual de planificación drag-and-drop (ruta `/resource-scheduler`)
+- **Bookings**: reservas de tiempo por proyecto con tipo `soft` o `hard` (`POST /bookings`)
+- **Nivelación de carga**: sugerencias de replanificación para distribuir sobrecarga (`GET /capacity/leveling`)
+
+Para más detalles de la API, consulta los prefijos `/capacity`, `/resource-forecast` y `/bookings` en la [tabla de módulos de API](#6-api--endpoints).
+
+---
+
 ## 15. Portal de cliente externo
 
 El portal es una experiencia completamente separada, accesible en `/portal`, para usuarios de tipo `ClientUser` (no `User`).
@@ -1569,7 +1599,7 @@ Las API keys se almacenan cifradas en BD (Fernet v2 HKDF).
 
 ## 17. Novedades por versión
 
-### v23.10.0 (Mayo 2026) — Tests GRC/NPS/Portfolio/RACI/Webhooks/ReportBuilder, correcciones frontend y cobertura E2E
+### v23.10.2 (Abril 2026) — Tests GRC/NPS/Portfolio/RACI/Webhooks/ReportBuilder, correcciones frontend y cobertura E2E
 
 **Nuevos módulos de test — 134 tests nuevos (8 archivos)**
 
@@ -1950,7 +1980,7 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 
 ---
 
-### v23.9.1 (Agosto 2026) — Security Hardening
+### v23.9.1 (Abril 2026) — Security Hardening
 
 **Cross-tenant data isolation — Report Builder:**
 - `_execute_report()` en `report_builder.py` ahora acepta `current_user` y aplica filtro `organization_id` antes de ejecutar cualquier consulta
@@ -1985,7 +2015,7 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 
 ---
 
-### v23.9.0 (Agosto 2026) — versión actual
+### v23.9.0 (Abril 2026) — versión actual
 
 **Tipos de cambio en tiempo real — integración BCE:**
 - `app/services/exchange_rate_service.py` — nuevo servicio con `sync_ecb_rates()` (XML BCE gratuito) y `sync_openexchangerates()` (OpenExchangeRates.org)
@@ -2702,7 +2732,7 @@ _Última revisión: [fecha de hoy]_
 
 ---
 
-## 21. Auditoría completa — 20 de abril de 2026 (v23.10.2)
+## 23. Auditoría completa — 20 de abril de 2026 (v23.10.2)
 
 ### Problemas corregidos
 
@@ -2799,7 +2829,7 @@ test('Login y navegación básica', async ({ page }) => {
 
 ---
 
-## 23. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
+## 24. Auditoría de Calidad — 20 de abril de 2026 (sesión 2)
 
 ### Correcciones aplicadas
 

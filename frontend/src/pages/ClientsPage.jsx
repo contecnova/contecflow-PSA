@@ -53,7 +53,7 @@ import api from '../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
 import { BadgeWithTooltip } from '../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../components/ui/FRCRIcons'
-import _PageHeader from '../components/layout/PageHeader'
+import PageHeader from '../components/layout/PageHeader'
 import { fmtCurrency, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { Briefcase } from 'lucide-react'
@@ -1427,15 +1427,23 @@ export default function ClientsPage() {
   const INDUSTRIES = ['technology','finance','healthcare','retail','manufacturing','education','consulting','real_estate','media','other']
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 0, height: '100%', padding: 32 }}>
+    <div style={{ padding: '0 32px 32px' }}>
+      <PageHeader
+        icon={<Briefcase size={18} />}
+        title={_t('clients.title')}
+        subtitle={_t('clients.subtitle')}
+        actions={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <ViewToggle view={clientView} onChange={setClientView} />
+            <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)}>+ {_t('clients.new_client')}</Button>
+          </div>
+        }
+      />
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 0 }}>
       {/* Lista de clientes */}
       <div style={{ paddingRight: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>Clientes</div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <ViewToggle view={clientView} onChange={setClientView} />
-            <Button data-tour="btn-new-client" onClick={() => setShowCreate(true)} size="sm">+ Nuevo</Button>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{_t('clients.title')}</div>
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar cliente por nombre o codigo" aria-label="Buscar cliente por nombre o codigo" style={{ ...inp, marginBottom: 8 }} />
@@ -1723,6 +1731,7 @@ export default function ClientsPage() {
           </div>
         </Modal>
       )}
+      </div>
     </div>
   )
 }
