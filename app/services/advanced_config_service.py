@@ -25,20 +25,14 @@ from app.models.advanced_config import VacationPolicy
 from app.models.advanced_config import Office
 from app.models.advanced_config import CustomField
 from app.models.advanced_config import CustomFieldValue
-from app.models.advanced_config import CustomField, CustomFieldValue
-from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable
-from app.models.advanced_config import ProjectTemplate
-from app.models.advanced_config import ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk
+from app.models.advanced_config import TemplateTask, TemplateRisk, TemplateDeliverable
 from app.models.marketplace import TemplateDocument
 from app.models.marketplace import TemplateRole
-from app.models.marketplace import TemplateDocument, TemplateRole
 from app.models.pipeline import Risk as RiskModel
 from app.models.project import Project, ProjectPhase
-from app.models.project import Project
 from app.models.resources import Absence, AbsenceStatus, AbsenceType
 from app.models.resources import Deliverable
 from app.models.task import Task, TaskStatus, TaskPriority
-from app.models.task import Task
 from app.models.user import User as UserModel
 from fastapi import HTTPException as _HTTPException
 

@@ -23,7 +23,6 @@ from app.models.billing_reports import Invoice
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
 from app.models.custom_fields import ProjectCustomField, ProjectCustomFieldValue
-from app.models.expenses import Expense
 from app.models.imputation import Imputation
 from app.models.service_desk import Ticket
 from app.models.task import Task

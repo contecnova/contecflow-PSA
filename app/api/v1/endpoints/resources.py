@@ -2,16 +2,15 @@
 Resource Planning API Endpoints.
 Availability matrices, load scoring, skill matching, alerts, and utilization history.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, func
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional, Dict
 import logging
 
 from app.core.deps import get_db, get_current_user, require_any_manager
-from app.models.user import User, UserRole
-from app.models.resources import ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot
+from app.models.user import User
+from app.models.resources import ResourceAlertType
 from app.services.resource_analytics import (
     resource_analytics,
     get_team_user_ids as _svc_get_team_user_ids,
@@ -188,8 +187,6 @@ def get_team_health(
     current_user: User = Depends(require_any_manager),
 ):
     """Get team utilization health metrics."""
-    from app.models.imputation import Imputation
-    from datetime import datetime, timedelta, timezone
 
     health = _svc_get_team_health(db)
     return TeamHealthMetrics(

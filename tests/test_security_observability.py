@@ -17,7 +17,7 @@ from app.main import app
 from app.models.user import User
 from app.models.mfa import Organization
 from app.models.security_observability import (
-    SecurityEvent, SecurityDetection, SecurityIncident, LoginAnomaly,
+    SecurityDetection, LoginAnomaly,
     EventCategory, EventSeverity, IncidentStatus, KillChainStage,
 )
 from app.services.security_observability import (

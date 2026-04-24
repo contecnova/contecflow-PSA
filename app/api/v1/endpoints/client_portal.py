@@ -11,15 +11,11 @@ Client Portal API – external-facing endpoints for client users.
 Authentication uses separate JWT tokens for ClientUser entities.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Header, Body, Request, Response, Cookie
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
-import sqlalchemy as sa
+from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from pydantic import BaseModel
 from jose import jwt, JWTError
-import bcrypt
-import uuid
 import logging
 
 logger = logging.getLogger("clarive.client_portal")
@@ -29,18 +25,9 @@ from app.core.config import settings
 from app.core.deps import require_any_manager
 from app.core.ratelimit import limiter
 from app.models.user import User
-from app.models.project import Project
-from app.models.imputation import Imputation
-from app.models.financial import ProjectMilestone
-from app.models.billing_reports import Invoice, InvoiceStatus
-from app.models.resources import Deliverable, DeliverableStatus
 from app.models.client_portal import (
-    ClientUser, FeatureRequest, FeatureRequestStatus, UATSession, UATTestCase, UATIssue, UATStatus,
-    ClientMessage, ClientSurvey, ClientDocument, client_user_projects
+    ClientUser
 )
-from app.models.resources import ChangeRequest, ChangeRequestStatus
-from app.services.approval_workflows import find_default_workflow
-from app.services.realtime_notifications import publish_user_notification
 
 router = APIRouter()
 import app.services.client_portal_service as _svc
@@ -99,7 +86,7 @@ def get_current_client(
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import Field, EmailStr, field_validator
 
 class ClientLoginIn(BaseModel):
     email: EmailStr = Field(..., max_length=120)

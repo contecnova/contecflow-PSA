@@ -3,8 +3,7 @@ settings — thin router delegating to app.services.settings_service
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import date as date_type
+from typing import List
 import logging
 
 from app.db.session import get_db

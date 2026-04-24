@@ -337,7 +337,4 @@ def metric_ticket_csat(
 
 
 # Import case for conditional sum
-from sqlalchemy import case
 from app.db.session import is_postgres
-from app.models.service_desk import Ticket
-from sqlalchemy import desc

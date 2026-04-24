@@ -225,7 +225,7 @@ def test_report_data_sources(client, pm_token, db):
 
 
 def test_run_report_projects(client, pm_token, db):
-    pid = make_project(client, pm_token, code="BRP03")
+    make_project(client, pm_token, code="BRP03")
     res = client.post(
         "/api/v1/report-catalog/run",
         json={"data_source": "projects", "filters": {}},
@@ -619,7 +619,7 @@ def test_templates_create_list_and_instantiate(client, pm_token, db):
     assert create_res.status_code in (200, 201), create_res.text
     created = create_res.json()
     assert "id" in created or "template" in created
-    template_id = created.get("id") or created.get("template", {}).get("id")
+    created.get("id") or created.get("template", {}).get("id")
 
     list_res = client.get("/api/v1/templates", headers=auth(pm_token))
     assert list_res.status_code == 200
@@ -681,13 +681,13 @@ def test_openapi_contract_for_sla_dashboard(client, db):
 def test_openapi_contract_for_invoice_status_patch(client, db):
     spec = app.openapi()
     # Invoice status is under billing-reports, not invoices
-    schema_ref = spec["paths"]["/api/v1/billing-reports/invoices/{invoice_id}/status"]["patch"]["responses"]["200"]["content"]["application/json"]["schema"]
+    spec["paths"]["/api/v1/billing-reports/invoices/{invoice_id}/status"]["patch"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert "patch" in spec["paths"]["/api/v1/billing-reports/invoices/{invoice_id}/status"]
 
 
 def test_openapi_contract_for_automation_workflows(client, db):
     spec = app.openapi()
-    schema_ref = spec["paths"]["/api/v1/automation-workflows"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    spec["paths"]["/api/v1/automation-workflows"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     # Schema is empty object for GET, not an array with refs
     assert spec["paths"]["/api/v1/automation-workflows"].get("get") is not None
     assert spec["paths"]["/api/v1/automation-workflows"].get("post") is not None
@@ -703,7 +703,7 @@ def test_openapi_contract_for_scheduled_reports(client, db):
 
 def test_openapi_contract_for_templates(client, db):
     spec = app.openapi()
-    schema_ref = spec["paths"]["/api/v1/templates"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    spec["paths"]["/api/v1/templates"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert spec["paths"]["/api/v1/templates"].get("get") is not None
     assert spec["paths"]["/api/v1/templates"].get("post") is not None
 

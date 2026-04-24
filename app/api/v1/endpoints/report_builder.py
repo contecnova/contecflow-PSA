@@ -4,13 +4,9 @@ Report Builder — no-code parametric report system (thin router).
 Delegates all logic to app.services.report_builder_service.
 """
 
-import csv
-import io
-from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

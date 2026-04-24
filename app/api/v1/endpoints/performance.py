@@ -1,15 +1,13 @@
 """Performance Reviews — Evaluaciones de rendimiento 360°."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
 from app.models.user import User
 from app.models.performance import ReviewCycleStatus, ReviewStatus
 from app.services import performance_service
-from app.services.performance_service import avg_score as _avg, serialize_review as _ser_review
+from app.services.performance_service import serialize_review as _ser_review
 from app.schemas.performance import ReviewCycleIn as CycleIn, PerformanceReviewIn as ReviewIn
 
 router = APIRouter(tags=["Performance Reviews"])

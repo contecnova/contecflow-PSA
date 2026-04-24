@@ -1,6 +1,5 @@
 """SQLAlchemy models for the Developer Portal (OAuth2 apps)."""
 import uuid
-import secrets
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship

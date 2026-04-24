@@ -25,16 +25,8 @@ from app.models.alm import ALMLicense
 from app.models.billing_reports import Invoice
 from app.models.client_portal import ClientUser
 from app.models.clients import Client
-from app.models.clients import Client, ClientPortalConfig
-from app.models.clients import ClientContact, ClientPortalConfig, ClientLicenseLink, ClientContractLink
 from app.models.clients import ClientPortalConfig
-from app.models.clients import Client, ClientLicenseLink, ClientContractLink
-from app.models.clients import ClientContact
-from app.models.clients import Client, ClientContact
-from app.models.clients import ClientLicenseLink
-from app.models.clients import Client, ClientLicenseLink
-from app.models.clients import ClientContractLink
-from app.models.clients import Client, ClientContractLink
+from app.models.clients import ClientContact, ClientLicenseLink, ClientContractLink
 from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.service_desk import Ticket

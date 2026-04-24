@@ -4,7 +4,7 @@ from app.services.task_service import validate_task_transition, apply_status_sid
 from app.models.task import TaskStatus, Task
 from app.models.user import User, UserRole
 from fastapi import HTTPException
-from datetime import datetime, timedelta, date
+from datetime import date
 
 @pytest.fixture
 def db_session(db) -> Session:

@@ -9,18 +9,16 @@ import json
 import logging
 import secrets
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Optional
 from app.core.config import settings
 from app.core.security import create_access_token
 from app.models.billing_reports import Invoice, InvoiceLine
 from app.models.billing_reports import AutomationWorkflow
-from app.models.billing_reports import AutomationWorkflow, WorkflowExecution
+from app.models.billing_reports import WorkflowExecution
 from app.models.bookings import TaskDependency
 from app.models.bookings import ResourceBooking
-from app.models.bookings import ResourceBooking, BookingType
+from app.models.bookings import BookingType
 from app.models.bookings import ExchangeRate
 from app.models.bookings import SLASchedule
-from app.models.bookings import SLASchedule, SLAHoliday
 from app.models.bookings import SLAHoliday
 from app.models.bookings import ApiKey
 from app.models.bookings import RecurringInvoice
@@ -28,7 +26,6 @@ from app.models.bookings import OAuthState
 from app.models.bookings import WorkflowQueueItem
 from app.models.enterprise import SSOConfig
 from app.models.pipeline import Opportunity, OpportunityStage
-from app.models.pipeline import Opportunity
 from app.models.project import Project, ProjectStatus
 from app.models.service_desk import Ticket
 from app.models.task import Task
@@ -810,7 +807,6 @@ def initiate_sso_record(config_id: str, redirect_to: str, db) -> dict:
     )
     db.add(oauth_state); db.commit()
     if config.provider == "saml":
-        acs_url = f"{settings.BACKEND_URL}/api/v1/sso/saml/callback"
         redirect_url = f"{config.saml_sso_url}?SAMLRequest=DEMO_ENCODED_REQUEST&RelayState={state}"
     elif config.provider in ["google", "azure_ad", "okta", "oidc"]:
         discovery_url = config.oidc_discovery_url or {

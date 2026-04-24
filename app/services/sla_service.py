@@ -25,7 +25,7 @@ from app.models.service_desk import TicketHistory
 from jose import jwt, JWTError
 
 if TYPE_CHECKING:
-    from app.models.service_desk import SLAPolicy, Ticket, TicketHistory, TicketPriority
+    from app.models.service_desk import SLAPolicy, Ticket, TicketHistory
     from app.models.client_portal import ClientUser
 
 logger = logging.getLogger(__name__)

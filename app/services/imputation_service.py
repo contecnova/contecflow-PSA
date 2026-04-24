@@ -27,14 +27,11 @@ from app.models.user import User, UserRole
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
 from app.models.imputation import TimerSession
-from app.models.imputation import Imputation, TimerSession
 from app.models.imputation import ImputationAlert
 from app.models.mfa import Organization
 from app.models.project import ProjectMember
 from app.models.project import Project, ProjectStatus as _PS
-from app.models.project import Project
 from app.models.task import Task, TaskStatus
-from app.models.task import Task
 from app.models.user import User as UserModel
 from app.schemas import WeekSummary
 from app.schemas.time_tracking import TimerSessionOut

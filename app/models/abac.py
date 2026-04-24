@@ -5,7 +5,6 @@ ABAC extends RBAC by adding attribute-based rules that further restrict access
 based on project, client, region, data classification, team, and other context.
 """
 from datetime import datetime
-from typing import Any, Optional
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, JSON, Boolean, Text, Index
 from sqlalchemy.orm import relationship
 from app.db.base import Base

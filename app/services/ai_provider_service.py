@@ -11,7 +11,6 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 from sqlalchemy import func
@@ -20,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.encryption import encrypt_value, decrypt_value
 from app.models.ai_providers import AIProvider
-from app.models.ai_providers import AIProvider, AIUsageLog
+from app.models.ai_providers import AIUsageLog
 from app.models.user import User
 from sqlalchemy import func as sqlfunc
 

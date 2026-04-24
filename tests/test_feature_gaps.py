@@ -47,7 +47,7 @@ def _create_task(client, token, project_id, title="Task A", start_date=None, due
 
 class TestResourceLeveling:
     def test_leveling_no_plans_returns_empty(self, client, admin_token, db):
-        today = date.today()
+        date.today()
         week_from = _next_monday()
         week_to = week_from + timedelta(weeks=3)
         res = client.get(
@@ -70,7 +70,6 @@ class TestResourceLeveling:
         week = _next_monday()
         # Set admin capacity to 20h to ensure we can force overallocation
         admin_user = db.query(User).filter(User.id == "admin-test-id").first()
-        original_cap = admin_user.weekly_capacity_hours
         admin_user.weekly_capacity_hours = 20
         db.commit()
         # Directly insert a plan of 60h (above 20h capacity) bypassing API validation

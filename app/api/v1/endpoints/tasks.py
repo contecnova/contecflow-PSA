@@ -10,8 +10,7 @@ from app.db.session import get_db
 from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
-from app.models.task import Task, TaskStatus, TaskPriority, TaskComment
-from app.models.project import Project
+from app.models.task import Task, TaskStatus, TaskPriority
 from app.models.bookings import TaskDependency
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload

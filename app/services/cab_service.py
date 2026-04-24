@@ -43,28 +43,21 @@ from app.db.session import SessionLocal
 from app.models.billing_reports import Invoice as Inv
 from app.models.bookings import WorkflowQueueItem
 from app.models.cab import CABVote, ChangeRequestWindow
-from app.models.cab import CABVote
 from app.models.cab import MaintenanceWindow
-from app.models.cab import MaintenanceWindow, ChangeRequestWindow
 from app.models.cab import EmailTemplate
-from app.models.cab import EmailTemplate, EmailLog
 from app.models.cab import EmailLog
 from app.models.cab import GDPRRequest
-from app.models.cab import GDPRRequest, GDPRRequestType, GDPRRequestStatus
+from app.models.cab import GDPRRequestType, GDPRRequestStatus
 from app.models.cab import DashboardWidget
 from app.models.cab import OnboardingState
 from app.models.cab import IntegrationConfig
 from app.models.cab import CalendarEvent as CE
-from app.models.cab import CommitLink as CL, IntegrationConfig
+from app.models.cab import CommitLink as CL
 from app.models.cab import RevenueRecognitionRule
-from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry, RecognitionMethod
-from app.models.cab import RevenueRecognitionRule, RevenueRecognitionEntry
-from app.models.cab import RevenueRecognitionEntry
+from app.models.cab import RevenueRecognitionEntry, RecognitionMethod
 from app.models.cab import ProjectRiskScore
 from app.models.imputation import Imputation as Imp
-from app.models.pipeline import Opportunity
 from app.models.pipeline import Opportunity as Opp
-from app.models.project import Project as Proj
 from app.models.service_desk import Ticket
 from app.models.sprints import Sprint
 from app.models.user import User as UserModel

@@ -35,7 +35,7 @@ def metric_sprint_velocity(
 
         sprints = sprints_q.order_by(Sprint.start_date).limit(20).all()
         sprint_ids = [sp.id for sp in sprints]
-        sprint_map = {sp.id: sp for sp in sprints}
+        {sp.id: sp for sp in sprints}
 
         # Query all points per sprint in batch
         pts = db.query(
@@ -87,7 +87,7 @@ def metric_sprint_completion_rate(
 
         sprints = sprints_q.order_by(Sprint.start_date).limit(20).all()
         sprint_ids = [sp.id for sp in sprints]
-        sprint_map = {sp.id: sp for sp in sprints}
+        {sp.id: sp for sp in sprints}
 
         pts = db.query(
             SprintTask.sprint_id,

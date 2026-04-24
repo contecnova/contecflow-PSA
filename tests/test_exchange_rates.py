@@ -11,7 +11,7 @@ Covers:
   - Missing rate fallback behaviour
 """
 import pytest
-from datetime import date, timedelta
+from datetime import date
 from unittest.mock import patch, MagicMock
 from tests.conftest import auth
 
@@ -181,7 +181,6 @@ class TestECBSync:
             mock_client.get.side_effect = httpx.ConnectError("Connection refused")
             mock_cls.return_value = mock_client
 
-            from app.services.exchange_rate_service import sync_ecb_rates
             # Need to reimport to get fresh mock
             import importlib
             import app.services.exchange_rate_service as ecb_module

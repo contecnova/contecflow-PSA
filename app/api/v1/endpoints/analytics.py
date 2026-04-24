@@ -4,23 +4,12 @@ Every query returns rows + metadata so the frontend can render any chart type.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
 from typing import Optional
-from datetime import date, timedelta
-import json
-import time
 import logging
-from threading import Lock
 
 from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.models.project import Project
-from app.models.task import Task
-from app.models.imputation import Imputation
-from app.models.resources import Absence, ChangeRequest, Deliverable
-from app.models.bookings import ResourceBooking, BookingType
-from app.core.config import settings
 from app.api.v1.endpoints.analytics_legacy_metrics import LEGACY_METRIC_IDS, run_legacy_metric
 # New modular metrics system
 from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY

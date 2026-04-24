@@ -274,7 +274,7 @@ def test_non_admin_cannot_see_other_documents(db: Session, client, admin_token):
     # Create document as admin
     payload = {"title": "Secret Admin Doc"}
     create_response = client.post("/api/v1/documents", json=payload, headers=admin_headers)
-    doc_id = create_response.json()["id"]
+    create_response.json()["id"]
 
     # Get a non-admin user and authenticate as them
     db_session = db

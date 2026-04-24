@@ -12,40 +12,21 @@ cab — all P2 pending features:
   risk-scores      — Project risk prediction engine
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from pydantic import BaseModel
 import json
-import secrets
-import re
 import logging
 
 logger = logging.getLogger("clarive.v14")
 
-from app.core.config import settings
-from app.core.encryption import encrypt_value, decrypt_value
-from app.core.secret_utils import encrypt_config_secrets, decrypt_config_secrets
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
-from app.models.project import Project
-from app.models.task import Task
-from app.models.resources import ChangeRequest
-from app.models.service_desk import Ticket
-from app.models.pipeline import Opportunity
-from app.models.billing_reports import Invoice
 from app.models.cab import (
-    CABVote, MaintenanceWindow, ChangeRequestWindow,
-    WebhookTrigger, WebhookTriggerLog,
-    EmailTemplate, EmailLog,
-    GDPRRequest, GDPRRequestType, GDPRRequestStatus,
-    IntegrationConfig, CommitLink, CalendarEvent,
-    RevenueRecognitionRule, RevenueRecognitionEntry, RecognitionMethod,
-    DashboardWidget, OnboardingState, ProjectRiskScore,
+    WebhookTrigger,
 )
-from app.services.audit import audit_log
 
 router = APIRouter()
 import app.services.cab_service as _svc

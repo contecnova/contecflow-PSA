@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List
-from datetime import date
+from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_hr
 from app.models.user import User, UserRole
 from app.services import skill_service
-from app.schemas.skills import SkillIn, UserSkillIn, StaffingQuery
+from app.schemas.skills import SkillIn, UserSkillIn
 
 router = APIRouter()
 

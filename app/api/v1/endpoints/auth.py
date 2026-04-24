@@ -1,19 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Query, Body, Request
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
-import base64
+from datetime import datetime, timezone
 import json
 import logging
 import os
-import smtplib
-import time
-import threading
-import uuid
-import ipaddress
-import socket
-from jose import jwt as jose_jwt, JWTError
 from urllib.parse import urlparse
 
 from app.db.session import get_db
@@ -23,20 +14,14 @@ from app.core.security import (
     get_password_hash,
     create_access_token,
     create_refresh_token,
-    create_mfa_challenge_token,
     decode_token,
     validate_password_policy,
 )
-from app.core.network import extract_client_ip
-from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
 from app.core.encryption import encrypt_value, decrypt_value
 from app.core.deps import get_current_user, require_admin
 from app.core.config import settings
 from app.core.ratelimit import limiter
-from app.db.session import is_postgres
-from app.models.sessions import UserSession
-from app.models.mfa import MFAChallenge, Organization, WebAuthnCredential
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
@@ -51,8 +36,6 @@ from app.services.session_security import (
     register_or_rotate_user_session,
     revoke_session_by_jti,
 )
-from app.services.security_observability import SecurityEventService
-from app.models.security_observability import EventCategory, EventSeverity
 
 
 logger = logging.getLogger(__name__)
@@ -62,14 +45,10 @@ import app.services.auth_service as _svc
 from app.services.auth_service import (
     soc_svc as _soc_svc,
     client_ip as _client_ip,
-    mfa_challenge_query as _mfa_challenge_query,
     issue_mfa_challenge as _issue_mfa_challenge,
     read_mfa_challenge as _read_mfa_challenge,
     consume_mfa_challenge as _consume_mfa_challenge,
-    resolve_sso_role as _resolve_sso_role,
-    resolve_sso_organization_id as _resolve_sso_organization_id,
     validate_https_discovery_url as _validate_https_discovery_url,
-    get_sso_redis as _get_sso_redis,
     register_sso_state as _register_sso_state,
     consume_sso_state as _consume_sso_state,
     login_bucket as _login_bucket,
@@ -86,13 +65,6 @@ from app.services.auth_service import (
     current_refresh_jti as _current_refresh_jti,
     issue_password_reset_token as _issue_password_reset_token,
     send_password_reset_email as _send_password_reset_email,
-    SSO_STATE_TTL as _SSO_STATE_TTL,
-    SSO_KEY_PREFIX as _SSO_KEY_PREFIX,
-    LOGIN_FAIL_PREFIX as _LOGIN_FAIL_PREFIX,
-    LOGIN_LOCK_PREFIX as _LOGIN_LOCK_PREFIX,
-    PASSWORD_RESET_TTL_SECONDS as _PASSWORD_RESET_TTL_SECONDS,
-    PASSWORD_RESET_REQUEST_WINDOW_SECONDS as _PASSWORD_RESET_REQUEST_WINDOW_SECONDS,
-    PASSWORD_RESET_REQUEST_MAX_PER_WINDOW as _PASSWORD_RESET_REQUEST_MAX_PER_WINDOW,
     COOKIE_OPTS as _COOKIE_OPTS,
 )
 

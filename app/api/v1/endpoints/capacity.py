@@ -9,7 +9,6 @@ from app.models.user import User
 from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
 from app.services import capacity_service
-from app.schemas.capacity import CapacityPlanIn, CapacityPlanOut
 
 router = APIRouter()
 

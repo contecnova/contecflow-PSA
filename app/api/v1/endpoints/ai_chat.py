@@ -16,40 +16,17 @@ governance       — AI Governance Dashboard
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Body
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timedelta, timezone
-from pydantic import BaseModel
+from datetime import datetime, timezone
 import json
-import os
 import time
 import asyncio
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.services.ai_dispatch import call_ai, get_default_provider
-from app.models.project import Project
-from app.models.task import Task
-from app.models.service_desk import Ticket
-from app.models.imputation import Imputation
-from app.models.pipeline import Risk, Contract, Opportunity
-from app.models.expenses import Expense
-from app.models.resources import ChangeRequest, Deliverable, Skill, UserSkill, Absence
-from app.models.okrs import Objective, KeyResult
-from app.models.financial import ProjectMilestone, Timesheet
-from app.models.sprints import Sprint
-from app.models.alert import Alert
-from app.models.billing_reports import Invoice, ApprovalRequest
-from app.models.clients import Client
-from app.models.git_integration import GitPullRequest, GitDeployment
-from app.models.ai_chat import (
-    AIConversation, AIMessage,
-    AIAgentExecution, AIAgentStep,
-    AIGovernanceConfig, AIActionLog,
-    AIKBArticle, AIPromptTemplate,
-)
 from app.services.ai_governance import check_prompt, check_output
 
 router = APIRouter()
@@ -63,7 +40,6 @@ from app.services.ai_client import (  # noqa: E402
     call_claude as _call_claude,
     extract_text as _extract_text,
     check_prompt_injection as _check_prompt_injection,
-    _INJECTION_PATTERNS,
 )
 from app.schemas.ai_chat import (  # noqa: E402
     ChatPayload, AgentPayload, PromptTemplatePayload,
@@ -521,7 +497,7 @@ Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
                         ),
                         module="nexusagent", user_id=user_id, max_tokens=1500,
                     )
-                except Exception as exc:
+                except Exception:
                     fallback_text = (
                         f"⚠ No hay proveedor IA configurado. "
                         f"Configura Google Gemini, OpenAI u otro proveedor en **IA & Conectores** "

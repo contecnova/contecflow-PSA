@@ -2,14 +2,14 @@
 Projects & Tasks metrics: tasks_by_status, tasks_by_project, projects_by_status,
 deliverables_status, tasks_lead_time, tasks_blocked_by_project, tasks_overdue, risks_by_level.
 """
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
 from app.models.task import Task
-from app.models.resources import Deliverable, ChangeRequest
+from app.models.resources import Deliverable
 from . import register_metric
 
 

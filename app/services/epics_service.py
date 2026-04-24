@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.epics import (
-    WikiPage, WikiSpace, WikiVersion, WikiTemplate, WikiComment,
+    WikiPage, WikiSpace, WikiVersion, WikiComment,
     Epic, EpicTask, EpicDependency,
     SavedFilter, TaskStateSnapshot, Mention, ThreadedComment,
 )
@@ -22,7 +22,7 @@ from app.models.epics import WikiTemplate as _WT
 from app.models.project import Project
 from app.models.task import Task
 from datetime import date
-from datetime import date, timedelta
+from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload

@@ -154,7 +154,7 @@ def test_review_timesheet_approve(client, dev_token, pm_token, db):
     add_imputation(client, dev_token, pid, hours=8)
 
     week = str(next_monday())
-    submit_res = client.post(f"/api/v1/timesheets/my/{week}/submit", headers=auth(dev_token))
+    client.post(f"/api/v1/timesheets/my/{week}/submit", headers=auth(dev_token))
     ts_id = None
 
     # Find submitted timesheet id via pending list

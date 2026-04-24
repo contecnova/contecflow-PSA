@@ -1,7 +1,6 @@
 import pytest
 from sqlalchemy.orm import Session
 from app.services.service_desk.problem_service import list_problems_payload, _validate_problem_org_constraints
-from app.models.user import User
 from fastapi import HTTPException
 
 @pytest.fixture

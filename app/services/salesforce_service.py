@@ -1,6 +1,6 @@
 """Service layer for Salesforce sync operations."""
 from datetime import date, datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 from app.models.marketplace import IntegrationInstance

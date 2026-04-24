@@ -1,7 +1,6 @@
 import pytest
 from sqlalchemy.orm import Session
 from app.services.service_desk.ticket_update_service import get_scoped_ticket_or_404
-from app.models.user import User
 from fastapi import HTTPException
 
 @pytest.fixture

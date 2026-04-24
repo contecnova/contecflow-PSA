@@ -38,9 +38,6 @@ def _upsert_rate(client, token, from_c="EUR", to_c="USD", rate=1.08, eff=None):
 
 # ─── 1. Multi-currency ─────────────────────────────────────────────────────────
 
-import pytest
-from datetime import date, timedelta
-from tests.conftest import auth
 
 # ...existing code...
 

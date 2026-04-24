@@ -15,7 +15,7 @@ Endpoints:
   GET    /rate-cards/effective             — tarifa efectiva para rol+cliente+fecha
   POST   /rate-cards/{id}/duplicate        — duplicar tabla con escalado anual
 """
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, Body, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel

@@ -11,17 +11,11 @@ Estados del flujo:
 """
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import Optional
-from datetime import date, datetime, timezone
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.core.config import settings
-from app.services.notifications import notify_user, notify_role
 from app.services.milestone_service import (
-    compute_billing_amount,
     complete_milestone as svc_complete_milestone,
     uncomplete_milestone as svc_uncomplete_milestone,
     request_milestone_approval,

@@ -1,7 +1,6 @@
 """Service layer for Training & Certifications."""
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
-from datetime import date
 import uuid as _uuid
 
 from app.models.training import Course, CourseEnrollment, Certification

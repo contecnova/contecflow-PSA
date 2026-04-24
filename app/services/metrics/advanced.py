@@ -1,5 +1,5 @@
 """Advanced metrics: forecast_revenue, burnout_index."""
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -141,7 +141,7 @@ def metric_burnout_index(
             users_q = users_q.filter(User.organization_id == organization_id)
         users = users_q.all()
         user_ids = [u.id for u in users]
-        user_map = {u.id: u for u in users}
+        {u.id: u for u in users}
 
         # 1. Utilización actual y previa (últimas 4 y 4 previas)
         hours_4w = {r[0]: r[1] for r in db.query(Imputation.user_id, func.sum(Imputation.hours))

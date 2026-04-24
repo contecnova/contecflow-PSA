@@ -2,25 +2,15 @@
 Service Desk ITSM/ITIL API – full ITIL-aligned endpoints.
 Works standalone OR integrated with Clarive projects/contracts.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Header, Body, BackgroundTasks, Cookie, Response
+from fastapi import APIRouter, Depends, Query, Header, Body, BackgroundTasks, Cookie, Response
 from fastapi.responses import PlainTextResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timedelta, date, timezone
 import logging
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
-from app.models.user import User, UserRole
-from app.models.service_desk import (
-    ConfigurationItem,
-    Ticket, TicketStatus, TicketPriority,
-    TicketComment,
-    KBArticle, Announcement,
-    # v3 — market-leader extensions
-)
-from app.models.clients import Client
-from app.models.pipeline import Contract
+from app.models.user import User
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,7 +20,6 @@ from app.services.service_desk.ticket_ops_service import commit_or_rollback as _
 
 # ── Service layer & schemas ───────────────────────────────────────────────────
 from app.services.sla_service import (  # noqa: E402
-    next_problem_number as _next_problem_number,
     ticket_out as _ticket_out,
 )
 from app.schemas.service_desk import (  # noqa: E402
@@ -44,9 +33,6 @@ from app.schemas.service_desk import (  # noqa: E402
     EscalationRuleIn, AssetIn, AssetUpdate,
     StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn,
     CannedResponseIn, OnCallScheduleIn, OnCallEntryIn,
-)
-from app.services.service_desk.scoping import (  # noqa: E402
-    scope_ci_query as _scope_ci_query,
 )
 from app.services.service_desk.ticket_read_service import (  # noqa: E402
     list_tickets_payload,
@@ -67,7 +53,7 @@ from app.services.service_desk.comment_service import (  # noqa: E402
     get_scoped_ticket_or_404 as get_scoped_ticket_for_comment_or_404,
     add_internal_comment,
     get_ticket_or_404 as get_ticket_for_client_comment_or_404,
-    add_client_comment,
+    add_client_comment as add_client_comment_svc,
 )
 from app.services.service_desk.csat_service import (  # noqa: E402
     submit_ticket_csat,
@@ -94,7 +80,7 @@ from app.services.service_desk.kb_service import (  # noqa: E402
     apply_kb_article_update,
     update_kb_helpful_vote,
     create_kb_from_ticket,
-    delete_kb_article,
+    delete_kb_article as delete_kb_article_svc,
 )
 from app.services.service_desk.announcement_service import (  # noqa: E402
     list_active_announcements,
@@ -128,14 +114,14 @@ from app.services.service_desk.ticket_template_service import (  # noqa: E402
     list_ticket_templates_payload,
     create_ticket_template_record,
     update_ticket_template_record,
-    delete_ticket_template,
+    delete_ticket_template as delete_ticket_template_svc,
 )
 from app.services.service_desk.canned_response_service import (  # noqa: E402
     serialize_canned_response_compact,
     list_canned_responses_payload,
     create_canned_response_record,
     update_canned_response_record,
-    delete_canned_response,
+    delete_canned_response as delete_canned_response_svc,
 )
 from app.services.service_desk.known_error_service import (  # noqa: E402
     get_known_errors,
@@ -145,9 +131,9 @@ from app.services.service_desk.oncall_service import (  # noqa: E402
     list_oncall_schedules_payload,
     create_oncall_schedule_record,
     update_oncall_schedule_record,
-    delete_oncall_schedule,
+    delete_oncall_schedule as delete_oncall_schedule_svc,
     create_oncall_entry_record,
-    delete_oncall_entry,
+    delete_oncall_entry as delete_oncall_entry_svc,
     list_current_oncall_payload,
 )
 from app.services.service_desk.watcher_service import (  # noqa: E402
@@ -165,7 +151,7 @@ from app.services.service_desk.escalation_service import (  # noqa: E402
     list_escalation_rules_payload,
     create_escalation_rule_record,
     update_escalation_rule_record,
-    delete_escalation_rule,
+    delete_escalation_rule as delete_escalation_rule_svc,
     run_escalation_rules_job,
     list_escalation_logs_payload,
 )
@@ -190,7 +176,7 @@ from app.services.service_desk.agent_group_service import (  # noqa: E402
 from app.services.service_desk.holiday_service import (  # noqa: E402
     list_holidays_payload,
     create_holiday_record,
-    delete_holiday,
+    delete_holiday as delete_holiday_svc,
 )
 from app.services.service_desk.workload_service import (  # noqa: E402
     get_group_workload_payload,
@@ -212,7 +198,7 @@ from app.services.service_desk.status_page_service import (  # noqa: E402
     list_status_components_payload,
     create_status_component_record,
     update_status_component_record,
-    delete_status_component,
+    delete_status_component as delete_status_component_svc,
     create_status_incident_record,
     add_status_incident_update_record,
 )
@@ -225,7 +211,7 @@ from app.services.service_desk.inbound_email_service import (  # noqa: E402
 from app.services.service_desk.link_service import (  # noqa: E402
     list_ticket_links_payload,
     create_ticket_link_record,
-    delete_ticket_link,
+    delete_ticket_link as delete_ticket_link_svc,
 )
 from app.services.service_desk.routing_rule_service import (  # noqa: E402
     list_routing_rules as _list_routing_rules,
@@ -233,7 +219,7 @@ from app.services.service_desk.routing_rule_service import (  # noqa: E402
     build_routing_rule,
     get_routing_rule_or_404,
     apply_routing_rule_update,
-    delete_routing_rule,
+    delete_routing_rule as delete_routing_rule_svc,
 )
 from app.services.service_desk.metrics_service import (  # noqa: E402
     priority_matrix_payload,
@@ -563,7 +549,7 @@ def add_client_comment(
 ):
     client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
     ticket = get_ticket_for_client_comment_or_404(db, ticket_id)
-    comment = add_client_comment(db, ticket, ticket_id, payload.body, client.id)
+    comment = add_client_comment_svc(db, ticket, ticket_id, payload.body, client.id)
     _commit_or_rollback(db)
     return {"id": comment.id, "created_at": str(comment.created_at)[:16]}
 
@@ -603,7 +589,7 @@ def submit_csat(
     portal_access_token: Optional[str] = Cookie(None),
     db: Session = Depends(get_db),
 ):
-    client = require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
+    require_portal_client(authorization, portal_access_token, db, detail="Autenticación requerida")
     result = submit_ticket_csat(db, ticket_id, payload.score, payload.comment)
     _commit_or_rollback(db)
     return result
@@ -687,7 +673,7 @@ def delete_kb_article(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    delete_kb_article(db, current_user, article_id)
+    delete_kb_article_svc(db, current_user, article_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -769,9 +755,6 @@ def get_stats(
 # ════════════════════════════════════════════════════════════════════════════
 # AMPLIACIÓN ITIL/ITSM v2
 # ════════════════════════════════════════════════════════════════════════════
-from app.models.service_desk import (
-    TicketLink,
-)
 
 
 # ── Routing Rules CRUD ────────────────────────────────────────────────────────
@@ -815,7 +798,7 @@ def delete_routing_rule(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
-    delete_routing_rule(db, rule_id)
+    delete_routing_rule_svc(db, rule_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -859,7 +842,7 @@ def delete_ticket_link(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    delete_ticket_link(db, link_id)
+    delete_ticket_link_svc(db, link_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -1102,7 +1085,7 @@ def list_known_errors(
 
 @router.delete("/ticket-templates/{template_id}", summary="Eliminar plantilla")
 def delete_ticket_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    delete_ticket_template(db, template_id)
+    delete_ticket_template_svc(db, template_id)
     _commit_or_rollback(db); return {"ok": True}
 
 @router.get("/agent/customer-context/{requester_id}", summary="Contexto 360 del solicitante")
@@ -1156,7 +1139,7 @@ def delete_canned_response(
     db: Session = Depends(get_db),
     cu: User = Depends(require_any_manager),
 ):
-    delete_canned_response(db, canned_id)
+    delete_canned_response_svc(db, canned_id)
     _commit_or_rollback(db)
     return {"deleted": True}
 
@@ -1247,7 +1230,7 @@ def delete_oncall_schedule(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    delete_oncall_schedule(db, schedule_id)
+    delete_oncall_schedule_svc(db, schedule_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -1270,7 +1253,7 @@ def delete_oncall_entry(
     db: Session = Depends(get_db),
     _: User = Depends(require_any_manager),
 ):
-    delete_oncall_entry(db, entry_id)
+    delete_oncall_entry_svc(db, entry_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -1452,7 +1435,7 @@ def delete_escalation_rule(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    delete_escalation_rule(db, rule_id)
+    delete_escalation_rule_svc(db, rule_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -1515,7 +1498,7 @@ def delete_holiday(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    delete_holiday(db, holiday_id)
+    delete_holiday_svc(db, holiday_id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -1686,7 +1669,7 @@ def delete_status_component(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    delete_status_component(db, component_id)
+    delete_status_component_svc(db, component_id)
     _commit_or_rollback(db)
     return {"ok": True}
 

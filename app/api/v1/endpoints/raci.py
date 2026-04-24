@@ -13,11 +13,10 @@ raci — Market-leader feature expansion:
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
 from sqlalchemy.orm import Session
-from typing import Optional, List
-from datetime import date, datetime
+from typing import Optional
+from datetime import date
 from app.core.ratelimit import limiter
-from pydantic import BaseModel
-from app.schemas.raci import RACIEntryIn, RACIBatchIn, RetroNotesIn, ChangelogEntryIn, ChangelogEntryPatch, UATCaseIn
+from app.schemas.raci import RACIBatchIn, RetroNotesIn, ChangelogEntryIn, ChangelogEntryPatch, UATCaseIn
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager

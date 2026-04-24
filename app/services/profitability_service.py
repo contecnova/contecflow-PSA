@@ -4,7 +4,7 @@ All db.query/add/commit/delete/flush calls live here; the router stays free of O
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Optional
 
 from sqlalchemy import func, case

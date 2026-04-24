@@ -25,7 +25,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.deps import get_current_user, get_db
 from app.models.esign import ESignEnvelope, ESignProvider, ESignStatus
 from app.models.user import User

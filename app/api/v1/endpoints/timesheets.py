@@ -1,14 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User
-from app.models.imputation import Imputation
-from app.models.financial import Timesheet, TimesheetStatus
 from app.services.psa_flows import (
     review_timesheet_flow,
     send_back_timesheet_flow,
@@ -19,7 +17,6 @@ import app.services.timesheet_service as _tsvc
 from app.schemas.timesheets import (
     TimesheetOut,
     TimesheetReview,
-    ImputationLine,
     TimesheetSendBackPayload as SendBackPayload,
 )
 

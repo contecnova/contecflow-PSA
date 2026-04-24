@@ -3,7 +3,7 @@ Enterprise endpoint — delegates all business logic to enterprise_service.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional
 from datetime import date, datetime, timezone
 from app.schemas.enterprise import (
     PermissionCreate, PermissionUpdate, WebhookCreate, WebhookUpdate, SSOCreate, SSOUpdate,
@@ -11,7 +11,6 @@ from app.schemas.enterprise import (
 )
 
 from app.db.session import get_db
-from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.models.enterprise import WebhookEvent
@@ -331,7 +330,6 @@ def create_worker(
     sub_id: str, payload: WorkerCreate,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    from app.models.enterprise import Subcontractor
     sub = _svc.get_subcontractor(db, sub_id)
     if not sub: raise HTTPException(404)
     return _svc.create_worker_with_user(sub, payload, current_user, db)

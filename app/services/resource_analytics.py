@@ -15,11 +15,7 @@ from app.models.resources import (
     UserSkill, ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot
 )
 from app.models.bookings import ResourceBooking
-from app.models.project import Project
-from app.models.resources import ResourceUtilizationSnapshot
-from app.models.resources import ResourceAlert
 from datetime import timezone
-from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import func as sqlfunc
 from sqlalchemy import case as sa_case

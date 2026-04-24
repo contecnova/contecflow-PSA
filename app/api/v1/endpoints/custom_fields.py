@@ -7,11 +7,10 @@ Clarive v18 API — Endpoints para:
   5. Ejecutar transición en tarea        POST workflows/{project_id}/tasks/{task_id}/transition
   6. Permisos por proyecto               GET/POST/PATCH/DELETE permissions/{project_id}
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import List
 from app.schemas.custom_fields import CustomFieldIn, FieldValueIn, WorkflowStateIn, TransitionIn, TaskTransitionIn, PermissionIn
-import json
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm

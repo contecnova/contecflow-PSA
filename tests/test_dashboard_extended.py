@@ -1,5 +1,4 @@
 """Tests for Dashboard — KPIs, project health, resource load, profitability."""
-import pytest
 from sqlalchemy import event
 from tests.conftest import auth
 from datetime import date, timedelta
@@ -183,7 +182,7 @@ def test_profitability_avoids_n_plus_one_queries(client, admin_token, pm_token, 
     ])
     db.commit()
 
-    admin = db.query(User).filter(User.id == "admin-test-id").first()
+    db.query(User).filter(User.id == "admin-test-id").first()
     select_count = 0
 
     def _before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):

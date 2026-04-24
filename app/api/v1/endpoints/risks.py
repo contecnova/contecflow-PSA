@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
@@ -9,7 +8,7 @@ from app.models.user import User, UserRole
 from app.services import risk_service
 from app.services.risk_scoring import risk_level, risk_score
 from app.services.risk_service import (
-    PROB_LABELS, IMPACT_LABELS, STATUS_LABELS, CATEGORY_LABELS, serialize_risk as _risk_out,
+    serialize_risk as _risk_out,
 )
 from app.schemas.risks import RiskIn, RiskUpdate
 

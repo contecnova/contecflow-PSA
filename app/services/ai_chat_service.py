@@ -695,7 +695,6 @@ AGENT_TOOLS = [
 
 def execute_tool(tool_name: str, tool_input: dict, db: Session, user: User) -> dict:
     # Control de acceso para herramientas financieras
-    from app.models.user import UserRole
     is_financial_role = (
         getattr(user, "is_superadmin", False)
         or getattr(user, "role", None) in (UserRole.admin, UserRole.hr)

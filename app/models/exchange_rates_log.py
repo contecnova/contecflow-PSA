@@ -2,7 +2,7 @@
 Currency conversion audit log — tracks all FX conversions applied to financial records.
 The ExchangeRate model itself is defined in app/models/bookings.py.
 """
-from sqlalchemy import Column, String, Float, DateTime, Date, Integer
+from sqlalchemy import Column, String, Float, DateTime, Date
 from sqlalchemy.sql import func
 import uuid
 from app.db.base import Base

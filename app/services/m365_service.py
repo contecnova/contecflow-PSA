@@ -4,7 +4,6 @@ Encapsulates database queries used by the m365 router.
 """
 import httpx
 from datetime import date
-from typing import List
 
 from sqlalchemy.orm import Session
 from app.core.config import settings

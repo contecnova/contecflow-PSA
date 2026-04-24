@@ -11,7 +11,6 @@ from app.schemas import (
     UserCreate, UserUpdate, UserSelfUpdate, UserPublic, UserWithRate, UserLoad
 )
 from app.services.user_service import (
-    scope_users_query as _scope_users_query,
     ensure_same_org_user_access as _ensure_same_org_user_access,
     get_load_map_payload,
     get_org_chart_payload,
@@ -125,7 +124,6 @@ def update_my_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    allowed_fields = {"first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
     update_data = payload.model_dump(exclude_unset=True)
 
     return update_self_profile(current_user, update_data, db)

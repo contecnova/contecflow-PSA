@@ -5,7 +5,6 @@ Tests for v23.5 features:
   2. Jira periodic sync Celery task (unit-level smoke test)
   3. Resource scheduler drag-to-assign backend: booking creation via API
 """
-import uuid
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import date, timedelta

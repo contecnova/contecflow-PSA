@@ -5,7 +5,6 @@ from app.services.settings_service import (
     get_project_statuses, create_project_status, update_project_status, delete_project_status,
     get_task_statuses, create_task_status, update_task_status, delete_task_status
 )
-from app.models.settings import AppSetting, CustomProjectType, CustomProjectStatus, CustomTaskStatus
 
 @pytest.fixture
 def db_session(db) -> Session:

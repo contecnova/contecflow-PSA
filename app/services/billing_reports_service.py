@@ -23,7 +23,6 @@ import io
 import json
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -38,8 +37,7 @@ from app.models.project import Project as _Project
 from app.models.financial import CapacityPlan
 from app.models.resources import UserSkill
 from app.models.billing_reports import (
-    AutomationWorkflow, WorkflowStep, WorkflowExecution,
-    ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition,
+    AutomationWorkflow, WorkflowStep, ImportJob, ImportStatus, Invoice, InvoiceLine, ReportDefinition,
     WorkflowStatus, ScheduledReport,
 )
 from app.models.service_desk import Ticket

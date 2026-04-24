@@ -16,7 +16,6 @@ Endpoints:
 """
 from __future__ import annotations
 
-import base64
 import datetime
 import logging
 from typing import Optional, List
@@ -27,7 +26,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
 from app.services.pagination_service import paginate_query
 from app.services import jira_service

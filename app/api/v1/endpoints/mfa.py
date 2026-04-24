@@ -3,36 +3,19 @@ mfa: thin router delegating to app.services.mfa_service
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, Body
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from pydantic import BaseModel
-import json
 import logging
-import secrets
 import io
 
 _logger = logging.getLogger(__name__)
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
-from app.core.encryption import encrypt_value, decrypt_value
 from app.models.user import User
-from app.models.project import Project
-from app.models.task import Task
-from app.models.service_desk import Ticket
-from app.models.imputation import Imputation
-from app.models.mfa import (
-    Organization, MFAConfig, MFABackupCode,
-    SlackConfig, SlackNotificationLog,
-    Budget, BudgetEntry,
-    AITaskEstimate, AITicketTriage,
-    ScenarioModel, ScenarioProject,
-    PDFExportJob, BIToken,
-)
 from app.core.config import settings
-from app.services.audit import audit_log
 import app.services.mfa_service as _svc
 
 router = APIRouter()

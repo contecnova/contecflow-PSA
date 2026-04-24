@@ -1,6 +1,5 @@
 from fastapi import APIRouter, status, Depends, Body, HTTPException
 from app.api.deps import get_current_user
-from typing import List
 import threading
 
 router = APIRouter()

@@ -11,9 +11,8 @@ import uuid
 from datetime import date, datetime, timezone, timedelta
 
 import pytest
-from fastapi.testclient import TestClient
 
-from tests.conftest import auth, _TEST_PASSWORD
+from tests.conftest import auth
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -145,7 +144,7 @@ class TestFinancialAuditLog:
 
     def test_financial_audit_log_endpoint_rejects_non_financial(self, client, db, admin_token):
         """GET /approvals/requests/{id}/financial-audit returns 404 for non-financial entity."""
-        from app.models.billing_reports import ApprovalWorkflow, ApprovalStep, ApprovalRequest
+        from app.models.billing_reports import ApprovalWorkflow, ApprovalRequest
 
         wf = ApprovalWorkflow(
             id=str(uuid.uuid4()),

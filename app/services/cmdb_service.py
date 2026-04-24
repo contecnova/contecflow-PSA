@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from fastapi import HTTPException
 
-from app.core.config import settings
-from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task
 from app.models.epics import WikiSpace, WikiPage

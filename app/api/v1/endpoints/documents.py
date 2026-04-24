@@ -6,8 +6,6 @@ Works with both S3 (when configured) and local filesystem storage.
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Form, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
-from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import logging
 import mimetypes
@@ -17,15 +15,13 @@ from app.core.config import settings
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User
 from app.models.documents import (
-    Document, DocumentVersion, DocumentPermission, DocumentTag,
-    DocumentCategory, DocumentAccessLevel, ApprovalStatus, DocumentAccessLog
+    DocumentCategory, DocumentAccessLevel
 )
 from app.schemas.documents import (
     DocumentCreate, DocumentUpdate, DocumentOut, DocumentListOut, DocumentVersionOut,
     DocumentPermissionCreate, DocumentPermissionOut, DocumentApprovalPayload
 )
 from app.services.s3_service import file_storage
-from app.services.pagination_service import paginate_query
 from app.services.ai_dispatch import call_ai
 from app.services import documents_service as doc_svc
 
@@ -353,9 +349,9 @@ def create_and_upload(
 
     # Validate category
     try:
-        cat_enum = DocumentCategory(category)
+        DocumentCategory(category)
     except ValueError:
-        cat_enum = DocumentCategory.other
+        pass
 
     # Upload file
     try:

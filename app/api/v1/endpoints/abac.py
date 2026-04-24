@@ -1,21 +1,16 @@
 """
 ABAC (Attribute-Based Access Control) API endpoints for policy and attribute management.
 """
-from datetime import datetime
-from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
-from app.models.abac import UserAttribute, ABACPolicy, AttributeDefinition
 from app.services.abac import ABACService, DEFAULT_ABAC_ATTRIBUTES
 from app.schemas.abac import (
-    AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACRuleSchema,
-    ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
+    AttributeDefinitionSchema, UserAttributeAssignSchema, UserAttributeSchema, ABACPolicyCreateSchema, ABACPolicySchema, AccessEvaluationRequestSchema, AccessEvaluationResponseSchema
 )
-import uuid
 
 
 # ============================================================================

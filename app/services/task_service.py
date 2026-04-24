@@ -23,7 +23,7 @@ from app.models.task import TaskStatus
 from app.db.session import SessionLocal
 from app.models.bookings import TaskDependency, DependencyType
 from app.models.project import Project
-from app.models.task import Task, TaskStatus, TaskComment
+from app.models.task import Task, TaskComment
 from app.models.task import Task as TaskModel
 from app.models.user import UserRole
 from app.schemas import TaskOut as TaskOutSchema
@@ -69,7 +69,7 @@ def apply_status_side_effects(task, new_status: TaskStatus) -> None:
         # Trigger OKR sync si la tarea está vinculada a un proyecto con OKRs
         try:
             from app.services import okr_service
-            db = getattr(task, '_sa_instance_state', None)
+            getattr(task, '_sa_instance_state', None)
             if hasattr(task, 'project_id') and task.project_id:
                 session = getattr(task, '_sa_instance_state', None)
                 if session:

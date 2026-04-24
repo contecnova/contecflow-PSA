@@ -11,12 +11,12 @@ from pathlib import Path
 def test_no_pydantic_v1_validator_decorator() -> None:
     """Ensure no uses of deprecated @validator decorator in app/."""
     app_dir = Path(__file__).resolve().parents[1] / "app"
-    
+
     deprecated_files = []
-    
+
     for py_file in app_dir.rglob("*.py"):
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
-        
+
         for node in ast.walk(tree):
             # Look for decorator nodes named 'validator'
             if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
@@ -27,13 +27,13 @@ def test_no_pydantic_v1_validator_decorator() -> None:
                         decorator_name = decorator.id
                     elif isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name):
                         decorator_name = decorator.func.id
-                    
+
                     if decorator_name == "validator":
                         relative_path = py_file.relative_to(app_dir.parent)
                         deprecated_files.append(
                             f"{relative_path}:{node.lineno} ({node.name})"
                         )
-    
+
     assert deprecated_files == [], (
         "Found deprecated @validator (Pydantic v1 API). "
         "Use @field_validator instead. "
@@ -44,12 +44,12 @@ def test_no_pydantic_v1_validator_decorator() -> None:
 def test_no_pydantic_v1_validator_imports() -> None:
     """Ensure no imports of deprecated 'validator' from pydantic."""
     app_dir = Path(__file__).resolve().parents[1] / "app"
-    
+
     bad_imports = []
-    
+
     for py_file in app_dir.rglob("*.py"):
         tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 if node.module == "pydantic":
@@ -57,7 +57,7 @@ def test_no_pydantic_v1_validator_imports() -> None:
                         if alias.name == "validator":
                             relative_path = py_file.relative_to(app_dir.parent)
                             bad_imports.append(f"{relative_path}:{node.lineno}")
-    
+
     assert bad_imports == [], (
         "Found deprecated 'validator' import from pydantic (v1 API). "
         "Use 'field_validator' instead. "

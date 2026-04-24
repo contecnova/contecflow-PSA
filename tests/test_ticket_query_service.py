@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.orm import Session
 from app.services.service_desk.ticket_query_service import build_ticket_list_query
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 
 @pytest.fixture
 def db_session(db) -> Session:

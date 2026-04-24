@@ -24,8 +24,8 @@ from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.project import ProjectMember
-from app.models.project import Project, ProjectStatus
-from app.models.project import Project, ProjectPhase
+from app.models.project import ProjectStatus
+from app.models.project import ProjectPhase
 from app.models.task import Task, TaskStatus
 from app.models.task import Task as _Task
 from app.models.user import UserRole

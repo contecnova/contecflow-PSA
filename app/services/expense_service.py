@@ -17,11 +17,10 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
-from app.models.expenses import Expense
 from app.models.project import Project
-from app.models.project import Project, ProjectStatus
+from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
-from app.models.user import User as UserModel, UserRole
+from app.models.user import UserRole
 from app.services.audit import audit_log
 from app.services.notifications import notify_user
 from app.services.numbering import next_numbered_code

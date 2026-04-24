@@ -1,6 +1,6 @@
 """Clarive v21 — Wiki tags, comentarios internos, CMDB, dashboard agente,
    wiki PDF, Kanban avanzado, sprint planning, SLA avanzado. Thin delegate router."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel

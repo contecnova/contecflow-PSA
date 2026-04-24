@@ -10,7 +10,6 @@ Covers:
   - HMAC-SHA256 payload signing (unit test)
   - Webhook firing logic: matching active hooks, ignoring inactive
 """
-import pytest
 from tests.conftest import auth
 
 

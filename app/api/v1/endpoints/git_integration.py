@@ -25,7 +25,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from app.models.git_integration import GitDeployment, GitPullRequest
 from app.models.user import User
 from app.services.git_service import (
     get_pull_request,

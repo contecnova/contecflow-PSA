@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.billing_reports import Invoice, InvoiceLine
-from app.models.billing_reports import Invoice
 from app.models.cab import IntegrationConfig
 from app.models.clients import Client
 

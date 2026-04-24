@@ -105,7 +105,7 @@ def test_stop_timer_creates_imputation(db: Session, timer_client):
     # Start timer
     payload = {"project_id": project.id}
     start_response = client.post("/api/v1/imputations/timer/start", json=payload, headers=headers)
-    start_time = datetime.fromisoformat(start_response.json()["started_at"].replace("Z", "+00:00"))
+    datetime.fromisoformat(start_response.json()["started_at"].replace("Z", "+00:00"))
 
     # Wait a bit (simulating work)
     import time

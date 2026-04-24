@@ -243,7 +243,6 @@ class AIGuardrailEngine:
         working_text  = text
         pii_total: List[PIIMatch] = []
         warnings:  List[str]     = []
-        blocked_by: Optional[str] = None
 
         for policy in sorted(policies, key=lambda p: -p.priority):
             # 1. Forbidden keywords

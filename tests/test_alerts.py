@@ -1,8 +1,5 @@
 """Tests for Alerts — listing, resolving, running alert engine."""
-import pytest
 from tests.conftest import auth
-from datetime import date, timedelta
-from sqlalchemy.orm import Session
 
 from app.models.alert import Alert, AlertType, AlertSeverity
 

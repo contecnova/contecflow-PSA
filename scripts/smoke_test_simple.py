@@ -16,12 +16,12 @@ class HeadingParser(HTMLParser):
         self.headings = []
         self.in_heading = False
         self.current_text = []
-        
+
     def handle_starttag(self, tag, attrs):
         if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
             self.in_heading = True
             self.current_text = []
-        
+
     def handle_endtag(self, tag):
         if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] and self.in_heading:
             text = ''.join(self.current_text).strip()
@@ -32,7 +32,7 @@ class HeadingParser(HTMLParser):
                 })
             self.in_heading = False
             self.current_text = []
-    
+
     def handle_data(self, data):
         if self.in_heading:
             self.current_text.append(data)
@@ -40,7 +40,7 @@ class HeadingParser(HTMLParser):
 def is_untranslated(text):
     """Detecta si el texto parece una clave sin traducir"""
     text_lower = text.lower().strip()
-    
+
     # Patrones a detectar
     patterns = [
         r'^title$',
@@ -49,7 +49,7 @@ def is_untranslated(text):
         r'.*\btitle\b.*',
         r'.*\bsubtitle\b.*'
     ]
-    
+
     return any(re.match(pattern, text_lower) for pattern in patterns)
 
 routes = [
@@ -96,7 +96,7 @@ for route in routes:
     try:
         url = f"http://localhost:3000{route}"
         print(f"Testing {route}...", end='', flush=True)
-        
+
         # Hacer petición
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
@@ -105,7 +105,7 @@ for route in routes:
         except urllib.error.HTTPError as e:
             status_code = e.code
             html_content = e.read().decode('utf-8', errors='ignore') if hasattr(e, 'read') else ""
-        
+
         if status_code >= 400:
             results['failed'] += 1
             results['detailed_results'].append({
@@ -115,7 +115,7 @@ for route in routes:
             })
             print(f" ❌ ({status_code})")
             continue
-        
+
         # Parsear HTML para buscar headings
         parser = HeadingParser()
         try:
@@ -123,14 +123,14 @@ for route in routes:
         except Exception as e:
             print(f" ⚠️  (parse error: {str(e)[:20]})")
             continue
-        
+
         headings = parser.headings
-        
+
         # Detectar headings sin traducir
         untranslated = [h for h in headings if is_untranslated(h['text'])]
-        
+
         results['passed'] += 1
-        
+
         if untranslated:
             results['untranslated_headers'].append({
                 'route': route,
@@ -140,7 +140,7 @@ for route in routes:
             print(f" ⚠️  ({len(untranslated)} sin traducir de {len(headings)})")
         else:
             print(f" ✅ ({len(headings)} headings OK)")
-        
+
         results['detailed_results'].append({
             'route': route,
             'status': status_code,
@@ -148,9 +148,9 @@ for route in routes:
             'untranslated_count': len(untranslated),
             'untranslated': untranslated
         })
-        
+
         time.sleep(0.3)  # Pequeña pausa entre peticiones
-        
+
     except urllib.error.URLError as e:
         if 'timeout' in str(e).lower():
             results['failed'] += 1
@@ -158,7 +158,7 @@ for route in routes:
                 'route': route,
                 'error': 'Timeout'
             })
-            print(f" ⏱️  (Timeout)")
+            print(" ⏱️  (Timeout)")
         else:
             results['failed'] += 1
             results['detailed_results'].append({
@@ -172,7 +172,7 @@ for route in routes:
             'route': route,
             'error': 'Timeout'
         })
-        print(f" ⏱️  (Timeout)")
+        print(" ⏱️  (Timeout)")
     except Exception as e:
         results['failed'] += 1
         results['detailed_results'].append({
@@ -194,7 +194,7 @@ if results['untranslated_headers']:
     print("="*60)
     print("RUTAS CON CLAVES SIN TRADUCIR")
     print("="*60 + "\n")
-    
+
     for r in results['untranslated_headers']:
         print(f"📍 Ruta: {r['route']}")
         print(f"   Elementos sin traducir: {r['count']}")

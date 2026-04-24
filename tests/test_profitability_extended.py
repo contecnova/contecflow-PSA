@@ -1,5 +1,4 @@
 """Extended tests for Profitability — milestones CRUD, summary, by-person/week."""
-import pytest
 from tests.conftest import auth
 from datetime import date, timedelta
 

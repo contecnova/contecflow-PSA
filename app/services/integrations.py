@@ -19,7 +19,7 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPriority, SupportLevel
 from app.models.task import Task
-from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.task import TaskStatus, TaskPriority
 from app.models.user import User
 from datetime import date as _date
 from sqlalchemy import func, cast, Integer

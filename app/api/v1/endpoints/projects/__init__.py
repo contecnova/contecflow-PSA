@@ -10,7 +10,6 @@ from app.schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut, ProjectSummary, ProjectPhaseCreate, ProjectPhaseOut
 )
 from app.services.project_service import (
-    build_project_code,
     enrich_project,
     enrich_projects_batch,
     empty_enrichment,

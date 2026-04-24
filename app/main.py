@@ -84,16 +84,12 @@ async def lifespan(_app: FastAPI):
     _skip_migrations = _os.getenv("SKIP_STARTUP_MIGRATIONS", "0") == "1" or _os.getenv("TESTING", "0") == "1"
     if not _skip_migrations:
         logger.info("🔄 Ejecutando migraciones Alembic (startup)...")
-        alembic_cfg = None
         _alembic_out_text = ""
         try:
             import asyncio as _asyncio
             import sys as _sys
-            import subprocess as _subprocess
             from app.db.base import Base
             from app.core.config import settings as _settings
-            from alembic.config import Config as AlembicConfig
-            from alembic import command as alembic_command
             from sqlalchemy import create_engine as _ce
             from sqlalchemy.pool import NullPool as _NullPool
 

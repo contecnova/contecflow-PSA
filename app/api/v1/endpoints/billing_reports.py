@@ -31,7 +31,6 @@ from app.schemas.billing_reports import (
     TemplateCreate,
     ScheduledReportCreate,
     InvoiceSummaryOut,
-    InvoiceStatusUpdateOut,
     ReportSaveOut,
     ImportTemplateOut,
     ImportValidateOut,

@@ -15,14 +15,13 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.services.abac import (
-    ABACService,
     get_admin_overview,
     get_attribute_summary,
     get_policy_effectiveness,

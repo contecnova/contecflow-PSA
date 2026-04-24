@@ -91,7 +91,7 @@ class TestImputationDailyLimit:
 
     def test_daily_limit_enforced(self, client, admin_token, dev_token, db):
         pid = _make_project(client, admin_token, "FC04")
-        today = str(date.today())
+        str(date.today())
         # 20 horas — OK
         r1 = _log_hours(client, dev_token, pid, 20.0, imputation_date=date.today())
         assert r1.status_code in (200, 201)

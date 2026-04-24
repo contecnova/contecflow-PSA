@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
-from app.models.user import User, UserRole
-from app.models.imputation import Imputation
+from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
 from app.services.psa_flows import approve_imputation_flow

@@ -1,5 +1,4 @@
 """Extended tests for Automations — run-scheduled, test-rule, fire-trigger actions."""
-import pytest
 from tests.conftest import auth
 
 
@@ -30,7 +29,7 @@ def test_list_automations_inactive_filter(client, pm_token, db):
     client.patch(f"/api/v1/automations/{rule['id']}",
         json={"is_active": False}, headers=auth(pm_token))
     res = client.get("/api/v1/automations?is_active=false", headers=auth(pm_token))
-    data = res.json()
+    res.json()
     assert res.status_code == 200
 
 

@@ -32,7 +32,7 @@ from app.core.deps import get_db, get_current_user
 from app.core.security import verify_admin_or_governance_role
 from app.models.user import User
 from app.models.security_observability import (
-    EventCategory, EventSeverity, IncidentStatus,
+    IncidentStatus,
 )
 from datetime import timezone, timedelta
 from datetime import datetime as _dt

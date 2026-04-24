@@ -54,25 +54,21 @@ Covers: MIME validation, upload validation, document access checks,
 """
 
 import logging
-import mimetypes
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from app.core.security import decode_token
 from app.models.documents import Document
 from app.models.documents import DocumentAccessLevel
-from app.models.documents import Document, DocumentPermission, DocumentAccessLevel
+from app.models.documents import DocumentPermission
 from app.models.documents import DocumentAccessLog
 from app.models.documents import DocumentVersion
-from app.models.documents import DocumentPermission
 from app.models.documents import ApprovalStatus
-from app.models.documents import Document, DocumentVersion, DocumentTag, DocumentCategory
-from app.models.documents import DocumentTag
+from app.models.documents import DocumentTag, DocumentCategory
 from app.models.user import UserRole
-from app.models.user import User, UserRole
 from app.models.user import User
 from app.schemas.documents import DocumentOut, DocumentVersionOut, DocumentPermissionOut
 from app.services.s3_service import file_storage
-from app.services.s3_service import file_storage, LocalFileStorage
+from app.services.s3_service import LocalFileStorage
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy import and_

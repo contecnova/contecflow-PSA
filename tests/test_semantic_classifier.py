@@ -16,10 +16,8 @@ Refinements (session 2):
   Mejora 6 — Diversity penalty for over-concentrated workloads
 """
 import json
-import math
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch, call
-import pytest
+from unittest.mock import MagicMock, patch
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -78,7 +76,6 @@ class TestBug1RealTimeLoad:
 
     def test_load_ratio_uses_resource_analytics(self):
         """When get_user_availability returns load_pct=80, load_ratio should be 0.80."""
-        from app.services.semantic_classifier import SemanticAssigner, TFIDFEncoder
         from app.models.semantic_engine import SemProfile
 
         user_id = "u-001"
@@ -106,7 +103,6 @@ class TestBug1RealTimeLoad:
         profile_q.all.return_value    = [profile]
 
         # Route SemProfile query to profile_q, everything else to default
-        from app.models.semantic_engine import SemFeedback, SemEmbeddingCache
         def query_side(model):
             if model is SemProfile:
                 return profile_q
@@ -163,7 +159,6 @@ class TestBug1RealTimeLoad:
 
         db = _make_db()
 
-        from app.models.semantic_engine import SemFeedback, SemEmbeddingCache
         def query_side(model):
             if model is SemProfile:
                 q = MagicMock()
@@ -321,7 +316,6 @@ class TestBug3TemporalDecay:
 
     def test_recent_beats_old_with_decay(self):
         """An embedding from 1 day ago should have more weight than one from 365 days ago."""
-        from app.services.semantic_classifier import _cosine
 
         assigner = _make_assigner()
 
@@ -423,7 +417,7 @@ class TestBug4PriorityThresholds:
 
     def _run_suggest(self, priority, sem_score=0.60, item_type="ticket"):
         """Run _suggest with a controlled semantic score."""
-        from app.models.semantic_engine import SemProfile, SemFeedback, SemEmbeddingCache
+        from app.models.semantic_engine import SemProfile
         user_id = "u-prio-001"
         emb     = [1.0, 0.0, 0.0]
 
@@ -620,7 +614,6 @@ class TestMejora1WeightedLoadBlend:
         profile.max_load     = 10
 
         db = _make_db()
-        from app.models.semantic_engine import SemFeedback, SemEmbeddingCache
 
         def query_side(model):
             if model is SemProfile:
@@ -643,8 +636,6 @@ class TestMejora1WeightedLoadBlend:
         avail = {"load_pct": 80.0, "available_hours": 8.0,
                  "capacity_hours": 40.0, "planned_hours": 32.0, "actual_hours": 32.0}
 
-        captured = {}
-        original_suggest = None
 
         with patch(
             "app.services.resource_analytics.ResourceAnalyticsService.get_user_availability",
@@ -893,7 +884,6 @@ class TestMejora6DiversityPenalty:
         balanced     = _make_profile_mock("u-bal",  4, 4, emb)  # 50% tickets
 
         db = _make_db()
-        from app.models.semantic_engine import SemFeedback, SemEmbeddingCache
 
         def qs(model):
             if model is SemProfile:

@@ -15,7 +15,6 @@ from app.models.user import User
 from app.core.config import settings as app_settings
 from app.models.user import UserRole
 from datetime import timedelta
-from datetime import date, timedelta
 
 
 # ── Queries ────────────────────────────────────────────────────────────────────

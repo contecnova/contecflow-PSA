@@ -8,9 +8,8 @@ from typing import Optional, List
 from app.models.task import Task
 from app.models.sprints import Sprint, SprintTask, SprintStatus
 from app.models.project import Project
-from app.models.sprints import SprintStatus
 from datetime import date
-from datetime import date, timedelta
+from datetime import timedelta
 
 
 def list_all_sprints(

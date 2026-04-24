@@ -657,7 +657,6 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.units import mm
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-        from reportlab.platypus import KeepTogether  # noqa: F841
 
         buf = io.BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4,

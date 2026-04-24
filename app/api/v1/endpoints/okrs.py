@@ -2,7 +2,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager

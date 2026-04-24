@@ -13,7 +13,6 @@ Endpoints:
     GET    /forms/public/{token}   — get form metadata for rendering
     POST   /forms/public/{token}/submit — submit form (creates ticket)
 """
-import json
 import logging
 from typing import Optional
 

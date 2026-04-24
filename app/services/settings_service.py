@@ -6,7 +6,6 @@ Covers: general settings, project types/statuses, task statuses,
 from __future__ import annotations
 
 from typing import Optional
-from datetime import date as date_type
 
 from sqlalchemy.orm import Session
 

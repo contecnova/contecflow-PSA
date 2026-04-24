@@ -8,10 +8,8 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.advanced_config import RateTable
-from app.models.advanced_config import RateTable, RateEntry
 from app.models.advanced_config import RateEntry
 from app.models.advanced_config import RateOverride
-from app.models.advanced_config import RateTable, RateOverride
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────

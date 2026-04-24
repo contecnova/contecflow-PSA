@@ -5,7 +5,6 @@ Tests for v23.6.0 features:
   2. Invoice PDF download endpoint
   3. Configurable log level endpoint
 """
-import pytest
 from tests.conftest import auth
 
 

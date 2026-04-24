@@ -12,10 +12,8 @@ Multi-worker WebSocket delivery:
     to the client immediately, regardless of which process holds the WS connection.
     Without Redis, the WS polling loop delivers it within ~15 seconds.
 """
-import asyncio
 import json
 import logging
-import os
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.enterprise import Notification

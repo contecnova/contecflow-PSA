@@ -3,30 +3,12 @@ ai_modules — thin router delegating to app.services.ai_modules_service
 """
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_
-from typing import Optional, List
-from datetime import datetime, timedelta, date, timezone
-from pydantic import BaseModel
-import json
-import os
-import time
-import logging
+from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.models.project import Project
-from app.models.task import Task
-from app.models.service_desk import Ticket
-from app.models.imputation import Imputation
-from app.models.ai_chat import (
-    AIPrediction, AIActionLog,
-    AIMeeting, AIMeetingAction,
-    AIContract, AIContractClause,
-    AIKBArticle, AIVoiceCommand,
-    AIClientChatSession, AIClientChatMessage,
-)
 import app.services.ai_modules_service as _svc
 
 router = APIRouter()
@@ -379,7 +361,6 @@ def smart_schedule(
 
 # ── AI Overrun Prediction ──────────────────────────────────────────────────────
 
-from app.schemas.ai_modules import OverrunPredictionOut
 
 
 @router.post("/overrun-prediction", summary="Predicción de sobrecosto/retraso por proyecto")

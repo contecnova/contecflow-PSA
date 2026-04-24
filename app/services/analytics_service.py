@@ -7,9 +7,9 @@ from __future__ import annotations
 import json
 import time
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from threading import Lock
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_

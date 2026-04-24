@@ -2,21 +2,14 @@
 Expenses endpoint — project-linked expense management with approval workflow.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, select, or_
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date, datetime, timezone
+from datetime import date
 
 from app.db.session import get_db
-from app.services.audit import audit_log
-from app.services.notifications import notify_user
 from app.core.deps import get_current_user, require_any_manager, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
-from app.models.user import User, UserRole
-from app.models.project import Project, ProjectStatus
-from app.models.expenses import Expense, ExpenseStatus
-from app.core.config import settings
-from app.services.numbering import next_numbered_code
+from app.models.user import User
 from app.services.expense_service import (
     review_expense as svc_review_expense,
     export_expenses_excel,
@@ -33,7 +26,7 @@ from app.services.expense_service import (
     recall_expense_record as svc_recall_expense,
     reimburse_expense_record as svc_reimburse_expense,
     delete_my_expense as svc_delete_my_expense,
-    CATEGORY_LABELS, next_expense_code as _next_code, serialize_expense as _expense_out,
+    next_expense_code as _next_code, serialize_expense as _expense_out,
 )
 from app.schemas.expenses import ExpenseIn, ExpenseCreate, ExpenseUpdate, ExpenseReviewPayload as ReviewPayload
 

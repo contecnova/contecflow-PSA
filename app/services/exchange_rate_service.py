@@ -24,7 +24,6 @@ try:
 except ImportError:  # pragma: no cover
     from xml.etree.ElementTree import fromstring as _xml_fromstring  # type: ignore
 
-from xml.etree import ElementTree  # still needed for namespace helpers
 from sqlalchemy.orm import Session
 
 from app.models.bookings import ExchangeRate

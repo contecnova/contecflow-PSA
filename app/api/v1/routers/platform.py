@@ -13,9 +13,10 @@ from app.api.v1.endpoints import (
     currency_sync, currency_rates,
     scim, governance, abac, abac_admin, security_observability,
     public_forms, developer_portal,
-    branding, marketplace, collaborative, labels, translations, ui,
+    marketplace, collaborative, labels, translations, ui,
     resource_demand,
 )
+from app.api.v1.endpoints.v239 import branding as branding_v239
 
 router = APIRouter()
 
@@ -25,15 +26,15 @@ router.include_router(integrations_hub.router,     prefix="/integrations-hub",  
 router.include_router(jira.router,                 prefix="/jira",                  tags=["Jira"])
 router.include_router(grc.router,                  prefix="/grc",                   tags=["GRC"])
 router.include_router(salesforce_sync.router,      prefix="/salesforce-sync",       tags=["Salesforce Sync"])
-router.include_router(slack_block_kit.router,      prefix="/slack-block-kit",       tags=["Slack Block Kit"])
-router.include_router(currency_sync.router,        prefix="/currency-sync",         tags=["Currency Sync"])
+router.include_router(slack_block_kit.router,                                   tags=["Slack Block Kit"])
+router.include_router(currency_sync.router,                                      tags=["Currency Sync"])
 router.include_router(currency_rates.router,       prefix="/currency-rates",        tags=["Currency Rates"])
 
 # ── Identity, access & compliance ─────────────────────────────────────────────
 router.include_router(scim.router,                 tags=["SCIM"])
 router.include_router(governance.router,           tags=["Governance"])
 router.include_router(abac.router,                 prefix="/abac",                  tags=["ABAC"])
-router.include_router(abac_admin.router,           prefix="/abac-admin",            tags=["ABAC Admin"])
+router.include_router(abac_admin.router,                                        tags=["ABAC Admin"])
 router.include_router(security_observability.router, prefix="/security-observability", tags=["Security Observability"])
 
 # ── Public-facing & developer surfaces ────────────────────────────────────────
@@ -41,7 +42,7 @@ router.include_router(public_forms.router,                                      
 router.include_router(developer_portal.router,                                          tags=["Developer Portal"])
 
 # ── Customisation & platform tooling ──────────────────────────────────────────
-router.include_router(branding.router,             prefix="/branding",              tags=["Branding"])
+router.include_router(branding_v239.router,                                      tags=["Branding"])
 router.include_router(marketplace.router,          prefix="/marketplace",           tags=["Marketplace"])
 router.include_router(collaborative.router,        prefix="/collaborative",         tags=["Collaborative"])
 router.include_router(labels.router,               prefix="/labels",                tags=["Labels"])

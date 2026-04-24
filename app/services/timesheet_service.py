@@ -7,7 +7,6 @@ from datetime import date, timedelta
 
 from app.models.financial import Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
-from app.models.user import User
 
 
 def get_timesheet_lines(db: Session, user_id: str, week_start: date) -> list:

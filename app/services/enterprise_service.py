@@ -98,21 +98,13 @@ from app.models.enterprise import Webhook
 from app.models.enterprise import WebhookDelivery
 from app.models.enterprise import SSOConfig
 from app.models.enterprise import Notification
-from app.models.enterprise import Subcontractor, SubcontractorRate
 from app.models.enterprise import SubcontractorRate
 from app.models.enterprise import SubcontractorAssignment
-from app.models.enterprise import Subcontractor, SubcontractorAssignment
-from app.models.enterprise import SubcontractorWorker, SubcontractorWorkerSkill
-from app.models.enterprise import Subcontractor, SubcontractorWorker, SubcontractorWorkerSkill
 from app.models.enterprise import SubcontractorWorkerSkill
 from app.models.enterprise import SubcontractorTimeLog
-from app.models.enterprise import Subcontractor, SubcontractorTimeLog, SubcontractorAssignment
 from app.models.enterprise import SubcontractorInvoice
-from app.models.enterprise import Subcontractor, SubcontractorInvoice, SubcontractorTimeLog
-from app.models.enterprise import Subcontractor, SubcontractorAssignment, SubcontractorInvoice, SubcontractorTimeLog
 from app.models.project import Project
 from app.models.user import User, UserRole as ModelUserRole, UserStatus
-from app.models.user import User
 from app.services.audit import audit_log
 from app.services.notifications import notify_user
 from datetime import timedelta

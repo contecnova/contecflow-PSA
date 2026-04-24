@@ -11,9 +11,9 @@ Returns:
     - rows: List of data points with {"label", "value", ...}
     - meta_patch: Optional metadata overrides (e.g., chart type)
 """
-from typing import Callable, Optional
-from sqlalchemy.orm import Session
-from datetime import date
+# ruff: noqa: F401
+
+from typing import Callable
 
 # Type for metric handler function
 MetricHandler = Callable[..., tuple[list[dict], dict]]

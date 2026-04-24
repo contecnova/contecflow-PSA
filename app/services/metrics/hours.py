@@ -10,9 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User
-from app.core.config import settings
 from . import register_metric
-from sqlalchemy import extract
 
 
 def _month_label(d) -> str:

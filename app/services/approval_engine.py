@@ -19,14 +19,12 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.billing_reports import FinancialApprovalAuditLog
 from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalWorkflow
-from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow
-from app.models.billing_reports import ApprovalRequest, ApprovalWorkflow, ApprovalDecision
+from app.models.billing_reports import ApprovalDecision
 from app.models.billing_reports import ApprovalStep
-from app.models.billing_reports import ApprovalRequest, FinancialApprovalAuditLog
 from datetime import timedelta
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -639,7 +637,6 @@ def process_approval_timeouts(db: Session) -> dict:
     (escalar, auto-aprobar o rechazar) para los pasos que superaron su timeout.
     Devuelve un resumen de las acciones realizadas.
     """
-    from sqlalchemy import and_
     now = datetime.now(timezone.utc)
     updated = 0
     escalated = 0

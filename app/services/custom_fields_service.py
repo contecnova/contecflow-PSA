@@ -16,10 +16,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.custom_fields import ProjectCustomField
 from app.models.custom_fields import ProjectCustomFieldValue
 from app.models.custom_fields import WorkflowState, WorkflowTransition
-from app.models.custom_fields import WorkflowState
-from app.models.custom_fields import WorkflowTransition
 from app.models.enterprise import ProjectPermission
-from app.models.enterprise import ProjectPermission, ProjectPermissionLevel
+from app.models.enterprise import ProjectPermissionLevel
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User

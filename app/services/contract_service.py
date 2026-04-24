@@ -1,7 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import IntegrityError
 from typing import Optional
-from datetime import date
 
 from app.models.pipeline import Contract, WorkOrder
 from app.models.project import Project
@@ -24,15 +22,10 @@ def query_contracts(
     if status:
         q = q.filter(Contract.status == status)
     return q.order_by(Contract.created_at.desc())
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
 
-from app.models.pipeline import Contract, WorkOrder
-from app.models.project import Project
 from app.models.user import User
-from app.services.numbering import next_numbered_code
 
 
 def _next_code(db: Session) -> str:

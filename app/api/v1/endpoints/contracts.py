@@ -2,14 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
-from app.models.pipeline import Contract, WorkOrder
 from app.services import contract_service
-from app.services.contract_service import CONTRACT_TYPE_LABELS, serialize_contract as _contract_out
+from app.services.contract_service import serialize_contract as _contract_out
 from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
 
 router = APIRouter()

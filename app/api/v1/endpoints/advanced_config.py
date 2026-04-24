@@ -1,19 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date, datetime
 from pydantic import BaseModel
-import json
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin, require_admin_or_hr
-from app.models.user import User, UserRole
-from app.models.advanced_config import (
-    CustomRole, ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable,
-    TaskType, AlertConfig, RateTable, RateEntry, VacationPolicy, UserVacationBalance,
-    Office, NumberingSequence, CustomField, CustomFieldValue,
-)
+from app.models.user import User
 from app.core.config import settings
 import app.services.advanced_config_service as _svc
 

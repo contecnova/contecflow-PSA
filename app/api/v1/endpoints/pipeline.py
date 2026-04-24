@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.services import pipeline_service
-from app.services.pipeline_service import STAGE_LABELS, STAGE_PROB, serialize_opportunity as _opp_out
+from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
 
 router = APIRouter()
@@ -138,7 +137,7 @@ def get_weighted_forecast(
     Only includes active opportunities (not won/lost/cancelled).
     """
     from calendar import month_abbr
-    from datetime import date as _date, timedelta
+    from datetime import date as _date
 
     today = _date.today()
     opps = pipeline_service.get_active_opportunities_for_forecast(db)

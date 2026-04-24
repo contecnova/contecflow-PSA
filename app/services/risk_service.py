@@ -1,11 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
-from datetime import date
 
 from app.models.pipeline import Risk
 from app.services.numbering import next_numbered_code
 from app.services.risk_scoring import risk_score
-from app.services.risk_scoring import risk_score, risk_level
+from app.services.risk_scoring import risk_level
 
 
 def get_portfolio_risks(db: Session) -> list:

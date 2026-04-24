@@ -16,7 +16,6 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.core.events import emit_event, EventType
 from app.models.user import User
-from app.models.project import Project
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
 

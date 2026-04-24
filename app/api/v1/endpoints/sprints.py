@@ -10,8 +10,7 @@ from pydantic import BaseModel
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.models.task import Task
-from app.models.sprints import Sprint, SprintTask, SprintStatus
+from app.models.sprints import Sprint, SprintStatus
 from app.services.psa_flows import close_sprint_flow
 import app.services.sprint_service as svc
 

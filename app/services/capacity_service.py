@@ -11,7 +11,6 @@ from app.models.imputation import Imputation
 from app.models.project import Project
 from app.models.user import User, UserStatus
 from app.db.session import is_postgres
-from datetime import timedelta
 
 
 # ── User helpers ─────────────────────────────────────────────────────────────

@@ -7,8 +7,7 @@ from app.models.project import ProjectMember
 from app.models.semantic_engine import SemConfig
 from app.models.semantic_engine import SemEmbeddingCache
 from app.models.semantic_engine import SemProfile
-from app.models.semantic_engine import SemAssignment, SemProfile, SemFeedback, SemEmbeddingCache
-from app.models.semantic_engine import SemAssignment, SemProfile
+from app.models.semantic_engine import SemAssignment, SemFeedback
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User

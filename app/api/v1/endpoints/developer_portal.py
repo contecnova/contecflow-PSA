@@ -15,10 +15,7 @@ OAuth2 flow (can be called by third-party apps):
   POST   /developer/token/revoke    — revoke a token
   GET    /developer/userinfo        — return current user profile (token auth)
 """
-import hashlib
-import hmac
 import json
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional

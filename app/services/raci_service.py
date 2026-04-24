@@ -26,16 +26,12 @@ from app.models.raci import RACIRole
 from app.models.raci import SprintRetroNote
 from app.models.raci import BurnoutRiskSnapshot
 from app.models.raci import ProjectChangelogEntry as PCE, ChangelogEntryType
-from app.models.raci import ProjectChangelogEntry as PCE
-from app.models.raci import UATCase, UATStatus
-from app.models.raci import UATCase
+from app.models.raci import UATStatus
 from app.models.sprints import Sprint as _Sprint
-from app.models.task import Task as _Task, TaskStatus, TaskPriority
+from app.models.task import Task as _Task, TaskPriority
 from app.models.user import User as _User
-from app.models.user import User as _User, UserStatus
-from datetime import datetime, timezone
-from datetime import date, datetime, timezone
-from datetime import date, timedelta
+from app.models.user import UserStatus
+from datetime import timezone
 
 if TYPE_CHECKING:
     pass   # avoid circular imports at runtime
@@ -317,7 +313,6 @@ def get_project_raci(project_id: str, db: Session) -> dict:
 
 
 def upsert_raci(project_id: str, entries_in: list, db: Session) -> dict:
-    import json as _json
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")

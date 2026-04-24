@@ -12,7 +12,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.core.encryption import encrypt_value
 from app.models.marketplace import IntegrationConnector
-from app.models.marketplace import IntegrationConnector, IntegrationInstance
 from app.models.marketplace import IntegrationInstance
 
 logger = logging.getLogger(__name__)

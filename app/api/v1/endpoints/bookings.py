@@ -2,7 +2,7 @@
 """
 bookings.py router — thin delegates to bookings_service.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -10,7 +10,6 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.schemas.bookings import (
-    DependencyCreate,
     BookingCreate,
     BookingUpdate,
     SLAScheduleCreate,

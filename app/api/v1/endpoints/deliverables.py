@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import date
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
-from app.models.resources import DeliverableStatus
 from app.services import deliverable_service
-from app.services.deliverable_service import STATUS_CFG, serialize_deliverable as _del_out
+from app.services.deliverable_service import serialize_deliverable as _del_out
 from app.schemas.deliverables import DeliverableIn, DeliverableUpdate
 
 router = APIRouter()

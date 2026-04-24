@@ -20,7 +20,7 @@ NOTE: Real Graph API calls require AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_T
 """
 
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional
 import httpx
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -29,7 +29,6 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_current_user, get_db
-from app.models.task import Task
 from app.models.user import User
 from app.services import m365_service
 

@@ -11,38 +11,26 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.billing_reports import Invoice
-from app.models.billing_reports import Invoice, InvoiceStatus
+from app.models.billing_reports import InvoiceStatus
 from app.models.billing_reports import ApprovalRequest
 from app.models.client_portal import ClientMessage
 from app.models.client_portal import ClientUser, client_user_projects
-from app.models.client_portal import ClientUser
-from app.models.client_portal import UATSession, UATStatus, FeatureRequest, FeatureRequestStatus, ClientMessage
-from app.models.client_portal import FeatureRequest, FeatureRequestStatus
-from app.models.client_portal import FeatureRequest, ClientUser
-from app.models.client_portal import FeatureRequest
-from app.models.client_portal import UATSession
+from app.models.client_portal import UATSession, UATStatus, FeatureRequest, FeatureRequestStatus
 from app.models.client_portal import UATTestCase
-from app.models.client_portal import UATSession, UATStatus
-from app.models.client_portal import UATSession, UATIssue
 from app.models.client_portal import UATIssue
 from app.models.client_portal import ClientDocument
 from app.models.client_portal import ClientSurvey
-from app.models.client_portal import ClientUser, client_user_projects, ClientMessage, FeatureRequest, UATSession, ClientSurvey
 from app.models.clients import ClientPortalConfig, Client
-from app.models.clients import ClientPortalConfig
 from app.models.clients import Client as ClientOrg
 from app.models.epics import WikiPage
 from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
 from app.models.project import Project as ProjectModel
 from app.models.resources import Deliverable, DeliverableStatus
-from app.models.resources import Deliverable
 from app.models.resources import ChangeRequest, ChangeRequestStatus
-from app.models.resources import ChangeRequest, ChangeRequestStatus, ChangeRequestImpact
-from app.models.resources import ChangeRequest
+from app.models.resources import ChangeRequestImpact
 from app.services.approval_workflows import find_default_workflow
 from app.services.realtime_notifications import publish_user_notification
-from datetime import date
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -1312,7 +1300,6 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
     pdf_b64 = None
     try:
         from app.services.signature_pdf import generate_signed_pdf
-        import os
         from pathlib import Path
         import base64
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Optional, List
 
 from sqlalchemy import func
@@ -20,7 +20,6 @@ from app.models.bookings import TaskDependency
 from app.models.enterprise import Notification
 from app.models.enterprise import NotificationType
 from app.models.epics import Mention
-from app.models.financial import Timesheet, ProjectMilestone
 from app.models.imputation import Imputation
 from app.models.mfa import Budget
 from app.models.nps import ClientHealthSnapshot
@@ -641,7 +640,7 @@ def critical_path_payload(db: Session, project_id: str) -> dict:
 def resource_demand_payload(db: Session, horizon_months: int, min_probability: float) -> dict:
 
     today = date.today()
-    horizon_end = date(
+    date(
         today.year + (today.month + horizon_months - 1) // 12,
         (today.month + horizon_months - 1) % 12 + 1,
         1,

@@ -12,14 +12,14 @@ La GRC es la columna vertebral de seguridad de la plataforma.
 Todos los cambios de permisos y violaciones quedan registrados en grc_audit_log.
 """
 import json
-from typing import Optional, List
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
+from fastapi import APIRouter, Depends, Query, Request, Body
 from app.schemas.grc import PermissionUpdate, SodRuleIn, ViolationResolveIn
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_any_manager
+from app.core.deps import require_admin, require_any_manager
 from app.models.user import User
 from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc

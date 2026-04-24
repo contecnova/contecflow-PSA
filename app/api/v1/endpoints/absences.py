@@ -7,10 +7,9 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User, UserRole
 from app.models.resources import AbsenceStatus
-from app.core.config import settings
 from app.services import absence_service
 from app.services.absence_service import (
-    TYPE_LABELS, STATUS_CFG, count_working_days as _working_days, serialize_absence as _absence_out,
+    TYPE_LABELS, count_working_days as _working_days, serialize_absence as _absence_out,
 )
 from app.schemas.absences import AbsenceIn, AbsenceReview
 

@@ -1,5 +1,4 @@
 """Tests for Capacity — overview, availability, plans."""
-import pytest
 from tests.conftest import auth
 from datetime import date, timedelta
 

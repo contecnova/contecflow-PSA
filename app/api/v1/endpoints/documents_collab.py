@@ -1,15 +1,13 @@
 """
 Document Collaboration Endpoints — CRDT snapshot save/load/history for collaborative editing.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from sqlalchemy.orm import Session
-from typing import Optional
 from app.core.deps import get_db, get_current_user
 from app.models.user import User
 from app.models.document_collab import DocumentCollabSnapshot
 from app.models.documents import Document
-from app.services import documents_service as doc_svc
 from sqlalchemy import desc
 import base64
 

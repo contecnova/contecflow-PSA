@@ -11,7 +11,7 @@ Covers:
 """
 
 import pytest
-from datetime import datetime, date, timedelta, timezone, time as dt_time
+from datetime import datetime, date, timezone, time as dt_time
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -19,9 +19,7 @@ from typing import Dict, List, Optional
 import asyncio
 import json
 import logging
-import os
 import secrets
-import time
 from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.deps import get_current_user
@@ -295,9 +293,6 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
 
 async def _poll_and_send_client(websocket: WebSocket, client_id: str, db):
     """Poll client-facing updates (messages + tickets) and push via WS."""
-    from app.models.client_portal import ClientMessage
-    from app.models.service_desk import Ticket, TicketComment
-    from sqlalchemy import func
     last_snapshot = None
     while True:
         try:

@@ -5,18 +5,15 @@ Provides policy evaluation engine, attribute management, and access control deci
 that work in conjunction with RBAC (role-based access control).
 """
 import re
-import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from app.models.abac import ABACPolicy, UserAttribute, AttributeDefinition, PolicyAudit
 from app.models.user import User
-from app.core.security import get_password_hash
 import uuid
-from app.models.abac import PolicyAudit
 from fastapi import HTTPException
 from sqlalchemy import func
-from sqlalchemy import func, text
+from sqlalchemy import text
 
 
 class ABACEngine:

@@ -8,7 +8,6 @@ from app.models.user import User
 from app.schemas.alerts import AlertOut
 from app.services.pagination_service import paginate_query
 from app.services.alert_service import (
-    AlertEngine,
     get_alerts_query,
     mark_alert_read,
     resolve_alert as svc_resolve_alert,

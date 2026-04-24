@@ -1,3 +1,4 @@
+# ruff: noqa: F401
 from app.schemas.absences import AbsenceIn, AbsenceReview
 from app.schemas.alerts import AlertOut
 from app.schemas.approvals import ApprovalRequestIn, DecisionIn, StepIn, WorkflowIn

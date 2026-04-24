@@ -2,9 +2,8 @@
 Tests for AI Governance: PII detection, guardrail engine, and admin API endpoints.
 """
 import pytest
-from fastapi.testclient import TestClient
 
-from tests.conftest import auth, _TEST_PASSWORD as TEST_PASSWORD
+from tests.conftest import auth
 
 
 # ── PII Detection unit tests ──────────────────────────────────────────────────

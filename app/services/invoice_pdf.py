@@ -12,7 +12,7 @@ import io
 from datetime import date, datetime
 from typing import List, Optional
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -72,7 +72,7 @@ def generate_invoice_pdf(
     style_label = PS("Lbl",   fontSize=8,  fontName="Helvetica-Bold", textColor=TEXT_GREY, spaceAfter=1, textTransform="uppercase")
     style_body  = PS("Body",  fontSize=10, fontName="Helvetica",      textColor=TEXT_MAIN, spaceAfter=3, leading=14)
     style_small = PS("Small", fontSize=8,  fontName="Helvetica",      textColor=TEXT_GREY)
-    style_right = PS("Right", fontSize=10, fontName="Helvetica-Bold", textColor=TEXT_MAIN, alignment=TA_RIGHT)
+    PS("Right", fontSize=10, fontName="Helvetica-Bold", textColor=TEXT_MAIN, alignment=TA_RIGHT)
     style_note  = PS("Note",  fontSize=9,  fontName="Helvetica",      textColor=TEXT_GREY, leading=13)
 
     def fmt_money(v):

@@ -225,7 +225,6 @@ async def slack_inbound_command(
     """
     import hashlib
     import hmac
-    import json as _json
 
     # ── Signature verification ────────────────────────────────────────────────
     signing_secret = settings.SLACK_SIGNING_SECRET
@@ -250,7 +249,7 @@ async def slack_inbound_command(
 
     command_text = params.get("text", "").strip()
     user_name    = params.get("user_name", "")
-    response_url = params.get("response_url", "")
+    params.get("response_url", "")
 
     # Parse command verb
     parts = command_text.split(None, 1)

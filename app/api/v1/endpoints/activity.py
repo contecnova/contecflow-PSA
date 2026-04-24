@@ -16,7 +16,7 @@ activity — New market-leader endpoints:
                              POST /alm/vendors/{id}/scores
   9. What-if Simulation      POST /projects/{id}/simulate
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -26,9 +26,8 @@ import json
 import asyncio
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
-from app.models.enterprise import Notification
 from app.services.activity_service import (
     activity_feed_payload,
     project_activity_payload,

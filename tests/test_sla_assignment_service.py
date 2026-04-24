@@ -3,9 +3,6 @@ from sqlalchemy.orm import Session
 from app.services.service_desk.sla_assignment_service import (
     assign_sla_policy_to_client, assign_sla_policy_to_contract, assign_sla_policy_target, _ensure_sla_policy_exists_if_provided
 )
-from app.models.clients import Client
-from app.models.pipeline import Contract
-from app.models.service_desk import SLAPolicy
 from fastapi import HTTPException
 
 @pytest.fixture

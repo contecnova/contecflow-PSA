@@ -29,7 +29,7 @@ def _risk_score(prob, impact):
 def seed():
     # ── Imports ────────────────────────────────────────────────────────────────
     from app.models.user import User, UserRole
-    from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig
+    from app.models.clients import Client, ClientStatus, ClientIndustry
     from app.models.project import Project, ProjectType, ProjectStatus
     from app.models.task import Task, TaskStatus, TaskPriority
     from app.models.imputation import Imputation

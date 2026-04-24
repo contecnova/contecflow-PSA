@@ -4,9 +4,7 @@ from app.services.user_service import (
     get_load_map_payload, get_org_chart_payload, approval_chain_for_user, create_user_record
 )
 from app.models.user import User, UserRole, UserStatus
-from app.schemas import UserLoad
 from fastapi import HTTPException
-from datetime import date
 
 @pytest.fixture
 def db_session(db) -> Session:
