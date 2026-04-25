@@ -495,7 +495,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
   )
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin }) {
+function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pinned, onPin, workspace }) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
@@ -508,6 +508,9 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 
   // Keep open when the active child lives here; respect forceOpen override
   useEffect(() => { if (isAnyChildActive) setOpen(true) }, [isAnyChildActive])
+
+  // Auto-open when workspace switches to a specific view that shows this group
+  useEffect(() => { if (workspace !== 'all') setOpen(true) }, [workspace])
 
   const visibleItems = group.items.filter(i => i.divider || !i.roles || i.roles.some(r => hasRole(r)))
   const realVisible = visibleItems.filter(i => !i.divider)
@@ -1066,7 +1069,7 @@ export default function Layout({ children }) {
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
                 alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
-                pinned={pinned} onPin={togglePin} />
+                pinned={pinned} onPin={togglePin} workspace={workspace} />
             )
           })}
           {navSearch.trim() && !collapsed && (
