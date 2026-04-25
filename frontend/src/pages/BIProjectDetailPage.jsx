@@ -252,7 +252,7 @@ export default function BIProjectDetailPage() {
   }, [weeksWindow])
 
   return (
-    <div id="bi-project-detail-root" style={{ padding: 24 }}>
+    <div id="bi-project-detail-root" style={{ padding: 32 }}>
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('bi.detail_title')}

@@ -633,7 +633,7 @@ export default function GrcPage() {
   ]
 
   return (
-    <div style={{ padding: '20px 28px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<ShieldCheck size={18} />}
         title={_t('grc.title')}

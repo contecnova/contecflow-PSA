@@ -84,6 +84,42 @@ def test_update_ticket_status(client, admin_token, db):
     assert res.status_code == 200
 
 
+def test_update_ticket_status_legacy_waiting_client_maps_to_pending_client(client, admin_token, db):
+    create = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={"title": "Ticket legacy waiting", "description": "legacy", "priority": "p3_medium", "ticket_type": "incident"},
+    )
+    assert create.status_code in (200, 201)
+    tid = create.json()["id"]
+
+    res = client.patch(
+        f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={"status": "waiting_client"},
+    )
+    assert res.status_code == 200
+    assert res.json()["status"] == "pending_client"
+
+
+def test_update_ticket_status_legacy_pending_change_maps_to_pending_third(client, admin_token, db):
+    create = client.post(
+        "/api/v1/sd/tickets",
+        headers=auth(admin_token),
+        json={"title": "Ticket legacy change", "description": "legacy", "priority": "p3_medium", "ticket_type": "incident"},
+    )
+    assert create.status_code in (200, 201)
+    tid = create.json()["id"]
+
+    res = client.patch(
+        f"/api/v1/sd/tickets/{tid}",
+        headers=auth(admin_token),
+        json={"status": "pending_change"},
+    )
+    assert res.status_code == 200
+    assert res.json()["status"] == "pending_third"
+
+
 def test_add_comment_to_ticket(client, admin_token, db):
     create = client.post("/api/v1/sd/tickets",
         headers=auth(admin_token),

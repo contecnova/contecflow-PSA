@@ -45,6 +45,7 @@ os.environ.setdefault("SUPERADMIN_EMAIL", "admin@clarive.com")
 # Generate a strong random test password once per session — not committed to source.
 _TEST_PASSWORD = secrets.token_urlsafe(20)
 os.environ.setdefault("SUPERADMIN_PASSWORD", _TEST_PASSWORD)
+os.environ.setdefault("DEFAULT_USER_PASSWORD", _TEST_PASSWORD)
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 from app.main import app

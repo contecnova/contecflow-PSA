@@ -32,14 +32,45 @@ export function useClientAuth() { return useContext(ClientAuthContext) }
 
 function _pickClientUiFields(client) {
   if (!client) return null
-  const { id, email, name, language, organization_name } = client
-  return { id, email, name, language, organization_name }
+  const {
+    id,
+    email,
+    name,
+    full_name,
+    language,
+    organization_name,
+    company,
+    project_id,
+    project_ids,
+    projects,
+    can_approve_deliverables,
+    can_request_changes,
+    can_view_budget,
+    can_view_team,
+  } = client
+  return {
+    id,
+    email,
+    name,
+    full_name: full_name || name,
+    language,
+    organization_name,
+    company,
+    project_id,
+    project_ids: Array.isArray(project_ids) ? project_ids : (project_id ? [project_id] : []),
+    projects: Array.isArray(projects) ? projects : [],
+    can_approve_deliverables: Boolean(can_approve_deliverables),
+    can_request_changes: Boolean(can_request_changes),
+    can_view_budget: Boolean(can_view_budget),
+    can_view_team: Boolean(can_view_team),
+  }
 }
 
 export function ClientAuthProvider({ children }) {
   const [client, setClient] = useState(() => {
     try { return JSON.parse(localStorage.getItem('client_user') || 'null') } catch { return null }
   })
+  const [isReady, setIsReady] = useState(false)
   useEffect(() => {
     let mounted = true
     CLIENT_API.get('/portal/auth/me')
@@ -49,11 +80,13 @@ export function ClientAuthProvider({ children }) {
         setClient(me)
         if (me) localStorage.setItem('client_user', JSON.stringify(me))
         else localStorage.removeItem('client_user')
+        setIsReady(true)
       })
       .catch(() => {
         if (!mounted) return
         setClient(null)
         localStorage.removeItem('client_user')
+        setIsReady(true)
       })
     return () => { mounted = false }
   }, [])
@@ -72,7 +105,7 @@ export function ClientAuthProvider({ children }) {
     localStorage.removeItem('client_user')
     setClient(null)
   }
-  return <ClientAuthContext.Provider value={{ client, login, logout }}>{children}</ClientAuthContext.Provider>
+  return <ClientAuthContext.Provider value={{ client, login, logout, isReady }}>{children}</ClientAuthContext.Provider>
 }
 
 // ── Shared styles ─────────────────────────────────────────────────────────────

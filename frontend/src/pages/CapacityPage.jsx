@@ -305,7 +305,7 @@ export default function CapacityPage() {
   const uniqueWeeksWithLoad = new Set(board.map(p => p.week_start)).size
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<TrendingUp size={18} />}
         title={_t('capacity.title')}

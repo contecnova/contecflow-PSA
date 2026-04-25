@@ -56,7 +56,7 @@ export default function ServiceDeskPage() {
   ]
 
   return (
-    <div className="p-4 sm:p-5 lg:px-7 lg:py-5" style={{ minHeight: '100%' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<MessageSquare size={18} />}
         title={t('service_desk.title')}
@@ -76,7 +76,6 @@ export default function ServiceDeskPage() {
             color: tab===tb.id ? 'var(--accent)' : 'var(--text-2)',
             fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
             whiteSpace: 'nowrap',
-            marginLeft: i === 0 ? 12 : undefined,
           }}>{tb.label}</button>
         ))}
       </div>

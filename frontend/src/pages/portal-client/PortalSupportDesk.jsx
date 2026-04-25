@@ -106,55 +106,55 @@ export function PortalSupportDesk() {
       {/* Tickets tab */}
       {tab === 'tickets' && !selectedId && (
         <div id="portal-support-panel-tickets" role="tabpanel" aria-labelledby="portal-support-tab-tickets">
-        tickets.length === 0 ? (
-          <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎫</div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>Sin tickets de soporte</div>
-            <p style={{ margin: '8px 0 16px' }}>¿Tienes algún problema o necesitas ayuda? Abre un ticket y el equipo te atenderá.</p>
-            <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {tickets.map(tk => {
-              const stColor = STATUS_COLORS[tk.status] || 'var(--text-2)'
-              const prColor = PRIORITY_COLORS[tk.priority] || 'var(--text-2)'
-              return (
-                <div key={tk.id} role="button" tabIndex={0} onClick={() => setSelectedId(tk.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(tk.id) } }} aria-label={`Abrir ticket ${tk.number} ${tk.title}`}
-                  style={{ ...S.card, cursor: 'pointer', border: `1px solid ${tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}`, transition: 'all 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{tk.number}</span>
-                        <span style={{ fontSize: 12 }}>{TYPE_ICONS[tk.ticket_type]}</span>
-                        <span style={{ fontSize: 14, fontWeight: 700 }}>{tk.title}</span>
+          {tickets.length === 0 ? (
+            <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🎫</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>Sin tickets de soporte</div>
+              <p style={{ margin: '8px 0 16px' }}>¿Tienes algún problema o necesitas ayuda? Abre un ticket y el equipo te atenderá.</p>
+              <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {tickets.map(tk => {
+                const stColor = STATUS_COLORS[tk.status] || 'var(--text-2)'
+                const prColor = PRIORITY_COLORS[tk.priority] || 'var(--text-2)'
+                return (
+                  <div key={tk.id} role="button" tabIndex={0} onClick={() => setSelectedId(tk.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(tk.id) } }} aria-label={`Abrir ticket ${tk.number} ${tk.title}`}
+                    style={{ ...S.card, cursor: 'pointer', border: `1px solid ${tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}`, transition: 'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = tk.status === 'pending_client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{tk.number}</span>
+                          <span style={{ fontSize: 12 }}>{TYPE_ICONS[tk.ticket_type]}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700 }}>{tk.title}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-2)' }}>
+                          <span>{t('created')}: {tk.created_at}</span>
+                          {tk.assigned_to_name && <span>{t('assigned_to')}: {tk.assigned_to_name}</span>}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-2)' }}>
-                        <span>{t('created')}: {tk.created_at}</span>
-                        {tk.assigned_to_name && <span>{t('assigned_to')}: {tk.assigned_to_name}</span>}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: prColor, background: prColor + '15', border: `1px solid ${prColor}30`, borderRadius: 20, padding: '2px 8px' }}>{tk.priority_label}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: stColor, background: stColor + '15', border: `1px solid ${stColor}30`, borderRadius: 20, padding: '2px 8px' }}>{STATUS_LABELS[tk.status] || tk.status_label || tk.status}</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: prColor, background: prColor + '15', border: `1px solid ${prColor}30`, borderRadius: 20, padding: '2px 8px' }}>{tk.priority_label}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: stColor, background: stColor + '15', border: `1px solid ${stColor}30`, borderRadius: 20, padding: '2px 8px' }}>{STATUS_LABELS[tk.status] || tk.status_label || tk.status}</span>
-                    </div>
+                    {tk.status === 'pending_client' && (
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--warning-bg)', borderRadius: 6, fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>
+                        ⏳ {t('ticket_status_pending_client')} — haz clic para responder
+                      </div>
+                    )}
+                    {tk.csat_requested_at && !tk.csat_score && (
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--success-bg)', borderRadius: 6, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+                        ⭐ {t('ticket_rate_prompt')}
+                      </div>
+                    )}
                   </div>
-                  {tk.status === 'pending_client' && (
-                    <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--warning-bg)', borderRadius: 6, fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>
-                      ⏳ {t('ticket_status_pending_client')} — haz clic para responder
-                    </div>
-                  )}
-                  {tk.csat_requested_at && !tk.csat_score && (
-                    <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--success-bg)', borderRadius: 6, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
-                      ⭐ {t('ticket_rate_prompt')}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -283,27 +283,27 @@ export function PortalSupportDesk() {
       {/* Announcements tab */}
       {tab === 'announcements' && (
         <div id="portal-support-panel-announcements" role="tabpanel" aria-labelledby="portal-support-tab-announcements">
-        announcements.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📢</div>
-            <p>No hay comunicados activos</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {announcements.map(a => (
-              <div key={a.id} style={{ ...S.card, border: `1px solid ${a.type === 'outage' ? 'rgba(248,113,113,0.25)' : 'var(--surface-4)'}` }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 24 }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : a.type === 'resolved' ? '✅' : 'ℹ️'}</span>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
-                    <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
-                    {a.starts_at && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 6 }}>{a.starts_at} {a.ends_at && `→ ${a.ends_at}`}</div>}
+          {announcements.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>📢</div>
+              <p>No hay comunicados activos</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {announcements.map(a => (
+                <div key={a.id} style={{ ...S.card, border: `1px solid ${a.type === 'outage' ? 'rgba(248,113,113,0.25)' : 'var(--surface-4)'}` }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 24 }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : a.type === 'resolved' ? '✅' : 'ℹ️'}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
+                      <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
+                      {a.starts_at && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 6 }}>{a.starts_at} {a.ends_at && `→ ${a.ends_at}`}</div>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )
+              ))}
+            </div>
+          )}
         </div>
       )}
 

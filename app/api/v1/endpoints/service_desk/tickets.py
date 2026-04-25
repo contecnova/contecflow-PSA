@@ -98,8 +98,9 @@ def client_my_tickets(
     db: Session = Depends(get_db),
 ):
     client = require_portal_client(authorization, portal_access_token, db, detail="No autorizado")
-    q, total = client_my_tickets_payload(db, client.id, _ticket_out, status, as_query=True)
-    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    items = client_my_tickets_payload(db, client.id, _ticket_out, status)
+    total = len(items)
+    items = items[(page - 1) * page_size:(page - 1) * page_size + page_size]
     if response is not None:
         response.headers["X-Total-Count"] = str(total)
         response.headers["X-Page"] = str(page)

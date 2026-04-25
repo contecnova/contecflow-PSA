@@ -18,8 +18,8 @@ export default function KanbanTicketsTab({ onSelect }) {
   const KANBAN_COLS = [
     { id: 'open',           label: t('service_desk.status_open'),           color: '#378ADD' },
     { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: '#7F77DD' },
-    { id: 'waiting_client', label: t('service_desk.status_waiting_client'), color: '#BA7517' },
-    { id: 'pending_change', label: t('service_desk.status_pending_change'), color: '#D85A30' },
+    { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: '#BA7517' },
+    { id: 'pending_third',  label: t('service_desk.status_pending_change'), color: '#D85A30' },
     { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#1D9E75' },
   ]
 

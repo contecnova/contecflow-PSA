@@ -233,7 +233,7 @@ export default function ChangelogPage() {
   const entries = changelog?.entries || []
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} />
 
       {/* Project selector + actions */}

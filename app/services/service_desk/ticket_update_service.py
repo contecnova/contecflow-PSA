@@ -7,6 +7,7 @@ from app.models.service_desk import SLAPolicy, Ticket
 from app.models.user import User
 from app.schemas.service_desk import TicketUpdateIn
 from app.services.service_desk.scoping import scope_ticket_query as _scope_ticket_query
+from app.services.service_desk.status_compat import normalize_ticket_status
 from app.services.sla_service import (
     PRIORITY_MATRIX,
     calculate_sla_due as _calculate_sla_due,
@@ -32,6 +33,10 @@ def apply_ticket_update(
     old_support_level,
 ) -> dict:
     changes = payload.model_dump(exclude_unset=True)
+    normalized_status = normalize_ticket_status(payload.status)
+    if "status" in changes:
+        changes["status"] = normalized_status
+
     for field, new_val in changes.items():
         old_val = getattr(ticket, field, None)
         _log_history(db, ticket_id, field, old_val, new_val, current_user_id)
@@ -44,8 +49,8 @@ def apply_ticket_update(
             return None
         return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
-    if payload.status:
-        if payload.status == "in_progress":
+    if normalized_status:
+        if normalized_status == "in_progress":
             if not ticket.first_response_at:
                 ticket.first_response_at = now
                 if ticket.created_at:
@@ -64,7 +69,7 @@ def apply_ticket_update(
                 paused_mins = int((now - paused_at).total_seconds() / 60)
                 ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + paused_mins
                 ticket.sla_paused_at = None
-        elif payload.status == "resolved":
+        elif normalized_status == "resolved":
             ticket.resolved_at = now
             if not ticket.first_response_at:
                 ticket.first_response_at = now
@@ -81,11 +86,11 @@ def apply_ticket_update(
                     minutes=ticket.sla_pause_minutes or 0
                 )
                 ticket.sla_resolution_breached = now > effective_due
-        elif payload.status == "closed":
+        elif normalized_status == "closed":
             ticket.closed_at = now
             if not ticket.csat_requested_at:
                 ticket.csat_requested_at = now
-        elif payload.status == "pending_client":
+        elif normalized_status == "pending_client":
             ticket.sla_paused_at = now
         else:
             if ticket.sla_paused_at:
@@ -121,6 +126,6 @@ def apply_ticket_update(
         _log_history(db, ticket_id, "escalation", old_support_level, payload.support_level, current_user_id)
 
     return {
-        "refresh_profile": payload.status in ("resolved", "closed") and bool(ticket.assigned_to_user_id),
+        "refresh_profile": normalized_status in ("resolved", "closed") and bool(ticket.assigned_to_user_id),
         "reassigned": bool(payload.assigned_to_user_id and old_assigned_to and payload.assigned_to_user_id != old_assigned_to),
     }

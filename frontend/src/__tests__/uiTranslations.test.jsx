@@ -31,6 +31,16 @@ vi.mock('../i18n/appTranslations', () => ({
     { code: 'pl', label: 'Polski',     flag: '🇵🇱', partial: true },
     { code: 'zh', label: '中文',       flag: '🇨🇳', partial: true },
   ],
+  APP_TRANSLATIONS: {
+    es: { nav: { projects: 'Proyectos' } },
+    en: { nav: { projects: 'Projects' } },
+    fr: { nav: { projects: 'Projects' } },
+    de: { nav: { projects: 'Projects' } },
+    pt: { nav: { projects: 'Projects' } },
+    it: { nav: { projects: 'Projects' } },
+    pl: { nav: { projects: 'Projects' } },
+    zh: { nav: { projects: 'Projects' } },
+  },
   loadLanguage: vi.fn().mockImplementation((code) =>
     Promise.resolve({ nav: { projects: code === 'es' ? 'Proyectos' : 'Projects' } })
   ),

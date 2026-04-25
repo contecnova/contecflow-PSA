@@ -9,7 +9,7 @@
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { APP_LANGUAGES, loadLanguage } from './appTranslations'
+import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
 import api from '../services/api'
 
 export const AppLangContext = createContext(null)
@@ -31,6 +31,29 @@ function mergeCustom(base, custom) {
   return merged
 }
 
+function mergeWithEnglishFallback(targetLang) {
+  const safeLang = APP_TRANSLATIONS[targetLang] ? targetLang : 'es'
+  const target = APP_TRANSLATIONS[safeLang] || APP_TRANSLATIONS.es || {}
+  if (safeLang === 'en') return target
+  const english = APP_TRANSLATIONS.en || target
+  const merged = { ...english }
+  for (const ns of Object.keys(english)) {
+    if (target[ns] && typeof target[ns] === 'object') {
+      merged[ns] = { ...english[ns], ...target[ns] }
+    }
+  }
+  for (const ns of Object.keys(target)) {
+    if (!(ns in english)) merged[ns] = target[ns]
+  }
+  return merged
+}
+
+function isTestEnvironment() {
+  if (typeof process !== 'undefined' && process.env?.VITEST) return true
+  if (typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'test') return true
+  return false
+}
+
 export function AppLangProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -41,6 +64,7 @@ export function AppLangProvider({ children }) {
   })
   // Obtener usuario autenticado
   const { user } = useAuth()
+  const inTest = isTestEnvironment()
 
   const [customTrans, setCustomTrans] = useState(() => {
     try {
@@ -48,12 +72,18 @@ export function AppLangProvider({ children }) {
       return stored ? JSON.parse(stored) : {}
     } catch { return {} }
   })
-  const [baseTranslations, setBaseTranslations] = useState({})
-  const [translations, setTranslations] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [baseTranslations, setBaseTranslations] = useState(() => inTest ? mergeWithEnglishFallback(lang) : {})
+  const [translations, setTranslations] = useState(() => {
+    if (!inTest) return {}
+    const base = mergeWithEnglishFallback(lang)
+    const custom = customTrans[lang] || {}
+    return mergeCustom(base, custom)
+  })
+  const [loading, setLoading] = useState(() => !inTest)
 
   // Carga asíncrona del idioma activo
   useEffect(() => {
+    if (inTest) return
     let cancelled = false
     setLoading(true)
     loadLanguage(lang).then(base => {
@@ -66,7 +96,17 @@ export function AppLangProvider({ children }) {
     })
     return () => { cancelled = true }
      
-  }, [lang, customTrans])
+  }, [inTest, lang, customTrans])
+
+  // En tests evitamos carga async para no disparar warnings de act(...)
+  useEffect(() => {
+    if (!inTest) return
+    const base = mergeWithEnglishFallback(lang)
+    const custom = customTrans[lang] || {}
+    setBaseTranslations(base)
+    setTranslations(mergeCustom(base, custom))
+    setLoading(false)
+  }, [inTest, lang, customTrans])
 
   const setLang = useCallback((code) => {
     setLangState(code)

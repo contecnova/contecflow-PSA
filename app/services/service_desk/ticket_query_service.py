@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket
 from app.models.user import User, UserRole
+from app.services.service_desk.status_compat import normalize_ticket_status
 
 
 def build_ticket_list_query(
@@ -46,8 +47,9 @@ def build_ticket_list_query(
                 )
             )
 
-    if status:
-        q = q.filter(Ticket.status == status)
+    normalized_status = normalize_ticket_status(status)
+    if normalized_status:
+        q = q.filter(Ticket.status == normalized_status)
     if priority:
         q = q.filter(Ticket.priority == priority)
     if ticket_type:
