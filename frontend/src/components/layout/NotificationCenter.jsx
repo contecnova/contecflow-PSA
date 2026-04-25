@@ -6,6 +6,7 @@ import _React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import api, { alertsApi } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 
 const _TYPE_CFG = {
   alert:      { icon: '🔔', color: 'var(--warning)' },
@@ -19,12 +20,19 @@ export default function NotificationCenter({ collapsed }) {
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const qc = useQueryClient()
+  const { user, loading } = useAuth()
 
   // ── WebSocket para notificaciones en tiempo real ─────────────────────────────
   const [wsAlerts, setWsAlerts] = useState([])
   const wsRef = useRef(null)
 
   useEffect(() => {
+    if (loading || !user) {
+      wsRef.current?.close()
+      wsRef.current = null
+      return undefined
+    }
+
     let cancelled = false
     let ping
     ;(async () => {
@@ -64,7 +72,7 @@ export default function NotificationCenter({ collapsed }) {
       } catch { /* no WS fallback ok */ }
     })()
     return () => { cancelled = true; clearInterval(ping); wsRef.current?.close() }
-  }, [])
+  }, [loading, user])
 
   const { data: httpAlerts = [] } = useQuery({
     queryKey: ['notif-alerts'],

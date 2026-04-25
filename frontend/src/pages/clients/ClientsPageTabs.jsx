@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
@@ -480,8 +481,11 @@ export function PortalUATTab({ _cid, projects }) {
 export function PortalSolicitudesTab({ cid }) {
   const toast = useToast()
   const qc = useQueryClient()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
+    if (loading || !user) return undefined
+
     let ws
     let reconnectTimer
     function connectWS() {
@@ -505,7 +509,7 @@ export function PortalSolicitudesTab({ cid }) {
     }
     connectWS()
     return () => { if (ws) ws.close(); clearTimeout(reconnectTimer) }
-  }, [cid, qc, toast])
+  }, [cid, loading, qc, toast, user])
 
   const [responding, setResponding] = useState(null)
   const [responseForm, setResponseForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
