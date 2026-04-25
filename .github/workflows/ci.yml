@@ -28,6 +28,7 @@ jobs:
       DATABASE_URL: postgresql://contec:contec@localhost:5432/contecflow_test
       SECRET_KEY: ${{ secrets.CI_SECRET_KEY || 'ci-secret-key-at-least-32-chars-long' }}
       ENVIRONMENT: test
+      DEFAULT_USER_PASSWORD: ${{ secrets.CI_DEFAULT_USER_PASSWORD || 'CI-test-password-2026!' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
