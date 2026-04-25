@@ -169,7 +169,7 @@ export default function EVMPage() {
   });
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('evm.title')}

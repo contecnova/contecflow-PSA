@@ -158,7 +158,7 @@ export default function RACIPage() {
   const uniqueUsers = [...new Map(allAssignments.map(a => [a.user_id, a.user])).values()].filter(Boolean)
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader title={t('raci.title')} subtitle={t('raci.subtitle')} icon={<Shield size={18} />} />
 
       {/* Legend */}

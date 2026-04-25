@@ -142,7 +142,7 @@ export default function JiraIntegrationPage() {
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
-    <div>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<Link2 size={18} />}
         title={t('jira_integration.title')}

@@ -209,7 +209,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <div style={{ padding: 20, display: 'grid', gap: 18 }}>
+    <div style={{ padding: 32, display: 'grid', gap: 18 }}>
       <PageHeader icon={<Megaphone size={18} />} title={t('pipeline.title')} subtitle={t('pipeline.subtitle')} />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

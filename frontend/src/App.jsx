@@ -114,6 +114,11 @@ const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
 const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage'))
 const ForbiddenPage          = lazy(() => import('./pages/ForbiddenPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
+const WorkDashboardPage      = lazy(() => import('./pages/WorkDashboardPage'))
+const ProjectsDashboardPage  = lazy(() => import('./pages/ProjectsDashboardPage'))
+const TeamDashboardPage      = lazy(() => import('./pages/TeamDashboardPage'))
+const FinanceDashboardPage   = lazy(() => import('./pages/FinanceDashboardPage'))
+const SupportDashboardPage   = lazy(() => import('./pages/SupportDashboardPage'))
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
@@ -256,9 +261,21 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/work-dashboard" element={
+        <ProtectedRoute>
+          <Layout><WorkDashboardPage /></Layout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/projects" element={
         <ProtectedRoute>
           <Layout><ProjectsPage /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/projects-dashboard" element={
+        <ProtectedRoute roles={['admin','pm','team_lead']}>
+          <Layout><ProjectsDashboardPage /></Layout>
         </ProtectedRoute>
       } />
 
@@ -370,6 +387,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/support-dashboard" element={
+        <ProtectedRoute roles={['admin','pm','employee','hr','team_lead']}>
+          <Layout><SupportDashboardPage /></Layout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/service-desk" element={
         <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr']}>
           <Layout><ServiceDeskPage /></Layout>
@@ -450,6 +473,8 @@ function AppRoutes() {
       <Route path="/bi/project/:projectId" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
+      <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><FinanceDashboardPage /></Layout></ProtectedRoute>} />
+      <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><TeamDashboardPage /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute roles={['admin','pm']}><Layout><ClientsPage /></Layout></ProtectedRoute>} />
       <Route path="/alm"        element={<ProtectedRoute roles={['admin','pm']}><Layout><ALMPage /></Layout></ProtectedRoute>} />
       <Route path="/org-chart" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OrgChartPage /></Layout></ProtectedRoute>} />

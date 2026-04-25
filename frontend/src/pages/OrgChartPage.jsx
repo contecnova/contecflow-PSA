@@ -678,7 +678,7 @@ export default function OrgChartPage() {
   ]
 
   return (
-    <div style={{ padding:'20px 28px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<Network size={18} />}
         title="Organigrama"

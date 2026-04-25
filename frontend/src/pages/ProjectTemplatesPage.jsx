@@ -279,7 +279,7 @@ export default function ProjectTemplatesPage() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         icon={<LayoutTemplate size={18} />}
         title={t('project_templates.title')}

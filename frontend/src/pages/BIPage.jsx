@@ -284,7 +284,7 @@ export default function BIPage() {
   )
 
   return (
-    <div style={{ padding: 32, maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: 32 }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 28 }}>

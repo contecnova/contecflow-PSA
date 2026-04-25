@@ -344,7 +344,7 @@ export default function MetricsDashboardTab() {
   const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', '#fb923c']
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: 32 }}>
 
       {/* ── Header ── */}
       <div style={{

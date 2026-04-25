@@ -411,7 +411,7 @@ export default function SkillsPage() {
   const matrixSkillCount = matrix?.skills?.length ?? 0
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader icon={<Zap size={18} />} title={t('skills.title')} subtitle={t('skills.subtitle')} />
 
       {/* KPI bar */}

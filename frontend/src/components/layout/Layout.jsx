@@ -27,6 +27,9 @@ import {
 } from 'lucide-react'
 
 const ROUTE_LABELS = {
+  '/work-dashboard': 'Dashboard', '/projects-dashboard': 'Dashboard',
+  '/team-dashboard': 'Dashboard', '/finance-dashboard': 'Dashboard',
+  '/support-dashboard': 'Dashboard',
   '/tasks': 'Tasks', '/kanban-advanced': 'Kanban',
   '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
   '/calendar': 'Calendar', '/absences': 'Absences', '/documents': 'Documents',
@@ -67,6 +70,9 @@ const ROUTE_LABELS = {
 }
 
 const ROUTE_SECTION = {
+  '/work-dashboard': 'My Work', '/projects-dashboard': 'Projects',
+  '/team-dashboard': 'Team', '/finance-dashboard': 'Finance',
+  '/support-dashboard': 'Support',
   '/tasks': 'My Work', '/kanban-advanced': 'My Work', '/imputar': 'My Work',
   '/timer': 'My Work', '/timesheets': 'My Work', '/calendar': 'My Work',
   '/absences': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
@@ -106,6 +112,9 @@ const ROUTE_SECTION = {
 }
 
 const PATH_NAV_KEY = {
+  '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
+  '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
+  '/support-dashboard': 'support_dashboard',
   '/imputar': 'log_hours', '/kanban-advanced': 'kanban', '/meetings-ai': 'meetings',
   '/sprint-planning': 'sprint_planning', '/resource-forecast': 'resource_forecast', '/resource-scheduler': 'resource_scheduler',
   '/org-chart': 'org_chart', '/milestone-billing': 'milestone_billing',
@@ -235,6 +244,7 @@ const LAYOUT_TEXT = {
 
 const NAV_GROUPS = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
+    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Dashboard',       roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/search',           icon: <Search size={SZ} />,       label: 'Search',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
     { to: '/kanban-advanced', icon: <Columns size={SZ} />,      label: 'Kanban',          roles: ['admin','pm','team_lead','employee'] },
@@ -248,6 +258,7 @@ const NAV_GROUPS = [
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approvals',       roles: ['admin','pm','team_lead'] },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
+    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',           roles: ['admin','pm','team_lead'] },
     { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects',            roles: ['admin','pm','team_lead'] },
     { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints',             roles: ['admin','pm','team_lead'] },
     { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI',  roles: ['admin','pm'] },
@@ -265,6 +276,7 @@ const NAV_GROUPS = [
     { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant',   roles: ['admin','pm','team_lead'] },
   ]},
   { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, roles: ['admin','pm','hr','team_lead'], items: [
+    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Dashboard',          roles: ['admin','pm','hr','team_lead'] },
     { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources',          roles: ['admin','hr','pm'] },
     { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity',           roles: ['admin','hr','pm'] },
     { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast',  roles: ['admin','pm','team_lead'] },
@@ -276,6 +288,7 @@ const NAV_GROUPS = [
     { to: '/training',            icon: <BookOpen size={SZ} />,   label: 'Training & Certs',   roles: ['admin','pm','hr','employee'] },
   ]},
   { id: 'negocio', label: 'Clients & Finance', groupKey: 'group_business', icon: <DollarSign size={12} />, roles: ['admin','pm'], items: [
+    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',            roles: ['admin','pm'] },
     { to: '/clients',           icon: <UserCheck size={SZ} />,   label: 'Clients / CRM',       roles: ['admin','pm'] },
     { to: '/pipeline',          icon: <Megaphone size={SZ} />,   label: 'Sales Pipeline',       roles: ['admin','pm'] },
     { to: '/contracts',         icon: <ScrollText size={SZ} />,  label: 'Contracts',            roles: ['admin','pm'] },
@@ -290,6 +303,7 @@ const NAV_GROUPS = [
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },
   ]},
   { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, roles: ['admin','pm','hr','employee','team_lead'], items: [
+    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',        roles: ['admin','pm','employee','hr','team_lead'] },
     { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead'] },
     { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
     { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets', roles: ['admin','pm'] },

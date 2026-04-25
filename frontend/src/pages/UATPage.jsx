@@ -223,7 +223,7 @@ export default function UATPage() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         title={t('uat.title')}
         subtitle={t('uat.subtitle')}

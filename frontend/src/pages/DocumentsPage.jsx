@@ -952,7 +952,7 @@ export default function DocumentsPage() {
   const ctrlBtn = { padding: '8px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' };
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 1440, margin: '0 auto' }}>
+    <div style={{ padding: 32 }}>
 
       <PageHeader
         icon={<Files size={18} />}

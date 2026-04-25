@@ -222,7 +222,7 @@ export default function ResourceForecastPage() {
   const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '16px 20px' }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: '100%' }}>
+    <div style={{ padding: 32 }}>
       <PageHeader
         title={_t('resource_forecast.title')}
         subtitle={_t('resource_forecast.subtitle', { weeks })}
