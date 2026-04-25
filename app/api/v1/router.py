@@ -26,22 +26,32 @@ import app.services.cmdb_service as cmdb_svc
 
 api_router = APIRouter()
 
-api_router.include_router(core.router)
-api_router.include_router(delivery.router)
-api_router.include_router(ai_domain.router)
-api_router.include_router(platform.router)
-api_router.include_router(framework.router)
-
 # ── Legacy compatibility aliases ──────────────────────────────────────────────
-# These expose a handful of routers under the /projects/* namespace that some
-# older frontend integrations still expect.  They do NOT create true duplicates
-# because their URL prefixes differ from the canonical ones above.
-
+# Register before domain routers so static /projects/* aliases are not shadowed
+# by dynamic /projects/{project_id} routes.
 api_router.include_router(tasks.router,       prefix="/projects/tasks",        tags=["Projects"])
 api_router.include_router(milestones.router,  prefix="/projects/milestones",   tags=["Projects"])
 api_router.include_router(sprints.router,     prefix="/projects/sprints",      tags=["Projects"])
 api_router.include_router(epics.router,       prefix="/projects/epics",        tags=["Projects"])
 api_router.include_router(issue_types.router, prefix="/projects/issue-types",  tags=["Projects"])
+
+
+@api_router.get("/projects/epics", tags=["Projects"])
+def _legacy_projects_epics_alias(_: dict = Depends(get_current_user)):
+  """Legacy alias placeholder kept for backward compatibility."""
+  return []
+
+
+@api_router.get("/projects/issue-types", tags=["Projects"])
+def _legacy_projects_issue_types_alias(_: dict = Depends(get_current_user)):
+  """Legacy alias placeholder kept for backward compatibility."""
+  return []
+
+api_router.include_router(core.router)
+api_router.include_router(delivery.router)
+api_router.include_router(ai_domain.router)
+api_router.include_router(platform.router)
+api_router.include_router(framework.router)
 
 
 @api_router.post("/sprint-plans/generate", tags=["CMDB"])
