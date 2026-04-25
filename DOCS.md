@@ -3092,3 +3092,41 @@ Estos aliases se mantienen por compatibilidad hacia atrás con clientes que usab
 |---|---|---|
 | `/api/v2/profitability/summary` | `api/v2/endpoints/profitability` | Responde con cabecera `x-api-version: 2` |
 | `/api/v1/profitability/summary` | `api/v1/endpoints/profitability` | Deprecado — cabecera `x-api-deprecated: true` |
+
+---
+
+## Política de artefactos grandes y ficheros generados
+
+### Regla general
+
+No deben commitearse al repositorio ficheros que sean:
+- **Salida de herramientas** (`npm-ls.json`, `pip freeze > requirements-full.txt`, dumps de BD)
+- **Lock files de entornos efímeros** (e.g. `node_modules/.cache`)
+- **Migraciones autogeneradas sin revisar** — revisar siempre antes de commitar
+
+### Clasificación de ficheros conocidos
+
+| Fichero | Tipo | Política |
+|---|---|---|
+| `alembic/versions/*_autogen_*.py` | Migración autogenerada | Revisar + acotar antes de commit. Nunca commitar sin leer. |
+| `package-lock.json` | Lock de npm | Commitar solo en cambios de `package.json`. No incluir en PRs de backend. |
+| `poetry.lock` | Lock de Poetry | Commitar junto con cambios de `pyproject.toml`. |
+| `npm-ls.json` | Salida diagnóstica | No commitar. Añadir a `.gitignore` si aparece. |
+| `*.sql` > 1 MB | Dump de BD | No commitar. Usar S3 / backup externo. |
+
+### Cómo manejar migraciones grandes (como `02be3a225710`)
+
+La migración `02be3a225710_autogen_all_models.py` (6 347 líneas) es la migración inicial autogenerada
+que contiene toda la DDL del esquema. No debe modificarse — es la fuente de verdad del esquema base.
+Las migraciones posteriores deben ser incrementales y acotadas a < 500 líneas.
+
+Si `alembic revision --autogenerate` produce una migración > 200 líneas:
+1. Revisar que no incluya tablas ya existentes (problema de detección de esquema).
+2. Dividir en migraciones lógicas separadas si cubre múltiples dominios.
+3. Nunca forzar `alembic stamp head` para saltarse la revisión.
+
+### `.gitattributes`
+
+El fichero `.gitattributes` en la raíz del repo marca los ficheros autogenerados con `-diff`
+para que `git diff` no los muestre por defecto, y con `linguist-generated=true` para que
+GitHub los excluya de las estadísticas de lenguaje.

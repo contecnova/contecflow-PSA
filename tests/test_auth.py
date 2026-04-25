@@ -1,5 +1,6 @@
 """Tests de autenticación — login, tokens, 2FA."""
 import uuid
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pyotp
@@ -326,6 +327,21 @@ def test_client_ip_accepts_proxy_headers_from_trusted_proxy(monkeypatch):
         client=SimpleNamespace(host="10.1.1.1"),
     )
     assert extract_client_ip(request) == "203.0.113.5"
+
+
+def test_expired_access_token_is_rejected(client, db):
+    """Un token de acceso expirado debe ser rechazado con 401/403, no reutilizable."""
+    from app.core.security import create_access_token
+
+    expired_token = create_access_token("admin", expires_delta=timedelta(seconds=-1))
+
+    # Reuse of an expired token must be denied on any protected endpoint.
+    res = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+    assert res.status_code in (401, 403), f"Expected 401/403 for expired token, got {res.status_code}"
+
+    # Replaying the same expired token a second time must still fail.
+    res2 = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+    assert res2.status_code in (401, 403), "Expired token replay must remain rejected"
 
 
 def test_production_requires_operational_secrets():
