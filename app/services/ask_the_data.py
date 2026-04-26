@@ -1,0 +1,225 @@
+"""Ask-the-Data — secure Natural Language → SQL → DuckDB execution.
+
+Security model (3 rules):
+  Rule 1: LLM generates SQL candidate — it never touches the database.
+  Rule 2: Python validator enforces: SELECT-only, no forbidden keywords,
+          only allowed tables, injects org_id tenant filter, enforces LIMIT 200.
+  Rule 3: Execute on DuckDB only — never on PostgreSQL.
+
+Public API:
+    ask(question, org_id, user_id) -> dict
+"""
+from __future__ import annotations
+
+import json
+import logging
+import re
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+# Tables exposed to NL queries (subset of star schema)
+ALLOWED_TABLES = {
+    "fact_imputations",
+    "fact_projects",
+    "fact_pipeline",
+    "fact_tickets",
+    "dim_date",
+    "dim_project",
+    "dim_user",
+    "dim_client",
+    "dim_organization",
+}
+
+FORBIDDEN_KEYWORDS = {
+    "insert", "update", "delete", "drop", "create", "alter", "truncate",
+    "grant", "revoke", "exec", "execute", "call", "pragma",
+    "attach", "detach", "copy", "import", "export",
+}
+
+MAX_ROWS = 200
+
+_SCHEMA_HINT = """
+OLAP star schema (DuckDB):
+
+dim_date(date_key INT, date DATE, year, quarter, month, month_name, week, day_of_week, is_weekend, yyyymm)
+dim_project(project_id, code, name, status, project_type, billing_type, organization_id, client_id, start_date, end_date, budget, currency)
+dim_user(user_id, full_name, email, role, department, organization_id, cost_per_hour, weekly_capacity)
+dim_client(client_id, name, industry, organization_id)
+dim_organization(organization_id, name, plan)
+
+fact_imputations(imputation_id, date_key, project_id, user_id, organization_id, hours, billable_hours, cost, is_billable, task_id)
+fact_projects(project_id, organization_id, start_date_key, end_date_key, budget, total_hours, total_cost, revenue, margin, margin_pct, tasks_total, tasks_done, milestones_total, milestones_done, risk_level, status)
+fact_pipeline(opportunity_id, organization_id, stage, expected_revenue, probability, weighted_revenue, expected_close_key, created_date_key, client_id, owner_id, contract_type, is_won, is_lost, days_in_pipeline)
+fact_tickets(ticket_id, organization_id, created_date_key, closed_date_key, status, priority, ticket_type, category_id, agent_id, client_id, resolution_hours, sla_breached, satisfaction)
+"""
+
+_ASK_SYSTEM = f"""You are a DuckDB SQL expert. Given a user question, generate a single valid DuckDB SELECT query.
+
+Rules:
+- Only use SELECT statements. No INSERT, UPDATE, DELETE, DROP, etc.
+- Only reference these tables: {', '.join(sorted(ALLOWED_TABLES))}
+- Always include a LIMIT clause (max {MAX_ROWS})
+- Use meaningful column aliases in English or Spanish as appropriate
+- Do not use subqueries that reference tables not in the allowed list
+- Return ONLY the SQL query, no explanation, no markdown fences
+
+Schema:
+{_SCHEMA_HINT}
+"""
+
+
+# ── Validator ─────────────────────────────────────────────────────────────────
+
+class SQLValidationError(ValueError):
+    pass
+
+
+def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
+    """Validate and transform LLM-generated SQL before execution.
+
+    Returns the safe, tenant-filtered SQL string.
+    Raises SQLValidationError on any policy violation.
+    """
+    # Strip markdown fences if model included them
+    sql = re.sub(r"```(?:sql)?", "", sql, flags=re.IGNORECASE).strip().rstrip(";")
+
+    # Must start with SELECT
+    if not re.match(r"^\s*SELECT\b", sql, re.IGNORECASE):
+        raise SQLValidationError("Only SELECT queries are allowed")
+
+    # Check forbidden keywords (word-boundary match to avoid false positives)
+    sql_lower = sql.lower()
+    for kw in FORBIDDEN_KEYWORDS:
+        if re.search(rf"\b{kw}\b", sql_lower):
+            raise SQLValidationError(f"Forbidden keyword: {kw}")
+
+    # Extract referenced tables using simple regex
+    referenced = set(re.findall(r"\bFROM\s+(\w+)|\bJOIN\s+(\w+)", sql, re.IGNORECASE))
+    flat_refs = {t for pair in referenced for t in pair if t}
+    unknown = flat_refs - ALLOWED_TABLES
+    if unknown:
+        raise SQLValidationError(f"Unauthorized tables: {unknown}")
+
+    # Inject tenant filter — find WHERE clause or add one
+    if org_id:
+        tenant_clause = f"organization_id = '{org_id}'"
+        if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
+            sql = re.sub(r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE)
+        else:
+            # Insert before GROUP BY / ORDER BY / LIMIT or at end
+            insert_before = re.search(r"\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE)
+            if insert_before:
+                pos = insert_before.start()
+                sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
+            else:
+                sql = sql + f" WHERE {tenant_clause}"
+
+    # Enforce LIMIT
+    if not re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
+        sql = sql + f" LIMIT {MAX_ROWS}"
+    else:
+        # Clamp existing LIMIT to MAX_ROWS
+        def _clamp_limit(m):
+            n = int(m.group(1))
+            return f"LIMIT {min(n, MAX_ROWS)}"
+        sql = re.sub(r"\bLIMIT\s+(\d+)", _clamp_limit, sql, flags=re.IGNORECASE)
+
+    return sql
+
+
+# ── LLM SQL generation ────────────────────────────────────────────────────────
+
+def _generate_sql(question: str) -> str:
+    """Call Claude to produce a SQL candidate for the given question."""
+    from app.services.ai_client import call_claude, extract_text
+
+    response = call_claude(
+        messages=[{"role": "user", "content": question}],
+        system=_ASK_SYSTEM,
+        max_tokens=400,
+    )
+    return extract_text(response).strip()
+
+
+# ── Execution ─────────────────────────────────────────────────────────────────
+
+def _execute_on_olap(sql: str) -> list[dict]:
+    """Run validated SQL on DuckDB and return rows as list of dicts."""
+    from app.services.olap.etl import get_duckdb_conn
+
+    conn = get_duckdb_conn()
+    try:
+        cur = conn.execute(sql)
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def ask(
+    question: str,
+    org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> dict:
+    """Process a natural-language question and return structured results.
+
+    Returns:
+        {
+            "question": str,
+            "sql": str,            # validated SQL actually executed
+            "columns": [...],
+            "rows": [...],
+            "row_count": int,
+            "truncated": bool,     # True if result was capped at MAX_ROWS
+            "error": str | None
+        }
+    """
+    logger.info("ask_the_data: user=%s org=%s q=%r", user_id, org_id, question[:100])
+
+    raw_sql = ""
+    validated_sql = ""
+    try:
+        raw_sql = _generate_sql(question)
+        logger.debug("LLM generated SQL: %s", raw_sql)
+
+        validated_sql = validate_sql(raw_sql, org_id)
+        logger.debug("Validated SQL: %s", validated_sql)
+
+        rows = _execute_on_olap(validated_sql)
+        columns = list(rows[0].keys()) if rows else []
+
+        return {
+            "question": question,
+            "sql": validated_sql,
+            "columns": columns,
+            "rows": rows,
+            "row_count": len(rows),
+            "truncated": len(rows) >= MAX_ROWS,
+            "error": None,
+        }
+
+    except SQLValidationError as exc:
+        logger.warning("SQL validation blocked: %s | raw=%s", exc, raw_sql)
+        return {
+            "question": question,
+            "sql": raw_sql,
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "truncated": False,
+            "error": f"SQL no permitido: {exc}",
+        }
+    except Exception as exc:
+        logger.error("ask_the_data error: %s", exc, exc_info=True)
+        return {
+            "question": question,
+            "sql": validated_sql or raw_sql,
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "truncated": False,
+            "error": str(exc),
+        }

@@ -1,4 +1,4 @@
-from app.api.v1.endpoints.auth import _is_allowed_redirect_uri
+from app.api.v1.routers.auth_sso import _is_allowed_redirect_uri
 
 
 def test_redirect_uri_allows_exact_origin_with_path_and_query():

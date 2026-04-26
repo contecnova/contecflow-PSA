@@ -18,7 +18,7 @@ from app.models.ai_chat import (
     AIActionLog, AIPrediction, AIVoiceCommand,
     AIMeeting, AIMeetingAction, AIContract, AIContractClause,
     AIKBArticle, AIClientChatSession, AIClientChatMessage,
-    AIAgentExecution as _Exec,
+    AIAgentExecution as _ExecRecord,
 )
 from app.models.imputation import Imputation
 from app.models.project import Project
@@ -553,7 +553,7 @@ Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_descript
             result["action"] = f"No encontré el proyecto '{entities['project_name']}'."
 
     elif intent == "other" and len(transcript.strip()) > 20:
-        exec_record = _Exec(
+        exec_record = _ExecRecord(
             user_id=current_user.id,
             instruction=transcript,
             status="queued",

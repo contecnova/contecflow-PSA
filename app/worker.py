@@ -60,6 +60,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.ml_model_retrain",
         "schedule": crontab(day_of_month=1, hour=3, minute=0),
     },
+    # OLAP nightly ETL — incremental load PostgreSQL → DuckDB every night at 01:00
+    "olap-nightly-etl": {
+        "task": "app.worker.olap_nightly_etl",
+        "schedule": crontab(hour=1, minute=0),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -742,6 +747,25 @@ def revenue_monthly_recognition():
     try:
         result = run_monthly_recognition(db, year, month)
         _worker_logger.info("ASC 606 recognition complete: %s", result)
+        return result
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.olap_nightly_etl")
+def olap_nightly_etl():
+    """
+    Nightly incremental ETL: PostgreSQL → DuckDB OLAP star schema.
+    Runs at 01:00 UTC. Loads last 2 days of imputations + full dim/fact refresh.
+    Pass since=date(2023,1,1) in a manual call for a full historical load.
+    """
+    from app.db.session import SessionLocal
+    from app.services.olap.etl import run_full_etl
+
+    db = SessionLocal()
+    try:
+        result = run_full_etl(db)
+        _worker_logger.info("OLAP ETL result: %s", result)
         return result
     finally:
         db.close()

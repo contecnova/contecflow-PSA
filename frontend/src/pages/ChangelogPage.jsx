@@ -202,6 +202,7 @@ function GenerateModal({ projectId, onClose, onSaved }) {
 
 export default function ChangelogPage() {
   const t = useAppT()
+  const typeMeta = getTypeMeta(t)
   const toast = useToast()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
@@ -258,7 +259,7 @@ export default function ChangelogPage() {
             style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)', background: typeFilter === 'all' ? 'var(--accent-muted)' : 'var(--surface-2)', color: typeFilter === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('changelog.all')} ({entries.length})
           </button>
-          {Object.entries(TYPE_META).map(([k, v]) => {
+          {Object.entries(typeMeta).map(([k, v]) => {
             const count = entries.filter(e => e.entry_type === k).length
             return count > 0 ? (
               <button key={k} onClick={() => setTypeFilter(k)}

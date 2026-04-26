@@ -192,6 +192,14 @@ export const analyticsApi = {
   hoursWeek:    (params)           => api.get('/analytics/hours_by_week', { params }),
   utilization:  (params)           => api.get('/analytics/utilization/advanced', { params }),
   metricBreaches: (params)         => api.get('/analytics/alerts/metric-breaches', { params }),
+  // BI / OLAP
+  narrative:       (params)        => api.get('/analytics/narrative', { params }),
+  ask:             (question)      => api.post('/analytics/ask', { question }),
+  olapKpis:        ()              => api.get('/analytics/olap/kpis'),
+  olapFunnel:      ()              => api.get('/analytics/olap/pipeline-funnel'),
+  olapPortfolio:   ()              => api.get('/analytics/olap/portfolio-health'),
+  olapMargin:      (months)        => api.get('/analytics/olap/margin-evolution', { params: { months } }),
+  olapUtilization: ()              => api.get('/analytics/olap/utilization'),
 }
 
 export const dashboardApi = {

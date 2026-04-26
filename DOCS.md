@@ -3580,4 +3580,758 @@ REVENUE_BASE_CURRENCY=EUR                  # Moneda base para conversiones
 8. ML Predictor en ProjectsPage muestra badge:
    → CPI=0.95, SPI=0.88 → "Riesgo moderado — 38%"
    → "SPI < 0.9: avance por debajo del plan temporal"
+
+---
+
+# Arquitectura BI — OLAP, Storytelling, Ask-the-Data
+
+> Implementado en base a `ContecFlow_Arquitectura_BI.pdf`. Orden obligatorio de activación: **OLAP → Storytelling → Ask-the-Data**. El OLAP es la fuente de verdad de todos los módulos BI; sin datos en DuckDB, storytelling y ask-the-data devuelven fallback o error.
+
+---
+
+## 1. Capa OLAP (DuckDB)
+
+### ¿Qué es y por qué DuckDB?
+
+DuckDB es un motor analítico columnar embebido (sin servidor) que se ejecuta en proceso, como SQLite pero optimizado para consultas analíticas. Frente a PostgreSQL es **10-100× más rápido** en agregaciones sobre millones de filas porque:
+
+- Lee columnas completas de disco de forma vectorizada, no fila por fila
+- Procesa en memoria sin round-trips de red
+- Soporta SQL analítico completo: window functions, PIVOT, UNNEST, QUALIFY
+
+El archivo `olap.duckdb` vive en `DUCKDB_PATH` (por defecto `/var/contecflow/olap.duckdb`). No necesita configuración ni gestión de servidor.
+
+### Esquema estrella
+
 ```
+                    dim_date
+                       │
+dim_client ───── fact_imputations ───── dim_user
+                       │
+dim_organization ── fact_projects ─── dim_project
+                       │
+                  fact_pipeline
+                       │
+                  fact_tickets
+```
+
+#### Dimensiones
+
+| Tabla | Clave | Campos principales |
+|---|---|---|
+| `dim_date` | `date_key` (YYYYMMDD) | year, quarter, month, week, is_weekend, yyyymm |
+| `dim_project` | `project_id` | code, name, status, billing_type, budget, currency |
+| `dim_user` | `user_id` | full_name, role, department, cost_per_hour, weekly_capacity |
+| `dim_client` | `client_id` | name, industry |
+| `dim_organization` | `organization_id` | name, plan |
+
+#### Hechos
+
+| Tabla | Granularidad | Métricas clave |
+|---|---|---|
+| `fact_imputations` | 1 fila = 1 imputación | hours, billable_hours, cost, is_billable |
+| `fact_projects` | 1 fila = 1 proyecto | budget, total_cost, revenue, margin, margin_pct, tasks_done/total |
+| `fact_pipeline` | 1 fila = 1 oportunidad | expected_revenue, probability, weighted_revenue, days_in_pipeline |
+| `fact_tickets` | 1 fila = 1 ticket | resolution_hours, sla_breached, satisfaction |
+
+### Archivos del código
+
+| Archivo | Responsabilidad |
+|---|---|
+| `app/services/olap/schema.py` | DDL completo (`CREATE_SCHEMA_SQL`) + `initialize_schema(conn)` |
+| `app/services/olap/etl.py` | `get_duckdb_conn()`, `run_full_etl(db, since)`, loaders por tabla |
+| `app/services/olap/query_engine.py` | Funciones analíticas públicas + fallback PostgreSQL |
+
+### ETL — cómo funciona
+
+El ETL es **incremental e idempotente** gracias a `INSERT OR REPLACE`:
+
+```python
+# Carga incremental (últimos 2 días) — llamada automática por Celery
+run_full_etl(db)
+
+# Carga histórica completa desde 2023
+from datetime import date
+run_full_etl(db, since=date(2023, 1, 1))
+```
+
+**Orden de carga:** dimensiones primero (orgs → clients → users → projects), luego hechos (imputations → projects → pipeline → tickets).
+
+**`fact_projects`** se recalcula completo en cada ETL porque los KPIs derivados (margen, % tareas) necesitan datos actuales de PostgreSQL.
+
+**Celery beat:** tarea `olap_nightly_etl` corre cada noche a las **01:00 UTC**. La primera vez hay que lanzar la carga histórica manualmente desde una shell Python o una tarea Celery ad-hoc.
+
+### API de query
+
+```python
+from app.services.olap.query_engine import (
+    get_kpi_summary,          # KPIs top-level para storytelling y dashboard
+    get_margin_evolution,     # Evolución mensual de costes
+    get_utilization_by_user,  # Utilización actual vs capacidad
+    get_portfolio_health,     # Salud de proyectos activos
+    get_pipeline_funnel,      # Funnel por etapa
+    query_olap,               # SQL arbitrario (con org_id inyectado)
+)
+```
+
+Todas las funciones aceptan `org_id: Optional[str]` para aislamiento multi-tenant y caen automáticamente a PostgreSQL si DuckDB no está disponible.
+
+### Endpoints REST (OLAP)
+
+Todos requieren autenticación JWT (`Authorization: Bearer <token>`).
+
+```http
+GET /api/v1/analytics/olap/kpis
+GET /api/v1/analytics/olap/pipeline-funnel
+GET /api/v1/analytics/olap/portfolio-health
+GET /api/v1/analytics/olap/margin-evolution?months=12
+GET /api/v1/analytics/olap/utilization
+```
+
+Ejemplo — KPIs:
+```json
+{
+  "hours_mtd": 1240.5,
+  "cost_mtd": 62025,
+  "active_projects_mtd": 14,
+  "billability_pct": 78.3,
+  "open_opps": 7,
+  "pipeline_weighted": 485000,
+  "won_revenue": 120000,
+  "active_projects": 18,
+  "avg_margin_pct": 32.1,
+  "high_risk_projects": 2,
+  "source": "olap"
+}
+```
+
+El campo `"source"` indica si la respuesta viene de `"olap"` (DuckDB) o `"postgresql"` (fallback).
+
+### Variables de entorno
+
+```env
+DUCKDB_PATH=/var/contecflow/olap.duckdb   # Ruta del archivo DuckDB (default)
+```
+
+En desarrollo local puedes usar una ruta temporal:
+```env
+DUCKDB_PATH=/tmp/contecflow_olap.duckdb
+```
+
+---
+
+## 2. Data Storytelling — Narrativa ejecutiva IA
+
+### ¿Qué es?
+
+Un componente que genera automáticamente un **resumen ejecutivo en texto natural** combinando los KPIs del OLAP con un LLM (Claude). El resultado se cachea 1 hora en Redis para evitar llamadas repetidas a la API de IA.
+
+### Arquitectura
+
+```
+GET /analytics/narrative
+        │
+        ├─ cache_get(key)  → si hay caché → devuelve directamente
+        │
+        ├─ get_kpi_summary(org_id)  → OLAP o PG fallback
+        │
+        ├─ call_claude(prompt + kpis_json)
+        │        ↓
+        │   narrativa en texto (máx 5 párrafos)
+        │
+        └─ cache_set(key, result, ttl=3600)  → Redis
+```
+
+### Archivo del código
+
+`app/services/bi_storytelling.py`
+
+- `generate_narrative(org_id, lang, force_refresh)` — función principal
+- `STORYTELLING_PROMPT` — prompt estructurado que fuerza al LLM a usar solo los KPIs proporcionados
+- `_fallback_narrative(kpis, lang)` — respuesta de plantilla si el LLM no está disponible
+
+### Endpoint REST
+
+```http
+GET /api/v1/analytics/narrative?lang=es&force_refresh=false
+Authorization: Bearer <token>
+```
+
+Parámetros:
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `lang` | string | `es` | Idioma: `es` (español), `en` (English), `ca` (català) |
+| `force_refresh` | bool | `false` | `true` para ignorar caché y regenerar |
+
+Respuesta:
+```json
+{
+  "narrative": "**Resumen ejecutivo**\n\nEl portfolio activo cuenta con 18 proyectos...",
+  "kpis": { "active_projects": 18, "avg_margin_pct": 32.1, ... },
+  "lang": "es",
+  "cached": false,
+  "source": "olap"
+}
+```
+
+### Componente frontend — NarrativeCard
+
+Ubicación: `frontend/src/components/bi/NarrativeCard.jsx`
+
+Se renderiza en **BIPage** (`/bi`) en la sección "BI Intelligence". Props:
+
+| Prop | Default | Descripción |
+|---|---|---|
+| `lang` | `'es'` | Idioma de la narrativa (viene del contexto de idioma del usuario) |
+| `style` | `{}` | Estilos CSS inline adicionales |
+
+Comportamiento:
+- Carga automáticamente al abrir la página (TTL caché: 55 min del lado cliente)
+- Botón **↻** en la cabecera regenera forzando `force_refresh=true`
+- Muestra skeleton de carga animado mientras espera
+- Si el LLM falla muestra el mensaje del fallback de plantilla
+- Colapsable con click en la cabecera
+
+### Cómo se ve en la UI
+
+En el menú lateral → **BI** → sección central "BI Intelligence":
+
+```
+┌─────────────────────────────────────────────────────┐
+│ ✨ Resumen ejecutivo IA                    ↻  ∧    │
+├─────────────────────────────────────────────────────┤
+│ El portfolio activo cuenta con 18 proyectos         │
+│ en curso, con un margen medio del 32.1%. El         │
+│ pipeline comercial presenta 7 oportunidades         │
+│ abiertas con un revenue ponderado de 485.000€...    │
+│                                                     │
+│  fuente: olap    1240.5h imputadas este mes         │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Ask-the-Data — NL→SQL sobre OLAP
+
+### ¿Qué es?
+
+Un widget que permite a cualquier usuario hacer **preguntas en lenguaje natural** sobre los datos analíticos y recibir resultados tabulares directamente. El LLM traduce la pregunta a SQL; un validador Python lo analiza y sanitiza antes de ejecutarlo en DuckDB.
+
+### Modelo de seguridad (3 reglas)
+
+| Regla | Qué hace | Dónde se aplica |
+|---|---|---|
+| **Regla 1** | El LLM genera SQL pero **nunca toca la base de datos** | `_generate_sql()` |
+| **Regla 2** | Validador Python: solo SELECT, sin keywords peligrosas, solo tablas permitidas, `org_id` inyectado, LIMIT 200 máximo | `validate_sql()` |
+| **Regla 3** | Ejecución **solo en DuckDB**, nunca en PostgreSQL | `_execute_on_olap()` |
+
+### Tablas expuestas al NL query
+
+Solo las 9 tablas del esquema estrella. Cualquier referencia a otra tabla (ej. `users`, `projects`, tablas de PostgreSQL) es rechazada por el validador.
+
+```
+fact_imputations, fact_projects, fact_pipeline, fact_tickets
+dim_date, dim_project, dim_user, dim_client, dim_organization
+```
+
+### Palabras clave bloqueadas
+
+`INSERT`, `UPDATE`, `DELETE`, `DROP`, `CREATE`, `ALTER`, `TRUNCATE`, `GRANT`, `REVOKE`, `EXEC`, `EXECUTE`, `CALL`, `PRAGMA`, `ATTACH`, `DETACH`, `COPY`, `IMPORT`, `EXPORT`
+
+### Archivo del código
+
+`app/services/ask_the_data.py`
+
+- `ask(question, org_id, user_id)` — punto de entrada público
+- `validate_sql(sql, org_id)` — validador + inyector de tenant filter
+- `SQLValidationError` — excepción para consultas rechazadas
+- `ALLOWED_TABLES` — set de tablas permitidas
+- `_generate_sql(question)` — llamada al LLM (Claude)
+- `_execute_on_olap(sql)` — ejecución en DuckDB
+
+### Endpoint REST
+
+```http
+POST /api/v1/analytics/ask
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "question": "¿Cuáles son los 5 proyectos con más horas imputadas este mes?"
+}
+```
+
+Respuesta (éxito):
+```json
+{
+  "question": "¿Cuáles son los 5 proyectos con más horas este mes?",
+  "sql": "SELECT dp.name, ROUND(SUM(fi.hours), 1) AS total_hours FROM fact_imputations fi JOIN dim_project dp ON dp.project_id = fi.project_id WHERE organization_id = 'org-123' AND fi.date_key >= 20250401 GROUP BY dp.name ORDER BY total_hours DESC LIMIT 5",
+  "columns": ["name", "total_hours"],
+  "rows": [
+    {"name": "ERP Cliente Acme", "total_hours": 340.5},
+    {"name": "Portal Web TechCorp", "total_hours": 218.0}
+  ],
+  "row_count": 5,
+  "truncated": false,
+  "error": null
+}
+```
+
+Respuesta (consulta bloqueada):
+```json
+{
+  "question": "DELETE FROM fact_projects",
+  "sql": "DELETE FROM fact_projects",
+  "columns": [],
+  "rows": [],
+  "row_count": 0,
+  "truncated": false,
+  "error": "SQL no permitido: Only SELECT queries are allowed"
+}
+```
+
+### Componente frontend — AskDataWidget
+
+Ubicación: `frontend/src/components/bi/AskDataWidget.jsx`
+
+Se renderiza en **BIPage** junto a NarrativeCard. Funcionalidades:
+
+- Campo de texto libre + botón "Consultar"
+- 5 preguntas de ejemplo desplegables con click
+- Muestra resultado en tabla con columnas dinámicas
+- Toggle "Ver SQL" para inspeccionar la consulta generada
+- Aviso si la consulta fue truncada a 200 filas
+- Banner de error si el validador bloquea la consulta
+
+### Cómo se ve en la UI
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 🔍 Ask the Data                                     │
+│     Pregunta en lenguaje natural · SQL sobre OLAP   │
+├─────────────────────────────────────────────────────┤
+│ [¿Qué proyectos tienen margen negativo este año?]   │
+│                                            [Consultar]│
+│ ∨ Ver preguntas de ejemplo                          │
+├─────────────────────────────────────────────────────┤
+│  2 resultados                          [Ver SQL]    │
+│                                                     │
+│  nombre              │ margin_pct                  │
+│  ─────────────────── │ ──────────                  │
+│  Proyecto Legacy ERP │ -12.4                       │
+│  Migración BD Vieja  │ -3.1                        │
+└─────────────────────────────────────────────────────┘
+```
+
+### Preguntas de ejemplo incluidas
+
+- ¿Cuáles son los 5 proyectos con más horas imputadas este mes?
+- ¿Qué usuarios tienen menos del 70% de utilización?
+- ¿Cuánto pipeline ponderado hay en etapa "propuesta"?
+- ¿Cuál es el coste total por departamento este trimestre?
+- Muéstrame los tickets con SLA incumplido esta semana
+
+---
+
+## 4. Dependencias e instalación
+
+### Dependencia nueva
+
+```bash
+pip install duckdb==1.3.0
+```
+
+Ya incluida en `requirements.txt`. El paquete es auto-contenido (no requiere servidor DuckDB externo).
+
+### Variables de entorno
+
+```env
+# OLAP (obligatoria en producción)
+DUCKDB_PATH=/var/contecflow/olap.duckdb
+
+# IA (necesaria para Storytelling y Ask-the-Data)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Redis (necesaria para caché de narrativa)
+REDIS_URL=redis://localhost:6379/0
+```
+
+Si `ANTHROPIC_API_KEY` no está configurada:
+- Storytelling devuelve la narrativa de plantilla (sin LLM)
+- Ask-the-Data devuelve error 500 al intentar generar SQL
+
+Si `REDIS_URL` no está disponible:
+- Storytelling funciona sin caché (llama al LLM en cada petición)
+- No hay degradación funcional
+
+Si `DUCKDB_PATH` no existe (archivo no creado todavía):
+- Todos los endpoints OLAP caen al **fallback PostgreSQL**
+- Storytelling usa KPIs básicos desde PostgreSQL
+- Ask-the-Data devuelve error `"OLAP store not initialised"` hasta que se ejecute el ETL
+
+---
+
+## 5. Puesta en marcha paso a paso
+
+### Primer arranque (con datos existentes)
+
+```bash
+# 1. Instalar duckdb
+pip install duckdb==1.3.0
+
+# 2. Crear directorio del archivo OLAP
+mkdir -p /var/contecflow
+
+# 3. Ejecutar carga histórica completa desde consola Python
+python -c "
+from datetime import date
+from app.db.session import SessionLocal
+from app.services.olap.etl import run_full_etl
+
+db = SessionLocal()
+result = run_full_etl(db, since=date(2023, 1, 1))
+print(result)
+db.close()
+"
+# → {'status': 'ok', 'imputations': 48230, 'projects': 312, 'pipeline': 87, 'tickets': 1543}
+
+# 4. Desde ese momento, Celery beat corre el ETL incremental cada noche a las 01:00 UTC
+```
+
+### ETL manual por tabla
+
+Si necesitas recargar solo una fact específica, importa el loader directamente:
+
+```python
+from app.db.session import SessionLocal
+from app.services.olap.etl import get_duckdb_conn, _load_fact_pipeline
+
+db = SessionLocal()
+conn = get_duckdb_conn()
+_load_fact_pipeline(db, conn)
+conn.commit()
+conn.close()
+db.close()
+```
+
+### Verificar que el OLAP tiene datos
+
+```python
+from app.services.olap.etl import get_duckdb_conn
+
+conn = get_duckdb_conn()
+print(conn.execute("SELECT COUNT(*) FROM fact_imputations").fetchone())
+print(conn.execute("SELECT COUNT(*) FROM fact_projects").fetchone())
+print(conn.execute("SELECT MIN(date), MAX(date) FROM dim_date").fetchone())
+conn.close()
+```
+
+### Forzar regeneración de narrativa
+
+Desde la UI: botón **↻** en la NarrativeCard.
+
+Desde API:
+```http
+GET /api/v1/analytics/narrative?force_refresh=true
+```
+
+Desde Python (invalidar caché Redis):
+```python
+import hashlib, redis
+r = redis.from_url("redis://localhost:6379/0")
+key = hashlib.md5(b"bi_narrative:org-id-aqui").hexdigest()
+r.delete(key)
+```
+
+---
+
+## 6. Flujo completo — ejemplo real
+
+**Escenario:** Un CFO quiere entender el estado financiero de este mes sin abrir Excel.
+
+```
+1. CFO abre ContecFlow → menú lateral → BI
+
+2. La página carga KPIs PostgreSQL (instantáneo)
+   + NarrativeCard llama GET /analytics/narrative
+     → OLAP disponible → get_kpi_summary() desde DuckDB
+     → Claude genera narrativa de 5 párrafos en español
+     → Se cachea en Redis 1h
+     → CFO lee el resumen en <3s
+
+3. CFO tiene curiosidad: "¿Qué departamentos están por encima del 80% de utilización?"
+   → AskDataWidget → escribe la pregunta → "Consultar"
+   → POST /analytics/ask
+     → Claude genera SQL en 1s
+     → validate_sql() inyecta org_id, aplica LIMIT 200
+     → DuckDB ejecuta JOIN dim_user + fact_imputations en <100ms
+     → Tabla con 3 filas: Desarrollo (94%), Arquitectura (87%), QA (82%)
+
+4. Al día siguiente, Celery (01:00 UTC) ejecuta olap_nightly_etl
+   → Recarga imputaciones de los últimos 2 días
+   → Recalcula fact_projects
+   → Actualiza pipeline y tickets
+   → La narrativa de mañana tendrá datos frescos
+```
+
+---
+
+## 7. Arquitectura de archivos (resumen)
+
+```
+app/
+├── services/
+│   ├── olap/
+│   │   ├── __init__.py          # Exports públicos
+│   │   ├── schema.py            # DDL DuckDB (CREATE TABLE / INDEX)
+│   │   ├── etl.py               # ETL PostgreSQL → DuckDB
+│   │   └── query_engine.py      # Funciones analíticas + PG fallback
+│   ├── bi_storytelling.py       # Narrativa IA + Redis cache
+│   └── ask_the_data.py          # NL→SQL + validador seguridad
+│
+└── api/v1/endpoints/
+    └── analytics_extended.py    # +7 endpoints: /narrative, /ask, /olap/*
+
+frontend/src/
+├── components/bi/
+│   ├── NarrativeCard.jsx        # Tarjeta narrativa IA colapsable
+│   ├── AskDataWidget.jsx        # Widget NL query con tabla de resultados
+│   └── DateRangeFilterBar.jsx   # (preexistente)
+├── pages/
+│   └── BIPage.jsx               # Integra NarrativeCard + AskDataWidget
+└── services/
+    └── api.js                   # +7 métodos en analyticsApi
+```
+
+---
+
+## 8. Monitorización y troubleshooting
+
+### El OLAP no tiene datos
+
+```bash
+# Ver si el archivo existe
+ls -lh $DUCKDB_PATH
+
+# Ver cuándo fue la última carga
+python -c "
+from app.services.olap.etl import get_duckdb_conn
+conn = get_duckdb_conn()
+print(conn.execute('SELECT MAX(date) FROM dim_date').fetchone())
+conn.close()
+"
+```
+
+Si no hay datos, ejecutar la carga histórica (ver sección 5).
+
+### La narrativa siempre devuelve fallback
+
+1. Verificar `ANTHROPIC_API_KEY` en el entorno del proceso backend
+2. Ver logs del backend: buscar `"LLM narrative generation failed"`
+3. Si el OLAP no tiene datos, la narrativa usará el fallback de PostgreSQL con KPIs mínimos
+
+### Ask-the-Data devuelve "OLAP store not initialised"
+
+El archivo DuckDB no existe todavía. Ejecutar la carga histórica (sección 5, paso 3).
+
+### Logs relevantes
+
+```
+INFO  app.services.olap.etl      OLAP ETL start (since=2025-04-24)
+INFO  app.services.olap.etl      OLAP ETL complete: {'status': 'ok', ...}
+DEBUG app.services.olap.query_engine  DuckDB unavailable, falling back to PostgreSQL
+DEBUG app.services.bi_storytelling    Storytelling cache hit for org=...
+INFO  app.services.ask_the_data   ask_the_data: user=... q='¿Cuáles son...'
+DEBUG app.services.ask_the_data   LLM generated SQL: SELECT ...
+DEBUG app.services.ask_the_data   Validated SQL: SELECT ... WHERE organization_id = '...'
+WARNING app.services.ask_the_data SQL validation blocked: Only SELECT queries are allowed
+```
+```
+
+---
+
+## 9. Gestión de Proveedores IA — Sincronización y Diagnóstico
+
+### Visión general
+
+ContecFlow PSA soporta múltiples proveedores de IA de forma simultánea. Cada proveedor se configura con una API key (cifrada en BD), un modelo por defecto y una URL base opcional. El sistema despacha las llamadas al proveedor marcado como `is_default`, con fallback opcional a otros proveedores activos.
+
+Proveedores soportados: `anthropic`, `openai`, `gemini`, `groq`, `deepseek`, `mistral`, `azure`, `ollama`.
+
+---
+
+### Cifrado de API keys — compatibilidad retroactiva
+
+Las API keys se almacenan cifradas mediante `app/core/encryption.py`.  
+El módulo gestiona tres versiones de cifrado:
+
+| Versión | Mecanismo | Prefijo en BD |
+|---------|-----------|---------------|
+| v2 (actual) | HKDF-SHA256 + AES-GCM (Fernet personalizado) | `v2:` |
+| v1 (legacy)  | Fernet estándar | sin prefijo (base64) |
+| KMS | AWS/GCP KMS | `kmsv1:` |
+| Texto plano | Ninguno (modo dev) | sin prefijo corto |
+
+La función `decrypt_value()` aplica un proceso de fallback en cascada:
+1. Intenta KMS
+2. Intenta HKDF v2
+3. Intenta Fernet v1 (legacy)
+4. Devuelve el valor tal cual (plaintext fallback, con `WARNING` en log)
+
+Esto garantiza que las API keys guardadas antes de la migración a v2 sigan funcionando sin necesidad de re-cifrado manual.
+
+---
+
+### Sincronización de modelos disponibles
+
+Los modelos disponibles en cada proveedor se persisten en la columna `available_models` (CSV) del modelo `AIProvider`.
+
+**Endpoints:**
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/api/v1/ai-providers/{id}/sync-models` | Sincroniza modelos del proveedor indicado |
+| `POST` | `/api/v1/ai-providers/sync-models/all` | Sincroniza todos los proveedores en el ámbito del usuario |
+
+Ambos requieren rol `admin`.
+
+**Lógica de sincronización (`sync_provider_models` en `ai_provider_service.py`):**
+1. Llama a la API real del proveedor para listar modelos (`_list_*_models`).
+2. Filtra IDs retirados (`_DEPRECATED_MODELS`).
+3. Persiste la lista en `available_models`.
+4. Si el `default_model` actual ya no está en la lista, lo actualiza al primer modelo disponible.
+5. Restablece `status = "active"` y limpia `last_error`.
+
+**Implementación por proveedor:**
+
+| Proveedor | API de listado | Función interna |
+|-----------|---------------|-----------------|
+| Anthropic | `GET /v1/models` | `_list_anthropic_models` |
+| OpenAI / Groq / Mistral / DeepSeek | `GET /v1/models` | `_list_openai_compatible_models` |
+| Gemini | `GET https://generativelanguage.googleapis.com/v1beta/models?key=...` | `_list_gemini_models` |
+| Azure | `GET {base}/openai/deployments` | `_list_azure_models` |
+| Ollama | `GET {base}/api/tags` | `_list_ollama_models` |
+
+**UI:** En la página *AI Hub*, los botones "Sincronizar todos los modelos" y el botón por proveedor ejecutan estas operaciones y refrescan la lista automáticamente.
+
+---
+
+### Reactivación automática de proveedores
+
+Cuando el usuario edita la configuración de un proveedor (API key, modelo, URL base o lista de modelos), la función `update_provider()` restablece automáticamente `status = "active"` y limpia `last_error`. Esto resuelve el problema anterior en que un proveedor con error quedaba bloqueado permanentemente y no aparecía como proveedor por defecto.
+
+---
+
+### Endpoint de diagnóstico
+
+**Ruta:** `GET /api/v1/ai-providers/diagnostics`  
+**Permiso:** `admin`
+
+Ejecuta un diagnóstico de conectividad en todos los proveedores configurados en el ámbito del usuario. Para cada proveedor:
+
+1. Verifica que la API key exista y sea desencriptable.
+2. Llama a la API real del proveedor para listar modelos (mide latencia).
+3. Comprueba que el `default_model` esté en la lista descubierta.
+
+**Respuesta:**
+
+```json
+{
+  "total": 3,
+  "healthy": 2,
+  "warning": 1,
+  "error": 0,
+  "providers": [
+    {
+      "id": "uuid",
+      "name": "Mi Anthropic",
+      "provider_type": "anthropic",
+      "status": "ok",
+      "latency_ms": 342,
+      "model": "claude-3-5-sonnet-20241022",
+      "models_found": 6,
+      "error": null
+    },
+    {
+      "id": "uuid",
+      "name": "Gemini Prod",
+      "provider_type": "gemini",
+      "status": "warning",
+      "latency_ms": 510,
+      "model": "gemini-3.1-flash",
+      "models_found": 12,
+      "error": "Modelo por defecto 'gemini-3.1-flash' no está en la lista descubierta (12 modelos). Sincroniza los modelos."
+    }
+  ]
+}
+```
+
+**Semáforo de estado:**
+
+| Status | Significado |
+|--------|-------------|
+| `ok` | Conectividad OK y modelo por defecto válido |
+| `warning` | Conectividad OK pero el modelo por defecto no está en la lista actual |
+| `error` | Sin API key, error de autenticación o timeout |
+
+**UI:** El botón "🔍 Diagnóstico" en la cabecera de *AI Hub* ejecuta el diagnóstico y muestra un panel de resultados en línea con semáforo por proveedor. El panel se puede cerrar con el botón ✕.
+
+---
+
+## 10. Auditoría de Seguridad — Correcciones aplicadas (Abril 2026)
+
+Las siguientes correcciones se aplicaron como resultado de la auditoría completa de código (`audit/AUDIT_FULL_REVIEW.md`).
+
+### Correcciones de seguridad crítica (C)
+
+| ID | Fichero | Descripción |
+|----|---------|-------------|
+| C-1 | `tests/test_auth_redirect_uri_validation.py` | Import corregido a `routers.auth_sso` (evitaba que el test se ejecutara) |
+| C-2 | `app/api/v1/routers/auth_core.py` | Bypass de superadmin ahora requiere `ENABLE_SUPERADMIN_BYPASS=1` **y** que la URL de BD no sea de producción |
+| C-3 | `app/services/ml_trainer.py` | Serialización de modelos ML protegida con firma HMAC-SHA256 (evita deserialización arbitraria via joblib) |
+
+### Correcciones de arquitectura (A)
+
+| ID | Fichero | Descripción |
+|----|---------|-------------|
+| A-1 | `app/db/migrate.py` | Validación de nombres de columna con regex `_COL_NAME_RE` y `_COL_DEF_RE` (previene SQL injection en migraciones dinámicas) |
+| A-2 | `app/services/enterprise_service.py` | `__import__` reemplazado por import explícito local (previene ejecución de módulos arbitrarios) |
+| A-3 | `app/main.py` | CORS: `allow_methods` y `allow_headers` restringidos a listas explícitas (eliminado wildcard `*`) |
+| A-4 | `app/services/scim_service.py` | Contraseña de usuario SCIM ahora generada con `secrets.token_urlsafe(20)` (eliminada contraseña por defecto hardcoded) |
+| A-6 | `frontend/src/components/GanttChart.jsx` | Log de debug de Gantt envuelto en `import.meta.env.DEV` (no se emite en producción) |
+
+### Correcciones de mejora/mantenimiento (M)
+
+| ID | Fichero | Descripción |
+|----|---------|-------------|
+| M-2 | `app/services/ai_chat_service_old.py` | Fichero legado eliminado (dead code, sin imports activos) |
+| M-3 | `app/main.py` | Warning de arranque cuando APScheduler y Celery Beat están activos simultáneamente |
+| M-4 | `app/main.py` | Cabecera `Strict-Transport-Security` añadida en entornos de producción |
+| M-6 | `app/main.py` | `send_default_pii=False` en inicialización de Sentry (evita envío de datos personales) |
+| M-9 | `frontend/src/pages/ProjectsPage.jsx` | `ProjectRiskBadge` recibe prop `hasData` correctamente (evitaba renders innecesarios) |
+| M-10 | `app/services/auth_service.py`, `app/api/v1/routers/auth_core.py` | Invalidación de tokens de reset de contraseña via JTI (un token de reset solo puede usarse una vez) |
+| M-12 | `app/services/ai_modules_service.py` | Rename `_Exec` → `_ExecRecord` para evitar colisión con variable local en `call_ai` |
+
+### Correcciones de bugs (B)
+
+| ID | Fichero | Descripción |
+|----|---------|-------------|
+| B-3 | `tests/test_webhook_ssrf.py` | Casos de prueba IPv6 SSRF añadidos (`::1`, `fd00::1`) |
+| B-5 | `app/main.py` | `logger.debug` usa `%s` (lazy formatting) en lugar de f-string (evita evaluación innecesaria) |
+
+### Correcciones en el stack de proveedores IA
+
+| Componente | Fichero | Descripción |
+|------------|---------|-------------|
+| Cifrado retrocompatible | `app/core/encryption.py` | `decrypt_value()` con fallback cascada: v2 → v1 Fernet → plaintext (resuelve silenciamiento de API keys legacy) |
+| Reactivación de proveedor | `app/services/ai_provider_service.py` | `update_provider()` restablece `status=active` al editar configuración |
+| Listado real de modelos | `app/services/ai_provider_service.py` | Funciones `_list_*_models` por proveedor que consultan la API real |
+| Sincronización de modelos | `app/services/ai_provider_service.py` | `sync_provider_models()` persiste modelos descubiertos y corrige `default_model` obsoleto |
+| Endpoint sync unitario | `app/api/v1/endpoints/ai_providers.py` | `POST /ai-providers/{id}/sync-models` |
+| Endpoint sync masivo | `app/api/v1/endpoints/ai_providers.py` | `POST /ai-providers/sync-models/all` |
+| Endpoint diagnóstico | `app/api/v1/endpoints/ai_providers.py` | `GET /ai-providers/diagnostics` — semáforo por proveedor |
+| UI — selector de modelos | `frontend/src/pages/AIHubPage.jsx` | Muestra modelos sincronizados en vivo; fallback al catálogo estático |
+| UI — botón sync por proveedor | `frontend/src/pages/AIHubPage.jsx` | Botón "Sincronizar modelos" por tarjeta de proveedor |
+| UI — botón sync masivo | `frontend/src/pages/AIHubPage.jsx` | Botón "Sincronizar todos los modelos" en cabecera |
+| UI — botón diagnóstico | `frontend/src/pages/AIHubPage.jsx` | Botón "🔍 Diagnóstico" en cabecera; panel de resultados en línea |

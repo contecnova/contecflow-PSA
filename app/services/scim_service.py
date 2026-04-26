@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -118,7 +119,7 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
         role=role,
         status=UserStatus.active if active else UserStatus.inactive,
         is_active=bool(active),
-        hashed_password=get_password_hash(settings.DEFAULT_USER_PASSWORD),
+        hashed_password=get_password_hash(secrets.token_urlsafe(20)),
         organization_id=org_id,
         scim_external_id=payload.get("externalId"),
         scim_last_synced_at=datetime.now(timezone.utc),
@@ -208,7 +209,7 @@ def process_bulk_operation(
             username=user_name,
             email=email,
             full_name=full_name,
-            hashed_password=get_password_hash(settings.DEFAULT_USER_PASSWORD),
+            hashed_password=get_password_hash(secrets.token_urlsafe(20)),
             role=role,
             is_active=bool(data.get("active", True)),
             organization_id=org_id,

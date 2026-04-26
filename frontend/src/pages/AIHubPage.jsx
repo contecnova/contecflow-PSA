@@ -29,6 +29,7 @@ function ProviderModal({ provider, catalog, onClose }) {
   const toast = useToast()
   const isEdit = !!provider?.id
   const [providerType, setProviderType] = useState(provider?.provider || 'anthropic')
+  const [liveModels, setLiveModels] = useState(provider?.available_models || [])
   const [form, setForm] = useState({
     name: provider?.name || '',
     provider: provider?.provider || 'anthropic',
@@ -42,7 +43,13 @@ function ProviderModal({ provider, catalog, onClose }) {
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const catEntry = catalog[providerType] || {}
-  const models = catEntry.models || []
+  const catalogModels = catEntry.models || []
+  const models = liveModels.length > 0
+    ? liveModels.map(id => {
+      const known = catalogModels.find(m => m.id === id)
+      return known || { id, name: id, cost_in: 0, cost_out: 0 }
+    })
+    : catalogModels
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit ? api.patch(`/ai-providers/${provider.id}`, d) : api.post('/ai-providers', d),
@@ -50,8 +57,23 @@ function ProviderModal({ provider, catalog, onClose }) {
     onError: e => toast.error(extractErr(e, t('ai.save_error'))),
   })
 
+  const { mutate: syncModels, isPending: isSyncingModels } = useMutation({
+    mutationFn: () => api.post(`/ai-providers/${provider.id}/sync-models`).then(r => r.data),
+    onSuccess: (data) => {
+      const synced = Array.isArray(data?.models) ? data.models : []
+      setLiveModels(synced)
+      if (data?.default_model) {
+        setForm(f => ({ ...f, default_model: data.default_model }))
+      }
+      qc.invalidateQueries({ queryKey: ['ai-providers'] })
+      toast.success('Modelos sincronizados desde el proveedor')
+    },
+    onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar modelos del proveedor')),
+  })
+
   const handleProviderChange = (type) => {
     setProviderType(type)
+    setLiveModels([])
     const cat = catalog[type] || {}
     setForm(f => ({
       ...f,
@@ -147,6 +169,18 @@ function ProviderModal({ provider, catalog, onClose }) {
           ) : (
             <input id={`${idPrefix}-default-model`} value={form.default_model} onChange={s('default_model')} style={fs}
               placeholder={t('ai.model_name_placeholder')} />
+          )}
+          {isEdit && (
+            <div style={{ marginTop: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => syncModels()}
+                disabled={isSyncingModels}
+                loading={isSyncingModels}
+              >
+                {isSyncingModels ? 'Sincronizando modelos...' : 'Sincronizar modelos desde proveedor'}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -256,6 +290,7 @@ export default function AIHubPage() {
   const [modal, setModal] = useState(null)
   const [testModal, setTestModal] = useState(null)
   const [tab, setTab] = useState('providers')
+  const [diagResults, setDiagResults] = useState(null)
 
   const { data: providers = [], isLoading } = useQuery({
     queryKey: ['ai-providers'],
@@ -284,6 +319,36 @@ export default function AIHubPage() {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
+  const { mutate: diagnoseAll, isPending: diagnosing } = useMutation({
+    mutationFn: () => api.get('/ai-providers/diagnostics').then(r => r.data),
+    onSuccess: (data) => {
+      setDiagResults(data)
+      const healthy = Number(data?.healthy || 0)
+      const total = Number(data?.total || 0)
+      if (healthy === total) {
+        toast.success(`Diagnóstico OK: ${total} proveedor(es) operativos`)
+      } else {
+        toast.error(`Diagnóstico: ${healthy}/${total} operativos`)
+      }
+    },
+    onError: e => toast.error(extractErr(e, 'Error ejecutando diagnóstico')),
+  })
+
+  const { mutate: syncAllModels, isPending: syncingAllModels } = useMutation({
+    mutationFn: () => api.post('/ai-providers/sync-models/all').then(r => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['ai-providers'] })
+      const failed = Number(data?.failed || 0)
+      const total = Number(data?.total || 0)
+      if (failed > 0) {
+        toast.error(`Sincronización parcial: ${total - failed}/${total} proveedores actualizados`) 
+      } else {
+        toast.success(`Modelos sincronizados en ${total} proveedor(es)`) 
+      }
+    },
+    onError: e => toast.error(extractErr(e, 'No se pudieron sincronizar los modelos de los proveedores')),
+  })
+
   const defaultProvider = providers.find(p => p.is_default)
   const byModule = stats.by_module || []
   const moneyFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES', { style: 'currency', currency: 'USD', minimumFractionDigits: 4, maximumFractionDigits: 4 })
@@ -295,7 +360,27 @@ export default function AIHubPage() {
         icon={<Cpu size={18} />}
         title={t('ai.hub_title')}
         subtitle={t('ai.hub_subtitle')}
-        actions={<Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>}
+        actions={(
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              variant="secondary"
+              onClick={() => diagnoseAll()}
+              disabled={diagnosing}
+              loading={diagnosing}
+            >
+              {diagnosing ? 'Diagnosticando...' : '🔍 Diagnóstico'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => syncAllModels()}
+              disabled={syncingAllModels}
+              loading={syncingAllModels}
+            >
+              {syncingAllModels ? 'Sincronizando modelos...' : 'Sincronizar todos los modelos'}
+            </Button>
+            <Button onClick={() => setModal({})} icon="＋">{t('ai.add_provider')}</Button>
+          </div>
+        )}
       />
 
       {/* Tabs */}
@@ -311,6 +396,42 @@ export default function AIHubPage() {
       {/* PROVIDERS TAB */}
       {tab === 'providers' && (
         <div id="aihub-panel-providers" role="tabpanel" aria-labelledby="aihub-tab-providers">
+
+          {/* Panel de diagnóstico */}
+          {diagResults && (
+            <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>
+                  Diagnóstico — {diagResults.healthy}/{diagResults.total} operativos
+                </div>
+                <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 16 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(diagResults.providers || []).map(pr => {
+                  const dot = pr.status === 'ok' ? '🟢' : pr.status === 'warning' ? '🟡' : '🔴'
+                  return (
+                    <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
+                      <span style={{ fontSize: 16, lineHeight: 1.4 }}>{dot}</span>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontWeight: 600 }}>{pr.name}</span>
+                        <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.provider_type}</span>
+                        {pr.latency_ms != null && (
+                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.latency_ms} ms</span>
+                        )}
+                        {pr.models_found > 0 && (
+                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.models_found} modelos</span>
+                        )}
+                        {pr.error && (
+                          <div style={{ color: pr.status === 'warning' ? 'var(--warning)' : 'var(--danger)', fontSize: 12, marginTop: 2 }}>{pr.error}</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Proveedor activo */}
           {defaultProvider && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: PROVIDER_META[defaultProvider.provider]?.color + '50' || 'var(--surface-4)', background: PROVIDER_META[defaultProvider.provider]?.color + '08' || 'var(--surface-2)' }}>

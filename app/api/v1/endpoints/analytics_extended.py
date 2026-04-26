@@ -430,3 +430,102 @@ def export_resources_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=resources.csv"},
     )
+
+
+# ── BI Storytelling ───────────────────────────────────────────────────────────
+
+@router.get("/narrative", summary="Narrativa ejecutiva generada por IA")
+def get_narrative(
+    lang: str = Query("es", description="Idioma: es | en | ca"),
+    force_refresh: bool = Query(False, description="Ignorar caché y regenerar"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generates an AI executive narrative from OLAP KPIs.
+    Cached for 1 hour per organization. Use force_refresh=true to regenerate.
+    """
+    from app.services.bi_storytelling import generate_narrative
+    org_id = getattr(current_user, "organization_id", None)
+    result = generate_narrative(org_id=org_id, lang=lang, force_refresh=force_refresh)
+    return result
+
+
+# ── Ask-the-Data (NL → SQL) ───────────────────────────────────────────────────
+
+class AskRequest(BaseModel):
+    question: str
+
+
+@router.post("/ask", summary="Pregunta en lenguaje natural sobre los datos OLAP")
+def ask_the_data(
+    payload: AskRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Converts a natural-language question to SQL, validates it (SELECT-only,
+    tenant-filtered, LIMIT 200), executes on DuckDB, and returns the results.
+    """
+    from app.services.ask_the_data import ask
+    org_id = getattr(current_user, "organization_id", None)
+    result = ask(
+        question=payload.question,
+        org_id=org_id,
+        user_id=str(current_user.id),
+    )
+    return result
+
+
+# ── OLAP KPI & analytical endpoints ──────────────────────────────────────────
+
+@router.get("/olap/kpis", summary="KPIs del OLAP (DuckDB)")
+def get_olap_kpis(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns top-level KPIs from the DuckDB OLAP store (or PostgreSQL fallback)."""
+    from app.services.olap.query_engine import get_kpi_summary
+    org_id = getattr(current_user, "organization_id", None)
+    return get_kpi_summary(org_id)
+
+
+@router.get("/olap/pipeline-funnel", summary="Funnel del pipeline (OLAP)")
+def get_olap_pipeline_funnel(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.olap.query_engine import get_pipeline_funnel
+    org_id = getattr(current_user, "organization_id", None)
+    return get_pipeline_funnel(org_id)
+
+
+@router.get("/olap/portfolio-health", summary="Salud del portfolio (OLAP)")
+def get_olap_portfolio_health(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.olap.query_engine import get_portfolio_health
+    org_id = getattr(current_user, "organization_id", None)
+    return get_portfolio_health(org_id)
+
+
+@router.get("/olap/margin-evolution", summary="Evolución del margen mensual (OLAP)")
+def get_olap_margin_evolution(
+    months: int = Query(12, ge=1, le=36),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.olap.query_engine import get_margin_evolution
+    org_id = getattr(current_user, "organization_id", None)
+    return get_margin_evolution(org_id, months)
+
+
+@router.get("/olap/utilization", summary="Utilización por usuario (OLAP)")
+def get_olap_utilization(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.olap.query_engine import get_utilization_by_user
+    org_id = getattr(current_user, "organization_id", None)
+    return get_utilization_by_user(org_id)

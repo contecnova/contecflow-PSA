@@ -50,6 +50,7 @@ from app.services.auth_service import (
     create_ephemeral_token as _create_ephemeral_token,
     read_ephemeral_token as _read_ephemeral_token,
     issue_password_reset_token as _issue_password_reset_token,
+    consume_password_reset_token as _consume_password_reset_token,
     send_password_reset_email as _send_password_reset_email,
 )
 
@@ -85,11 +86,19 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     except Exception:
         password_ok = False
 
-    # Local recovery path: allow superadmin login with configured env password
+    # Local recovery path: only enabled explicitly and never on production-like DB URLs
+    _db_url = (settings.DATABASE_URL or "").lower()
+    _prod_like_db = any(
+        marker in _db_url
+        for marker in ("prod", "production", "rds.amazonaws.com", "database.windows.net", "cloudsql")
+    )
     if (
         not password_ok
         and settings.ENVIRONMENT == "development"
+        and settings.ENVIRONMENT not in {"staging", "production"}
         and os.getenv("TESTING") != "1"
+        and os.getenv("ENABLE_SUPERADMIN_BYPASS", "0") == "1"
+        and not _prod_like_db
         and bool(getattr(user, "is_superadmin", False))
         and payload.password == settings.SUPERADMIN_PASSWORD
     ):
@@ -285,6 +294,7 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
         raise HTTPException(400, reason or "La contraseña no cumple la política de seguridad")
 
     audit_log(db, user, "PASSWORD_RESET_COMPLETE", "users", user.id, user.full_name)
+    _consume_password_reset_token(user.id, token_data.get("jti"))
     _svc.complete_password_reset(db, user, get_password_hash(payload.new_password))
 
     return {"ok": True, "message": "Contraseña actualizada correctamente"}

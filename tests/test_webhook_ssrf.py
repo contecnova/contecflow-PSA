@@ -24,6 +24,8 @@ from app.services.enterprise_service import _validate_webhook_url
     "https://localhost/hook",
     "https://127.0.0.1/hook",
     "https://127.1.1.1/hook",
+    "https://[::1]/hook",
+    "https://[fd00::1]/hook",
     # No hostname
     "https:///path/hook",
 ])

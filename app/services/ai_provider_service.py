@@ -25,6 +25,20 @@ from sqlalchemy import func as sqlfunc
 
 _logger = logging.getLogger("ai_provider_service")
 
+
+def _normalize_openai_base(base_url: str) -> str:
+    base = (base_url or "").rstrip("/")
+    if base.endswith("/chat/completions"):
+        return base[: -len("/chat/completions")]
+    return base
+
+
+def _normalize_ollama_base(base_url: str) -> str:
+    base = (base_url or "").rstrip("/")
+    if base.endswith("/api/chat"):
+        return base[: -len("/api/chat")]
+    return base
+
 # ── Catálogo de modelos por proveedor ─────────────────────────────────────────
 PROVIDER_CATALOG = {
     "anthropic": {
@@ -238,7 +252,7 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
 
 
 def _call_ollama(base_url, model, messages, system, max_tokens) -> dict:
-    url = base_url.rstrip("/") + "/api/chat"
+    url = _normalize_ollama_base(base_url).rstrip("/") + "/api/chat"
     all_messages = []
     if system:
         all_messages.append({"role": "system", "content": system})
@@ -251,6 +265,142 @@ def _call_ollama(base_url, model, messages, system, max_tokens) -> dict:
     data = resp.json()
     text = data.get("message", {}).get("content", "")
     return {"text": text, "model": model, "tokens_in": 0, "tokens_out": 0}
+
+
+def _list_openai_compatible_models(base_url: str, api_key: str) -> list[str]:
+    base = _normalize_openai_base(base_url)
+    if not base:
+        raise ValueError("Base URL vacía para proveedor compatible OpenAI")
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    resp = httpx.get(f"{base}/models", headers=headers, timeout=30)
+    if resp.status_code != 200:
+        raise Exception(f"List Models {resp.status_code}: {resp.text[:250]}")
+    data = resp.json()
+    raw = data.get("data", []) if isinstance(data, dict) else []
+    models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})
+    return [m for m in models if m]
+
+
+def _list_anthropic_models(api_key: str) -> list[str]:
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    resp = httpx.get(f"{settings.ANTHROPIC_API_URL.rstrip('/')}/models", headers=headers, timeout=30)
+    if resp.status_code != 200:
+        raise Exception(f"Anthropic list models {resp.status_code}: {resp.text[:250]}")
+    data = resp.json()
+    raw = data.get("data", []) if isinstance(data, dict) else []
+    models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})
+    return [m for m in models if m]
+
+
+def _list_gemini_models(api_key: str) -> list[str]:
+    base = settings.GEMINI_API_URL.rstrip("/")
+    url = f"{base}/models?key={api_key}"
+    models: set[str] = set()
+    for _ in range(3):
+        resp = httpx.get(url, timeout=30)
+        if resp.status_code != 200:
+            raise Exception(f"Gemini list models {resp.status_code}: {resp.text[:250]}")
+        data = resp.json() if resp.content else {}
+        for m in data.get("models", []) if isinstance(data, dict) else []:
+            if not isinstance(m, dict):
+                continue
+            name = str(m.get("name", "")).strip()  # e.g. models/gemini-2.5-flash
+            if not name:
+                continue
+            clean = name.split("models/", 1)[-1]
+            # Keep Gemini family models only to avoid unrelated endpoints
+            if clean.startswith("gemini"):
+                models.add(clean)
+        next_token = data.get("nextPageToken") if isinstance(data, dict) else None
+        if not next_token:
+            break
+        sep = "&" if "?" in url else "?"
+        url = f"{base}/models?key={api_key}{sep}pageToken={next_token}"
+    return sorted(models)
+
+
+def _list_ollama_models(base_url: str) -> list[str]:
+    base = _normalize_ollama_base(base_url)
+    if not base:
+        raise ValueError("Base URL vacía para Ollama")
+    resp = httpx.get(f"{base}/api/tags", timeout=30)
+    if resp.status_code != 200:
+        raise Exception(f"Ollama list models {resp.status_code}: {resp.text[:250]}")
+    data = resp.json() if resp.content else {}
+    raw = data.get("models", []) if isinstance(data, dict) else []
+    names = sorted({str(m.get("name", "")).strip() for m in raw if isinstance(m, dict) and m.get("name")})
+    return [m for m in names if m]
+
+
+def _list_azure_models(base_url: str, api_key: str) -> list[str]:
+    base = _normalize_openai_base(base_url)
+    if not base:
+        raise ValueError("Base URL vacía para Azure OpenAI")
+    headers = {"api-key": api_key, "Content-Type": "application/json"}
+    # Data-plane model listing in Azure OpenAI
+    resp = httpx.get(f"{base}/models?api-version=2024-10-21", headers=headers, timeout=30)
+    if resp.status_code != 200:
+        raise Exception(f"Azure list models {resp.status_code}: {resp.text[:250]}")
+    data = resp.json() if resp.content else {}
+    raw = data.get("data", []) if isinstance(data, dict) else []
+    models = sorted({str(m.get("id", "")).strip() for m in raw if isinstance(m, dict) and m.get("id")})
+    return [m for m in models if m]
+
+
+def list_models_for_provider(provider) -> list[str]:
+    provider_type = provider.provider.value if hasattr(provider.provider, "value") else str(provider.provider)
+    api_key = decrypt_value(provider.api_key) if provider.api_key else ""
+    base_url = (provider.api_base_url or PROVIDER_CATALOG.get(provider_type, {}).get("base_url") or "").strip()
+
+    if provider_type == "ollama":
+        return _list_ollama_models(base_url or settings.OLLAMA_BASE_URL)
+
+    if provider_type == "anthropic":
+        if not api_key:
+            raise ValueError("Falta API key para listar modelos de Anthropic")
+        return _list_anthropic_models(api_key)
+
+    if provider_type == "gemini":
+        if not api_key:
+            raise ValueError("Falta API key para listar modelos de Gemini")
+        return _list_gemini_models(api_key)
+
+    if provider_type in ("openai", "groq", "mistral", "deepseek"):
+        if not api_key:
+            raise ValueError(f"Falta API key para listar modelos de {provider_type}")
+        return _list_openai_compatible_models(base_url, api_key)
+
+    if provider_type == "azure":
+        if not api_key:
+            raise ValueError("Falta API key para listar modelos de Azure")
+        return _list_azure_models(base_url, api_key)
+
+    raise ValueError(f"Proveedor no soportado para list models: {provider_type}")
+
+
+def sync_provider_models(db: Session, provider) -> list[str]:
+    discovered = list_models_for_provider(provider)
+    if not discovered:
+        raise Exception("El proveedor no devolvió modelos disponibles")
+
+    # Remove known deprecated IDs from discovered list.
+    provider_type = provider.provider.value if hasattr(provider.provider, "value") else str(provider.provider)
+    filtered = [m for m in discovered if m not in _DEPRECATED_MODELS.get(provider_type, set())]
+    if not filtered:
+        raise Exception("Tras filtrar modelos retirados no quedan modelos disponibles")
+
+    provider.available_models = ",".join(filtered)
+    if provider.default_model not in filtered:
+        provider.default_model = filtered[0]
+    provider.last_error = None
+    provider.status = "active"
+    db.commit()
+    db.refresh(provider)
+    return filtered
 
 
 def call_provider(provider, messages: list, system: str = None,
@@ -334,6 +484,8 @@ def update_provider(db: Session, provider, data: dict, *,
                     is_superadmin: bool, organization_id) -> object:
     if data.get("is_default"):
         _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
+
+    changed_runtime_fields = False
     for k, v in data.items():
         if k == "available_models" and isinstance(v, list):
             v = ",".join(v)
@@ -341,8 +493,15 @@ def update_provider(db: Session, provider, data: dict, *,
             if not v:
                 continue
             v = encrypt_value(v)
+        if k in {"api_key", "api_base_url", "default_model", "provider", "available_models"}:
+            changed_runtime_fields = True
         if hasattr(provider, k):
             setattr(provider, k, v)
+
+    if changed_runtime_fields:
+        provider.status = "active"
+        provider.last_error = None
+
     db.commit()
     db.refresh(provider)
     return provider
@@ -518,3 +677,62 @@ def call_ai(
             _logger.debug("Cost alert check failed (non-critical): %s", alert_exc)
 
     return result["text"]
+
+
+# ── Diagnóstico por proveedor ─────────────────────────────────────────────────
+
+def diagnose_provider(provider) -> dict:
+    """
+    Comprueba conectividad y validez de configuración de un proveedor IA.
+
+    Retorna un dict con:
+      id, name, provider_type, status ("ok"|"warning"|"error"),
+      latency_ms, model, models_found, error
+    """
+    provider_type = provider.provider.value if hasattr(provider.provider, "value") else str(provider.provider)
+    api_key = decrypt_value(provider.api_key) if provider.api_key else ""
+    base_url = (provider.api_base_url or PROVIDER_CATALOG.get(provider_type, {}).get("base_url") or "").strip()
+
+    result: dict = {
+        "id": provider.id,
+        "name": provider.name,
+        "provider_type": provider_type,
+        "status": "error",
+        "latency_ms": None,
+        "model": provider.default_model,
+        "models_found": 0,
+        "error": None,
+    }
+
+    # --- Step 1: check api_key present (not needed for Ollama) ---
+    if provider_type != "ollama" and not api_key:
+        result["error"] = "API key ausente o no se pudo desencriptar"
+        result["status"] = "error"
+        return result
+
+    # --- Step 2: try to list models (connectivity + auth check) ---
+    t0 = time.time()
+    try:
+        models = list_models_for_provider(provider)
+        latency_ms = round((time.time() - t0) * 1000)
+        result["latency_ms"] = latency_ms
+        result["models_found"] = len(models)
+
+        # --- Step 3: check default_model is in the discovered list ---
+        if provider.default_model and models and provider.default_model not in models:
+            result["status"] = "warning"
+            result["error"] = (
+                f"Modelo por defecto '{provider.default_model}' no está en la lista "
+                f"descubierta ({len(models)} modelos). Sincroniza los modelos."
+            )
+        else:
+            result["status"] = "ok"
+            result["error"] = None
+
+    except Exception as exc:
+        latency_ms = round((time.time() - t0) * 1000)
+        result["latency_ms"] = latency_ms
+        result["error"] = str(exc)
+        result["status"] = "error"
+
+    return result

@@ -56,6 +56,7 @@ if settings.SENTRY_DSN:
         integrations=[FastApiIntegration(), SqlalchemyIntegration()],
         traces_sample_rate=0.1,
         profiles_sample_rate=0.05,
+        send_default_pii=False,
     )
     logger.info(f"✅ Sentry inicializado (env={settings.SENTRY_ENVIRONMENT})")
 
@@ -138,6 +139,15 @@ async def lifespan(_app: FastAPI):
     # Scheduler (optional): keep disabled when Celery beat is active in deployment.
     _scheduler = None
     _enable_apscheduler = os.getenv("ENABLE_APSCHEDULER", "1") == "1"
+    _celery_beat_enabled = (
+        os.getenv("ENABLE_CELERY_BEAT", "0") == "1"
+        or os.getenv("CELERY_BEAT", "0") == "1"
+    )
+    if _enable_apscheduler and _celery_beat_enabled:
+        logger.warning(
+            "⚠️  APScheduler y Celery Beat parecen estar activos a la vez. "
+            "Esto puede duplicar tareas programadas (informes/rotación)."
+        )
     if _enable_apscheduler:
         logger.info("⏰ Iniciando scheduler de informes...")
         try:
@@ -240,8 +250,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Requested-With"],
 )
 
 @app.middleware("http")
@@ -268,6 +278,8 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if settings.ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if is_docs_route:
         # Swagger/ReDoc HTML uses CDN assets and an inline bootstrap script.
@@ -529,7 +541,7 @@ async def request_logger(request: Request, call_next):
             if payload:
                 user_hint = f" | user:{payload.get('sub','?')[:8]}"
         except Exception as e:
-            logger.debug(f"JWT decode failed in request logging: {e}")
+            logger.debug("JWT decode failed in request logging: %s", e)
 
     logger.log(level, f"{icon} {method:6} {path:<45} {status} [{duration}ms]{user_hint}")
 

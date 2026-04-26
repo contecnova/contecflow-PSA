@@ -6,6 +6,8 @@ import { Spinner } from '../components/ui'
 import { PieChart as PieChartIcon } from 'lucide-react'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import { COLOR } from '../constants/theme'
+import NarrativeCard from '../components/bi/NarrativeCard'
+import AskDataWidget from '../components/bi/AskDataWidget'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function dateRange(days) {
@@ -459,6 +461,16 @@ export default function BIPage() {
           />
         </div>
       )}
+
+      {/* ── BI Intelligence row ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: 14, marginBottom: 20,
+      }}>
+        <NarrativeCard lang={lang} />
+        <AskDataWidget />
+      </div>
 
       {/* ── Top projects table ── */}
       {topProjects.length > 0 && (

@@ -13,6 +13,8 @@ Architecture:
 from __future__ import annotations
 
 import io
+import hashlib
+import hmac as _hmac
 import json
 import uuid
 from typing import Optional
@@ -44,11 +46,38 @@ except ImportError:
 def _serialize_model(model) -> bytes:
     buf = io.BytesIO()
     joblib.dump(model, buf)
-    return buf.getvalue()
+    raw = buf.getvalue()
+    from app.core.config import settings as _settings
+    sig = _hmac.new(
+        _settings.SECRET_KEY.encode(),
+        raw,
+        hashlib.sha256,
+    ).digest()
+    return sig + raw  # 32-byte HMAC prefix
 
 
 def _deserialize_model(data: bytes):
-    return joblib.load(io.BytesIO(data))
+    if len(data) < 33:
+        # Legacy unsigned model bytes — allow load but log warning
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "ML model bytes have no HMAC signature (legacy). "
+            "Retrain to apply integrity protection."
+        )
+        return joblib.load(io.BytesIO(data))
+
+    sig, raw = data[:32], data[32:]
+    from app.core.config import settings as _settings
+    expected = _hmac.new(
+        _settings.SECRET_KEY.encode(),
+        raw,
+        hashlib.sha256,
+    ).digest()
+    if not _hmac.compare_digest(sig, expected):
+        raise ValueError(
+            "ML model integrity check failed — model bytes may have been tampered with"
+        )
+    return joblib.load(io.BytesIO(raw))
 
 
 def _get_active_model(db: Session, organization_id: str) -> Optional[MLModel]:

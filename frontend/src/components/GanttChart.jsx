@@ -147,7 +147,7 @@ export default function GanttChart({
 
   // Debug: Log what we're receiving
   if (mode === 'portfolio' && projects.length > 0) {
-    console.log('🔍 GanttChart DEBUG - Projects received:', projects.slice(0, 2).map(p => ({
+    if (import.meta.env.DEV) console.log('🔍 GanttChart DEBUG - Projects received:', projects.slice(0, 2).map(p => ({
       name: p.name,
       start_date: p.start_date,
       end_date_planned: p.end_date_planned,

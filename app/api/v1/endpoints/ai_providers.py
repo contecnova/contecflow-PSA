@@ -14,9 +14,11 @@ from app.services.ai_provider_service import (
     call_provider as _call_provider,
     create_provider as svc_create_provider,
     delete_provider as svc_delete_provider,
+    diagnose_provider as svc_diagnose_provider,
     get_provider,
     get_stats as svc_get_stats,
     list_providers as svc_list_providers,
+    sync_provider_models as svc_sync_provider_models,
     set_default_provider as svc_set_default_provider,
     update_provider as svc_update_provider,
     update_provider_test_result,
@@ -121,6 +123,99 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
     except Exception as e:
         update_provider_test_result(db, p, success=False, error=str(e))
         raise HTTPException(500, f"Error inesperado: {str(e)}")
+
+
+@router.post("/{pid}/sync-models")
+def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
+    """Discover and persist the live model list from the upstream provider."""
+    p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="AI provider not found")
+
+    try:
+        models = svc_sync_provider_models(db, p)
+        return {
+            "ok": True,
+            "provider_id": p.id,
+            "provider": p.provider,
+            "models": models,
+            "default_model": p.default_model,
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        update_provider_test_result(db, p, success=False, error=str(e))
+        raise HTTPException(500, f"No se pudieron sincronizar modelos: {str(e)}")
+
+
+@router.post("/sync-models/all")
+def sync_all_provider_models(db: Session = Depends(get_db), _=Depends(require_admin)):
+    """Discover and persist live model lists for all configured providers in scope."""
+    providers = svc_list_providers(
+        db,
+        is_superadmin=_.is_superadmin,
+        organization_id=_.organization_id,
+    )
+    if not providers:
+        return {"ok": True, "results": [], "message": "No hay proveedores configurados"}
+
+    results = []
+    failures = 0
+    for p in providers:
+        try:
+            models = svc_sync_provider_models(db, p)
+            results.append({
+                "provider_id": p.id,
+                "name": p.name,
+                "provider": p.provider,
+                "ok": True,
+                "count": len(models),
+                "default_model": p.default_model,
+            })
+        except Exception as e:
+            failures += 1
+            update_provider_test_result(db, p, success=False, error=str(e))
+            results.append({
+                "provider_id": p.id,
+                "name": p.name,
+                "provider": p.provider,
+                "ok": False,
+                "error": str(e),
+            })
+
+    return {
+        "ok": failures == 0,
+        "results": results,
+        "total": len(results),
+        "failed": failures,
+    }
+
+
+@router.get("/diagnostics")
+def diagnose_all_providers(db: Session = Depends(get_db), _=Depends(require_admin)):
+    """
+    Ejecuta un diagnóstico de conectividad para cada proveedor IA configurado.
+    Devuelve un semáforo (ok/warning/error) por proveedor con latencia y detalle de error.
+    """
+    providers = svc_list_providers(
+        db,
+        is_superadmin=_.is_superadmin,
+        organization_id=_.organization_id,
+    )
+    if not providers:
+        return {"total": 0, "healthy": 0, "warning": 0, "error": 0, "providers": []}
+
+    results = [svc_diagnose_provider(p) for p in providers]
+    healthy = sum(1 for r in results if r["status"] == "ok")
+    warning = sum(1 for r in results if r["status"] == "warning")
+    errors  = sum(1 for r in results if r["status"] == "error")
+    return {
+        "total": len(results),
+        "healthy": healthy,
+        "warning": warning,
+        "error": errors,
+        "providers": results,
+    }
 
 
 @router.get("/stats")

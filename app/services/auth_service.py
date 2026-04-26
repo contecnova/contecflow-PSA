@@ -48,6 +48,7 @@ LOGIN_LOCK_PREFIX = "contecflow:login:lock:"
 PASSWORD_RESET_TTL_SECONDS = 30 * 60
 PASSWORD_RESET_REQUEST_WINDOW_SECONDS = 15 * 60
 PASSWORD_RESET_REQUEST_MAX_PER_WINDOW = 5
+PASSWORD_RESET_JTI_PREFIX = "contecflow:password_reset:jti:"
 
 # In-memory fallback stores  ──────────────────────────────────────────────────
 _sso_states_fallback: dict[str, float] = {}
@@ -56,6 +57,7 @@ _redis_client = None
 _redis_client_init = False
 _login_fail_fallback: dict[str, dict[str, float]] = {}
 _password_reset_req_fallback: dict[str, dict[str, float]] = {}
+_password_reset_jti_fallback: dict[str, tuple[str, float]] = {}
 
 
 # ── SOC helper ────────────────────────────────────────────────────────────────
@@ -385,14 +387,20 @@ def b64url_decode(data: str) -> bytes:
 # ── Ephemeral tokens ──────────────────────────────────────────────────────────
 
 def create_ephemeral_token(
-    token_type: str, subject: str, challenge: str, ttl_seconds: int = 300
+    token_type: str,
+    subject: str,
+    challenge: str,
+    ttl_seconds: int = 300,
+    token_jti: Optional[str] = None,
 ) -> str:
     expire = datetime.now(timezone.utc).timestamp() + ttl_seconds
+    jti = token_jti or uuid.uuid4().hex
     payload = {
         "sub": subject,
         "exp": int(expire),
         "type": token_type,
         "challenge": challenge,
+        "jti": jti,
     }
     kid, key = get_jwt_signing_key()
     return jose_jwt.encode(payload, key, algorithm="HS256", headers={"kid": kid})
@@ -410,6 +418,12 @@ def read_ephemeral_token(token: str, expected_type: str) -> dict:
         raise HTTPException(401, "Token de challenge inválido o expirado")
     if payload.get("type") != expected_type:
         raise HTTPException(401, "Token de challenge inválido")
+
+    if expected_type == "password_reset":
+        user_id = payload.get("sub")
+        token_jti = payload.get("jti")
+        if not user_id or not token_jti or not is_current_password_reset_jti(user_id, token_jti):
+            raise HTTPException(401, "Token de restablecimiento inválido o reemplazado")
     return payload
 
 
@@ -452,12 +466,76 @@ def current_refresh_jti(request: Request) -> Optional[str]:
 
 def issue_password_reset_token(user: User) -> str:
     challenge = uuid.uuid4().hex
+    jti = uuid.uuid4().hex
+    store_password_reset_jti(user.id, jti, PASSWORD_RESET_TTL_SECONDS)
     return create_ephemeral_token(
         token_type="password_reset",
         subject=user.id,
         challenge=challenge,
         ttl_seconds=PASSWORD_RESET_TTL_SECONDS,
+        token_jti=jti,
     )
+
+
+def store_password_reset_jti(user_id: str, jti: str, ttl_seconds: int) -> None:
+    r = get_sso_redis()
+    key = f"{PASSWORD_RESET_JTI_PREFIX}{user_id}"
+    if r is not None:
+        try:
+            r.setex(key, ttl_seconds, jti)
+            return
+        except Exception as exc:
+            logger.warning("Redis setex failed for password reset jti: %s", exc)
+
+    with _sso_states_lock:
+        _password_reset_jti_fallback[user_id] = (jti, time.time() + ttl_seconds)
+
+
+def is_current_password_reset_jti(user_id: str, jti: str) -> bool:
+    r = get_sso_redis()
+    key = f"{PASSWORD_RESET_JTI_PREFIX}{user_id}"
+    if r is not None:
+        try:
+            stored = r.get(key)
+            return bool(stored) and stored == jti
+        except Exception as exc:
+            logger.warning("Redis get failed for password reset jti: %s", exc)
+
+    with _sso_states_lock:
+        current = _password_reset_jti_fallback.get(user_id)
+        if not current:
+            return False
+        current_jti, expires_at = current
+        if expires_at <= time.time():
+            _password_reset_jti_fallback.pop(user_id, None)
+            return False
+        return current_jti == jti
+
+
+def consume_password_reset_token(user_id: str, jti: Optional[str]) -> None:
+    if not user_id:
+        return
+    r = get_sso_redis()
+    key = f"{PASSWORD_RESET_JTI_PREFIX}{user_id}"
+    if r is not None:
+        try:
+            if jti:
+                stored = r.get(key)
+                if stored and stored == jti:
+                    r.delete(key)
+            else:
+                r.delete(key)
+            return
+        except Exception as exc:
+            logger.warning("Redis delete failed for password reset jti: %s", exc)
+
+    with _sso_states_lock:
+        if jti:
+            current = _password_reset_jti_fallback.get(user_id)
+            if current and current[0] == jti:
+                _password_reset_jti_fallback.pop(user_id, None)
+        else:
+            _password_reset_jti_fallback.pop(user_id, None)
 
 
 def send_password_reset_email(recipient: str, reset_link: str) -> None:

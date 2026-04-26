@@ -6,6 +6,7 @@ import logging
 from sqlalchemy import text, inspect
 from app.db.session import engine
 from app.db.base import Base
+import re as _re
 
 logger = logging.getLogger("contecflow.migrate")
 
@@ -171,6 +172,24 @@ def validate_table_name(table_name: str) -> str:
     return table_name
 
 
+_COL_NAME_RE = _re.compile(r'^[a-z_][a-z0-9_]*$')
+_COL_DEF_RE  = _re.compile(r'^[A-Z][A-Z0-9_(). ,\']*$', _re.IGNORECASE)
+
+
+def validate_column_name(col: str) -> str:
+    """Whitelist column name: lowercase letters, digits, underscores."""
+    if not _COL_NAME_RE.match(col):
+        raise ValueError(f"Column name '{col}' contains invalid characters")
+    return col
+
+
+def validate_column_def(defn: str) -> str:
+    """Whitelist column definition: only safe SQL type characters."""
+    if not _COL_DEF_RE.match(defn):
+        raise ValueError(f"Column definition '{defn}' contains invalid characters")
+    return defn
+
+
 def run():
 
     logger.info("🔧 Aplicando migraciones de base de datos...")
@@ -182,15 +201,17 @@ def run():
             try:
                 # Validar nombre de tabla
                 table_safe = validate_table_name(table)
+                column_safe = validate_column_name(column)
+                definition_safe = validate_column_def(definition)
                 insp = inspect(engine)
                 tables = insp.get_table_names()
                 if table_safe not in tables:
                     continue
-                if column_exists(table_safe, column):
+                if column_exists(table_safe, column_safe):
                     continue
-                conn.execute(text(f"ALTER TABLE {table_safe} ADD COLUMN {column} {definition}"))
+                conn.execute(text(f"ALTER TABLE {table_safe} ADD COLUMN {column_safe} {definition_safe}"))
                 conn.commit()
-                logger.info("  ✅ %s.%s añadida", table_safe, column)
+                logger.info("  ✅ %s.%s añadida", table_safe, column_safe)
             except Exception as e:
                 if "duplicate column" not in str(e).lower():
                     logger.error("Migration %s.%s failed: %s", table, column, e, exc_info=True)

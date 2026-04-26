@@ -167,7 +167,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} />
-          <ProjectRiskBadge projectId={project.id} />
+          <ProjectRiskBadge projectId={project.id} hasData={(project.task_count ?? project.team_size ?? 1) > 0} />
         </div>
       </div>
 

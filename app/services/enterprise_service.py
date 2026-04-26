@@ -237,7 +237,8 @@ def serialize_forecast(f) -> dict:
 
 def next_sub_code(db: Session) -> str:
     import re
-    max_code = db.query(func.max(__import__('app.models.enterprise', fromlist=['Subcontractor']).Subcontractor.code)).scalar()
+    from app.models.enterprise import Subcontractor as _Subcontractor  # local import to avoid circular dependency
+    max_code = db.query(func.max(_Subcontractor.code)).scalar()
     if max_code:
         m = re.search(r"(\d+)$", max_code)
         next_num = (int(m.group(1)) + 1) if m else 1
