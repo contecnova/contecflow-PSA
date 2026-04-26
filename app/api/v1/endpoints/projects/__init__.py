@@ -87,6 +87,8 @@ def list_projects(
             budget_used_pct=budget_used_pct,
             progress_pct=enriched["progress_pct"],
             team_size=enriched["team_size"],
+            start_date=p.start_date,
+            end_date_planned=p.end_date_planned,
         ))
     if response is not None:
         response.headers["X-Total-Count"] = str(total)

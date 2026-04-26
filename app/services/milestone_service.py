@@ -120,6 +120,14 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
     m.completed_by = current_user.id
     m.billing_status = "completed"
     db.commit()
+
+    # ASC 606: trigger revenue recognition for milestone-method contracts
+    try:
+        from app.services.revenue_service import recognize_on_milestone
+        recognize_on_milestone(db, milestone_id, current_user.id)
+    except Exception:
+        pass  # Non-blocking: billing flow must not fail if recognition fails
+
     return m
 
 

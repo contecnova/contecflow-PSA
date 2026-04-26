@@ -43,3 +43,27 @@ export function useDeleteOpportunity() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
   })
 }
+
+export function useGenerateProposal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, payload }) => pipelineApi.generateProposal(id, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
+  })
+}
+
+export function useMarkProposalSent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => pipelineApi.markProposalSent(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
+  })
+}
+
+export function useConvertToProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => pipelineApi.convertToProject(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline'] }),
+  })
+}

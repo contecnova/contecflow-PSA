@@ -31,12 +31,17 @@ router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
 
 _REDIS_URL: Optional[str] = settings.REDIS_URL or ""
+_IS_PRODUCTION_ENV = (settings.ENVIRONMENT or "development").lower() in {"production", "prod"}
 if not _REDIS_URL:
-    log.warning(
+    _missing_redis_msg = (
         "REDIS_URL no configurado: los tickets WS se almacenan en memoria del proceso. "
         "Con múltiples workers de Uvicorn los WebSockets fallarán aleatoriamente. "
         "Configura REDIS_URL para producción multi-worker."
     )
+    if _IS_PRODUCTION_ENV:
+        log.warning(_missing_redis_msg)
+    else:
+        log.info(_missing_redis_msg)
 
 # ── WS Ticket Store (delegated to ws_service) ────────────────────────────────
 _ws_tickets = _ws_svc._ws_tickets
@@ -47,6 +52,7 @@ _WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:user:"
 _PORTAL_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:portal:"
 _SAFE_TICKET_RE = re.compile(r"^[A-Za-z0-9_-]{20,200}$")
 _REDIS_ATOMIC_CONSUME_SCRIPT = "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v"
+_redis_fallback_warned: set[str] = set()
 
 _issue_ws_ticket_local = _ws_svc.issue_ws_ticket_local
 _consume_ws_ticket_local = _ws_svc.consume_ws_ticket_local
@@ -56,6 +62,17 @@ _consume_portal_ws_ticket_local = _ws_svc.consume_portal_ws_ticket_local
 
 def _is_safe_ticket(ticket: str) -> bool:
     return bool(ticket and isinstance(ticket, str) and _SAFE_TICKET_RE.fullmatch(ticket))
+
+
+def _warn_redis_fallback_once(key: str, template: str, exc: Exception) -> None:
+    if key not in _redis_fallback_warned:
+        _redis_fallback_warned.add(key)
+        if _IS_PRODUCTION_ENV:
+            log.warning(template, exc)
+        else:
+            log.info(template, exc)
+    else:
+        log.debug(template, exc)
 
 
 async def _issue_ws_ticket(user_id: str) -> str:
@@ -73,7 +90,11 @@ async def _issue_ws_ticket(user_id: str) -> str:
             await r.setex(f"{_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, user_id)
             return ticket
         except Exception as exc:
-            log.warning("Redis unreachable, falling back to in-memory WS ticket store: %s", exc)
+            _warn_redis_fallback_once(
+                "ws_issue",
+                "Redis unreachable, falling back to in-memory WS ticket store: %s",
+                exc,
+            )
     return _issue_ws_ticket_local(user_id)
 
 
@@ -97,7 +118,11 @@ async def _consume_ws_ticket(ticket: str) -> Optional[str]:
             # Redis reachable but ticket not found — fall through to in-memory
             # in case it was issued during a prior Redis outage.
         except Exception as exc:
-            log.warning("Redis unreachable during WS ticket consume, falling back to in-memory: %s", exc)
+            _warn_redis_fallback_once(
+                "ws_consume",
+                "Redis unreachable during WS ticket consume, falling back to in-memory: %s",
+                exc,
+            )
     return _consume_ws_ticket_local(ticket)
 
 
@@ -110,7 +135,11 @@ async def _issue_portal_ws_ticket(client_id: str) -> str:
             await r.setex(f"{_PORTAL_WS_TICKET_KEY_PREFIX}{ticket}", _WS_TICKET_TTL, client_id)
             return ticket
         except Exception as exc:
-            log.warning("Redis unreachable, falling back to in-memory portal WS ticket store: %s", exc)
+            _warn_redis_fallback_once(
+                "portal_issue",
+                "Redis unreachable, falling back to in-memory portal WS ticket store: %s",
+                exc,
+            )
     return _issue_portal_ws_ticket_local(client_id)
 
 

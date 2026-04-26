@@ -183,9 +183,10 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
         start_date=opp.expected_start_date,
         end_date_planned=opp.expected_close_date,
         pm_id=opp.owner_id or current_user.id,
-        billing_rate=opp.hourly_rate if hasattr(opp, "hourly_rate") else None,
+        billing_rate=opp.hourly_rate,
     )
     db.add(project)
+    db.flush()  # get project.id before creating the contract
 
     opp.stage = OpportunityStage.won
     opp.project_id = project.id
@@ -198,14 +199,49 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
         content=f"Oportunidad convertida a proyecto {code} por {current_user.full_name}",
     )
     db.add(act)
+
+    # ── Auto-create ASC 606 RevenueContract ────────────────────────────────────
+    rev_contract_id = None
+    try:
+        from app.services.proposal_service import CONTRACT_TYPE_TO_ASC_METHOD
+        from app.models.revenue import RevenueContract, ASCMethod
+
+        asc_method_value = CONTRACT_TYPE_TO_ASC_METHOD.get(
+            opp.contract_type or "", "over_time"
+        )
+        asc_method = ASCMethod(asc_method_value)
+        duration_months = None
+        if opp.expected_duration_weeks:
+            duration_months = max(1, round(opp.expected_duration_weeks / 4))
+
+        rev = RevenueContract(
+            id=str(_uuid.uuid4()),
+            organization_id=current_user.organization_id,
+            project_id=project.id,
+            client_id=opp.client_id,
+            name=f"Contrato: {opp.name}",
+            contract_value=opp.expected_revenue or 0.0,
+            currency="EUR",
+            method=asc_method,
+            start_date=opp.expected_start_date,
+            end_date=opp.expected_close_date,
+            duration_months=duration_months,
+            notes=f"Generado automáticamente al convertir oportunidad {opp.code}",
+        )
+        db.add(rev)
+        rev_contract_id = rev.id
+    except Exception:
+        pass  # Non-blocking: project creation must not fail if revenue module errors
+
     db.commit()
     db.refresh(project)
 
     return {
-        "project_id":   project.id,
-        "project_code": project.code,
-        "project_name": project.name,
-        "message":      f"Proyecto {code} creado correctamente",
+        "project_id":      project.id,
+        "project_code":    project.code,
+        "project_name":    project.name,
+        "rev_contract_id": rev_contract_id,
+        "message":         f"Proyecto {code} creado correctamente",
     }
 
 
@@ -274,6 +310,11 @@ def delete_stage_config(db: Session, stage_id: str) -> None:
 
 def serialize_opportunity(opp) -> dict:
     weighted = (opp.expected_revenue or 0) * (opp.probability / 100)
+    proposal_status = "none"
+    if opp.proposal_sent_at:
+        proposal_status = "sent"
+    elif opp.proposal_generated_at:
+        proposal_status = "generated"
     return {
         "id": opp.id, "code": opp.code, "name": opp.name,
         "client_id": opp.client_id, "client_name": opp.client_name, "contact_name": opp.contact_name,
@@ -282,6 +323,8 @@ def serialize_opportunity(opp) -> dict:
         "expected_revenue": opp.expected_revenue,
         "expected_margin_pct": opp.expected_margin_pct,
         "expected_hours": opp.expected_hours,
+        "hourly_rate": opp.hourly_rate,
+        "contract_type": opp.contract_type,
         "weighted_revenue": round(weighted, 0),
         "expected_close_date": str(opp.expected_close_date) if opp.expected_close_date else None,
         "expected_start_date": str(opp.expected_start_date) if opp.expected_start_date else None,
@@ -291,5 +334,9 @@ def serialize_opportunity(opp) -> dict:
         "project_id": opp.project_id,
         "notes": opp.notes, "lost_reason": opp.lost_reason,
         "description": opp.description,
+        "proposal_status": proposal_status,
+        "proposal_template_id": opp.proposal_template_id,
+        "proposal_generated_at": str(opp.proposal_generated_at)[:16] if opp.proposal_generated_at else None,
+        "proposal_sent_at": str(opp.proposal_sent_at)[:16] if opp.proposal_sent_at else None,
         "created_at": str(opp.created_at)[:10] if opp.created_at else None,
     }

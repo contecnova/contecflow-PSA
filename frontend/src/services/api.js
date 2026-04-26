@@ -300,8 +300,12 @@ export const pipelineApi = {
   create:     (data)      => api.post('/pipeline', data),
   update:     (id, data)  => api.patch(`/pipeline/${id}`, data),
   delete:     (id)        => api.delete(`/pipeline/${id}`),
-  activities: (id)        => api.get(`/pipeline/${id}/activities`),
-  addActivity:(id, data)  => api.post(`/pipeline/${id}/activities`, data),
+  activities:       (id)          => api.get(`/pipeline/${id}/activities`),
+  addActivity:      (id, data)    => api.post(`/pipeline/${id}/activities`, data),
+  generateProposal: (id, payload) => api.post(`/pipeline/${id}/generate-proposal`, payload || {}),
+  markProposalSent: (id)          => api.post(`/pipeline/${id}/mark-proposal-sent`),
+  convertToProject: (id)          => api.post(`/pipeline/${id}/convert`),
+  getProposal:      (id)          => api.get(`/pipeline/${id}/proposal`),
 }
 
 // ── Deliverables ──────────────────────────────────────────────────────────────

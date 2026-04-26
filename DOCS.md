@@ -3130,3 +3130,454 @@ Si `alembic revision --autogenerate` produce una migración > 200 líneas:
 El fichero `.gitattributes` en la raíz del repo marca los ficheros autogenerados con `-diff`
 para que `git diff` no los muestre por defecto, y con `linguist-generated=true` para que
 GitHub los excluya de las estadísticas de lenguaje.
+
+---
+
+# Arquitecturas de Dominio Enterprise: Revenue Recognition · AI Predictiva · CRM Nativo
+
+Implementadas en abril 2026. Estas tres arquitecturas son las capacidades que desbloquean el segmento enterprise (CFOs, CTOs, deals >€50k/año). Todo el código sigue el patrón existente de ContecFlow: `router → endpoint → service → model`.
+
+---
+
+## Arquitectura 1 — Revenue Recognition (ASC 606 / IFRS 15)
+
+### Qué es y por qué importa
+
+ASC 606 (FASB, EE.UU.) e IFRS 15 (IASB, internacional) son las normas contables que regulan **cuándo y cuánto ingreso puede reconocer una empresa de servicios**. Sin esto, los equipos de finanzas exportan datos a Excel cada mes para calcular el reconocimiento manualmente. ContecFlow lo automatiza completamente.
+
+El ingreso reconocido ≠ ingreso facturado. Puede haber:
+- **Ingresos diferidos** (cobrado pero no reconocido aún — ej: anticipo de un proyecto no iniciado)
+- **Ingresos no facturados / acumulados** (reconocido pero no cobrado aún — ej: horas trabajadas de T&M pendientes de factura)
+
+### Los 4 métodos de reconocimiento
+
+| Método | Tipo de proyecto | Cuándo se reconoce | Enum |
+|---|---|---|---|
+| `over_time` | Tiempo y materiales | Al aprobar imputaciones de horas del mes | `ASCMethod.over_time` |
+| `milestone` | Precio fijo | Al marcar un hito como completado | `ASCMethod.milestone` |
+| `consumption` | Bolsa de horas | Igual que `over_time` pero limitado al valor de la bolsa | `ASCMethod.consumption` |
+| `straight_line` | Retainer mensual | 1/N partes iguales durante los N meses del contrato | `ASCMethod.straight_line` |
+
+### Las 5 etapas ASC 606 mapeadas a ContecFlow
+
+| Etapa ASC 606 | Significado | Implementación |
+|---|---|---|
+| 1. Identificar el contrato | El contrato firmado | `RevenueContract` ligado a `Project` |
+| 2. Obligaciones de desempeño | Cada entregable o fase | `RevenueObligation` ligada a `ProjectMilestone` |
+| 3. Precio de la transacción | Valor total del contrato | `contract_value` en `RevenueContract` |
+| 4. Asignar precio a obligaciones | % de cada milestone sobre el total | `allocated_pct` + `allocated_amount` en `RevenueObligation` |
+| 5. Reconocer al satisfacer | Cuándo se completa | `RevenueEntry` creada automáticamente |
+
+### Modelo de datos
+
+**Fichero:** [app/models/revenue.py](app/models/revenue.py)
+
+```
+rev_contracts       — Contrato ASC 606 (1 por proyecto)
+  └── rev_obligations — Obligaciones de desempeño (N por contrato)
+  └── rev_entries     — Entradas contables inmutables (log perpetuo)
+rev_period_closes   — Cierre contable mensual (bloquea edición retroactiva)
+```
+
+- `RevenueEntry` nunca se borra. Las correcciones crean una entrada tipo `reversal` + una nueva entrada corregida.
+- `RevenuePeriodClose` bloquea un mes: no se pueden crear entradas en períodos ya cerrados.
+- `UniqueConstraint` en `(organization_id, period_year, period_month)` impide doble cierre.
+
+### Service layer
+
+**Fichero:** [app/services/revenue_service.py](app/services/revenue_service.py)
+
+Funciones principales:
+
+| Función | Cuándo se llama | Qué hace |
+|---|---|---|
+| `create_contract()` | Al crear un `RevenueContract` vía API | Valida y persiste el contrato |
+| `recognize_on_milestone()` | Desde `milestone_service.py` cuando `status → completed` | Crea `RevenueEntry` del importe asignado a esa obligación |
+| `run_monthly_recognition()` | Celery beat — 1 de cada mes a las 02:00 | Procesa todos los contratos `over_time` y `straight_line` activos para el mes anterior |
+| `close_period()` | API `POST /revenue-recognition/period-closes` | Congela el mes; bloquea nuevas entradas retroactivas |
+| `reopen_period()` | API (solo admins) | Elimina el cierre para correcciones de auditoría |
+| `is_period_closed()` | Antes de crear entradas | Guarda protección de integridad contable |
+| `get_dashboard_data()` | API `GET /revenue-recognition/dashboard` | Suma entradas por mes/tipo para el gráfico de barras |
+
+### Integración con milestones
+
+En [app/services/milestone_service.py](app/services/milestone_service.py), función `complete_milestone()`:
+
+```python
+# Al marcar un milestone como completed:
+from app.services.revenue_service import recognize_on_milestone
+recognize_on_milestone(db, milestone_id, current_user.id)
+```
+
+El trigger es automático y no bloqueante — si no hay obligación ASC 606 configurada para ese milestone, simplemente no hace nada.
+
+### Tarea Celery mensual
+
+**Fichero:** [app/worker.py](app/worker.py) — tarea `revenue_monthly_recognition`
+
+- Se ejecuta el día 1 de cada mes a las 02:00 UTC
+- Procesa el mes anterior (ej: si hoy es 1 de mayo, reconoce abril)
+- Itera todos los `RevenueContract` activos de `over_time` y `straight_line`
+- Los contratos `milestone` se reconocen en tiempo real, no en batch
+
+### Endpoints FastAPI
+
+**Prefijo:** `/api/v1/revenue-recognition/`  
+**Fichero:** [app/api/v1/endpoints/revenue.py](app/api/v1/endpoints/revenue.py)
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `GET` | `/contracts` | manager+ | Lista contratos ASC 606 de la org |
+| `POST` | `/contracts` | manager+ | Crea contrato de reconocimiento |
+| `GET` | `/contracts/{id}` | manager+ | Detalle de un contrato |
+| `PATCH` | `/contracts/{id}` | manager+ | Edita configuración (no entries) |
+| `DELETE` | `/contracts/{id}` | admin | Elimina si no tiene entries |
+| `GET` | `/contracts/{id}/obligations` | manager+ | Obligaciones del contrato |
+| `POST` | `/contracts/{id}/obligations` | manager+ | Añade obligación de desempeño |
+| `PATCH` | `/obligations/{id}` | manager+ | Edita obligación (% asignado, milestone) |
+| `DELETE` | `/obligations/{id}` | admin | Elimina obligación no satisfecha |
+| `GET` | `/entries` | manager+ | Log de entradas contables |
+| `POST` | `/entries/{id}/reverse` | admin | Crea reversión + nota de auditoría |
+| `GET` | `/period-closes` | admin | Lista cierres contables |
+| `POST` | `/period-closes` | admin | Cierra el período actual |
+| `DELETE` | `/period-closes/{year}/{month}` | admin | Reabre un período (auditoría) |
+| `POST` | `/run-monthly` | admin | Dispara reconocimiento mensual manual |
+| `GET` | `/dashboard` | admin | Datos para el gráfico de barras por mes/tipo |
+
+### Frontend — RevenuePage
+
+**Fichero:** [frontend/src/pages/RevenuePage.jsx](frontend/src/pages/RevenuePage.jsx)  
+**Ruta en la app:** `/revenue` (sidebar → Finance → Revenue Recognition, roles: admin, pm)
+
+Funcionalidades:
+- Tabla de contratos ASC 606 con su método y estado
+- Formulario para crear contratos ligados a proyectos
+- Dashboard con gráfico de barras apiladas (Recharts): reconocido / diferido / no facturado por mes
+- Botón de cierre de período con confirmación
+- Botón "Reconocer ahora" para disparar el batch manual
+
+---
+
+## Arquitectura 2 — AI Predictiva (ML sobre datos propios)
+
+### Generativa vs Predictiva
+
+ContecFlow ya tenía IA generativa (LLMs vía `ai_chat`, `ai_suggestions`). Lo que se añadió es IA predictiva: **modelos ML entrenados con los datos históricos de cada organización** que predicen valores numéricos futuros.
+
+| Dimensión | IA Generativa (ya existía) | IA Predictiva (añadida) |
+|---|---|---|
+| Qué hace | Genera texto, responde preguntas | Predice probabilidades numéricas |
+| Datos | Entrenamiento del LLM externo | Datos históricos propios del cliente |
+| Modelo | GPT-4 / Claude (externo) | scikit-learn entrenado localmente |
+| Resultado | Texto sugerido | Probabilidad 0–100% con explicación |
+| Foso competitivo | Bajo — cualquiera puede conectar GPT | Alto — mejora con cada proyecto completado |
+
+### Modelo 1: Project Overrun Predictor (implementado)
+
+Predice si un proyecto activo va a sobrepasar presupuesto o plazo. Es el único modelo actualmente entrenado (el más valioso operativamente).
+
+**Algoritmo:** `GradientBoostingClassifier` dentro de un sklearn `Pipeline` (StandardScaler → GBM)
+
+**Etiqueta de entrenamiento:** `did_overrun = 1` si `coste_real > presupuesto × 1.10` O si la fecha real de fin superó la planificada.
+
+**Features (9 columnas):**
+
+| Feature | Descripción | Cómo se calcula |
+|---|---|---|
+| `cpi` | Cost Performance Index | `earned_value / actual_cost` (>1 = bajo presupuesto) |
+| `spi` | Schedule Performance Index | `earned_value / planned_value` (>1 = adelantado) |
+| `budget_used_pct` | % presupuesto consumido | `actual_cost / budget × 100` |
+| `elapsed_pct` | % tiempo transcurrido | `días_transcurridos / duración_planificada × 100` |
+| `task_completion_pct` | % tareas completadas | `tareas_done / total_tareas × 100` |
+| `overdue_ratio` | Ratio de tareas vencidas | `tareas_vencidas / total_tareas` |
+| `team_size` | Tamaño del equipo | Número de usuarios con imputaciones |
+| `budget_log` | Escala logarítmica del presupuesto | `log1p(budget_amount)` — comprime outliers |
+| `duration_days` | Duración planificada en días | `(end_date - start_date).days` clampado 1–3650 |
+
+**Fallback heurístico:** Si no hay modelo entrenado (< 5 proyectos completados) o scikit-learn no está instalado, el sistema usa reglas heurísticas basadas en CPI/SPI y devuelve la predicción marcada con `"used_heuristic": true`.
+
+### Persistencia del modelo
+
+**Fichero:** [app/models/ml_model.py](app/models/ml_model.py) — tabla `ml_models`
+
+- El modelo entrenado se serializa con `joblib` y se guarda como `BLOB` en la columna `model_bytes` de la tabla `ml_models`
+- **No se guarda en disco** — está en la base de datos, disponible sin configuración adicional de filesystem
+- Cada organización tiene su propio modelo, versionado. Al reentrenar, la versión anterior se marca `is_active = False`
+- La tabla `ml_prediction_logs` registra cada predicción para detección de drift posterior
+
+### Pipeline de datos
+
+**Fichero:** [app/services/ml_features.py](app/services/ml_features.py)
+
+Flujo de extracción:
+```
+Project → Imputations (coste real)
+        → Tasks (completadas, vencidas, total)
+        → start_date / end_date_planned (duración)
+        → EVM: earned_value = (task_completion_pct / 100) × budget
+        → CPI = earned_value / actual_cost
+        → SPI = earned_value / planned_value
+```
+
+La función `extract_training_dataset()` solo usa proyectos con status `completed` o `closed` para el entrenamiento. Requiere mínimo `MIN_TRAINING_SAMPLES = 5`.
+
+### Entrenamiento
+
+**Fichero:** [app/services/ml_trainer.py](app/services/ml_trainer.py)
+
+```python
+# Pipeline sklearn: normalización → GBM
+Pipeline([
+    ("scaler", StandardScaler()),
+    ("clf", GradientBoostingClassifier(
+        n_estimators=100, max_depth=3, learning_rate=0.1, subsample=0.8
+    )),
+])
+# Métricas: ROC-AUC via k-fold stratificado (k = min(3, n//2))
+```
+
+El entrenamiento es no bloqueante:
+1. **Manual:** `POST /api/v1/predictions/train` → ejecuta en el proceso actual (para admins)
+2. **Automático:** Celery beat, día 1 de cada mes a las 03:00 UTC, para todas las organizaciones activas
+
+### Predicción en tiempo real
+
+`POST /api/v1/predictions/overrun-risk` con `{ "project_id": "..." }`
+
+Respuesta:
+```json
+{
+  "project_id": "...",
+  "risk_level": "high",          // low | medium | high | critical
+  "overrun_probability": 73.4,   // % de probabilidad de sobrecosto/retraso
+  "cpi": 0.87,
+  "spi": 0.91,
+  "budget_used_pct": 68.2,
+  "elapsed_pct": 75.0,
+  "signals": [
+    { "signal": "CPI < 0.9 — consumo acelerado de presupuesto" },
+    { "signal": "SPI < 0.95 — avance por debajo del plan" }
+  ],
+  "recommendation": "Revisar alcance y recursos antes del 15 de mayo",
+  "used_heuristic": false,
+  "ml_model_id": "...",
+  "model_version": 3
+}
+```
+
+**Semáforo de riesgo:**
+- `low` → probabilidad < 30%
+- `medium` → 30–50%
+- `high` → 50–70%
+- `critical` → > 70%
+
+### Endpoints FastAPI
+
+**Prefijo:** `/api/v1/predictions/`  
+**Fichero:** [app/api/v1/endpoints/predictions.py](app/api/v1/endpoints/predictions.py)
+
+| Método | Ruta | Acceso | Descripción |
+|---|---|---|---|
+| `POST` | `/overrun-risk` | cualquier usuario | Predicción de riesgo para un proyecto |
+| `GET` | `/portfolio-risk` | manager+ | Resumen de riesgo de toda la cartera activa |
+| `POST` | `/train` | manager+ | Disparar reentrenamiento manual |
+| `GET` | `/models` | manager+ | Lista versiones del modelo con métricas |
+| `GET` | `/logs` | manager+ | Últimas predicciones (para auditoría de drift) |
+
+### Frontend — ProjectRiskBadge
+
+**Fichero:** [frontend/src/components/ui/ProjectRiskBadge.jsx](frontend/src/components/ui/ProjectRiskBadge.jsx)
+
+Componente usado en la tarjeta de cada proyecto en `ProjectsPage`:
+- Llama a `POST /predictions/overrun-risk` con `staleTime: 5min` (no sobrecarga el endpoint)
+- Muestra un pill de color (verde/ámbar/rojo/crítico) con label
+- Tooltip con CPI, SPI, % presupuesto, % tiempo, señales de riesgo y recomendación
+- Si `used_heuristic: true`, muestra un `~` indicando que es estimación sin modelo
+
+Uso:
+```jsx
+<ProjectRiskBadge projectId={project.id} />
+```
+
+### Tarea Celery de reentrenamiento
+
+**Fichero:** [app/worker.py](app/worker.py) — tarea `ml_model_retrain`
+
+- Día 1 de cada mes a las 03:00 UTC (después de `revenue_monthly_recognition` a las 02:00)
+- Itera todas las organizaciones activas
+- Llama a `train_all_orgs(db)` que delega a `train_model(db, org.id)` por cada org
+- Las orgs sin datos suficientes reciben `status: "skipped"` sin error
+
+---
+
+## Arquitectura 3 — CRM Nativo con Pipeline de Ventas
+
+### El ciclo cerrado lead→factura
+
+ContecFlow ya tenía el kanban de oportunidades (`pipeline.py`). Lo que se añadió es **cerrar el ciclo completo**:
+
+```
+Lead capturado
+  → Oportunidad en kanban (ya existía)
+  → Generación de propuesta/SOW con plantilla (NUEVO)
+  → Firma digital via e-sign (módulo existente)
+  → Won: crea proyecto + RevenueContract ASC 606 automáticamente (NUEVO)
+  → Proyecto se factura con milestones
+  → Ingresos se reconocen automáticamente
+```
+
+Antes de esta implementación, el ciclo se rompía en 3: la oportunidad ganada requería crear el proyecto manualmente, crear el contrato manualmente y configurar revenue recognition manualmente.
+
+### Nuevos campos en Opportunity
+
+**Fichero:** [app/models/pipeline.py](app/models/pipeline.py) — clase `Opportunity`
+
+```python
+# Tracking de propuesta
+proposal_template_id    # FK a ProposalTemplate (qué plantilla se usó)
+proposal_content        # Texto renderizado de la propuesta (Markdown)
+proposal_generated_at   # Cuándo se generó
+proposal_sent_at        # Cuándo se envió al cliente
+
+# Datos comerciales añadidos
+hourly_rate             # Tarifa/hora para contratos T&M
+contract_type           # fixed_price | time_material | retainer | hourly_bag
+expected_duration_weeks # Duración estimada en semanas
+
+# Conversión
+project_id              # FK al proyecto creado al marcar 'won'
+```
+
+### ProposalTemplate — plantillas de propuesta reutilizables
+
+**Fichero:** [app/models/pipeline.py](app/models/pipeline.py) — clase `ProposalTemplate`  
+**Tabla:** `proposal_templates`
+
+Sistema de plantillas con variables `{{variable}}` que se sustituyen automáticamente con los datos de la oportunidad:
+
+| Variable | Valor |
+|---|---|
+| `{{opportunity_name}}` | Nombre de la oportunidad |
+| `{{client_name}}` | Nombre del cliente |
+| `{{owner_name}}` | Nombre del comercial responsable |
+| `{{expected_revenue}}` | Valor estimado en € |
+| `{{expected_hours}}` | Horas estimadas |
+| `{{start_date}}` | Fecha de inicio prevista |
+| `{{duration_weeks}}` | Duración en semanas |
+| `{{today}}` | Fecha actual |
+| `{{description}}` | Descripción de la oportunidad |
+
+Si no se pasa `template_id`, se usa una plantilla por defecto con secciones de alcance, condiciones económicas y términos.
+
+### Service layer de propuestas
+
+**Fichero:** [app/services/proposal_service.py](app/services/proposal_service.py)
+
+| Función | Qué hace |
+|---|---|
+| `_build_vars(opp)` | Construye el diccionario de variables para la sustitución |
+| `render_proposal(template, vars)` | Sustituye `{{vars}}` en el template (regex seguro) |
+| `generate_proposal(db, opp_id, template_id, user_id)` | Renderiza y persiste en `opp.proposal_content` |
+| `mark_proposal_sent(db, opp_id)` | Stampa `proposal_sent_at` |
+| `list_templates(db)` / `create_template(db, ...)` | CRUD de plantillas |
+| `serialize_template(t)` | Serializa para la API |
+
+### Conversión automática won → proyecto + contrato
+
+**Fichero:** [app/services/pipeline_service.py](app/services/pipeline_service.py) — `convert_opportunity_to_project()`
+
+Cuando se llama a `POST /{opp_id}/convert`, ocurre **en una sola transacción**:
+
+1. **Crea el `Project`** con los datos de la oportunidad (nombre, cliente, presupuesto, PM, fechas)
+2. **Genera el código** secuencial `PRJ-XXXX` via `next_numbered_code()`
+3. **Marca la oportunidad** como `stage = won` y `project_id = project.id`
+4. **Crea un `RevenueContract` ASC 606** automáticamente:
+   - Mapea `contract_type` de la oportunidad al método ASC 606 correcto
+   - `fixed_price → milestone`, `time_material → over_time`, `retainer → straight_line`, `hourly_bag → consumption`
+   - Si el módulo de revenue falla por cualquier razón, el proyecto se crea igualmente (no bloqueante)
+5. **Registra la actividad** en el log de la oportunidad
+
+### Endpoints de pipeline
+
+**Fichero:** [app/api/v1/endpoints/pipeline.py](app/api/v1/endpoints/pipeline.py)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/{opp_id}/convert` | Convierte oportunidad ganada a proyecto + RevenueContract |
+| `POST` | `/{opp_id}/generate-proposal` | Genera propuesta renderizando una plantilla |
+| `POST` | `/{opp_id}/mark-proposal-sent` | Marca la propuesta como enviada |
+| `GET` | `/{opp_id}/proposal` | Obtiene el contenido de la propuesta generada |
+| `GET` | `/proposals/templates` | Lista plantillas disponibles de la organización |
+| `POST` | `/proposals/templates` | Crea nueva plantilla |
+| `GET` | `/proposals/templates/{id}` | Detalle de una plantilla |
+| `PATCH` | `/proposals/templates/{id}` | Edita la plantilla |
+| `DELETE` | `/proposals/templates/{id}` | Elimina la plantilla |
+
+---
+
+## Migraciones Alembic de las 3 arquitecturas
+
+Las tres migraciones se aplican en cadena sobre la migración base `72eb69fe644d`:
+
+| Revisión | Fichero | Contenido |
+|---|---|---|
+| `f19763b1c208` | `add_asc606_revenue_recognition_tables.py` | Tablas `rev_contracts`, `rev_obligations`, `rev_period_closes`, `rev_entries` |
+| `a3c1d8f92e05` | `add_ml_prediction_tables.py` | Tablas `ml_models`, `ml_prediction_logs` |
+| `b7e2c4a91f03` | `add_proposal_templates_and_opportunity_fields.py` | Tabla `proposal_templates`, nuevas columnas en `opportunities` |
+
+Estado actual en BD: `b7e2c4a91f03` (head — todas aplicadas).
+
+---
+
+## Requirements adicionales
+
+Las dependencias ML están en [requirements-ml.txt](requirements-ml.txt):
+
+```
+scikit-learn>=1.4
+numpy>=1.26
+joblib>=1.3
+```
+
+Se instalan opcionales — si no están disponibles, el sistema cae al fallback heurístico automáticamente (`_SKLEARN_AVAILABLE = False`).
+
+---
+
+## Variables de entorno relevantes
+
+```env
+# ML (opcionales — si no se definen se usan defaults)
+ML_MODELS_DIR=/var/contecflow/ml_models   # No usado actualmente (modelos en BD)
+
+# Revenue (opcionales)
+REVENUE_BASE_CURRENCY=EUR                  # Moneda base para conversiones
+```
+
+---
+
+## Flujo completo de datos — ejemplo real
+
+**Escenario:** Empresa consultora firma contrato de €120.000 en precio fijo con 3 fases.
+
+```
+1. Comercial crea Opportunity "Proyecto ERP Cliente X" — €120k, fixed_price
+2. PM genera propuesta desde plantilla "Consulting Standard"
+   → proposal_content = Markdown renderizado con datos del cliente
+3. Comercial marca "Enviar propuesta" → proposal_sent_at = now()
+4. Cliente acepta → Comercial pulsa "Convertir a proyecto"
+   → Project PRJ-0047 creado en estado "planning"
+   → RevenueContract ASC 606 creado: method=milestone, contract_value=120000
+   → Opportunity.stage = "won"
+5. PM crea 3 milestones: Fase 1 (40k), Fase 2 (50k), Fase 3 (30k)
+   → 3 RevenueObligations: 33.3% / 41.7% / 25%
+6. Al completar Fase 1:
+   → milestone_service.complete_milestone() llama recognize_on_milestone()
+   → RevenueEntry type=recognized, amount=40000, source=milestone
+   → Contabilidad ve €40k reconocidos en el mes
+7. Celery día 1 del mes siguiente ejecuta revenue_monthly_recognition()
+   → Los contratos over_time/straight_line del mes anterior se procesan
+   → RevenuePeriodClose bloquea el mes si el CFO lo cierra
+8. ML Predictor en ProjectsPage muestra badge:
+   → CPI=0.95, SPI=0.88 → "Riesgo moderado — 38%"
+   → "SPI < 0.9: avance por debajo del plan temporal"
+```

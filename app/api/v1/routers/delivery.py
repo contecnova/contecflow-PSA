@@ -12,7 +12,7 @@ from app.api.v1.endpoints import (
     invoices, documents_collab, analytics_extended, portfolio,
     git_integration, esign, report_builder, nps, m365,
     backlog, export_template, cicd, events, documents_edit,
-    gantt_suggestions, template, templates,
+    gantt_suggestions, template, templates, revenue, predictions,
 )
 from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
 
@@ -68,3 +68,5 @@ router.include_router(baselines_v239.router,    tags=["Gantt Baselines"])
 router.include_router(templates.router,         prefix="/templates",     tags=["Templates Enhanced"])
 router.include_router(approval_builder_v239.router,                      tags=["Approval Workflow Builder"])
 router.include_router(template.router,         tags=["Templates"])
+router.include_router(revenue.router,          prefix="/revenue-recognition", tags=["Revenue Recognition"])
+router.include_router(predictions.router,      prefix="/predictions",         tags=["AI Predictions"])

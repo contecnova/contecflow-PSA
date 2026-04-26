@@ -109,4 +109,10 @@ from app.models.semantic_engine import (  # noqa: F401
     SemConfig, SemEngineMode, SemAssignmentType,
 )
 from app.models.ai_providers import AIProvider, AIUsageLog  # noqa: F401
+from app.models.revenue import (  # noqa: F401
+    RevenueContract, RevenueObligation, RevenueEntry, RevenuePeriodClose,
+    ASCMethod, EntryType,
+)
+from app.models.ml_model import MLModel, MLPredictionLog, MLModelType  # noqa: F401
+from app.models.pipeline import ProposalTemplate  # noqa: F401  — ensures Alembic detects the new table
 

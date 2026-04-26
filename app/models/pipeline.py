@@ -67,8 +67,18 @@ class Opportunity(Base):
     owner_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     team_required = Column(Text, nullable=True)  # JSON description of team needed
 
+    # Billing details (used on convert → RevenueContract)
+    hourly_rate     = Column(Float, nullable=True)
+    contract_type   = Column(String(30), nullable=True)   # fixed_price | time_material | retainer | hourly_bag
+
     # Link to project if won
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
+
+    # Proposal / SOW tracking
+    proposal_template_id  = Column(String(36), ForeignKey("proposal_templates.id", ondelete="SET NULL"), nullable=True)
+    proposal_content      = Column(Text, nullable=True)              # rendered Markdown
+    proposal_generated_at = Column(DateTime(timezone=True), nullable=True)
+    proposal_sent_at      = Column(DateTime(timezone=True), nullable=True)
 
     # Notes
     notes = Column(Text, nullable=True)
@@ -80,6 +90,7 @@ class Opportunity(Base):
     owner = relationship("User", foreign_keys=[owner_id])
     project = relationship("Project", foreign_keys=[project_id])
     activities = relationship("OpportunityActivity", back_populates="opportunity", cascade="all, delete-orphan", order_by="OpportunityActivity.created_at.desc()")
+    proposal_template = relationship("ProposalTemplate", foreign_keys=[proposal_template_id])
 
 
 class OpportunityActivity(Base):
@@ -246,3 +257,30 @@ class Risk(Base):
     project = relationship("Project")
     owner = relationship("User", foreign_keys=[owner_id])
     identifier = relationship("User", foreign_keys=[identified_by])
+
+
+# ── ProposalTemplate ───────────────────────────────────────────────────────────
+
+class ProposalTemplate(Base):
+    """
+    Reusable SOW/proposal template with {{variable}} placeholders.
+
+    Supported variables:
+      {{client_name}}, {{opportunity_name}}, {{expected_revenue}},
+      {{expected_hours}}, {{start_date}}, {{duration_weeks}},
+      {{owner_name}}, {{description}}, {{today}}
+    """
+    __tablename__ = "proposal_templates"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name            = Column(String(255), nullable=False)
+    description     = Column(Text, nullable=True)
+    # fixed_price | time_material | retainer | hourly_bag — hints for UI
+    contract_type   = Column(String(30), nullable=True)
+    # Markdown content with {{variable}} placeholders
+    content         = Column(Text, nullable=False, default="")
+    is_active       = Column(Boolean, nullable=False, default=True)
+    created_by      = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

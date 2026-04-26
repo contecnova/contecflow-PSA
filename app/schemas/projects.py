@@ -110,3 +110,5 @@ class ProjectSummary(BaseModel):
     budget_used_pct: Optional[float] = 0
     progress_pct: Optional[float] = 0
     team_size: int = 0
+    start_date: Optional[date] = None
+    end_date_planned: Optional[date] = None

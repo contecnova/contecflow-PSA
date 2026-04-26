@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
 import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
+import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
 import { FolderOpen } from 'lucide-react'
@@ -166,6 +167,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} />
+          <ProjectRiskBadge projectId={project.id} />
         </div>
       </div>
 
@@ -270,8 +272,8 @@ function ProjectFormModal({ open, onClose, project = null }) {
       }
     },
     onSuccess: (_saved) => {
-      qc.invalidateQueries(['projects'])
-      qc.invalidateQueries(['project'])
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project'] })
       qc.invalidateQueries(['dash-projects-health'])
       qc.invalidateQueries(['dash-pipeline'])
       // Sincronización bidireccional: si cambió el cliente, actualizar vista de Clientes
@@ -878,7 +880,7 @@ export default function ProjectsPage() {
 
       {isLoading ? (
         <SkeletonProjects />
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && view !== 'templates' ? (
         <EmptyState icon="folder" title="Sin proyectos" description="Crea el primer proyecto para empezar a planificar" ctaLabel="Crear proyecto" onCta={() => setShowCreate(true)} />
       ) : view === 'grid' ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
@@ -887,7 +889,7 @@ export default function ProjectsPage() {
               onStatusChange={(id, status) => updateStatus({ id, status })} onEdit={setEditTarget} />
           ))}
         </div>
-      ) : (
+      ) : view === 'list' ? (
         <div style={{ overflowX: 'auto', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }}>
           <div style={{ minWidth: 920 }}>
           <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
@@ -922,7 +924,9 @@ export default function ProjectsPage() {
           ))}
           </div>
         </div>
-      )}
+      ) : view === 'templates' ? (
+        <TemplatesTab />
+      ) : null}
 
       {/* ─── GANTT VIEW ─── */}
       {view === 'gantt' && (

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -7,6 +7,7 @@ from app.core.deps import get_current_user, require_any_manager, require_admin
 from app.models.user import User
 from app.services import pipeline_service
 from app.services.pipeline_service import STAGE_LABELS, serialize_opportunity as _opp_out
+from app.services import proposal_service as proposal_svc
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
 
 router = APIRouter()
@@ -120,8 +121,110 @@ def convert_opportunity_to_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    """Crea un proyecto a partir de los datos de la oportunidad y vincula ambos."""
+    """Crea un proyecto a partir de los datos de la oportunidad y vincula ambos.
+    También crea automáticamente un RevenueContract ASC 606 si el módulo está disponible.
+    """
     return pipeline_service.convert_opportunity_to_project(db, current_user, opp_id)
+
+
+# ── Proposals ─────────────────────────────────────────────────────────────────
+
+@router.post("/{opp_id}/generate-proposal", summary="Generar propuesta SOW para la oportunidad")
+def generate_proposal(
+    opp_id: str,
+    payload: dict = Body(default={}),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    opp = proposal_svc.generate_proposal(
+        db, opp_id,
+        template_id=payload.get("template_id"),
+        user_id=current_user.id,
+        extra_vars=payload.get("extra_vars"),
+    )
+    return {
+        "id": opp.id,
+        "proposal_content": opp.proposal_content,
+        "proposal_status": "generated",
+        "proposal_generated_at": str(opp.proposal_generated_at)[:16] if opp.proposal_generated_at else None,
+        "message": "Propuesta generada correctamente",
+    }
+
+
+@router.post("/{opp_id}/mark-proposal-sent", summary="Marcar propuesta como enviada al cliente")
+def mark_proposal_sent(
+    opp_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    opp = proposal_svc.mark_proposal_sent(db, opp_id)
+    return {
+        "id": opp.id,
+        "proposal_status": "sent",
+        "proposal_sent_at": str(opp.proposal_sent_at)[:16] if opp.proposal_sent_at else None,
+        "message": "Propuesta marcada como enviada",
+    }
+
+
+@router.get("/{opp_id}/proposal", summary="Obtener contenido de la propuesta generada")
+def get_proposal(
+    opp_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.pipeline import Opportunity
+    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+    if not opp:
+        raise HTTPException(404, "Oportunidad no encontrada")
+    return {
+        "id": opp.id,
+        "proposal_content": opp.proposal_content,
+        "proposal_template_id": opp.proposal_template_id,
+        "proposal_generated_at": str(opp.proposal_generated_at)[:16] if opp.proposal_generated_at else None,
+        "proposal_sent_at": str(opp.proposal_sent_at)[:16] if opp.proposal_sent_at else None,
+    }
+
+
+# ── Proposal Templates ─────────────────────────────────────────────────────────
+
+@router.get("/proposals/templates", summary="Listar plantillas de propuesta")
+def list_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    templates = proposal_svc.list_templates(db)
+    return [proposal_svc.serialize_template(t) for t in templates]
+
+
+@router.post("/proposals/templates", summary="Crear plantilla de propuesta")
+def create_template(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    t = proposal_svc.create_template(db, current_user.organization_id, current_user.id, payload)
+    return proposal_svc.serialize_template(t)
+
+
+@router.patch("/proposals/templates/{template_id}", summary="Actualizar plantilla de propuesta")
+def update_template(
+    template_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    t = proposal_svc.update_template(db, template_id, payload)
+    return proposal_svc.serialize_template(t)
+
+
+@router.delete("/proposals/templates/{template_id}", summary="Desactivar plantilla de propuesta")
+def delete_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    proposal_svc.delete_template(db, template_id)
+    return {"ok": True}
 
 
 # ── Weighted Forecast ─────────────────────────────────────────────────────────

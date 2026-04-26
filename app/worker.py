@@ -50,6 +50,16 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.process_approval_timeouts",
         "schedule": crontab(minute=0),  # every hour at :00
     },
+    # ASC 606 monthly revenue recognition — 1st of every month at 02:00
+    "revenue-monthly-recognition": {
+        "task": "app.worker.revenue_monthly_recognition",
+        "schedule": crontab(day_of_month=1, hour=2, minute=0),
+    },
+    # ML model retraining — 1st of every month at 03:00 (after revenue recognition)
+    "ml-model-retrain": {
+        "task": "app.worker.ml_model_retrain",
+        "schedule": crontab(day_of_month=1, hour=3, minute=0),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -704,5 +714,56 @@ def process_approval_timeouts():
     try:
         result = _process(db)
         return result
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.revenue_monthly_recognition")
+def revenue_monthly_recognition():
+    """
+    ASC 606 / IFRS 15 monthly recognition batch.
+    Runs on the 1st of each month at 02:00 UTC.
+    Processes over_time, consumption, and straight_line contracts for the
+    previous calendar month across all organizations.
+    Milestone-method contracts are skipped (recognized on milestone completion).
+    """
+    from datetime import date
+    from app.db.session import SessionLocal
+    from app.services.revenue_service import run_monthly_recognition
+
+    today = date.today()
+    # Recognize the previous month (this task runs on the 1st)
+    if today.month == 1:
+        year, month = today.year - 1, 12
+    else:
+        year, month = today.year, today.month - 1
+
+    db = SessionLocal()
+    try:
+        result = run_monthly_recognition(db, year, month)
+        _worker_logger.info("ASC 606 recognition complete: %s", result)
+        return result
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.ml_model_retrain")
+def ml_model_retrain():
+    """
+    Retrain overrun prediction ML models for all active organizations.
+    Runs on the 1st of each month at 03:00 UTC, after revenue recognition.
+    Skips orgs with fewer than MIN_TRAINING_SAMPLES completed projects.
+    Requires scikit-learn; skips gracefully if not available.
+    """
+    from app.db.session import SessionLocal
+    from app.services.ml_trainer import train_all_orgs
+
+    db = SessionLocal()
+    try:
+        results = train_all_orgs(db)
+        trained = sum(1 for r in results if r.get("status") == "trained")
+        skipped = sum(1 for r in results if r.get("status") == "skipped")
+        _worker_logger.info("ML retrain: %d trained, %d skipped", trained, skipped)
+        return {"trained": trained, "skipped": skipped, "results": results}
     finally:
         db.close()

@@ -493,8 +493,16 @@ async def request_logger(request: Request, call_next):
         return response
 
     # Color según status
-    # 401 on /auth/me is expected (session probe at startup) — log as INFO
-    _expected_401 = (status == 401 and path.endswith("/auth/me"))
+    # Some 401s are expected and short-lived in normal UX:
+    # - startup session probe (/auth/me)
+    # - concurrent queries while interceptor refreshes expired access cookie
+    _expected_401_paths = {
+        "/api/v1/auth/me",
+        "/api/v1/users/me/preferences",
+        "/api/v1/alerts",
+        "/api/v1/approvals/requests/pending-my-action",
+    }
+    _expected_401 = (status == 401 and path in _expected_401_paths)
     if status < 300:
         level = logging.INFO
         icon  = "✅"

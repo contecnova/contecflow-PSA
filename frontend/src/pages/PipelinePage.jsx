@@ -1,11 +1,16 @@
-﻿import { useMemo, useState } from 'react'
-import { Megaphone, Plus, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import { Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
-import { useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity } from '../hooks/usePipeline'
+import {
+  useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity,
+  useGenerateProposal, useMarkProposalSent, useConvertToProject,
+} from '../hooks/usePipeline'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtCurrency, fmtDate, fmtPct } from '../utils/helpers'
+import { pipelineApi } from '../services/api'
 
 const STAGES = ['lead', 'qualification', 'proposal', 'negotiation', 'won', 'lost', 'cancelled']
 
@@ -37,6 +42,12 @@ const STAGE_TRANSITIONS = {
   won: [],
   lost: ['lead'],
   cancelled: [],
+}
+
+const PROPOSAL_STATUS_COLORS = {
+  none:      { bg: 'var(--surface-3)', color: 'var(--text-3)', label: 'Sin propuesta' },
+  generated: { bg: 'var(--warning-bg,#2d2200)', color: 'var(--warning)', label: 'Propuesta generada' },
+  sent:      { bg: 'var(--success-bg,#00220f)', color: 'var(--success)', label: 'Propuesta enviada' },
 }
 
 const panelStyle = {
@@ -80,6 +91,15 @@ function emptyForm() {
   }
 }
 
+function ProposalStatusBadge({ status }) {
+  const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
+  return (
+    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
+      {cfg.label}
+    </span>
+  )
+}
+
 function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }) {
   return (
     <Card style={{ minWidth: 180, padding: 18 }}>
@@ -94,6 +114,206 @@ function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }) {
   )
 }
 
+function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
+  const toast = useToast()
+  const [convertResult, setConvertResult] = useState(null)
+  const [showProposal, setShowProposal] = useState(false)
+
+  const generateProposal = useGenerateProposal()
+  const markProposalSent = useMarkProposalSent()
+  const convertToProject = useConvertToProject()
+
+  // Fetch proposal content on demand
+  const { data: proposalData, refetch: refetchProposal, isFetching: fetchingProposal } = useQuery({
+    queryKey: ['pipeline-proposal', opp.id],
+    queryFn: () => pipelineApi.getProposal(opp.id).then(r => r.data),
+    enabled: false,
+    staleTime: 0,
+  })
+
+  async function handleGenerateProposal() {
+    try {
+      await generateProposal.mutateAsync({ id: opp.id, payload: {} })
+      toast.success('Propuesta generada correctamente')
+      onUpdate()
+    } catch (e) {
+      toast.error(extractErr(e, 'No se pudo generar la propuesta'))
+    }
+  }
+
+  async function handleMarkSent() {
+    try {
+      await markProposalSent.mutateAsync(opp.id)
+      toast.success('Propuesta marcada como enviada al cliente')
+      onUpdate()
+    } catch (e) {
+      toast.error(extractErr(e, 'Error al marcar como enviada'))
+    }
+  }
+
+  async function handleConvert() {
+    if (!window.confirm(`¿Convertir "${opp.name}" a proyecto? Se marcará la oportunidad como ganada y se creará un contrato ASC 606 automáticamente.`)) return
+    try {
+      const res = await convertToProject.mutateAsync(opp.id)
+      setConvertResult(res.data)
+      toast.success(`Proyecto ${res.data.project_code} creado correctamente`)
+      onUpdate()
+    } catch (e) {
+      toast.error(extractErr(e, 'No se pudo convertir la oportunidad'))
+    }
+  }
+
+  async function handleViewProposal() {
+    setShowProposal(true)
+    await refetchProposal()
+  }
+
+  const proposalStatus = opp.proposal_status || 'none'
+  const hasProposal = proposalStatus !== 'none'
+  const alreadyConverted = !!opp.project_id
+
+  return (
+    <>
+      <Modal open onClose={onClose} title={opp.name} width={680}>
+        <div style={{ display: 'grid', gap: 20 }}>
+
+          {/* Info */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, background: 'var(--surface-2)', borderRadius: 10, padding: 16 }}>
+            {[
+              { label: 'Cliente', value: opp.client_name || '—' },
+              { label: 'Código', value: opp.code || '—' },
+              { label: 'Responsable', value: opp.owner_name || '—' },
+              { label: 'Valor esperado', value: fmtCurrency(opp.expected_revenue) },
+              { label: 'Probabilidad', value: fmtPct(opp.probability) },
+              { label: 'Ponderado', value: fmtCurrency(opp.weighted_revenue) },
+              { label: 'Etapa', value: stageLabels[opp.stage] || opp.stage },
+              { label: 'Cierre estimado', value: fmtDate(opp.expected_close_date) },
+              { label: 'Tipo contrato', value: opp.contract_type || '—' },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {opp.description ? (
+            <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
+              {opp.description}
+            </div>
+          ) : null}
+
+          {/* Propuesta SOW */}
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <FileText size={16} style={{ color: 'var(--accent)' }} />
+                <span style={{ fontWeight: 700, fontSize: 14 }}>Propuesta SOW</span>
+              </div>
+              <ProposalStatusBadge status={proposalStatus} />
+            </div>
+
+            {opp.proposal_generated_at ? (
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                Generada: {opp.proposal_generated_at}
+                {opp.proposal_sent_at ? ` · Enviada: ${opp.proposal_sent_at}` : ''}
+              </div>
+            ) : null}
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button
+                onClick={handleGenerateProposal}
+                loading={generateProposal.isPending}
+                variant={hasProposal ? 'secondary' : 'primary'}
+                icon={<FileText size={13} />}
+              >
+                {hasProposal ? 'Regenerar propuesta' : 'Generar propuesta'}
+              </Button>
+
+              {hasProposal && (
+                <Button
+                  onClick={handleViewProposal}
+                  variant="secondary"
+                  loading={fetchingProposal}
+                  icon={<ExternalLink size={13} />}
+                >
+                  Ver propuesta
+                </Button>
+              )}
+
+              {proposalStatus === 'generated' && (
+                <Button
+                  onClick={handleMarkSent}
+                  loading={markProposalSent.isPending}
+                  icon={<Send size={13} />}
+                >
+                  Marcar como enviada al cliente
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Conversión a proyecto */}
+          <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Briefcase size={16} style={{ color: 'var(--success)' }} />
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Conversión a proyecto</span>
+            </div>
+
+            {alreadyConverted ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--success)', background: 'var(--success-bg,#00220f)', borderRadius: 8, padding: '8px 12px' }}>
+                <Briefcase size={14} />
+                Vinculada al proyecto <strong style={{ marginLeft: 4 }}>{opp.project_id}</strong>
+              </div>
+            ) : convertResult ? (
+              <div style={{ fontSize: 13, color: 'var(--success)', background: 'var(--success-bg,#00220f)', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>Proyecto creado: {convertResult.project_code}</div>
+                <div style={{ color: 'var(--text-2)' }}>{convertResult.message}</div>
+                {convertResult.rev_contract_id && (
+                  <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4 }}>Contrato ASC 606 creado automáticamente</div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  Convierte esta oportunidad en un proyecto activo. Se creará automáticamente un contrato ASC 606 con el método de reconocimiento correspondiente al tipo de contrato.
+                </div>
+                <div>
+                  <Button
+                    onClick={handleConvert}
+                    loading={convertToProject.isPending}
+                    icon={<ChevronRight size={13} />}
+                  >
+                    Convertir a proyecto
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Proposal preview modal */}
+      {showProposal && (
+        <Modal open onClose={() => setShowProposal(false)} title="Propuesta SOW" width={780}>
+          {fetchingProposal ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner size={28} /></div>
+          ) : (
+            <pre style={{
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace',
+              fontSize: 12, lineHeight: 1.7, color: 'var(--text-1)',
+              background: 'var(--surface-2)', borderRadius: 8, padding: '16px 18px',
+              maxHeight: '60vh', overflowY: 'auto', margin: 0,
+            }}>
+              {proposalData?.proposal_content || '(sin contenido)'}
+            </pre>
+          )}
+        </Modal>
+      )}
+    </>
+  )
+}
+
 export default function PipelinePage() {
   const t = useAppT()
   const toast = useToast()
@@ -101,6 +321,7 @@ export default function PipelinePage() {
   const [ownerFilter, setOwnerFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(() => emptyForm())
+  const [detailOpp, setDetailOpp] = useState(null)
 
   const { data = [], isLoading, isError, error, refetch, isFetching } = usePipeline()
   const createOpportunity = useCreateOpportunity()
@@ -161,6 +382,11 @@ export default function PipelinePage() {
       winRate: closed.length ? (won.length / closed.length) * 100 : 0,
     }
   }, [filtered])
+
+  // Keep detailOpp in sync with fresh list data
+  const detailOppFresh = detailOpp
+    ? (data.find(o => o.id === detailOpp.id) || detailOpp)
+    : null
 
   async function handleCreate(event) {
     event.preventDefault()
@@ -294,22 +520,34 @@ export default function PipelinePage() {
                     </div>
                   ) : opportunities.map((opportunity) => {
                     const allowedStages = [opportunity.stage, ...STAGE_TRANSITIONS[opportunity.stage]]
+                    const proposalStatus = opportunity.proposal_status || 'none'
+                    const psCfg = PROPOSAL_STATUS_COLORS[proposalStatus]
                     return (
                       <Card key={opportunity.id} style={{ padding: 14, display: 'grid', gap: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{opportunity.name}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opportunity.name}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{opportunity.client_name || 'Sin cliente'}</div>
                             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{opportunity.code || 'Sin código'}</div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(opportunity)}
-                            title="Eliminar oportunidad"
-                            style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 2 }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => setDetailOpp(opportunity)}
+                              title="Ver detalles y gestionar propuesta"
+                              style={{ background: 'var(--accent-muted,rgba(0,212,255,0.08))', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '4px 6px', borderRadius: 6 }}
+                            >
+                              <FileText size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(opportunity)}
+                              title="Eliminar oportunidad"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 2 }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
 
                         <div style={{ display: 'grid', gap: 6, fontSize: 12, color: 'var(--text-2)' }}>
@@ -330,6 +568,13 @@ export default function PipelinePage() {
                             <strong style={{ color: 'var(--text-1)' }}>{fmtDate(opportunity.expected_close_date)}</strong>
                           </div>
                         </div>
+
+                        {/* Proposal status indicator */}
+                        {proposalStatus !== 'none' && (
+                          <div style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
+                            {psCfg.label}
+                          </div>
+                        )}
 
                         <div style={{ display: 'grid', gap: 8 }}>
                           <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
@@ -368,6 +613,7 @@ export default function PipelinePage() {
         </div>
       ) : null}
 
+      {/* Create modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} width={620}>
         <form onSubmit={handleCreate} style={{ display: 'grid', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -429,6 +675,16 @@ export default function PipelinePage() {
           </div>
         </form>
       </Modal>
+
+      {/* Detail + proposal + convert modal */}
+      {detailOppFresh && (
+        <OpportunityDetailModal
+          opp={detailOppFresh}
+          stageLabels={stageLabels}
+          onClose={() => setDetailOpp(null)}
+          onUpdate={() => {}}
+        />
+      )}
     </div>
   )
 }

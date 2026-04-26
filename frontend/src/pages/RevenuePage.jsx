@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -17,6 +17,7 @@ const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var
 const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
+// Methods for existing rules (legacy engine)
 const METHOD_CFG = {
   percentage_complete: { label:'% Completado',        desc:'Reconoce proporcionalmente al avance de tareas', icon:'📊' },
   time_and_material:   { label:'T&M',                 desc:'Reconoce al registrar horas facturables', icon:'⏱' },
@@ -25,12 +26,15 @@ const METHOD_CFG = {
   completed_contract:  { label:'Contrato completado',  desc:'Solo reconoce al cerrar el proyecto', icon:'✅' },
 }
 
-const _LEVEL_CFG = {
-  low:      { color:'var(--success)',  bg:'var(--success-bg)',  label:'Bajo' },
-  medium:   { color:'var(--warning)',  bg:'var(--warning-bg)',  label:'Medio' },
-  high:     { color:'var(--danger)',   bg:'var(--danger-bg)',   label:'Alto' },
-  critical: { color:'var(--danger)',   bg:'var(--danger-bg)',   label:'Crítico' },
+// Methods for new ASC 606 engine
+const ASC_METHOD_CFG = {
+  over_time:    { label:'T&M / Tiempo',    desc:'Proporcional a horas aprobadas en el período', icon:'⏱' },
+  milestone:    { label:'Por hito',        desc:'Al completar hitos ligados a obligaciones', icon:'🎯' },
+  consumption:  { label:'Bolsa de horas',  desc:'Al consumir horas de la bolsa contratada', icon:'🗂' },
+  straight_line:{ label:'Línea recta',     desc:'1/N por mes durante la duración del contrato', icon:'📈' },
 }
+
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 function fmtEur(n) {
   if (!n && n !== 0) return '—'
@@ -47,10 +51,38 @@ export default function RevenuePage() {
   const [form, setForm] = useState({ project_id:'', method:'percentage_complete', contract_value:'', start_date:'', end_date:'', notes:'' })
   const [computePeriod, setComputePeriod] = useState(new Date().toISOString().slice(0,7) + '-01')
 
+  // ── New ASC 606 state ──────────────────────────────────────────────────────
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  const [dashYear, setDashYear] = useState(currentYear)
+  const [showCreateContract, setShowCreateContract] = useState(false)
+  const [showCloseModal, setShowCloseModal] = useState(false)
+  const [closePeriod, setClosePeriod] = useState({ year: currentYear, month: currentMonth, notes: '' })
+  const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency:'EUR', start_date:'', end_date:'', duration_months:'', notes:'' })
+
+  // ── Existing queries ───────────────────────────────────────────────────────
   const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => api.get('/revenue/rules').then(r=>r.data) })
   const { data: summary } = useQuery({ queryKey:['rev-summary'], queryFn:() => api.get('/revenue/summary').then(r=>r.data) })
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data || []) })
 
+  // ── New ASC 606 queries ────────────────────────────────────────────────────
+  const { data: asc606Dashboard } = useQuery({
+    queryKey: ['asc606-dashboard', dashYear],
+    queryFn: () => api.get(`/revenue-recognition/dashboard?year=${dashYear}`).then(r => r.data),
+    enabled: tab === 'asc606',
+  })
+  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+    queryKey: ['asc606-contracts'],
+    queryFn: () => api.get('/revenue-recognition/contracts').then(r => r.data),
+    enabled: tab === 'asc606',
+  })
+  const { data: periodCloses = [] } = useQuery({
+    queryKey: ['asc606-period-closes'],
+    queryFn: () => api.get('/revenue-recognition/period-closes').then(r => r.data),
+    enabled: tab === 'asc606',
+  })
+
+  // ── Existing mutations ─────────────────────────────────────────────────────
   const { mutate: createRule, isPending:creating } = useMutation({
     mutationFn: d => api.post('/revenue/rules', d),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); setShowCreate(false) },
@@ -64,13 +96,48 @@ export default function RevenuePage() {
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
-
   const { mutate: compute, isPending:computing } = useMutation({
     mutationFn: ({ id, period }) => api.post(`/revenue/rules/${id}/compute`, { period }),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); qc.invalidateQueries(['rev-summary']); setShowCompute(null) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
+  // ── New ASC 606 mutations ──────────────────────────────────────────────────
+  const { mutate: createContract, isPending: creatingContract } = useMutation({
+    mutationFn: d => api.post('/revenue-recognition/contracts', d),
+    onSuccess: () => {
+      qc.invalidateQueries(['asc606-contracts'])
+      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      setShowCreateContract(false)
+      toast.success('Contrato creado')
+    },
+    onError: e => toast.error(extractErr(e, 'Error al crear contrato')),
+  })
+  const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
+    mutationFn: d => api.post('/revenue-recognition/period-closes', d),
+    onSuccess: () => {
+      qc.invalidateQueries(['asc606-period-closes'])
+      setShowCloseModal(false)
+      toast.success(`Período ${closePeriod.year}-${String(closePeriod.month).padStart(2,'0')} cerrado`)
+    },
+    onError: e => toast.error(extractErr(e, 'Error al cerrar período')),
+  })
+  const { mutate: reopenPeriodMut } = useMutation({
+    mutationFn: ({ year, month }) => api.delete(`/revenue-recognition/period-closes/${year}/${month}`),
+    onSuccess: () => { qc.invalidateQueries(['asc606-period-closes']); toast.success('Período reabierto') },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
+    mutationFn: d => api.post('/revenue-recognition/run-monthly', d),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['asc606-dashboard', dashYear])
+      const r = res.data.recognized
+      toast.success(`Reconocimiento completado: T&M ${fmtEur(r?.over_time)}, Línea recta ${fmtEur(r?.straight_line)}`)
+    },
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  // ── Chart data ─────────────────────────────────────────────────────────────
   const byMonth = summary?.by_month || []
   const chartData = byMonth.slice(-12).map(m => ({
     mes: m.month.slice(0,7),
@@ -78,11 +145,21 @@ export default function RevenuePage() {
     Diferido: Math.round(m.deferred),
   }))
 
+  const asc606ChartData = (asc606Dashboard?.by_month || []).map(m => ({
+    mes: MONTHS[m.month - 1],
+    Reconocido: Math.round(m.recognized),
+    Diferido: Math.round(m.deferred),
+    Unbilled: Math.round(m.unbilled),
+  }))
+
   const TABS = [
     { id:'summary', label:'Resumen' },
     { id:'rules',   label:'Reglas por proyecto' },
+    { id:'asc606',  label:'Contratos ASC 606' },
     { id:'info',    label:'ASC 606 / IFRS 15' },
   ]
+
+  const closedPeriodKeys = new Set(periodCloses.map(pc => `${pc.period_year}-${pc.period_month}`))
 
   return (
     <div style={{ padding:32 }}>
@@ -106,10 +183,10 @@ export default function RevenuePage() {
 
       {/* Tab nav */}
       <div style={{ display:'flex', gap:8, marginBottom:24 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===t.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===t.id?'var(--accent-muted)':'transparent', color:tab===t.id?'var(--accent)':'var(--text-2)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
-            {t.label}
+        {TABS.map(tb => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
+            style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===tb.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===tb.id?'var(--accent-muted)':'transparent', color:tab===tb.id?'var(--accent)':'var(--text-2)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+            {tb.label}
           </button>
         ))}
       </div>
@@ -186,6 +263,121 @@ export default function RevenuePage() {
         </div>
       )}
 
+      {/* ── ASC 606 Contratos (nuevo motor) ── */}
+      {tab === 'asc606' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+          {/* Top bar */}
+          <div style={{ display:'flex', gap:10, alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} style={{ ...fs, width:'auto' }}>
+                {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <Button variant="secondary" onClick={() => runMonthly({ year: dashYear, month: currentMonth })} disabled={runningMonthly}>
+                <RefreshCw size={13} style={{ marginRight:4 }} />{runningMonthly ? 'Procesando...' : 'Ejecutar reconocimiento'}
+              </Button>
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <Button variant="secondary" onClick={() => setShowCloseModal(true)}><Lock size={13} style={{ marginRight:4 }} />Cerrar período</Button>
+              <Button onClick={() => setShowCreateContract(true)}>+ Nuevo contrato</Button>
+            </div>
+          </div>
+
+          {/* Dashboard KPIs */}
+          {asc606Dashboard && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+              {[
+                { label:'Total reconocido', value: fmtEur(asc606Dashboard.total_recognized), icon:'✅' },
+                { label:'Contratos activos', value: asc606Dashboard.contracts?.length || 0, icon:'📑' },
+                { label:'Entradas contables', value: asc606Dashboard.entry_count || 0, icon:'📋' },
+              ].map((k,i) => (
+                <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
+                  <div style={{ fontSize:18, marginBottom:4 }}>{k.icon}</div>
+                  <div style={{ fontSize:20, fontWeight:500, marginBottom:2 }}>{k.value}</div>
+                  <div style={{ fontSize:11, color:'var(--text-2)' }}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Chart */}
+          {asc606ChartData.length > 0 && (
+            <div style={{ ...card, padding:'20px 24px' }}>
+              <div style={{ fontSize:13, fontWeight:500, marginBottom:16 }}>Reconocimiento ASC 606 — {dashYear}</div>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={asc606ChartData}>
+                  <XAxis dataKey="mes" tick={{ fontSize:11 }} />
+                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize:11 }} />
+                  <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
+                  <Legend />
+                  <Bar dataKey="Reconocido" fill="#1D9E75" radius={[3,3,0,0]} />
+                  <Bar dataKey="Diferido"   fill="#FAC775" radius={[3,3,0,0]} />
+                  <Bar dataKey="Unbilled"   fill="#7C8CF8" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Period closes */}
+          {periodCloses.length > 0 && (
+            <div style={{ ...card, padding:'16px 20px' }}>
+              <div style={{ fontSize:12, fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                {periodCloses.map(pc => (
+                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'var(--surface-2)', fontSize:12 }}>
+                    <Lock size={11} style={{ color:'var(--accent)' }} />
+                    <span>{pc.period_year}-{String(pc.period_month).padStart(2,'0')}</span>
+                    <button
+                      onClick={() => reopenPeriodMut({ year: pc.period_year, month: pc.period_month })}
+                      style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-3)', padding:0, lineHeight:1 }}
+                      title="Reabrir período"
+                    >
+                      <LockOpen size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contracts list */}
+          <div>
+            <div style={{ fontSize:12, fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Contratos de reconocimiento</div>
+            {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
+              <EmptyState icon="📑" title="Sin contratos ASC 606" description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {contracts.map(c => {
+                  const mCfg = ASC_METHOD_CFG[c.method] || { label: c.method, icon:'•' }
+                  return (
+                    <div key={c.id} style={{ ...card, padding:'14px 18px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                        <div>
+                          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6 }}>
+                            <span style={{ fontSize:14, fontWeight:500 }}>{c.name}</span>
+                            <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
+                              {mCfg.icon} {mCfg.label}
+                            </span>
+                            {!c.is_active && (
+                              <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
+                            )}
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
+                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize:13, fontWeight:500 }}>{fmtEur(c.contract_value)}</div></div>
+                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize:13 }}>{c.currency}</div></div>
+                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize:13 }}>{c.start_date || '—'}</div></div>
+                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize:13 }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Info ASC 606 ── */}
       {tab === 'info' && (
         <div style={{ ...card, padding:'24px 28px', maxWidth:700 }}>
@@ -206,8 +398,8 @@ export default function RevenuePage() {
             </div>
           ))}
           <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize:13, fontWeight:500 }}>Métodos disponibles en Clarive</div>
-            {Object.entries(METHOD_CFG).map(([k, v]) => (
+            <div style={{ fontSize:13, fontWeight:500 }}>Métodos disponibles</div>
+            {Object.entries(ASC_METHOD_CFG).map(([k, v]) => (
               <div key={k} style={{ display:'flex', gap:10, padding:'8px 12px', background:'var(--surface-2)', borderRadius:8 }}>
                 <span style={{ fontSize:16 }}>{v.icon}</span>
                 <div>
@@ -220,7 +412,7 @@ export default function RevenuePage() {
         </div>
       )}
 
-      {/* Modal nueva regla */}
+      {/* ── Modal nueva regla (legacy) ── */}
       {showCreate && (
         <Modal open title="Nueva regla de reconocimiento" onClose={() => setShowCreate(false)} width={520}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -255,7 +447,7 @@ export default function RevenuePage() {
         </Modal>
       )}
 
-      {/* Modal calcular período */}
+      {/* ── Modal calcular período (legacy) ── */}
       {showCompute && (
         <Modal open title={`Calcular reconocimiento — ${showCompute.project_name}`} onClose={() => setShowCompute(null)} width={440}>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -270,6 +462,101 @@ export default function RevenuePage() {
               <Button variant="secondary" onClick={() => setShowCompute(null)}>Cancelar</Button>
               <Button onClick={() => compute({ id:showCompute.id, period:computePeriod })} disabled={computing}>
                 {computing ? 'Calculando...' : 'Calcular y registrar'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Modal nuevo contrato ASC 606 ── */}
+      {showCreateContract && (
+        <Modal open title="Nuevo contrato ASC 606" onClose={() => setShowCreateContract(false)} width={540}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div><label style={ls}>Proyecto</label>
+              <select value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} style={fs}>
+                <option value="">Seleccionar proyecto...</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
+              </select>
+            </div>
+            <div><label style={ls}>Nombre del contrato</label>
+              <input value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Contrato desarrollo Q1 2026" />
+            </div>
+            <div><label style={ls}>Método de reconocimiento</label>
+              <select value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} style={fs}>
+                {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label} — {v.desc}</option>)}
+              </select>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={ls}>Valor del contrato</label>
+                <input type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} style={fs} placeholder="50000" />
+              </div>
+              <div><label style={ls}>Moneda</label>
+                <select value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} style={fs}>
+                  {['EUR','USD','GBP','CHF'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={ls}>Fecha inicio</label><input type="date" value={contractForm.start_date} onChange={e=>setContractForm(f=>({...f,start_date:e.target.value}))} style={fs} /></div>
+              <div><label style={ls}>Fecha fin</label><input type="date" value={contractForm.end_date} onChange={e=>setContractForm(f=>({...f,end_date:e.target.value}))} style={fs} /></div>
+            </div>
+            {contractForm.method === 'straight_line' && (
+              <div><label style={ls}>Duración (meses) — alternativa a fecha fin</label>
+                <input type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} style={fs} placeholder="12" />
+              </div>
+            )}
+            <div><label style={ls}>Notas</label>
+              <textarea value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <Button variant="secondary" onClick={() => setShowCreateContract(false)}>Cancelar</Button>
+              <Button
+                onClick={() => createContract({
+                  ...contractForm,
+                  contract_value: parseFloat(contractForm.contract_value) || 0,
+                  duration_months: contractForm.duration_months ? parseInt(contractForm.duration_months) : null,
+                })}
+                disabled={creatingContract || !contractForm.project_id || !contractForm.name}
+              >
+                {creatingContract ? 'Creando...' : 'Crear contrato'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Modal cerrar período ── */}
+      {showCloseModal && (
+        <Modal open title="Cerrar período contable" onClose={() => setShowCloseModal(false)} width={420}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize:12, color:'var(--warning)' }}>
+              Una vez cerrado, no se podrán crear ni revertir entradas para este período.
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              <div><label style={ls}>Año</label>
+                <input type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} style={fs} />
+              </div>
+              <div><label style={ls}>Mes</label>
+                <select value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} style={fs}>
+                  {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
+                </select>
+              </div>
+            </div>
+            {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
+              <div style={{ fontSize:12, color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:6 }}>
+                Este período ya está cerrado.
+              </div>
+            )}
+            <div><label style={ls}>Notas (opcional)</label>
+              <textarea value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <Button variant="secondary" onClick={() => setShowCloseModal(false)}>Cancelar</Button>
+              <Button
+                onClick={() => closePeriodMut({ year: closePeriod.year, month: closePeriod.month, notes: closePeriod.notes || null })}
+                disabled={closingPeriod || closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`)}
+              >
+                {closingPeriod ? 'Cerrando...' : 'Cerrar período'}
               </Button>
             </div>
           </div>

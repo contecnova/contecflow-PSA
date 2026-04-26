@@ -38,8 +38,9 @@ const STATUS_COLOR = {
 function parseDate(s) {
   if (!s) return null
   if (s instanceof Date) return s
+  // Handle both 'YYYY-MM-DD' and 'YYYY-MM-DDTHH:mm:ss' formats
   const d = new Date(s.length > 10 ? s : s + 'T00:00:00')
-  return isNaN(d) ? null : d
+  return isNaN(d.getTime()) ? null : d
 }
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
 function daysBetween(a, b) { return Math.round((b - a) / 86400000) }
@@ -143,6 +144,16 @@ export default function GanttChart({
   const dayPx = DAY_PX[zoom]
 
   const allItems = mode === 'portfolio' ? projects : tasks
+
+  // Debug: Log what we're receiving
+  if (mode === 'portfolio' && projects.length > 0) {
+    console.log('🔍 GanttChart DEBUG - Projects received:', projects.slice(0, 2).map(p => ({
+      name: p.name,
+      start_date: p.start_date,
+      end_date_planned: p.end_date_planned,
+      type: typeof p.start_date,
+    })))
+  }
 
   const { minDate, maxDate } = useMemo(() => {
     const dates = []
@@ -280,6 +291,18 @@ export default function GanttChart({
     week: t('gantt.view_week'),
     month: t('gantt.view_month'),
     quarter: t('gantt.view_quarter'),
+  }
+
+  // Check if we have any items with valid dates
+  if (!allItems || allItems.length === 0) {
+    const emptyMsg = mode === 'portfolio' 
+      ? t('projects.empty') || 'No hay proyectos para mostrar'
+      : t('tasks.empty') || 'No hay tareas para mostrar'
+    return (
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
+        <p style={{ fontSize: 14, marginBottom: 8 }}>📊 {emptyMsg}</p>
+      </div>
+    )
   }
 
   return (
@@ -457,7 +480,21 @@ export default function GanttChart({
               }
 
               if (!startD || !endD) {
-                return <rect key={item.id} x={0} y={svgY} width={chartW} height={h} fill="transparent" />
+                // Show placeholder bar for items without dates
+                const x1 = 40  // Fixed position for items without dates
+                return (
+                  <g key={item.id} onMouseEnter={() => setTooltip({ item, x: x1 + 80, y: svgY })} onMouseLeave={() => setTooltip(null)}>
+                    <rect x={0} y={svgY} width={chartW} height={h} fill="transparent" />
+                    <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="#1e2d4515" />
+                    <rect x={x1} y={svgY + BAR_PAD} width={150} height={h - BAR_PAD * 2} rx={4}
+                      fill="#4a5a7840" stroke="#4a5a7860" strokeWidth={1.5} strokeDasharray="3,2"
+                      style={{ cursor: 'default', opacity: 0.7 }} />
+                    <text x={x1 + 10} y={svgY + h / 2 + 3} fontSize={11} fill="#8a9aaa" fontFamily="inherit" fontWeight={500}
+                      style={{ pointerEvents: 'none', fontStyle: 'italic' }}>
+                      📅 Sin fechas definidas
+                    </text>
+                  </g>
+                )
               }
 
               const x1 = dateToX(startD)

@@ -77,11 +77,10 @@ et_xmlfile==2.0.0
 reportlab==4.4.10
 pillow==12.2.0
 
-# ── Semantic embeddings / ML (opcional; instálalo solo si lo necesitas con requirements-ml.txt) ─────
-# scikit-learn==1.8.0
-# scipy==1.17.1
-# numpy==2.4.4
-# joblib==1.5.3
+# ── ML predictivo (ASC 606 + overrun prediction) ──────────────────────────────
+scikit-learn==1.4.2
+numpy==1.26.4
+joblib==1.4.2
 
 # ── Crypto dependencies ────────────────────────────────────────────────────────
 cffi==2.0.0
