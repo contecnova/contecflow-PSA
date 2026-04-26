@@ -44,8 +44,8 @@ export default function GanttPage() {
     queryKey: ['task-deps', projectId],
     queryFn: () =>
       projectId
-        ? api.get(`/task-dependencies/${projectId}`)
-            .then(r => (Array.isArray(r.data.edges) ? r.data.edges : []))
+        ? api.get(`/tasks/dependencies/${projectId}`)
+            .then(r => (Array.isArray(r.data) ? r.data : []))
             .catch(() => [])
         : Promise.resolve([]),
     staleTime: 30000,
@@ -60,7 +60,8 @@ export default function GanttPage() {
       : rawTasks
     return filtered.map(t => ({
       ...t,
-      start_date: localDates[t.id]?.start_date ?? t.start_date,
+      // Fallback to created_at so Gantt still renders rows when explicit dates are missing.
+      start_date: localDates[t.id]?.start_date ?? t.start_date ?? t.created_at?.slice(0, 10),
       due_date:   localDates[t.id]?.due_date   ?? t.due_date,
     }))
   }, [rawTasks, localDates, filter])
@@ -73,10 +74,10 @@ export default function GanttPage() {
   })
 
   const { mutate: createDep } = useMutation({
-    mutationFn: dep => api.post('/task-dependencies', {
-      from_task_id: dep.predecessor_id,
-      to_task_id: dep.successor_id,
-      dep_type: dep.dependency_type || 'blocks',
+    mutationFn: dep => api.post('/tasks/dependencies', {
+      predecessor_id: dep.predecessor_id,
+      successor_id: dep.successor_id,
+      dependency_type: dep.dependency_type || 'FS',
       lag_days: dep.lag_days || 0,
     }),
     onSuccess:  () => { invalidate('task-deps'); toast.success(t('gantt.dependency_created')) },
@@ -93,7 +94,7 @@ export default function GanttPage() {
     createDep({ predecessor_id, successor_id, dependency_type: 'FS' })
   }, [createDep])
 
-  const hasDates = tasks.some(t => t.start_date || t.due_date)
+  const hasTasks = tasks.length > 0
 
   // ── render ───────────────────────────────────────────────────────────────────
   return (
@@ -143,15 +144,12 @@ export default function GanttPage() {
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <Spinner size={32} />
         </div>
-      ) : !hasDates ? (
+      ) : !hasTasks ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <EmptyState
             icon="📅"
-            title={rawTasks.length === 0 ? t('gantt.no_tasks') : t('gantt.no_dates')}
-            description={rawTasks.length === 0
-              ? t('gantt.no_tasks_desc')
-              : t('gantt.no_dates_desc', { count: rawTasks.length })
-            }
+            title={t('gantt.no_tasks')}
+            description={t('gantt.no_tasks_desc')}
           />
         </div>
       ) : (
