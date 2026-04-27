@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
@@ -32,12 +32,17 @@ const STATUS_COLOR = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var
 function DepForm({ projectId, tasks, onClose }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState({ from_task_id:'', to_task_id:'', dep_type:'blocks', lag_days:0, note:'' });
+  const [form, setForm] = useState({ predecessor_id:'', successor_id:'', dependency_type:'blocks', lag_days:0 });
   const set = k => v => setForm(f => ({...f, [k]: v}));
-  const selType = DEP_TYPES.find(d => d.value === form.dep_type);
+  const selType = DEP_TYPES.find(d => d.value === form.dependency_type);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.post('/task-dependencies', form).then(r => r.data),
+    mutationFn: () => api.post('/tasks/dependencies', {
+      predecessor_id: form.predecessor_id,
+      successor_id: form.successor_id,
+      dependency_type: form.dependency_type,
+      lag_days: form.lag_days,
+    }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['task-deps', projectId]); onClose(); },
     onError: e => toast.error(extractErr(e, t('dependencies.error_create'))),
   });
@@ -48,16 +53,16 @@ function DepForm({ projectId, tasks, onClose }) {
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
           <div>
             <label style={ls}>{t('dependencies.from_task')}</label>
-            <select style={is} value={form.from_task_id} onChange={e => set('from_task_id')(e.target.value)}>
+            <select style={is} value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={tk.id}>{tk.title?.slice(0,45)}</option>)}
             </select>
           </div>
           <div>
             <label style={ls}>{t('dependencies.to_task')}</label>
-            <select style={is} value={form.to_task_id} onChange={e => set('to_task_id')(e.target.value)}>
+            <select style={is} value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
-              {tasks.filter(tk => tk.id !== form.from_task_id).map(tk => (
+              {tasks.filter(tk => tk.id !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={tk.id}>{tk.title?.slice(0,45)}</option>))}
             </select>
           </div>
@@ -67,17 +72,17 @@ function DepForm({ projectId, tasks, onClose }) {
           <label style={ls}>Tipo de dependencia</label>
           <div style={{display:'flex', flexDirection:'column', gap:6}}>
             {DEP_TYPES.map(dt => (
-              <button key={dt.value} onClick={() => set('dep_type')(dt.value)}
+              <button key={dt.value} onClick={() => set('dependency_type')(dt.value)}
                 style={{display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8,
-                  border:`1px solid ${form.dep_type===dt.value ? dt.color+'50' : 'var(--surface-4)'}`,
-                  background:form.dep_type===dt.value ? dt.color+'15' : 'transparent',
+                  border:`1px solid ${form.dependency_type===dt.value ? dt.color+'50' : 'var(--surface-4)'}`,
+                  background:form.dependency_type===dt.value ? dt.color+'15' : 'transparent',
                   cursor:'pointer', fontFamily:'inherit', textAlign:'left'}}>
                 <div style={{width:10, height:10, borderRadius:'50%', background:dt.color, flexShrink:0}} />
                 <div style={{flex:1}}>
-                  <div style={{fontSize:13, fontWeight:form.dep_type===dt.value?600:400, color:form.dep_type===dt.value?dt.color:'var(--text-1)'}}>{dt.label}</div>
+                  <div style={{fontSize:13, fontWeight:form.dependency_type===dt.value?600:400, color:form.dependency_type===dt.value?dt.color:'var(--text-1)'}}>{dt.label}</div>
                   <div style={{fontSize:11, color:'var(--text-2)'}}>{dt.desc}</div>
                 </div>
-                {form.dep_type===dt.value && <span style={{color:dt.color}}>✓</span>}
+                {form.dependency_type===dt.value && <span style={{color:dt.color}}>✓</span>}
               </button>
             ))}
           </div>
@@ -97,14 +102,14 @@ function DepForm({ projectId, tasks, onClose }) {
           </div>
         </div>
 
-        {form.from_task_id && form.to_task_id && (
+        {form.predecessor_id && form.successor_id && (
           <div style={{padding:'10px 14px', background:'var(--surface-1)', borderRadius:8, border:'1px solid #1a2640', fontSize:12}}>
             <span style={{color:selType?.color, fontWeight:600}}>
-              &quot;{tasks.find(t=>t.id===form.from_task_id)?.title?.slice(0,30)}&quot;
+              &quot;{tasks.find(t=>t.id===form.predecessor_id)?.title?.slice(0,30)}&quot;
             </span>
             <span style={{color:'var(--text-2)'}}> {selType?.label.toLowerCase()} </span>
             <span style={{color:'var(--accent)', fontWeight:600}}>
-              &quot;{tasks.find(t=>t.id===form.to_task_id)?.title?.slice(0,30)}&quot;
+              &quot;{tasks.find(t=>t.id===form.successor_id)?.title?.slice(0,30)}&quot;
             </span>
             {form.lag_days > 0 && <span style={{color:'var(--text-2)'}}> + {form.lag_days}d</span>}
           </div>
@@ -112,7 +117,7 @@ function DepForm({ projectId, tasks, onClose }) {
 
         <div style={{display:'flex', justifyContent:'flex-end', gap:10, marginTop:8}}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate()} disabled={isPending || !form.from_task_id || !form.to_task_id} loading={isPending}>
+          <Button onClick={() => mutate()} disabled={isPending || !form.predecessor_id || !form.successor_id} loading={isPending}>
             {isPending ? 'Creando...' : 'Crear dependencia'}
           </Button>
         </div>
@@ -214,22 +219,45 @@ export default function DependenciesPage() {
     queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   // Usar siempre el endpoint correcto y nunca llamar sin projectId
-  const { data: graph, isLoading } = useQuery({
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks-list', project],
+    queryFn: () => project
+      ? api.get('/tasks', { params: { project_id: project, limit: 500 } })
+          .then(r => Array.isArray(r.data) ? r.data : (r.data?.items ?? []))
+          .catch(() => [])
+      : Promise.resolve([]),
+    enabled: !!project,
+  })
+
+  const { data: deps = [], isLoading } = useQuery({
     queryKey: ['task-deps', project],
     queryFn: () => project
-      ? api.get(`/task-dependencies/${project}`).then(r => r.data).catch(() => null)
-      : Promise.resolve(null),
+      ? api.get(`/tasks/dependencies/${project}`).then(r => Array.isArray(r.data) ? r.data : []).catch(() => [])
+      : Promise.resolve([]),
     enabled: !!project,
   })
 
   const { mutate: deleteEdge } = useMutation({
-    mutationFn: id => api.delete(`/task-dependencies/${id}`),
+    mutationFn: id => api.delete(`/tasks/dependencies/${id}`),
     onSuccess: () => qc.invalidateQueries(['task-deps', project]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
-  const nodes = graph?.nodes || []
-  const edges = graph?.edges || []
+  const taskMap = useMemo(() => Object.fromEntries(tasks.map(t => [t.id, t])), [tasks])
+
+  // Enrich flat deps with task titles/statuses using legacy field names for UI compatibility
+  const edges = useMemo(() => deps.map(d => ({
+    ...d,
+    from_task_id: d.predecessor_id,
+    to_task_id: d.successor_id,
+    dep_type: d.dependency_type,
+    from_task_title: taskMap[d.predecessor_id]?.title ?? d.predecessor_id,
+    from_task_status: taskMap[d.predecessor_id]?.status,
+    to_task_title: taskMap[d.successor_id]?.title ?? d.successor_id,
+    to_task_status: taskMap[d.successor_id]?.status,
+  })), [deps, taskMap])
+
+  const nodes = tasks
   const blocked = edges.filter(e => e.dep_type === 'blocks')
 
   return (
@@ -362,7 +390,7 @@ export default function DependenciesPage() {
       )}
 
       {showForm && (
-        <DepForm projectId={project} tasks={nodes}
+        <DepForm projectId={project} tasks={tasks}
           onClose={() => setShowForm(false)} />
       )}
     </div>

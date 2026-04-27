@@ -1,5 +1,5 @@
 """Contecflow v19 — Wiki, Épicas, NQL, CFD, Menciones"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.schemas.epics import (
@@ -153,13 +153,13 @@ def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
 
 
 @router.get("/epics")
-def list_epics(project_id: str,
+def list_epics(project_id: str = Query(...),
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_epics_records(project_id, db)
 
 
 @router.post("/epics")
-def create_epic(p: EpicIn, project_id: str,
+def create_epic(p: EpicIn, project_id: str = Query(...),
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return create_epic_record(p.model_dump(), project_id, cu.id, db)
 
@@ -206,7 +206,7 @@ def remove_dependency(epic_id: str, depends_on_id: str,
 
 
 @router.get("/roadmap")
-def get_roadmap(project_id: str,
+def get_roadmap(project_id: str = Query(...),
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return get_roadmap_data(project_id, db)
 
@@ -245,13 +245,13 @@ def delete_filter(filter_id: str, db: Session = Depends(get_db), cu: User = Depe
 # ══════════════════════════════════════════════════════════════════════
 
 @router.post("/cfd/snapshot")
-def take_snapshot(project_id: str, sprint_id: Optional[str] = None,
+def take_snapshot(project_id: str = Query(...), sprint_id: Optional[str] = Query(None),
                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return take_cfd_snapshot(project_id, sprint_id, db)
 
 
 @router.get("/cfd")
-def get_cfd(project_id: str, sprint_id: Optional[str] = None, days: int = 30,
+def get_cfd(project_id: str = Query(...), sprint_id: Optional[str] = Query(None), days: int = Query(30),
             db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return get_cfd_data(project_id, sprint_id, days, db)
 

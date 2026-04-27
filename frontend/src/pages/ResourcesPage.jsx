@@ -262,7 +262,7 @@ function SmartMatchTab() {
   const allSkills = Array.isArray(skillsRaw) ? skillsRaw : []
 
   const { mutate: search, isPending } = useMutation({
-    mutationFn: d => api.post('/smartmatch', d).then(r => r.data),
+    mutationFn: d => api.post('/billing-reports/smartmatch', d).then(r => r.data),
     onSuccess: data => setResults(data),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

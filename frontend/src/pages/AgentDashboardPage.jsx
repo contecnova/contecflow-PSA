@@ -60,12 +60,12 @@ export default function AgentDashboardPage() {
   })
   const { data: dash, isLoading } = useQuery({
     queryKey: ['agent-dash', agentId, days],
-    queryFn: () => api.get(`/agent-dashboard/${agentId}?days=${days}`).then(r => r.data).catch(() => null),
+    queryFn: () => api.get(`/cmdb/agent-dashboard/${agentId}?days=${days}`).then(r => r.data).catch(() => null),
     enabled: !!agentId,
   })
 
   const { mutate: snapshot, isPending: snapping } = useMutation({
-    mutationFn: () => api.post(`/agent-dashboard/${agentId}/snapshot`).then(r => r.data),
+    mutationFn: () => api.post(`/cmdb/agent-dashboard/${agentId}/snapshot`).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['agent-dash', agentId, days]); toast.info(t('agent_dashboard.snapshot_created')) },
     onError: e => toast.error(extractErr(e, t('agent_dashboard.snapshot_create_error'))),
   })
