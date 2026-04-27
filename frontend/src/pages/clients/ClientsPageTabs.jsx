@@ -8,6 +8,7 @@ import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtCurrency, extractErr } from '../../utils/helpers'
+import { resolveWsBase } from '../../utils/wsUtils'
 import { PortalUsersTab } from './PortalUsersTab'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 
@@ -492,7 +493,7 @@ export function PortalSolicitudesTab({ cid }) {
     function connectWS() {
       api.get('/ws/ticket').then(res => {
         const ticket = res.data.ticket
-        ws = new window.WebSocket(`ws://${window.location.host}/api/v1/ws/notifications?ticket=${ticket}`)
+        ws = new window.WebSocket(`${resolveWsBase()}/api/v1/ws/notifications?ticket=${ticket}`)
         ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 5000) }
         ws.onerror = () => { ws.close() }
         ws.onmessage = (ev) => {

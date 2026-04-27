@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
+import { resolveWsBase } from '../../utils/wsUtils'
 import { CLIENT_API, S as PORTAL_STYLES } from '../../pages/portal-client/portalClientContext'
 
 const cardStyle = {
@@ -56,18 +57,6 @@ const GRC_LABEL = {
 }
 
 const EMPTY_LIST = []
-
-function resolveWsBase() {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  const apiUrl = import.meta.env.VITE_API_URL || '/api/v1'
-  try {
-    const url = new URL(apiUrl, window.location.origin)
-    return `${proto}://${url.hostname}:${url.port || (proto === 'wss' ? '443' : '80')}`
-  } catch {
-    return `${proto}://${window.location.hostname}:8000`
-  }
-}
 
 function Badge({ children, color = 'var(--text-2)' }) {
   return (

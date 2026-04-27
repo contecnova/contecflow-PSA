@@ -206,7 +206,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle }) {
           <span style={{ color: 'var(--text-1)' }}>{trigger.icon} {t('automations.trig_' + rule.trigger_type, trigger.label)}</span>
           {rule.trigger_conditions && (
             <span style={{ color: 'var(--text-2)' }}>
-              {' '}· {rule.trigger_conditions.field} {t('automations.op_' + rule.trigger_conditions.operator, rule.trigger_conditions.operator)} <strong style={{ color: 'var(--text-1)' }}>{rule.trigger_conditions.value}</strong>
+              {' '}· {rule.trigger_conditions.field} {t('automations.op_' + rule.trigger_conditions.operator)} <strong style={{ color: 'var(--text-1)' }}>{rule.trigger_conditions.value}</strong>
             </span>
           )}
         </div>
