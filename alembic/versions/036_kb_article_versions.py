@@ -13,22 +13,30 @@ branch_labels = None
 depends_on = None
 
 
+def _table_exists(table: str) -> bool:
+    """Return True when table already exists (defensive upgrade)."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    return table in inspector.get_table_names()
+
+
 def upgrade() -> None:
-    op.create_table(
-        "sd_kb_article_versions",
-        sa.Column("id", sa.String(36), primary_key=True),
-        sa.Column("article_id", sa.String(36), sa.ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("version", sa.Integer(), nullable=False),
-        sa.Column("title", sa.String(500), nullable=False),
-        sa.Column("body", sa.Text(), nullable=False),
-        sa.Column("summary", sa.String(500), nullable=True),
-        sa.Column("tags", sa.String(500), nullable=True),
-        sa.Column("status", sa.String(20), nullable=True),
-        sa.Column("change_note", sa.String(255), nullable=True),
-        sa.Column("changed_by_user_id", sa.String(36), sa.ForeignKey("users.id"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-    op.create_index("ix_sd_kb_article_versions_article_id", "sd_kb_article_versions", ["article_id"])
+    if not _table_exists("sd_kb_article_versions"):
+        op.create_table(
+            "sd_kb_article_versions",
+            sa.Column("id", sa.String(36), primary_key=True),
+            sa.Column("article_id", sa.String(36), sa.ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("version", sa.Integer(), nullable=False),
+            sa.Column("title", sa.String(500), nullable=False),
+            sa.Column("body", sa.Text(), nullable=False),
+            sa.Column("summary", sa.String(500), nullable=True),
+            sa.Column("tags", sa.String(500), nullable=True),
+            sa.Column("status", sa.String(20), nullable=True),
+            sa.Column("change_note", sa.String(255), nullable=True),
+            sa.Column("changed_by_user_id", sa.String(36), sa.ForeignKey("users.id"), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        )
+        op.create_index("ix_sd_kb_article_versions_article_id", "sd_kb_article_versions", ["article_id"])
 
 
 def downgrade() -> None:
