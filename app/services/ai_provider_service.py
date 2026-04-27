@@ -594,6 +594,81 @@ def get_default_provider(
     return _pick(shared_q)
 
 
+def _try_fallback_providers(
+    db: Session,
+    messages: list,
+    system: str,
+    max_tokens: int,
+    is_superadmin: bool,
+    organization_id,
+) -> dict | None:
+    """
+    Try any available provider as fallback (provider-agnostic).
+    
+    Returns result dict if success, None if all fail.
+    """
+    # Get all available active providers
+    query = db.query(AIProvider).filter(AIProvider.status != "error")
+    
+    if not is_superadmin and organization_id:
+        # Try org-specific first, then shared
+        org_providers = query.filter(AIProvider.organization_id == organization_id).all()
+        shared_providers = query.filter(AIProvider.organization_id.is_(None)).all()
+        all_providers = org_providers + shared_providers
+    else:
+        all_providers = query.all()
+    
+    # Try each provider in order
+    for provider in all_providers:
+        try:
+            result = call_provider(
+                provider,
+                messages,
+                system=system,
+                model=None,  # Use provider's default model
+                max_tokens=max_tokens,
+            )
+            
+            # Update provider stats
+            provider.total_requests   += 1
+            provider.total_tokens_in  += result.get("tokens_in", 0)
+            provider.total_tokens_out += result.get("tokens_out", 0)
+            provider.last_used_at      = datetime.now(timezone.utc)
+            
+            # Calculate cost if model info available
+            cat_models = PROVIDER_CATALOG.get(provider.provider, {}).get("models", [])
+            m_info = next(
+                (m for m in cat_models if m["id"] == (result.get("model"))),
+                None
+            )
+            if m_info:
+                cost = (
+                    result.get("tokens_in", 0) / 1_000_000 * m_info["cost_in"] +
+                    result.get("tokens_out", 0) / 1_000_000 * m_info["cost_out"]
+                )
+                provider.total_cost_usd += cost
+                result["cost_usd"] = cost
+            
+            db.commit()
+            _logger.info(
+                "Fallback AI provider succeeded: %s (%s)",
+                provider.name, provider.provider
+            )
+            return result
+            
+        except Exception as exc:
+            _logger.debug(
+                "Fallback provider %s failed: %s",
+                provider.name, str(exc)
+            )
+            continue
+    
+    # All providers failed
+    _logger.warning("All AI providers failed as fallback")
+    return None
+
+
+
 def call_ai(
     db: Session,
     messages: list,
@@ -607,11 +682,21 @@ def call_ai(
     organization_id=None,
 ) -> str:
     """
-    Main AI dispatch function.
-    Selects configured provider (or default), makes the call, logs usage.
+    Main AI dispatch function (provider-agnostic).
+    
+    Resolution order:
+    1. Explicit provider_id (if provided)
+    2. Default provider for organization
+    3. Any available provider as fallback
+    4. No provider available → error message
+    
+    Selects configured provider, makes the call, logs usage.
     Returns the response text.
     """
 
+    # ── Step 1: Select primary provider ────────────────────────────────────
+    p = None
+    
     if provider_id:
         p_q = db.query(AIProvider).filter(AIProvider.id == provider_id)
         if not is_superadmin and organization_id:
@@ -624,10 +709,12 @@ def call_ai(
             organization_id=organization_id,
         )
 
+    # ── Step 2: Initialize result ──────────────────────────────────────────
     t0        = time.time()
     error_msg = None
-    result    = {"text": "", "tokens_in": 0, "tokens_out": 0, "model": "fallback"}
+    result    = {"text": "", "tokens_in": 0, "tokens_out": 0, "model": "unknown"}
 
+    # ── Step 3: Try primary provider ──────────────────────────────────────
     if p:
         try:
             result = call_provider(p, messages, system=system,
@@ -651,22 +738,24 @@ def call_ai(
             p.last_error_at = datetime.now(timezone.utc)
             p.status      = "error"
             db.commit()
-            api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
-            if api_key and p.provider != "anthropic":
-                try:
-                    result    = _call_anthropic(api_key, settings.CONTECFLOW_AI_MODEL,
-                                                messages, system, max_tokens or 1500, 0.7)
-                    error_msg = None
-                except Exception:
-                    pass
+            
+            # ── Fallback 1: Try any other available provider (provider-agnostic) ──
+            p = None
+            fallback_result = _try_fallback_providers(
+                db, messages, system, max_tokens, is_superadmin, organization_id
+            )
+            if fallback_result:
+                result = fallback_result
+                error_msg = None
+            # else: keep original error_msg
     else:
-        api_key = getattr(settings, "ANTHROPIC_API_KEY", None)
-        if api_key:
-            try:
-                result = _call_anthropic(api_key, settings.CONTECFLOW_AI_MODEL,
-                                         messages, system, max_tokens or 1500, 0.7)
-            except Exception as e:
-                error_msg = str(e)
+        # ── No primary provider: try any available provider (provider-agnostic) ────
+        fallback_result = _try_fallback_providers(
+            db, messages, system, max_tokens, is_superadmin, organization_id
+        )
+        if fallback_result:
+            result = fallback_result
+            error_msg = None
         else:
             result["text"] = (
                 "⚠️ No hay ningún proveedor de IA configurado. "

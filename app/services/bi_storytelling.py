@@ -3,8 +3,13 @@
 Flow:
   1. Pull KPI context from OLAP (or PostgreSQL fallback)
   2. Check Redis cache (TTL 1h)
-  3. Call Claude to generate the narrative
+  3. Call AI provider (provider-agnostic: Claude, GPT-4, Gemini, etc.)
   4. Cache and return
+
+Resolution order for AI provider:
+  - Default configured provider for organization
+  - Fallback to any available provider (if primary fails)
+  - Error message if no providers available
 
 Public API:
     generate_narrative(org_id, lang='es') -> dict

@@ -77,7 +77,7 @@ def get_current_client(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    client = db.query(ClientUser).filter(ClientUser.id == client_id, ClientUser.is_active == True).first()
+    client = _svc.get_active_client_by_id(db, client_id)
     if not client:
         raise credentials_exception
     return client

@@ -287,6 +287,12 @@ class Ticket(Base):
     sla_response_breached = Column(Boolean, default=False)
     sla_resolution_breached = Column(Boolean, default=False)
 
+    # Phase 2 — Predictive Intelligence
+    predicted_severity = Column(String(20), nullable=True)
+    predicted_resolution_minutes = Column(Integer, nullable=True)
+    escalation_risk_score = Column(Float, nullable=True)
+    prediction_generated_at = Column(DateTime(timezone=True), nullable=True)
+
     source = Column(String(20), default="portal")
     tags = Column(String(500), nullable=True)
 
@@ -395,6 +401,12 @@ class Problem(Base):
     root_cause = Column(Text, nullable=True)
     workaround = Column(Text, nullable=True)
     fix_description = Column(Text, nullable=True)
+
+    # RCA enrichment (Fase 1 ITSM)
+    rca_type = Column(String(30), nullable=True)    # hardware|software|process|human|network|unknown
+    rca_ai_suggestion = Column(Text, nullable=True) # JSON with AI-generated RCA suggestion
+    auto_detected = Column(Boolean, default=False)  # True when created by auto-detection task
+    affected_services_json = Column(Text, nullable=True)  # JSON list of CI ids
 
     ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
@@ -633,6 +645,11 @@ class ITSMChangeRequest(Base):
     approved_at  = Column(DateTime(timezone=True), nullable=True)
     approved_by  = Column(String(36), ForeignKey("users.id"), nullable=True)
     rejected_reason = Column(Text, nullable=True)
+
+    # Phase 2 — Change Impact Analysis
+    auto_risk_score = Column(Float, nullable=True)
+    impact_analysis_json = Column(Text, nullable=True)
+    suggested_window_json = Column(Text, nullable=True)
 
     related_ticket_id  = Column(String(36), ForeignKey("sd_tickets.id"), nullable=True)
     related_problem_id = Column(String(36), ForeignKey("sd_problems.id"), nullable=True)
@@ -948,6 +965,12 @@ class Asset(Base):
     notes           = Column(Text, nullable=True)
     managed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
 
+    # Phase 2 — Asset Lifecycle
+    depreciation_type = Column(String(20), nullable=True)   # linear|declining|none
+    depreciation_rate = Column(Float, nullable=True)        # annual % for declining balance
+    next_maintenance_date = Column(String(10), nullable=True)  # YYYY-MM-DD
+    maintenance_contract = Column(String(255), nullable=True)
+
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -973,6 +996,76 @@ class AssetHistory(Base):
 
     asset      = relationship("Asset", back_populates="history")
     changed_by_user = relationship("User", foreign_keys=[changed_by])
+
+
+# ── Phase 2 — Autonomous Playbooks ──────────────────────────────────────────
+
+class AutonomousPlaybook(Base):
+    """Configurable resolution playbooks for the autonomous agent service."""
+    __tablename__ = "sd_autonomous_playbooks"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name            = Column(String(255), nullable=False)
+    playbook_type   = Column(String(50), nullable=False, index=True)
+    description     = Column(Text, nullable=True)
+    steps_json      = Column(Text, nullable=True)       # JSON list of step dicts
+    conditions_json = Column(Text, nullable=True)       # JSON trigger conditions
+    is_active       = Column(Boolean, default=True)
+    success_count   = Column(Integer, default=0)
+    failure_count   = Column(Integer, default=0)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AutonomousPlaybookExecution(Base):
+    """Audit log of every autonomous playbook run."""
+    __tablename__ = "sd_autonomous_playbook_executions"
+
+    id               = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ticket_id        = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    playbook_type    = Column(String(50), nullable=False)
+    status           = Column(String(20), default="success")   # success|failed|skipped
+    confidence_score = Column(Float, nullable=True)
+    resolution_note  = Column(Text, nullable=True)
+    error_message    = Column(Text, nullable=True)
+    executed_at      = Column(DateTime(timezone=True), server_default=func.now())
+    triggered_by     = Column(String(20), default="celery")    # celery|api|manual
+
+    ticket = relationship("Ticket", foreign_keys=[ticket_id])
+
+
+# ── Phase 3 — ITSM Scale models ───────────────────────────────────────────────
+
+class ITSMMetricSnapshot(Base):
+    """Hourly ITSM KPI snapshot for trend analytics and dashboards."""
+    __tablename__ = "sd_itsm_metric_snapshots"
+
+    id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    snapshot_at         = Column(DateTime(timezone=True), nullable=False, index=True)
+    period_hours        = Column(Integer, default=24)
+    tickets_total       = Column(Integer, default=0)
+    tickets_open        = Column(Integer, default=0)
+    tickets_resolved    = Column(Integer, default=0)
+    sla_compliance_pct  = Column(Float, nullable=True)
+    mttr_minutes        = Column(Float, nullable=True)
+    fcr_pct             = Column(Float, nullable=True)
+    avg_csat            = Column(Float, nullable=True)
+    breached_sla        = Column(Integer, default=0)
+
+
+class ComplianceReport(Base):
+    """Persisted ITIL/ISO 20000 compliance report generated periodically."""
+    __tablename__ = "sd_compliance_reports"
+
+    id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    generated_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    period_days  = Column(Integer, default=30)
+    overall_score = Column(Integer, default=0)   # 0-100
+    cmm_level    = Column(Integer, default=1)    # 1-5
+    report_json  = Column(Text, nullable=True)   # full JSON report
+
+
+# ServiceItem Phase 3 additions (popularity_score)
+# Column added via migrate.py / alembic 033 — referenced defensively via hasattr()
 
 
 # ── Service Status Page (public health dashboard) ─────────────────────────────

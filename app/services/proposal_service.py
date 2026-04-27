@@ -215,3 +215,11 @@ def serialize_template(t: ProposalTemplate) -> dict:
         "is_active":     t.is_active,
         "created_at":    str(t.created_at)[:19] if t.created_at else None,
     }
+
+
+def get_opportunity_by_id(db: Session, opp_id: str) -> Opportunity:
+    """Fetch an Opportunity by id, raising 404 if not found."""
+    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
+    if not opp:
+        raise HTTPException(404, "Oportunidad no encontrada")
+    return opp

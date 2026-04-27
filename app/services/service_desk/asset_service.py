@@ -247,3 +247,208 @@ def assign_asset_record(db: Session, asset_id: str, user_id: str, changed_by: st
     user = get_user_or_404(db, user_id)
     assign_asset_to_user_with_history(db, asset, user_id, changed_by, notes)
     return user.full_name
+
+
+# ── Phase 2 — Asset Lifecycle ─────────────────────────────────────────────────
+
+from datetime import datetime, timezone  # noqa: E402 (added here to avoid changing top imports)
+from uuid import uuid4
+
+
+def _days_until(date_str: Optional[str]) -> Optional[int]:
+    """Return days until *date_str* (YYYY-MM-DD) or None if blank/invalid."""
+    if not date_str:
+        return None
+    try:
+        target = date.fromisoformat(date_str)
+        delta = (target - date.today()).days
+        return delta
+    except ValueError:
+        return None
+
+
+def get_expiring_soon(db: Session, days: int = 30) -> list[dict]:
+    """Return assets whose warranty, EOL or lease expires within *days* days.
+
+    Checks three date fields independently and returns one entry per expiry
+    type per asset.
+
+    Each entry:
+        {asset_id, code, name, expiry_type, expiry_date, days_remaining}
+    """
+    assets = (
+        db.query(Asset)
+        .filter(Asset.status != AssetStatus.retired)
+        .all()
+    )
+    results: list[dict] = []
+
+    for asset in assets:
+        for expiry_type, date_attr in (
+            ("warranty_expiry", asset.warranty_expiry),
+            ("eol_date", asset.eol_date),
+            ("lease_expiry", asset.lease_expiry),
+        ):
+            remaining = _days_until(date_attr)
+            if remaining is not None and 0 <= remaining <= days:
+                results.append(
+                    {
+                        "asset_id": asset.id,
+                        "code": asset.code,
+                        "name": asset.name,
+                        "asset_type": str(asset.asset_type),
+                        "expiry_type": expiry_type,
+                        "expiry_date": date_attr,
+                        "days_remaining": remaining,
+                    }
+                )
+
+    results.sort(key=lambda x: x["days_remaining"])
+    return results
+
+
+def calculate_depreciation(asset: Asset) -> Optional[float]:
+    """Estimate current value via straight-line or declining-balance depreciation.
+
+    Uses ``asset.depreciation_type`` (linear|declining|none) and
+    ``asset.purchase_price`` + ``asset.purchase_date`` if available.
+
+    Returns estimated current value or None if insufficient data.
+    """
+    price = asset.purchase_price
+    if not price or price <= 0:
+        return None
+
+    purchase_date_str = asset.purchase_date
+    if not purchase_date_str:
+        return None
+
+    try:
+        pd = date.fromisoformat(purchase_date_str)
+    except ValueError:
+        return None
+
+    years_elapsed = (date.today() - pd).days / 365.25
+    dep_type = getattr(asset, "depreciation_type", None) or "linear"
+    dep_rate = getattr(asset, "depreciation_rate", None)
+
+    if dep_type == "none":
+        return float(price)
+
+    if dep_type == "declining":
+        rate = (dep_rate or 0.20)  # default 20% declining balance
+        value = float(price) * ((1 - rate) ** years_elapsed)
+    else:  # linear (default)
+        useful_life = 5.0
+        rate_annual = 1.0 / useful_life
+        value = float(price) * max(0, 1 - rate_annual * years_elapsed)
+
+    return round(max(0.0, value), 2)
+
+
+def get_lifecycle_dashboard(db: Session) -> dict:
+    """Return a comprehensive lifecycle health dashboard.
+
+    Includes:
+        - Total assets by status
+        - Expiring in 30/60/90 days
+        - License utilization (used / total seats)
+        - Average depreciation coverage
+    """
+    all_assets = db.query(Asset).all()
+
+    status_counts: dict[str, int] = {}
+    for asset in all_assets:
+        s = str(asset.status)
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    expiring_30 = get_expiring_soon(db, days=30)
+    expiring_60 = get_expiring_soon(db, days=60)
+    expiring_90 = get_expiring_soon(db, days=90)
+
+    # License utilization
+    license_assets = [a for a in all_assets if a.license_seats and a.license_seats > 0]
+    total_seats = sum(a.license_seats for a in license_assets)
+    used_seats = sum(a.license_used or 0 for a in license_assets)
+    license_utilization_pct = round((used_seats / total_seats * 100) if total_seats else 0, 1)
+
+    # Depreciation: how many assets have significant residual value
+    depreciated = [a for a in all_assets if calculate_depreciation(a) is not None]
+
+    return {
+        "total_assets": len(all_assets),
+        "by_status": status_counts,
+        "expiring_in_30_days": len(expiring_30),
+        "expiring_in_60_days": len(expiring_60),
+        "expiring_in_90_days": len(expiring_90),
+        "top_expiring": expiring_30[:10],
+        "license_utilization": {
+            "total_seats": total_seats,
+            "used_seats": used_seats,
+            "utilization_pct": license_utilization_pct,
+        },
+        "assets_with_depreciation_data": len(depreciated),
+    }
+
+
+def create_refresh_ticket(
+    db: Session,
+    asset_id: str,
+    acting_user_id: str,
+) -> dict:
+    """Create a Service Request ticket to schedule an asset refresh/renewal.
+
+    Returns the newly created ticket as a dict summary.
+    Does NOT commit — caller must commit.
+    """
+    from app.models.service_desk import (  # noqa: PLC0415 (avoid circular at top)
+        Ticket,
+        TicketStatus,
+        TicketPriority,
+        TicketType,
+    )
+
+    asset = get_asset_or_404(db, asset_id)
+
+    # Find the soonest upcoming expiry
+    soonest_expiry: Optional[str] = None
+    soonest_days: Optional[int] = None
+    for date_attr in (asset.warranty_expiry, asset.eol_date, asset.lease_expiry):
+        remaining = _days_until(date_attr)
+        if remaining is not None and (soonest_days is None or remaining < soonest_days):
+            soonest_days = remaining
+            soonest_expiry = date_attr
+
+    title = f"[Refresh] Asset {asset.code} — {asset.name}"
+    description = (
+        f"Renovación/reemplazo planificado para el activo {asset.code} ({asset.name}).\n\n"
+        f"Tipo: {asset.asset_type}\n"
+        f"Número de serie: {asset.serial_number or 'N/A'}\n"
+        f"Fecha expiración más próxima: {soonest_expiry or 'N/A'} "
+        f"({soonest_days} días)\n\n"
+        "Por favor, contactar con el proveedor o iniciar proceso de reemplazo."
+    )
+
+    from uuid import uuid4
+    ticket_id = str(uuid4())
+    ticket = Ticket(
+        id=ticket_id,
+        title=title,
+        description=description,
+        ticket_type="service_request",
+        status=TicketStatus.open,
+        priority=TicketPriority.p3_medium,
+        requester_user_id=acting_user_id,
+        ci_id=asset.ci_id,
+    )
+    db.add(ticket)
+    db.flush()
+
+    return {
+        "ticket_id": ticket_id,
+        "title": title,
+        "asset_id": asset_id,
+        "asset_code": asset.code,
+        "soonest_expiry": soonest_expiry,
+        "days_remaining": soonest_days,
+    }

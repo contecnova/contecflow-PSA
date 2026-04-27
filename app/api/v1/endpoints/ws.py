@@ -284,14 +284,13 @@ manager = ConnectionManager()
 async def _validate_jwt(token: str, db) -> str:
     """Valida el token JWT y verifica que el usuario exista y esté activo en BD."""
     from app.core.security import decode_token
-    from app.models.user import User
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
         return None
     user_id = payload.get("sub")
     if not user_id:
         return None
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = _ws_svc.get_active_user_by_id(db, user_id)
     if not user:
         return None
     return user_id
@@ -663,7 +662,6 @@ async def ws_doc_collab(
     """
     from app.db.session import SessionLocal
     from app.services.documents_service import get_document_or_404, check_document_access
-    from app.models.user import User
 
     user_id: Optional[str] = None
     with SessionLocal() as db:
@@ -689,7 +687,7 @@ async def ws_doc_collab(
                 return
 
             # Obtener usuario y documento
-            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+            user = _ws_svc.get_active_user_by_id(db, user_id)
             doc = get_document_or_404(db, doc_id)
             try:
                 check_document_access(doc, user, required_level=None)  # viewer mínimo

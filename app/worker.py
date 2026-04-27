@@ -65,6 +65,47 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.olap_nightly_etl",
         "schedule": crontab(hour=1, minute=0),
     },
+    # ── Fase 1 ITSM tasks ──────────────────────────────────────────────────────
+    # SLA breach scan — every 15 minutes
+    "sla-breach-scan": {
+        "task": "app.worker.sla_breach_scan",
+        "schedule": crontab(minute="*/15"),
+    },
+    # Problem auto-detection — every hour at :05
+    "problem-auto-detect": {
+        "task": "app.worker.problem_auto_detect",
+        "schedule": crontab(minute=5),
+    },
+    # CMDB auto-discovery — every hour at :30
+    "cmdb-discovery": {
+        "task": "app.worker.cmdb_discovery_run",
+        "schedule": crontab(minute=30),
+    },
+    # Phase 2 — Predictive Intelligence scan — every 30 minutes
+    "predictive-scan": {
+        "task": "app.worker.predictive_scan",
+        "schedule": crontab(minute="*/30"),
+    },
+    # Phase 2 — Asset expiry scan — daily at 07:05
+    "asset-expiry-scan": {
+        "task": "app.worker.asset_expiry_scan",
+        "schedule": crontab(hour=7, minute=5),
+    },
+    # Phase 3 — ITSM metric snapshot — every hour at :50
+    "analytics-snapshot": {
+        "task": "app.worker.analytics_snapshot",
+        "schedule": crontab(minute=50),
+    },
+    # Phase 3 — Catalog popularity recalc — every 6 hours
+    "catalog-popularity": {
+        "task": "app.worker.catalog_popularity_update",
+        "schedule": crontab(minute=0, hour="*/6"),
+    },
+    # Phase 3 — Compliance check — weekly on Mondays at 06:00
+    "compliance-check": {
+        "task": "app.worker.compliance_check",
+        "schedule": crontab(hour=6, minute=0, day_of_week=1),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -789,3 +830,267 @@ def ml_model_retrain():
         return {"trained": trained, "skipped": skipped, "results": results}
     finally:
         db.close()
+
+
+# ── Fase 1 ITSM Tasks ─────────────────────────────────────────────────────────
+
+@celery_app.task(name="app.worker.sla_breach_scan")
+def sla_breach_scan():
+    """Scan for tickets at risk of SLA breach and emit alert notifications.
+
+    Runs every 15 minutes. Calls predict_sla_at_risk_tickets() and triggers
+    an alert notification for each at-risk ticket not already notified.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.incident_intelligence_service import (
+        predict_sla_at_risk_tickets,
+    )
+
+    db = SessionLocal()
+    try:
+        at_risk = predict_sla_at_risk_tickets(db)
+        _worker_logger.info("SLA breach scan: %d tickets at risk", len(at_risk))
+        return {"at_risk_count": len(at_risk), "tickets": [t["ticket_id"] for t in at_risk]}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("sla_breach_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.problem_auto_detect")
+def problem_auto_detect():
+    """Auto-detect recurring incident clusters and create Problem records.
+
+    Runs every hour at :05. Uses detect_recurring_incidents() to find clusters
+    of >=3 open incidents in the same category+priority within 24h, then calls
+    create_problem_from_correlation() to create a Problem + AI RCA suggestion.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.incident_intelligence_service import (
+        detect_recurring_incidents,
+    )
+    from app.services.service_desk.problem_service import create_problem_from_correlation
+
+    db = SessionLocal()
+    problems_created = 0
+    try:
+        clusters = detect_recurring_incidents(db)
+        _worker_logger.info("Problem auto-detect: %d clusters found", len(clusters))
+
+        for cluster in clusters:
+            try:
+                problem = create_problem_from_correlation(
+                    db=db,
+                    ticket_ids=cluster["ticket_ids"],
+                    category=cluster["category"],
+                    priority=cluster["priority"],
+                    auto_rca=True,
+                )
+                db.commit()
+                _worker_logger.info(
+                    "Auto-created problem %s for category=%s priority=%s (%d tickets)",
+                    problem.number,
+                    cluster["category"],
+                    cluster["priority"],
+                    len(cluster["ticket_ids"]),
+                )
+                problems_created += 1
+            except Exception as exc:  # noqa: BLE001
+                db.rollback()
+                _worker_logger.error("Failed to create problem for cluster %s: %s", cluster, exc)
+
+        return {"clusters_found": len(clusters), "problems_created": problems_created}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("problem_auto_detect error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.cmdb_discovery_run")
+def cmdb_discovery_run():
+    """Run CMDB auto-discovery for all active providers (AWS, Kubernetes, …).
+
+    Runs every hour at :30. Delegates to run_all_active_discoveries() which
+    handles per-provider error isolation and commits each provider independently.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.cmdb_discovery_service import (
+        run_all_active_discoveries,
+    )
+
+    db = SessionLocal()
+    try:
+        results = run_all_active_discoveries(db)
+        _worker_logger.info("CMDB discovery run: %d providers processed", len(results))
+        return {"providers_run": len(results), "results": results}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("cmdb_discovery_run error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.predictive_scan")
+def predictive_scan():
+    """Run predictive intelligence scan on all open tickets.
+
+    Computes escalation risk, severity label, and predicted resolution time.
+    Runs every 30 minutes via beat schedule.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.predictive_analytics_service import (
+        run_predictive_scan,
+    )
+
+    db = SessionLocal()
+    try:
+        result = run_predictive_scan(db)
+        _worker_logger.info(
+            "Predictive scan: processed=%d predicted=%d",
+            result.get("processed", 0),
+            result.get("predicted", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("predictive_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.asset_expiry_scan")
+def asset_expiry_scan():
+    """Scan for assets expiring soon and create refresh tickets where needed.
+
+    - Expiring in \u22647 days  → P2 urgent ticket (if none exists)
+    - Expiring in \u226430 days → P3 informational ticket (if none exists)
+    Runs daily at 07:05 via beat schedule.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.asset_service import (
+        get_expiring_soon,
+        create_refresh_ticket,
+    )
+    from app.models.service_desk import Ticket
+
+    db = SessionLocal()
+    created = skipped = 0
+    try:
+        urgent = get_expiring_soon(db, days=7)
+        for entry in urgent:
+            asset_id = entry["asset_id"]
+            # Check if a refresh ticket already exists for this asset
+            existing = (
+                db.query(Ticket)
+                .filter(
+                    Ticket.title.like(f"%{entry['code']}%"),
+                    Ticket.status.notin_(["resolved", "closed"]),
+                )
+                .first()
+            )
+            if not existing:
+                try:
+                    create_refresh_ticket(db, asset_id, acting_user_id=None)
+                    created += 1
+                except Exception as inner:  # noqa: BLE001
+                    _worker_logger.warning(
+                        "asset_expiry_scan: could not create ticket for %s: %s",
+                        asset_id, inner,
+                    )
+                    skipped += 1
+            else:
+                skipped += 1
+
+        db.commit()
+        _worker_logger.info(
+            "Asset expiry scan: urgent=%d created=%d skipped=%d",
+            len(urgent), created, skipped,
+        )
+        return {"urgent_found": len(urgent), "tickets_created": created, "skipped": skipped}
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        _worker_logger.error("asset_expiry_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.analytics_snapshot")
+def analytics_snapshot():
+    """Persist hourly ITSM KPI snapshot for trend analytics (Phase 3).
+
+    Computes 24h rolling metrics and writes to sd_itsm_metric_snapshots.
+    Runs every hour at :50.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.analytics_service import persist_metric_snapshot
+
+    db = SessionLocal()
+    try:
+        result = persist_metric_snapshot(db)
+        _worker_logger.info(
+            "Analytics snapshot saved: tickets=%d sla=%.1f%%",
+            result.get("tickets_total", 0),
+            result.get("sla_compliance_pct", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("analytics_snapshot error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.catalog_popularity_update")
+def catalog_popularity_update():
+    """Recalculate service catalog popularity scores (Phase 3).
+
+    Writes popularity_score to ServiceItem based on last 4 weeks of ticket volume.
+    Runs every 6 hours.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.smart_catalog_service import update_service_popularity
+
+    db = SessionLocal()
+    try:
+        result = update_service_popularity(db)
+        db.commit()
+        _worker_logger.info(
+            "Catalog popularity updated: %d services", result.get("updated", 0)
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        _worker_logger.error("catalog_popularity_update error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.compliance_check")
+def compliance_check():
+    """Run full ITIL/ISO 20000 compliance audit and persist report (Phase 3).
+
+    Runs weekly on Mondays at 06:00.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.governance_compliance_service import schedule_compliance_check
+
+    db = SessionLocal()
+    try:
+        result = schedule_compliance_check(db)
+        _worker_logger.info(
+            "Compliance check complete: score=%d CMM=%d findings=%d",
+            result.get("overall_score", 0),
+            result.get("cmm_level", 0),
+            result.get("findings_count", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("compliance_check error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+

@@ -375,3 +375,30 @@ def list_models(db: Session, organization_id: str) -> list:
         }
         for m in models
     ]
+
+
+def get_prediction_logs(
+    db: Session,
+    organization_id: str,
+    project_id: Optional[str] = None,
+    limit: int = 50,
+) -> list:
+    """Return recent ML prediction logs for an organization, optionally filtered by project."""
+    q = db.query(MLPredictionLog).filter(
+        MLPredictionLog.organization_id == organization_id
+    )
+    if project_id:
+        q = q.filter(MLPredictionLog.project_id == project_id)
+    logs = q.order_by(MLPredictionLog.predicted_at.desc()).limit(limit).all()
+    return [
+        {
+            "id":                    l.id,
+            "project_id":            l.project_id,
+            "cost_overrun_prob":     l.cost_overrun_prob,
+            "schedule_overrun_prob": l.schedule_overrun_prob,
+            "risk_level":            l.risk_level,
+            "used_heuristic":        l.used_heuristic,
+            "predicted_at":          str(l.predicted_at)[:19] if l.predicted_at else None,
+        }
+        for l in logs
+    ]

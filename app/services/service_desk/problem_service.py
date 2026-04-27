@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
@@ -12,6 +13,8 @@ from app.services.service_desk.scoping import (
     scope_ticket_query as _scope_ticket_query,
 )
 from app.services.sla_service import next_problem_number as _next_problem_number
+
+logger = logging.getLogger(__name__)
 
 
 def list_problems_payload(db: Session, current_user: User, page: int, page_size: int) -> list[dict]:
@@ -107,3 +110,155 @@ def link_ticket_to_problem_record(db: Session, current_user: User, problem_id: s
     if not ticket:
         raise HTTPException(404)
     ticket.problem_id = problem.id
+
+
+# ── RCA with AI ───────────────────────────────────────────────────────────────
+
+def suggest_rca_from_ai(db: Session, problem: Problem) -> dict:
+    """Call the configured AI provider to suggest a root cause for *problem*.
+
+    Gathers the descriptions of all linked tickets and asks the AI to identify
+    the most likely root cause, type, and a suggested workaround.
+
+    Returns:
+        {
+          "root_cause": str,
+          "rca_type": str,          # hardware | software | process | human | network | unknown
+          "workaround": str,
+          "confidence": int,         # 0-100
+          "provider_used": str,
+        }
+
+    Saves suggestions to problem.rca_ai_suggestion (JSON) and
+    problem.rca_type if not already set. Does NOT commit.
+    """
+    import json as _json
+    from app.services.ai_provider_service import call_ai
+
+    linked_tickets = (
+        db.query(Ticket)
+        .filter(Ticket.problem_id == problem.id)
+        .all()
+    )
+    ticket_summaries = "\n".join(
+        f"- [{t.number}] {t.title}: {(t.description or '')[:300]}"
+        for t in linked_tickets
+    ) or "(no linked tickets)"
+
+    prompt = (
+        "You are an ITIL-certified problem manager performing Root Cause Analysis.\n\n"
+        f"Problem title: {problem.title}\n"
+        f"Problem description: {problem.description}\n\n"
+        f"Linked incidents ({len(linked_tickets)}):\n{ticket_summaries}\n\n"
+        "Identify the most likely root cause. Respond ONLY with valid JSON:\n"
+        '{"root_cause": "...", "rca_type": "hardware|software|process|human|network|unknown", '
+        '"workaround": "...", "confidence": 0-100}'
+    )
+
+    provider_used = "unknown"
+    suggestion: dict = {}
+
+    try:
+        result = call_ai(
+            db=db,
+            messages=[{"role": "user", "content": prompt}],
+            system="You are an ITIL problem manager. Respond only with valid JSON.",
+            max_tokens=512,
+        )
+        provider_used = result.get("provider", "unknown")
+        raw = (result.get("content") or "").strip()
+
+        # Extract JSON from response (may be wrapped in markdown)
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start >= 0 and end > start:
+            suggestion = _json.loads(raw[start:end])
+        else:
+            suggestion = {"root_cause": raw, "rca_type": "unknown", "confidence": 40, "workaround": ""}
+    except Exception as exc:
+        logger.warning("suggest_rca_from_ai: AI call failed: %s", exc)
+        suggestion = {
+            "root_cause": "Unable to determine automatically — manual RCA required.",
+            "rca_type": "unknown",
+            "confidence": 0,
+            "workaround": "",
+        }
+
+    suggestion["provider_used"] = provider_used
+
+    # Persist to problem (caller must commit)
+    problem.rca_ai_suggestion = _json.dumps(suggestion)
+    if not problem.rca_type and suggestion.get("rca_type"):
+        problem.rca_type = suggestion["rca_type"]
+    if not problem.root_cause and suggestion.get("root_cause"):
+        problem.root_cause = suggestion["root_cause"]
+    if not problem.workaround and suggestion.get("workaround"):
+        problem.workaround = suggestion["workaround"]
+
+    return suggestion
+
+
+# ── Auto-create problem from correlated tickets ───────────────────────────────
+
+def create_problem_from_correlation(
+    db: Session,
+    ticket_ids: list[str],
+    category: str,
+    priority: str,
+    auto_rca: bool = True,
+) -> Problem:
+    """Create a new Problem and link all provided ticket IDs to it.
+
+    Optionally triggers AI-based RCA suggestion immediately.
+    Does NOT commit — caller must commit.
+    """
+    import json as _json
+    from app.services.sla_service import next_problem_number
+
+    # Build a descriptive title from the most common words in ticket titles
+    tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
+    if not tickets:
+        raise HTTPException(400, "No tickets found for correlation")
+
+    # Use the first ticket title as a base if we have few tickets
+    base_title = tickets[0].title if tickets else "Recurring incidents"
+    title = f"[Auto-detected] {category or base_title} — {len(tickets)} linked incidents"
+
+    description = (
+        f"Problem auto-detected from {len(tickets)} correlated incidents "
+        f"in category '{category}' with priority '{priority}'.\n\n"
+        + "\n".join(f"- [{t.number}] {t.title}" for t in tickets)
+    )
+
+    problem = Problem(
+        number=next_problem_number(db),
+        title=title,
+        description=description,
+        priority=priority,
+        status="open",
+        auto_detected=True,
+        affected_services_json=_json.dumps(
+            list({t.ci_id for t in tickets if t.ci_id})
+        ),
+    )
+    db.add(problem)
+    db.flush()  # get problem.id before linking
+
+    # Link all tickets
+    for ticket in tickets:
+        ticket.problem_id = problem.id
+
+    # Optionally trigger AI RCA
+    if auto_rca:
+        try:
+            suggest_rca_from_ai(db, problem)
+        except Exception as exc:
+            logger.warning("Auto-RCA failed during problem creation: %s", exc)
+
+    logger.info(
+        "Auto-created Problem %s from %d correlated tickets (category=%s)",
+        problem.number,
+        len(tickets),
+        category,
+    )
+    return problem

@@ -1,15 +1,19 @@
 """
 Document Collaboration Endpoints — CRDT snapshot save/load/history for collaborative editing.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+import base64
 
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+
 from app.core.deps import get_db, get_current_user
 from app.models.user import User
-from app.models.document_collab import DocumentCollabSnapshot
-from app.models.documents import Document
-from sqlalchemy import desc
-import base64
+from app.services.documents_collab_service import (
+    get_document_or_404,
+    save_collab_snapshot as svc_save_snapshot,
+    load_collab_snapshot as svc_load_snapshot,
+    get_collab_history as svc_get_history,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -22,27 +26,11 @@ async def save_collab_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(404, "Document not found")
-    # Read raw body as bytes
+    get_document_or_404(db, doc_id)
     snapshot = await request.body()
     if not snapshot:
         raise HTTPException(400, "Missing snapshot body")
-    # Lamport clock: auto-increment
-    prev = db.query(DocumentCollabSnapshot).filter_by(document_id=doc_id, is_current=True).order_by(desc(DocumentCollabSnapshot.clock)).first()
-    clock = (prev.clock + 1) if prev else 1
-    db.query(DocumentCollabSnapshot).filter_by(document_id=doc_id, is_current=True).update({"is_current": False})
-    snap = DocumentCollabSnapshot(
-        document_id=doc_id,
-        state_vector=snapshot,
-        clock=clock,
-        size_bytes=len(snapshot),
-        is_current=True,
-        created_by=current_user.id,
-    )
-    db.add(snap)
-    db.commit()
+    snap = svc_save_snapshot(db, doc_id, snapshot, current_user.id)
     return {"id": snap.id, "document_id": doc_id, "clock": snap.clock, "size_bytes": snap.size_bytes}
 
 
@@ -53,10 +41,8 @@ def load_collab_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(404, "Document not found")
-    snap = db.query(DocumentCollabSnapshot).filter_by(document_id=doc_id, is_current=True).order_by(desc(DocumentCollabSnapshot.clock)).first()
+    get_document_or_404(db, doc_id)
+    snap = svc_load_snapshot(db, doc_id)
     if not snap:
         return {"snapshot": None, "clock": 0}
     return {
@@ -74,8 +60,6 @@ def collab_snapshot_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(404, "Document not found")
-    snaps = db.query(DocumentCollabSnapshot).filter_by(document_id=doc_id).order_by(desc(DocumentCollabSnapshot.clock)).all()
+    get_document_or_404(db, doc_id)
+    snaps = svc_get_history(db, doc_id)
     return [{"id": s.id, "clock": s.clock, "created_at": s.created_at, "size_bytes": s.size_bytes} for s in snaps]

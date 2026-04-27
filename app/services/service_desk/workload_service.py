@@ -112,3 +112,120 @@ def auto_assign_ticket_command(db: Session, ticket_id: str, current_user_id: str
     ticket, old_assignee, best_agent_id = prepare_auto_assignment(db, ticket_id)
     log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)
     return {"ok": True, "assigned_to": best_agent_id, "agent_name": get_user_name_by_id(db, best_agent_id)}
+
+
+# ── ML-enhanced routing ───────────────────────────────────────────────────────
+
+def _agent_csat_score(db: Session, user_id: str) -> float:
+    """Return the average CSAT score (0-5) for closed tickets assigned to *user_id*.
+
+    Returns 3.0 (neutral) when there is no CSAT history.
+    """
+    try:
+        from sqlalchemy import func as _func
+        avg = (
+            db.query(_func.avg(Ticket.csat_score))
+            .filter(
+                Ticket.assigned_to_user_id == user_id,
+                Ticket.csat_score.isnot(None),
+            )
+            .scalar()
+        )
+        return float(avg) if avg is not None else 3.0
+    except Exception:
+        return 3.0
+
+
+def _agent_skills_match(db: Session, user_id: str, ticket_category: str | None) -> float:
+    """Return a skill-match fraction (0-1) based on whether the agent has skills
+    relevant to the ticket category.
+
+    Uses a simple keyword overlap between skill names and the ticket category.
+    Returns 0.5 when category is None or skills cannot be determined.
+    """
+    if not ticket_category:
+        return 0.5
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return 0.5
+        skills = getattr(user, "skills", []) or []
+        if not skills:
+            return 0.5
+
+        cat_words = set(ticket_category.lower().split())
+        for skill in skills:
+            skill_name = (getattr(skill, "name", "") or "").lower()
+            if any(word in skill_name for word in cat_words):
+                return 1.0
+        # Partial match: any shared word
+        for skill in skills:
+            skill_name = (getattr(skill, "name", "") or "").lower()
+            if any(word in skill_name for word in cat_words if len(word) > 3):
+                return 0.7
+        return 0.3
+    except Exception:
+        return 0.5
+
+
+def score_agent_for_ticket(db: Session, user_id: str, ticket: Ticket) -> float:
+    """Compute a composite 0-1 routing score for assigning *ticket* to *user_id*.
+
+    Formula:
+      - Skill match (40%): keyword overlap agent_skills ↔ ticket.category
+      - Availability (30%): 1 - (open_tickets / max_capacity_10)
+      - CSAT quality (30%): avg_csat / 5
+    """
+    open_tickets = _count_open_tickets_for_user(db, user_id)
+    max_capacity = 10
+    availability = max(0.0, (max_capacity - open_tickets) / max_capacity)
+
+    csat = _agent_csat_score(db, user_id)
+    csat_norm = csat / 5.0
+
+    skill_match = _agent_skills_match(db, user_id, ticket.category)
+
+    score = skill_match * 0.40 + availability * 0.30 + csat_norm * 0.30
+    return round(score, 4)
+
+
+def select_best_agent_ml(db: Session, members, ticket: Ticket) -> str:
+    """Select the best agent using ML composite score (skills + availability + CSAT).
+
+    Falls back to open-load balancing if scoring fails.
+    """
+    try:
+        best_id = None
+        best_score = -1.0
+        for member in members:
+            s = score_agent_for_ticket(db, member.user_id, ticket)
+            if s > best_score:
+                best_score = s
+                best_id = member.user_id
+        if best_id:
+            return best_id
+    except Exception:
+        pass
+    # fallback
+    return select_best_agent_id_by_open_load(db, members)
+
+
+def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: str) -> dict:
+    """Auto-assign a ticket using ML-enhanced routing (skills + CSAT + load).
+
+    Drops in as a smarter replacement for `auto_assign_ticket_command`.
+    """
+    ticket = get_ticket_for_auto_assign_or_404(db, ticket_id)
+    members = get_group_members_or_400(db, ticket.assigned_group_id)
+
+    best_agent_id = select_best_agent_ml(db, members, ticket)
+    old_assignee = apply_auto_assignment(ticket, best_agent_id)
+    log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)
+
+    return {
+        "ok": True,
+        "assigned_to": best_agent_id,
+        "agent_name": get_user_name_by_id(db, best_agent_id),
+        "method": "ml_score",
+    }
+

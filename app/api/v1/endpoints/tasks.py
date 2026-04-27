@@ -11,7 +11,6 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority
-from app.models.bookings import TaskDependency
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
@@ -28,6 +27,9 @@ from app.services.task_service import (
     bulk_update_dates_record,
     record_reassign_feedback_bg,
     refresh_profile_bg as _refresh_profile_bg,
+    list_task_dependencies as svc_list_task_dependencies,
+    create_task_dependency as svc_create_task_dependency,
+    delete_task_dependency as svc_delete_task_dependency,
 )
 
 router = APIRouter()
@@ -226,22 +228,7 @@ def list_dependencies(
     if not project_id:
         # Si no se pasa project_id, devolver array vacío para evitar 404 en frontend
         return []
-    q = db.query(TaskDependency).options(
-        joinedload(TaskDependency.predecessor),
-        joinedload(TaskDependency.successor),
-    )
-    q = q.join(Task, TaskDependency.predecessor_id == Task.id).filter(Task.project_id == project_id)
-    deps = q.all()
-    return [
-        {
-            "id": d.id,
-            "predecessor_id": d.predecessor_id,
-            "successor_id": d.successor_id,
-            "dependency_type": d.dependency_type,
-            "lag_days": d.lag_days,
-        }
-        for d in deps
-    ]
+    return svc_list_task_dependencies(db, project_id)
 
 
 # Compatibilidad: /tasks/dependencies/{project_id}
@@ -251,7 +238,7 @@ def list_dependencies_by_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return list_dependencies(project_id=project_id, db=db, current_user=current_user)
+    return svc_list_task_dependencies(db, project_id)
 
 
 @router.post("/dependencies", summary="Crear dependencia entre tareas", status_code=201)
@@ -263,32 +250,7 @@ def create_dependency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if predecessor_id == successor_id:
-        raise HTTPException(400, "Una tarea no puede depender de sí misma")
-    # Check for existing dependency
-    existing = db.query(TaskDependency).filter(
-        TaskDependency.predecessor_id == predecessor_id,
-        TaskDependency.successor_id == successor_id,
-    ).first()
-    if existing:
-        raise HTTPException(409, "La dependencia ya existe")
-    dep = TaskDependency(
-        predecessor_id=predecessor_id,
-        successor_id=successor_id,
-        dependency_type=dependency_type,
-        lag_days=lag_days,
-        created_by=current_user.id,
-    )
-    db.add(dep)
-    db.commit()
-    db.refresh(dep)
-    return {
-        "id": dep.id,
-        "predecessor_id": dep.predecessor_id,
-        "successor_id": dep.successor_id,
-        "dependency_type": dep.dependency_type,
-        "lag_days": dep.lag_days,
-    }
+    return svc_create_task_dependency(db, predecessor_id, successor_id, dependency_type, lag_days, current_user.id)
 
 
 @router.delete("/dependencies/{dep_id}", summary="Eliminar dependencia entre tareas")
@@ -297,10 +259,5 @@ def delete_dependency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
-    if not dep:
-        raise HTTPException(404, "Dependencia no encontrada")
-    db.delete(dep)
-    db.commit()
-    return {"ok": True}
+    return svc_delete_task_dependency(db, dep_id)
 

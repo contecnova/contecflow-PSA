@@ -401,6 +401,11 @@ def delete_client(client_id: str, db: Session) -> dict:
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+def get_active_client_by_id(db: Session, client_id: str) -> Optional[ClientUser]:
+    """Return an active ClientUser by id, or None if not found / inactive."""
+    return db.query(ClientUser).filter(ClientUser.id == client_id, ClientUser.is_active == True).first()
+
+
 def client_login(email: str, password: str, db: Session) -> dict:
 
     client = db.query(ClientUser).filter(ClientUser.email == email, ClientUser.is_active == True).first()

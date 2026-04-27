@@ -64,6 +64,11 @@ from app.models.service_desk import Ticket, TicketComment, TicketStatus
 from app.models.user import User
 
 
+def get_active_user_by_id(db: Session, user_id: str) -> Optional[User]:
+    """Return an active User by id, or None if not found / inactive."""
+    return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+
+
 def get_unread_notifications(
     db: Session, user_id: str
 ) -> Tuple[int, List[Any]]:

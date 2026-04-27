@@ -87,6 +87,11 @@ class CMDBItem(Base):
     ip_address   = Column(String(45),  nullable=True)
     hostname     = Column(String(200), nullable=True)
     version      = Column(String(50),  nullable=True)
+    # Discovery fields (Fase 1 — CMDB auto-discovery)
+    external_id       = Column(String(255), nullable=True, index=True)  # ID en el sistema origen
+    discovery_provider = Column(String(50),  nullable=True)            # aws | kubernetes | vmware
+    last_discovered_at = Column(DateTime(timezone=True), nullable=True) # última vez visto en scan
+    is_discovered     = Column(Boolean, default=False)                  # True = gestionado por discovery
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), server_default=func.now(),
                           onupdate=func.now())
@@ -251,4 +256,47 @@ class CMDBChangelog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     item = relationship("CMDBItem", foreign_keys=[item_id])
     user = relationship("User",     foreign_keys=[user_id])
+
+
+# ─── DISCOVERY (Fase 1 ITSM Enhancement) ────────────────────────────────────────────────────────
+
+class CMDBDiscoveryProvider(Base):
+    """Configuración de un proveedor de discovery automático CMDB."""
+    __tablename__ = "cmdb_discovery_providers"
+
+    id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name            = Column(String(100), nullable=False)               # e.g. “Prod AWS”
+    provider_type   = Column(String(30),  nullable=False, index=True)   # aws | kubernetes | vmware
+    is_active       = Column(Boolean, default=True)
+    config_json     = Column(Text, nullable=True)  # encrypted JSON with credentials
+    organization_id = Column(String(36), ForeignKey("organizations.id",
+                             ondelete="CASCADE"), nullable=True, index=True)
+    last_run_at     = Column(DateTime(timezone=True), nullable=True)
+    last_run_status = Column(String(20),  nullable=True)   # ok | error | running
+    created_by      = Column(String(36),  ForeignKey("users.id"), nullable=True)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at      = Column(DateTime(timezone=True), server_default=func.now(),
+                             onupdate=func.now())
+    jobs            = relationship("CMDBDiscoveryJob", back_populates="provider",
+                                   cascade="all, delete-orphan",
+                                   order_by="CMDBDiscoveryJob.started_at.desc()")
+
+
+class CMDBDiscoveryJob(Base):
+    """Log de ejecución de un job de discovery CMDB."""
+    __tablename__ = "cmdb_discovery_jobs"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    provider_id = Column(String(36), ForeignKey("cmdb_discovery_providers.id",
+                         ondelete="CASCADE"), nullable=False, index=True)
+    status      = Column(String(20), default="running")  # running | ok | error | partial
+    started_at  = Column(DateTime(timezone=True), server_default=func.now())
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    cis_created = Column(Integer, default=0)
+    cis_updated = Column(Integer, default=0)
+    cis_deactivated = Column(Integer, default=0)
+    error_message   = Column(Text, nullable=True)
+    summary_json    = Column(Text, nullable=True)  # JSON con detalles del run
+    triggered_by    = Column(String(20), default="scheduler")  # scheduler | manual
+    provider        = relationship("CMDBDiscoveryProvider", back_populates="jobs")
 

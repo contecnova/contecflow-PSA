@@ -139,6 +139,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: Dependencias opcionales: CMDB auto-discovery (boto3=AWS, kubernetes=K8s)
+:: Se instalan solo si requirements-discovery.txt existe o si hay vars AWS/K8s en .env
+if exist "requirements-discovery.txt" (
+    echo [INFO] Instalando dependencias opcionales de CMDB discovery...
+    .venv\Scripts\python -m pip install --quiet -r requirements-discovery.txt
+    if errorlevel 1 (
+        echo [WARN] Algunas dependencias opcionales de discovery no se pudieron instalar ^(no es bloqueante^)
+    )
+) else (
+    :: Comprobar si AWS está configurado en .env
+    findstr /R /C:"^AWS_ACCESS_KEY_ID=." .env >nul 2>&1
+    if not errorlevel 1 (
+        echo [INFO] AWS configurado - instalando boto3...
+        .venv\Scripts\python -m pip install --quiet boto3 || echo [WARN] No se pudo instalar boto3
+    )
+    :: Comprobar si Kubernetes está configurado en .env
+    findstr /R /C:"^KUBECONFIG=." .env >nul 2>&1
+    if not errorlevel 1 (
+        echo [INFO] Kubernetes configurado - instalando kubernetes client...
+        .venv\Scripts\python -m pip install --quiet kubernetes || echo [WARN] No se pudo instalar kubernetes client
+    )
+    findstr /R /C:"^K8S_IN_CLUSTER=true" .env >nul 2>&1
+    if not errorlevel 1 (
+        echo [INFO] K8s in-cluster configurado - instalando kubernetes client...
+        .venv\Scripts\python -m pip install --quiet kubernetes || echo [WARN] No se pudo instalar kubernetes client
+    )
+)
+
 :: Crear .env si no existe
 if not exist ".env" (
     echo [INFO] Creando archivo .env...

@@ -565,3 +565,81 @@ def refresh_profile_bg(background_tasks: "BackgroundTasks", db: "Session", user_
             _db.close()
 
     background_tasks.add_task(_run)
+
+
+# ── Task Dependencies ──────────────────────────────────────────────────────────
+
+def list_task_dependencies(db: Session, project_id: str) -> list:
+    """Return all task dependencies for a project, with predecessor/successor loaded."""
+    q = (
+        db.query(TaskDependency)
+        .options(
+            joinedload(TaskDependency.predecessor),
+            joinedload(TaskDependency.successor),
+        )
+        .join(Task, TaskDependency.predecessor_id == Task.id)
+        .filter(Task.project_id == project_id)
+    )
+    return [
+        {
+            "id": d.id,
+            "predecessor_id": d.predecessor_id,
+            "successor_id": d.successor_id,
+            "dependency_type": d.dependency_type,
+            "lag_days": d.lag_days,
+        }
+        for d in q.all()
+    ]
+
+
+def create_task_dependency(
+    db: Session,
+    predecessor_id: str,
+    successor_id: str,
+    dependency_type: str,
+    lag_days: int,
+    created_by: str,
+) -> dict:
+    """
+    Create a dependency between two tasks.
+    Raises 400 on self-reference, 409 if it already exists.
+    """
+    if predecessor_id == successor_id:
+        raise HTTPException(400, "Una tarea no puede depender de sí misma")
+    existing = (
+        db.query(TaskDependency)
+        .filter(
+            TaskDependency.predecessor_id == predecessor_id,
+            TaskDependency.successor_id == successor_id,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(409, "La dependencia ya existe")
+    dep = TaskDependency(
+        predecessor_id=predecessor_id,
+        successor_id=successor_id,
+        dependency_type=dependency_type,
+        lag_days=lag_days,
+        created_by=created_by,
+    )
+    db.add(dep)
+    db.commit()
+    db.refresh(dep)
+    return {
+        "id": dep.id,
+        "predecessor_id": dep.predecessor_id,
+        "successor_id": dep.successor_id,
+        "dependency_type": dep.dependency_type,
+        "lag_days": dep.lag_days,
+    }
+
+
+def delete_task_dependency(db: Session, dep_id: str) -> dict:
+    """Delete a task dependency by id. Raises 404 if not found."""
+    dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
+    if not dep:
+        raise HTTPException(404, "Dependencia no encontrada")
+    db.delete(dep)
+    db.commit()
+    return {"ok": True}

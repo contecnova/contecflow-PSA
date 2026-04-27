@@ -30,6 +30,92 @@
 **Commits:** `c058b2d` (cambio 3), `9214868` (cambio 2), `111c648` (cambio 4), `4cffea3` (cambios 1+5)
 **Build:** `✓ built in ~25s` sin errores. Smoke test: 26/26 rutas HTTP 200.
 
+### v23.10.13 (Junio 2026) — Fase 3 ITSM Scale: CMDB Multi-Proveedor, Analytics BI, Catálogo Inteligente, Gobernanza
+
+**Objetivo:** Escalar el Service Desk a nivel enterprise. Integración CMDB con vSphere y Azure, analítica avanzada con narrativa IA, catálogo de servicios con recomendaciones personalizadas y módulo completo de gobernanza ITIL/ISO 20000.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/smart_catalog_service.py` — Recomendaciones de servicio personalizadas por historial del usuario + popularidad + coincidencia de palabras clave. `suggest_service_for_query()` con fallback IA. `auto_prefill_request_form()` detecta prioridad/urgencia por palabras clave. `enrich_catalog_with_stats()` añade métricas de actividad reciente al catálogo.
+- `app/services/service_desk/governance_compliance_service.py` — Auditoría ITIL de incidentes (P1 sin Major Incident, recurrentes sin Problem), cambios (emergencia sin PIR, normal sin CAB), problemas (sin RCA, sin revisar). Informe de cumplimiento con score ponderado 0-100 y nivel CMM 1-5 (Initial→Optimized). Dashboard ejecutivo para CIO/CISO. Celery entrypoint `schedule_compliance_check()`.
+- `alembic/versions/033_itsm_phase3.py` — Migración DB: columna `popularity_score` en `sd_service_items`; tablas `sd_itsm_metric_snapshots` y `sd_compliance_reports`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/cmdb_discovery_service.py` — Nuevos providers `vsphere` (pyVmomi, opcional) y `azure` (azure-mgmt-compute + azure-identity, opcional). `discover_vsphere()` descubre VMs + hosts ESXi. `discover_azure()` enumera VMs de todas las suscripciones. Fallback gracioso si la librería no está instalada.
+- `app/services/service_desk/analytics_service.py` — `get_trend_analysis()` (comparativa período actual vs anterior), `get_heatmap_data()` (matriz 7×24 de volumen por día/hora), `get_volume_trend_series()` (serie temporal diaria/semanal), `generate_bi_story()` (narrativa ejecutiva IA de 3 párrafos), `persist_metric_snapshot()` (snapshot horario de KPIs → `sd_itsm_metric_snapshots`).
+- `app/models/service_desk.py` — Nuevos modelos `ITSMMetricSnapshot` y `ComplianceReport`.
+- `app/worker.py` — 3 nuevas Celery tasks: `analytics_snapshot` (cada hora), `catalog_popularity_update` (cada 6 horas), `compliance_check` (lunes 06:00).
+
+**Dependencias opcionales:**
+- vSphere discovery: `pip install pyVmomi`
+- Azure discovery: `pip install azure-mgmt-compute azure-mgmt-network azure-identity`
+
+### v23.10.12 (Abril 2026) — Fase 2 ITSM Intelligence: Predictive Analytics, Agente Autónomo, Change Impact, Asset Lifecycle
+
+**Objetivo:** Segunda capa de inteligencia en el Service Desk. Pasar de la detección automática (Fase 1) a la resolución autónoma, predicción de escaladas y análisis de impacto proactivo.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/predictive_analytics_service.py` — Predicción de riesgo de escalada (0-1), severidad auto-clasificada, tiempo estimado de resolución (estadística pura, sin dependencias externas ML). Celery task `predictive_scan` cada 30 min.
+- `app/services/service_desk/autonomous_agent_service.py` — Agente autónomo con 5 playbooks built-in (password_reset, vpn_issue, email_issue, printer_issue, slow_pc). `run_autonomous_resolution()` evalúa y ejecuta; `run_autonomous_scan()` es el entrypoint Celery (batch de 100 tickets new/open).
+- `app/services/service_desk/change_impact_service.py` — Scoring de riesgo 0-100 por Change Request (change_type + CIs afectados + downtime + incidentes activos). BFS sobre grafo de dependencias CMDB. Sugerencia de ventana de mantenimiento basada en historial de incidencias de las últimas 4 semanas. Informe completo para CAB.
+- `alembic/versions/032_itsm_phase2.py` — Migración DB: 4 columnas en `sd_tickets`, 3 en `sd_change_requests`, 4 en `sd_assets`, tablas `sd_autonomous_playbooks` y `sd_autonomous_playbook_executions`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/asset_service.py` — Nuevas funciones lifecycle: `get_expiring_soon()` (warranty/EOL/lease), `calculate_depreciation()` (lineal o declining-balance), `get_lifecycle_dashboard()`, `create_refresh_ticket()`.
+- `app/models/service_desk.py` — Ticket: +`predicted_severity`, `predicted_resolution_minutes`, `escalation_risk_score`, `prediction_generated_at`. ITSMChangeRequest: +`auto_risk_score`, `impact_analysis_json`, `suggested_window_json`. Asset: +`depreciation_type`, `depreciation_rate`, `next_maintenance_date`, `maintenance_contract`. Nuevos modelos: `AutonomousPlaybook`, `AutonomousPlaybookExecution`.
+- `app/models/__init__.py` — Registro de `AutonomousPlaybook`, `AutonomousPlaybookExecution`.
+- `app/worker.py` — 2 nuevas tareas Celery beat: `predictive_scan` (cada 30 min), `asset_expiry_scan` (diario 07:05).
+- `app/db/migrate.py` — 11 nuevas entradas MIGRATIONS (Phase 2); `ALLOWED_TABLES` ampliado.
+
+**Migración:** `alembic upgrade 032_itsm_phase2` o automático vía `python -m app.db.migrate` al arrancar.
+**Sin dependencias externas nuevas.** Todo funciona con el stack Python/SQLAlchemy/Celery existente.
+
+### v23.10.11 (Abril 2026) — Fase 1 ITSM Enhancement: Incident Intelligence, Problem RCA IA, ML Routing, CMDB Auto-Discovery
+
+**Objetivo:** Cerrar las principales brechas competitivas vs ServiceNow/Jira SM identificadas en el informe ITSM comparativo. Añadir automatización inteligente a los flujos de Service Desk.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/incident_intelligence_service.py` — Auto-resolución con scoring IA+histórico, deduplicación de alertas, predicción SLA en riesgo, detección automática de problemas recurrentes.
+- `app/services/service_desk/cmdb_discovery_service.py` — Discovery automático de activos IT desde AWS (EC2/RDS) y Kubernetes (nodes/namespaces), reconciliación incremental con CMDB.
+- `alembic/versions/031_itsm_phase1.py` — Migración DB: 4 columnas RCA en `sd_problems`, 4 columnas discovery en `cmdb_items`, tablas `cmdb_discovery_providers` y `cmdb_discovery_jobs`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/problem_service.py` — Nuevas funciones `suggest_rca_from_ai()` (RCA generado por IA multi-provider) y `create_problem_from_correlation()` (auto-creación desde clusters de incidentes).
+- `app/services/service_desk/workload_service.py` — ML routing: `score_agent_for_ticket()` (skills 40% + disponibilidad 30% + CSAT 30%), `select_best_agent_ml()`, `auto_assign_ticket_ml_command()`.
+- `app/models/service_desk.py` — Modelo `Problem`: +`rca_type`, `rca_ai_suggestion`, `auto_detected`, `affected_services_json`.
+- `app/models/cmdb.py` — Modelo `CMDBItem`: +`external_id`, `discovery_provider`, `last_discovered_at`, `is_discovered`. Nuevos modelos: `CMDBDiscoveryProvider`, `CMDBDiscoveryJob`.
+- `app/models/__init__.py` — Registro de `CMDBDiscoveryProvider`, `CMDBDiscoveryJob`.
+- `app/worker.py` — 3 nuevas tareas Celery beat: `sla_breach_scan` (cada 15 min), `problem_auto_detect` (cada hora :05), `cmdb_discovery_run` (cada hora :30).
+
+**Migración:** `alembic upgrade 031_itsm_phase1` (defensiva, idempotente).
+**Dependencias opcionales:** `boto3` (AWS discovery), `kubernetes` (K8s discovery) — el sistema funciona sin ellas.
+
+### v23.10.10 (Abril 2026) — BI Provider-Agnostic: eliminado hardcoding a Claude/Anthropic
+
+**Objetivo:** Hacer que los servicios de BI (Storytelling y Ask-the-Data) sean completamente agnósticos al proveedor de IA configurado.
+
+**Cambios implementados:**
+- `app/services/ai_provider_service.py`:
+  - Nueva función `_try_fallback_providers()`: si el proveedor primario falla, itera automáticamente por todos los proveedores activos (org-specific → shared) y retorna la primera respuesta exitosa.
+  - Refactorización de `call_ai()`: el fallback ya no recurre a Anthropic de forma hardcodeada sino que llama a `_try_fallback_providers()`. Si OpenAI falla, intenta Gemini; si falla, DeepSeek; si falla, Ollama local, etc.
+- `app/services/bi_storytelling.py`:
+  - Docstring actualizado para reflejar que el proveedor es agnóstico (ya no menciona Claude como destino).
+  - El orden de resolución del proveedor IA es: proveedor default de la organización → fallback a cualquier proveedor disponible → error si ninguno responde.
+
+**Comportamiento resultante:**
+- ✅ BI Storytelling y Ask-the-Data funcionan con cualquier proveedor configurado (Claude, GPT-4, Gemini, DeepSeek, Groq, Ollama, etc.).
+- ✅ Fallback automático y transparente sin intervención manual.
+- ✅ Cero referencias hardcodeadas a Anthropic en servicios BI.
+- ✅ Multi-tenancy mantenido: respeta `org_id` y proveedores compartidos.
+- ✅ Seguridad sin cambios: API keys encriptadas, audit log en `AIUsageLog`, validación de modelos deprecated.
+
+**Flujo de ejecución (Storytelling / Ask-the-Data):**
+```
+call_ai()
+  → 1. Proveedor default de la org
+  → 2. Si falla: _try_fallback_providers() (todos los activos en orden)
+  → 3. Si todos fallan: error "No hay ningún proveedor de IA configurado"
+```
+
 ### v23.10.8 (Abril 2026) — Conversaciones gobernadas portal (GRC + SLA + federación legacy)
 
 **Objetivo implementado:**

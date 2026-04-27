@@ -20,7 +20,7 @@ from app.models.portal_conversations import (  # noqa: F401
     PortalConversationClassification, PortalConversationGRCStatus, PortalConversationSource,
     PortalConversationAudit,
 )
-from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBStatus, Announcement  # noqa: F401
+from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBStatus, Announcement, AutonomousPlaybook, AutonomousPlaybookExecution, ITSMMetricSnapshot, ComplianceReport  # noqa: F401
 
 from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig, ClientLicenseLink, ClientContractLink  # noqa: F401
 from app.models.alm import ALMCostCenter, ALMVendor, ALMContract, ALMLicense, ALMAsset  # noqa: F401
@@ -76,6 +76,7 @@ from app.models.cmdb import (  # noqa: F401
     CMDBRelation, AgentMetricSnapshot, WikiExportJob,
     KanbanConfig, KanbanColumn, SprintPlan, SprintPlanTask,
     SLACalendar, V21SLAHoliday, CMDBChangelog,
+    CMDBDiscoveryProvider, CMDBDiscoveryJob,
 )
 from app.models.okrs import Objective, KeyResult, KRCheckin  # noqa: F401
 from app.models.performance import ReviewCycle, PerformanceReview  # noqa: F401

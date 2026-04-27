@@ -170,6 +170,43 @@ MIGRATIONS = [
 
     # v26 — Document access audit trail (P2-6)
     # (document_access_logs is a new table — created via Base.metadata.create_all)
+
+    # v23.10.11 — Fase 1 ITSM Enhancement
+    # Problem RCA enrichment
+    ("sd_problems", "rca_type",              "VARCHAR(30)"),
+    ("sd_problems", "rca_ai_suggestion",     "TEXT"),
+    ("sd_problems", "auto_detected",         "BOOLEAN DEFAULT 0"),
+    ("sd_problems", "affected_services_json","TEXT"),
+    # CMDB auto-discovery fields
+    ("cmdb_items",  "external_id",           "VARCHAR(255)"),
+    ("cmdb_items",  "discovery_provider",    "VARCHAR(50)"),
+    ("cmdb_items",  "last_discovered_at",     "DATETIME"),
+    ("cmdb_items",  "is_discovered",          "BOOLEAN DEFAULT 0"),
+    # cmdb_discovery_providers and cmdb_discovery_jobs are new tables
+    # — created automatically via Base.metadata.create_all above
+
+    # v23.10.12 — Fase 2 ITSM Intelligence
+    # Ticket — predictive intelligence
+    ("sd_tickets",  "predicted_severity",           "VARCHAR(20)"),
+    ("sd_tickets",  "predicted_resolution_minutes",  "INTEGER"),
+    ("sd_tickets",  "escalation_risk_score",         "FLOAT"),
+    ("sd_tickets",  "prediction_generated_at",       "DATETIME"),
+    # Change request — impact analysis
+    ("sd_change_requests",  "auto_risk_score",        "FLOAT"),
+    ("sd_change_requests",  "impact_analysis_json",   "TEXT"),
+    ("sd_change_requests",  "suggested_window_json",  "TEXT"),
+    # Asset — lifecycle tracking
+    ("sd_assets",  "depreciation_type",      "VARCHAR(20)"),
+    ("sd_assets",  "depreciation_rate",      "FLOAT"),
+    ("sd_assets",  "next_maintenance_date",  "VARCHAR(10)"),
+    ("sd_assets",  "maintenance_contract",   "VARCHAR(255)"),
+    # sd_autonomous_playbooks and sd_autonomous_playbook_executions are new tables
+    # — created automatically via Base.metadata.create_all above
+
+    # v23.10.13 — Fase 3 ITSM Scale
+    ("sd_service_items", "popularity_score", "FLOAT"),
+    # sd_itsm_metric_snapshots and sd_compliance_reports are new tables
+    # — created automatically via Base.metadata.create_all above
 ]
 
 
@@ -183,7 +220,10 @@ def table_exists(name):
 ALLOWED_TABLES = set(
     [t[0] for t in MIGRATIONS] +
     ["financial_approval_audit_logs", "portal_conversation_policies"] +
-    ["document_access_logs"]
+    ["document_access_logs"] +
+    ["cmdb_discovery_providers", "cmdb_discovery_jobs"] +
+    ["sd_autonomous_playbooks", "sd_autonomous_playbook_executions"] +
+    ["sd_itsm_metric_snapshots", "sd_compliance_reports"]
 )
 
 

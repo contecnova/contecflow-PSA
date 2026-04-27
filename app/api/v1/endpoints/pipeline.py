@@ -172,10 +172,7 @@ def get_proposal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.pipeline import Opportunity
-    opp = db.query(Opportunity).filter(Opportunity.id == opp_id).first()
-    if not opp:
-        raise HTTPException(404, "Oportunidad no encontrada")
+    opp = proposal_svc.get_opportunity_by_id(db, opp_id)
     return {
         "id": opp.id,
         "proposal_content": opp.proposal_content,

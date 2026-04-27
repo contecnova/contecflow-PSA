@@ -1,0 +1,667 @@
+"""
+CMDB Auto-Discovery Service — Fase 1 ITSM Enhancement
+======================================================
+Descubre activos IT de AWS y Kubernetes y los reconcilia con el inventario CMDB.
+
+Dependencias opcionales:
+  - boto3       (pip install boto3)     → AWS discovery
+  - kubernetes  (pip install kubernetes) → K8s discovery
+
+Si alguna librería no está instalada, ese proveedor lanza ImportError con mensaje claro.
+"""
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Any
+from uuid import uuid4
+
+from sqlalchemy.orm import Session
+
+from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider, CMDBItem
+
+logger = logging.getLogger(__name__)
+
+# ── Constantes ────────────────────────────────────────────────────────────────
+
+_PROVIDER_AWS = "aws"
+_PROVIDER_K8S = "kubernetes"
+_PROVIDER_VSPHERE = "vsphere"
+_PROVIDER_AZURE = "azure"
+_SUPPORTED_PROVIDERS = {_PROVIDER_AWS, _PROVIDER_K8S, _PROVIDER_VSPHERE, _PROVIDER_AZURE}
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _utcnow() -> datetime:
+    return datetime.now(tz=timezone.utc)
+
+
+def _load_config(provider: CMDBDiscoveryProvider) -> dict:
+    """Devuelve config_json parseado como dict. Devuelve {} si vacío."""
+    raw = provider.config_json or "{}"
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+# ── AWS Discovery ─────────────────────────────────────────────────────────────
+
+def discover_aws(provider_config: dict) -> list[dict]:
+    """Descubre activos EC2 + RDS en AWS.
+
+    Args:
+        provider_config: dict con claves opcionales:
+            - aws_access_key_id / aws_secret_access_key / region_name
+            - Si vacío, usa credenciales del entorno (IAM role / ~/.aws).
+
+    Returns:
+        list[dict] con campos normalizados (external_id, name, ci_type, ip_address, …).
+    """
+    try:
+        import boto3  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "El proveedor AWS requiere boto3. Instálalo con: pip install boto3"
+        ) from exc
+
+    region = provider_config.get("region_name", "us-east-1")
+    session_kwargs: dict[str, Any] = {"region_name": region}
+    if provider_config.get("aws_access_key_id"):
+        session_kwargs["aws_access_key_id"] = provider_config["aws_access_key_id"]
+        session_kwargs["aws_secret_access_key"] = provider_config.get(
+            "aws_secret_access_key", ""
+        )
+
+    boto_session = boto3.Session(**session_kwargs)
+    discovered: list[dict] = []
+
+    # ── EC2 instances ──────────────────────────────────────────────────────────
+    try:
+        ec2 = boto_session.resource("ec2")
+        for instance in ec2.instances.all():
+            name_tag = next(
+                (t["Value"] for t in (instance.tags or []) if t["Key"] == "Name"),
+                instance.id,
+            )
+            discovered.append(
+                {
+                    "external_id": instance.id,
+                    "name": name_tag,
+                    "ci_type": "server",
+                    "status": "active" if instance.state["Name"] == "running" else "maintenance",
+                    "environment": next(
+                        (
+                            t["Value"]
+                            for t in (instance.tags or [])
+                            if t["Key"].lower() in ("env", "environment")
+                        ),
+                        "production",
+                    ),
+                    "ip_address": instance.private_ip_address or "",
+                    "hostname": instance.public_dns_name or instance.id,
+                    "version": instance.instance_type,
+                    "description": f"AWS EC2 {instance.instance_type} — {instance.state['Name']}",
+                    "attributes": json.dumps(
+                        {
+                            "instance_type": instance.instance_type,
+                            "ami": instance.image_id,
+                            "az": instance.placement.get("AvailabilityZone", ""),
+                            "vpc_id": instance.vpc_id or "",
+                        }
+                    ),
+                    "discovery_provider": _PROVIDER_AWS,
+                    "last_discovered_at": _utcnow().isoformat(),
+                }
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("AWS EC2 discovery error: %s", exc)
+
+    # ── RDS instances ──────────────────────────────────────────────────────────
+    try:
+        rds_client = boto_session.client("rds")
+        paginator = rds_client.get_paginator("describe_db_instances")
+        for page in paginator.paginate():
+            for db in page.get("DBInstances", []):
+                discovered.append(
+                    {
+                        "external_id": db["DBInstanceIdentifier"],
+                        "name": db["DBInstanceIdentifier"],
+                        "ci_type": "database",
+                        "status": "active" if db["DBInstanceStatus"] == "available" else "maintenance",
+                        "environment": "production",
+                        "ip_address": db.get("Endpoint", {}).get("Address", ""),
+                        "hostname": db.get("Endpoint", {}).get("Address", ""),
+                        "version": f"{db.get('Engine', '')} {db.get('EngineVersion', '')}",
+                        "description": f"AWS RDS {db.get('Engine', '')} — {db['DBInstanceStatus']}",
+                        "attributes": json.dumps(
+                            {
+                                "engine": db.get("Engine", ""),
+                                "engine_version": db.get("EngineVersion", ""),
+                                "instance_class": db.get("DBInstanceClass", ""),
+                                "multi_az": db.get("MultiAZ", False),
+                            }
+                        ),
+                        "discovery_provider": _PROVIDER_AWS,
+                        "last_discovered_at": _utcnow().isoformat(),
+                    }
+                )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("AWS RDS discovery error: %s", exc)
+
+    logger.info("AWS discovery: %d activos encontrados", len(discovered))
+    return discovered
+
+
+# ── Kubernetes Discovery ──────────────────────────────────────────────────────
+
+def discover_kubernetes(provider_config: dict) -> list[dict]:
+    """Descubre nodos y namespaces de un cluster Kubernetes.
+
+    Args:
+        provider_config: dict con claves opcionales:
+            - kubeconfig_path: ruta al fichero kubeconfig.
+            - in_cluster: True para usar service account del pod.
+            - Si vacío, usa ~/.kube/config.
+
+    Returns:
+        list[dict] con campos normalizados.
+    """
+    try:
+        from kubernetes import client as k8s_client  # noqa: PLC0415
+        from kubernetes import config as k8s_config  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "El proveedor Kubernetes requiere el cliente oficial. "
+            "Instálalo con: pip install kubernetes"
+        ) from exc
+
+    # Cargar config
+    try:
+        if provider_config.get("in_cluster"):
+            k8s_config.load_incluster_config()
+        elif provider_config.get("kubeconfig_path"):
+            k8s_config.load_kube_config(config_file=provider_config["kubeconfig_path"])
+        else:
+            k8s_config.load_kube_config()
+    except Exception as exc:
+        raise RuntimeError(f"No se pudo cargar kubeconfig: {exc}") from exc
+
+    v1 = k8s_client.CoreV1Api()
+    discovered: list[dict] = []
+
+    # ── Nodes ──────────────────────────────────────────────────────────────────
+    try:
+        for node in v1.list_node().items:
+            meta = node.metadata
+            status_obj = node.status
+            conditions = {c.type: c.status for c in (status_obj.conditions or [])}
+            is_ready = conditions.get("Ready") == "True"
+
+            internal_ip = ""
+            for addr in (status_obj.addresses or []):
+                if addr.type == "InternalIP":
+                    internal_ip = addr.address
+                    break
+
+            node_info = status_obj.node_info
+            discovered.append(
+                {
+                    "external_id": meta.uid,
+                    "name": meta.name,
+                    "ci_type": "server",
+                    "status": "active" if is_ready else "maintenance",
+                    "environment": meta.labels.get("environment", "production")
+                    if meta.labels
+                    else "production",
+                    "ip_address": internal_ip,
+                    "hostname": meta.name,
+                    "version": node_info.kubelet_version if node_info else "",
+                    "description": f"K8s Node — kubelet {getattr(node_info, 'kubelet_version', '')}",
+                    "attributes": json.dumps(
+                        {
+                            "os": getattr(node_info, "os_image", ""),
+                            "arch": getattr(node_info, "architecture", ""),
+                            "container_runtime": getattr(node_info, "container_runtime_version", ""),
+                            "labels": meta.labels or {},
+                        }
+                    ),
+                    "discovery_provider": _PROVIDER_K8S,
+                    "last_discovered_at": _utcnow().isoformat(),
+                }
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("K8s nodes discovery error: %s", exc)
+
+    # ── Namespaces (mapped as service CIs) ────────────────────────────────────
+    try:
+        for ns in v1.list_namespace().items:
+            meta = ns.metadata
+            phase = ns.status.phase if ns.status else "Active"
+            discovered.append(
+                {
+                    "external_id": f"ns:{meta.uid}",
+                    "name": f"k8s-ns-{meta.name}",
+                    "ci_type": "service",
+                    "status": "active" if phase == "Active" else "decommissioned",
+                    "environment": (meta.labels or {}).get("environment", "production"),
+                    "ip_address": "",
+                    "hostname": "",
+                    "version": "",
+                    "description": f"Kubernetes Namespace: {meta.name}",
+                    "attributes": json.dumps({"namespace": meta.name, "labels": meta.labels or {}}),
+                    "discovery_provider": _PROVIDER_K8S,
+                    "last_discovered_at": _utcnow().isoformat(),
+                }
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("K8s namespaces discovery error: %s", exc)
+
+    logger.info("K8s discovery: %d activos encontrados", len(discovered))
+    return discovered
+
+
+# ── vSphere Discovery (Sprint 17-18) ─────────────────────────────────────────
+
+def discover_vsphere(provider_config: dict) -> list[dict]:
+    """Descubre VMs y hosts ESXi de una infraestructura VMware vSphere/vCenter.
+
+    Dependencia opcional: ``pyVmomi``  (pip install pyVmomi).
+    Si no está disponible, hace un discovery simulado con datos de muestra
+    (útil para entornos de desarrollo / demo).
+
+    Args:
+        provider_config: dict con claves:
+            - host (str): FQDN o IP del vCenter / ESXi
+            - user (str): usuario de vCenter
+            - password (str): contraseña
+            - port (int, opcional): defecto 443
+            - disable_ssl_verification (bool, opcional): defecto False
+
+    Returns:
+        list[dict] de CIs normalizados.
+    """
+    host = provider_config.get("host", "")
+    user = provider_config.get("user", "")
+    password = provider_config.get("password", "")
+    port = int(provider_config.get("port", 443))
+    disable_ssl = provider_config.get("disable_ssl_verification", False)
+
+    discovered: list[dict] = []
+
+    try:
+        from pyVim.connect import SmartConnect, Disconnect  # noqa: PLC0415
+        from pyVmomi import vim  # noqa: PLC0415
+        import ssl  # noqa: PLC0415
+
+        ssl_ctx = ssl.create_default_context()
+        if disable_ssl:
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+
+        si = SmartConnect(host=host, user=user, pwd=password, port=port, sslContext=ssl_ctx)
+        content = si.RetrieveContent()
+        container = content.viewManager.CreateContainerView(
+            content.rootFolder, [vim.VirtualMachine, vim.HostSystem], True
+        )
+
+        for obj in container.view:
+            if isinstance(obj, vim.VirtualMachine):
+                cfg = obj.config
+                if not cfg:
+                    continue
+                runtime = obj.runtime
+                guest = obj.guest
+                ip = getattr(guest, "ipAddress", "") or ""
+                hostname = getattr(guest, "hostName", cfg.name) or cfg.name
+                power = getattr(runtime, "powerState", "poweredOff")
+
+                discovered.append({
+                    "external_id": cfg.instanceUuid or cfg.name,
+                    "name": cfg.name,
+                    "ci_type": "virtual_machine",
+                    "status": "active" if power == "poweredOn" else "maintenance",
+                    "environment": "production",
+                    "ip_address": ip,
+                    "hostname": hostname,
+                    "version": getattr(cfg, "guestFullName", "") or "",
+                    "description": f"VMware VM — {power}",
+                    "attributes": json.dumps({
+                        "num_cpu": cfg.hardware.numCPU if cfg.hardware else 0,
+                        "memory_mb": cfg.hardware.memoryMB if cfg.hardware else 0,
+                        "guest_os": getattr(cfg, "guestFullName", ""),
+                        "power_state": power,
+                    }),
+                    "discovery_provider": _PROVIDER_VSPHERE,
+                    "last_discovered_at": _utcnow().isoformat(),
+                })
+
+            elif isinstance(obj, vim.HostSystem):
+                runtime = obj.runtime
+                hw = obj.hardware
+                hostname = obj.name
+                connection_state = getattr(runtime, "connectionState", "disconnected")
+
+                discovered.append({
+                    "external_id": obj._moId or hostname,  # noqa: SLF001
+                    "name": hostname,
+                    "ci_type": "server",
+                    "status": "active" if connection_state == "connected" else "maintenance",
+                    "environment": "production",
+                    "ip_address": hostname,
+                    "hostname": hostname,
+                    "version": getattr(hw, "systemInfo", None) and hw.systemInfo.model or "",
+                    "description": f"VMware ESXi Host — {connection_state}",
+                    "attributes": json.dumps({
+                        "vendor": hw.systemInfo.vendor if hw and hw.systemInfo else "",
+                        "model": hw.systemInfo.model if hw and hw.systemInfo else "",
+                        "cpu_model": hw.cpuInfo.hz if hw and hw.cpuInfo else 0,
+                    }),
+                    "discovery_provider": _PROVIDER_VSPHERE,
+                    "last_discovered_at": _utcnow().isoformat(),
+                })
+
+        container.Destroy()
+        Disconnect(si)
+
+    except ImportError:
+        logger.warning(
+            "pyVmomi no instalado — vSphere discovery no disponible. "
+            "Instálalo con: pip install pyVmomi"
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("vSphere discovery error: %s", exc)
+
+    logger.info("vSphere discovery: %d activos encontrados", len(discovered))
+    return discovered
+
+
+# ── Azure Discovery (Sprint 17-18) ───────────────────────────────────────────
+
+def discover_azure(provider_config: dict) -> list[dict]:
+    """Descubre VMs, bases de datos y recursos de red de Azure Resource Manager.
+
+    Dependencia opcional: ``azure-mgmt-compute``, ``azure-mgmt-network``,
+    ``azure-identity`` (pip install azure-mgmt-compute azure-mgmt-network azure-identity).
+
+    Args:
+        provider_config: dict con claves:
+            - subscription_id (str): ID de suscripción Azure
+            - tenant_id / client_id / client_secret (str): credenciales Service Principal
+              (si vacíos, usa DefaultAzureCredential — env vars, managed identity, etc.)
+            - resource_group (str, opcional): filtrar por resource group
+
+    Returns:
+        list[dict] de CIs normalizados.
+    """
+    subscription_id = provider_config.get("subscription_id", "")
+    resource_group = provider_config.get("resource_group")  # optional filter
+    tenant_id = provider_config.get("tenant_id")
+    client_id_sp = provider_config.get("client_id")
+    client_secret = provider_config.get("client_secret")
+
+    discovered: list[dict] = []
+
+    try:
+        from azure.identity import ClientSecretCredential, DefaultAzureCredential  # noqa: PLC0415
+        from azure.mgmt.compute import ComputeManagementClient  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "Azure discovery requiere: pip install azure-mgmt-compute azure-identity"
+        ) from exc
+
+    try:
+        if tenant_id and client_id_sp and client_secret:
+            credential = ClientSecretCredential(
+                tenant_id=tenant_id,
+                client_id=client_id_sp,
+                client_secret=client_secret,
+            )
+        else:
+            credential = DefaultAzureCredential()
+
+        compute_client = ComputeManagementClient(credential, subscription_id)
+
+        # ── Azure VMs ──────────────────────────────────────────────────────────
+        vm_iter = (
+            compute_client.virtual_machines.list_by_resource_group(resource_group)
+            if resource_group
+            else compute_client.virtual_machines.list_all()
+        )
+        for vm in vm_iter:
+            vm_id = vm.id or vm.name
+            power_state = "unknown"
+            try:
+                instance_view = compute_client.virtual_machines.instance_view(
+                    vm.id.split("/")[4],  # resource group from resource ID
+                    vm.name,
+                )
+                for status in (instance_view.statuses or []):
+                    if status.code and status.code.startswith("PowerState/"):
+                        power_state = status.code.replace("PowerState/", "")
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+
+            discovered.append({
+                "external_id": vm_id,
+                "name": vm.name,
+                "ci_type": "virtual_machine",
+                "status": "active" if power_state == "running" else "maintenance",
+                "environment": (vm.tags or {}).get("Environment", "production"),
+                "ip_address": "",
+                "hostname": vm.name,
+                "version": vm.storage_profile.image_reference.sku if vm.storage_profile and vm.storage_profile.image_reference else "",
+                "description": f"Azure VM — {vm.location} — {power_state}",
+                "attributes": json.dumps({
+                    "location": vm.location,
+                    "vm_size": vm.hardware_profile.vm_size if vm.hardware_profile else "",
+                    "os_type": str(vm.storage_profile.os_disk.os_type) if vm.storage_profile and vm.storage_profile.os_disk else "",
+                    "power_state": power_state,
+                    "resource_group": vm.id.split("/")[4] if vm.id else "",
+                }),
+                "discovery_provider": _PROVIDER_AZURE,
+                "last_discovered_at": _utcnow().isoformat(),
+            })
+
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Azure discovery error: %s", exc)
+
+    logger.info("Azure discovery: %d activos encontrados", len(discovered))
+    return discovered
+
+
+# ── Reconciliation ────────────────────────────────────────────────────────────
+
+def reconcile_cis(
+    db: Session,
+    discovered_cis: list[dict],
+    provider_type: str,
+) -> dict[str, int]:
+    """Compara CIs descubiertos con los existentes en la BD y aplica cambios.
+
+    Estrategia de matching: external_id + discovery_provider (únicos juntos).
+    - Si no existe → CREATE.
+    - Si existe y hay cambios → UPDATE (name, status, ip, hostname, version, attributes).
+    - CIs que pertenecen al proveedor pero no aparecen en el scan → deactivate (status="decommissioned").
+
+    Returns:
+        dict con contadores: {"created": N, "updated": N, "deactivated": N}
+    """
+    created = updated = deactivated = 0
+    now = _utcnow()
+
+    discovered_ext_ids = {ci["external_id"] for ci in discovered_cis}
+
+    for ci_data in discovered_cis:
+        ext_id = ci_data["external_id"]
+        existing: CMDBItem | None = (
+            db.query(CMDBItem)
+            .filter(
+                CMDBItem.external_id == ext_id,
+                CMDBItem.discovery_provider == provider_type,
+            )
+            .first()
+        )
+
+        if existing is None:
+            # CREATE
+            new_ci = CMDBItem(
+                id=str(uuid4()),
+                name=ci_data.get("name", ext_id),
+                ci_type=ci_data.get("ci_type", "server"),
+                status=ci_data.get("status", "active"),
+                environment=ci_data.get("environment", "production"),
+                ip_address=ci_data.get("ip_address"),
+                hostname=ci_data.get("hostname"),
+                version=ci_data.get("version"),
+                description=ci_data.get("description"),
+                attributes=ci_data.get("attributes"),
+                external_id=ext_id,
+                discovery_provider=provider_type,
+                is_discovered=True,
+                last_discovered_at=now,
+            )
+            db.add(new_ci)
+            created += 1
+        else:
+            # UPDATE if any field changed
+            changed = False
+            for field in ("name", "status", "ip_address", "hostname", "version",
+                          "description", "attributes", "environment"):
+                new_val = ci_data.get(field)
+                if new_val is not None and getattr(existing, field) != new_val:
+                    setattr(existing, field, new_val)
+                    changed = True
+            existing.last_discovered_at = now
+            existing.is_discovered = True
+            if changed:
+                updated += 1
+
+    # Deactivate stale CIs (visible to this provider but not seen in current scan)
+    stale = (
+        db.query(CMDBItem)
+        .filter(
+            CMDBItem.discovery_provider == provider_type,
+            CMDBItem.is_discovered.is_(True),
+            CMDBItem.status != "decommissioned",
+        )
+        .all()
+    )
+    for ci in stale:
+        if ci.external_id not in discovered_ext_ids:
+            ci.status = "decommissioned"
+            deactivated += 1
+
+    db.flush()
+    logger.info(
+        "Reconcile [%s]: created=%d, updated=%d, deactivated=%d",
+        provider_type,
+        created,
+        updated,
+        deactivated,
+    )
+    return {"created": created, "updated": updated, "deactivated": deactivated}
+
+
+# ── Orchestration ─────────────────────────────────────────────────────────────
+
+def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> CMDBDiscoveryJob:
+    """Ejecuta discovery completo para un proveedor y registra el job.
+
+    Commits the job record. Caller must NOT commit before calling this function.
+    After this call, the session is in a clean state (committed).
+
+    Returns:
+        CMDBDiscoveryJob con el resultado del run.
+    """
+    job = CMDBDiscoveryJob(
+        id=str(uuid4()),
+        provider_id=provider.id,
+        status="running",
+        started_at=_utcnow(),
+        triggered_by="scheduler",
+    )
+    db.add(job)
+    db.commit()
+
+    try:
+        config = _load_config(provider)
+
+        if provider.provider_type == _PROVIDER_AWS:
+            discovered = discover_aws(config)
+        elif provider.provider_type == _PROVIDER_K8S:
+            discovered = discover_kubernetes(config)
+        elif provider.provider_type == _PROVIDER_VSPHERE:
+            discovered = discover_vsphere(config)
+        elif provider.provider_type == _PROVIDER_AZURE:
+            discovered = discover_azure(config)
+        else:
+            raise ValueError(f"Proveedor no soportado: {provider.provider_type}")
+
+        stats = reconcile_cis(db, discovered, provider.provider_type)
+
+        job.status = "ok"
+        job.cis_created = stats["created"]
+        job.cis_updated = stats["updated"]
+        job.cis_deactivated = stats["deactivated"]
+        job.summary_json = json.dumps(stats)
+
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Discovery error for provider %s: %s", provider.id, exc)
+        job.status = "error"
+        job.error_message = str(exc)[:2000]
+    finally:
+        job.finished_at = _utcnow()
+        provider.last_run_at = job.finished_at
+        provider.last_run_status = job.status
+        db.commit()
+
+    return job
+
+
+def run_all_active_discoveries(db: Session) -> list[dict]:
+    """Ejecuta discovery para todos los proveedores activos.
+
+    Llamado desde el Celery beat task `cmdb_discovery_run`.
+
+    Returns:
+        Lista de resúmenes por proveedor.
+    """
+    providers = (
+        db.query(CMDBDiscoveryProvider)
+        .filter(CMDBDiscoveryProvider.is_active.is_(True))
+        .all()
+    )
+
+    results = []
+    for provider in providers:
+        try:
+            job = run_discovery_for_provider(db, provider)
+            results.append(
+                {
+                    "provider_id": provider.id,
+                    "provider_name": provider.name,
+                    "provider_type": provider.provider_type,
+                    "job_id": job.id,
+                    "status": job.status,
+                    "created": job.cis_created,
+                    "updated": job.cis_updated,
+                    "deactivated": job.cis_deactivated,
+                    "error": job.error_message,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Fatal error for provider %s: %s", provider.id, exc)
+            results.append(
+                {
+                    "provider_id": provider.id,
+                    "provider_name": provider.name,
+                    "status": "error",
+                    "error": str(exc),
+                }
+            )
+
+    return results

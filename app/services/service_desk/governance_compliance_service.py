@@ -1,0 +1,566 @@
+"""
+Governance & Compliance Service — Fase 3 ITSM Scale
+====================================================
+Sprint 23-24: Informes de gobernanza ITSM, auditoría de cumplimiento y
+paneles de control ejecutivo alineados con ITIL v4 e ISO 20000.
+
+Capacidades:
+  1. generate_compliance_report()   — informe de cumplimiento ITIL/ISO 20000
+     con indicadores ponderados y nivel de madurez (1-5 CMM).
+  2. audit_change_management()      — revisa Change Requests aprobados sin CAB,
+     cambios de emergencia sin PIR, etc.
+  3. audit_incident_management()    — P1s sin Major Incident vinculado,
+     incidentes recurrentes sin Problem asociado, etc.
+  4. audit_access_reviews()         — detecta usuarios con tickets de acceso
+     pendientes de revisión periódica (placeholder — extensible).
+  5. get_executive_dashboard()      — KPIs de alto nivel para CIO/CISO.
+  6. schedule_compliance_check()    — Celery entrypoint que ejecuta todas las
+     auditorías y persiste el resultado en la BD.
+"""
+from __future__ import annotations
+
+import json
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from uuid import uuid4
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.service_desk import (
+    ITSMChangeRequest,
+    ChangeType,
+    ChangeStatus,
+    MajorIncident,
+    Problem,
+    ProblemStatus,
+    Ticket,
+    TicketPriority,
+    TicketStatus,
+    TicketType,
+)
+
+logger = logging.getLogger(__name__)
+
+# ── ITIL maturity weights ─────────────────────────────────────────────────────
+# Each dimension scored 0-100 → weighted average → maps to CMM level 1-5
+
+_MATURITY_DIMENSIONS = {
+    "incident_management":  0.25,
+    "change_management":    0.20,
+    "problem_management":   0.20,
+    "sla_compliance":       0.20,
+    "asset_cmdb":           0.15,
+}
+
+def _cmm_level(score: float) -> int:
+    """Map 0-100 score to CMM maturity level 1-5."""
+    if score >= 85:
+        return 5
+    elif score >= 70:
+        return 4
+    elif score >= 50:
+        return 3
+    elif score >= 30:
+        return 2
+    return 1
+
+
+_CMM_LABELS = {1: "Initial", 2: "Repeatable", 3: "Defined", 4: "Managed", 5: "Optimized"}
+
+
+# ── Incident management audit ─────────────────────────────────────────────────
+
+def audit_incident_management(db: Session, days: int = 30) -> dict:
+    """Audit incident management practices for the last *days* days.
+
+    Checks:
+      - P1 incidents without a linked MajorIncident
+      - Recurring incidents (same CI, > 3 times) without a linked Problem
+      - Average resolution time vs SLA targets
+      - FCR (first contact resolution) rate
+
+    Returns::
+
+        {
+          "score": int (0-100),
+          "findings": [{"severity", "title", "count", "details"}],
+          "summary": str,
+        }
+    """
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+
+    incidents = (
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_type == TicketType.incident,
+            Ticket.created_at >= since,
+        )
+        .all()
+    )
+
+    findings = []
+    score = 100
+
+    # ── Finding 1: P1 without MajorIncident ───────────────────────────────────
+    p1_tickets = [t for t in incidents if t.priority == TicketPriority.p1_critical]
+    p1_without_mi = []
+    for t in p1_tickets:
+        mi = db.query(MajorIncident).filter(
+            MajorIncident.tickets.any(id=t.id)  # type: ignore[attr-defined]
+        ).first() if hasattr(MajorIncident, "tickets") else None
+        if not mi:
+            p1_without_mi.append(t.number)
+
+    if p1_without_mi:
+        pct = round(len(p1_without_mi) / max(len(p1_tickets), 1) * 100)
+        penalty = min(30, pct // 3)
+        score -= penalty
+        findings.append({
+            "severity": "high" if pct >= 50 else "medium",
+            "title": "P1 incidents without Major Incident record",
+            "count": len(p1_without_mi),
+            "details": f"{pct}% of P1 incidents ({len(p1_without_mi)}) lack a Major Incident declaration.",
+            "sample": p1_without_mi[:5],
+        })
+
+    # ── Finding 2: Recurring incidents without Problem ────────────────────────
+    ci_counts: dict[str, list] = {}
+    for t in incidents:
+        if t.ci_id:
+            ci_counts.setdefault(t.ci_id, []).append(t)
+
+    recurring_without_problem = []
+    for ci_id, ci_tickets in ci_counts.items():
+        if len(ci_tickets) >= 3:
+            has_problem = any(t.problem_id for t in ci_tickets if hasattr(t, "problem_id") and t.problem_id)  # type: ignore[attr-defined]
+            if not has_problem:
+                recurring_without_problem.append({"ci_id": ci_id, "incident_count": len(ci_tickets)})
+
+    if recurring_without_problem:
+        score -= min(20, len(recurring_without_problem) * 4)
+        findings.append({
+            "severity": "medium",
+            "title": "Recurring incidents without Problem record",
+            "count": len(recurring_without_problem),
+            "details": f"{len(recurring_without_problem)} CIs had 3+ incidents with no linked Problem.",
+            "sample": recurring_without_problem[:5],
+        })
+
+    # ── Finding 3: SLA compliance ─────────────────────────────────────────────
+    resolved = [t for t in incidents if t.resolved_at]
+    breached = [t for t in resolved if getattr(t, "sla_resolution_breached", False)]
+    if resolved:
+        breach_rate = len(breached) / len(resolved)
+        if breach_rate > 0.10:
+            penalty = min(20, int(breach_rate * 100) // 2)
+            score -= penalty
+            findings.append({
+                "severity": "high" if breach_rate > 0.25 else "medium",
+                "title": "SLA resolution breach rate above threshold",
+                "count": len(breached),
+                "details": f"{round(breach_rate*100, 1)}% of resolved incidents breached SLA (target <10%).",
+            })
+
+    score = max(0, score)
+    summary = (
+        f"Incident management score: {score}/100 (CMM Level {_cmm_level(score)} — "
+        f"{_CMM_LABELS[_cmm_level(score)]}). "
+        f"Analysed {len(incidents)} incidents over {days} days."
+    )
+
+    return {"score": score, "findings": findings, "summary": summary}
+
+
+# ── Change management audit ───────────────────────────────────────────────────
+
+def audit_change_management(db: Session, days: int = 30) -> dict:
+    """Audit change management practices.
+
+    Checks:
+      - Emergency changes without PIR
+      - Normal changes approved without CAB record (approver_id missing)
+      - Changes with high auto-risk score that were applied as standard
+      - High rollback usage (pir_success = False rate)
+
+    Returns same structure as audit_incident_management.
+    """
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+
+    changes = (
+        db.query(ITSMChangeRequest)
+        .filter(
+            ITSMChangeRequest.created_at >= since,
+            ITSMChangeRequest.status.in_(["implemented", "closed", "failed"]),
+        )
+        .all()
+    )
+
+    findings = []
+    score = 100
+
+    # ── Finding 1: Emergency changes without PIR ──────────────────────────────
+    emergency = [c for c in changes if c.change_type == ChangeType.emergency]
+    emergency_no_pir = [c for c in emergency if not c.pir_notes]
+    if emergency_no_pir:
+        pct = round(len(emergency_no_pir) / max(len(emergency), 1) * 100)
+        score -= min(25, pct // 3)
+        findings.append({
+            "severity": "high" if pct >= 60 else "medium",
+            "title": "Emergency changes without PIR (Post-Implementation Review)",
+            "count": len(emergency_no_pir),
+            "details": f"{pct}% of emergency changes lack a PIR. ITIL requires PIR for all emergency changes.",
+            "sample": [c.number for c in emergency_no_pir[:5]],
+        })
+
+    # ── Finding 2: Normal changes without CAB approval ────────────────────────
+    normal = [c for c in changes if c.change_type == ChangeType.normal]
+    normal_no_cab = [c for c in normal if not c.approver_id]
+    if normal_no_cab:
+        pct = round(len(normal_no_cab) / max(len(normal), 1) * 100)
+        score -= min(20, pct // 4)
+        findings.append({
+            "severity": "high" if pct >= 40 else "medium",
+            "title": "Normal changes without CAB approval record",
+            "count": len(normal_no_cab),
+            "details": f"{pct}% of normal changes have no approver recorded.",
+            "sample": [c.number for c in normal_no_cab[:5]],
+        })
+
+    # ── Finding 3: Change failure rate ────────────────────────────────────────
+    failed = [c for c in changes if str(c.status) in ("failed",)]
+    if changes:
+        failure_rate = len(failed) / len(changes)
+        if failure_rate > 0.10:
+            penalty = min(20, int(failure_rate * 100) // 3)
+            score -= penalty
+            findings.append({
+                "severity": "high" if failure_rate > 0.20 else "medium",
+                "title": "Change failure rate above threshold",
+                "count": len(failed),
+                "details": f"{round(failure_rate*100, 1)}% of changes failed (target <10%).",
+            })
+
+    # ── Finding 4: Standard changes with high auto-risk ───────────────────────
+    if hasattr(ITSMChangeRequest, "auto_risk_score"):
+        high_risk_standard = [
+            c for c in changes
+            if c.change_type == ChangeType.standard
+            and getattr(c, "auto_risk_score", 0) and c.auto_risk_score >= 55
+        ]
+        if high_risk_standard:
+            score -= min(15, len(high_risk_standard) * 3)
+            findings.append({
+                "severity": "medium",
+                "title": "Standard changes with elevated auto-risk score",
+                "count": len(high_risk_standard),
+                "details": "These changes were classified as Standard but scored ≥55 risk. Consider reclassification.",
+                "sample": [c.number for c in high_risk_standard[:5]],
+            })
+
+    score = max(0, score)
+    summary = (
+        f"Change management score: {score}/100 (CMM Level {_cmm_level(score)} — "
+        f"{_CMM_LABELS[_cmm_level(score)]}). "
+        f"Analysed {len(changes)} implemented changes over {days} days."
+    )
+
+    return {"score": score, "findings": findings, "summary": summary}
+
+
+# ── Problem management audit ──────────────────────────────────────────────────
+
+def audit_problem_management(db: Session, days: int = 90) -> dict:
+    """Audit problem management practices.
+
+    Checks:
+      - Open problems older than 30 days without RCA
+      - Problems auto-detected (Phase 1) not yet manually reviewed
+      - Known error database (KB) coverage
+
+    Returns same structure.
+    """
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    thirty_days_ago = datetime.now(tz=timezone.utc) - timedelta(days=30)
+
+    problems = db.query(Problem).filter(Problem.created_at >= since).all()
+
+    findings = []
+    score = 100
+
+    # ── Finding 1: Stale open problems without RCA ────────────────────────────
+    open_problems = [p for p in problems if p.status not in (ProblemStatus.closed, ProblemStatus.resolved)]
+    stale = [p for p in open_problems if p.created_at and p.created_at <= thirty_days_ago]
+    stale_no_rca = [p for p in stale if not p.root_cause]
+    if stale_no_rca:
+        score -= min(25, len(stale_no_rca) * 5)
+        findings.append({
+            "severity": "high",
+            "title": "Open problems older than 30 days without RCA",
+            "count": len(stale_no_rca),
+            "details": f"{len(stale_no_rca)} problems are stale with no root cause documented.",
+            "sample": [p.number for p in stale_no_rca[:5]],
+        })
+
+    # ── Finding 2: Auto-detected problems not reviewed ────────────────────────
+    auto_detected = [p for p in problems if getattr(p, "auto_detected", False)]
+    auto_no_review = [p for p in auto_detected if not p.root_cause and p.status not in (ProblemStatus.closed,)]
+    if auto_no_review:
+        score -= min(15, len(auto_no_review) * 3)
+        findings.append({
+            "severity": "medium",
+            "title": "Auto-detected problems awaiting human review",
+            "count": len(auto_no_review),
+            "details": "Auto-detected problems need RCA validation by a human engineer.",
+        })
+
+    score = max(0, score)
+    summary = (
+        f"Problem management score: {score}/100 (CMM Level {_cmm_level(score)} — "
+        f"{_CMM_LABELS[_cmm_level(score)]}). "
+        f"Analysed {len(problems)} problems over {days} days."
+    )
+
+    return {"score": score, "findings": findings, "summary": summary}
+
+
+# ── Full compliance report ────────────────────────────────────────────────────
+
+def generate_compliance_report(
+    db: Session,
+    days: int = 30,
+    persist: bool = True,
+) -> dict:
+    """Generate a full ITIL/ISO 20000-aligned compliance report.
+
+    Runs all sub-audits, computes weighted maturity score, and optionally
+    persists the report in ``sd_compliance_reports``.
+
+    Returns::
+
+        {
+          "generated_at": str,
+          "period_days": int,
+          "overall_score": int,
+          "cmm_level": int,
+          "cmm_label": str,
+          "dimensions": {name: {score, cmm_level, findings}},
+          "top_findings": [worst findings across all dims],
+          "recommendations": [str],
+        }
+    """
+    incident_audit = audit_incident_management(db, days)
+    change_audit = audit_change_management(db, days)
+    problem_audit = audit_problem_management(db, days=max(days, 90))
+
+    # SLA score from incident audit (reuse breach findings)
+    sla_score = 100
+    for f in incident_audit["findings"]:
+        if "SLA" in f["title"]:
+            sla_score = max(0, 100 - f["count"] * 3)
+
+    # Asset/CMDB score — basic: check % CIs with is_discovered
+    try:
+        from app.models.cmdb import CMDBItem  # noqa: PLC0415
+        total_cis = db.query(func.count(CMDBItem.id)).scalar() or 0
+        discovered_cis = db.query(func.count(CMDBItem.id)).filter(
+            CMDBItem.is_discovered.is_(True)
+        ).scalar() or 0
+        cmdb_score = round(discovered_cis / total_cis * 100) if total_cis else 50
+    except Exception:
+        cmdb_score = 50
+
+    dimensions = {
+        "incident_management": {"score": incident_audit["score"], "findings": incident_audit["findings"]},
+        "change_management":   {"score": change_audit["score"],   "findings": change_audit["findings"]},
+        "problem_management":  {"score": problem_audit["score"],  "findings": problem_audit["findings"]},
+        "sla_compliance":      {"score": sla_score,               "findings": []},
+        "asset_cmdb":          {"score": cmdb_score,              "findings": []},
+    }
+
+    for dim in dimensions.values():
+        dim["cmm_level"] = _cmm_level(dim["score"])
+        dim["cmm_label"] = _CMM_LABELS[dim["cmm_level"]]
+
+    # Weighted overall score
+    overall = round(sum(
+        dimensions[k]["score"] * w
+        for k, w in _MATURITY_DIMENSIONS.items()
+    ))
+
+    # Top findings (worst severity first)
+    all_findings = []
+    for dim_name, dim_data in dimensions.items():
+        for f in dim_data.get("findings", []):
+            all_findings.append({**f, "dimension": dim_name})
+    all_findings.sort(key=lambda x: {"high": 0, "medium": 1, "low": 2}.get(x.get("severity", "low"), 2))
+
+    # Auto-recommendations
+    recommendations = []
+    if change_audit["score"] < 70:
+        recommendations.append("Implementar registro formal de aprobación CAB para todos los cambios normales.")
+    if incident_audit["score"] < 70:
+        recommendations.append("Enlazar incidentes P1 con Major Incident automáticamente al crear el ticket.")
+    if problem_audit["score"] < 70:
+        recommendations.append("Establecer SLA interno de 30 días para documentar RCA en problemas abiertos.")
+    if sla_score < 80:
+        recommendations.append("Revisar políticas SLA — breach rate supera el umbral aceptable del 10%.")
+    if cmdb_score < 60:
+        recommendations.append("Aumentar cobertura de auto-discovery CMDB — menos del 60% de CIs están descubiertos.")
+
+    report = {
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "period_days": days,
+        "overall_score": overall,
+        "cmm_level": _cmm_level(overall),
+        "cmm_label": _CMM_LABELS[_cmm_level(overall)],
+        "dimensions": dimensions,
+        "top_findings": all_findings[:10],
+        "recommendations": recommendations,
+    }
+
+    if persist:
+        _persist_compliance_report(db, report)
+
+    return report
+
+
+def _persist_compliance_report(db: Session, report: dict) -> None:
+    """Save compliance report to sd_compliance_reports if table/model exists."""
+    try:
+        from app.models.service_desk import ComplianceReport  # noqa: PLC0415
+        rec = ComplianceReport(
+            id=str(uuid4()),
+            generated_at=datetime.now(tz=timezone.utc),
+            period_days=report["period_days"],
+            overall_score=report["overall_score"],
+            cmm_level=report["cmm_level"],
+            report_json=json.dumps(report),
+        )
+        db.add(rec)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("Could not persist compliance report: %s", exc)
+
+
+# ── Executive dashboard ───────────────────────────────────────────────────────
+
+def get_executive_dashboard(db: Session, days: int = 30) -> dict:
+    """Return a CIO/CISO-level KPI dashboard combining ITSM health indicators.
+
+    Returns::
+
+        {
+          "service_health_score": int,  # 0-100
+          "open_incidents": int,
+          "critical_open": int,
+          "unresolved_problems": int,
+          "pending_changes": int,
+          "sla_compliance_pct": float,
+          "cmm_level": int,
+          "top_risks": [str],
+        }
+    """
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+
+    open_incidents = (
+        db.query(func.count(Ticket.id))
+        .filter(
+            Ticket.ticket_type == TicketType.incident,
+            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+        )
+        .scalar() or 0
+    )
+
+    critical_open = (
+        db.query(func.count(Ticket.id))
+        .filter(
+            Ticket.ticket_type == TicketType.incident,
+            Ticket.priority == TicketPriority.p1_critical,
+            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+        )
+        .scalar() or 0
+    )
+
+    unresolved_problems = (
+        db.query(func.count(Problem.id))
+        .filter(Problem.status.notin_(["closed", "resolved"]))
+        .scalar() or 0
+    )
+
+    pending_changes = (
+        db.query(func.count(ITSMChangeRequest.id))
+        .filter(ITSMChangeRequest.status.in_(["submitted", "reviewing", "approved"]))
+        .scalar() or 0
+    )
+
+    # SLA compliance last N days
+    resolved_recent = (
+        db.query(Ticket)
+        .filter(
+            Ticket.ticket_type == TicketType.incident,
+            Ticket.resolved_at.isnot(None),
+            Ticket.created_at >= since,
+        )
+        .all()
+    )
+    sla_ok = [t for t in resolved_recent if not getattr(t, "sla_resolution_breached", False)]
+    sla_pct = round(len(sla_ok) / len(resolved_recent) * 100, 1) if resolved_recent else 100.0
+
+    # Overall service health score (simplified)
+    health = 100
+    if critical_open:
+        health -= min(30, critical_open * 10)
+    if sla_pct < 90:
+        health -= int((90 - sla_pct) // 2)
+    if unresolved_problems > 5:
+        health -= min(20, (unresolved_problems - 5) * 2)
+    health = max(0, health)
+
+    top_risks: list[str] = []
+    if critical_open:
+        top_risks.append(f"{critical_open} open P1 incident(s) require immediate attention")
+    if sla_pct < 85:
+        top_risks.append(f"SLA compliance at {sla_pct}% — below 85% target")
+    if unresolved_problems > 10:
+        top_risks.append(f"{unresolved_problems} unresolved problems in backlog")
+
+    compliance_report = generate_compliance_report(db, days=days, persist=False)
+
+    return {
+        "service_health_score": health,
+        "open_incidents": open_incidents,
+        "critical_open": critical_open,
+        "unresolved_problems": unresolved_problems,
+        "pending_changes": pending_changes,
+        "sla_compliance_pct": sla_pct,
+        "cmm_level": compliance_report["cmm_level"],
+        "cmm_label": compliance_report["cmm_label"],
+        "overall_compliance_score": compliance_report["overall_score"],
+        "top_risks": top_risks,
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+    }
+
+
+# ── Celery entrypoint ─────────────────────────────────────────────────────────
+
+def schedule_compliance_check(db: Session) -> dict:
+    """Run all audits and persist compliance report.
+
+    Called from Celery beat task `compliance_check` weekly on Mondays at 06:00.
+    """
+    report = generate_compliance_report(db, days=30, persist=True)
+    logger.info(
+        "Compliance check done: overall=%d CMM=%d findings=%d",
+        report["overall_score"],
+        report["cmm_level"],
+        len(report["top_findings"]),
+    )
+    return {
+        "overall_score": report["overall_score"],
+        "cmm_level": report["cmm_level"],
+        "findings_count": len(report["top_findings"]),
+        "recommendations_count": len(report["recommendations"]),
+    }

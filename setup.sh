@@ -339,6 +339,25 @@ setup_backend() {
     log "Dependencias Python sin cambios, omitiendo pip install"
   fi
 
+  # Dependencias opcionales: CMDB auto-discovery (boto3=AWS, kubernetes=K8s)
+  # Se instalan solo si el archivo requirements-discovery.txt existe O si se detectan
+  # variables de entorno de proveedor cloud configuradas.
+  if [ -f "requirements-discovery.txt" ]; then
+    log "Instalando dependencias opcionales de CMDB discovery..."
+    "$PIP_BIN" install --quiet -r requirements-discovery.txt || \
+      warn "Algunas dependencias opcionales de discovery no se pudieron instalar (no es bloqueante)"
+  else
+    # Instalar solo si las vars de entorno AWS/K8s están configuradas
+    if grep -qE '^AWS_ACCESS_KEY_ID=.+' .env 2>/dev/null; then
+      log "AWS configurado — instalando boto3..."
+      "$PIP_BIN" install --quiet boto3 || warn "No se pudo instalar boto3"
+    fi
+    if grep -qE '^KUBECONFIG=.+|^K8S_IN_CLUSTER=true' .env 2>/dev/null; then
+      log "Kubernetes configurado — instalando kubernetes client..."
+      "$PIP_BIN" install --quiet kubernetes || warn "No se pudo instalar kubernetes client"
+    fi
+  fi
+
   # Create .env if not exists
   if [ ! -f ".env" ]; then
     log "Creando archivo .env..."
