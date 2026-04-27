@@ -428,6 +428,22 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
     queryFn: () => usersApi.list().then(r => r.data),
     enabled: !!project?.id && tab === 'team',
   })
+
+  // ── Feature Requests (tab 'requests') ─────────────────────────
+  const [respondingFr, setRespondingFr] = useState(null)
+  const [respondForm, setRespondForm] = useState({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' })
+
+  const { data: featureRequests = [], isLoading: loadingFRs } = useQuery({
+    queryKey: ['project-feature-requests', project?.id],
+    queryFn: () => api.get(`/portal/feature-requests/team?project_id=${project.id}`).then(r => r.data),
+    enabled: !!project?.id && tab === 'requests',
+  })
+
+  const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
+    mutationFn: ({ id, data }) => api.post(`/portal/feature-requests/${id}/respond`, data),
+    onSuccess: () => { qc.invalidateQueries(['project-feature-requests', project?.id]); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
+    onError: e => toast.error(extractErr(e, 'Error al responder')),
+  })
   const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
@@ -444,10 +460,11 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
   if (!project || !detail) return null
 
   const TABS = [
-    { id: 'info',  label: 'ℹ️ Info' },
-    { id: 'team',  label: `Equipo${members.length > 0 ? ` (${members.length})` : ''}` },
-    { id: 'phases',label: 'Fases' },
-    { id: 'docs',  label: 'Documentos' },
+    { id: 'info',     label: 'ℹ️ Info' },
+    { id: 'team',     label: `Equipo${members.length > 0 ? ` (${members.length})` : ''}` },
+    { id: 'phases',   label: 'Fases' },
+    { id: 'docs',     label: 'Documentos' },
+    { id: 'requests', label: `💡 Solicitudes${featureRequests.length > 0 ? ` (${featureRequests.length})` : ''}` },
   ]
 
   const memberUserIds = new Set(members.map(m => m.user_id))
@@ -624,6 +641,103 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       {/* DOCS TAB */}
       {tab === 'docs' && (
         <DocumentsPanel projectId={project.id} />
+      )}
+
+      {/* FEATURE REQUESTS TAB */}
+      {tab === 'requests' && (
+        <div>
+          {loadingFRs ? <Spinner /> : featureRequests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>💡</div>
+              <div style={{ fontSize: 14 }}>No hay solicitudes de funcionalidad para este proyecto</div>
+              <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-3)' }}>Los clientes pueden crear solicitudes desde el portal</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {featureRequests.map(fr => {
+                const statusColors = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: '#f97316', approved: 'var(--success)', rejected: 'var(--danger)', in_development: '#a855f7', done: 'var(--success)' }
+                const priorityColors = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
+                const statusLabels = { new: 'Nueva', reviewing: 'Revisando', estimated: 'Estimada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
+                const isResponding = respondingFr === fr.id
+                const canRespond = ['new', 'reviewing', 'estimated'].includes(fr.status)
+                return (
+                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', fontFamily: 'monospace' }}>{fr.code}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: `${statusColors[fr.status] || 'var(--text-2)'}18`, border: `1px solid ${statusColors[fr.status] || 'var(--text-2)'}40`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
+                          {fr.client_approved === true && <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ Cliente aprobó</span>}
+                          {fr.client_approved === false && <span style={{ fontSize: 11, color: 'var(--danger)' }}>✗ Cliente rechazó</span>}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{fr.title}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description}</div>
+                        {fr.business_justification && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>Justificación: {fr.business_justification}</div>}
+                        {(fr.estimated_cost != null || fr.estimated_hours != null) && (
+                          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                            {fr.estimated_cost != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
+                            {fr.estimated_hours != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>⏱ {fr.estimated_hours}h</span>}
+                            {fr.estimated_delivery_weeks != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>📅 {fr.estimated_delivery_weeks} sem.</span>}
+                          </div>
+                        )}
+                        {fr.pm_response && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6, borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                        {canRespond && (
+                          <button onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
+                            style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 7, border: `1px solid ${isResponding ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: isResponding ? 'var(--accent-muted)' : 'transparent', color: isResponding ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {isResponding ? '× Cancelar' : '✏️ Responder'}
+                          </button>
+                        )}
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{fmtDate(fr.submitted_at)}</div>
+                      </div>
+                    </div>
+
+                    {/* Formulario de respuesta PM */}
+                    {isResponding && (
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Respuesta del PM</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                          <div>
+                            <label style={{ ...ls }}>Coste estimado (€)</label>
+                            <input type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                          </div>
+                          <div>
+                            <label style={{ ...ls }}>Horas estimadas</label>
+                            <input type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                          </div>
+                          <div>
+                            <label style={{ ...ls }}>Semanas entrega</label>
+                            <input type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} style={{ ...fs }} placeholder="0" />
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ ...ls }}>Mensaje al cliente</label>
+                          <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder="Explica la estimación o razón del rechazo..." />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
+                          <select value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
+                            <option value="estimated">Estimada</option>
+                            <option value="approved">Aprobar</option>
+                            <option value="rejected">Rechazar</option>
+                            <option value="in_development">En desarrollo</option>
+                            <option value="done">Completada</option>
+                          </select>
+                          <div style={{ flex: 1 }} />
+                          <Button onClick={() => respondFR({ id: fr.id, data: { pm_response: respondForm.pm_response || undefined, estimated_hours: respondForm.estimated_hours !== '' ? Number(respondForm.estimated_hours) : undefined, estimated_cost: respondForm.estimated_cost !== '' ? Number(respondForm.estimated_cost) : undefined, estimated_delivery_weeks: respondForm.estimated_delivery_weeks !== '' ? Number(respondForm.estimated_delivery_weeks) : undefined, status: respondForm.status } })} disabled={respondingFRPending}>
+                            {respondingFRPending ? 'Guardando...' : 'Guardar respuesta'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--surface-4)' }}>
