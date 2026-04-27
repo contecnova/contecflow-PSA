@@ -176,6 +176,7 @@ export default function JiraIntegrationPage() {
                   <label style={_ls}>{t('jira_integration.email_label')}</label>
                   <input
                     type="email"
+                    autoComplete="email"
                     placeholder={t('jira_integration.email_placeholder')}
                     value={form.jira_email}
                     onChange={e => setForm(p => ({ ...p, jira_email: e.target.value }))}
