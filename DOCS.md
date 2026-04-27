@@ -1,3 +1,35 @@
+### v23.10.9 (Abril 2026) — UX Sprint: Autoservicio, Wiki+KB, CMDB standalone y Anuncios top-level
+
+**Objetivo:** Cinco mejoras de navegación y denominación sin cambios de backend ni migraciones.
+
+**Cambio 1 — Portal Wiki integra Base de Conocimiento pública:**
+- `PortalWiki` en `frontend/src/pages/portal-client/PortalAdvancedSections.jsx` añade un segundo tab "🔍 Artículos KB" con búsqueda, que consume `GET /sd/kb?public_only=true`.
+- El tab "📄 Documentación" mantiene el comportamiento anterior sobre `/portal/wiki/pages`.
+- El fetch del KB es lazy (solo cuando el cliente activa ese tab), sin impacto en carga inicial.
+- 8 archivos i18n portal actualizados: `wiki_tab_docs`, `wiki_tab_kb`, `wiki_kb_search`, `wiki_kb_empty`, `wiki_subtitle`.
+
+**Cambio 2 — Renombrado "Soporte / Tickets" → "Autoservicio" en portal:**
+- Label del sidebar nav, título de página y subtítulo actualizados en los 8 idiomas (ES/EN/FR/DE/PT/IT/PL/ZH).
+- Icono cambiado de 🎫 a 🗳️. ID de sección `support` y componente `PortalSupportDesk` sin cambios.
+- Textos hardcodeados en `PortalSupportDesk.jsx` sustituidos por claves i18n (`support_empty`, `support_modal_title`, `support_kb_hint`).
+
+**Cambio 3 — Tab "Solicitudes" en modal de Proyectos:**
+- `ProjectsPage.jsx` añade tab "💡 Solicitudes" en el modal de detalle de proyecto.
+- Muestra Feature Requests del proyecto (`GET /portal/feature-requests/team?project_id=`) y permite respuesta inline del PM (coste, horas, semanas, estado).
+
+**Cambio 4 — CMDB como sección standalone:**
+- Eliminado el tab `cmdb` del Service Desk (`ServiceDeskPageView.jsx`).
+- El Service Desk muestra `🖥️ CMDB ↗` como enlace hacia `/cmdb` (ruta ya existente con `CMDBPage.jsx`).
+- Un único punto de gestión CMDB, sin duplicidad de implementaciones (`/sd/cmdb` vs `/cmdb`).
+
+**Cambio 5 — Anuncios elevado a tab principal del Service Desk:**
+- `AnnouncementsConfig` exportada de `ConfigTab.jsx` e importada lazy en `ServiceDeskPageView.jsx`.
+- Nuevo tab `Anuncios` en la barra principal del SD (contenido operativo que afecta a clientes en tiempo real).
+- Config sub-tabs reducidos de 7 a 6 (catálogo, SLA, grupos, routing, templates, respuestas rápidas).
+
+**Commits:** `c058b2d` (cambio 3), `9214868` (cambio 2), `111c648` (cambio 4), `4cffea3` (cambios 1+5)
+**Build:** `✓ built in ~25s` sin errores. Smoke test: 26/26 rutas HTTP 200.
+
 ### v23.10.8 (Abril 2026) — Conversaciones gobernadas portal (GRC + SLA + federación legacy)
 
 **Objetivo implementado:**
@@ -675,9 +707,9 @@ Los eventos se envían síncronamente a los webhooks configurados via `fire_webh
 | **Gestión de proyectos** | Proyectos, tareas Kanban/Gantt, sprints, entregables, riesgos, cambios, dependencias, milestones |
 | **Recursos y RRHH** | Imputación de horas, timesheets, capacidad, skills, ausencias, formación, revisiones de desempeño |
 | **Negocio** | Pipeline CRM, contratos, facturación, rentabilidad, Rate Cards, EVM, análisis financiero |
-| **Service Desk ITSM** | Tickets (incidencias, solicitudes, cambios, problemas), SLA automático P1-P4, KB, CMDB |
+| **Service Desk ITSM** | Tickets (incidencias, solicitudes, cambios, problemas), SLA automático P1-P4, KB, CMDB (sección `/cmdb`) |
 | **BI y reporting** | 28+ métricas, exportación Excel/CSV, report builder personalizable, alertas automáticas |
-| **Portal cliente** | Acceso externo en `/portal`, UAT, feature requests, mensajería, hoja de ruta, documentos |
+| **Portal cliente** | Acceso externo en `/portal`, UAT, feature requests, mensajería, hoja de ruta, documentos, KB pública |
 | **Integraciones** | Azure AD/Okta/Google SSO, GitHub/GitLab, DocuSign/AdobeSign, Microsoft 365, Xero, QuickBooks |
 | **IA** | AI Hub con soporte para Anthropic, OpenAI, Gemini, Mistral, DeepSeek, Groq, Ollama, Azure OpenAI |
 
@@ -873,7 +905,8 @@ contecflow-PSA/
 - **Tipos de ticket**: Incidencia, Solicitud de servicio, Cambio, Problema, Pregunta
 - **SLA automático** por prioridad P1-P4: respuesta y resolución, escalado automático L1/L2/L3
 - **Base de conocimiento**: artículos KB con categorías, tags, búsqueda semántica IA
-- **CMDB**: activos de TI vinculados a tickets (servidores, apps, dispositivos)
+- **CMDB**: sección standalone en `/cmdb` — activos de TI (servidores, apps, dispositivos), relaciones y análisis de impacto
+- **Anuncios**: tab de primer nivel en el Service Desk para comunicaciones operativas visibles en el portal cliente
 - **Gestión de Problemas**: agrupación de incidencias, RCA, estado de resolución
 - **Calendarios SLA**: horarios hábiles por zona horaria, festivos
 - **Internal Comments**: comentarios internos del equipo no visibles al cliente
@@ -1656,7 +1689,8 @@ El portal es una experiencia completamente separada, accesible en `/portal`, par
 | Proyectos / hoja de ruta | Estado del proyecto, fases, milestones | — |
 | UAT | Gestionar sesiones de pruebas de aceptación | `can_approve_deliverables` |
 | Feature Requests | Solicitar nuevas funcionalidades | `can_request_changes` |
-| Service Desk | Abrir y seguir tickets de soporte | — |
+| Autoservicio | Abrir y seguir tickets, buscar en KB pública y leer comunicados | — |
+| Base de conocimiento | Documentación del proyecto + artículos KB públicos en dos tabs | — |
 | Mensajería | Canal de mensajes con el equipo | — |
 | Documentos | Acceso a documentos compartidos | — |
 | Encuestas | Responder encuestas NPS/CSAT | — |
