@@ -109,6 +109,7 @@ const PublicFormsPage        = lazy(() => import('./pages/PublicFormsPage'))
 const IntakeFormPage         = lazy(() => import('./pages/IntakeFormPage'))
 const DeveloperPortalPage    = lazy(() => import('./pages/DeveloperPortalPage'))
 const BIPage                 = lazy(() => import('./pages/BIPage'))
+const BIWorkspacePage        = lazy(() => import('./pages/BIWorkspacePage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
 const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage'))
@@ -469,7 +470,7 @@ function AppRoutes() {
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><GanttPage /></Layout></ProtectedRoute>} />
-      <Route path="/bi" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIPage /></Layout></ProtectedRoute>} />
+      <Route path="/bi" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIWorkspacePage /></Layout></ProtectedRoute>} />
       <Route path="/bi/project/:projectId" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
@@ -482,7 +483,7 @@ function AppRoutes() {
       <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />
       <Route path="/performance-reviews" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
-      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><Navigate to="/bi" replace /></Layout></ProtectedRoute>} />
+      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><BIPage /></Layout></ProtectedRoute>} />
       <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<ProtectedRoute><Layout><NotificationsPage /></Layout></ProtectedRoute>} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />

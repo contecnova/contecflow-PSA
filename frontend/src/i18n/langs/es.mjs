@@ -1228,6 +1228,7 @@ const es = {
     jira_integration: 'Integración con Jira',
     notifications: 'Notificaciones',
     executive: 'Panel ejecutivo',
+    bi_workspace: 'Workspace BI',
     log_hours: 'Registrar horas',
     timer: 'Temporizador',
     calendar: 'Calendario',

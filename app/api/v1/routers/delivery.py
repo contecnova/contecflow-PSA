@@ -13,6 +13,8 @@ from app.api.v1.endpoints import (
     git_integration, esign, report_builder, nps, m365,
     backlog, export_template, cicd, events, documents_edit,
     gantt_suggestions, template, templates, revenue, predictions,
+    bi_collaboration, bi_intelligence, bi_platform,
+    bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
 )
 from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
 
@@ -54,6 +56,12 @@ router.include_router(portfolio.router,        prefix="/portfolios",       tags=
 router.include_router(git_integration.router,  prefix="/git",              tags=["Git Integration"])
 router.include_router(esign.router,            prefix="/esign",            tags=["E-Firma"])
 router.include_router(report_builder.router,   prefix="/reports",          tags=["Report Builder"])
+router.include_router(bi_collaboration.router,                              tags=["BI Collaboration"])
+router.include_router(bi_intelligence.router,                               tags=["BI Intelligence"])
+router.include_router(bi_platform.router,                                   tags=["BI Platform"])
+router.include_router(bi_smart_alerts.router,                               tags=["BI Smart Alerts"])
+router.include_router(bi_bookmarks.router,                                  tags=["BI Bookmarks"])
+router.include_router(bi_report_builder_v2.router,                          tags=["BI Report Builder v2"])
 router.include_router(nps.router,              prefix="/nps",              tags=["NPS & Health"])
 router.include_router(m365.router,             prefix="/m365",             tags=["Microsoft 365"])
 

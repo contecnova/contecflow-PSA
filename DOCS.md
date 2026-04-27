@@ -11,6 +11,183 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.21 (Junio 2026) — Estabilidad frontend BI Workspace (Sankey + gobernanza + i18n)
+
+- Se corrigen errores runtime en `frontend/src/pages/BIWorkspacePage.jsx` que bloqueaban el render en `/bi`:
+  - Se evita renderizar objetos en tarjetas KPI de gobernanza (`scheduled_reports` ahora se interpreta de forma compatible cuando llega como objeto `{active, error}` o como número legacy).
+  - Se normalizan valores numéricos para métricas de rentabilidad/utilización y para datos de Sankey, evitando `NaN` en trazados SVG de Recharts.
+  - Se endurece `RevenueFlowSankey` para filtrar enlaces inválidos y mostrar estado `Sin datos` cuando no hay flujos válidos.
+- Se añade traducción faltante `nav.bi_workspace` en español para eliminar warning de i18n en navegación.
+
+### v23.10.22 (Junio 2026) — Corrección 404 CFD en frontend
+
+- Se corrige `404` en la página de flujo acumulado al consultar rutas CFD sin prefijo.
+- `frontend/src/pages/CumulativeFlowPage.jsx` ahora usa las rutas canónicas backend:
+  - `GET /api/v1/epics/cfd`
+  - `POST /api/v1/epics/cfd/snapshot`
+- Se actualiza también el texto de ayuda en UI para reflejar la ruta real de snapshot.
+
+### v23.10.20 (Junio 2026) — Compatibilidad BI con SQLite desfasado (scheduled_reports)
+
+- Se corrige el error `sqlite3.OperationalError: no such column: scheduled_reports.report_type` en endpoints BI que consultaban `scheduled_reports`.
+- Nuevo helper: `app/services/scheduled_reports_compat.py`.
+  - Lee columnas reales con `PRAGMA table_info('scheduled_reports')`.
+  - Calcula agregados (`active`, `errored`, `with_slack`, `by_frequency`) sin depender de columnas nuevas.
+- Integración del helper en:
+  - `app/services/bi_collaboration_service.py` (`governance_overview`).
+  - `app/services/bi_intelligence_service.py` (`delivery_overview`).
+- Resultado: los endpoints BI dejan de fallar por drift de esquema local aunque falten columnas recientes en SQLite.
+
+### v23.10.19 (Junio 2026) — Reorganización UX Analytics BI (ejecutivo vs workspace)
+
+- Se separa la experiencia BI en dos páginas para mejorar usabilidad:
+  - `frontend/src/pages/BIPage.jsx` ahora es un dashboard ejecutivo limpio (KPIs, narrativa, Q&A y tabla resumen).
+  - `frontend/src/pages/BIWorkspacePage.jsx` concentra las capacidades avanzadas de BI (colaboración, inteligencia, plataforma, alertas, bookmarks y report builder v2).
+- Rutas actualizadas:
+  - `/executive` muestra el dashboard ejecutivo.
+  - `/bi` pasa a ser el espacio de trabajo BI avanzado.
+- Navegación Analytics actualizada en `frontend/src/components/layout/Layout.jsx` para mostrar ambas entradas con naming coherente: `Executive Dashboard` y `BI Workspace`.
+
+### v23.10.18 (Junio 2026) — Renombrado semántico BI (sin phase1/2/3)
+
+- Renombrados módulos y endpoints BI a nombres semánticos:
+  - `bi_phase1` -> `bi_collaboration`
+  - `bi_phase2` -> `bi_intelligence`
+  - `bi_phase3` -> `bi_platform`
+- Actualizados routers, imports, servicios, tests y cliente frontend para usar la nueva nomenclatura.
+- Actualizada la documentación de BI para reflejar rutas y clientes con naming semántico.
+
+### v23.10.17 (Junio 2026) — BI Gap closure: viz avanzada ECharts, Report Builder v2, Smart Alerts, Bookmarks
+
+#### Item 2 — Visualización avanzada (8+ tipos de gráfico con Apache ECharts)
+- **`frontend/src/components/bi/BiAdvancedViz.jsx`** — Componente nuevo con 8 tipos de gráfico ECharts: Treemap, Heatmap, Gauge, Radar, Scatter, Funnel, Sunburst, Boxplot. Selector de tipo con pill buttons. Datos de demo sustituibles por llamada API real.
+- **`frontend/package.json`** — añadidos `echarts ^5.5.1` y `echarts-for-react ^3.0.2`.
+- `BiAdvancedViz` integrado en `BIPage.jsx` como bloque "Phase 4-A".
+
+#### Item 3 — Report Builder v2 (15+ presets configurables + export)
+- **`app/services/bi_report_builder_v2_service.py`** — Catálogo de 15 presets en 6 categorías (finance, delivery, resources, operations, service\_desk, hr, executive). Personalización por org vía `AppSetting` JSON. Preview, export, reset a fábrica.
+- **`app/api/v1/endpoints/bi_report_builder_v2.py`** — 7 endpoints: `GET /bi/reports/v2/presets`, `GET /bi/reports/v2/presets/{id}`, `POST .../customize`, `DELETE .../customize`, `GET .../preview`, `GET .../export`, `GET /bi/reports/v2/categories`.
+- Panel en BIPage con selector de presets, vista previa en tabla y botón de export JSON.
+
+#### Item 4 — Smart Alerts BI (trend, anomaly, correlated, cooldown, historial)
+- **`app/services/bi_smart_alerts_service.py`** — Motor de evaluación: trend\_up/down (ventana configurable), anomalía (z-score ≥ 2), threshold. Correlación cross-métrica. Cooldown por regla. Log de alertas con acknowledge. Seed de reglas por defecto.
+- **`app/api/v1/endpoints/bi_smart_alerts.py`** — 9 endpoints: `GET/POST /bi/alerts/rules`, `PATCH/DELETE /bi/alerts/rules/{id}`, `POST /bi/alerts/evaluate`, `GET /bi/alerts/history`, `POST /bi/alerts/history/{id}/acknowledge`, `GET /bi/alerts/supported-metrics`, `POST /bi/alerts/seed-defaults`.
+- Panel en BIPage: formulario creación de regla, lista activa con enable/disable, historial con botón ACK, correlaciones destacadas.
+
+#### Item 5 — Dashboard Bookmarks (guardar/cargar vistas nombradas)
+- **`app/services/bi_bookmarks_service.py`** — CRUD de bookmarks (name, period\_days, active\_tab, filters, widget\_states, shared). Persistidos en `AppSetting` JSON (`bi.bookmarks`). Control de acceso owner/shared.
+- **`app/api/v1/endpoints/bi_bookmarks.py`** — 5 endpoints REST: `GET/POST /bi/bookmarks`, `GET/PATCH/DELETE /bi/bookmarks/{id}`.
+- Panel en BIPage: grid de bookmarks guardados, botón "Guardar vista actual" (captura period actual), botón "Cargar vista".
+
+#### Router + api.js
+- `app/api/v1/routers/delivery.py` — añadidos `bi_smart_alerts`, `bi_bookmarks`, `bi_report_builder_v2`.
+- `frontend/src/services/api.js` — añadidos `biSmartAlertsApi`, `biBookmarksApi`, `biReportBuilderV2Api`.
+
+#### Tests
+- `tests/test_bi_smart_alerts.py` — 7 tests (create/list/update/delete rule, evaluate, history, ack, seed) ✅
+- `tests/test_bi_bookmarks.py` — 6 tests (create/get/update/delete/list/404) ✅
+- `tests/test_bi_report_builder_v2.py` — 8 tests (list, grouped, categories, get, customize, reset, preview, export) ✅
+- Todos los tests anteriores (`test_bi_analytics`, `test_bi_platform`) siguen en verde ✅
+- Build frontend: OK sin errores ✅
+
+### v23.10.16 (Junio 2026) — BI Platform ejecutada: platform scale, embed SDK, catálogo 20+, lineage y versionado
+
+**Objetivo:** Ejecutar BI Platform (Platform Scale) manteniendo arquitectura de servicios orquestados: embedded analytics SDK, expansión de conectores, framework de conectores custom, gobernanza avanzada con lineage/auditoría y versionado de datasets.
+
+**Nuevos ficheros:**
+- `app/services/bi_platform_service.py` — Servicio orquestador BI Platform. Incluye:
+  - SDK embed (`get_sdk_manifest`, `get_embed_settings`, `update_embed_settings`).
+  - Catálogo de conectores (20+) con activación/estado.
+  - Framework de conectores custom (crear/listar/eliminar/test).
+  - Lineage + access audit (edges y eventos auditados).
+  - Versionado de datasets (snapshots + diff entre versiones).
+- `app/api/v1/endpoints/bi_platform.py` — Endpoints BI Platform para SDK embed, conectores, governance lineage y versionado.
+- `tests/test_bi_platform.py` — Suite de tests de BI Platform cubriendo embed, catálogo/custom connectors, lineage/audit y snapshots/diff.
+
+**Ficheros modificados:**
+- `app/api/v1/routers/delivery.py` — Registro del router BI Platform en delivery.
+- `frontend/src/services/api.js` — Cliente `biPlatformApi` con operaciones de embed, conectores, governance y versionado.
+- `frontend/src/pages/BIPage.jsx` — Integración UI de BI Platform:
+  - Panel Embed SDK (manifest + emisión de token).
+  - Panel de catálogo 20+ y alta/test de conectores custom.
+  - Panel de lineage/versionado con snapshots y diff.
+
+**Endpoints añadidos (BI Platform):**
+- `GET /api/v1/bi/platform/embed/sdk`
+- `GET /api/v1/bi/platform/embed/settings`
+- `PATCH /api/v1/bi/platform/embed/settings`
+- `POST /api/v1/bi/platform/embed/token`
+- `GET /api/v1/bi/platform/connectors/catalog`
+- `PATCH /api/v1/bi/platform/connectors/catalog/{connector}`
+- `GET /api/v1/bi/platform/connectors/custom`
+- `POST /api/v1/bi/platform/connectors/custom`
+- `DELETE /api/v1/bi/platform/connectors/custom/{connector_id}`
+- `POST /api/v1/bi/platform/connectors/custom/{connector_id}/test`
+- `GET /api/v1/bi/platform/governance/lineage`
+- `POST /api/v1/bi/platform/governance/lineage/edges`
+- `POST /api/v1/bi/platform/governance/audit/access`
+- `POST /api/v1/bi/platform/versioning/{dataset_key}/snapshots`
+- `GET /api/v1/bi/platform/versioning/{dataset_key}/snapshots`
+- `GET /api/v1/bi/platform/versioning/{dataset_key}/diff`
+
+### v23.10.15 (Junio 2026) — BI Intelligence ejecutada: advanced analytics, conectores y real-time
+
+**Objetivo:** Ejecutar la Intelligence de BI (Advanced Analytics) con arquitectura de servicios orquestados: ML integrado, conectores de terceros, streaming en tiempo real, report builder avanzado y delivery operacional.
+
+**Nuevos ficheros:**
+- `app/services/bi_intelligence_service.py` — Servicio orquestador BI Intelligence. Incluye forecasting de revenue, detección de anomalías por z-score, gestión de conectores (Salesforce/HubSpot/Jira/Stripe/Xero), presets avanzados de report builder y overview de scheduled delivery.
+- `app/api/v1/endpoints/bi_intelligence.py` — Endpoints BI Intelligence para ML, conectores, presets/preview, delivery y stream WebSocket en tiempo real.
+- `tests/test_bi_intelligence.py` — Suite de tests para validar endpoints críticos de Intelligence.
+
+**Ficheros modificados:**
+- `app/api/v1/routers/delivery.py` — Registro del router BI Intelligence en el dominio delivery.
+- `frontend/src/services/api.js` — Cliente `biIntelligenceApi` para todas las operaciones de Intelligence.
+- `frontend/src/pages/BIPage.jsx` — Integración UI de Intelligence:
+  - Panel ML con forecast + anomalías.
+  - Panel de conectores con activación/sync.
+  - Panel de presets avanzados + métricas de delivery.
+  - Streaming realtime opcional de snapshots BI vía WebSocket.
+
+**Capacidades de Intelligence entregadas:**
+- ML integrado: forecast de revenue multi-mes + anomalías.
+- Conectores terceros: 5 conectores base con estado y sync.
+- Real-time: stream WebSocket dedicado para snapshots BI.
+- Report Builder avanzado: catálogo de presets + preview ejecutable.
+- Scheduled delivery: overview y ejecución inmediata de informes programados.
+
+### v23.10.14 (Junio 2026) — BI Collaboration ejecutada: colaboración, gobernanza y visualización avanzada
+
+**Objetivo:** Completar BI Collaboration sobre arquitectura de servicios orquestados, añadiendo colaboración sobre widgets, controles de gobernanza y una capa de visualización ejecutiva adicional en el dashboard BI.
+
+**Nuevos ficheros:**
+- `app/services/bi_collaboration_service.py` — Servicio orquestador BI Collaboration. Gestiona comentarios por dashboard/widget (`list_comments`, `create_comment`, `resolve_comment`), overview de gobernanza (`governance_overview`), reglas (`default_governance_rules`) y ejecución de checks (`run_governance_checks`) persistiendo en `AppSetting` por organización.
+- `app/api/v1/endpoints/bi_collaboration.py` — Endpoints HTTP de BI Collaboration para colaboración y gobernanza.
+
+**Ficheros modificados:**
+- `app/api/v1/routers/delivery.py` — Registro del router BI Collaboration en el dominio de delivery, manteniendo el patrón de routers del sistema.
+- `frontend/src/services/api.js` — Nuevo cliente `biCollaborationApi` para listar/crear/resolver comentarios y leer/ejecutar/actualizar gobernanza.
+- `frontend/src/pages/BIPage.jsx` — Integración completa de BI Collaboration en UI:
+  - Panel de colaboración con selector de widget, creación de comentarios y resolución.
+  - Panel de gobernanza con overview, ejecución de checks y edición de reglas.
+  - Visualización avanzada de flujo de rentabilidad con Sankey.
+  - Ajustes responsive para móvil en layout y controles.
+- `frontend/src/main.jsx` — Registro de Service Worker en producción (`/sw.js`) para completar el bloque PWA de fase inicial.
+
+**Endpoints añadidos (BI Collaboration):**
+- `GET /api/v1/bi/collaboration/comments`
+- `POST /api/v1/bi/collaboration/comments`
+- `PATCH /api/v1/bi/collaboration/comments/{comment_id}/resolve`
+- `GET /api/v1/bi/governance/overview`
+- `GET /api/v1/bi/governance/rules`
+- `PATCH /api/v1/bi/governance/rules`
+- `POST /api/v1/bi/governance/run-checks`
+- `GET /api/v1/bi/governance/last-run`
+
+**Notas de implementación:**
+- Persistencia sin migraciones: datos de BI Collaboration almacenados en `AppSetting` por `org_id`.
+- Compatible con multitenancy existente.
+- Mantiene separación endpoint delgado + servicio orquestador.
+
 ### v23.10.13 (Junio 2026) — Fase 3 ITSM Scale: CMDB Multi-Proveedor, Analytics BI, Catálogo Inteligente, Gobernanza
 
 **Objetivo:** Escalar el Service Desk a nivel enterprise. Integración CMDB con vSphere y Azure, analítica avanzada con narrativa IA, catálogo de servicios con recomendaciones personalizadas y módulo completo de gobernanza ITIL/ISO 20000.

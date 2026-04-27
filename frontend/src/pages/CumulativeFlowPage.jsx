@@ -38,12 +38,12 @@ export default function CumulativeFlowPage() {
   const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:cfd,isLoading } = useQuery({
     queryKey:['cfd',project,days],
-    queryFn:()=>api.get(`cfd?project_id=${project}&days=${days}`).then(r=>r.data).catch(()=>null),
+    queryFn:()=>api.get('/epics/cfd', { params: { project_id: project, days } }).then(r=>r.data).catch(()=>null),
     enabled:!!project,
   })
 
   const { mutate:snapshot, isPending:snapping } = useMutation({
-    mutationFn: ()=>api.post(`cfd/snapshot?project_id=${project}`).then(r=>r.data),
+    mutationFn: ()=>api.post('/epics/cfd/snapshot', null, { params: { project_id: project } }).then(r=>r.data),
     onSuccess: ()=>{ qc.invalidateQueries(['cfd',project,days]); toast.info(t('cumulative_flow.snapshot_created')) },
     onError: e => toast.error(extractErr(e, t('cumulative_flow.snapshot_create_error'))),
   })
@@ -87,7 +87,7 @@ export default function CumulativeFlowPage() {
           </Button>
         </div>
         <div style={{marginTop:10,fontSize:12,color:'var(--text-3)',lineHeight:1.6}}>
-          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)'}}>POST cfd/snapshot?project_id=...</code>)
+          {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)'}}>POST /epics/cfd/snapshot?project_id=...</code>)
         </div>
       </div>
 

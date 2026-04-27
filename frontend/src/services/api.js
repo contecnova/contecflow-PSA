@@ -202,6 +202,79 @@ export const analyticsApi = {
   olapUtilization: ()              => api.get('/analytics/olap/utilization'),
 }
 
+export const biCollaborationApi = {
+  listComments:   (params)             => api.get('/bi/collaboration/comments', { params }),
+  createComment:  (payload)            => api.post('/bi/collaboration/comments', payload),
+  resolveComment: (commentId)          => api.patch(`/bi/collaboration/comments/${commentId}/resolve`),
+  governanceOverview: ()               => api.get('/bi/governance/overview'),
+  governanceRules: ()                  => api.get('/bi/governance/rules'),
+  updateGovernanceRules: (payload)     => api.patch('/bi/governance/rules', payload),
+  runGovernanceChecks: ()              => api.post('/bi/governance/run-checks'),
+  lastGovernanceRun: ()                => api.get('/bi/governance/last-run'),
+}
+
+export const biIntelligenceApi = {
+  revenueForecast: (params)            => api.get('/bi/intelligence/ml/forecast/revenue', { params }),
+  revenueAnomalies: (params)           => api.get('/bi/intelligence/ml/anomalies/revenue', { params }),
+  listConnectors: ()                   => api.get('/bi/intelligence/connectors'),
+  patchConnector: (name, payload)      => api.patch(`/bi/intelligence/connectors/${name}`, payload),
+  syncConnector: (name)                => api.post(`/bi/intelligence/connectors/${name}/sync`),
+  reportPresets: ()                    => api.get('/bi/intelligence/reports/presets'),
+  previewPreset: (payload)             => api.post('/bi/intelligence/reports/preview', payload),
+  deliveryOverview: ()                 => api.get('/bi/intelligence/delivery/overview'),
+  runDeliveryNow: (reportId)           => api.post(`/bi/intelligence/delivery/run/${reportId}`),
+  realtimeToken: ()                    => api.get('/bi/intelligence/realtime/token'),
+}
+
+export const biPlatformApi = {
+  sdkManifest: ()                      => api.get('/bi/platform/embed/sdk'),
+  embedSettings: ()                    => api.get('/bi/platform/embed/settings'),
+  patchEmbedSettings: (payload)        => api.patch('/bi/platform/embed/settings', payload),
+  embedToken: (payload)                => api.post('/bi/platform/embed/token', payload),
+  connectorCatalog: ()                 => api.get('/bi/platform/connectors/catalog'),
+  patchCatalogConnector: (name, p)     => api.patch(`/bi/platform/connectors/catalog/${name}`, p),
+  listCustomConnectors: ()             => api.get('/bi/platform/connectors/custom'),
+  createCustomConnector: (payload)     => api.post('/bi/platform/connectors/custom', payload),
+  deleteCustomConnector: (id)          => api.delete(`/bi/platform/connectors/custom/${id}`),
+  testCustomConnector: (id)            => api.post(`/bi/platform/connectors/custom/${id}/test`),
+  lineage: ()                          => api.get('/bi/platform/governance/lineage'),
+  upsertLineageEdge: (payload)         => api.post('/bi/platform/governance/lineage/edges', payload),
+  logAccess: (payload)                 => api.post('/bi/platform/governance/audit/access', payload),
+  createSnapshot: (datasetKey, p)      => api.post(`/bi/platform/versioning/${datasetKey}/snapshots`, p),
+  listSnapshots: (datasetKey)          => api.get(`/bi/platform/versioning/${datasetKey}/snapshots`),
+  diffSnapshots: (datasetKey, fromId, toId) => api.get(`/bi/platform/versioning/${datasetKey}/diff`, { params: { from_id: fromId, to_id: toId } }),
+}
+
+export const biSmartAlertsApi = {
+  supportedMetrics: ()                 => api.get('/bi/alerts/supported-metrics'),
+  listRules: ()                        => api.get('/bi/alerts/rules'),
+  createRule: (payload)                => api.post('/bi/alerts/rules', payload),
+  updateRule: (ruleId, payload)        => api.patch(`/bi/alerts/rules/${ruleId}`, payload),
+  deleteRule: (ruleId)                 => api.delete(`/bi/alerts/rules/${ruleId}`),
+  evaluate: ()                         => api.post('/bi/alerts/evaluate'),
+  getHistory: (limit = 100)            => api.get('/bi/alerts/history', { params: { limit } }),
+  acknowledge: (alertId)               => api.post(`/bi/alerts/history/${alertId}/acknowledge`),
+  seedDefaults: ()                     => api.post('/bi/alerts/seed-defaults'),
+}
+
+export const biBookmarksApi = {
+  list: ()                             => api.get('/bi/bookmarks'),
+  create: (payload)                    => api.post('/bi/bookmarks', payload),
+  get: (id)                            => api.get(`/bi/bookmarks/${id}`),
+  update: (id, payload)                => api.patch(`/bi/bookmarks/${id}`, payload),
+  delete: (id)                         => api.delete(`/bi/bookmarks/${id}`),
+}
+
+export const biReportBuilderV2Api = {
+  listPresets: (params)                => api.get('/bi/reports/v2/presets', { params }),
+  getPreset: (presetId)                => api.get(`/bi/reports/v2/presets/${presetId}`),
+  categories: ()                       => api.get('/bi/reports/v2/categories'),
+  customize: (presetId, payload)       => api.post(`/bi/reports/v2/presets/${presetId}/customize`, payload),
+  resetCustomize: (presetId)           => api.delete(`/bi/reports/v2/presets/${presetId}/customize`),
+  preview: (presetId, limit = 50)      => api.get(`/bi/reports/v2/presets/${presetId}/preview`, { params: { limit } }),
+  export: (presetId, format = 'json')  => api.get(`/bi/reports/v2/presets/${presetId}/export`, { params: { format } }),
+}
+
 export const dashboardApi = {
   kpis:           () => api.get('/dashboard/kpis'),
   projectsHealth: (params) => api.get('/dashboard/projects-health', { params }),
