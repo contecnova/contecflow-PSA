@@ -1,5 +1,5 @@
 """
-Clarive v18 — Modelos adicionales para:
+Contecflow v18 — Modelos adicionales para:
   1. Campos personalizados por proyecto (extiende CustomField)
   2. Workflows personalizados (estados + transiciones por proyecto)
   3. Permisos granulares por proyecto (ya en enterprise.py — solo helpers aquí)

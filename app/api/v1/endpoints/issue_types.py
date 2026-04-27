@@ -1,5 +1,5 @@
 """
-Clarive v20 — thin router delegating to app.services.issue_type_service
+Contecflow v20 — thin router delegating to app.services.issue_type_service
   issue-types/{project_id}  — Tipos de issue CRUD + campos por tipo
   task-dependencies         — Dependencias de tareas con tipo y lag
   epic-dependencies         — Dependencias épicas con tipo Gantt

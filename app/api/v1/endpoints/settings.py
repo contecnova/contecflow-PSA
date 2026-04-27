@@ -184,13 +184,13 @@ VALID_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 @router.get("/log-level", summary="Obtener nivel de log actual")
 def get_log_level(_: User = Depends(require_admin)):
     root_level = logging.getLevelName(logging.getLogger().level)
-    clarive_level = logging.getLevelName(logging.getLogger("clarive").level)
+    contecflow_level = logging.getLevelName(logging.getLogger("contecflow").level)
     uvicorn_level = logging.getLevelName(logging.getLogger("uvicorn").level)
     uvicorn_error_level = logging.getLevelName(logging.getLogger("uvicorn.error").level)
     uvicorn_access_level = logging.getLevelName(logging.getLogger("uvicorn.access").level)
     return {
         "root": root_level,
-        "clarive": clarive_level if clarive_level != "NOTSET" else root_level,
+        "contecflow": contecflow_level if contecflow_level != "NOTSET" else root_level,
         "uvicorn": uvicorn_level if uvicorn_level != "NOTSET" else root_level,
         "uvicorn_error": uvicorn_error_level if uvicorn_error_level != "NOTSET" else root_level,
         "uvicorn_access": uvicorn_access_level if uvicorn_access_level != "NOTSET" else root_level,
@@ -210,14 +210,14 @@ def set_log_level(payload: LogLevelPayload, _: User = Depends(require_admin)):
         target_logger.setLevel(numeric)
         affected = [payload.logger]
     else:
-        affected = ["root", "clarive", "uvicorn", "uvicorn.error", "uvicorn.access"]
+        affected = ["root", "contecflow", "uvicorn", "uvicorn.error", "uvicorn.access"]
         logging.getLogger().setLevel(numeric)
-        logging.getLogger("clarive").setLevel(numeric)
+        logging.getLogger("contecflow").setLevel(numeric)
         logging.getLogger("uvicorn").setLevel(numeric)
         logging.getLogger("uvicorn.error").setLevel(numeric)
         logging.getLogger("uvicorn.access").setLevel(numeric)
     app_settings.LOG_LEVEL = level_name
-    logging.getLogger("clarive").info(
+    logging.getLogger("contecflow").info(
         f"Log level changed to {level_name} for logger '{payload.logger or 'root'}'"
     )
     return {

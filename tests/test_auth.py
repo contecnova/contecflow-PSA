@@ -348,7 +348,7 @@ def test_production_requires_operational_secrets():
     with pytest.raises(ValidationError):
         Settings(
             _env_file=None,
-            PROJECT_NAME="Clarive",
+            PROJECT_NAME="Contecflow",
             VERSION="test",
             API_V1_STR="/api/v1",
             ENVIRONMENT="production",

@@ -1,5 +1,5 @@
 """
-Document collaboration snapshots — CRDT state persistence for Clarive.
+Document collaboration snapshots — CRDT state persistence for Contecflow.
 Stores Yjs/CRDT binary state vectors so collaborative editing survives server restarts.
 """
 from sqlalchemy import Column, String, DateTime, LargeBinary, Integer, Boolean, Text

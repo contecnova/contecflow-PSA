@@ -28,7 +28,7 @@ const TOURS = {
   ],
 }
 
-const STORAGE_KEY = 'clarive-tour-completed'
+const STORAGE_KEY = 'contecflow-tour-completed'
 
 function getCompleted() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }

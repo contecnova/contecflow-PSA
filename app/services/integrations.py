@@ -31,7 +31,7 @@ def send_slack_message(
     webhook_url: str,
     text: str,
     blocks: Optional[list] = None,
-    username: str = "Clarive",
+    username: str = "Contecflow",
     icon_emoji: str = ":triangular_ruler:",
 ) -> dict:
     """Envía un mensaje a Slack via Incoming Webhook."""
@@ -72,7 +72,7 @@ def build_slack_blocks(title: str, fields: list, color: str = "#00d4ff", url: st
     if url:
         blocks.append({
             "type": "actions",
-            "elements": [{"type": "button", "text": {"type": "plain_text", "text": "Ver en Clarive"},
+            "elements": [{"type": "button", "text": {"type": "plain_text", "text": "Ver en Contecflow"},
                           "url": url, "style": "primary"}]
         })
     return blocks
@@ -104,7 +104,7 @@ def send_teams_message(
     if url:
         payload["potentialAction"] = [{
             "@type": "OpenUri",
-            "name":  "Ver en Clarive",
+            "name":  "Ver en Contecflow",
             "targets": [{"os": "default", "uri": url}]
         }]
 
@@ -421,7 +421,7 @@ def _qb_request(config_dict: dict, method: str, path: str, body=None) -> dict:
 
 def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
     """
-    Empuja una factura de Clarive a Xero.
+    Empuja una factura de Contecflow a Xero.
     invoice: { number, client_name, client_email, issue_date, due_date,
                subtotal, tax_rate, total, lines: [{description, quantity, unit_price}] }
     """
@@ -452,7 +452,7 @@ def push_invoice_to_xero(config_dict: dict, invoice: dict) -> dict:
 
 def push_invoice_to_quickbooks(config_dict: dict, invoice: dict) -> dict:
     """
-    Empuja una factura de Clarive a QuickBooks Online.
+    Empuja una factura de Contecflow a QuickBooks Online.
     """
 
     # Crear el Customer si no existe (simplificado — en producción buscar primero)
@@ -544,14 +544,14 @@ def link_jira_to_task(db, task_id: str, jira_key: str) -> None:
 
 
 def find_user_by_slack_name(db, user_name: str):
-    """Find a Clarive user by Slack username or partial email match."""
+    """Find a Contecflow user by Slack username or partial email match."""
     return db.query(User).filter(
         (User.username == user_name) | (User.email.ilike(f"%{user_name}%"))
     ).first()
 
 
 def find_user_by_teams_name(db, teams_name: str):
-    """Find a Clarive user by Teams display name (full then first-name fallback)."""
+    """Find a Contecflow user by Teams display name (full then first-name fallback)."""
     user = db.query(User).filter(User.full_name.ilike(f"%{teams_name}%")).first()
     if not user:
         name_parts = teams_name.split()
@@ -597,11 +597,11 @@ def slack_log_time_from_text(db, text: str, user) -> dict:
     import uuid
 
     if not user:
-        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Clarive. Contacta con el admin."}
+        return {"response_type": "ephemeral", "text": "❌ No encontré tu usuario en Contecflow. Contacta con el admin."}
 
     hours_match = re.search(r'(\d+(?:[.,]\d+)?)', text)
     if not hours_match:
-        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/clarive tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
+        return {"response_type": "ephemeral", "text": "❌ Indica las horas. Ejemplo: `/contecflow tiempo 2.5 #PRJ-0001 Revisión de diseño`"}
 
     hours = float(hours_match.group(1).replace(',', '.'))
     project_match = re.search(r'#(\S+)', text)
@@ -682,12 +682,12 @@ def slack_help_response() -> dict:
     return {
         "response_type": "ephemeral",
         "text": (
-            "*Comandos disponibles de Clarive:*\n"
-            "• `/clarive tarea <título> [#PRJ-code]` — Crear tarea\n"
-            "• `/clarive tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
-            "• `/clarive ticket <asunto>` — Crear ticket en Service Desk\n"
-            "• `/clarive estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
-            "• `/clarive ayuda` — Ver esta ayuda"
+            "*Comandos disponibles de Contecflow:*\n"
+            "• `/contecflow tarea <título> [#PRJ-code]` — Crear tarea\n"
+            "• `/contecflow tiempo <horas> [#PRJ-code] [descripción]` — Registrar tiempo\n"
+            "• `/contecflow ticket <asunto>` — Crear ticket en Service Desk\n"
+            "• `/contecflow estado <code>` — Ver estado de tarea o proyecto (ej: TSK-0042)\n"
+            "• `/contecflow ayuda` — Ver esta ayuda"
         ),
     }
 

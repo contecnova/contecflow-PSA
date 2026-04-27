@@ -43,7 +43,7 @@ function WebhooksTab() {
   return (
     <div>
       <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13, color:'var(--accent)' }}>
-        Los webhooks entrantes permiten que sistemas externos disparen automatizaciones en Clarive mediante un simple HTTP POST a la URL configurada.
+        Los webhooks entrantes permiten que sistemas externos disparen automatizaciones en Contecflow mediante un simple HTTP POST a la URL configurada.
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
         <Button onClick={() => setShowCreate(true)}>+ Nuevo webhook</Button>
@@ -365,7 +365,7 @@ function IntegrationsTab() {
   return (
     <div>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Integraciones nativas</div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>Conecta Clarive con tus herramientas de trabajo</div>
+      <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>Conecta Contecflow con tus herramientas de trabajo</div>
 
       {/* Integraciones activas */}
       {integrations.length > 0 && (
@@ -672,7 +672,7 @@ function SSOTab() {
       <div style={{ ...cardStyle, background: 'var(--purple-bg)', borderColor: 'var(--purple-bg)', marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--purple)', marginBottom: 8 }}>📋 Cómo integrar SSO</div>
         <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.7 }}>
-          1. Registra Clarive como aplicación en tu proveedor (Azure, Okta, Google).<br/>
+          1. Registra Contecflow como aplicación en tu proveedor (Azure, Okta, Google).<br/>
           2. Configura el <strong style={{ color: 'var(--text-1)' }}>Redirect URI</strong>: <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4 }}>{window.location.origin}/auth/sso/callback</code><br/>
           3. Copia el Client ID y Client Secret del proveedor y pégalos aquí.<br/>
           4. Añade el botón de login SSO desde <strong style={{ color: 'var(--text-1)' }}>Ajustes {'>'} Seguridad</strong>.

@@ -206,11 +206,21 @@ export default function ResourceForecastPage() {
     staleTime: 60000,
   })
 
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, isLoading: loadingSummary, isError: summaryError } = useQuery({
     queryKey: ['forecast-summary', weeks, department],
     queryFn: () => forecastApi.summary({ weeks, department: department || undefined }).then(r => r.data),
     staleTime: 60000,
   })
+
+  const summary = {
+    avg_team_load_pct: summaryData?.avg_team_load_pct ?? 0,
+    total_available_hrs: summaryData?.total_available_hrs ?? 0,
+    total_committed_hrs: summaryData?.total_committed_hrs ?? 0,
+    risk_weeks_count: summaryData?.risk_weeks_count ?? 0,
+    overloaded_users_count: summaryData?.overloaded_users_count ?? 0,
+    week_trend: Array.isArray(summaryData?.week_trend) ? summaryData.week_trend : [],
+    risk_weeks: Array.isArray(summaryData?.risk_weeks) ? summaryData.risk_weeks : [],
+  }
 
   const weekLabels = heatmapData?.week_labels || []
   const users      = heatmapData?.users || []
@@ -233,11 +243,11 @@ export default function ResourceForecastPage() {
       {summaryData && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Carga media equipo',  value: `${summaryData.avg_team_load_pct}%`, color: summaryData.avg_team_load_pct > 85 ? 'var(--danger)' : 'var(--accent)' },
-            { label: 'Horas disponibles',   value: `${summaryData.total_available_hrs}h`, color: 'var(--success)' },
-            { label: 'Horas comprometidas', value: `${summaryData.total_committed_hrs}h`, color: 'var(--purple)' },
-            { label: 'Semanas de riesgo',   value: summaryData.risk_weeks_count, color: summaryData.risk_weeks_count > 0 ? 'var(--warning)' : 'var(--success)' },
-            { label: 'Personas saturadas',  value: summaryData.overloaded_users_count, color: summaryData.overloaded_users_count > 0 ? 'var(--danger)' : 'var(--success)' },
+            { label: 'Carga media equipo',  value: `${summary.avg_team_load_pct}%`, color: summary.avg_team_load_pct > 85 ? 'var(--danger)' : 'var(--accent)' },
+            { label: 'Horas disponibles',   value: `${summary.total_available_hrs}h`, color: 'var(--success)' },
+            { label: 'Horas comprometidas', value: `${summary.total_committed_hrs}h`, color: 'var(--purple)' },
+            { label: 'Semanas de riesgo',   value: summary.risk_weeks_count, color: summary.risk_weeks_count > 0 ? 'var(--warning)' : 'var(--success)' },
+            { label: 'Personas saturadas',  value: summary.overloaded_users_count, color: summary.overloaded_users_count > 0 ? 'var(--danger)' : 'var(--success)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace", lineHeight: 1.1 }}>
@@ -348,13 +358,21 @@ export default function ResourceForecastPage() {
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
             Tendencia de carga del equipo — {weeks} semanas
           </div>
-          {(!summaryData || !summaryData.week_trend || summaryData.week_trend.length === 0) ? (
+          {loadingSummary ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: 13 }}>
+              Cargando resumen...
+            </div>
+          ) : summaryError ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)', fontSize: 13 }}>
+              No se pudo cargar el resumen de capacidad.
+            </div>
+          ) : summary.week_trend.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: 13 }}>
               Sin datos de carga disponibles. Configura usuarios con capacidad semanal y asigna reservas de recursos.
             </div>
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {(summaryData.week_trend || []).map(w => {
+            {(summary.week_trend || []).map(w => {
               const pct = w.load_pct
               const color = pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 50 ? 'var(--accent)' : 'var(--success)'
               return (
@@ -365,14 +383,16 @@ export default function ResourceForecastPage() {
                   <div style={{ flex: 1, height: 20, background: 'var(--surface-1)', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       width: `${Math.min(pct, 100)}%`, height: '100%',
-                      background: color + '60', borderRadius: 4,
+                      background: color,
+                      opacity: 0.35,
+                      borderRadius: 4,
                       transition: 'width 0.3s',
                     }} />
                   </div>
                   <div style={{ fontSize: 11, fontWeight: 700, color, width: 44, textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>
                     {pct}%
                   </div>
-                  {(summaryData.risk_weeks || []).includes(w.week) && (
+                  {(summary.risk_weeks || []).includes(w.week) && (
                     <span style={{ fontSize: 10, color: 'var(--danger)' }}>⚠</span>
                   )}
                 </div>

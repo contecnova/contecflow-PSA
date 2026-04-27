@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.core.network import extract_client_ip
 from app.models.sessions import UserSession
 
-logger = logging.getLogger("clarive.session_security")
+logger = logging.getLogger("contecflow.session_security")
 
 
 def _now() -> datetime:

@@ -1,3 +1,80 @@
+### v23.10.7 (Abril 2026) — Forecast de recursos: barras visibles en vista Resumen
+
+**Problema corregido:**
+- En la pestaña "Resumen" de Forecast de recursos podían aparecer porcentajes semanales (p. ej. `27.2%`, `41.7%`) pero sin barra visual de carga.
+
+**Causa raíz:**
+- En `frontend/src/pages/ResourceForecastPage.jsx` el color de relleno de barra se construía como `color + '60'`.
+- Cuando `color` era una variable CSS (`var(--success)`, `var(--accent)`, etc.), el resultado (`var(--success)60`) era inválido y el navegador no pintaba el relleno.
+
+**Corrección aplicada:**
+- Se sustituye el color concatenado por color válido (`background: color`) y opacidad controlada (`opacity: 0.35`).
+
+**Resultado:**
+- La vista Resumen vuelve a mostrar correctamente las barras proporcionales de tendencia semanal, alineadas con los porcentajes mostrados.
+
+### v23.10.6 (Abril 2026) — AI Chat RAG: corrección de embeddings en fallback TF-IDF
+
+**Problema corregido:**
+- El logger `v16_core` podía mostrar: `KB RAG lookup failed: 'list' object has no attribute 'tolist'`.
+
+**Causa raíz:**
+- En `app/services/ai_chat/rag_service.py`, la búsqueda RAG asumía que el embedding devuelto por `model.encode(...)` siempre exponía `.tolist()`.
+- Con backend semántico TF-IDF, el embedding ya es `list`, por lo que llamar `.tolist()` provocaba excepción.
+
+**Corrección aplicada:**
+- Se añade normalización robusta de embeddings (`_to_embedding_list`) para soportar salida tipo array (con `.tolist()`), lista nativa y otros iterables.
+- La ruta RAG deja de lanzar warning por conversión de tipo y mantiene el flujo normal de recuperación de contexto KB.
+
+**Impacto:**
+- Se elimina el warning de logs mencionado.
+- El enriquecimiento RAG de la base de conocimiento vuelve a operar de forma estable también en modo TF-IDF.
+
+### v23.10.5 (Abril 2026) — Resumen Ejecutivo IA: margen real sin `N/A` y proveedor configurable
+
+**Problema corregido:**
+- En la tarjeta de BI "Resumen ejecutivo IA" podía aparecer texto como `margen medio del N/A%`.
+
+**Causas raíz abordadas:**
+- El fallback de KPIs en PostgreSQL (`_pg_kpi_summary`) no devolvía `avg_margin_pct` ni parte de los KPIs financieros/pipeline, provocando valores vacíos en narrativa.
+- La generación IA de narrativa estaba acoplada a `call_claude` y no al proveedor configurado por tenant (Gemini/OpenAI/Claude/etc.).
+
+**Cambios implementados:**
+- `app/services/olap/query_engine.py`:
+  - Se mejora `_pg_kpi_summary` para calcular y devolver:
+    - `avg_margin_pct` (promedio de margen por proyecto activo basado en revenue estimado y coste real imputado)
+    - `pipeline_weighted`, `won_revenue`, `high_risk_projects`
+    - `hours_mtd`, `cost_mtd`, `active_projects_mtd`, `billability_pct`
+  - Se corrige el filtrado multi-tenant en fallback PostgreSQL.
+- `app/services/bi_storytelling.py`:
+  - La narrativa IA pasa a usar `ai_provider_service.call_ai` (proveedor configurado por organización, incluyendo Gemini).
+  - Se versiona la clave de caché (`bi_narrative:v2`) para invalidar narrativas antiguas con datos incompletos.
+  - El fallback textual normaliza KPIs a numérico para evitar `N/A%` cuando hay datos parciales.
+
+**Resultado esperado:**
+- El resumen ejecutivo devuelve margen numérico consistente en lugar de `N/A%` en condiciones normales.
+- El módulo usa el proveedor IA activo del tenant en vez de depender de un proveedor hardcodeado.
+
+### v23.10.4 (Abril 2026) — Analytics BI API unificada en `/api/v1/analytics`
+
+**Corrección de contrato API (sin workarounds):**
+- Se exponen de forma canónica en `app/api/v1/endpoints/analytics.py` los endpoints BI/OLAP que consumía frontend:
+  - `GET /api/v1/analytics/narrative`
+  - `POST /api/v1/analytics/ask`
+  - `GET /api/v1/analytics/olap/kpis`
+  - `GET /api/v1/analytics/olap/pipeline-funnel`
+  - `GET /api/v1/analytics/olap/portfolio-health`
+  - `GET /api/v1/analytics/olap/margin-evolution`
+  - `GET /api/v1/analytics/olap/utilization`
+
+**Motivación técnica:**
+- El frontend ya operaba sobre `/api/v1/analytics/*`, pero parte de la funcionalidad BI estaba solo bajo `/api/v1/analytics-extended/*`, lo que provocaba `404` en narrativa y rutas OLAP.
+- Con esta unificación, el contrato público de analytics queda consistente y estable.
+
+**Impacto:**
+- Se eliminan los `404 Not Found` en llamadas BI de la UI sin necesidad de ajustes temporales en cliente.
+- La selección de proveedor IA (Gemini, OpenAI, Claude, etc.) queda desacoplada del problema de routing y funciona de forma transparente en `narrative`.
+
 ## 8. Pruebas automáticas E2E con Playwright
 
 El sistema cuenta con una suite de pruebas E2E (end-to-end) automatizadas usando Playwright y pytest-playwright.
@@ -100,6 +177,36 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 **Importante:** Cambiar `SECRET_KEY` invalidará todos los datos cifrados y tokens activos. Hazlo solo en entornos de desarrollo o con migración controlada.
 
 
+### v23.10.3 (Abril 2026) — Rebranding global Clarive → Contecflow
+
+**Sustitución global de marca en código y documentación:**
+- Se reemplazan todas las apariciones de `clarive`/`Clarive`/`CLARIVE` por `contecflow`/`Contecflow`/`CONTECFLOW` en el workspace (excluyendo `.git`).
+- Alcance aplicado sobre backend, frontend, tests, scripts, documentación y recursos de UI con coincidencias de texto.
+
+**Verificación de integridad post-cambio:**
+- Búsqueda global posterior sin coincidencias remanentes de `clarive`.
+- Compilación Python OK: `python -m compileall app` sin errores.
+- Build frontend OK: `npm run build --silent` completado sin errores.
+
+**Nota operativa:**
+- El cambio se realizó como sustitución textual controlada para preservar comportamiento funcional.
+- En identificadores de integración externa o configuraciones legacy que dependan explícitamente de la marca antigua fuera del repositorio, validar contratos aguas arriba/abajo en despliegue.
+
+### v23.10.2 (Abril 2026) — Alertas: UX en sidebar y ejecución automática del motor
+
+**Frontend — Sidebar de navegación:**
+- Se elimina del menú lateral la entrada visual de campana `Alertas` que renderizaba `NotificationCenter` en `Layout.jsx`.
+- La funcionalidad de alertas no se elimina del sistema: se mantiene la ruta `/alerts` y los accesos de cabecera cuando hay contador de alertas activas.
+
+**Backend — Motor de alertas automático (hardening):**
+- Corregida la tarea Celery `app.worker.run_alert_engine`: se reemplaza un import incorrecto desde endpoint por la llamada al servicio `app.services.alert_service.run_alert_engine`, garantizando ejecución correcta en workers.
+- Añadido job de respaldo en APScheduler (arranque de `app.main`) para ejecutar el motor de alertas diariamente a las 08:00 (`scheduled_alert_engine`) cuando se usa scheduler interno.
+- Se mantiene el endpoint manual `POST /api/v1/alerts/run` (botón “Ejecutar motor”) para ejecución bajo demanda.
+
+**Operación recomendada:**
+- En despliegues con Celery Beat, mantener la tarea periódica del motor activa.
+- En despliegues sin Celery Beat, usar APScheduler (`ENABLE_APSCHEDULER=1`) para no depender de ejecución manual.
+
 ### v23.10.1 (Abril 2026) — Bus de eventos completo, correcciones de seguridad y deuda técnica
 
 **Sistema de eventos — cobertura completa:**
@@ -122,6 +229,8 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 **Logging:**
 - El sondeo `GET /api/v1/auth/me` con 401 (comprobación de sesión del frontend) se registra como INFO en lugar de WARNING, eliminando falsos positivos en los logs de aplicación.
+- Otros endpoints protegidos también pueden devolver 401 de forma esperada al arrancar la UI sin sesión activa o durante la rotación de tokens (refresh), por ejemplo: `/api/v1/projects`, `/api/v1/documents`, `/api/v1/alerts`, `/api/v1/approvals/requests/pending-my-action`.
+- Criterio operativo: si tras login `GET /api/v1/auth/me` devuelve 200 y el resto de rutas protegidas también pasan a 200, no hay incidencia. Si persisten 401 con sesión activa, revisar cookies httpOnly, `withCredentials`, CORS y flujo `/auth/refresh`.
 
 **mfa_service.py — limpieza de deuda técnica:**
 - Eliminada función `remove_user_from_org` orphaned definida antes de los imports. Reimplementada correctamente después de todos los imports.
@@ -588,7 +697,7 @@ contecflow-PSA/
 │   │   ├── context/            # AuthContext, ToastContext, ConfirmContext
 │   │   └── services/api.js     # Axios + interceptores
 │   ├── eslint.config.js        # ESLint 9 flat config (0 warnings)
-│   └── vite.config.js          # Vite + PWA (PWA manifest: Clarive)
+│   └── vite.config.js          # Vite + PWA (PWA manifest: Contecflow)
 ├── alembic/                    # Migraciones de BD (20 versiones)
 │   ├── versions/
 │   │   ├── 001_initial_tables.py              # Baseline (no-op)
@@ -1140,7 +1249,7 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 | Variable | Descripción |
 |----------|-------------|
-| `DATABASE_URL` | SQLite (`sqlite:///./clarive.db`) o PostgreSQL (`postgresql://user:pass@host:5432/db`) |
+| `DATABASE_URL` | SQLite (`sqlite:///./contecflow.db`) o PostgreSQL (`postgresql://user:pass@host:5432/db`) |
 | `SUPERADMIN_EMAIL` | Email del superadministrador inicial |
 | `SUPERADMIN_PASSWORD` | Contraseña del superadministrador |
 | `CLIENT_PORTAL_SECRET` | Clave de firma para tokens del portal de cliente. Generar igual que SECRET_KEY |
@@ -1952,9 +2061,9 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 
 ### v23.9.2 (Abril 2026) — UX, Branding & Accessibility Sprint
 
-**Branding unificado — Clarive en todo el stack:**
-- `vite.config.js`: PWA manifest `name`/`short_name` cambiados de `"NexusPM"` a `"Clarive"` y `description` a `"Professional Services Automation"`
-- `sdk/python/nexuspm_sdk.py`: clases renombradas `NexusPMClient → ClariveClient`, `NexusPMError → ClariveError`; variable de entorno `CLARIVE_TOKEN` como primaria (con fallback a `NEXUSPM_TOKEN` para retrocompatibilidad); aliases `NexusPMClient = ClariveClient` preservados en `__all__`; docstrings actualizados
+**Branding unificado — Contecflow en todo el stack:**
+- `vite.config.js`: PWA manifest `name`/`short_name` cambiados de `"NexusPM"` a `"Contecflow"` y `description` a `"Professional Services Automation"`
+- `sdk/python/nexuspm_sdk.py`: clases renombradas `NexusPMClient → ContecflowClient`, `NexusPMError → ContecflowError`; variable de entorno `CONTECFLOW_TOKEN` como primaria (con fallback a `NEXUSPM_TOKEN` para retrocompatibilidad); aliases `NexusPMClient = ContecflowClient` preservados en `__all__`; docstrings actualizados
 
 **Skeleton loaders por módulo — mejor UX en carga inicial:**
 - 5 nuevos skeletons en `components/ui/Skeletons.jsx`: `SkeletonKanban`, `SkeletonGantt`, `SkeletonServiceDesk`, `SkeletonFinance`; refactorizado `SkeletonTable` con soporte de filtros y cabecera
@@ -2047,7 +2156,7 @@ Flujos cubiertos: gastos (creación→envío→aprobación→rechazo→recall), 
 - `DELETE /integrations/instances/{id}` (admin) — desinstala
 
 **CRM Bidireccional — Salesforce:**
-- `POST /integrations/salesforce/sync-opportunities` — sincroniza oportunidades Salesforce ↔ Pipeline Clarive
+- `POST /integrations/salesforce/sync-opportunities` — sincroniza oportunidades Salesforce ↔ Pipeline Contecflow
 - Soporta `inbound`, `outbound`, `bidirectional` (modo basado en instance_id)
 - Mapeo de `StageName` Salesforce → stage interno (lead/qualification/proposal/negotiation/won/lost)
 - Credenciales descifradas en runtime; `last_sync_status` actualizado tras cada sync
@@ -2203,16 +2312,16 @@ EXCHANGE_RATES_AUTO_UPDATE=false
 - `import { api } from '../api/client'` → `import api from '../services/api'` (el path anterior no existía)
 
 **PDF de facturas — descarga desde la UI (`app/services/invoice_pdf.py`, `app/api/v1/endpoints/billing_reports.py`, `frontend/src/pages/InvoicesPage.jsx`):**
-- Nuevo servicio `generate_invoice_pdf()`: genera PDF profesional con ReportLab (cabecera Clarive, tabla de líneas, totales, notas, pie)
+- Nuevo servicio `generate_invoice_pdf()`: genera PDF profesional con ReportLab (cabecera Contecflow, tabla de líneas, totales, notas, pie)
 - Endpoint `GET /invoices/{id}/pdf`: devuelve `application/pdf` con `Content-Disposition: attachment; filename="factura_{number}.pdf"`; requiere `require_any_manager`
 - Frontend: botón `<Download>` por fila; descarga vía `api.get('/invoices/{id}/pdf', { responseType: 'blob' })` + `URL.createObjectURL`
 
 **Logging configurable — backend y frontend:**
 - `app/core/config.py`: campo `LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")`
 - `app/main.py`: nivel de logging inicial leído desde `os.environ.get("LOG_LEVEL", "INFO")`
-- `GET /settings/log-level`: devuelve nivel actual del logger `root` y del logger `clarive`
+- `GET /settings/log-level`: devuelve nivel actual del logger `root` y del logger `contecflow`
 - `POST /settings/log-level`: cambia nivel en tiempo real para cualquier logger; requiere admin; 400 si nivel inválido
-- `frontend/src/utils/logger.js`: logger con niveles `debug/info/warn/error/silent`; persistido en `localStorage.clarive_log_level`; expuesto como `window.__clariveLogger`
+- `frontend/src/utils/logger.js`: logger con niveles `debug/info/warn/error/silent`; persistido en `localStorage.contecflow_log_level`; expuesto como `window.__contecflowLogger`
 - `SettingsPage`: nueva pestaña "📋 Nivel de log" (solo admin) → slectores para nivel backend y frontend
 
 **Pipeline CRM — drag-and-drop entre etapas (`frontend/src/pages/PipelinePage.jsx`):**
@@ -2227,8 +2336,8 @@ EXCHANGE_RATES_AUTO_UPDATE=false
 - Botones "Ir a configurar" que navegan a la página relevante + prev/next/saltar/finalizar
 
 **Navegación — favoritos y páginas recientes (`frontend/src/components/layout/Layout.jsx`):**
-- Sección "⭐ Favoritos" entre Dashboard y los grupos: muestra rutas guardadas en `localStorage.clarive_pinned_routes`
-- Sección "⏱ Recientes": últimas 5 páginas visitadas (excluye `/` y `/login`); persistidas en `localStorage.clarive_recent_routes`
+- Sección "⭐ Favoritos" entre Dashboard y los grupos: muestra rutas guardadas en `localStorage.contecflow_pinned_routes`
+- Sección "⏱ Recientes": últimas 5 páginas visitadas (excluye `/` y `/login`); persistidas en `localStorage.contecflow_recent_routes`
 - Botón ☆/★ visible on-hover en cada `NavItem` para fijar/desfijar rutas
 - `NavGroup` y rutas single pasan `pinned` y `onPin` hacia abajo a todos los `NavItem`
 
@@ -2246,12 +2355,12 @@ EXCHANGE_RATES_AUTO_UPDATE=false
 - 3 tests nuevos en `tests/test_projects.py`: `test_project_auto_assigns_org_on_create`, `test_project_list_scoped_to_org`, `test_project_get_cross_org_returns_404`
 
 **Branding — eliminación de referencias hardcoded a "NexusPM" (8 ocurrencias en 6 archivos):**
-- `frontend/src/main.jsx`: `[NexusPM]` → `[Clarive]` en el título PWA
-- `frontend/src/pages/DeveloperPortalPage.jsx`: texto "NexusPM" → "Clarive"
-- `frontend/src/pages/GitPage.jsx`: texto "NexusPM" → "Clarive"
-- `frontend/src/pages/JiraIntegrationPage.jsx`: 2 ocurrencias "NexusPM" → "Clarive"
-- `frontend/src/pages/M365Page.jsx`: 2 ocurrencias "NexusPM" → "Clarive"
-- `frontend/src/services/offlineQueue.js`: clave localStorage `'nexuspm_offline'` → `'clarive_offline'`
+- `frontend/src/main.jsx`: `[NexusPM]` → `[Contecflow]` en el título PWA
+- `frontend/src/pages/DeveloperPortalPage.jsx`: texto "NexusPM" → "Contecflow"
+- `frontend/src/pages/GitPage.jsx`: texto "NexusPM" → "Contecflow"
+- `frontend/src/pages/JiraIntegrationPage.jsx`: 2 ocurrencias "NexusPM" → "Contecflow"
+- `frontend/src/pages/M365Page.jsx`: 2 ocurrencias "NexusPM" → "Contecflow"
+- `frontend/src/services/offlineQueue.js`: clave localStorage `'nexuspm_offline'` → `'contecflow_offline'`
 
 **Kanban DnD — corrección del conflicto click/drag (`KanbanAdvancedPage.jsx`):**
 - **Bug**: el ghost de drag se creaba en `onMouseDown`, causando que cualquier click generara un drag fantasma; `onClick` disparaba incluso tras un drag real
@@ -4147,11 +4256,280 @@ DEBUG app.services.ask_the_data   LLM generated SQL: SELECT ...
 DEBUG app.services.ask_the_data   Validated SQL: SELECT ... WHERE organization_id = '...'
 WARNING app.services.ask_the_data SQL validation blocked: Only SELECT queries are allowed
 ```
+
+---
+
+## 9. Dónde se ve en la UI — Menús y navegación
+
+### Mapa de menús del sidebar
+
+El sidebar está organizado en secciones con sub-ítems. A continuación el mapa completo de las secciones relevantes para las funcionalidades nuevas y existentes:
+
+```
+Sidebar
+├── My Work
+│   ├── Dashboard (trabajo personal)
+│   ├── Tasks
+│   ├── Kanban
+│   ├── Log Hours
+│   ├── Timesheets
+│   ├── Calendar / Absences / Documents / Expenses / Approvals
+│   └── Search
+│
+├── Projects
+│   ├── Projects (tabla de proyectos)
+│   ├── Sprints / Sprint Planning AI / Gantt
+│   ├── Epics & Roadmap / Deliverables / Changes / Risks
+│   ├── Dependencies / Git / Wiki / Meeting Assistant
+│   ├── RACI Matrix / Changelog / UAT
+│   └── Dashboard (proyectos)
+│
+├── Team
+│   ├── Resources / Capacity Planning / Resource Forecast / Visual Scheduler
+│   ├── Skills / Org Chart
+│   ├── OKRs / Performance Reviews / Training & Certs
+│   └── Dashboard (equipo)
+│
+├── Clients & Finance   ◄ roles: admin, pm
+│   ├── Dashboard (finanzas)
+│   ├── Clients / CRM
+│   ├── Sales Pipeline          ← PipelinePage — propuestas SOW, conversión a proyecto
+│   ├── Contracts
+│   ├── Invoicing / Milestone Billing
+│   ├── Profitability
+│   ├── Revenue Recognition     ← RevenuePage — ASC 606 / IFRS 15
+│   ├── Budgets / Rate Cards / Subcontractors
+│   ├── What-If Scenarios
+│   └── NPS & Health
+│
+├── Support & ITSM
+│   ├── Dashboard (soporte) / Service Desk / CMDB / Licenses & Assets
+│   ├── SLA Calendars / Agent Dashboard
+│
+├── Analytics & BI   ◄ roles: admin, pm (algunos ítems: hr, employee)
+│   ├── Executive Dashboard → /bi   ← BIPage — narrativa IA + Ask the Data (NUEVO)
+│   ├── Reports / Report Builder
+│   ├── EVM — Earned Value / Project Portfolio
+│   ├── Burnup & Velocity / Cumulative Flow
+│   ├── Project Risk / Alerts / Data Export
+│
+├── AI & Automation   ◄ roles: admin, pm
+│   ├── NexusAgent / NexusOracle
+│   ├── AI Assignment / Automations
+│
+└── Settings   ◄ roles: varios
+    ├── Settings / Project Templates / Workflows
+    ├── Issue Types / Custom Fields / Project Permissions
+    ├── AI Hub / Connectors     ← aquí se configura ANTHROPIC_API_KEY desde la UI
+    ├── E-Signature / Microsoft 365 / Import Data
+    ├── MFA / GRC / AI Governance / Organizations / Enterprise
+    └── Webhook Log
 ```
 
 ---
 
-## 9. Gestión de Proveedores IA — Sincronización y Diagnóstico
+### Funcionalidades nuevas — dónde están y cómo llegar
+
+#### Executive Dashboard con BI IA (`/bi`)
+
+**Ruta:** Sidebar → **Analytics & BI** → **Executive Dashboard**
+
+La página tiene dos zonas nuevas además del dashboard preexistente:
+
+```
+Executive Dashboard (/bi)
+│
+├── [Selector de período: 7d / 30d / 90d / 1a]
+│
+├── KPIs (fila superior)     ← preexistente
+├── Gauges (fila gauges)     ← preexistente
+├── Charts (tipo / salud)    ← preexistente
+│
+├── BI Intelligence (NUEVO)
+│   ├── ✨ Resumen ejecutivo IA    ← NarrativeCard
+│   └── 🔍 Ask the Data           ← AskDataWidget
+│
+└── Tabla de rentabilidad por proyecto   ← preexistente
+```
+
+**Acceso:** `admin`, `pm`
+
+---
+
+#### Sales Pipeline con propuestas SOW (`/pipeline`)
+
+**Ruta:** Sidebar → **Clients & Finance** → **Sales Pipeline**
+
+```
+Sales Pipeline (/pipeline)
+│
+├── Board kanban con columnas: Lead → Qualification → Proposal → Negotiation → Won / Lost
+│
+└── Click en [icono 📄] de una tarjeta → Modal de detalle
+    │
+    ├── Info: cliente, código, valor, probabilidad, cierre esperado...
+    │
+    ├── Propuesta SOW
+    │   ├── [Generar propuesta]        ← llama POST /pipeline/{id}/generate-proposal
+    │   ├── [Ver propuesta]            ← muestra el Markdown generado
+    │   ├── [Regenerar]                ← si ya existe, vuelve a generarla
+    │   └── [Marcar como enviada]      ← POST /pipeline/{id}/mark-proposal-sent
+    │
+    └── Conversión
+        └── [Convertir a proyecto]     ← POST /pipeline/{id}/convert
+            → Crea proyecto PRJ-XXXX
+            → Crea contrato ASC 606 automáticamente
+            → Muestra confirmación con código de proyecto
+```
+
+**Acceso:** `admin`, `pm`
+
+---
+
+#### Revenue Recognition ASC 606 (`/revenue`)
+
+**Ruta:** Sidebar → **Clients & Finance** → **Revenue Recognition**
+
+```
+Revenue Recognition (/revenue)
+│
+├── Tab: Resumen
+│   └── KPIs: ingresos reconocidos, pendientes, por reconocer...
+│
+├── Tab: Reglas por proyecto
+│   └── Tabla de contratos activos con método de reconocimiento
+│
+├── Tab: Contratos ASC 606
+│   ├── [Selector de año]
+│   ├── [Ejecutar reconocimiento]   ← POST /revenue/run-recognition
+│   ├── [Cerrar período]            ← bloquea el mes
+│   ├── [Nuevo contrato]
+│   ├── Gráfico barras apiladas por mes
+│   ├── Lista de period closes
+│   └── Tabla de contratos
+│
+└── Tab: ASC 606 / IFRS 15
+    └── Explicación normativa + métodos disponibles
+```
+
+**Acceso:** `admin`, `pm`
+
+---
+
+### Tabla rápida de referencia — Feature → Menú
+
+| Funcionalidad | Menú | Ruta | Roles |
+|---|---|---|---|
+| Narrativa ejecutiva IA | Analytics & BI → Executive Dashboard | `/bi` | admin, pm |
+| Ask the Data (NL→SQL) | Analytics & BI → Executive Dashboard | `/bi` | admin, pm |
+| OLAP KPIs (API) | — (solo API) | `/api/v1/analytics/olap/*` | admin, pm |
+| Sales Pipeline (kanban) | Clients & Finance → Sales Pipeline | `/pipeline` | admin, pm |
+| Generar propuesta SOW | Pipeline → modal → Propuesta SOW | `/pipeline` | admin, pm |
+| Convertir oportunidad a proyecto | Pipeline → modal → Conversión | `/pipeline` | admin, pm |
+| Revenue Recognition ASC 606 | Clients & Finance → Revenue Recognition | `/revenue` | admin, pm |
+| Predicciones ML (badge) | Projects | `/projects` | todos |
+| Configurar API key IA | Settings → AI Hub / Connectors | `/ai-hub` | admin |
+
+---
+
+## 10. Cómo usar cada funcionalidad — guía paso a paso
+
+### Resumen ejecutivo IA (NarrativeCard)
+
+**Requisitos previos:** OLAP con datos (`olap_nightly_etl` ejecutado al menos una vez) + `ANTHROPIC_API_KEY` configurada.
+
+1. Abre **Analytics & BI → Executive Dashboard** (`/bi`)
+2. Desplázate hasta la sección "BI Intelligence"
+3. La tarjeta "Resumen ejecutivo IA" carga automáticamente el texto generado
+4. Si el texto no aparece y ves un mensaje de error: verifica que `ANTHROPIC_API_KEY` está configurada en **Settings → AI Hub**
+5. Para regenerar manualmente: pulsa el botón **↻** en la esquina superior derecha de la tarjeta
+6. Para cambiar el idioma de la narrativa: cambia el idioma de la aplicación (icono de globo en el topbar) → la narrativa se regenerará en el nuevo idioma
+
+> La narrativa se cachea 1 hora. Si los datos han cambiado mucho, usa **↻** para forzar actualización.
+
+---
+
+### Ask the Data
+
+**Requisitos previos:** OLAP con datos + `ANTHROPIC_API_KEY`.
+
+1. En **Executive Dashboard** (`/bi`), busca el widget "Ask the Data"
+2. Escribe tu pregunta en lenguaje natural en el campo de texto. Ejemplos:
+   - *"¿Cuáles son los 5 proyectos con más horas este mes?"*
+   - *"¿Qué usuarios tienen menos del 70% de utilización?"*
+   - *"Muéstrame el pipeline ponderado por etapa"*
+3. Pulsa **Consultar** o Enter
+4. El resultado aparece como tabla debajo
+5. Pulsa **Ver SQL** para ver la consulta generada (útil para verificar qué datos devuelve exactamente)
+6. Si aparece un banner amarillo "Consulta bloqueada": la pregunta generó SQL no permitido (ej. UPDATE, tablas no expuestas). Reformula la pregunta para que sea claramente una consulta de lectura.
+7. Si necesitas más de 200 filas: el resultado se trunca automáticamente — descarga los datos desde **Analytics & BI → Data Export** para datasets completos.
+
+> El validador inyecta automáticamente tu organización en el filtro — nunca verás datos de otras organizaciones aunque no lo especifiques en la pregunta.
+
+---
+
+### Generar y enviar una propuesta SOW
+
+1. Abre **Sales Pipeline** (`/pipeline`)
+2. Encuentra la oportunidad en el kanban (o créala con el botón "+ Nueva oportunidad")
+3. Pulsa el icono **📄** (azul, esquina superior derecha de la tarjeta)
+4. En el modal, sección **"Propuesta SOW"**:
+   - Pulsa **Generar propuesta** — el sistema crea automáticamente un documento Markdown con los datos de la oportunidad (nombre cliente, valor, fechas, tipo contrato)
+   - Pulsa **Ver propuesta** para leer el Markdown generado en un panel expandible
+   - Si quieres modificarla, puedes usar plantillas personalizadas (configúralas en el mismo modal o via API `/pipeline/proposals/templates`)
+   - Cuando el cliente la tenga → pulsa **Marcar como enviada al cliente** — queda registrada la fecha de envío
+5. El badge de estado en la tarjeta kanban cambia: gris (sin propuesta) → ámbar (generada) → verde (enviada)
+
+---
+
+### Convertir oportunidad a proyecto (ASC 606 automático)
+
+1. Cuando el cliente acepta la propuesta, abre el modal de la oportunidad
+2. Asegúrate de que la etapa sea **"won"** (o muévela a won desde el kanban arrastrando)
+3. En la sección **"Conversión"** del modal, pulsa **Convertir a proyecto**
+4. Confirma el diálogo de confirmación
+5. El sistema crea automáticamente:
+   - **Proyecto** con código `PRJ-XXXX` y estado "planning"
+   - **Contrato ASC 606** (`RevenueContract`) con el método según el `contract_type` de la oportunidad:
+     - `fixed_price` → método `milestone`
+     - `time_materials` → método `over_time`
+     - otros → `straight_line`
+6. El modal muestra el código de proyecto creado con enlace a la página de proyectos
+7. Ve a **Revenue Recognition** (`/revenue`) → Tab "Contratos ASC 606" para ver el contrato creado y empezar a reconocer ingresos
+
+---
+
+### Revenue Recognition — cerrar un mes
+
+1. Abre **Revenue Recognition** (`/revenue`) → Tab **Contratos ASC 606**
+2. Selecciona el año en el selector
+3. Pulsa **Ejecutar reconocimiento** — procesa todos los contratos `over_time`, `straight_line` y `consumption` del mes anterior
+4. Revisa el gráfico de barras apiladas: ingresos reconocidos vs pendientes por mes
+5. Una vez verificado, pulsa **Cerrar período** — bloquea el mes para que no puedan modificarse las entradas contabilizadas
+6. Los contratos `milestone` se reconocen automáticamente cuando el PM completa un hito en la página de proyectos
+
+> Celery ejecuta automáticamente el reconocimiento el día 1 de cada mes a las 02:00 UTC (`revenue-monthly-recognition`). El cierre de período es siempre manual.
+
+---
+
+### Configurar el proveedor IA (necesario para Storytelling y Ask-the-Data)
+
+1. Abre **Settings → AI Hub / Connectors** (`/ai-hub`)
+2. Añade o edita el proveedor "Anthropic"
+3. Pega tu `ANTHROPIC_API_KEY` (`sk-ant-...`)
+4. Selecciona el modelo por defecto (`claude-3-5-sonnet-20241022` recomendado)
+5. Guarda
+6. Verifica: vuelve a **Executive Dashboard** y pulsa ↻ en la NarrativeCard — debería cargar texto en <5s
+
+Alternativamente, configura la variable de entorno en el servidor:
+```env
+ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+La variable de entorno tiene prioridad sobre la configuración en base de datos.
+
+---
+
+## 11. Gestión de Proveedores IA — Sincronización y Diagnóstico
 
 ### Visión general
 
@@ -4335,3 +4713,185 @@ Las siguientes correcciones se aplicaron como resultado de la auditoría complet
 | UI — botón sync por proveedor | `frontend/src/pages/AIHubPage.jsx` | Botón "Sincronizar modelos" por tarjeta de proveedor |
 | UI — botón sync masivo | `frontend/src/pages/AIHubPage.jsx` | Botón "Sincronizar todos los modelos" en cabecera |
 | UI — botón diagnóstico | `frontend/src/pages/AIHubPage.jsx` | Botón "🔍 Diagnóstico" en cabecera; panel de resultados en línea |
+
+### NexusAssist — Acceso ampliado por rol a contexto operativo
+
+Para evitar respuestas incompletas del tipo "solo puedo ver horas de esta semana", NexusAssist ahora recibe un contexto más rico y explícito, respetando permisos por rol.
+
+| Componente | Fichero | Descripción |
+|------------|---------|-------------|
+| Contexto de capacidad mensual | `app/services/ai_chat/context_service.py` | Añadido `next_month_period` y `resource_occupancy_next_month` con carga planificada, capacidad, disponibilidad y ausencias aprobadas para el próximo mes |
+| Matriz de skills | `app/services/ai_chat/context_service.py` | Añadido `skills_matrix` y `skills_by_user` con skill, nivel, categoría y experiencia por persona |
+| Alcance por rol | `app/services/ai_chat/context_service.py` | Añadido `context_scope` y flags `capacity_data_restricted` / `financial_data_restricted` para que el asistente sepa qué puede ver según el rol autenticado |
+| Prompt estratégico | `app/api/v1/endpoints/ai_chat.py` | Instrucciones explícitas para usar los nuevos bloques de contexto (ocupación mes siguiente + skills) y no negar acceso cuando el dato ya está disponible en contexto |
+
+Notas de comportamiento:
+- Roles con visibilidad ampliada de capacidad (`admin`, `hr`, `pm`, `team_lead`, `superadmin`) reciben contexto de ocupación mensual y skills de equipo.
+- Si el rol no tiene visibilidad ampliada, el contexto de capacidad se limita al propio usuario para mantener seguridad por permisos.
+
+Ampliación adicional (acceso integral por rol):
+- NexusAssist ya no se limita a ocupación/skills; ahora recibe también snapshots de módulos operativos transversales, siempre filtrados por rol y alcance:
+  - `timesheets_status_summary`, `timesheets_recent`
+  - `approvals_pending_detail`
+  - `pipeline_detail`
+  - `clients_summary`
+  - `risks_open`
+  - `contracts_expiring`
+  - `milestones_due_60d`
+  - `deliverables_pending`
+  - `change_requests_active`
+- Para roles con alcance restringido, el contexto se reduce a datos propios o asignados (por ejemplo, tickets/tareas/imputaciones del propio usuario) en vez de datos globales de organización.
+- Se añade la marca `context_scope.org_wide_restricted` para que el asistente explique claramente cuándo una limitación es por permisos de rol.
+
+## 11. QA rápido — Validación de NexusAssist por rol
+
+Objetivo: comprobar que NexusAssist utiliza todo el contexto permitido por rol y solo restringe lo que realmente no está autorizado para ese rol.
+
+### A. Prompt base (usar en cada rol)
+
+```text
+Quiero un informe ejecutivo del próximo mes con:
+1) ocupación por persona,
+2) riesgos abiertos,
+3) contratos que vencen,
+4) hitos y entregables pendientes,
+5) oportunidades de pipeline,
+6) recomendaciones estratégicas priorizadas.
+Incluye tabla resumen y acciones concretas.
+```
+
+Resultado esperado:
+- Debe usar datos concretos de contexto y no responder con "no tengo capacidad".
+- Debe mencionar restricciones solo si son por permisos del rol.
+
+### B. Test rol Admin / HR / PM / Team Lead
+
+Prompts:
+
+```text
+Dame la ocupación del próximo mes por miembro del equipo y señala sobrecargas > 90%.
+```
+
+```text
+¿Quién tiene skills de Jira, ITSM o Service Desk y cómo repartirías nuevas incidencias?
+```
+
+```text
+Cruza riesgos abiertos + vencimientos de contrato + pipeline y propone 5 acciones para mejorar margen.
+```
+
+Resultado esperado:
+- Debe devolver vista de equipo (no solo del usuario actual).
+- Debe utilizar bloques de contexto ampliado (`resource_occupancy_next_month`, `skills_matrix`, `risks_open`, `contracts_expiring`, `pipeline_detail`, etc.).
+
+### C. Test rol Employee / Subcontractor
+
+Prompts:
+
+```text
+Dame la ocupación del próximo mes de todo el equipo y habilidades de todos.
+```
+
+```text
+Hazme un informe de contratos activos y pipeline global de la empresa.
+```
+
+Resultado esperado:
+- Debe explicar que el alcance global está restringido por permisos.
+- Debe ofrecer análisis alternativo con datos propios/asignados (tareas, tickets, imputaciones, ocupación propia).
+
+### D. Test de calidad de respuesta estratégica
+
+Prompt:
+
+```text
+Con los datos disponibles, ¿qué tres decisiones tomarías esta semana para mejorar rentabilidad y reducir riesgo operativo?
+```
+
+Resultado esperado:
+- Debe responder con recomendaciones accionables, justificadas con datos y priorizadas.
+- No debe inventar cifras; si falta un dato, debe declararlo explícitamente.
+
+### E. Criterios de aceptación (PASS/FAIL)
+
+PASS cuando se cumplen todos:
+- Usa datos del contexto y cita evidencias.
+- No niega capacidades que sí tiene.
+- Aplica correctamente restricciones por rol.
+- Genera análisis y recomendaciones (no solo listado de datos).
+
+FAIL si ocurre alguno:
+- "No tengo acceso/capacidad" sin justificar por permisos reales.
+- Respuesta genérica sin explotar el contexto.
+- Inventar métricas o afirmar datos no presentes.
+
+### F. Ejecución semiautomática (script)
+
+Se incluye el script `scripts/validate_nexusassist_role_qa.py` para lanzar los prompts de QA por rol, evaluar heurísticas PASS/FAIL y generar reporte en Markdown + JSON.
+
+Preparación (tokens por rol):
+
+```bash
+export NEXUS_QA_BASE_URL="http://127.0.0.1:8000/api/v1"
+export NEXUS_QA_TOKEN_ADMIN="<jwt-admin>"
+export NEXUS_QA_TOKEN_PM="<jwt-pm>"
+export NEXUS_QA_TOKEN_EMPLOYEE="<jwt-employee>"
+```
+
+Ejecución:
+
+```bash
+python scripts/validate_nexusassist_role_qa.py --roles admin,pm,employee
+```
+
+Salida:
+- `reports/qa/nexusassist_role_qa_YYYYMMDD_HHMMSS.md`
+- `reports/qa/nexusassist_role_qa_YYYYMMDD_HHMMSS.json`
+
+Opcional: fallback por credenciales en entorno (si no se define token):
+
+```bash
+export NEXUS_QA_USER_ADMIN="admin"
+export NEXUS_QA_PASS_ADMIN="<password>"
+```
+
+## 12. NexusAssist — Persistencia de conversación al cerrar/abrir panel
+
+Problema detectado:
+- Al cerrar el panel de NexusAssist y volver a abrirlo, parecía que se perdía el hilo de conversación.
+
+Causa:
+- El componente del panel se desmonta al cerrar y el estado local (`convId`, `messages`) se reiniciaba.
+
+Corrección aplicada:
+- En `frontend/src/components/layout/NexusAssistPanel.jsx` se añade persistencia de la conversación activa en `localStorage` con la clave `nexusassist_last_conversation_id`.
+- Al reabrir el panel, se intenta restaurar automáticamente ese `conversation_id` y cargar sus mensajes desde `/api/v1/ai/conversations/{id}`.
+- Si la conversación ya no existe, se limpia la clave de `localStorage` para evitar bucles de restauración inválida.
+- El botón `+ Nueva` limpia explícitamente la conversación persistida para iniciar un hilo limpio.
+
+Resultado esperado:
+- Cerrar/abrir el panel ya no pierde el historial del hilo en curso.
+- El usuario vuelve al último hilo activo automáticamente, salvo que pulse `+ Nueva`.
+
+## 13. PM /ai/chat 500 — Corrección de robustez multi-rol
+
+Problema observado en validación QA:
+- El rol PM podía obtener `500 Internal Server Error` en `POST /api/v1/ai/chat` mientras admin funcionaba.
+
+Correcciones aplicadas:
+- `app/services/ai_chat/context_service.py`
+  - Se añade helper `_filter_by_org(query, model, org_id)` para aplicar filtro por organización solo si el modelo tiene columna `organization_id`.
+  - Se reemplazan filtros directos por `Model.organization_id` para evitar `AttributeError` en modelos que no exponen ese campo (p.ej. algunos deployments de `Ticket`).
+- `app/api/v1/endpoints/ai_chat.py`
+  - Se endurece el endpoint `chat` para que fallos auxiliares (guardrails/persistencia) no tumben toda la respuesta:
+    - `check_prompt` con fallback no bloqueante
+    - `check_output` con fallback no bloqueante
+    - persistencia de respuesta no bloqueante
+    - fallback de contexto si `prepare_chat` falla
+
+Validación técnica:
+- Compilación OK de los archivos modificados.
+- En una instancia temporal con el código actualizado, login PM + `POST /ai/chat` devuelve `200`.
+
+Nota operativa:
+- Si el backend en ejecución no usa autoreload, es necesario reiniciarlo para que estos cambios entren en vigor.

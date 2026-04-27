@@ -1,5 +1,5 @@
 """
-Clarive v21 — Modelos:
+Contecflow v21 — Modelos:
   1. Etiquetas wiki (WikiTag, WikiPageTag)
   2. Comentarios internos en tickets (campo is_internal en TicketInternalComment)
   3. CMDB completo (CMDBItem, CMDBRelation, CMDBCategory)

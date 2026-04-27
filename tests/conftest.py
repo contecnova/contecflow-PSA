@@ -4,7 +4,7 @@ os.environ["KMS_PROVIDER"] = ""
 os.environ["AWS_KMS_KEY_ID"] = ""
 
 """
-conftest.py — Fixtures compartidos para toda la suite de tests de Clarive.
+conftest.py — Fixtures compartidos para toda la suite de tests de Contecflow.
 Usa SQLite en memoria para aislamiento total.
 """
 import os
@@ -41,7 +41,7 @@ os.environ.setdefault("BACKEND_URL", "http://localhost:8000")
 os.environ.setdefault("OLLAMA_BASE_URL", "https://api.ollama.test")
 os.environ.setdefault("OLLAMA_DOCS_URL", "https://ollama.com/docs")
 os.environ.setdefault("PDF_STORAGE_PATH", "/tmp")
-os.environ.setdefault("SUPERADMIN_EMAIL", "admin@clarive.com")
+os.environ.setdefault("SUPERADMIN_EMAIL", "admin@contecflow.com")
 # Generate a strong random test password once per session — not committed to source.
 _TEST_PASSWORD = secrets.token_urlsafe(20)
 os.environ.setdefault("SUPERADMIN_PASSWORD", _TEST_PASSWORD)
@@ -93,7 +93,7 @@ def db():
     admin = User(
         id="admin-test-id",
         username="admin",
-        email="admin@clarive.com",
+        email="admin@contecflow.com",
         full_name="Admin Test",
         role=UserRole.admin,
         status=UserStatus.active,
@@ -106,7 +106,7 @@ def db():
     pm = User(
         id="pm-test-id",
         username="pm_test",
-        email="pm@clarive.com",
+        email="pm@contecflow.com",
         full_name="PM Test",
         role=UserRole.pm,
         status=UserStatus.active,
@@ -119,7 +119,7 @@ def db():
     dev = User(
         id="dev-test-id",
         username="dev_test",
-        email="dev@clarive.com",
+        email="dev@contecflow.com",
         full_name="Dev Test",
         role=UserRole.employee,
         status=UserStatus.active,
@@ -133,7 +133,7 @@ def db():
     hr = User(
         id="hr-test-id",
         username="hr_test",
-        email="hr@clarive.com",
+        email="hr@contecflow.com",
         full_name="HR Test",
         role=UserRole.hr,
         status=UserStatus.active,

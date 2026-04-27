@@ -190,7 +190,7 @@ export default function OnboardingWizard() {
               Configuración inicial
             </div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
-              Bienvenido a Clarive 👋
+              Bienvenido a Contecflow 👋
             </div>
           </div>
           <button onClick={() => dismiss()} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', padding: 6, borderRadius: 6 }} aria-label="Cerrar">

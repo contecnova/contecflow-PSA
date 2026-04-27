@@ -13,7 +13,28 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-DUCKDB_PATH = os.getenv("DUCKDB_PATH", "/var/contecflow/olap.duckdb")
+
+def _resolve_duckdb_path() -> str:
+    env_path = os.getenv("DUCKDB_PATH")
+    if env_path:
+        return env_path
+
+    preferred = "/var/contecflow/olap.duckdb"
+    preferred_dir = os.path.dirname(preferred)
+    try:
+        os.makedirs(preferred_dir, exist_ok=True)
+        if os.access(preferred_dir, os.W_OK):
+            return preferred
+    except Exception:
+        pass
+
+    # Local/dev fallback when /var is not writable (common on macOS without root).
+    fallback = "/tmp/contecflow/olap.duckdb"
+    os.makedirs(os.path.dirname(fallback), exist_ok=True)
+    return fallback
+
+
+DUCKDB_PATH = _resolve_duckdb_path()
 
 
 def get_duckdb_conn():

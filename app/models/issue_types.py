@@ -1,5 +1,5 @@
 """
-Clarive v20 — Módulos:
+Contecflow v20 — Módulos:
   1. Tipos de issue custom por proyecto (IssueType + campos por tipo)
   2. Dependencias visuales entre tareas (mejora UI sobre TaskDependency v13)
   3. Búsqueda full-text unificada (FTSIndex sobre tareas, tickets, wiki, épicas)

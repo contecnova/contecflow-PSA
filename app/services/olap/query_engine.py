@@ -8,11 +8,9 @@ from __future__ import annotations
 import logging
 import os
 from typing import Optional
+from app.services.olap.etl import DUCKDB_PATH as _DUCKDB_PATH
 
 logger = logging.getLogger(__name__)
-
-_DUCKDB_PATH = os.getenv("DUCKDB_PATH", "/var/contecflow/olap.duckdb")
-
 
 def _olap_available() -> bool:
     return os.path.exists(_DUCKDB_PATH)
@@ -252,25 +250,104 @@ def _pg_kpi_summary(org_id: Optional[str]) -> dict:
     logger.info("OLAP unavailable — kpi_summary using PostgreSQL fallback")
     try:
         from app.db.session import SessionLocal
-        from app.models.project import Project, ProjectStatus
+        from app.models.project import Project, ProjectStatus, ProjectRisk
         from app.models.pipeline import Opportunity
-        from sqlalchemy import func
+        from app.models.imputation import Imputation
+        from sqlalchemy import case, false, func
+        from datetime import date
 
         db = SessionLocal()
         try:
-            org_filter_kw = {"organization_id": org_id} if org_id else {}
-            active_projects = db.query(func.count(Project.id)).filter(
-                Project.status == ProjectStatus.active,
-                **({} if not org_id else {"Project.organization_id": org_id}),
-            ).scalar() or 0
+            proj_filters = [Project.status == ProjectStatus.active]
+            if org_id:
+                proj_filters.append(Project.organization_id == org_id)
 
-            open_opps = db.query(func.count(Opportunity.id)).filter(
-                Opportunity.stage.notin_(["won", "lost", "cancelled"])
-            ).scalar() or 0
+            active_project_ids = [
+                p.id for p in db.query(Project.id).filter(*proj_filters).all()
+            ]
+            active_projects = len(active_project_ids)
+
+            high_risk_filters = [
+                Project.status == ProjectStatus.active,
+                Project.risk_level == ProjectRisk.high,
+            ]
+            if org_id:
+                high_risk_filters.append(Project.organization_id == org_id)
+            high_risk_projects = db.query(func.count(Project.id)).filter(*high_risk_filters).scalar() or 0
+
+            avg_margin_pct = 0.0
+            if active_project_ids:
+                margin_rows = (
+                    db.query(
+                        Imputation.project_id.label("project_id"),
+                        func.sum(Imputation.hours * func.coalesce(Project.billing_rate, 0.0)).label("revenue"),
+                        func.sum(Imputation.cost_amount).label("cost"),
+                    )
+                    .join(Project, Project.id == Imputation.project_id)
+                    .filter(Imputation.project_id.in_(active_project_ids))
+                    .group_by(Imputation.project_id)
+                    .all()
+                )
+
+                per_project_margins = []
+                for row in margin_rows:
+                    revenue = float(row.revenue or 0.0)
+                    cost = float(row.cost or 0.0)
+                    margin_pct = ((revenue - cost) / revenue * 100.0) if revenue > 0 else 0.0
+                    per_project_margins.append(margin_pct)
+
+                if per_project_margins:
+                    avg_margin_pct = round(sum(per_project_margins) / len(per_project_margins), 1)
+
+            opp_filters = [Opportunity.stage.notin_(["won", "lost", "cancelled"])]
+            if org_id:
+                opp_filters.append(Opportunity.organization_id == org_id)
+            open_opps = db.query(func.count(Opportunity.id)).filter(*opp_filters).scalar() or 0
+
+            weighted_expr = Opportunity.expected_revenue * (func.coalesce(Opportunity.probability, 0.0) / 100.0)
+            pipeline_weighted = db.query(func.round(func.sum(weighted_expr), 0)).filter(*opp_filters).scalar() or 0
+
+            won_filters = [Opportunity.stage == "won"]
+            if org_id:
+                won_filters.append(Opportunity.organization_id == org_id)
+            won_revenue = db.query(func.round(func.sum(Opportunity.expected_revenue), 0)).filter(*won_filters).scalar() or 0
+
+            today = date.today()
+            month_start = today.replace(day=1)
+            imp_filters = [Imputation.date >= month_start, Imputation.date <= today]
+            if active_project_ids:
+                imp_filters.append(Imputation.project_id.in_(active_project_ids))
+            else:
+                imp_filters.append(false())
+
+            imp_row = db.query(
+                func.round(func.sum(Imputation.hours), 1).label("hours_mtd"),
+                func.round(func.sum(Imputation.cost_amount), 0).label("cost_mtd"),
+                func.count(func.distinct(Imputation.project_id)).label("active_projects_mtd"),
+                func.round(
+                    func.sum(
+                        case(
+                            (Imputation.is_billable.is_(True), Imputation.hours),
+                            else_=0.0,
+                        )
+                    )
+                    * 100.0
+                    / func.nullif(func.sum(Imputation.hours), 0.0),
+                    1,
+                ).label("billability_pct"),
+            ).filter(*imp_filters).one()
 
             return {
+                "hours_mtd": float(imp_row.hours_mtd or 0.0),
+                "cost_mtd": float(imp_row.cost_mtd or 0.0),
+                "active_projects_mtd": int(imp_row.active_projects_mtd or 0),
+                "billability_pct": float(imp_row.billability_pct or 0.0),
                 "active_projects": active_projects,
-                "open_opps": open_opps,
+                "avg_margin_pct": avg_margin_pct,
+                "high_risk_projects": int(high_risk_projects),
+                "open_opps": int(open_opps),
+                "pipeline_weighted": float(pipeline_weighted or 0.0),
+                "won_revenue": float(won_revenue or 0.0),
                 "source": "postgresql",
             }
         finally:

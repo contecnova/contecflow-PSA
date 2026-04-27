@@ -322,7 +322,7 @@ def download_invoice_pdf(
         period_from=inv.period_from,
         period_to=inv.period_to,
         company_name=settings.PROJECT_NAME,
-        generated_by="Clarive PSA",
+        generated_by="Contecflow PSA",
     )
 
     filename = f"factura_{inv.number.replace('/', '-')}.pdf"

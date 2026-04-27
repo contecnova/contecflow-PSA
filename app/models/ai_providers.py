@@ -30,6 +30,9 @@ class AIProviderStatus(str, enum.Enum):
 class AIProvider(Base):
     """Configuración de un proveedor de IA para la organización."""
     __tablename__ = "ai_providers"
+    # TenantSession should include shared/global provider rows (org_id IS NULL)
+    # so tenant users can use centrally managed AI connectors.
+    _tenant_filter_include_global = True
 
     id           = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)

@@ -85,10 +85,10 @@ def delete_canned_response(canned_id: str, db: Session = Depends(get_db), cu: Us
 @router.post("/inbound-email", summary="Email-to-ticket — webhook de email entrante", include_in_schema=True, status_code=201)
 def inbound_email(
     payload: dict = Body(...),
-    x_clarive_email_secret: Optional[str] = Header(default=None),
+    x_contecflow_email_secret: Optional[str] = Header(default=None),
     db: Session = Depends(get_db),
 ):
-    ticket, req_email = process_inbound_email(db, payload, x_clarive_email_secret)
+    ticket, req_email = process_inbound_email(db, payload, x_contecflow_email_secret)
     _commit_or_rollback(db); db.refresh(ticket)
     logger.info("Email-to-ticket: %s from %r - %r", ticket.number, req_email, ticket.title)
     return {"ticket_id": ticket.id, "number": ticket.number, "status": "created"}

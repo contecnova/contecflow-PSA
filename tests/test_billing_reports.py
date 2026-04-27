@@ -555,7 +555,7 @@ def test_scheduled_report_crud_and_run(client, pm_token, db):
         "name": "Informe semanal",
         "metric": "hours_by_month",
         "frequency": "weekly",
-        "recipients": ["pm@clarive.com"],
+        "recipients": ["pm@contecflow.com"],
         "include_pdf": True,
         "filters_json": "{}",
     }

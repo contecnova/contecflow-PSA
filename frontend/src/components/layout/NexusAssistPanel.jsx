@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 
+const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
+
 const SUGGESTIONS = [
   '¿Cuáles son los proyectos con más riesgo esta semana?',
   '¿Qué tickets llevan más de 24h sin respuesta?',
@@ -27,6 +29,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
   const [input, setInput]     = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [restoredOnce, setRestoredOnce] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
@@ -36,6 +39,49 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     queryFn: () => api.get('/ai/conversations').then(r => r.data),
     enabled: open,
   })
+
+  useEffect(() => {
+    if (convId) {
+      localStorage.setItem(LAST_CONV_KEY, convId)
+    }
+  }, [convId])
+
+  useEffect(() => {
+    if (!open) {
+      setRestoredOnce(false)
+      return
+    }
+    if (restoredOnce || convId || messages.length > 0) return
+
+    const storedId = localStorage.getItem(LAST_CONV_KEY)
+    if (!storedId) {
+      setRestoredOnce(true)
+      return
+    }
+
+    const exists = conversations.some(c => c.id === storedId)
+    if (!exists && conversations.length > 0) {
+      localStorage.removeItem(LAST_CONV_KEY)
+      setRestoredOnce(true)
+      return
+    }
+
+    if (!exists && conversations.length === 0) return
+
+    const restore = async () => {
+      try {
+        const { data } = await api.get(`/ai/conversations/${storedId}`)
+        setConvId(storedId)
+        setMessages(data.messages || [])
+      } catch {
+        localStorage.removeItem(LAST_CONV_KEY)
+      } finally {
+        setRestoredOnce(true)
+      }
+    }
+
+    restore()
+  }, [open, restoredOnce, convId, messages.length, conversations])
 
   const sendMessage = async (text) => {
     if (!text.trim() || loading) return
@@ -79,7 +125,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
           </div>
         )}
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => { setConvId(null); setMessages([]) }}
+          <button onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
             style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
               padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
             + Nueva

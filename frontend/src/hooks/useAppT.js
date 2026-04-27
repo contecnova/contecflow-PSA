@@ -1,5 +1,6 @@
 import { useContext, useMemo } from 'react';
 import { AppLangContext } from '../i18n/AppLangContext';
+import { resolveTranslation } from '../i18n/translationRuntime.mjs';
 
 const NOOP = () => {};
 const EMPTY_OBJ = {};
@@ -71,25 +72,15 @@ export function useAppT() {
 
       // Permite forzar idioma por llamada
       const dict = ctx?.translations || {};
-      let trans = dict?.[module];
-      for (const part of keyPath) {
-        if (trans == null) break;
-        trans = trans[part];
-      }
-      const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey;
-      // Guard against custom overrides that accidentally store key literals
-      // (e.g. "title"/"subtitle") instead of translated values.
-      if (typeof trans === 'string' && trans === fallbackKey) {
-        let baseTrans = (ctx?.baseTranslations || {})?.[module];
-        for (const part of keyPath) {
-          if (baseTrans == null) break;
-          baseTrans = baseTrans[part];
-        }
-        if (typeof baseTrans === 'string' && baseTrans !== fallbackKey) {
-          trans = baseTrans;
-        }
-      }
-      if (trans == null) trans = fallbackKey; // fallback clave
+      let trans = resolveTranslation({
+        lang,
+        moduleName: module,
+        keyPath,
+        runtimeTranslations: dict,
+        baseTranslations: ctx?.baseTranslations || {},
+        englishTranslations: ctx?.allTranslations?.en || {},
+        spanishTranslations: ctx?.allTranslations?.es || {},
+      });
 
       // Interpolación de variables: {var}
       if (params && typeof trans === 'string') {

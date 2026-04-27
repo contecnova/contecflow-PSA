@@ -24,7 +24,7 @@ from app.models.security_observability import (
 )
 from fastapi import HTTPException
 
-logger = logging.getLogger("clarive.soc")
+logger = logging.getLogger("contecflow.soc")
 
 _UTC = timezone.utc
 

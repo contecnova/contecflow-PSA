@@ -17,7 +17,7 @@ from app.core.config import settings as app_settings
 
 
 DEFAULT_SETTINGS = {
-    "company_name": ("Clarive", "Nombre de la empresa"),
+    "company_name": ("Contecflow", "Nombre de la empresa"),
     "company_logo_url": ("", "URL del logotipo"),
     "currency": (app_settings.DEFAULT_CURRENCY, "Moneda principal"),
     "timezone": (app_settings.DEFAULT_TIMEZONE, "Zona horaria"),

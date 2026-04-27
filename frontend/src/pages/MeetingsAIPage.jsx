@@ -134,7 +134,7 @@ export default function MeetingsAIPage() {
   })
   const { mutate: createTasks, isPending: creating } = useMutation({
     mutationFn: id => api.post(`/ai-modules/meetings/${id}/create-tasks`, {}).then(r => r.data),
-    onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Clarive`) },
+    onSuccess: data => { qc.invalidateQueries(['ai-meeting', selected]); toast.success(`✅ ${data.tasks_created} tareas creadas en Contecflow`) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 

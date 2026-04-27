@@ -1,5 +1,5 @@
 """
-Automation engine — no-code rule builder for Clarive.
+Automation engine — no-code rule builder for Contecflow.
 Rules: IF trigger(conditions) THEN action(params)
 """
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, Boolean, Integer, Enum

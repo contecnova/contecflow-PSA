@@ -19,7 +19,7 @@ from pydantic import BaseModel
 import json
 import logging
 
-logger = logging.getLogger("clarive.v14")
+logger = logging.getLogger("contecflow.v14")
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
@@ -166,7 +166,7 @@ async def fire_webhook(
 ):
     """
     External systems POST here to trigger automations.
-    Verifiable via X-Clarive-Signature HMAC header.
+    Verifiable via X-Contecflow-Signature HMAC header.
     """
     trigger = _svc.get_active_webhook_trigger_by_slug(db, slug)
     # Read body
@@ -180,12 +180,12 @@ async def fire_webhook(
     # Verify HMAC signature — all triggers must be signed
     import hmac as _hmac
     import hashlib as _hashlib
-    signature_header = request.headers.get("X-Clarive-Signature")
+    signature_header = request.headers.get("X-Contecflow-Signature")
     if not trigger.secret:
         # Trigger without a secret must not be callable — reject silently to avoid enumeration
         raise HTTPException(401, "Webhook trigger no autorizado")
     if not signature_header:
-        raise HTTPException(401, "Se requiere cabecera X-Clarive-Signature")
+        raise HTTPException(401, "Se requiere cabecera X-Contecflow-Signature")
     expected = "sha256=" + _hmac.new(
         trigger.secret.encode(), body, _hashlib.sha256
     ).hexdigest()

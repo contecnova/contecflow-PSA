@@ -16,7 +16,7 @@ def admin_no_org_token(client, db):
     no_org_admin = User(
         id="admin-no-org-id",
         username="admin_no_org",
-        email="noorge@clarive.com",
+        email="noorge@contecflow.com",
         full_name="No Org Admin",
         role=UserRole.admin,
         status=UserStatus.active,

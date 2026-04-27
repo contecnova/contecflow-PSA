@@ -81,7 +81,7 @@ def setup_mfa(user: User, db: Session) -> dict:
 
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret)
-    uri = totp.provisioning_uri(name=user.email, issuer_name="Clarive")
+    uri = totp.provisioning_uri(name=user.email, issuer_name="Contecflow")
 
     config = MFAConfig(
         user_id=user.id,
@@ -230,7 +230,7 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
             data = json.dumps({
                 "channel": ch,
                 "text": text,
-                "username": "Clarive",
+                "username": "Contecflow",
                 "icon_emoji": ":rocket:",
             }).encode("utf-8")
             req = urllib.request.Request(
@@ -680,7 +680,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
         elements = []
 
         logo_b64 = params.get("logo_b64")  # noqa: F841
-        company_name = params.get("company_name", "Clarive")
+        company_name = params.get("company_name", "Contecflow")
         primary_color = params.get("primary_color", "#1C2833")
 
         elements.append(Paragraph(f"<b>{company_name}</b>", title_style))
@@ -765,13 +765,13 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 
         else:
             elements.append(Paragraph(f"Tipo: {export_type}", section_style))
-            elements.append(Paragraph("Exportación generada por Clarive v15.", body_style))
+            elements.append(Paragraph("Exportación generada por Contecflow v15.", body_style))
 
         elements.append(Spacer(1, 15 * mm))
         elements.append(HRFlowable(width="100%", thickness=0.5,
                                    color=colors.HexColor("#D0D7E0")))
         elements.append(Paragraph(
-            f"<font color='#95A5A6' size=8>Generado por Clarive v15 · {now_str} · Documento confidencial</font>",
+            f"<font color='#95A5A6' size=8>Generado por Contecflow v15 · {now_str} · Documento confidencial</font>",
             body_style
         ))
 
@@ -785,7 +785,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
 4 0 obj<</Length 120>>
 stream
-BT /F1 14 Tf 50 780 Td (Clarive v15 - {export_type}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
+BT /F1 14 Tf 50 780 Td (Contecflow v15 - {export_type}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
 endstream
 endobj
 5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
@@ -944,7 +944,7 @@ def create_or_update_slack_config(payload_dict: dict, db: Session) -> dict:
         existing.workspace_name = payload_dict.get("workspace_name")
         existing.bot_token = payload_dict.get("bot_token")
         existing.webhook_url = payload_dict.get("webhook_url")
-        existing.default_channel = payload_dict.get("default_channel", "#clarive-alerts")
+        existing.default_channel = payload_dict.get("default_channel", "#contecflow-alerts")
         existing.subscriptions = subs
         existing.is_active = True
         db.commit()
@@ -954,7 +954,7 @@ def create_or_update_slack_config(payload_dict: dict, db: Session) -> dict:
         workspace_name=payload_dict.get("workspace_name"),
         bot_token=payload_dict.get("bot_token"),
         webhook_url=payload_dict.get("webhook_url"),
-        default_channel=payload_dict.get("default_channel", "#clarive-alerts"),
+        default_channel=payload_dict.get("default_channel", "#contecflow-alerts"),
         subscriptions=subs,
     )
     db.add(config); db.commit()
@@ -1213,7 +1213,7 @@ def create_and_run_pdf_export(
         job.file_size = len(pdf_bytes)
         job.completed_at = datetime.now(timezone.utc)
         db.commit()
-        filename = f"clarive_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = f"contecflow_{export_type}_{source_id or 'export'}_{datetime.now().strftime('%Y%m%d')}.pdf"
         return pdf_bytes, filename
     except Exception as e:
         job.status = "failed"

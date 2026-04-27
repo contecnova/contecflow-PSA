@@ -114,7 +114,7 @@
 | app/api/v1/endpoints/cicd.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/client_portal.py | api endpoint | --- | none | none — sin patrones de riesgo detectados | high — tamaño excesivo (808 líneas) |
 | app/api/v1/endpoints/clients.py | api endpoint | """ | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (268 líneas) |
-| app/api/v1/endpoints/cmdb.py | api endpoint | """Clarive v21 — Wiki tags, comentarios internos, CMDB, dashboard agente, | none | none — sin patrones de riesgo detectados | medium — archivo grande (474 líneas) |
+| app/api/v1/endpoints/cmdb.py | api endpoint | """Contecflow v21 — Wiki tags, comentarios internos, CMDB, dashboard agente, | none | none — sin patrones de riesgo detectados | medium — archivo grande (474 líneas) |
 | app/api/v1/endpoints/collaborative.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/contracts.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/currency_rates.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
@@ -127,7 +127,7 @@
 | app/api/v1/endpoints/documents_collab.py | api endpoint | """ | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/documents_edit.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/enterprise.py | api endpoint | """ | none | none — sin patrones de riesgo detectados | medium — archivo grande (474 líneas) |
-| app/api/v1/endpoints/epics.py | api endpoint | """Clarive v19 — Wiki, Épicas, NQL, CFD, Menciones""" | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (307 líneas) |
+| app/api/v1/endpoints/epics.py | api endpoint | """Contecflow v19 — Wiki, Épicas, NQL, CFD, Menciones""" | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (307 líneas) |
 | app/api/v1/endpoints/esign.py | api endpoint | """ | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (299 líneas) |
 | app/api/v1/endpoints/events.py | api endpoint | router = APIRouter() | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/api/v1/endpoints/expenses.py | api endpoint | """ | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
@@ -462,7 +462,7 @@
 | app/services/service_desk/ticket_update_service.py | service | PRIORITY_MATRIX, | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/services/service_desk/watcher_service.py | service | return ( | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/services/service_desk/workload_service.py | service | group = db.query(AgentGroup).options( | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
-| app/services/session_security.py | service | logger = logging.getLogger("clarive.session_security") | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (270 líneas) |
+| app/services/session_security.py | service | logger = logging.getLogger("contecflow.session_security") | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (270 líneas) |
 | app/services/settings_service.py | service | """ | none | none — sin patrones de riesgo detectados | low — archivo moderadamente grande (264 líneas) |
 | app/services/signature_pdf.py | service | """ | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |
 | app/services/skill_service.py | service | ── Skill catalog ────────────────────────────────────────────────────────────── | none | none — sin patrones de riesgo detectados | none — sin hallazgos relevantes |

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from jose import jwt, JWTError
 import logging
 
-logger = logging.getLogger("clarive.client_portal")
+logger = logging.getLogger("contecflow.client_portal")
 
 from app.db.session import get_db
 from app.core.config import settings

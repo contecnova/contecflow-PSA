@@ -1,6 +1,6 @@
 /**
  * DocumentsPage — Rediseño completo del hub de gestión documental
- * Diseo integrado con el sistema visual de Clarive (surface vars, accent, etc.)
+ * Diseo integrado con el sistema visual de Contecflow (surface vars, accent, etc.)
  * Funcionalidades: KPIs, grid/tabla, drawer de detalle, carga modal dos columnas,
  * acciones bulk, etiquetas, aprobaciones, historial de versiones, resmenes IA
  */

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton } from '../ui'
-import NotificationCenter from './NotificationCenter'
 import GlobalSearch from './GlobalSearch'
 import NexusAssistPanel from './NexusAssistPanel'
 import UserProfilePanel from './UserProfilePanel'
@@ -142,7 +141,7 @@ const QUICK_ACCESS = {
   employee:  ['/tasks', '/imputar', '/timesheets', '/expenses', '/absences', '/service-desk'],
 }
 
-const NAV_WORKSPACE_KEY = 'clarive_nav_workspace'
+const NAV_WORKSPACE_KEY = 'contecflow_nav_workspace'
 const WORKSPACE_GROUPS = {
   all: ['trabajo', 'proyectos', 'equipo', 'negocio', 'soporte', 'analisis', 'ia', 'configuracion'],
   work: ['trabajo'],
@@ -606,7 +605,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
 }
 
 // ── Favourites / Recents ─────────────────────────────────────────────────────
-const PINNED_KEY = 'clarive_pinned_routes'
+const PINNED_KEY = 'contecflow_pinned_routes'
 
 function _lsGet(key) {
   try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] }
@@ -1081,9 +1080,6 @@ export default function Layout({ children }) {
               t={t}
             />
           )}
-          <div style={{ padding: '3px 0', marginTop: 4 }}>
-            <NotificationCenter collapsed={collapsed} />
-          </div>
         </nav>
 
         {/* Footer */}

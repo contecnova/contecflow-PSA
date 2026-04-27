@@ -18,7 +18,7 @@ def generate_report_pdf(
     data: List[Dict[str, Any]],
     summary: Optional[Dict] = None,
     filters: Optional[Dict] = None,
-    generated_by: str = "Clarive",
+    generated_by: str = "Contecflow",
 ) -> bytes:
     """
     Genera un PDF de informe y devuelve los bytes.
@@ -32,7 +32,7 @@ def generate_report_pdf(
         topMargin=2*cm, bottomMargin=2*cm,
     )
 
-    # ── Paleta de colores Clarive ──────────────────────────────────────────────
+    # ── Paleta de colores Contecflow ──────────────────────────────────────────────
     ACCENT    = colors.HexColor("#00d4ff")
     SUCCESS   = colors.HexColor("#00e5a0")  # noqa: F841
     TEXT_MAIN = colors.HexColor("#1a1a2e")
@@ -77,7 +77,7 @@ def generate_report_pdf(
     elements = []
 
     # ── Header ─────────────────────────────────────────────────────────────────
-    elements.append(Paragraph("Clarive", ParagraphStyle(
+    elements.append(Paragraph("Contecflow", ParagraphStyle(
         "Brand", parent=styles["Normal"],
         fontSize=14, fontName="Helvetica-Bold",
         textColor=ACCENT, spaceAfter=2,
@@ -192,7 +192,7 @@ def generate_report_pdf(
     elements.append(Spacer(1, 20))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e2e8f0")))
     elements.append(Paragraph(
-        f"Clarive · Informe generado automáticamente · {datetime.now().strftime('%Y')}",
+        f"Contecflow · Informe generado automáticamente · {datetime.now().strftime('%Y')}",
         ParagraphStyle("Footer", parent=styles["Normal"],
                        fontSize=7, textColor=TEXT_GREY, alignment=TA_CENTER)
     ))

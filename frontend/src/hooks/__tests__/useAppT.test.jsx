@@ -41,15 +41,39 @@ describe('useAppT (enterprise)', () => {
     expect(result.current.t('dashboard.welcome', { name: 'Juan' })).toBe('Bienvenido, Juan!');
   });
 
-  it('permite fallback a clave si falta traducción', () => {
+  it('humaniza fallback cuando falta traducción', () => {
     const { result } = renderHook(() => useAppT(), { wrapper });
-    expect(result.current.t('dashboard.unknown')).toBe('unknown');
+    expect(result.current.t('dashboard.unknown')).toBe('Unknown');
   });
 
   it('permite forzar idioma (simulado)', () => {
     const { result } = renderHook(() => useAppT(), { wrapper });
     // No cambia traducción porque mockTranslations solo tiene 'es', pero testea la API
     expect(result.current.t('dashboard.title', { lang: 'en' })).toBe('Tablero');
+  });
+
+  it('usa fallback en/es antes de humanizar', () => {
+    function wrapperWithFallback({ children }) {
+      return (
+        <AppLangContext.Provider value={{
+          lang: 'fr',
+          setLang: vi.fn(),
+          loading: false,
+          translations: { dashboard: {} },
+          baseTranslations: { dashboard: { title: 'Dashboard' } },
+          allTranslations: {
+            en: { dashboard: { title: 'Dashboard' } },
+            es: { dashboard: { title: 'Tablero' } },
+          },
+          setCustomTranslations: vi.fn()
+        }}>
+          {children}
+        </AppLangContext.Provider>
+      );
+    }
+
+    const { result } = renderHook(() => useAppT(), { wrapper: wrapperWithFallback });
+    expect(result.current.t('dashboard.title')).toBe('Dashboard');
   });
 
   it('expone helpers', () => {

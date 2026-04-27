@@ -72,7 +72,7 @@ def build_status_page_embed_script() -> str:
 (function(){
     var scriptTag = document.currentScript;
     var api = (scriptTag && scriptTag.getAttribute('data-api')) || window.location.origin;
-    var targetId = (scriptTag && scriptTag.getAttribute('data-target')) || 'clarive-status-page';
+    var targetId = (scriptTag && scriptTag.getAttribute('data-target')) || 'contecflow-status-page';
     var mount = document.getElementById(targetId);
     if(!mount){
         mount = document.createElement('div');

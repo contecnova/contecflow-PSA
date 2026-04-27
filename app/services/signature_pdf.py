@@ -48,7 +48,7 @@ def generate_signed_pdf(
     elements = []
 
     # ── Header ────────────────────────────────────────────────────────────────
-    elements.append(Paragraph("Clarive", ParagraphStyle("Brand",
+    elements.append(Paragraph("Contecflow", ParagraphStyle("Brand",
         parent=styles["Normal"], fontSize=13, fontName="Helvetica-Bold",
         textColor=ACCENT, alignment=TA_CENTER, spaceAfter=4)))
 

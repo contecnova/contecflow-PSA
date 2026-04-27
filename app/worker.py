@@ -233,12 +233,10 @@ def deliver_webhook_task(self, webhook_id: int, body: str, event: str):
 @celery_app.task(name="app.worker.run_alert_engine")
 def run_alert_engine():
     from app.db.session import SessionLocal
-    from app.api.v1.endpoints.alerts import AlertEngine
+    from app.services.alert_service import run_alert_engine as _run_alert_engine
     db = SessionLocal()
     try:
-        engine = AlertEngine(db)
-        count = engine.run_all()
-        return {"alerts_generated": count}
+        return _run_alert_engine(db)
     finally:
         db.close()
 

@@ -10,14 +10,15 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
+import { deepMergeTranslations, resolveTranslation } from './translationRuntime.mjs'
 import api from '../services/api'
 
 export const AppLangContext = createContext(null)
 
-export const STORAGE_KEY = 'clarive_operator_lang'
+export const STORAGE_KEY = 'contecflow_operator_lang'
 
 // Traducciones custom guardadas por el admin (sobreescriben las base)
-const CUSTOM_KEY = 'clarive_custom_translations'
+const CUSTOM_KEY = 'contecflow_custom_translations'
 
 function mergeCustom(base, custom) {
   if (!custom || typeof custom !== 'object') return base
@@ -36,16 +37,7 @@ function mergeWithEnglishFallback(targetLang) {
   const target = APP_TRANSLATIONS[safeLang] || APP_TRANSLATIONS.es || {}
   if (safeLang === 'en') return target
   const english = APP_TRANSLATIONS.en || target
-  const merged = { ...english }
-  for (const ns of Object.keys(english)) {
-    if (target[ns] && typeof target[ns] === 'object') {
-      merged[ns] = { ...english[ns], ...target[ns] }
-    }
-  }
-  for (const ns of Object.keys(target)) {
-    if (!(ns in english)) merged[ns] = target[ns]
-  }
-  return merged
+  return deepMergeTranslations(english, target)
 }
 
 function isTestEnvironment() {
@@ -127,8 +119,8 @@ export function AppLangProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, code)
       }
     }
-    window.addEventListener('clarive-lang-sync', handler)
-    return () => window.removeEventListener('clarive-lang-sync', handler)
+    window.addEventListener('contecflow-lang-sync', handler)
+    return () => window.removeEventListener('contecflow-lang-sync', handler)
   }, [])
 
   const setCustomTranslations = useCallback((data) => {
@@ -160,26 +152,15 @@ export function AppLangProvider({ children }) {
       return moduleOrFullKey // fallback: devolver la clave tal cual
     }
 
-    let trans = translations?.[module]
-    for (const part of keyPath) {
-      if (trans == null) break
-      trans = trans[part]
-    }
-
-    const fallbackKey = keyPath[keyPath.length - 1] || moduleOrFullKey
-    // If a custom override accidentally stores a leaf-key literal (e.g. "title"),
-    // recover the base dictionary value for this language.
-    if (typeof trans === 'string' && trans === fallbackKey) {
-      let baseTrans = baseTranslations?.[module]
-      for (const part of keyPath) {
-        if (baseTrans == null) break
-        baseTrans = baseTrans[part]
-      }
-      if (typeof baseTrans === 'string' && baseTrans !== fallbackKey) {
-        trans = baseTrans
-      }
-    }
-    if (trans == null) trans = fallbackKey // fallback: clave
+    let trans = resolveTranslation({
+      lang,
+      moduleName: module,
+      keyPath,
+      runtimeTranslations: translations,
+      baseTranslations,
+      englishTranslations: APP_TRANSLATIONS.en,
+      spanishTranslations: APP_TRANSLATIONS.es,
+    })
 
     // Apply interpolation: replace {varName} placeholders
     if (params && typeof trans === 'string') {
@@ -193,7 +174,7 @@ export function AppLangProvider({ children }) {
 
   if (loading) return null // O un spinner global
   return (
-    <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans }}>
+    <AppLangContext.Provider value={{ lang, setLang, t, translations, baseTranslations, setCustomTranslations, customTrans, loading, allTranslations: APP_TRANSLATIONS }}>
       {children}
     </AppLangContext.Provider>
   )

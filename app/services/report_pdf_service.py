@@ -1,0 +1,393 @@
+"""report_pdf_service.py — Generación de PDFs BI con datos OLAP.
+
+Tipos de informe:
+  executive_summary  — KPIs top-level + narrativa IA
+  utilization        — utilización por usuario
+  pipeline           — funnel de pipeline comercial
+  portfolio          — salud del portfolio de proyectos
+  custom             — métrica analytics clásica (compatibilidad con report_pdf.py)
+
+Punto de entrada:
+  build_report_pdf(report, db) -> bytes
+"""
+from __future__ import annotations
+
+import io
+import logging
+from datetime import datetime
+from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+
+# ── ReportLab palette ─────────────────────────────────────────────────────────
+try:
+    from reportlab.lib import colors as _rl_colors
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+        HRFlowable, KeepTogether,
+    )
+    _REPORTLAB = True
+except ImportError:
+    _REPORTLAB = False
+    logger.warning("reportlab not installed — PDF generation will return placeholder bytes")
+
+ACCENT    = "#4f8ef7"
+SUCCESS   = "#22c55e"
+WARNING   = "#f59e0b"
+DANGER    = "#ef4444"
+BG_DARK   = "#0f172a"
+TEXT_MAIN = "#1e293b"
+TEXT_GREY = "#64748b"
+ROW_ALT   = "#f8fafc"
+ROW_EVEN  = "#ffffff"
+
+
+def _rl(hex_color: str):
+    return _rl_colors.HexColor(hex_color)
+
+
+# ── Data fetchers ─────────────────────────────────────────────────────────────
+
+def _fetch_executive_data(org_id: Optional[str]) -> dict:
+    try:
+        from app.services.olap.query_engine import get_kpi_summary
+        return get_kpi_summary(org_id)
+    except Exception as exc:
+        logger.warning("executive data fetch failed: %s", exc)
+        return {}
+
+
+def _fetch_utilization_data(org_id: Optional[str]) -> list:
+    try:
+        from app.services.olap.query_engine import get_utilization_by_user
+        return get_utilization_by_user(org_id)
+    except Exception as exc:
+        logger.warning("utilization data fetch failed: %s", exc)
+        return []
+
+
+def _fetch_pipeline_data(org_id: Optional[str]) -> list:
+    try:
+        from app.services.olap.query_engine import get_pipeline_funnel
+        return get_pipeline_funnel(org_id)
+    except Exception as exc:
+        logger.warning("pipeline data fetch failed: %s", exc)
+        return []
+
+
+def _fetch_portfolio_data(org_id: Optional[str]) -> list:
+    try:
+        from app.services.olap.query_engine import get_portfolio_health
+        return get_portfolio_health(org_id)
+    except Exception as exc:
+        logger.warning("portfolio data fetch failed: %s", exc)
+        return []
+
+
+def _fetch_narrative(org_id: Optional[str], lang: str = "es") -> str:
+    try:
+        from app.services.bi_storytelling import generate_narrative
+        result = generate_narrative(org_id=org_id, lang=lang)
+        return result.get("narrative", "")
+    except Exception as exc:
+        logger.warning("narrative fetch failed: %s", exc)
+        return ""
+
+
+# ── PDF builders ──────────────────────────────────────────────────────────────
+
+def _make_doc(buffer) -> "SimpleDocTemplate":
+    return SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+        topMargin=2 * cm, bottomMargin=2 * cm,
+    )
+
+
+def _make_styles():
+    styles = getSampleStyleSheet()
+    return {
+        "title": ParagraphStyle(
+            "RPTitle", parent=styles["Title"],
+            fontSize=20, fontName="Helvetica-Bold",
+            textColor=_rl(TEXT_MAIN), spaceAfter=4, leading=26,
+        ),
+        "subtitle": ParagraphStyle(
+            "RPSub", parent=styles["Normal"],
+            fontSize=10, textColor=_rl(TEXT_GREY), spaceAfter=2,
+        ),
+        "section": ParagraphStyle(
+            "RPSection", parent=styles["Normal"],
+            fontSize=12, fontName="Helvetica-Bold",
+            textColor=_rl(ACCENT), spaceBefore=16, spaceAfter=6,
+        ),
+        "body": ParagraphStyle(
+            "RPBody", parent=styles["Normal"],
+            fontSize=9, textColor=_rl(TEXT_MAIN), leading=14,
+        ),
+        "narrative": ParagraphStyle(
+            "RPNarrative", parent=styles["Normal"],
+            fontSize=9, textColor=_rl(TEXT_MAIN), leading=15,
+            leftIndent=8, rightIndent=8,
+        ),
+        "caption": ParagraphStyle(
+            "RPCaption", parent=styles["Normal"],
+            fontSize=8, textColor=_rl(TEXT_GREY),
+        ),
+    }
+
+
+def _header_block(title: str, subtitle: str, styles: dict) -> list:
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    return [
+        Paragraph(title, styles["title"]),
+        Paragraph(f"{subtitle} · Generado: {now_str}", styles["subtitle"]),
+        HRFlowable(width="100%", thickness=1.5, color=_rl(ACCENT), spaceAfter=12),
+    ]
+
+
+def _kpi_table(kpis: dict, styles: dict) -> list:
+    def _fmt(v, suffix=""):
+        if v is None:
+            return "—"
+        if isinstance(v, float):
+            return f"{v:,.1f}{suffix}"
+        return f"{v}{suffix}"
+
+    rows = [
+        ["KPI", "Valor"],
+        ["Proyectos activos", _fmt(kpis.get("active_projects"))],
+        ["Horas imputadas (mes)", _fmt(kpis.get("hours_mtd"), "h")],
+        ["Coste mes", f"€{kpis.get('cost_mtd', 0):,.0f}"],
+        ["Facturabilidad", _fmt(kpis.get("billability_pct"), "%")],
+        ["Pipeline ponderado", f"€{kpis.get('pipeline_weighted', 0):,.0f}"],
+        ["Oportunidades abiertas", _fmt(kpis.get("open_opps"))],
+        ["Revenue ganado (YTD)", f"€{kpis.get('won_revenue', 0):,.0f}"],
+        ["Margen medio (%)", _fmt(kpis.get("avg_margin_pct"), "%")],
+        ["Proyectos riesgo alto", _fmt(kpis.get("high_risk_projects"))],
+    ]
+    tbl = Table(rows, colWidths=[9 * cm, 6 * cm])
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 9),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
+        ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ("TEXTCOLOR", (0, 1), (0, -1), _rl(TEXT_GREY)),
+        ("TEXTCOLOR", (1, 1), (1, -1), _rl(TEXT_MAIN)),
+        ("FONTNAME", (1, 1), (1, -1), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.4, _rl_colors.lightgrey),
+        ("ROWPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    return [Paragraph("KPIs del período", styles["section"]), tbl]
+
+
+def _utilization_table(rows_data: list, styles: dict) -> list:
+    if not rows_data:
+        return [Paragraph("Sin datos de utilización en OLAP.", styles["body"])]
+
+    header = ["Usuario", "Departamento", "Horas", "Capacidad", "Utilización %"]
+    rows = [header]
+    for r in rows_data[:30]:
+        util = r.get("utilization_pct") or 0
+        rows.append([
+            r.get("full_name", "—"),
+            r.get("department") or "—",
+            f"{r.get('logged_hours', 0):.1f}h",
+            f"{r.get('monthly_capacity', 0):.1f}h",
+            f"{util:.1f}%",
+        ])
+
+    col_w = [5 * cm, 3.5 * cm, 2.5 * cm, 2.5 * cm, 2.5 * cm]
+    tbl = Table(rows, colWidths=col_w)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
+        ("GRID", (0, 0), (-1, -1), 0.4, _rl_colors.lightgrey),
+        ("ROWPADDING", (0, 0), (-1, -1), 4),
+        ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+    ]))
+    return [Paragraph("Utilización por usuario", styles["section"]), tbl]
+
+
+def _pipeline_table(rows_data: list, styles: dict) -> list:
+    if not rows_data:
+        return [Paragraph("Sin datos de pipeline en OLAP.", styles["body"])]
+
+    header = ["Etapa", "Oportunidades", "Revenue esperado", "Revenue ponderado", "Prob. media", "Días medios"]
+    rows = [header]
+    for r in rows_data:
+        rows.append([
+            r.get("stage", "—").capitalize(),
+            str(r.get("count", 0)),
+            f"€{r.get('total_revenue', 0):,.0f}",
+            f"€{r.get('weighted_revenue', 0):,.0f}",
+            f"{r.get('avg_probability', 0):.1f}%",
+            str(r.get("avg_days") or "—"),
+        ])
+
+    col_w = [2.8 * cm, 2.5 * cm, 3.2 * cm, 3.2 * cm, 2.2 * cm, 2.1 * cm]
+    tbl = Table(rows, colWidths=col_w)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
+        ("GRID", (0, 0), (-1, -1), 0.4, _rl_colors.lightgrey),
+        ("ROWPADDING", (0, 0), (-1, -1), 4),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+    ]))
+    return [Paragraph("Funnel de pipeline", styles["section"]), tbl]
+
+
+def _portfolio_table(rows_data: list, styles: dict) -> list:
+    if not rows_data:
+        return [Paragraph("Sin datos de portfolio en OLAP.", styles["body"])]
+
+    header = ["Proyecto", "Estado", "Margen %", "Completado %", "Riesgo"]
+    rows = [header]
+    for r in rows_data[:20]:
+        rows.append([
+            f"{r.get('code', '')} {r.get('name', '—')}"[:40],
+            (r.get("status") or "—").capitalize(),
+            f"{r.get('margin_pct', 0):.1f}%",
+            f"{r.get('completion_pct', 0):.1f}%",
+            (r.get("risk_level") or "—").capitalize(),
+        ])
+
+    col_w = [6.5 * cm, 2.5 * cm, 2.2 * cm, 2.8 * cm, 2 * cm]
+    tbl = Table(rows, colWidths=col_w)
+
+    style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), _rl(BG_DARK)),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _rl_colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_rl(ROW_EVEN), _rl(ROW_ALT)]),
+        ("GRID", (0, 0), (-1, -1), 0.4, _rl_colors.lightgrey),
+        ("ROWPADDING", (0, 0), (-1, -1), 4),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+    ]
+    # Color margin_pct column
+    for i, r in enumerate(rows_data[:20], start=1):
+        pct = r.get("margin_pct", 0) or 0
+        color = SUCCESS if pct >= 25 else (WARNING if pct >= 10 else DANGER)
+        style_cmds.append(("TEXTCOLOR", (2, i), (2, i), _rl(color)))
+        style_cmds.append(("FONTNAME", (2, i), (2, i), "Helvetica-Bold"))
+
+    tbl.setStyle(TableStyle(style_cmds))
+    return [Paragraph("Salud del portfolio", styles["section"]), tbl]
+
+
+def _narrative_block(narrative_text: str, styles: dict) -> list:
+    if not narrative_text:
+        return []
+    # Strip markdown bold markers for plain PDF text
+    import re
+    clean = re.sub(r"\*\*(.+?)\*\*", r"\1", narrative_text)
+    clean = re.sub(r"\*(.+?)\*", r"\1", clean)
+    paragraphs = [p.strip() for p in clean.split("\n\n") if p.strip()]
+    elements = [Paragraph("Resumen ejecutivo IA", styles["section"])]
+    for p in paragraphs:
+        elements.append(Paragraph(p.replace("\n", "<br/>"), styles["narrative"]))
+        elements.append(Spacer(1, 4))
+    return elements
+
+
+# ── Main entry point ──────────────────────────────────────────────────────────
+
+def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
+    """Generate a BI PDF for the given ScheduledReport row.
+
+    Falls back to the legacy report_pdf.generate_report_pdf for 'custom' type
+    when OLAP is unavailable.
+    """
+    if not _REPORTLAB:
+        return b"%PDF-placeholder-reportlab-not-installed"
+
+    report_type = getattr(report, "report_type", None) or "custom"
+    include_narrative = getattr(report, "include_narrative", False)
+
+    buffer = io.BytesIO()
+    doc = _make_doc(buffer)
+    styles = _make_styles()
+    story = []
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    type_labels = {
+        "executive_summary": "Resumen Ejecutivo",
+        "utilization": "Informe de Utilización",
+        "pipeline": "Informe de Pipeline Comercial",
+        "portfolio": "Informe de Portfolio de Proyectos",
+        "custom": "Informe Personalizado",
+    }
+    subtitle = type_labels.get(report_type, "Informe")
+    story += _header_block(report.name, subtitle, styles)
+
+    # ── Narrative (optional, any report type) ─────────────────────────────────
+    if include_narrative:
+        narrative = _fetch_narrative(org_id)
+        story += _narrative_block(narrative, styles)
+        story.append(Spacer(1, 8))
+
+    # ── Content by type ───────────────────────────────────────────────────────
+    if report_type == "executive_summary":
+        kpis = _fetch_executive_data(org_id)
+        story += _kpi_table(kpis, styles)
+        story.append(Spacer(1, 12))
+        pipeline_data = _fetch_pipeline_data(org_id)
+        story += _pipeline_table(pipeline_data, styles)
+
+    elif report_type == "utilization":
+        util_data = _fetch_utilization_data(org_id)
+        story += _utilization_table(util_data, styles)
+
+    elif report_type == "pipeline":
+        pipeline_data = _fetch_pipeline_data(org_id)
+        story += _pipeline_table(pipeline_data, styles)
+
+    elif report_type == "portfolio":
+        portfolio_data = _fetch_portfolio_data(org_id)
+        story += _portfolio_table(portfolio_data, styles)
+
+    else:
+        # custom — fall back to legacy metric-based generation
+        try:
+            from app.services.report_pdf import generate_report_pdf as _legacy_pdf
+            import json
+            filters = {}
+            try:
+                filters = json.loads(getattr(report, "filters_json", "{}") or "{}")
+            except Exception:
+                pass
+            return _legacy_pdf(
+                title=report.name,
+                metric_label=(report.metric or "custom").replace("_", " ").title(),
+                data=[],
+                summary={},
+                filters=filters,
+            )
+        except Exception as exc:
+            logger.error("Legacy PDF fallback failed: %s", exc)
+            story.append(Paragraph("Error generando informe personalizado.", styles["body"]))
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=_rl(_rl_colors.lightgrey.hexval())))
+    story.append(Paragraph(
+        f"Generado automáticamente por ContecFlow · {datetime.now().strftime('%d/%m/%Y %H:%M UTC')}",
+        styles["caption"],
+    ))
+
+    doc.build(story)
+    return buffer.getvalue()

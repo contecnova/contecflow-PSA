@@ -8,7 +8,7 @@ Usage:
 
 Multi-worker WebSocket delivery:
     When REDIS_URL is set, notify_user also publishes the notification payload
-    to the Redis channel "clarive:ws:<user_id>" so every worker can push it
+    to the Redis channel "contecflow:ws:<user_id>" so every worker can push it
     to the client immediately, regardless of which process holds the WS connection.
     Without Redis, the WS polling loop delivers it within ~15 seconds.
 """
@@ -32,7 +32,7 @@ def _push_ws_notification(user_id: str, payload: dict) -> None:
     try:
         import redis as sync_redis
         r = sync_redis.from_url(_REDIS_URL, decode_responses=True)
-        r.publish(f"clarive:ws:{user_id}", json.dumps(payload))
+        r.publish(f"contecflow:ws:{user_id}", json.dumps(payload))
         r.close()
     except Exception as exc:
         logger.debug(f"WS Redis push failed (non-critical): {exc}")

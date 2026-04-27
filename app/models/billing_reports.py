@@ -295,6 +295,17 @@ class ScheduledReport(Base):
     next_run_at   = Column(DateTime(timezone=True), nullable=True)
     created_by    = Column(String(36))
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    # ── BI Report extensions ──────────────────────────────────────────────────
+    report_type       = Column(String(50), default="custom")
+    # executive_summary | utilization | pipeline | portfolio | custom
+    include_narrative = Column(Boolean, default=False)   # embed AI narrative in PDF
+    day_of_week       = Column(Integer, nullable=True)   # 0=Mon … 6=Sun (weekly reports)
+    day_of_month      = Column(Integer, nullable=True)   # 1-31 (monthly reports)
+    send_hour         = Column(Integer, default=8)       # UTC hour to send (0-23)
+    recipients_extra  = Column(Text, default="[]")       # JSON extra emails (CC)
+    slack_webhook     = Column(String(500), nullable=True)  # Slack incoming webhook URL
+    last_status       = Column(String(20), nullable=True)   # success | error
+    last_error        = Column(Text, nullable=True)          # last error message
 
 
 # ── Approval Workflows — Multi-nivel configurables ─────────────────────────────

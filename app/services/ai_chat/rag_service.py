@@ -12,6 +12,20 @@ from app.models.ai_chat import AIKBArticle
 _logger = logging.getLogger("v16_core")
 
 
+def _to_embedding_list(raw_embedding) -> list:
+    """Normalize embedding output from different backends to a plain list[float]."""
+    if raw_embedding is None:
+        return []
+    if hasattr(raw_embedding, "tolist"):
+        return raw_embedding.tolist()
+    if isinstance(raw_embedding, list):
+        return raw_embedding
+    try:
+        return list(raw_embedding)
+    except Exception:
+        return []
+
+
 def kb_rag_context(db: Session, message: str) -> str:
     """
     RAG lookup in the KB for ContecflowAssist.
@@ -22,9 +36,12 @@ def kb_rag_context(db: Session, message: str) -> str:
         from app.services.semantic_classifier import _get_model, _cosine
         model, _ = _get_model()
         if hasattr(model, "encode"):
-            q_emb = model.encode([message], show_progress_bar=False)[0].tolist()
+            encoded = model.encode([message], show_progress_bar=False)
         else:
-            q_emb = model.encode([message])[0]
+            encoded = model.encode([message])
+        q_emb = _to_embedding_list(encoded[0] if encoded else None)
+        if not q_emb:
+            return ""
 
         candidates = db.query(AIKBArticle).filter(
             AIKBArticle.is_published == True,

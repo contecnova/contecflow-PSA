@@ -19,11 +19,11 @@ router = APIRouter(tags=["integrations-hub"])
 # ── Schemas ────────────────────────────────────────────────────────────────────
 class SlackTestIn(BaseModel):
     webhook_url: str
-    message:     str = "✅ Clarive conectado correctamente con Slack"
+    message:     str = "✅ Contecflow conectado correctamente con Slack"
 
 class TeamsTestIn(BaseModel):
     webhook_url: str
-    message:     str = "✅ Clarive conectado correctamente con Teams"
+    message:     str = "✅ Contecflow conectado correctamente con Teams"
 
 class JiraTestIn(BaseModel):
     base_url:  str
@@ -38,7 +38,7 @@ class JiraIssueIn(BaseModel):
     issue_type:     str = "Task"
     priority:       str = "Medium"
     labels:         Optional[list] = None
-    nexus_task_id:  Optional[str] = None  # vincular con tarea Clarive
+    nexus_task_id:  Optional[str] = None  # vincular con tarea Contecflow
 
 
 # ── Slack endpoints ────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ def test_slack(
 ):
     from app.services.integrations import send_slack_message, build_slack_blocks
     blocks = build_slack_blocks(
-        "🔗 Clarive — Conexión verificada",
+        "🔗 Contecflow — Conexión verificada",
         [("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
     )
     result = send_slack_message(payload.webhook_url, payload.message, blocks=blocks)
@@ -72,7 +72,7 @@ def notify_slack(
     webhook_url  = cfg_dict.get("webhook_url", "")
     if not webhook_url: raise HTTPException(400, "Webhook URL no configurada")
 
-    result = send_slack_message(webhook_url, payload.get("text", "Notificación de Clarive"))
+    result = send_slack_message(webhook_url, payload.get("text", "Notificación de Contecflow"))
     if not result["ok"]: raise HTTPException(400, result.get("error"))
     return {"ok": True}
 
@@ -86,7 +86,7 @@ def test_teams(
     from app.services.integrations import send_teams_message
     result = send_teams_message(
         payload.webhook_url,
-        title="🔗 Clarive — Conexión verificada",
+        title="🔗 Contecflow — Conexión verificada",
         text=payload.message,
         facts=[("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
     )
@@ -114,7 +114,7 @@ def test_jira(
     }
 
 
-@router.post("/jira/issues", summary="Crear issue en Jira desde Clarive")
+@router.post("/jira/issues", summary="Crear issue en Jira desde Contecflow")
 def create_jira_issue(
     payload: JiraIssueIn,
     db: Session = Depends(get_db),
@@ -216,11 +216,11 @@ async def slack_inbound_command(
     """
     Receives Slack slash command payloads (application/x-www-form-urlencoded).
     Supported commands:
-      /clarive tarea <título> [#proyecto]  → crear tarea
-      /clarive tiempo <horas> [#proyecto]  → registrar imputación del día de hoy
-      /clarive ticket <asunto>             → crear ticket en Service Desk
-      /clarive estado <code>               → consultar estado de tarea/proyecto
-      /clarive ayuda                       → lista de comandos
+      /contecflow tarea <título> [#proyecto]  → crear tarea
+      /contecflow tiempo <horas> [#proyecto]  → registrar imputación del día de hoy
+      /contecflow ticket <asunto>             → crear ticket en Service Desk
+      /contecflow estado <code>               → consultar estado de tarea/proyecto
+      /contecflow ayuda                       → lista de comandos
     Security: validates X-Slack-Signature (HMAC-SHA256) when SLACK_SIGNING_SECRET is set.
     """
     import hashlib
@@ -256,17 +256,17 @@ async def slack_inbound_command(
     verb  = (parts[0] if parts else "").lower()
     rest  = parts[1] if len(parts) > 1 else ""
 
-    # Find Clarive user by Slack username
+    # Find Contecflow user by Slack username
     from app.services.integrations import find_user_by_slack_name
-    clarive_user = find_user_by_slack_name(db, user_name)
+    contecflow_user = find_user_by_slack_name(db, user_name)
 
     try:
         if verb in ("tarea", "task"):
-            return await _slack_create_task(rest, clarive_user, db)
+            return await _slack_create_task(rest, contecflow_user, db)
         elif verb in ("tiempo", "time", "horas"):
-            return await _slack_log_time(rest, clarive_user, db)
+            return await _slack_log_time(rest, contecflow_user, db)
         elif verb in ("ticket",):
-            return await _slack_create_ticket(rest, clarive_user, db)
+            return await _slack_create_ticket(rest, contecflow_user, db)
         elif verb in ("estado", "status"):
             return await _slack_get_status(rest, db)
         else:
@@ -339,9 +339,9 @@ async def teams_inbound_command(
     from_obj   = body.get("from", {})
     teams_name = from_obj.get("name", "").strip()
 
-    # Look up the Clarive user by display name (best effort)
+    # Look up the Contecflow user by display name (best effort)
     from app.services.integrations import find_user_by_teams_name
-    clarive_user = find_user_by_teams_name(db, teams_name) if teams_name else None
+    contecflow_user = find_user_by_teams_name(db, teams_name) if teams_name else None
 
     parts = text.split(None, 1)
     verb  = (parts[0] if parts else "").lower()
@@ -349,11 +349,11 @@ async def teams_inbound_command(
 
     try:
         if verb in ("tarea", "task"):
-            result = await _slack_create_task(rest, clarive_user, db)
+            result = await _slack_create_task(rest, contecflow_user, db)
         elif verb in ("tiempo", "time"):
-            result = await _slack_log_time(rest, clarive_user, db)
+            result = await _slack_log_time(rest, contecflow_user, db)
         elif verb in ("ticket",):
-            result = await _slack_create_ticket(rest, clarive_user, db)
+            result = await _slack_create_ticket(rest, contecflow_user, db)
         elif verb in ("estado", "status"):
             result = await _slack_get_status(rest, db)
         else:

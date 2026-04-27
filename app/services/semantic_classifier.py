@@ -1,5 +1,5 @@
 """
-semantic_classifier.py — Clarive Semantic Assignment Engine
+semantic_classifier.py — Contecflow Semantic Assignment Engine
 Equivalente al classifier_engine.py + expert_cache.py + active_learning.py de Ficosa,
 adaptado para asignacion de tickets/tareas en lugar de clasificacion de requerimientos.
 

@@ -54,28 +54,18 @@ import pt from './langs/pt.mjs';
 import it from './langs/it.mjs';
 import pl from './langs/pl.mjs';
 import zh from './langs/zh.mjs';
+import { deepMergeTranslations } from './translationRuntime.mjs';
 
 export { es, en, fr, de, pt, it, pl, zh };
 
 export const APP_TRANSLATIONS = { es, en, fr, de, pt, it, pl, zh };
 
 /**
- * Shallow deep-merge: for each top-level namespace, spread base then override.
- * Keys present in base but absent in override keep their base (English) value.
+ * Deep merge by namespace and nested keys.
+ * Keys present in base but absent in override keep their fallback value.
  */
 function mergeWithFallback(base, override) {
-	const result = { ...base };
-	for (const ns of Object.keys(base)) {
-		if (override[ns] && typeof override[ns] === 'object') {
-			result[ns] = { ...base[ns], ...override[ns] };
-		}
-		// if override has no namespace at all, base (English) namespace is kept
-	}
-	// Also include any namespace that exists only in override (not in base)
-	for (const ns of Object.keys(override)) {
-		if (!(ns in base)) result[ns] = override[ns];
-	}
-	return result;
+	return deepMergeTranslations(base || {}, override || {});
 }
 
 /**

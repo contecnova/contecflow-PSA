@@ -40,6 +40,15 @@ function getPriorityLabels(t) {
 }
 
 function getPriority(t) { return t.priority || 'none' }
+function getAssigneeLabel(t) {
+  return (
+    t?.assignee?.username ||
+    t?.assignee?.full_name ||
+    t?.assignee_name ||
+    t?.assignee_id ||
+    'Sin asignar'
+  )
+}
 function fmtDate(s) { return s ? s.slice(0, 10) : '' }
 function isOverdue(t) {
   if (!t.due_date) return false
@@ -381,7 +390,7 @@ export default function KanbanAdvancedPage() {
   const assignees = useMemo(() => {
     const seen = new Map()
     for (const t of rawTasks) {
-      if (t.assignee_id && !seen.has(t.assignee_id)) seen.set(t.assignee_id, t.assignee_name || t.assignee_id)
+      if (t.assignee_id && !seen.has(t.assignee_id)) seen.set(t.assignee_id, getAssigneeLabel(t))
     }
     return [...seen.entries()].map(([id, name]) => ({ id, name }))
   }, [rawTasks])
@@ -393,7 +402,7 @@ export default function KanbanAdvancedPage() {
       const groups = {}
       for (const t of tasks) {
         const key = t.assignee_id || '__unassigned'
-        const lbl = t.assignee_name || 'Sin asignar'
+        const lbl = t.assignee_id ? getAssigneeLabel(t) : 'Sin asignar'
         if (!groups[key]) groups[key] = { id: key, label: lbl, tasks: [] }
         groups[key].tasks.push(t)
       }

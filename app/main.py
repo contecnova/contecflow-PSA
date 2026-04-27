@@ -156,6 +156,15 @@ async def lifespan(_app: FastAPI):
             from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
             from app.services.scheduled_reports import run_due_reports
             from app.services.key_management import run_scheduled_rotation
+            from app.services.alert_service import run_alert_engine as _run_alert_engine
+            from app.db.session import SessionLocal as _SessionLocal
+
+            def _run_alert_engine_job():
+                db = _SessionLocal()
+                try:
+                    _run_alert_engine(db)
+                finally:
+                    db.close()
 
             # Use a SQLAlchemy job store so that in multi-worker deployments only
             # one worker executes each job (the others see it already locked/run).
@@ -182,8 +191,16 @@ async def lifespan(_app: FastAPI):
                 misfire_grace_time=900,
                 coalesce=True,
             )
+            _scheduler.add_job(
+                _run_alert_engine_job,
+                CronTrigger(hour=8, minute=0),
+                id="scheduled_alert_engine",
+                replace_existing=True,
+                misfire_grace_time=900,
+                coalesce=True,
+            )
             _scheduler.start()
-            logger.info("   ✅ Scheduler activo (informes + rotación de claves)")
+            logger.info("   ✅ Scheduler activo (informes + rotación + motor de alertas)")
         except Exception as e:
             logger.warning(f"   ⚠️  Scheduler no iniciado: {e}")
     else:

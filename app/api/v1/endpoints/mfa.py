@@ -228,7 +228,7 @@ class SlackConfigCreate(BaseModel):
     workspace_name: Optional[str] = None
     bot_token: Optional[str] = None
     webhook_url: Optional[str] = None
-    default_channel: str = "#clarive-alerts"
+    default_channel: str = "#contecflow-alerts"
     subscriptions: Optional[List[str]] = None
 
 
@@ -249,8 +249,8 @@ def test_slack(
 ):
     try:
         config_id = payload.get("config_id")
-        message = payload.get("message", "🔔 Mensaje de prueba desde Clarive v15")
-        channel = payload.get("channel", "#clarive-alerts")
+        message = payload.get("message", "🔔 Mensaje de prueba desde Contecflow v15")
+        channel = payload.get("channel", "#contecflow-alerts")
         return _svc.test_slack_config(config_id, message, channel, db)
     except ValueError:
         raise HTTPException(404)
@@ -265,7 +265,7 @@ def slack_notify(
     try:
         return _svc.notify_slack(
             payload.get("event_type", "manual"),
-            payload.get("message", "Notificación de Clarive"),
+            payload.get("message", "Notificación de Contecflow"),
             payload.get("channel"),
             payload.get("source_id"),
             db,
@@ -491,7 +491,7 @@ def export_pdf(
     export_type = payload.get("export_type", "generic")
     source_id = payload.get("source_id")
     params = {
-        "company_name": payload.get("company_name", "Clarive"),
+        "company_name": payload.get("company_name", "Contecflow"),
         "primary_color": payload.get("primary_color", "#1C2833"),
         "logo_b64": payload.get("logo_b64"),
     }

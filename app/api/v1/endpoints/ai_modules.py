@@ -134,7 +134,7 @@ def process_meeting(
         raise HTTPException(400, str(e))
 
 
-@router.post("/meetings/{meeting_id}/create-tasks", summary="Crear tareas en Clarive desde acciones de reunión")
+@router.post("/meetings/{meeting_id}/create-tasks", summary="Crear tareas en Contecflow desde acciones de reunión")
 def create_tasks_from_meeting(
     meeting_id: str,
     payload: dict = Body(...),
@@ -311,7 +311,7 @@ def process_voice_command(
 # INTELLIGENT CLIENT PORTAL AI
 # ═══════════════════════════════════════════════════════════════════════════════
 
-CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Clarive.
+CLIENT_AI_SYSTEM = """Eres el asistente de IA del portal de cliente de Contecflow.
 Ayudas a los clientes a entender el estado de sus proyectos de forma clara y profesional.
 IMPORTANTE: Solo tienes acceso a los datos del proyecto del cliente. Nunca reveles información de otros clientes,
 datos financieros internos (márgenes, costes internos) ni información confidencial del equipo.

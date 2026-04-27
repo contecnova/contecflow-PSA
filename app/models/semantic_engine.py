@@ -1,5 +1,5 @@
 """
-Semantic Assignment Engine — Clarive
+Semantic Assignment Engine — Contecflow
 Motor de asignación semántica inspirado en el clasificador Ficosa.
 Funciona de forma standalone (sin dependencias externas pesadas) o
 con sentence-transformers si está instalado.

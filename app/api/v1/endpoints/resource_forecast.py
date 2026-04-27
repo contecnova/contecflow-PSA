@@ -256,7 +256,18 @@ def forecast_summary(
     users = get_forecast_active_users(db, department=department)
 
     if not users:
-        return {"total_users": 0, "weeks": weeks}
+        return {
+            "total_users": 0,
+            "weeks": weeks,
+            "avg_team_load_pct": 0,
+            "total_capacity_hrs": 0,
+            "total_committed_hrs": 0,
+            "total_available_hrs": 0,
+            "risk_weeks_count": 0,
+            "overloaded_users_count": 0,
+            "week_trend": [],
+            "risk_weeks": [],
+        }
 
     total_capacity_hrs  = sum(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS for u in users) * weeks
     total_committed_hrs = 0.0

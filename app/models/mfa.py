@@ -128,7 +128,7 @@ class SlackConfig(Base):
     workspace_name = Column(String(255), nullable=True)
     bot_token     = Column(Text, nullable=True)          # xoxb-... (stored encrypted)
     webhook_url   = Column(Text, nullable=True)          # incoming webhook fallback
-    default_channel = Column(String(100), nullable=True) # #clarive-alerts
+    default_channel = Column(String(100), nullable=True) # #contecflow-alerts
     is_active     = Column(Boolean, default=True)
     # Event subscriptions (JSON list of enabled events)
     subscriptions = Column(Text, default='["task_overdue","budget_alert","ticket_sla"]')

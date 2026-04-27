@@ -3,7 +3,7 @@ import requests
 
 def main() -> None:
     base = "http://127.0.0.1:8000/api/v1"
-    password_candidates = ["clarive2024!", "admin123", "Clarive2024!"]
+    password_candidates = ["contecflow2024!", "admin123", "Contecflow2024!"]
 
     token = None
     used_password = None

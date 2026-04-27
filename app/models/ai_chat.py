@@ -1,5 +1,5 @@
 """
-v16 models — Clarive AI layer (all 12 modules)
+v16 models — Contecflow AI layer (all 12 modules)
 
 NexusAssist  : AIConversation, AIMessage
 NexusAgent   : AIAgentExecution, AIAgentStep, AIAgentTool
@@ -234,8 +234,8 @@ class AIMeetingAction(Base):
     assignee_id  = Column(String(36), ForeignKey("users.id"), nullable=True)
     due_date_text = Column(String(100), nullable=True)         # "next Friday", "end of month"
     due_date     = Column(DateTime(timezone=True), nullable=True)
-    task_id      = Column(String(36), ForeignKey("tasks.id"), nullable=True)  # if created in Clarive
-    is_created   = Column(Boolean, default=False)              # True if task created in Clarive
+    task_id      = Column(String(36), ForeignKey("tasks.id"), nullable=True)  # if created in Contecflow
+    is_created   = Column(Boolean, default=False)              # True if task created in Contecflow
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     meeting  = relationship("AIMeeting", back_populates="actions")

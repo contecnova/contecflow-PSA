@@ -79,7 +79,7 @@ def push_invoice(
     current_user: User = Depends(require_any_manager),
 ):
     """
-    Envía una factura de Clarive al sistema contable configurado.
+    Envía una factura de Contecflow al sistema contable configurado.
     payload: { invoice_id, provider: "xero"|"quickbooks" }
     """
     from app.services.integrations import push_invoice_to_xero, push_invoice_to_quickbooks
@@ -192,13 +192,13 @@ def push_invoices_bulk(
 
 @router.get("/xero/contacts", summary="Importar contactos/clientes desde Xero")
 def pull_xero_contacts(
-    import_to_clarive: bool = Query(False),
+    import_to_contecflow: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     """
     Obtiene los contactos de Xero.
-    Si import_to_clarive=true, los crea como Clients en Clarive.
+    Si import_to_contecflow=true, los crea como Clients en Contecflow.
     """
     from app.services.integrations import pull_contacts_from_xero
 
@@ -207,9 +207,9 @@ def pull_xero_contacts(
     if not result["ok"]:
         raise HTTPException(400, f"Error Xero: {result.get('error')}")
 
-    if import_to_clarive:
+    if import_to_contecflow:
         imported = accounting_hub_service.import_xero_contacts(db, result["contacts"])
-        result["imported_to_clarive"] = imported
+        result["imported_to_contecflow"] = imported
 
     return result
 

@@ -153,7 +153,7 @@ export function PortalUsersTab({ cid, clientName }) {
                 {u.is_active ? '⏸ Suspender acceso' : '▶ Reactivar acceso'}
               </button>
               <button onClick={() => {
-                const text = `Acceso al portal de ${clientName || 'Clarive'}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
+                const text = `Acceso al portal de ${clientName || 'Contecflow'}\n\nURL: ${portalUrl}\nEmail: ${u.email}\n\nContacta con tu gestor para obtener tu contraseña.`
                 navigator.clipboard.writeText(text)
                 toast.info('📋 Info de acceso copiada al portapapeles')
               }} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>

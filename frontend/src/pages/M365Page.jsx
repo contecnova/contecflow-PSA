@@ -183,7 +183,7 @@ function TeamsTab() {
       <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 10 }}>⚙ Notificaciones automáticas</div>
         <div style={{ fontSize: 13, color: '#718096', lineHeight: 1.6 }}>
-          Configura Clarive para enviar automáticamente notificaciones a Teams cuando:
+          Configura Contecflow para enviar automáticamente notificaciones a Teams cuando:
           <ul style={{ marginTop: 8, paddingLeft: 20 }}>
             <li>Un milestone está próximo (≤3 días)</li>
             <li>Un ticket crítico se abre en el Service Desk</li>
@@ -210,7 +210,7 @@ function ConfigTab({ status }) {
     { n: 2, title: 'Asignar permisos Graph', desc: 'En la app → API permissions → Add: Calendars.ReadWrite, User.Read.All. Para Teams: ChannelMessage.Send. Haz clic en "Grant admin consent".' },
     { n: 3, title: 'Crear Client Secret', desc: 'En la app → Certificates & secrets → New client secret. Copia el valor inmediatamente, solo se muestra una vez.' },
     { n: 4, title: 'Configurar Teams webhook', desc: 'En un canal de Teams → ... → Connectors → Incoming Webhook → Create. Copia la URL resultante.' },
-    { n: 5, title: 'Añadir variables de entorno', desc: 'Añade las 4 variables a tu .env o docker-compose.yml y reinicia Clarive.', code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
+    { n: 5, title: 'Añadir variables de entorno', desc: 'Añade las 4 variables a tu .env o docker-compose.yml y reinicia Contecflow.', code: 'AZURE_TENANT_ID=...\nAZURE_CLIENT_ID=...\nAZURE_CLIENT_SECRET=...\nTEAMS_WEBHOOK_URL=https://...' },
   ]
 
   return (

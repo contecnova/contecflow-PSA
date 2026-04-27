@@ -121,7 +121,7 @@ export function IdiomasSection() {
     const blob = new Blob([data], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = `clarive_translations_${appLang}.json`; a.click()
+    a.download = `contecflow_translations_${appLang}.json`; a.click()
     URL.revokeObjectURL(url)
   }
 
@@ -382,14 +382,14 @@ export function IdiomasSection() {
                 📥 Exportar JSON
               </button>
               <button onClick={() => {
-                const stored = JSON.parse(localStorage.getItem('clarive_portal_custom') || '{}')
+                const stored = JSON.parse(localStorage.getItem('contecflow_portal_custom') || '{}')
                 for (const [key, langs] of Object.entries(portalEdits)) {
                   for (const [lang, val] of Object.entries(langs)) {
                     if (!stored[lang]) stored[lang] = {}
                     stored[lang][key] = val
                   }
                 }
-                localStorage.setItem('clarive_portal_custom', JSON.stringify(stored))
+                localStorage.setItem('contecflow_portal_custom', JSON.stringify(stored))
                 savePortalTrans(stored)
                 setPortalEdits({})
                 setHasUnsaved(false)
@@ -408,7 +408,7 @@ export function LogLevelSection() {
   const toast = useToast()
   const [backendLevel, setBackendLevel] = useState('')
   const [frontendLevel, setFrontendLevel] = useState(
-    localStorage.getItem('clarive_log_level') || (import.meta.env.DEV ? 'debug' : 'warn')
+    localStorage.getItem('contecflow_log_level') || (import.meta.env.DEV ? 'debug' : 'warn')
   )
   const qc = useQueryClient()
 
@@ -418,8 +418,8 @@ export function LogLevelSection() {
   })
 
   useEffect(() => {
-    if (serverLevel?.clarive) {
-      setBackendLevel(String(serverLevel.clarive).toUpperCase())
+    if (serverLevel?.contecflow) {
+      setBackendLevel(String(serverLevel.contecflow).toUpperCase())
     }
   }, [serverLevel])
 
@@ -438,8 +438,8 @@ export function LogLevelSection() {
 
   const handleSetFrontend = (level) => {
     setFrontendLevel(level)
-    localStorage.setItem('clarive_log_level', level)
-    if (window.__clariveLogger) window.__clariveLogger.setLevel(level)
+    localStorage.setItem('contecflow_log_level', level)
+    if (window.__contecflowLogger) window.__contecflowLogger.setLevel(level)
     toast.success(`Nivel frontend cambiado a ${level.toUpperCase()} (activo hasta recarga)`)
   }
 
@@ -456,7 +456,7 @@ export function LogLevelSection() {
           </div>
           {!isLoading && serverLevel && (
             <div style={{ fontSize: 12, color: 'var(--success)', marginBottom: 12 }}>
-              Nivel actual: <strong>{serverLevel.clarive}</strong>
+              Nivel actual: <strong>{serverLevel.contecflow}</strong>
               <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>
                 (root: {serverLevel.root} · uvicorn: {serverLevel.uvicorn || serverLevel.root})
               </span>
@@ -478,7 +478,7 @@ export function LogLevelSection() {
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🌐 Navegador (React / Vite)</div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>
-            Controla la consola del navegador. Se guarda en localStorage. Tambien puedes escribir en la consola: <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>{"__clariveLogger.setLevel('debug')"}</code>
+            Controla la consola del navegador. Se guarda en localStorage. Tambien puedes escribir en la consola: <code style={{ background: 'var(--surface-3)', padding: '1px 6px', borderRadius: 4, fontSize: 11 }}>{"__contecflowLogger.setLevel('debug')"}</code>
           </div>
           <div style={{ fontSize: 12, color: 'var(--success)', marginBottom: 12 }}>
             Nivel actual: <strong>{frontendLevel.toUpperCase()}</strong>
@@ -511,8 +511,8 @@ export function EmailInboundSection() {
           <div style={{ fontWeight: 600, marginBottom: 10 }}>¿Como funciona?</div>
           <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 2, color: 'var(--text-2)' }}>
             <li>Configura tu proveedor de email (Mailgun, SendGrid, Postmark o similar) para reenviar los emails entrantes a la URL de webhook.</li>
-            <li>El proveedor envia el email parseado como JSON a Clarive.</li>
-            <li>Clarive crea el ticket automaticamente con asunto→titulo y cuerpo→descripcion.</li>
+            <li>El proveedor envia el email parseado como JSON a Contecflow.</li>
+            <li>Contecflow crea el ticket automaticamente con asunto→titulo y cuerpo→descripcion.</li>
             <li>El ticket se asigna al primer agente disponible con politica SLA activa.</li>
           </ol>
         </div>
@@ -533,11 +533,11 @@ export function EmailInboundSection() {
 
         <div>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 6 }}>
-            Header de autenticacion (X-Clarive-Email-Secret)
+            Header de autenticacion (X-Contecflow-Email-Secret)
           </label>
           <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--text-2)', fontFamily: 'monospace' }}>
             Configura la variable de entorno <strong style={{ color: 'var(--accent)' }}>INBOUND_EMAIL_SECRET</strong> en el servidor con un valor secreto aleatorio.
-            El relay de email debe enviar ese mismo valor en la cabecera HTTP <strong>X-Clarive-Email-Secret</strong> con cada peticion.
+            El relay de email debe enviar ese mismo valor en la cabecera HTTP <strong>X-Contecflow-Email-Secret</strong> con cada peticion.
           </div>
         </div>
 

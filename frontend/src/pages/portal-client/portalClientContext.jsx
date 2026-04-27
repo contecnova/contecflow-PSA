@@ -12,7 +12,7 @@ export const CLIENT_API = axios.create({ baseURL: '/api/v1', withCredentials: tr
 
 // ── Language Context ──────────────────────────────────────────────────────────
 export const LangContext = createContext('es')
-export const PORTAL_CUSTOM_KEY = 'clarive_portal_custom'
+export const PORTAL_CUSTOM_KEY = 'contecflow_portal_custom'
 
 export function useLang() {
   const lang = useContext(LangContext)

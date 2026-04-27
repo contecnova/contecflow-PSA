@@ -15,6 +15,7 @@ import json
 import logging
 import re
 from typing import Optional
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -97,23 +98,27 @@ def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
     # Extract referenced tables using simple regex
     referenced = set(re.findall(r"\bFROM\s+(\w+)|\bJOIN\s+(\w+)", sql, re.IGNORECASE))
     flat_refs = {t for pair in referenced for t in pair if t}
+    if not flat_refs:
+        raise SQLValidationError("Query must reference at least one allowed table")
     unknown = flat_refs - ALLOWED_TABLES
     if unknown:
         raise SQLValidationError(f"Unauthorized tables: {unknown}")
 
     # Inject tenant filter — find WHERE clause or add one
     if org_id:
-        tenant_clause = f"organization_id = '{org_id}'"
-        if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
-            sql = re.sub(r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE)
-        else:
-            # Insert before GROUP BY / ORDER BY / LIMIT or at end
-            insert_before = re.search(r"\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE)
-            if insert_before:
-                pos = insert_before.start()
-                sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
+        # If model already included tenant scoping, do not inject a duplicate clause.
+        if not re.search(r"\borganization_id\b", sql, re.IGNORECASE):
+            tenant_clause = f"organization_id = '{org_id}'"
+            if re.search(r"\bWHERE\b", sql, re.IGNORECASE):
+                sql = re.sub(r"\bWHERE\b", f"WHERE {tenant_clause} AND", sql, count=1, flags=re.IGNORECASE)
             else:
-                sql = sql + f" WHERE {tenant_clause}"
+                # Insert before GROUP BY / ORDER BY / LIMIT or at end
+                insert_before = re.search(r"\b(GROUP\s+BY|ORDER\s+BY|LIMIT)\b", sql, re.IGNORECASE)
+                if insert_before:
+                    pos = insert_before.start()
+                    sql = sql[:pos] + f" WHERE {tenant_clause} " + sql[pos:]
+                else:
+                    sql = sql + f" WHERE {tenant_clause}"
 
     # Enforce LIMIT
     if not re.search(r"\bLIMIT\b", sql, re.IGNORECASE):
@@ -130,16 +135,38 @@ def validate_sql(sql: str, org_id: Optional[str] = None) -> str:
 
 # ── LLM SQL generation ────────────────────────────────────────────────────────
 
-def _generate_sql(question: str) -> str:
-    """Call Claude to produce a SQL candidate for the given question."""
-    from app.services.ai_client import call_claude, extract_text
+def _generate_sql(
+    question: str,
+    db: Session,
+    *,
+    user_id: Optional[str] = None,
+    org_id: Optional[str] = None,
+    is_superadmin: bool = False,
+    feedback: Optional[str] = None,
+) -> str:
+    """Generate SQL using the active configured AI provider (not Anthropic-only)."""
+    from app.services.ai_provider_service import call_ai
 
-    response = call_claude(
-        messages=[{"role": "user", "content": question}],
+    user_prompt = question
+    if feedback:
+        user_prompt = (
+            f"Pregunta original:\n{question}\n\n"
+            f"Feedback de validación/ejecución:\n{feedback}\n\n"
+            "Devuelve una consulta SQL DuckDB completa y corregida. "
+            "No incluyas explicación ni markdown."
+        )
+
+    sql_text = call_ai(
+        db,
+        messages=[{"role": "user", "content": user_prompt}],
         system=_ASK_SYSTEM,
+        module="ask_the_data",
+        user_id=user_id,
         max_tokens=400,
+        is_superadmin=is_superadmin,
+        organization_id=org_id,
     )
-    return extract_text(response).strip()
+    return (sql_text or "").strip()
 
 
 # ── Execution ─────────────────────────────────────────────────────────────────
@@ -157,12 +184,40 @@ def _execute_on_olap(sql: str) -> list[dict]:
         conn.close()
 
 
+def _fallback_sql_for_question(question: str) -> Optional[str]:
+        q = (question or "").lower()
+
+        # Frequent BI question: projects with negative margin in current year.
+        if ("margen" in q and ("negativo" in q or "negativa" in q)
+                        and ("proyecto" in q or "proyectos" in q)):
+                return """
+SELECT
+    dp.name AS proyecto,
+    fp.margin AS margen_eur,
+    fp.margin_pct AS margen_pct,
+    fp.status AS estado
+FROM fact_projects fp
+JOIN dim_project dp ON dp.project_id = fp.project_id
+WHERE fp.margin < 0
+    AND (
+        fp.start_date_key >= CAST(strftime('%Y0101', CURRENT_DATE) AS INTEGER)
+        OR fp.end_date_key >= CAST(strftime('%Y0101', CURRENT_DATE) AS INTEGER)
+    )
+ORDER BY fp.margin ASC
+LIMIT 200
+""".strip()
+
+        return None
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def ask(
     question: str,
+    db: Session,
     org_id: Optional[str] = None,
     user_id: Optional[str] = None,
+    is_superadmin: bool = False,
 ) -> dict:
     """Process a natural-language question and return structured results.
 
@@ -182,13 +237,35 @@ def ask(
     raw_sql = ""
     validated_sql = ""
     try:
-        raw_sql = _generate_sql(question)
-        logger.debug("LLM generated SQL: %s", raw_sql)
+        feedback = None
+        last_exc: Optional[Exception] = None
 
-        validated_sql = validate_sql(raw_sql, org_id)
-        logger.debug("Validated SQL: %s", validated_sql)
+        for attempt in range(2):
+            raw_sql = _generate_sql(
+                question,
+                db,
+                user_id=user_id,
+                org_id=org_id,
+                is_superadmin=is_superadmin,
+                feedback=feedback,
+            )
+            logger.debug("LLM generated SQL (attempt %s): %s", attempt + 1, raw_sql)
 
-        rows = _execute_on_olap(validated_sql)
+            try:
+                validated_sql = validate_sql(raw_sql, org_id)
+                logger.debug("Validated SQL (attempt %s): %s", attempt + 1, validated_sql)
+                rows = _execute_on_olap(validated_sql)
+                break
+            except (SQLValidationError, Exception) as exc:
+                last_exc = exc
+                if attempt == 0:
+                    feedback = str(exc)
+                    continue
+                raise
+
+        if last_exc and not validated_sql:
+            raise last_exc
+
         columns = list(rows[0].keys()) if rows else []
 
         return {
@@ -203,6 +280,23 @@ def ask(
 
     except SQLValidationError as exc:
         logger.warning("SQL validation blocked: %s | raw=%s", exc, raw_sql)
+        fallback_sql = _fallback_sql_for_question(question)
+        if fallback_sql:
+            try:
+                validated_sql = validate_sql(fallback_sql, org_id)
+                rows = _execute_on_olap(validated_sql)
+                columns = list(rows[0].keys()) if rows else []
+                return {
+                    "question": question,
+                    "sql": validated_sql,
+                    "columns": columns,
+                    "rows": rows,
+                    "row_count": len(rows),
+                    "truncated": len(rows) >= MAX_ROWS,
+                    "error": None,
+                }
+            except Exception:
+                pass
         return {
             "question": question,
             "sql": raw_sql,

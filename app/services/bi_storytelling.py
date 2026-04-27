@@ -37,8 +37,18 @@ KPIs:
 _LANG_LABELS = {"es": "español", "en": "English", "ca": "català"}
 
 
+def _to_number(value, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except Exception:
+        return default
+
+
 def _build_cache_key(org_id: Optional[str]) -> str:
-    raw = f"bi_narrative:{org_id or 'global'}"
+    # Versioned key to invalidate stale narratives after KPI/LLM improvements.
+    raw = f"bi_narrative:v2:{org_id or 'global'}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -90,12 +100,26 @@ def generate_narrative(
 
     narrative_text = ""
     try:
-        from app.services.ai_client import call_claude, extract_text
-        response = call_claude(
-            messages=[{"role": "user", "content": prompt_text}],
-            max_tokens=800,
-        )
-        narrative_text = extract_text(response)
+        from app.db.session import SessionLocal
+        from app.services.ai_provider_service import call_ai
+
+        db = SessionLocal()
+        try:
+            narrative_text = call_ai(
+                db,
+                messages=[{"role": "user", "content": prompt_text}],
+                system="Eres un analista financiero ejecutivo. Responde en el idioma solicitado.",
+                module="bi_storytelling",
+                user_id=None,
+                max_tokens=800,
+                is_superadmin=False,
+                organization_id=org_id,
+            )
+        finally:
+            db.close()
+
+        if not narrative_text or "No hay ningún proveedor de IA configurado" in narrative_text:
+            raise RuntimeError("No AI provider configured for storytelling")
     except Exception as exc:
         logger.warning("LLM narrative generation failed: %s", exc)
         narrative_text = _fallback_narrative(kpis, lang)
@@ -118,11 +142,11 @@ def generate_narrative(
 
 def _fallback_narrative(kpis: dict, lang: str) -> str:
     """Simple template fallback when LLM is unavailable."""
-    projects = kpis.get("active_projects", "N/A")
-    margin = kpis.get("avg_margin_pct", "N/A")
-    pipeline = kpis.get("pipeline_weighted", "N/A")
-    opps = kpis.get("open_opps", "N/A")
-    high_risk = kpis.get("high_risk_projects", 0)
+    projects = int(_to_number(kpis.get("active_projects"), 0))
+    margin = round(_to_number(kpis.get("avg_margin_pct"), 0.0), 1)
+    pipeline = round(_to_number(kpis.get("pipeline_weighted"), 0.0), 0)
+    opps = int(_to_number(kpis.get("open_opps"), 0))
+    high_risk = int(_to_number(kpis.get("high_risk_projects"), 0))
 
     if lang == "es":
         return (

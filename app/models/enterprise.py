@@ -194,7 +194,7 @@ class SSOConfig(Base):
     oidc_discovery_url   = Column(String(500), nullable=True)
     oidc_scopes          = Column(String(500), default="openid email profile")
 
-    # Role mapping from SSO groups to Clarive roles
+    # Role mapping from SSO groups to Contecflow roles
     role_mapping         = Column(Text, nullable=True)  # JSON: {"SSO_GROUP": "pm", ...}
     organization_id      = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
 

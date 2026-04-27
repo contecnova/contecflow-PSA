@@ -391,10 +391,10 @@ class TestLogLevelSecurity:
 
     def test_named_logger_can_be_targeted(self, client, admin_token, db):
         r = client.post("/api/v1/settings/log-level",
-                        json={"level": "ERROR", "logger": "clarive"},
+                        json={"level": "ERROR", "logger": "contecflow"},
                         headers=auth(admin_token))
         assert r.status_code == 200
-        assert r.json()["logger"] == "clarive"
+        assert r.json()["logger"] == "contecflow"
 
     def test_global_log_level_updates_root_and_uvicorn(self, client, admin_token, db):
         r = client.post("/api/v1/settings/log-level", json={"level": "WARNING"}, headers=auth(admin_token))
@@ -408,7 +408,7 @@ class TestLogLevelSecurity:
         assert r2.status_code == 200
         levels = r2.json()
         assert levels["root"] == "WARNING"
-        assert levels["clarive"] == "WARNING"
+        assert levels["contecflow"] == "WARNING"
         assert levels["uvicorn"] == "WARNING"
 
 

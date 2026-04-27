@@ -1,6 +1,6 @@
 """
 Service Desk ITSM/ITIL models – full ITIL-aligned service management.
-Works standalone OR linked to Clarive projects/contracts.
+Works standalone OR linked to Contecflow projects/contracts.
 """
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum
 from sqlalchemy.orm import relationship
@@ -474,7 +474,7 @@ class Announcement(Base):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# AMPLIACIÓN ITIL/ITSM — Clarive Service Desk v2
+# AMPLIACIÓN ITIL/ITSM — Contecflow Service Desk v2
 # ════════════════════════════════════════════════════════════════════════════
 
 # ── Linked Tickets (relates-to, duplicates, parent/child, caused-by) ─────────
@@ -721,7 +721,7 @@ class CannedResponse(Base):
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# ITSM MARKET-LEADER EXTENSIONS — Clarive Service Desk v3
+# ITSM MARKET-LEADER EXTENSIONS — Contecflow Service Desk v3
 # Adds: On-Call Schedules · Ticket Watchers · Ticket Merge · Auto-Escalation
 #       Asset Management (HAM/SAM) · SLA Holiday Calendar
 #       Workload-Balanced Assignment · Service Status Page

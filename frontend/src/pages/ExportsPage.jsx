@@ -141,7 +141,7 @@ export default function ExportsPage() {
         <Card>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>🔗 Sincronizar con Jira</h3>
           <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>
-            Importa issues de Jira como tareas en Clarive. Se sincroniza en segundo plano.
+            Importa issues de Jira como tareas en Contecflow. Se sincroniza en segundo plano.
           </p>
           <div style={{ display: 'flex', gap: 12 }}>
             <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}

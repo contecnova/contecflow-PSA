@@ -2,7 +2,7 @@
 invoice_pdf.py — Generación de PDF de facturas con ReportLab
 
 Genera un PDF de factura profesional con:
-- Header con branding Clarive
+- Header con branding Contecflow
 - Datos del cliente y emisor
 - Tabla de líneas con descripción, cantidad, precio y total
 - Resumen: subtotal, IVA, total
@@ -37,8 +37,8 @@ def generate_invoice_pdf(
     po_reference: Optional[str] = None,
     period_from=None,
     period_to=None,
-    company_name: str = "Clarive PSA",
-    generated_by: str = "Clarive",
+    company_name: str = "Contecflow PSA",
+    generated_by: str = "Contecflow",
 ) -> bytes:
     """
     Genera un PDF de factura y devuelve los bytes en formato PDF.
@@ -53,7 +53,7 @@ def generate_invoice_pdf(
         topMargin=2*cm, bottomMargin=2*cm,
     )
 
-    # ── Paleta Clarive ────────────────────────────────────────────────────────
+    # ── Paleta Contecflow ────────────────────────────────────────────────────────
     ACCENT    = colors.HexColor("#00d4ff")
     SUCCESS   = colors.HexColor("#00e5a0")
     TEXT_MAIN = colors.HexColor("#1a1a2e")

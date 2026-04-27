@@ -75,7 +75,7 @@ class RevenueObligation(Base):
     organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     contract_id     = Column(String(36), ForeignKey("rev_contracts.id", ondelete="CASCADE"), nullable=False, index=True)
     # Vínculo opcional a un milestone específico (método milestone)
-    milestone_id    = Column(String(36), ForeignKey("milestones.id",    ondelete="SET NULL"), nullable=True)
+    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",    ondelete="SET NULL"), nullable=True)
 
     name            = Column(String(255), nullable=False)
     # % del valor total del contrato asignado a esta obligación (0–100)
@@ -127,7 +127,7 @@ class RevenueEntry(Base):
     period_close_id = Column(String(36), ForeignKey("rev_period_closes.id", ondelete="SET NULL"), nullable=True)
 
     # Origen de la entrada
-    milestone_id    = Column(String(36), ForeignKey("milestones.id",   ondelete="SET NULL"), nullable=True)
+    milestone_id    = Column(String(36), ForeignKey("project_milestones.id",   ondelete="SET NULL"), nullable=True)
     timesheet_id    = Column(String(36), nullable=True)  # referencia libre a hoja de horas
 
     entry_type      = Column(Enum(EntryType), nullable=False, default=EntryType.recognized)

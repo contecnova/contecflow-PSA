@@ -25,7 +25,7 @@ from app.models.ai_providers import AIProvider
 from app.models.cab import IntegrationConfig
 from app.models.enterprise import SSOConfig, Webhook
 
-logger = logging.getLogger("clarive.key_management")
+logger = logging.getLogger("contecflow.key_management")
 
 JWT_RING_KEY = "security.jwt_keyring"
 INTEGRATION_ROTATION_KEY = "security.integration_rotation"

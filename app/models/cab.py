@@ -250,7 +250,7 @@ class IntegrationConfig(Base):
 
 
 class CommitLink(Base):
-    """Links a git commit or PR to a Clarive task."""
+    """Links a git commit or PR to a Contecflow task."""
     __tablename__ = "commit_links"
 
     id              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -284,7 +284,7 @@ class CalendarEvent(Base):
     all_day         = Column(Boolean, default=False)
     description     = Column(Text, nullable=True)
     location        = Column(String(500), nullable=True)
-    # Links to Clarive objects
+    # Links to Contecflow objects
     project_id      = Column(String(36), ForeignKey("projects.id"), nullable=True)
     sprint_id       = Column(String(36), ForeignKey("sprints.id"), nullable=True)
     milestone_id    = Column(String(36), ForeignKey("project_milestones.id"), nullable=True)

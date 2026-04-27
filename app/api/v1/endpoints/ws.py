@@ -11,7 +11,7 @@ Endpoint: /ws/notifications?token=<jwt>
 
 Multi-worker support via Redis Pub/Sub:
   Cuando REDIS_URL está configurado, los mensajes se publican en el canal
-  "clarive:ws:<user_id>" y cada worker se suscribe para reenviarlos a sus
+  "contecflow:ws:<user_id>" y cada worker se suscribe para reenviarlos a sus
   conexiones locales. Sin Redis, funciona en modo in-memory (dev / single-worker).
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends, HTTPException, Header, Cookie
@@ -48,8 +48,8 @@ _ws_tickets = _ws_svc._ws_tickets
 _WS_TICKET_TTL = _ws_svc._WS_TICKET_TTL
 _portal_ws_tickets = _ws_svc._portal_ws_tickets
 
-_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:user:"
-_PORTAL_WS_TICKET_KEY_PREFIX = "clarive:ws:ticket:portal:"
+_WS_TICKET_KEY_PREFIX = "contecflow:ws:ticket:user:"
+_PORTAL_WS_TICKET_KEY_PREFIX = "contecflow:ws:ticket:portal:"
 _SAFE_TICKET_RE = re.compile(r"^[A-Za-z0-9_-]{20,200}$")
 _REDIS_ATOMIC_CONSUME_SCRIPT = "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v"
 _redis_fallback_warned: set[str] = set()
@@ -232,7 +232,7 @@ class ConnectionManager:
         if _REDIS_URL:
             try:
                 r = await _get_redis()
-                channel = f"clarive:ws:{user_id}"
+                channel = f"contecflow:ws:{user_id}"
                 await r.publish(channel, json.dumps(message))
                 return
             except Exception as exc:
@@ -251,14 +251,14 @@ class ConnectionManager:
             r = await _get_redis()
             pubsub = r.pubsub()
             # Subscribe to a pattern matching all user channels for this app
-            await pubsub.psubscribe("clarive:ws:*")
-            log.info("WS: Redis Pub/Sub subscriber started (pattern=clarive:ws:*)")
+            await pubsub.psubscribe("contecflow:ws:*")
+            log.info("WS: Redis Pub/Sub subscriber started (pattern=contecflow:ws:*)")
             async for raw in pubsub.listen():
                 if raw["type"] != "pmessage":
                     continue
-                # channel = "clarive:ws:<user_id>"
+                # channel = "contecflow:ws:<user_id>"
                 channel: str = raw.get("channel", "")
-                user_id = channel.removeprefix("clarive:ws:")
+                user_id = channel.removeprefix("contecflow:ws:")
                 if not user_id or user_id not in self.connections:
                     continue
                 try:
@@ -592,13 +592,13 @@ async def _doc_redis_subscriber() -> None:
         import redis.asyncio as aioredis
         r = aioredis.from_url(_REDIS_URL, decode_responses=True)
         pubsub = r.pubsub()
-        await pubsub.psubscribe("clarive:doc:*")
+        await pubsub.psubscribe("contecflow:doc:*")
         log.info("WS: Doc collab Redis pub/sub subscriber started")
         async for raw in pubsub.listen():
             if raw["type"] != "pmessage":
                 continue
             channel: str = raw.get("channel", "")
-            doc_id = channel.removeprefix("clarive:doc:")
+            doc_id = channel.removeprefix("contecflow:doc:")
             if not doc_id or doc_id not in _doc_rooms:
                 continue
             try:
@@ -748,7 +748,7 @@ async def _broadcast_doc(doc_id: str, message: dict, exclude: WebSocket = None) 
     if _REDIS_URL:
         try:
             r = await _get_redis()
-            await r.publish(f"clarive:doc:{doc_id}", json.dumps(message))
+            await r.publish(f"contecflow:doc:{doc_id}", json.dumps(message))
             return
         except Exception as exc:
             log.warning("Doc Redis publish failed, falling back to local: %s", exc)

@@ -561,14 +561,37 @@ def get_stats(db: Session, *, is_superadmin: bool, organization_id) -> dict:
     }
 
 
-def get_default_provider(db: Session):
-    """Return the default (or first active) provider."""
-    p = db.query(AIProvider).filter(
-        AIProvider.is_default == True, AIProvider.status != "error"
-    ).first()
-    if not p:
-        p = db.query(AIProvider).filter(AIProvider.status != "error").first()
-    return p
+def get_default_provider(
+    db: Session,
+    *,
+    is_superadmin: bool = True,
+    organization_id=None,
+):
+    """Return default (or first active) provider with tenant-aware fallback.
+
+    Resolution order for non-superadmin users:
+    1) Org-specific provider
+    2) Global shared provider (organization_id is NULL)
+    """
+    base_q = db.query(AIProvider).filter(AIProvider.status != "error")
+
+    def _pick(q):
+        p = q.filter(AIProvider.is_default == True).first()
+        if not p:
+            p = q.first()
+        return p
+
+    if is_superadmin:
+        return _pick(base_q)
+
+    if organization_id:
+        org_q = base_q.filter(AIProvider.organization_id == organization_id)
+        p = _pick(org_q)
+        if p:
+            return p
+
+    shared_q = base_q.filter(AIProvider.organization_id.is_(None))
+    return _pick(shared_q)
 
 
 def call_ai(
@@ -580,6 +603,8 @@ def call_ai(
     model: str = None,
     max_tokens: int = None,
     provider_id: str = None,
+    is_superadmin: bool = True,
+    organization_id=None,
 ) -> str:
     """
     Main AI dispatch function.
@@ -588,9 +613,16 @@ def call_ai(
     """
 
     if provider_id:
-        p = db.query(AIProvider).filter(AIProvider.id == provider_id).first()
+        p_q = db.query(AIProvider).filter(AIProvider.id == provider_id)
+        if not is_superadmin and organization_id:
+            p_q = p_q.filter(AIProvider.organization_id == organization_id)
+        p = p_q.first()
     else:
-        p = get_default_provider(db)
+        p = get_default_provider(
+            db,
+            is_superadmin=is_superadmin,
+            organization_id=organization_id,
+        )
 
     t0        = time.time()
     error_msg = None
