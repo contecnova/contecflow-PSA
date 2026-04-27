@@ -59,7 +59,9 @@ def consume_portal_ws_ticket_local(ticket: str) -> Optional[str]:
 from sqlalchemy.orm import Session
 from app.models.client_portal import ClientMessage
 from app.models.enterprise import Notification
+from app.models.portal_conversations import PortalConversation, PortalConversationMessage, PortalConversationParticipant, PortalConversationGRCStatus, PortalConversationStatus
 from app.models.service_desk import Ticket, TicketComment, TicketStatus
+from app.models.user import User
 
 
 def get_unread_notifications(
@@ -75,6 +77,49 @@ def get_unread_notifications(
     )
     items = q.all()
     return len(items), items
+
+
+def get_team_poll_data(db: Session, user_id: str) -> Dict[str, Any]:
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        return {"governed_unread": 0, "pending_reviews": 0, "assigned_overdue": 0}
+
+    conv_ids = db.query(PortalConversationParticipant.conversation_id).filter(
+        PortalConversationParticipant.user_id == user_id,
+        PortalConversationParticipant.removed_at == None,
+    ).subquery()
+
+    governed_unread = db.query(PortalConversationMessage).join(
+        PortalConversation,
+        PortalConversation.id == PortalConversationMessage.conversation_id,
+    ).filter(
+        PortalConversationMessage.conversation_id.in_(conv_ids),
+        PortalConversationMessage.sender_client_id != None,
+        PortalConversationMessage.read_at == None,
+        PortalConversationMessage.grc_status != PortalConversationGRCStatus.blocked,
+    ).count()
+
+    pending_reviews = db.query(PortalConversationMessage).join(
+        PortalConversation,
+        PortalConversation.id == PortalConversationMessage.conversation_id,
+    ).filter(
+        PortalConversation.organization_id == user.organization_id,
+        PortalConversationMessage.grc_status == PortalConversationGRCStatus.pending_review,
+    ).count() if user.organization_id else 0
+
+    assigned_overdue = db.query(PortalConversation).filter(
+        PortalConversation.id.in_(conv_ids),
+        PortalConversation.first_response_due_at != None,
+        PortalConversation.first_response_at == None,
+        PortalConversation.first_response_due_at < datetime.now(timezone.utc),
+        PortalConversation.status.in_([PortalConversationStatus.active, PortalConversationStatus.pending_approval]),
+    ).count()
+
+    return {
+        "governed_unread": governed_unread,
+        "pending_reviews": pending_reviews,
+        "assigned_overdue": assigned_overdue,
+    }
 
 
 def mark_notification_read(db: Session, notification_id: str, user_id: str) -> None:
@@ -141,8 +186,24 @@ def get_portal_poll_data(db: Session, client_id: str) -> Dict[str, Any]:
         .all()
     )
 
+    governed_unread = db.query(PortalConversationMessage).join(
+        PortalConversation,
+        PortalConversation.id == PortalConversationMessage.conversation_id,
+    ).join(
+        PortalConversationParticipant,
+        PortalConversationParticipant.conversation_id == PortalConversation.id,
+    ).filter(
+        PortalConversationParticipant.removed_at == None,
+        PortalConversationParticipant.client_user_id == client_id,
+        PortalConversationMessage.sender_user_id != None,
+        PortalConversationMessage.read_at == None,
+        PortalConversationMessage.is_internal_note == False,
+        PortalConversationMessage.grc_status != PortalConversationGRCStatus.blocked,
+    ).count()
+
     return {
         "unread_messages": unread_messages,
+        "governed_unread": governed_unread,
         "open_tickets": open_tickets,
         "recent_public_comments": recent_public_comments,
     }

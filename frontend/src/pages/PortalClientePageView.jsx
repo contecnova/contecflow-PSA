@@ -69,6 +69,7 @@ function PortalApp({ changeLang, _currentLang }) {
             if (msg?.type === 'portal_notifications') {
               qc.invalidateQueries(['portal-dashboard'])
               qc.invalidateQueries(['portal-messages-client'])
+              qc.invalidateQueries(['portal-conversations-client'])
               qc.invalidateQueries(['portal-sd-tickets'])
               qc.invalidateQueries(['portal-invoices'])
             }

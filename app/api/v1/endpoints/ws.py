@@ -306,12 +306,20 @@ async def _poll_and_send(websocket: WebSocket, user_id: str, db):
     while True:
         try:
             count, notifs = _ws_svc.get_unread_notifications(db, user_id)
+            team_poll = _ws_svc.get_team_poll_data(db, user_id)
+            governed_unread = team_poll["governed_unread"]
+            pending_reviews = team_poll["pending_reviews"]
+            assigned_overdue = team_poll["assigned_overdue"]
 
-            if count != last_count:
-                last_count = count
+            snapshot = (count, governed_unread, pending_reviews, assigned_overdue)
+            if snapshot != last_count:
+                last_count = snapshot
                 await websocket.send_text(json.dumps({
                     "type":  "notifications",
                     "count": count,
+                    "governed_unread": governed_unread,
+                    "pending_conversation_reviews": pending_reviews,
+                    "conversation_sla_overdue": assigned_overdue,
                     "items": [{
                         "id":           n.id,
                         "title":        n.title,
@@ -340,15 +348,17 @@ async def _poll_and_send_client(websocket: WebSocket, client_id: str, db):
         try:
             poll_data = _ws_svc.get_portal_poll_data(db, client_id)
             unread_messages = poll_data["unread_messages"]
+            governed_unread = poll_data["governed_unread"]
             open_tickets = poll_data["open_tickets"]
             recent_public_comments = poll_data["recent_public_comments"]
 
-            snapshot = (unread_messages, open_tickets, len(recent_public_comments))
+            snapshot = (unread_messages, governed_unread, open_tickets, len(recent_public_comments))
             if snapshot != last_snapshot:
                 last_snapshot = snapshot
                 await websocket.send_text(json.dumps({
                     "type": "portal_notifications",
                     "unread_messages": unread_messages,
+                    "governed_unread": governed_unread,
                     "open_tickets": open_tickets,
                     "recent_ticket_replies": [{
                         "id": c.id,

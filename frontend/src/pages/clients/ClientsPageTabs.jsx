@@ -9,6 +9,7 @@ import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtCurrency, extractErr } from '../../utils/helpers'
 import { PortalUsersTab } from './PortalUsersTab'
+import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -678,44 +679,17 @@ export function PortalSolicitudesTab({ cid }) {
 }
 
 export function PortalMensajesTab({ cid, projects }) {
-  const [selectedProject, setSelectedProject] = useState(projects[0]?.id || '')
-  const { data: messages = [], isLoading } = useQuery({
-    queryKey: ['portal-messages-team', cid, selectedProject],
-    queryFn: () => selectedProject
-      ? api.get('/portal/messages/team', { params: { project_id: selectedProject } }).then(r => r.data).catch(() => [])
-      : Promise.resolve([]),
-    enabled: !!selectedProject,
-  })
-  if (isLoading) return <Spinner />
   return (
-    <div>
-      {projects.length > 1 && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>Proyecto</label>
-          <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={inp}>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
-        </div>
-      )}
-      {!selectedProject
-        ? <EmptyState icon="💬" title="Selecciona un proyecto" description="Elige un proyecto para ver mensajes" />
-        : <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>{messages.length} hilo(s) de mensajes</div>}
-      {messages.length === 0
-        ? <EmptyState icon="💬" title="Sin mensajes" description="Todavia no hay conversaciones del portal para este proyecto" />
-        : messages.map(m => (
-          <div key={m.id} style={{ ...panel, padding: '14px 18px', marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{m.subject || '(Sin asunto)'}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 3, lineHeight: 1.5 }}>{m.body?.slice(0, 150)}</div>
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{m.created_at?.slice(0, 10)}</div>
-            </div>
-            {m.replies_count > 0 && (
-              <div style={{ marginTop: 6, fontSize: 11, color: 'var(--accent)' }}>💬 {m.replies_count} respuesta(s)</div>
-            )}
-          </div>
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <TeamGovernedConversationInbox
+        title="Conversaciones del cliente"
+        emptyTitle="Sin conversaciones"
+        emptyDescription="Todavía no hay conversaciones del portal para este cliente."
+        projectOptions={projects.map((project) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))}
+        initialProjectId={projects[0]?.id || ''}
+        clientOrgId={cid}
+      />
+      <ConversationPoliciesPanel />
     </div>
   )
 }

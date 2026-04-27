@@ -42,6 +42,12 @@ const STATUS_COLOR = {
   failed: 'var(--danger)',
   conditional: 'var(--warning)',
 }
+const SLA_COLOR = {
+  enterprise: 'var(--purple)',
+  gold: 'var(--warning)',
+  silver: 'var(--text-2)',
+  bronze: 'var(--warning)',
+}
 // Refuerzo: exportar para debug si es necesario
 // export const inp = inp;
 import { useState, useEffect } from 'react'

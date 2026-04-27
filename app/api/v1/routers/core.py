@@ -10,7 +10,7 @@ from app.api.v1.endpoints import (
     auth, users, projects, tasks, imputations, dashboard,
     alerts, settings, timesheets, capacity, profitability, pipeline,
     contracts, risks, skills, absences, changes, deliverables,
-    advanced_config, analytics, client_portal, service_desk, sprints,
+    advanced_config, analytics, client_portal, portal_conversations, service_desk, sprints,
     expenses, automations, enterprise,
 )
 
@@ -37,6 +37,7 @@ router.include_router(deliverables.router,    prefix="/deliverables",    tags=["
 router.include_router(advanced_config.router, prefix="/advanced-config", tags=["Configuración Avanzada"])
 router.include_router(analytics.router,       prefix="/analytics",       tags=["Analytics"])
 router.include_router(client_portal.router,   prefix="/portal",          tags=["Portal Cliente"])
+router.include_router(portal_conversations.router, prefix="/portal",      tags=["Portal Conversations"])
 router.include_router(service_desk.router,    prefix="/sd",              tags=["Service Desk"])
 router.include_router(sprints.router,         prefix="/sprints",         tags=["Sprints"])
 router.include_router(expenses.router,        prefix="/expenses",        tags=["Gastos"])

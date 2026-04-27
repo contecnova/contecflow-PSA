@@ -13,6 +13,7 @@ import {
   S,
   Badge,
 } from './portalClientContext'
+import { ClientGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 
 export function PortalUAT() {
   const _t = useLang()
@@ -379,75 +380,22 @@ export function PortalFeatureRequests() {
 
 export function PortalMessages() {
   const t = useLang()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const messageIdPrefix = useId()
-  const [reply, setReply] = useState(null)
-  const [newMsg, setNewMsg] = useState('')
-  const [newSubject, setNewSubject] = useState('')
-  const [showNew, setShowNew] = useState(false)
-
-  const { data: messages = [] } = useQuery({
-    queryKey: ['portal-messages-client'],
-    queryFn: () => CLIENT_API.get('/portal/messages').then(r => r.data),
-    refetchInterval: 30000,
-  })
-
-  const { mutate: send } = useMutation({
-    mutationFn: (data) => CLIENT_API.post('/portal/messages', data),
-    onSuccess: () => { qc.invalidateQueries(['portal-messages-client']); setNewMsg(''); setNewSubject(''); setReply(null); setShowNew(false) },
-    onError: e => toast.error(extractErr(e, 'Error')),
-  })
+  const { client } = useClientAuth()
+  const projectOptions = Array.isArray(client?.projects)
+    ? client.projects.map((project) => ({ id: project.id, name: project.name || project.code || project.id, code: project.code || '' }))
+    : []
+  const fallbackProject = client?.project_id
+    ? [{ id: client.project_id, name: client.project_id, code: '' }]
+    : []
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{t('messages_team_title')}</h3>
-        <button onClick={() => setShowNew(true)} style={S.btn}>{t('messages_new_btn')}</button>
-      </div>
-      {messages.length === 0 ? (
-        <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
-          <p>{t('messages_empty')}</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {messages.map(thread => (
-            <div key={thread.id} style={{ ...S.card, border: `1px solid ${!thread.is_read_by_client && thread.sender_type === 'team' ? 'var(--accent-glow)' : 'var(--surface-4)'}` }}>
-              {thread.subject && <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{thread.subject}</div>}
-              <div style={{ fontSize: 13, marginBottom: 8 }}>{thread.body}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: thread.replies?.length ? 12 : 0 }}>
-                {thread.sender_type === 'team' ? '💼' : '👤'} {thread.sender_name} · {thread.created_at}
-              </div>
-              {thread.replies?.map(r => (
-                <div key={r.id} style={{ padding: '10px 14px', background: r.sender_type === 'team' ? 'var(--portal-bg)' : 'var(--portal-surface)', borderRadius: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, marginBottom: 4 }}>{r.body}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.sender_type === 'team' ? '💼' : '👤'} {r.sender_name} · {r.created_at}</div>
-                </div>
-              ))}
-              <button onClick={() => setReply(thread)} style={{ ...S.btnSec, marginTop: 10 }}>{t('messages_reply_btn')}</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {(showNew || reply) && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.44)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div role="dialog" aria-modal="true" aria-labelledby={`${messageIdPrefix}-dialog-title`} style={{ ...S.card, width: 480 }}>
-            <h4 id={`${messageIdPrefix}-dialog-title`} style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>{reply ? t('messages_reply_modal_title') : t('messages_new_modal_title')}</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {!reply && <div><label htmlFor={`${messageIdPrefix}-subject`} style={S.label}>{t('messages_subject_label')}</label><input id={`${messageIdPrefix}-subject`} value={newSubject} onChange={e => setNewSubject(e.target.value)} style={S.input} /></div>}
-              <label htmlFor={`${messageIdPrefix}-body`} style={S.label}>{reply ? t('messages_reply_btn') : t('msg_send')}</label>
-              <textarea id={`${messageIdPrefix}-body`} value={newMsg} onChange={e => setNewMsg(e.target.value)} rows={5} placeholder={t('msg_placeholder')} style={{ ...S.input, resize: 'vertical' }} />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button onClick={() => { setShowNew(false); setReply(null) }} style={S.btnSec}>{t('cancel')}</button>
-                <button onClick={() => send({ body: newMsg, subject: newSubject || undefined, parent_id: reply?.id, thread_id: reply?.thread_id })} disabled={!newMsg} style={S.btn}>{t('msg_send')}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <ClientGovernedConversationInbox
+      title={t('messages_team_title')}
+      emptyTitle={t('messages_empty')}
+      emptyDescription={t('messages_empty')}
+      projectOptions={projectOptions.length ? projectOptions : fallbackProject}
+      initialProjectId={client?.project_id || ''}
+    />
   )
 }
 

@@ -72,8 +72,15 @@ MIGRATIONS = [
 
     # v22+ — Client entity hub: nuevas columnas en tablas existentes
     ("contracts",        "client_id",      "VARCHAR(36)"),
-    ("opportunities",    "client_id",      "VARCHAR(36)"),
-    ("invoices",         "client_id",      "VARCHAR(36)"),
+    ("opportunities",    "client_id",               "VARCHAR(36)"),
+    # v_b7e2 — CRM / SOW Generator (Alembic b7e2c4a91f03)
+    ("opportunities",    "hourly_rate",             "FLOAT"),
+    ("opportunities",    "contract_type",           "VARCHAR(30)"),
+    ("opportunities",    "proposal_template_id",    "VARCHAR(36)"),
+    ("opportunities",    "proposal_content",        "TEXT"),
+    ("opportunities",    "proposal_generated_at",   "DATETIME"),
+    ("opportunities",    "proposal_sent_at",        "DATETIME"),
+    ("invoices",         "client_id",               "VARCHAR(36)"),
     ("sd_tickets",       "client_id",      "VARCHAR(36)"),
     ("sd_tickets",       "linked_resource_type", "VARCHAR(50)"),
     ("sd_tickets",       "linked_resource_id",   "VARCHAR(36)"),
@@ -146,6 +153,21 @@ MIGRATIONS = [
     ("sd_tickets", "sla_response_breached", "BOOLEAN DEFAULT 0"),
     ("sd_tickets", "sla_resolution_breached", "BOOLEAN DEFAULT 0"),
 
+    # v31 — Governed portal conversations
+    ("portal_conversations", "source", "VARCHAR(30) DEFAULT 'native'"),
+    ("portal_conversations", "legacy_thread_id", "VARCHAR(36)"),
+    ("portal_conversations", "policy_id", "VARCHAR(36)"),
+    ("portal_conversations", "assigned_group_id", "VARCHAR(36)"),
+    ("portal_conversations", "assigned_role_key", "VARCHAR(50)"),
+    ("portal_conversations", "first_response_due_at", "DATETIME"),
+    ("portal_conversations", "first_response_at", "DATETIME"),
+    ("portal_conversations", "escalated_at", "DATETIME"),
+    ("portal_conversation_messages", "legacy_message_id", "VARCHAR(36)"),
+    ("portal_conversation_messages", "approval_request_id", "VARCHAR(36)"),
+    ("portal_conversation_messages", "raw_body", "TEXT"),
+    ("portal_conversation_messages", "moderation_notes", "TEXT"),
+    ("portal_conversation_messages", "is_redacted", "BOOLEAN DEFAULT 0"),
+
     # v26 — Document access audit trail (P2-6)
     # (document_access_logs is a new table — created via Base.metadata.create_all)
 ]
@@ -160,7 +182,7 @@ def table_exists(name):
 
 ALLOWED_TABLES = set(
     [t[0] for t in MIGRATIONS] +
-    ["financial_approval_audit_logs"] +
+    ["financial_approval_audit_logs", "portal_conversation_policies"] +
     ["document_access_logs"]
 )
 

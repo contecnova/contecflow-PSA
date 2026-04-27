@@ -19,6 +19,7 @@ import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../components/portal/GovernedConversations'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -709,89 +710,16 @@ function FeatureRequestsTab({ projectId }) {
 
 // ── Messages Tab ──────────────────────────────────────────────────────────────
 function MessagesTab({ projectId }) {
-  const t = useAppT()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const [replyTo, setReplyTo] = useState(null)
-  const [newMsg, setNewMsg] = useState('')
-  const [newSubject, setNewSubject] = useState('')
-  const [showNew, setShowNew] = useState(false)
-
-  const { data: messages = [], isLoading } = useQuery({
-    queryKey: ['portal-messages', projectId],
-    queryFn: () => api.get('/portal/messages/team', { params: { project_id: projectId } }).then(r => r.data),
-    enabled: !!projectId,
-    refetchInterval: 30000,
-  })
-
-  const { mutate: sendMsg } = useMutation({
-    mutationFn: (data) => api.post('/portal/messages/team', data),
-    onSuccess: () => { qc.invalidateQueries(['portal-messages', projectId]); setNewMsg(''); setNewSubject(''); setReplyTo(null); setShowNew(false) },
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
-  })
-
-  const unread = messages.filter(m => !m.is_read_by_team && m.sender_type === 'client').length
-
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-          {messages.length} {t('client_portal.messages_count')}
-          {unread > 0 && <span style={{ marginLeft: 8, background: 'var(--danger)', color: '#fff', borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{unread} {t('client_portal.messages_unread')}</span>}
-        </div>
-        <Button onClick={() => setShowNew(true)} icon="✉️">{t('client_portal.messages_new')}</Button>
-      </div>
-
-      {isLoading ? <Spinner /> : messages.length === 0 ? (
-        <EmptyState icon="💬" title={t('client_portal.messages_empty_title')} description={t('client_portal.messages_empty_desc')} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {messages.map(thread => (
-            <div key={thread.id} style={{ background: 'var(--surface-2)', border: `1px solid ${!thread.is_read_by_team && thread.sender_type === 'client' ? 'rgba(245,158,11,0.31)' : 'var(--surface-4)'}`, borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 18px', borderBottom: thread.replies?.length > 0 ? '1px solid var(--surface-4)30' : 'none' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    {thread.subject && <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{thread.subject}</div>}
-                    <p style={{ fontSize: 13, color: 'var(--text-1)', margin: '0 0 6px' }}>{thread.body}</p>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
-                      {thread.sender_type === 'client' ? '👤' : '💼'} {thread.sender_name} · {thread.created_at}
-                    </div>
-                  </div>
-                  {!thread.is_read_by_team && thread.sender_type === 'client' && (
-                    <span style={{ fontSize: 10, background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid #ffb80040', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>{t('client_portal.messages_badge_unread')}</span>
-                  )}
-                </div>
-              </div>
-              {thread.replies?.map(r => (
-                <div key={r.id} style={{ padding: '10px 18px 10px 40px', borderBottom: '1px solid var(--surface-4)20', background: r.sender_type === 'team' ? 'var(--surface-1)' : 'transparent' }}>
-                  <p style={{ fontSize: 13, color: 'var(--text-1)', margin: '0 0 4px' }}>{r.body}</p>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.sender_type === 'client' ? '👤' : '💼'} {r.sender_name} · {r.created_at}</div>
-                </div>
-              ))}
-              <div style={{ padding: '10px 18px' }}>
-                <button onClick={() => setReplyTo(thread)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
-                  {`↩ ${t('client_portal.messages_reply')}`}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {(showNew || replyTo) && (
-        <Modal open title={replyTo ? `${t('client_portal.messages_modal_reply_to')}: ${replyTo.subject || replyTo.body.slice(0, 40)}` : t('client_portal.messages_modal_new_to_client')} onClose={() => { setShowNew(false); setReplyTo(null) }} width={500}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {!replyTo && <div><label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>{t('client_portal.messages_subject')}</label>
-              <input value={newSubject} onChange={e => setNewSubject(e.target.value)} style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} /></div>}
-            <textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} rows={4} placeholder={t('client_portal.messages_body_placeholder')}
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', width: '100%' }} />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Button variant="secondary" onClick={() => { setShowNew(false); setReplyTo(null) }}>{t('common.cancel')}</Button>
-              <Button onClick={() => sendMsg({ project_id: projectId, body: newMsg, subject: newSubject || undefined, parent_id: replyTo?.id, thread_id: replyTo?.thread_id })} disabled={!newMsg}>{t('client_portal.send')}</Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <TeamGovernedConversationInbox
+        title="Conversaciones del portal"
+        emptyTitle="Sin conversaciones"
+        emptyDescription="No hay conversaciones para este proyecto. Crea una conversación gobernada para empezar."
+        projectOptions={projectId ? [{ id: projectId, name: projectId, code: '' }] : []}
+        initialProjectId={projectId || ''}
+      />
+      <ConversationPoliciesPanel />
     </div>
   )
 }

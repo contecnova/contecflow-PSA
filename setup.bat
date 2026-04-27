@@ -18,7 +18,7 @@ echo  ============================================
 echo    CONTECFLOW
 echo    Professional Services Automation
 echo  ============================================
-echo  contecflow2024! - Plataforma PSA Enterprise
+echo  contecflow2024^! - Plataforma PSA Enterprise
 echo.
 
 if "%1"=="start"  goto :start_only
@@ -152,8 +152,8 @@ if not exist ".env" (
         echo REFRESH_TOKEN_EXPIRE_DAYS=30
         echo ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:8000"]
         echo SUPERADMIN_EMAIL=admin@company.com
-        echo SUPERADMIN_PASSWORD=contecflow2024!
-        echo DEFAULT_USER_PASSWORD=contecflow2024!
+        echo SUPERADMIN_PASSWORD=contecflow2024^!
+        echo DEFAULT_USER_PASSWORD=contecflow2024^!
         echo ANTHROPIC_API_KEY=
         echo CONTECFLOW_AI_MODEL=claude-haiku-4-5
     ) > .env
@@ -164,12 +164,12 @@ if not exist ".env" (
 findstr /b "CLIENT_PORTAL_SECRET=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] CLIENT_PORTAL_SECRET no encontrado en .env - añadiendo valor por defecto
-    echo CLIENT_PORTAL_SECRET=contecflow-portal-secret-change-in-production!! >> .env
+    echo CLIENT_PORTAL_SECRET=contecflow-portal-secret-change-in-production^!^! >> .env
 )
 findstr /b "SECRET_KEY=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] SECRET_KEY no encontrado en .env - añadiendo valor por defecto
-    echo SECRET_KEY=contecflow-secret-key-change-in-production-min32chars!! >> .env
+    echo SECRET_KEY=contecflow-secret-key-change-in-production-min32chars^!^! >> .env
 )
 findstr /b "SUPERADMIN_EMAIL=" .env >nul 2>&1
 if errorlevel 1 (
@@ -179,12 +179,12 @@ if errorlevel 1 (
 findstr /b "SUPERADMIN_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] SUPERADMIN_PASSWORD no encontrado en .env - añadiendo valor por defecto
-    echo SUPERADMIN_PASSWORD=contecflow2024! >> .env
+    echo SUPERADMIN_PASSWORD=contecflow2024^! >> .env
 )
 findstr /b "DEFAULT_USER_PASSWORD=" .env >nul 2>&1
 if errorlevel 1 (
     echo [WARN] DEFAULT_USER_PASSWORD no encontrado en .env - añadiendo valor por defecto
-    echo DEFAULT_USER_PASSWORD=contecflow2024! >> .env
+    echo DEFAULT_USER_PASSWORD=contecflow2024^! >> .env
 )
 
 :: Regenerar SECRET_KEY si quedó con placeholder/insegura
@@ -365,7 +365,10 @@ if %BACKEND_ATTEMPTS% GTR 180 (
     exit /b 1
 )
 curl --silent --fail --connect-timeout 1 --max-time 1 "http://127.0.0.1:%BACKEND_PORT%/health" >nul 2>&1
-if NOT "%ERRORLEVEL%"=="0" goto :wait_backend
+if NOT "%ERRORLEVEL%"=="0" (
+    timeout /t 1 /nobreak >nul
+    goto :wait_backend
+)
 echo [INFO] Backend listo
 
 :: Arrancar frontend
@@ -393,7 +396,10 @@ if %FRONTEND_ATTEMPTS% GTR 180 (
     exit /b 1
 )
 curl --silent --fail --connect-timeout 1 --max-time 1 "http://localhost:%FRONTEND_PORT%" >nul 2>&1
-if NOT "%ERRORLEVEL%"=="0" goto :wait_frontend
+if NOT "%ERRORLEVEL%"=="0" (
+    timeout /t 1 /nobreak >nul
+    goto :wait_frontend
+)
 echo [INFO] Frontend listo
 
 echo.

@@ -1,3 +1,47 @@
+### v23.10.8 (Abril 2026) — Conversaciones gobernadas portal (GRC + SLA + federación legacy)
+
+**Objetivo implementado:**
+- Se habilita una nueva superficie de chat gobernado para portal y administración sobre `portal_conversations`, con políticas GRC configurables, revisión/aprobación, redacción sensible, métricas SLA y federación del chat legacy en una bandeja unificada.
+
+**Backend (dominio y orquestación):**
+- Nuevo servicio de orquestación en `app/services/portal_conversation_service.py`:
+  - Listado/detalle/mensajería para equipo y cliente sobre conversaciones nativas y legacy federadas.
+  - Políticas por tipo (`general`, `project`, `billing`, `security`, `governance`) con defaults idempotentes.
+  - Gate de aprobación por mensaje (`pending_review`), creación y cierre de `ApprovalRequest`.
+  - Redacción de contenido sensible (email, tokens, secuencias numéricas y keywords configurables).
+  - Asignación por modo (`manual`, `owner_based`, `role_pool`) y notificaciones a responsables.
+  - SLA de primera respuesta y endpoint de escalado (`run_sla_escalations`).
+  - Auditoría enriquecida por acción (`PortalConversationAudit`) y emisión de eventos.
+- API gobernada en `app/api/v1/endpoints/portal_conversations.py`:
+  - Team: listado, detalle, mensajes, participantes, políticas, revisión, escalados.
+  - Client: listado, detalle, mensajes y creación de conversación.
+- Realtime backend:
+  - Polling/ws enriquecido con contadores gobernados (`governed_unread`, `pending_conversation_reviews`, `conversation_sla_overdue`) en `app/services/ws_service.py` y `app/api/v1/endpoints/ws.py`.
+
+**Migración/compatibilidad setup:**
+- Se mantiene compatibilidad con `setup.sh` y `setup.bat` usando la ruta real `python -m app.db.migrate`.
+- `app/db/migrate.py` añade columnas requeridas de conversaciones gobernadas y preserva idempotencia.
+
+**Frontend (portal + admin):**
+- Nuevo componente reutilizable `frontend/src/components/portal/GovernedConversations.jsx`:
+  - Inbox unificado equipo/cliente con selección de conversación, mensajes, badges GRC/SLA, revisión de pendientes y creación de conversación.
+  - Panel de políticas GRC editable por tipo de conversación.
+  - Realtime por WebSocket (tickets internos y del portal) con invalidación de caché de consultas.
+- Sustitución de superficie legacy `/portal/messages` por conversaciones gobernadas:
+  - `frontend/src/pages/ClientPortalPage.jsx` (vista interna de portal por proyecto).
+  - `frontend/src/pages/portal-client/PortalAdvancedSections.jsx` (portal cliente).
+  - `frontend/src/pages/clients/ClientsPageTabs.jsx` (administración por cliente).
+  - `frontend/src/pages/PortalClientePageView.jsx` invalida también caché de conversaciones gobernadas en eventos realtime.
+
+**Federación legacy:**
+- Los hilos `ClientMessage` legacy aparecen en la misma bandeja y detalle vía IDs sintéticos (`legacy:<thread>`), permitiendo lectura/respuesta sin perder histórico.
+
+**Validación realizada:**
+- Imports backend de conversaciones: OK.
+- Ejecución `python -m app.db.migrate`: OK (`exit code 0`).
+- Build frontend (`npm --prefix frontend run -s build`): OK.
+  - Persisten warnings no bloqueantes de chunking/i18n preexistentes.
+
 ### v23.10.7 (Abril 2026) — Forecast de recursos: barras visibles en vista Resumen
 
 **Problema corregido:**

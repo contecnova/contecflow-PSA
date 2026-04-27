@@ -12,6 +12,14 @@ from app.models.pipeline import Opportunity, OpportunityActivity, OpportunitySta
 from app.models.resources import Skill, UserSkill, SkillLevel, SkillCategory, Absence, AbsenceType, AbsenceStatus, ChangeRequest, ChangeRequestStatus, ChangeRequestImpact, Deliverable, DeliverableStatus, ResourceAlert, ResourceAlertType, ResourceUtilizationSnapshot  # noqa: F401
 from app.models.advanced_config import CustomRole, ProjectTemplate, TemplatePhase, TemplateTask, TemplateRisk, TemplateDeliverable, TaskType, AlertConfig, RateTable, RateEntry, VacationPolicy, UserVacationBalance, Office, NumberingSequence, CustomField, CustomFieldValue  # noqa: F401
 from app.models.client_portal import ClientUser, ClientSession, FeatureRequest, FeatureRequestStatus, FeatureRequestPriority, UATSession, UATTestCase, UATIssue, UATStatus, ClientMessage, ClientSurvey, ClientDocument  # noqa: F401
+from app.models.portal_conversations import (  # noqa: F401
+    PortalConversationPolicy,
+    PortalConversation, PortalConversationStatus, PortalConversationAssignmentMode,
+    PortalConversationParticipant, PortalConversationParticipantType, PortalConversationRole,
+    PortalConversationMessage, PortalConversationMessageType,
+    PortalConversationClassification, PortalConversationGRCStatus, PortalConversationSource,
+    PortalConversationAudit,
+)
 from app.models.service_desk import ServiceCategory, ServiceItem, SLAPolicy, ConfigurationItem, CIType, CIStatus, AgentGroup, AgentGroupMember, Ticket, TicketType, TicketStatus, TicketPriority, TicketUrgency, TicketImpact, SupportLevel, SLAStatus, TicketComment, TicketHistory, TicketTimeLog, Problem, ProblemStatus, KBArticle, KBStatus, Announcement  # noqa: F401
 
 from app.models.clients import Client, ClientStatus, ClientIndustry, ClientContact, ClientContactRole, ClientPortalConfig, ClientLicenseLink, ClientContractLink  # noqa: F401
