@@ -1,9 +1,11 @@
 /**
  * ServiceDeskPage — ITIL/ITSM completo
  * Módulos: Queue · Tickets · Problems/KEDB · Changes · Major Incidents ·
- *          KB · CMDB · Metrics · Routing · Templates · Config
+ *          KB · Metrics · Routing · Templates · Config
+ * CMDB: sección independiente en /cmdb
  */
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner } from '../components/ui'
@@ -18,8 +20,6 @@ import Config from './service-desk/ConfigTab'
 const LazyMetricsDashboard    = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
-const LazyCMDBTab             = lazy(() => import('./service-desk/CMDBTab'))
-
 const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
 
 export default function ServiceDeskPage() {
@@ -50,7 +50,6 @@ export default function ServiceDeskPage() {
     { id: 'problems', label: `${t('service_desk.tab_problems')}` },
     { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
     { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
-    { id: 'cmdb',     label: `${t('service_desk.tab_cmdb')}` },
     { id: 'metrics',  label: `${t('service_desk.tab_metrics')}` },
     { id: 'config',   label: `${t('service_desk.tab_config')}` },
   ]
@@ -78,6 +77,13 @@ export default function ServiceDeskPage() {
             whiteSpace: 'nowrap',
           }}>{tb.label}</button>
         ))}
+        <Link to="/cmdb" style={{
+          padding: '7px 16px', borderRadius: 8,
+          border: '1px dashed var(--surface-4)',
+          background: 'transparent', color: 'var(--text-3)',
+          fontSize: 12, fontWeight: 600, textDecoration: 'none',
+          whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+        }} title="CMDB es ahora una sección independiente">🖥️ CMDB ↗</Link>
       </div>
 
       {/* Mobile toggle bar when in split mode */}
@@ -136,11 +142,6 @@ export default function ServiceDeskPage() {
             {tab === 'kb'       && (
               <div id="sd-panel-kb" role="tabpanel" aria-labelledby="sd-tab-kb"><Suspense fallback={<Loading />}>
                 <LazyITSMKnowledgeTab mode="kb" />
-              </Suspense></div>
-            )}
-            {tab === 'cmdb'     && (
-              <div id="sd-panel-cmdb" role="tabpanel" aria-labelledby="sd-tab-cmdb"><Suspense fallback={<Loading />}>
-                <LazyCMDBTab />
               </Suspense></div>
             )}
             {tab === 'metrics'  && (
