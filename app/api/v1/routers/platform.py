@@ -14,7 +14,7 @@ from app.api.v1.endpoints import (
     scim, governance, abac, abac_admin, security_observability,
     public_forms, developer_portal,
     marketplace, collaborative, labels, translations, ui,
-    resource_demand,
+    resource_demand, jira_integration,
 )
 from app.api.v1.endpoints.v239 import branding as branding_v239
 
@@ -24,6 +24,7 @@ router = APIRouter()
 router.include_router(integrations.router,         prefix="/integrations",          tags=["Integrations"])
 router.include_router(integrations_hub.router,     prefix="/integrations-hub",      tags=["Integrations Hub"])
 router.include_router(jira.router,                 prefix="/jira",                  tags=["Jira"])
+router.include_router(jira_integration.router,                                     tags=["Jira Integration"])
 router.include_router(grc.router,                  prefix="/grc",                   tags=["GRC"])
 router.include_router(salesforce_sync.router,      prefix="/salesforce-sync",       tags=["Salesforce Sync"])
 router.include_router(slack_block_kit.router,                                   tags=["Slack Block Kit"])

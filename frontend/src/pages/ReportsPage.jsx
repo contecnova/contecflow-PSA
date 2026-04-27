@@ -27,7 +27,7 @@ const STATUS_COLORS = {
   ok: 'var(--success)', warning: 'var(--warning)', critical: 'var(--danger)',
   Crítico: 'var(--danger)', Alto: 'var(--warning)', Medio: 'var(--accent)', Bajo: 'var(--success)',
 }
-const CAT_ICONS = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠' }
+const CAT_ICONS = { Horas: '⏱️', Costes: '💸', Rentabilidad: '💰', Capacidad: '📅', Proyectos: '⬡', Negocio: '💼', RRHH: '👥', 'Service Desk': '🎫', Agilidad: '🏃', ALM: '🔑', IA: '🧠', Estrategia: '🎯', Bienestar: '🧘', OKR: '🎯', NPS: '⭐', Formación: '🎓', Git: '🔀', Ingresos: '📈', Gastos: '🧾', Sprints: '🏃', Tareas: '✅', Portfolio: '🗂️', Facturación: '🧾', Alertas: '🔔', Automatizaciones: '⚙️', CMDB: '🖥️' }
 
 // ── Saved reports storage (using window var instead of localStorage per policy) ─
 const _savedStore = { reports: [] }
@@ -41,30 +41,132 @@ const PRESETS = [
   { id: 'p2',  label: 'Carga por persona',       icon: '👥', metric: 'hours_by_person',            chart: 'bar',         color: '#22c55e', cat: 'Horas' },
   { id: 'p3',  label: 'Heatmap horas',           icon: '▦',  metric: 'hours_heatmap',              chart: 'heatmap',     color: '#4f8ef7', cat: 'Horas' },
   { id: 'p4',  label: 'Facturables vs internas', icon: '⚖️', metric: 'hours_billable_vs_internal', chart: 'bar_stacked', color: '#4f8ef7', cat: 'Horas' },
+  { id: 'p24', label: 'Horas por proyecto',      icon: '📁', metric: 'hours_by_project',           chart: 'bar',         color: '#0ea5e9', cat: 'Horas' },
+  { id: 'p25', label: 'Horas semanales',         icon: '🗓️', metric: 'hours_by_week',              chart: 'line',        color: '#3b82f6', cat: 'Horas' },
+  { id: 'p26', label: 'Horas por departamento',  icon: '🏢', metric: 'hours_by_department',        chart: 'pie',         color: '#2563eb', cat: 'Horas' },
   // Rentabilidad y costes
   { id: 'p5',  label: 'Margen por proyecto',     icon: '💰', metric: 'margin_by_project',          chart: 'bar_grouped', color: '#f59e0b', cat: 'Rentabilidad' },
   { id: 'p6',  label: 'Coste vs Presupuesto',    icon: '💸', metric: 'cost_vs_budget',             chart: 'bar_grouped', color: '#ef4444', cat: 'Rentabilidad' },
   { id: 'p7',  label: 'Evolución del margen',    icon: '📈', metric: 'margin_evolution',           chart: 'line',        color: '#22c55e', cat: 'Rentabilidad' },
   { id: 'p8',  label: 'Consumo de presupuesto',  icon: '📊', metric: 'budget_consumption',         chart: 'bar',         color: '#f59e0b', cat: 'Rentabilidad' },
+  { id: 'p27', label: 'Coste por proyecto',      icon: '📂', metric: 'cost_by_project',            chart: 'bar',         color: '#f97316', cat: 'Costes' },
+  { id: 'p28', label: 'Coste por persona',       icon: '👤', metric: 'cost_by_person',             chart: 'bar',         color: '#ea580c', cat: 'Costes' },
+  { id: 'p29', label: 'Coste mensual',           icon: '📆', metric: 'cost_by_month',              chart: 'line',        color: '#fb7185', cat: 'Costes' },
   // Proyectos y agilidad
   { id: 'p9',  label: 'Tareas por estado',        icon: '▦',  metric: 'tasks_by_status',            chart: 'pie',         color: '#4f8ef7', cat: 'Proyectos' },
   { id: 'p10', label: 'Velocity de sprint',       icon: '🏃', metric: 'sprint_velocity',            chart: 'bar',         color: '#7c3aed', cat: 'Agilidad' },
   { id: 'p11', label: 'Tareas con retraso',       icon: '⚠️', metric: 'tasks_overdue',              chart: 'bar',         color: '#ef4444', cat: 'Agilidad' },
   { id: 'p12', label: 'Lead time por proyecto',   icon: '⏳', metric: 'tasks_lead_time',            chart: 'bar',         color: '#f59e0b', cat: 'Agilidad' },
+  { id: 'p30', label: 'Tareas por proyecto',      icon: '🧩', metric: 'tasks_by_project',           chart: 'bar',         color: '#6366f1', cat: 'Proyectos' },
+  { id: 'p31', label: 'Proyectos por estado',     icon: '📌', metric: 'projects_by_status',         chart: 'pie',         color: '#14b8a6', cat: 'Proyectos' },
+  { id: 'p32', label: 'Proyectos por tipo',       icon: '🗂️', metric: 'projects_by_type',           chart: 'pie',         color: '#0d9488', cat: 'Proyectos' },
+  { id: 'p33', label: 'Entregables por estado',   icon: '📦', metric: 'deliverables_status',        chart: 'pie',         color: '#8b5cf6', cat: 'Proyectos' },
+  { id: 'p34', label: 'Riesgos por nivel',        icon: '🛡️', metric: 'risks_by_level',             chart: 'pie',         color: '#ef4444', cat: 'Proyectos' },
+  { id: 'p35', label: 'Tareas por responsable',   icon: '👥', metric: 'tasks_by_assignee',          chart: 'bar_grouped', color: '#06b6d4', cat: 'Agilidad' },
+  { id: 'p36', label: 'Tareas bloqueadas',        icon: '🚫', metric: 'tasks_blocked_by_project',   chart: 'bar',         color: '#dc2626', cat: 'Agilidad' },
+  { id: 'p37', label: 'Cumplimiento de sprint',   icon: '✅', metric: 'sprint_completion_rate',     chart: 'line',        color: '#16a34a', cat: 'Agilidad' },
+  { id: 'p38', label: 'Estado de cambios',        icon: '🔄', metric: 'change_requests_status',     chart: 'bar',         color: '#f59e0b', cat: 'Agilidad' },
   // Service Desk
   { id: 'p13', label: 'Volumen de tickets',       icon: '🎫', metric: 'ticket_volume_trend',        chart: 'line',        color: '#4f8ef7', cat: 'Service Desk' },
   { id: 'p14', label: 'Cumplimiento SLA',         icon: '✅', metric: 'ticket_sla_compliance',      chart: 'line',        color: '#22c55e', cat: 'Service Desk' },
   { id: 'p15', label: 'Tiempo de resolución',     icon: '⚡', metric: 'ticket_resolution_time',     chart: 'bar',         color: '#7c3aed', cat: 'Service Desk' },
   { id: 'p16', label: 'CSAT por agente',          icon: '⭐', metric: 'ticket_csat',                chart: 'bar',         color: '#f59e0b', cat: 'Service Desk' },
+  { id: 'p39', label: 'Tickets por estado',       icon: '📊', metric: 'tickets_by_status',          chart: 'pie',         color: '#3b82f6', cat: 'Service Desk' },
+  { id: 'p40', label: 'Tickets por tipo',         icon: '🧾', metric: 'tickets_by_type',            chart: 'bar',         color: '#0ea5e9', cat: 'Service Desk' },
+  { id: 'p41', label: 'Tickets por prioridad',    icon: '🚨', metric: 'tickets_by_priority',        chart: 'bar',         color: '#f43f5e', cat: 'Service Desk' },
+  { id: 'p42', label: 'Tickets por agente',       icon: '👩‍💻', metric: 'tickets_by_agent',          chart: 'bar_grouped', color: '#6366f1', cat: 'Service Desk' },
   // Negocio y RRHH
   { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: '#7c3aed', cat: 'Negocio' },
   { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: '#22c55e', cat: 'Negocio' },
   { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: '#f59e0b', cat: 'Negocio' },
   { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: CHART.lime, cat: 'RRHH' },
   { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: '#f59e0b', cat: 'RRHH' },
+  { id: 'p43', label: 'Evolución del pipeline',   icon: '📈', metric: 'pipeline_evolution',         chart: 'line',        color: '#8b5cf6', cat: 'Negocio' },
+  { id: 'p44', label: 'Contratos por estado',     icon: '📃', metric: 'contracts_by_status',        chart: 'bar',         color: '#a855f7', cat: 'Negocio' },
+  { id: 'p45', label: 'Proyectos por cliente',    icon: '🤝', metric: 'projects_by_client',         chart: 'bar_grouped', color: '#2dd4bf', cat: 'Negocio' },
+  { id: 'p46', label: 'Ausencias por persona',    icon: '🧑', metric: 'absences_by_person',         chart: 'bar',         color: '#f59e0b', cat: 'RRHH' },
+  { id: 'p47', label: 'Ausencias mensuales',      icon: '🗓️', metric: 'absences_by_month',          chart: 'line',        color: '#fb923c', cat: 'RRHH' },
+  { id: 'p48', label: 'Carga semanal por persona',icon: '🧮', metric: 'load_by_person',             chart: 'line',        color: '#06b6d4', cat: 'Capacidad' },
+  { id: 'p49', label: 'Carga media semanal',      icon: '📉', metric: 'load_by_week',               chart: 'line',        color: '#0891b2', cat: 'Capacidad' },
   // ALM e IA
   { id: 'p22', label: 'Coste licencias/proveedor',icon: '🔑', metric: 'license_cost_by_vendor',     chart: 'bar',         color: '#4f8ef7', cat: 'ALM' },
   { id: 'p23', label: 'Precisión asignación IA',  icon: '🧠', metric: 'semantic_accuracy_trend',    chart: 'line',        color: '#7c3aed', cat: 'IA' },
+  { id: 'p50', label: 'Vencimiento de licencias', icon: '⏳', metric: 'license_expiry_timeline',    chart: 'bar',         color: '#3b82f6', cat: 'ALM' },
+  { id: 'p51', label: 'Utilización de licencias', icon: '📐', metric: 'license_utilization',        chart: 'bar',         color: '#60a5fa', cat: 'ALM' },
+  { id: 'p52', label: 'Activos por tipo',         icon: '🧰', metric: 'assets_by_type',             chart: 'pie',         color: '#22d3ee', cat: 'ALM' },
+  { id: 'p53', label: 'Asignaciones por modo IA', icon: '⚙️', metric: 'semantic_assignments_by_mode', chart: 'pie',       color: '#8b5cf6', cat: 'IA' },
+  { id: 'p54', label: 'Proyección de ingresos',   icon: '🎯', metric: 'forecast_revenue',           chart: 'bar_stacked', color: '#16a34a', cat: 'Estrategia' },
+  { id: 'p55', label: 'Riesgo de burnout',        icon: '🧘', metric: 'burnout_index',              chart: 'bar',         color: '#f97316', cat: 'Bienestar' },
+  // OKR
+  { id: 'p56', label: 'Progreso OKR',               icon: '🎯', metric: 'okr_progress_by_objective',   chart: 'bar',         color: '#16a34a', cat: 'OKR' },
+  { id: 'p57', label: 'Tasa KR por objetivo',        icon: '🎯', metric: 'okr_kr_completion_rate',       chart: 'bar',         color: '#22c55e', cat: 'OKR' },
+  // NPS
+  { id: 'p58', label: 'NPS por cliente',             icon: '⭐', metric: 'nps_by_client',                chart: 'bar',         color: '#f59e0b', cat: 'NPS' },
+  { id: 'p59', label: 'Evolución NPS',               icon: '⭐', metric: 'nps_trend',                    chart: 'line',        color: '#fbbf24', cat: 'NPS' },
+  { id: 'p60', label: 'Distribución NPS',            icon: '⭐', metric: 'nps_distribution',             chart: 'pie',         color: '#f97316', cat: 'NPS' },
+  { id: 'p61', label: 'Health score cliente',        icon: '⭐', metric: 'client_health_score',          chart: 'bar',         color: '#ef4444', cat: 'NPS' },
+  // Formación
+  { id: 'p62', label: 'Finalización cursos',         icon: '🎓', metric: 'training_completion_rate',     chart: 'bar',         color: '#8b5cf6', cat: 'Formación' },
+  { id: 'p63', label: 'Certificaciones por persona', icon: '🎓', metric: 'certifications_by_user',        chart: 'bar',         color: '#a78bfa', cat: 'Formación' },
+  // Git
+  { id: 'p64', label: 'PRs por autor',               icon: '🔀', metric: 'prs_by_author',                chart: 'bar',         color: '#0ea5e9', cat: 'Git' },
+  { id: 'p65', label: 'PRs por proyecto',            icon: '🔀', metric: 'prs_by_project',               chart: 'bar',         color: '#38bdf8', cat: 'Git' },
+  { id: 'p66', label: 'Tiempo ciclo PR',             icon: '🔀', metric: 'pr_cycle_time',                chart: 'bar',         color: '#7dd3fc', cat: 'Git' },
+  { id: 'p67', label: 'Despliegues por entorno',     icon: '🔀', metric: 'deployments_by_env',           chart: 'bar',         color: '#0369a1', cat: 'Git' },
+  { id: 'p68', label: 'Tasa éxito despliegues',      icon: '🔀', metric: 'deployment_success_rate',      chart: 'bar',         color: '#075985', cat: 'Git' },
+  // Ingresos
+  { id: 'p69', label: 'Ingresos reconocidos/mes',   icon: '📈', metric: 'revenue_recognized_by_month',  chart: 'line',        color: '#16a34a', cat: 'Ingresos' },
+  { id: 'p70', label: 'Ingresos por contrato',       icon: '📈', metric: 'revenue_by_contract',          chart: 'bar',         color: '#15803d', cat: 'Ingresos' },
+  // Gastos
+  { id: 'p71', label: 'Gastos por categoría',        icon: '🧾', metric: 'expenses_by_category',         chart: 'pie',         color: '#dc2626', cat: 'Gastos' },
+  { id: 'p72', label: 'Gastos por proyecto',         icon: '🧾', metric: 'expenses_by_project',          chart: 'bar',         color: '#b91c1c', cat: 'Gastos' },
+  { id: 'p73', label: 'Gastos fact. vs internos',    icon: '🧾', metric: 'expenses_billable_vs_internal', chart: 'pie',        color: '#ef4444', cat: 'Gastos' },
+  { id: 'p74', label: 'Evolución de gastos',         icon: '🧾', metric: 'expenses_trend',               chart: 'line',        color: '#f87171', cat: 'Gastos' },
+  { id: 'p75', label: 'Gastos pendientes aprobación',icon: '🧾', metric: 'expenses_pending_approval',    chart: 'bar',         color: '#fca5a5', cat: 'Gastos' },
+  // Sprints
+  { id: 'p76', label: 'Velocidad por sprint',          icon: '🏃', metric: 'sprint_velocity_trend',         chart: 'line',        color: '#6366f1', cat: 'Sprints' },
+  { id: 'p77', label: 'Completado por sprint',         icon: '🏃', metric: 'sprint_completion_rate',        chart: 'bar',         color: '#818cf8', cat: 'Sprints' },
+  // Tareas
+  { id: 'p78', label: 'Tareas por estado',             icon: '✅', metric: 'tasks_by_status',               chart: 'pie',         color: '#22c55e', cat: 'Tareas' },
+  { id: 'p79', label: 'Tareas por prioridad',          icon: '✅', metric: 'tasks_by_priority',             chart: 'pie',         color: '#16a34a', cat: 'Tareas' },
+  { id: 'p80', label: 'Tareas vencidas por persona',   icon: '✅', metric: 'tasks_overdue_by_assignee',     chart: 'bar',         color: '#ef4444', cat: 'Tareas' },
+  { id: 'p81', label: 'Completado mensual de tareas',  icon: '✅', metric: 'task_completion_trend',         chart: 'line',        color: '#4ade80', cat: 'Tareas' },
+  { id: 'p82', label: 'Carga de trabajo por persona',  icon: '✅', metric: 'tasks_by_assignee',             chart: 'bar',         color: '#86efac', cat: 'Tareas' },
+  { id: 'p83', label: 'Épicas por estado',             icon: '✅', metric: 'epics_by_status',               chart: 'pie',         color: '#bbf7d0', cat: 'Tareas' },
+  { id: 'p84', label: 'Hitos: a tiempo vs tarde',      icon: '⬡',  metric: 'milestones_on_time_rate',       chart: 'pie',         color: '#0ea5e9', cat: 'Proyectos' },
+  // Portfolio
+  { id: 'p85', label: 'Uso de presupuesto portfolio',  icon: '🗂️', metric: 'portfolio_budget_usage',        chart: 'bar_stacked', color: '#8b5cf6', cat: 'Portfolio' },
+  // RRHH evaluaciones
+  { id: 'p86', label: 'Score de desempeño por persona',icon: '👥', metric: 'performance_scores_by_person',  chart: 'bar',         color: '#f59e0b', cat: 'RRHH' },
+  { id: 'p87', label: 'Completado ciclos evaluación',  icon: '👥', metric: 'performance_cycle_completion_rate', chart: 'bar',    color: '#fbbf24', cat: 'RRHH' },
+  // Horas (timesheets)
+  { id: 'p88', label: 'Partes de horas por estado',    icon: '⏱️', metric: 'timesheets_approval_rate',      chart: 'pie',         color: '#60a5fa', cat: 'Horas' },
+  { id: 'p89', label: 'H. facturables mensual (partes)',icon: '⏱️', metric: 'timesheets_billable_hours_trend', chart: 'line',     color: '#3b82f6', cat: 'Horas' },
+  // RRHH ausencias
+  { id: 'p90', label: 'Ausencias por tipo',            icon: '👥', metric: 'absences_by_type',              chart: 'pie',         color: '#a78bfa', cat: 'RRHH' },
+  { id: 'p91', label: 'Ausencias por persona',         icon: '👥', metric: 'absences_by_person',            chart: 'bar',         color: '#c4b5fd', cat: 'RRHH' },
+  // Facturación
+  { id: 'p92', label: 'Facturas por estado',           icon: '🧾', metric: 'invoices_by_status',            chart: 'bar',         color: '#0891b2', cat: 'Facturación' },
+  { id: 'p93', label: 'Facturación mensual',           icon: '🧾', metric: 'invoice_amount_by_month',       chart: 'line',        color: '#06b6d4', cat: 'Facturación' },
+  { id: 'p94', label: 'Facturación por cliente',       icon: '🧾', metric: 'invoice_amount_by_client',      chart: 'bar',         color: '#67e8f9', cat: 'Facturación' },
+  { id: 'p95', label: 'Facturas vencidas',             icon: '🧾', metric: 'invoice_overdue_amount',        chart: 'bar',         color: '#ef4444', cat: 'Facturación' },
+  // Alertas
+  { id: 'p96', label: 'Alertas por severidad',         icon: '🔔', metric: 'alerts_by_severity',            chart: 'pie',         color: '#f97316', cat: 'Alertas' },
+  { id: 'p97', label: 'Alertas por tipo',              icon: '🔔', metric: 'alerts_by_type',                chart: 'bar',         color: '#fb923c', cat: 'Alertas' },
+  { id: 'p98', label: 'Alertas no resueltas/proyecto', icon: '🔔', metric: 'unresolved_alerts_by_project',  chart: 'bar',         color: '#fdba74', cat: 'Alertas' },
+  // Service Desk SLA
+  { id: 'p99', label: 'Incumplimientos SLA/mes',       icon: '🎫', metric: 'sla_breach_trend',              chart: 'line',        color: '#dc2626', cat: 'Service Desk' },
+  { id: 'p100', label: 'Incumplimientos SLA por tipo', icon: '🎫', metric: 'sla_breach_by_type',            chart: 'bar',         color: '#b91c1c', cat: 'Service Desk' },
+  // Automatizaciones
+  { id: 'p101', label: 'Éxito automatizaciones',       icon: '⚙️', metric: 'automation_success_rate',       chart: 'pie',         color: '#7c3aed', cat: 'Automatizaciones' },
+  { id: 'p102', label: 'Ejecuciones por regla',        icon: '⚙️', metric: 'automation_run_stats',          chart: 'bar_stacked', color: '#6d28d9', cat: 'Automatizaciones' },
+  // CMDB
+  { id: 'p103', label: 'CMDB por estado',              icon: '🖥️', metric: 'cmdb_items_by_status',          chart: 'pie',         color: '#1d4ed8', cat: 'CMDB' },
+  { id: 'p104', label: 'CMDB por entorno',             icon: '🖥️', metric: 'cmdb_items_by_environment',     chart: 'bar',         color: '#2563eb', cat: 'CMDB' },
+  { id: 'p105', label: 'CMDB por tipo de CI',          icon: '🖥️', metric: 'cmdb_items_by_type',            chart: 'pie',         color: '#3b82f6', cat: 'CMDB' },
+  // Negocio extra
+  { id: 'p106', label: 'Clientes por sector',          icon: '💼', metric: 'clients_by_industry',           chart: 'pie',         color: '#0f766e', cat: 'Negocio' },
+  { id: 'p107', label: 'Pipeline por responsable',     icon: '💼', metric: 'opportunity_by_owner',          chart: 'bar',         color: '#0d9488', cat: 'Negocio' },
 ]
 
 const CHART_TYPES = [

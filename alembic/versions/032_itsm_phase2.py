@@ -26,26 +26,45 @@ branch_labels = None
 depends_on = None
 
 
+def _column_exists(table: str, column: str) -> bool:
+    """Return True when *column* already exists in *table* (defensive upgrade)."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    cols = [c["name"] for c in inspector.get_columns(table)]
+    return column in cols
+
+
 def upgrade() -> None:
     # ── sd_tickets: predictive intelligence columns ───────────────────────────
     with op.batch_alter_table("sd_tickets", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("predicted_severity", sa.String(20), nullable=True))
-        batch_op.add_column(sa.Column("predicted_resolution_minutes", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("escalation_risk_score", sa.Float(), nullable=True))
-        batch_op.add_column(sa.Column("prediction_generated_at", sa.DateTime(timezone=True), nullable=True))
+        if not _column_exists("sd_tickets", "predicted_severity"):
+            batch_op.add_column(sa.Column("predicted_severity", sa.String(20), nullable=True))
+        if not _column_exists("sd_tickets", "predicted_resolution_minutes"):
+            batch_op.add_column(sa.Column("predicted_resolution_minutes", sa.Integer(), nullable=True))
+        if not _column_exists("sd_tickets", "escalation_risk_score"):
+            batch_op.add_column(sa.Column("escalation_risk_score", sa.Float(), nullable=True))
+        if not _column_exists("sd_tickets", "prediction_generated_at"):
+            batch_op.add_column(sa.Column("prediction_generated_at", sa.DateTime(timezone=True), nullable=True))
 
     # ── sd_change_requests: impact analysis columns ───────────────────────────
     with op.batch_alter_table("sd_change_requests", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("auto_risk_score", sa.Float(), nullable=True))
-        batch_op.add_column(sa.Column("impact_analysis_json", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("suggested_window_json", sa.Text(), nullable=True))
+        if not _column_exists("sd_change_requests", "auto_risk_score"):
+            batch_op.add_column(sa.Column("auto_risk_score", sa.Float(), nullable=True))
+        if not _column_exists("sd_change_requests", "impact_analysis_json"):
+            batch_op.add_column(sa.Column("impact_analysis_json", sa.Text(), nullable=True))
+        if not _column_exists("sd_change_requests", "suggested_window_json"):
+            batch_op.add_column(sa.Column("suggested_window_json", sa.Text(), nullable=True))
 
     # ── sd_assets: lifecycle columns ──────────────────────────────────────────
     with op.batch_alter_table("sd_assets", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("depreciation_type", sa.String(20), nullable=True))
-        batch_op.add_column(sa.Column("depreciation_rate", sa.Float(), nullable=True))
-        batch_op.add_column(sa.Column("next_maintenance_date", sa.String(10), nullable=True))
-        batch_op.add_column(sa.Column("maintenance_contract", sa.String(255), nullable=True))
+        if not _column_exists("sd_assets", "depreciation_type"):
+            batch_op.add_column(sa.Column("depreciation_type", sa.String(20), nullable=True))
+        if not _column_exists("sd_assets", "depreciation_rate"):
+            batch_op.add_column(sa.Column("depreciation_rate", sa.Float(), nullable=True))
+        if not _column_exists("sd_assets", "next_maintenance_date"):
+            batch_op.add_column(sa.Column("next_maintenance_date", sa.String(10), nullable=True))
+        if not _column_exists("sd_assets", "maintenance_contract"):
+            batch_op.add_column(sa.Column("maintenance_contract", sa.String(255), nullable=True))
 
     # ── NEW TABLE: sd_autonomous_playbooks ────────────────────────────────────
     op.create_table(

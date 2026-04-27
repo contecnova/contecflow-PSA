@@ -42,17 +42,24 @@ export default defineConfig(({ mode }) => {
       drop: mode === 'production' ? ['console', 'debugger'] : [],
     },
     build: {
-      chunkSizeWarningLimit: 500,
+      // ECharts bundle is intentionally isolated and lazy-loaded on BI routes.
+      chunkSizeWarningLimit: 900,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) return
             if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react'
+            if (id.includes('lucide-react')) return 'vendor-icons'
             if (id.includes('recharts')) return 'vendor-recharts'
+            if (id.includes('echarts') || id.includes('echarts-for-react')) return 'vendor-echarts'
+            if (id.includes('react-grid-layout') || id.includes('react-window')) return 'vendor-layout'
+            if (id.includes('yjs') || id.includes('y-websocket')) return 'vendor-realtime'
             if (id.includes('html2canvas')) return 'vendor-html2canvas'
             if (id.includes('@tanstack')) return 'vendor-react-query'
             if (id.includes('react-router')) return 'vendor-router'
             if (id.includes('axios')) return 'vendor-axios'
+            if (id.includes('date-fns')) return 'vendor-date'
+            if (id.includes('zod')) return 'vendor-validation'
             return 'vendor-core'
           },
         },

@@ -13,6 +13,7 @@ from app.services.service_desk.kb_service import (
     get_kb_article_and_increment_view, serialize_kb_article_detail,
     build_kb_article, get_scoped_kb_article_or_404, apply_kb_article_update,
     update_kb_helpful_vote, delete_kb_article as delete_kb_article_svc,
+    list_kb_versions, serialize_kb_versions, rollback_kb_to_version,
 )
 from app.services.service_desk.known_error_service import get_known_errors, serialize_known_error
 
@@ -51,7 +52,7 @@ def create_kb_article(payload: KBArticleIn, db: Session = Depends(get_db), curre
 @router.patch("/kb/{article_id}", summary="Actualizar artículo KB")
 def update_kb_article(article_id: str, payload: KBArticleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     a = get_scoped_kb_article_or_404(db, current_user, article_id)
-    apply_kb_article_update(a, payload)
+    apply_kb_article_update(db, a, payload, changed_by_user_id=current_user.id)
     _commit_or_rollback(db)
     return {"ok": True}
 
@@ -73,3 +74,27 @@ def mark_helpful(article_id: str, helpful: bool = True, db: Session = Depends(ge
 @router.get("/known-errors", summary="Base de errores conocidos (KEDB)")
 def list_known_errors(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return [serialize_known_error(p) for p in get_known_errors(db)]
+
+
+@router.get("/kb/{article_id}/versions", summary="Historial de versiones de artículo KB")
+def get_kb_versions(
+    article_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ = get_scoped_kb_article_or_404(db, current_user, article_id)
+    items = list_kb_versions(db, article_id)
+    return serialize_kb_versions(items)
+
+
+@router.post("/kb/{article_id}/rollback/{version}", summary="Rollback de artículo KB a versión previa")
+def rollback_kb(
+    article_id: str,
+    version: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    article = get_scoped_kb_article_or_404(db, current_user, article_id)
+    rollback_kb_to_version(db, article, version, changed_by_user_id=current_user.id)
+    _commit_or_rollback(db)
+    return {"ok": True, "article_id": article_id, "rolled_back_to": version}

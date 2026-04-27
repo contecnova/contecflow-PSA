@@ -461,6 +461,32 @@ class KBArticle(Base):
     category = relationship("ServiceCategory")
     author = relationship("User", foreign_keys=[author_id])
     reviewer = relationship("User", foreign_keys=[reviewer_id])
+    versions = relationship(
+        "KBArticleVersion",
+        back_populates="article",
+        cascade="all, delete-orphan",
+        order_by="KBArticleVersion.version.desc()",
+    )
+
+
+class KBArticleVersion(Base):
+    """Immutable KB snapshot used for audit trail and rollback."""
+    __tablename__ = "sd_kb_article_versions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    article_id = Column(String(36), ForeignKey("sd_kb_articles.id", ondelete="CASCADE"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=False)
+    body = Column(Text, nullable=False)
+    summary = Column(String(500), nullable=True)
+    tags = Column(String(500), nullable=True)
+    status = Column(Enum(KBStatus), default=KBStatus.draft)
+    change_note = Column(String(255), nullable=True)
+    changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    article = relationship("KBArticle", back_populates="versions")
+    changed_by = relationship("User", foreign_keys=[changed_by_user_id])
 
 
 # ── Announcements / Maintenance ───────────────────────────────────────────────

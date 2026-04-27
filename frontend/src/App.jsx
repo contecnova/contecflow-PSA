@@ -67,6 +67,7 @@ const SubcontractorsPage     = lazy(() => import('./pages/SubcontractorsPage'))
 const GovernancePage         = lazy(() => import('./pages/GovernancePage'))
 const CustomFieldsPage       = lazy(() => import('./pages/CustomFieldsPage'))
 const WorkflowsPage          = lazy(() => import('./pages/WorkflowsPage'))
+const WorkflowDesignerPage   = lazy(() => import('./pages/service-desk/WorkflowDesignerPage'))
 const ProjectPermissionsPage = lazy(() => import('./pages/ProjectPermissionsPage'))
 const WikiPage               = lazy(() => import('./pages/WikiPage'))
 const EpicsPage              = lazy(() => import('./pages/EpicsPage'))
@@ -397,6 +398,12 @@ function AppRoutes() {
       <Route path="/service-desk" element={
         <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr']}>
           <Layout><ServiceDeskPage /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/sd/workflow-designer" element={
+        <ProtectedRoute roles={['admin', 'pm']}>
+          <Layout><WorkflowDesignerPage /></Layout>
         </ProtectedRoute>
       } />
 

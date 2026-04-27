@@ -8,6 +8,7 @@ import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import CMDBTopologyGraph from '../components/cmdb/CMDBTopologyGraph'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -288,6 +289,9 @@ export default function CMDBPage() {
   const [searchQ, setSearchQ] = useState('')
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
+  const [tab, setTab] = useState('list')  // 'list' | 'topology'
+  const [topoCI, setTopoCI] = useState(null)  // CI selected for topology
+  const [topoRadius, setTopoRadius] = useState(2)
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -324,11 +328,78 @@ export default function CMDBPage() {
     return sortDir === 'asc' ? cmp : -cmp
   })
 
+  const { data: topoData, isFetching: topoLoading } = useQuery({
+    queryKey: ['cmdb-topology', topoCI?.id, topoRadius],
+    queryFn: () => topoCI
+      ? api.get(`/sd/cmdb/${topoCI.id}/topology?radius=${topoRadius}`).then(r => r.data).catch(() => ({ nodes: [], edges: [] }))
+      : Promise.resolve({ nodes: [], edges: [] }),
+    enabled: tab === 'topology' && !!topoCI,
+  })
+
   return (
     <div style={{padding:32}}>
       <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
 
+      {/* Tabs */}
+      <div style={{display:'flex',gap:4,marginBottom:20,borderBottom:'1px solid var(--surface-4)',paddingBottom:0}}>
+        {[['list','📋 Inventario'],['topology','🔗 Topología']].map(([id,label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{padding:'8px 18px',fontSize:13,fontWeight:tab===id?700:400,
+              color:tab===id?'var(--accent)':'var(--text-2)',background:'transparent',
+              border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',
+              cursor:'pointer',fontFamily:'inherit',transition:'color .15s'}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── TOPOLOGÍA ─────────────────────────────────────────────── */}
+      {tab === 'topology' && (
+        <div style={ps}>
+          {/* Selector de CI */}
+          <div style={{display:'flex',gap:12,alignItems:'flex-end',marginBottom:20,flexWrap:'wrap'}}>
+            <div style={{flex:'1 1 280px'}}>
+              <label style={ls}>CI central</label>
+              <select style={is} value={topoCI?.id || ''} onChange={e => {
+                const ci = items.find(i => i.id === e.target.value)
+                setTopoCI(ci || null)
+              }}>
+                <option value="">Seleccionar CI…</option>
+                {items.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={ls}>Radio de expansión</label>
+              <select style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+                {[1,2,3].map(r => <option key={r} value={r}>{r} {r===1?'nivel':'niveles'}</option>)}
+              </select>
+            </div>
+            {topoCI && (
+              <button onClick={() => setTopoCI(null)}
+                style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
+                  background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                ✕ Limpiar
+              </button>
+            )}
+          </div>
+          {topoLoading
+            ? <Spinner />
+            : <CMDBTopologyGraph
+                nodes={topoData?.nodes || []}
+                edges={topoData?.edges || []}
+                centerName={topoCI?.name}
+                onNodeClick={n => {
+                  const ci = items.find(i => i.id === n.id)
+                  if (ci) setTopoCI(ci)
+                }}
+              />
+          }
+        </div>
+      )}
+
+      {/* ─── INVENTARIO ─────────────────────────────────────────────── */}
+      {tab === 'list' && <>
       {/* KPIs */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
         {[
@@ -488,6 +559,7 @@ export default function CMDBPage() {
           </table>
         </div>
       )}
+      </>}
 
       {showForm && <CMDBItemForm item={editing} categories={categories} onClose={() => { setShowForm(false); setEditing(null) }} />}
       {relItem && <RelationsModal item={relItem} allItems={items} onClose={() => setRelItem(null)} />}

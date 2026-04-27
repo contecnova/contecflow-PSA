@@ -231,3 +231,15 @@ def send_client_message(
         return _svc.send_client_message(conversation_id, payload, current_client, db)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/{conversation_id}/bot-reply", summary="Generar respuesta L1 automática en chat portal")
+def send_l1_bot_reply(
+    conversation_id: str,
+    db: Session = Depends(get_db),
+    current_client: ClientUser = Depends(get_current_client),
+):
+    try:
+        return _svc.send_l1_bot_reply(conversation_id, current_client, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

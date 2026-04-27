@@ -169,3 +169,83 @@ def get_ci_impact_payload(
         "max_depth": max_depth,
         "impacted": impacted,
     }
+
+
+def get_ci_topology_graph_payload(
+    db: Session,
+    current_user: User,
+    ci_id: str,
+    radius: int = 2,
+    limit: int = 300,
+) -> dict:
+    """Return topology graph around one CI for frontend graph rendering."""
+    root = _get_scoped_ci_or_404(db, current_user, ci_id)
+    visible_ci_ids = _scope_ci_query(db.query(ConfigurationItem.id), db, current_user).scalar_subquery()
+
+    queue: deque = deque([(ci_id, 0)])
+    visited: set[str] = set()
+    nodes: dict[str, dict] = {
+        root.id: {
+            "id": root.id,
+            "name": root.name,
+            "ci_type": root.ci_type.value,
+            "criticality": root.criticality,
+            "is_root": True,
+            "depth": 0,
+        }
+    }
+    edges: list[dict] = []
+
+    while queue and len(nodes) < limit:
+        current_id, depth = queue.popleft()
+        if current_id in visited or depth >= radius:
+            continue
+        visited.add(current_id)
+
+        rels = (
+            db.query(CIRelation)
+            .filter(
+                or_(CIRelation.source_ci_id == current_id, CIRelation.target_ci_id == current_id),
+                CIRelation.source_ci_id.in_(visible_ci_ids),
+                CIRelation.target_ci_id.in_(visible_ci_ids),
+            )
+            .all()
+        )
+
+        for rel in rels:
+            neighbor_id = rel.target_ci_id if rel.source_ci_id == current_id else rel.source_ci_id
+            if neighbor_id not in nodes:
+                neighbor = _scope_ci_query(
+                    db.query(ConfigurationItem).filter(ConfigurationItem.id == neighbor_id),
+                    db,
+                    current_user,
+                ).first()
+                if neighbor:
+                    nodes[neighbor.id] = {
+                        "id": neighbor.id,
+                        "name": neighbor.name,
+                        "ci_type": neighbor.ci_type.value,
+                        "criticality": neighbor.criticality,
+                        "is_root": False,
+                        "depth": depth + 1,
+                    }
+            edge_id = rel.id
+            edges.append(
+                {
+                    "id": edge_id,
+                    "source": rel.source_ci_id,
+                    "target": rel.target_ci_id,
+                    "relation_type": rel.relation_type.value,
+                }
+            )
+            if neighbor_id not in visited:
+                queue.append((neighbor_id, depth + 1))
+
+    unique_edges = {e["id"]: e for e in edges}
+    return {
+        "root_ci_id": ci_id,
+        "radius": radius,
+        "nodes": list(nodes.values()),
+        "edges": list(unique_edges.values()),
+        "truncated": len(nodes) >= limit,
+    }

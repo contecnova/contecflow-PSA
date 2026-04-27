@@ -15,7 +15,17 @@ Sub-domains:
 from fastapi import APIRouter
 
 from app.api.v1.endpoints.service_desk import (
-    tickets, kb, cmdb, sla, oncall, templates, analytics, misc,
+    tickets,
+    kb,
+    cmdb,
+    sla,
+    oncall,
+    templates,
+    analytics,
+    misc,
+    workflow_designer,
+    connectors_marketplace,
+    governance_ops,
 )
 
 router = APIRouter()
@@ -28,3 +38,6 @@ router.include_router(oncall.router)
 router.include_router(templates.router)
 router.include_router(analytics.router)
 router.include_router(misc.router)
+router.include_router(workflow_designer.router)
+router.include_router(connectors_marketplace.router)
+router.include_router(governance_ops.router)

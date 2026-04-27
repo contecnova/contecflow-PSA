@@ -6,7 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import decode_token
-from app.models.service_desk import KBArticle, KBStatus, Ticket
+from app.models.service_desk import KBArticle, KBArticleVersion, KBStatus, Ticket
 from app.models.user import User
 from app.services.pagination_service import paginate_query
 from app.services.service_desk.scoping import scope_kb_query
@@ -95,6 +95,8 @@ def build_kb_article(db: Session, payload, author_id: str) -> KBArticle:
     if payload.status == "published":
         article.published_at = datetime.now(timezone.utc)
     db.add(article)
+    db.flush()
+    _snapshot_kb_version(db, article, author_id, change_note="initial version")
     return article
 
 
@@ -110,11 +112,42 @@ def delete_kb_article(db: Session, current_user, article_id: str) -> None:
     db.delete(a)
 
 
-def apply_kb_article_update(article: KBArticle, payload) -> None:
+def apply_kb_article_update(
+    db: Session,
+    article: KBArticle,
+    payload,
+    changed_by_user_id: Optional[str] = None,
+    change_note: Optional[str] = None,
+) -> None:
+
+    before = {
+        "title": article.title,
+        "body": article.body,
+        "summary": article.summary,
+        "tags": article.tags,
+        "status": article.status,
+    }
     for key, value in payload.model_dump(exclude_unset=True, exclude_none=True).items():
+        if key in {"change_note", "changed_by_user_id"}:
+            continue
         setattr(article, key, value)
     if payload.status == "published" and not article.published_at:
         article.published_at = datetime.now(timezone.utc)
+
+    after = {
+        "title": article.title,
+        "body": article.body,
+        "summary": article.summary,
+        "tags": article.tags,
+        "status": article.status,
+    }
+    if before != after:
+        _snapshot_kb_version(
+            db=db,
+            article=article,
+            changed_by_user_id=changed_by_user_id,
+            change_note=change_note or "content update",
+        )
 
 
 def update_kb_helpful_vote(db: Session, article_id: str, helpful: bool) -> None:
@@ -145,5 +178,96 @@ def create_kb_from_ticket(db: Session, ticket_id: str, title: str, author_id: st
     )
     db.add(article)
     db.flush()
+    _snapshot_kb_version(db, article, author_id, change_note="created from ticket")
     ticket.kb_article_id = article.id
     return article
+
+
+def _snapshot_kb_version(
+    db: Session,
+    article: KBArticle,
+    changed_by_user_id: Optional[str],
+    change_note: Optional[str] = None,
+) -> KBArticleVersion:
+    latest = (
+        db.query(KBArticleVersion)
+        .filter(KBArticleVersion.article_id == article.id)
+        .order_by(KBArticleVersion.version.desc())
+        .first()
+    )
+    next_version = (latest.version if latest else 0) + 1
+
+    ver = KBArticleVersion(
+        article_id=article.id,
+        version=next_version,
+        title=article.title,
+        body=article.body,
+        summary=article.summary,
+        tags=article.tags,
+        status=article.status,
+        change_note=change_note,
+        changed_by_user_id=changed_by_user_id,
+    )
+    db.add(ver)
+    db.flush()
+    return ver
+
+
+def list_kb_versions(db: Session, article_id: str) -> list[KBArticleVersion]:
+    return (
+        db.query(KBArticleVersion)
+        .filter(KBArticleVersion.article_id == article_id)
+        .order_by(KBArticleVersion.version.desc())
+        .all()
+    )
+
+
+def serialize_kb_versions(items: list[KBArticleVersion]) -> list[dict]:
+    return [
+        {
+            "id": v.id,
+            "article_id": v.article_id,
+            "version": v.version,
+            "title": v.title,
+            "summary": v.summary,
+            "tags": v.tags,
+            "status": v.status,
+            "change_note": v.change_note,
+            "changed_by_user_id": v.changed_by_user_id,
+            "created_at": v.created_at,
+        }
+        for v in items
+    ]
+
+
+def rollback_kb_to_version(
+    db: Session,
+    article: KBArticle,
+    version: int,
+    changed_by_user_id: Optional[str],
+) -> None:
+    target = (
+        db.query(KBArticleVersion)
+        .filter(
+            KBArticleVersion.article_id == article.id,
+            KBArticleVersion.version == version,
+        )
+        .first()
+    )
+    if not target:
+        raise HTTPException(404, "KB version not found")
+
+    article.title = target.title
+    article.body = target.body
+    article.summary = target.summary
+    article.tags = target.tags
+    article.status = target.status
+    if article.status == KBStatus.published and not article.published_at:
+        article.published_at = datetime.now(timezone.utc)
+
+    _snapshot_kb_version(
+        db,
+        article,
+        changed_by_user_id,
+        change_note=f"rollback to v{version}",
+    )

@@ -27,7 +27,7 @@ from app.models.portal_conversations import (
     PortalConversationStatus,
 )
 from app.models.project import Project
-from app.models.service_desk import AgentGroup, AgentGroupMember
+from app.models.service_desk import AgentGroup, AgentGroupMember, KBArticle, KBStatus
 from app.models.user import User
 from app.services.notifications import notify_user
 
@@ -1009,6 +1009,104 @@ def send_client_message(conversation_id: str, payload, current_client: ClientUse
     db.commit()
     emit_event(db, "portal_conversation.message_sent", {"conversation_id": conversation.id, "message_type": _enum_value(message.message_type)}, org_id=conversation.organization_id, resource_type="portal_conversation_message", resource_id=message.id, project_id=conversation.project_id)
     return _message_out(message)
+
+
+def send_l1_bot_reply(conversation_id: str, current_client: ClientUser, db: Session) -> dict:
+    """Generate and persist a first-line bot reply for a portal conversation.
+
+    Strategy:
+    - Reads latest visible client message.
+    - Looks up published KB by simple relevance (ILIKE title/body/tags).
+    - Responds with guided next steps and optional escalation cue.
+    """
+    conversation = _get_client_conversation(conversation_id, current_client, db)
+
+    latest_client_msg = (
+        db.query(PortalConversationMessage)
+        .filter(
+            PortalConversationMessage.conversation_id == conversation.id,
+            PortalConversationMessage.sender_client_id == current_client.id,
+            PortalConversationMessage.is_internal_note == False,
+            PortalConversationMessage.grc_status != PortalConversationGRCStatus.blocked,
+        )
+        .order_by(PortalConversationMessage.created_at.desc())
+        .first()
+    )
+
+    if not latest_client_msg:
+        raise ValueError("No hay mensaje de cliente para que el bot responda")
+
+    query = (latest_client_msg.body or "").strip()
+    kb_candidate = (
+        db.query(KBArticle)
+        .filter(
+            KBArticle.status == KBStatus.published,
+            KBArticle.is_public == True,
+            or_(
+                KBArticle.title.ilike(f"%{query[:80]}%"),
+                KBArticle.body.ilike(f"%{query[:80]}%"),
+                KBArticle.tags.ilike(f"%{query[:80]}%"),
+            ),
+        )
+        .order_by(KBArticle.helpful_count.desc(), KBArticle.created_at.desc())
+        .first()
+    )
+
+    if kb_candidate:
+        answer = (
+            "Soy el asistente L1 del portal. He encontrado una guía que puede resolver tu consulta:\n\n"
+            f"- {kb_candidate.title} ({kb_candidate.number})\n"
+            "Por favor revisa estos pasos y confirma si te funcionó. "
+            "Si no, escalo automáticamente al equipo humano."
+        )
+    else:
+        answer = (
+            "Soy el asistente L1 del portal. Gracias por los detalles. "
+            "Estoy escalando este caso al equipo para revisión prioritaria. "
+            "Mientras tanto, si puedes compartir capturas, error exacto y hora del incidente, acelerará la resolución."
+        )
+
+    bot_message = PortalConversationMessage(
+        conversation_id=conversation.id,
+        organization_id=conversation.organization_id,
+        project_id=conversation.project_id,
+        parent_message_id=latest_client_msg.id,
+        sender_user_id=None,
+        sender_client_id=None,
+        message_type=PortalConversationMessageType.ai_summary,
+        body=answer,
+        raw_body=answer,
+        moderation_notes="l1_bot_autoreply",
+        is_internal_note=False,
+        is_redacted=False,
+        classification=PortalConversationClassification.public_client,
+        grc_status=PortalConversationGRCStatus.allowed,
+        delivered_at=_now(),
+    )
+    db.add(bot_message)
+
+    conversation.last_message_at = _now()
+    _audit(
+        db,
+        conversation,
+        "portal_conversation.bot_reply",
+        actor_client_id=current_client.id,
+        target_type="message",
+        target_id=bot_message.id,
+        details={"kb_article_id": kb_candidate.id if kb_candidate else None},
+    )
+
+    db.commit()
+    emit_event(
+        db,
+        "portal_conversation.bot_reply",
+        {"conversation_id": conversation.id},
+        org_id=conversation.organization_id,
+        resource_type="portal_conversation_message",
+        resource_id=bot_message.id,
+        project_id=conversation.project_id,
+    )
+    return _message_out(bot_message)
 
 
 def review_message(conversation_id: str, message_id: str, decision: str, note: Optional[str], current_user, db: Session) -> dict:

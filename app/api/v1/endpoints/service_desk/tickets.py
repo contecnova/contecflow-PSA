@@ -6,13 +6,14 @@ from typing import Optional
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
+from app.models.service_desk import Ticket, AgentGroupMember
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.services.sla_service import ticket_out as _ticket_out
 from app.schemas.service_desk import (
     TicketCreateIn, TicketUpdateIn, CommentIn, TimeLogIn, CSATIn, MergeIn, SplitTicketIn,
 )
 from app.services.service_desk.ticket_read_service import (
-    list_tickets_payload, my_queue_payload, client_my_tickets_payload,
+    list_tickets_payload, my_queue_payload, my_queue_prioritized_payload, client_my_tickets_payload,
     client_ticket_detail_payload, ticket_detail_payload,
 )
 from app.services.service_desk.ticket_update_service import get_scoped_ticket_or_404, apply_ticket_update
@@ -42,7 +43,8 @@ from app.services.service_desk.merge_split_service import (
     merge_ticket_command, split_ticket_command, list_ticket_merges_payload,
 )
 from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
-from app.services.service_desk.workload_service import auto_assign_ticket_command
+from app.services.service_desk.workload_service import auto_assign_ticket_command, score_agent_for_ticket
+from app.services.service_desk.incident_intelligence_service import score_auto_resolution
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.services.service_desk.portal_auth_service import require_portal_client
 from app.services.service_desk.semantic_feedback_service import (
@@ -78,6 +80,23 @@ def my_queue(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     tickets = my_queue_payload(db, current_user, _ticket_out)
+    total = len(tickets)
+    start = (page - 1) * page_size
+    items = tickets[start:start + page_size]
+    if response is not None:
+        response.headers["X-Total-Count"] = str(total)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Page-Size"] = str(page_size)
+    return items
+
+
+@router.get("/tickets/my-queue/prioritized", summary="Mi cola priorizada por riesgo SLA y valor de negocio")
+def my_queue_prioritized(
+    page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=200),
+    response: Response = None,
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    tickets = my_queue_prioritized_payload(db, current_user, _ticket_out)
     total = len(tickets)
     start = (page - 1) * page_size
     items = tickets[start:start + page_size]
@@ -309,6 +328,37 @@ def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_us
     result = auto_assign_ticket_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return result
+
+
+@router.get("/tickets/{ticket_id}/ai-explain", summary="Explicación de confianza IA para asignación y auto-resolución")
+def explain_ai_decision(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        return {"ok": False, "error": "Ticket no encontrado"}
+
+    auto_resolution = score_auto_resolution(db, ticket)
+    candidates = []
+    if ticket.assigned_group_id:
+        members = db.query(AgentGroupMember).filter(AgentGroupMember.group_id == ticket.assigned_group_id).all()
+        for member in members:
+            candidates.append(
+                {
+                    "user_id": member.user_id,
+                    "assignment_score": score_agent_for_ticket(db, member.user_id, ticket),
+                }
+            )
+        candidates.sort(key=lambda c: c["assignment_score"], reverse=True)
+
+    return {
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+        "auto_resolution": auto_resolution,
+        "assignment_candidates": candidates[:5],
+        "confidence_trace": {
+            "auto_resolution_threshold": 85,
+            "routing_method": "ml_score_v1",
+        },
+    }
 
 
 @router.get("/tickets/{ticket_id}/merges", summary="Ver merges de un ticket")

@@ -52,5 +52,12 @@ from . import business
 from . import alm
 from . import remaining
 from . import advanced
+from . import okr_nps
+from . import training_git
+from . import revenue_expenses
+from . import sprints_tasks
+from . import portfolio_performance
+from . import invoices_alerts
+from . import automations_cmdb
 
 __all__ = ["METRICS_REGISTRY", "register_metric"]

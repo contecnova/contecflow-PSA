@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
@@ -69,6 +70,74 @@ def my_queue_payload(db: Session, current_user: User, ticket_out) -> list[dict]:
         .all()
     )
     return [ticket_out(ticket) for ticket in tickets]
+
+
+def _sla_risk_score(ticket: Ticket) -> float:
+    if not ticket.sla_resolution_due or not ticket.created_at:
+        return 0.0
+    now = datetime.now(timezone.utc)
+    created_at = ticket.created_at
+    due_at = ticket.sla_resolution_due
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if due_at.tzinfo is None:
+        due_at = due_at.replace(tzinfo=timezone.utc)
+    total = (due_at - created_at).total_seconds()
+    if total <= 0:
+        return 100.0
+    elapsed = max((now - created_at).total_seconds(), 0.0)
+    return min((elapsed / total) * 100.0, 100.0)
+
+
+def _business_value_score(ticket: Ticket) -> float:
+    priority_weights = {
+        "p1_critical": 100.0,
+        "p2_high": 75.0,
+        "p3_medium": 45.0,
+        "p4_low": 20.0,
+    }
+    p = str(ticket.priority)
+    if "." in p:
+        p = p.split(".", 1)[1]
+    base = priority_weights.get(p, 40.0)
+    if ticket.project_id:
+        base += 10.0
+    if ticket.contract_id:
+        base += 8.0
+    if ticket.client_id:
+        base += 5.0
+    return min(base, 100.0)
+
+
+def my_queue_prioritized_payload(db: Session, current_user: User, ticket_out) -> list[dict]:
+    sanitize_legacy_ticket_statuses(db)
+    tickets = (
+        db.query(Ticket)
+        .options(
+            joinedload(Ticket.requester_user),
+            joinedload(Ticket.requester_client),
+            joinedload(Ticket.project),
+        )
+        .filter(
+            Ticket.assigned_to_user_id == current_user.id,
+            Ticket.status.notin_(["resolved", "closed", "cancelled"]),
+        )
+        .all()
+    )
+
+    rows = []
+    for ticket in tickets:
+        sla_risk = _sla_risk_score(ticket)
+        business_value = _business_value_score(ticket)
+        priority_score = round((sla_risk * 0.65) + (business_value * 0.35), 2)
+        out = ticket_out(ticket)
+        out["priority_score"] = priority_score
+        out["sla_risk_score"] = round(sla_risk, 2)
+        out["business_value_score"] = round(business_value, 2)
+        rows.append(out)
+
+    rows.sort(key=lambda r: r.get("priority_score", 0), reverse=True)
+    return rows
 
 
 def client_my_tickets_payload(db: Session, client_id: str, ticket_out, status: Optional[str] = None) -> list[dict]:

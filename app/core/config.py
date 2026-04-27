@@ -118,6 +118,12 @@ class Settings(BaseSettings):
 
     # ── URLs ──────────────────────────────────────────────────────────────────
     BASE_URL: str = Field(default="http://localhost:8000", env="BASE_URL")
+
+    # ── OpenTelemetry distributed tracing ───────────────────────────────────
+    OTEL_ENABLED: bool = Field(default=False, env="OTEL_ENABLED")
+    OTEL_SERVICE_NAME: str = Field(default="contecflow-api", env="OTEL_SERVICE_NAME")
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = Field(default="", env="OTEL_EXPORTER_OTLP_ENDPOINT")
+    OTEL_EXPORTER_OTLP_HEADERS: str = Field(default="", env="OTEL_EXPORTER_OTLP_HEADERS")
     FRONTEND_URL: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
     BACKEND_URL: str = Field(default="http://localhost:8000", env="BACKEND_URL")
 

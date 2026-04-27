@@ -61,6 +61,34 @@ if settings.SENTRY_DSN:
     logger.info(f"✅ Sentry inicializado (env={settings.SENTRY_ENVIRONMENT})")
 
 
+# ── OpenTelemetry distributed tracing (optional) ──────────────────────────────
+if settings.OTEL_ENABLED and settings.OTEL_EXPORTER_OTLP_ENDPOINT:
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        resource = Resource.create({"service.name": settings.OTEL_SERVICE_NAME})
+        provider = TracerProvider(resource=resource)
+        exporter = OTLPSpanExporter(
+            endpoint=settings.OTEL_EXPORTER_OTLP_ENDPOINT,
+            headers=settings.OTEL_EXPORTER_OTLP_HEADERS,
+        )
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        _OTEL_READY = True
+    except Exception as exc:  # pragma: no cover
+        _OTEL_READY = False
+        logger.warning("⚠️ OpenTelemetry no inicializado: %s", exc)
+else:
+    _OTEL_READY = False
+
+
 # ── Rate Limiter (P0-1) ────────────────────────────────────────────────────────
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -255,6 +283,14 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_STR}/redoc",
     lifespan=lifespan,
 )
+
+if _OTEL_READY:
+    try:
+        FastAPIInstrumentor.instrument_app(app)
+        SQLAlchemyInstrumentor().instrument()
+        logger.info("✅ OpenTelemetry tracing activo")
+    except Exception as exc:  # pragma: no cover
+        logger.warning("⚠️ Error activando instrumentación OpenTelemetry: %s", exc)
 
 # Registrar el middleware global de excepciones
 app.add_middleware(ExceptionHandlerMiddleware)

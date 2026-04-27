@@ -1,10 +1,12 @@
 """
 CMDB Auto-Discovery Service — Fase 1 ITSM Enhancement
 ======================================================
-Descubre activos IT de AWS y Kubernetes y los reconcilia con el inventario CMDB.
+Descubre activos IT de AWS, Azure, GCP, Kubernetes y vSphere y los reconcilia
+con el inventario CMDB.
 
 Dependencias opcionales:
   - boto3       (pip install boto3)     → AWS discovery
+    - google-cloud-compute (pip install google-cloud-compute) → GCP discovery
   - kubernetes  (pip install kubernetes) → K8s discovery
 
 Si alguna librería no está instalada, ese proveedor lanza ImportError con mensaje claro.
@@ -29,7 +31,14 @@ _PROVIDER_AWS = "aws"
 _PROVIDER_K8S = "kubernetes"
 _PROVIDER_VSPHERE = "vsphere"
 _PROVIDER_AZURE = "azure"
-_SUPPORTED_PROVIDERS = {_PROVIDER_AWS, _PROVIDER_K8S, _PROVIDER_VSPHERE, _PROVIDER_AZURE}
+_PROVIDER_GCP = "gcp"
+_SUPPORTED_PROVIDERS = {
+    _PROVIDER_AWS,
+    _PROVIDER_K8S,
+    _PROVIDER_VSPHERE,
+    _PROVIDER_AZURE,
+    _PROVIDER_GCP,
+}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -473,6 +482,79 @@ def discover_azure(provider_config: dict) -> list[dict]:
     return discovered
 
 
+# ── GCP Discovery ────────────────────────────────────────────────────────────
+
+def discover_gcp(provider_config: dict) -> list[dict]:
+    """Descubre activos de Google Cloud (Compute Engine VMs).
+
+    Dependencia opcional: ``google-cloud-compute``
+    (pip install google-cloud-compute).
+
+    Args:
+        provider_config: dict con claves:
+            - project_id (str, requerido)
+            - service_account_file (str, opcional): ruta JSON credenciales
+
+    Returns:
+        list[dict] de CIs normalizados.
+    """
+    project_id = (provider_config.get("project_id") or "").strip()
+    if not project_id:
+        raise ValueError("GCP discovery requiere project_id en provider config")
+
+    discovered: list[dict] = []
+
+    try:
+        from google.cloud import compute_v1  # noqa: PLC0415
+        from google.oauth2 import service_account  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "GCP discovery requiere: pip install google-cloud-compute"
+        ) from exc
+
+    try:
+        service_account_file = provider_config.get("service_account_file")
+        if service_account_file:
+            creds = service_account.Credentials.from_service_account_file(service_account_file)
+            instances_client = compute_v1.InstancesClient(credentials=creds)
+        else:
+            instances_client = compute_v1.InstancesClient()
+
+        for instance in instances_client.aggregated_list(project=project_id):
+            scoped_list = instance[1]
+            for vm in (scoped_list.instances or []):
+                labels = dict(vm.labels or {})
+                net_ifaces = list(vm.network_interfaces or [])
+                nic0 = net_ifaces[0] if net_ifaces else None
+                ip = nic0.network_i_p if nic0 else ""
+
+                discovered.append({
+                    "external_id": vm.id and str(vm.id) or vm.name,
+                    "name": vm.name,
+                    "ci_type": "virtual_machine",
+                    "status": "active" if vm.status == "RUNNING" else "maintenance",
+                    "environment": labels.get("environment", "production"),
+                    "ip_address": ip,
+                    "hostname": vm.name,
+                    "version": vm.machine_type.split("/")[-1] if vm.machine_type else "",
+                    "description": f"GCP Compute VM — {vm.zone.split('/')[-1] if vm.zone else ''} — {vm.status}",
+                    "attributes": json.dumps({
+                        "project_id": project_id,
+                        "zone": vm.zone.split("/")[-1] if vm.zone else "",
+                        "machine_type": vm.machine_type,
+                        "labels": labels,
+                        "disks": [d.source.split("/")[-1] for d in (vm.disks or []) if d.source],
+                    }),
+                    "discovery_provider": _PROVIDER_GCP,
+                    "last_discovered_at": _utcnow().isoformat(),
+                })
+    except Exception as exc:  # noqa: BLE001
+        logger.error("GCP discovery error: %s", exc)
+
+    logger.info("GCP discovery: %d activos encontrados", len(discovered))
+    return discovered
+
+
 # ── Reconciliation ────────────────────────────────────────────────────────────
 
 def reconcile_cis(
@@ -598,6 +680,8 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
             discovered = discover_vsphere(config)
         elif provider.provider_type == _PROVIDER_AZURE:
             discovered = discover_azure(config)
+        elif provider.provider_type == _PROVIDER_GCP:
+            discovered = discover_gcp(config)
         else:
             raise ValueError(f"Proveedor no soportado: {provider.provider_type}")
 

@@ -1,5 +1,5 @@
 """Service Desk — Analytics subdomain router (stats, ITIL metrics, agent performance)."""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -8,6 +8,8 @@ from app.core.deps import get_current_user
 from app.models.user import User
 from app.services.service_desk.stats_service import get_service_desk_stats
 from app.services.service_desk.analytics_service import get_itil_metrics_payload, get_agent_performance_payload
+from app.services.service_desk.dashboard_layout_service import get_layout, save_layout
+from app.services.service_desk.incident_intelligence_service import detect_recurring_incidents
 
 router = APIRouter()
 
@@ -32,3 +34,29 @@ def get_agent_performance(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
 ):
     return get_agent_performance_payload(db, date_from, date_to)
+
+
+@router.get("/dashboard/layout", summary="Layout de dashboard Service Desk por rol")
+def get_dashboard_layout(
+    role: str = Query("operation", pattern="^(operation|manager|executive)$"),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return {"role": role, "layout": get_layout(db, org_id, role)}
+
+
+@router.put("/dashboard/layout", summary="Guardar layout de dashboard Service Desk por rol")
+def put_dashboard_layout(
+    role: str = Query("operation", pattern="^(operation|manager|executive)$"),
+    layout: dict = Body(...),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return {"role": role, "layout": save_layout(db, org_id, role, layout)}
+
+
+@router.get("/incidents/correlation", summary="Correlación de incidentes recurrentes para Problem Management")
+def get_incident_correlation(
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+):
+    return {"clusters": detect_recurring_incidents(db)}
