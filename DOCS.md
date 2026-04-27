@@ -1,3 +1,102 @@
+# Contecflow PSA — Mapa completo del sistema embebido y documentación operativa
+
+## Cómo leer este documento
+
+Este archivo combina tres capas de documentación que conviven en el repositorio:
+- changelog verificado de cambios recientes
+- manual operacional y funcional del sistema
+- apéndices técnicos, guías de pruebas y notas de hardening
+
+La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.py` y los routers de dominio en `app/api/v1/routers/`. La fuente de verdad para entidades es `app/models/` y la historia de esquema en `alembic/versions/`.
+
+## Cambios recientes
+
+### v23.10.13 (Junio 2026) — Fase 3 ITSM Scale: CMDB Multi-Proveedor, Analytics BI, Catálogo Inteligente, Gobernanza
+
+**Objetivo:** Escalar el Service Desk a nivel enterprise. Integración CMDB con vSphere y Azure, analítica avanzada con narrativa IA, catálogo de servicios con recomendaciones personalizadas y módulo completo de gobernanza ITIL/ISO 20000.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/smart_catalog_service.py` — Recomendaciones de servicio personalizadas por historial del usuario + popularidad + coincidencia de palabras clave. `suggest_service_for_query()` con fallback IA. `auto_prefill_request_form()` detecta prioridad/urgencia por palabras clave. `enrich_catalog_with_stats()` añade métricas de actividad reciente al catálogo.
+- `app/services/service_desk/governance_compliance_service.py` — Auditoría ITIL de incidentes (P1 sin Major Incident, recurrentes sin Problem), cambios (emergencia sin PIR, normal sin CAB), problemas (sin RCA, sin revisar). Informe de cumplimiento con score ponderado 0-100 y nivel CMM 1-5 (Initial→Optimized). Dashboard ejecutivo para CIO/CISO. Celery entrypoint `schedule_compliance_check()`.
+- `alembic/versions/033_itsm_phase3.py` — Migración DB: columna `popularity_score` en `sd_service_items`; tablas `sd_itsm_metric_snapshots` y `sd_compliance_reports`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/cmdb_discovery_service.py` — Nuevos providers `vsphere` (pyVmomi, opcional) y `azure` (azure-mgmt-compute + azure-identity, opcional). `discover_vsphere()` descubre VMs + hosts ESXi. `discover_azure()` enumera VMs de todas las suscripciones. Fallback gracioso si la librería no está instalada.
+- `app/services/service_desk/analytics_service.py` — `get_trend_analysis()` (comparativa período actual vs anterior), `get_heatmap_data()` (matriz 7×24 de volumen por día/hora), `get_volume_trend_series()` (serie temporal diaria/semanal), `generate_bi_story()` (narrativa ejecutiva IA de 3 párrafos), `persist_metric_snapshot()` (snapshot horario de KPIs → `sd_itsm_metric_snapshots`).
+- `app/models/service_desk.py` — Nuevos modelos `ITSMMetricSnapshot` y `ComplianceReport`.
+- `app/worker.py` — 3 nuevas Celery tasks: `analytics_snapshot` (cada hora), `catalog_popularity_update` (cada 6 horas), `compliance_check` (lunes 06:00).
+
+**Dependencias opcionales:**
+- vSphere discovery: `pip install pyVmomi`
+- Azure discovery: `pip install azure-mgmt-compute azure-mgmt-network azure-identity`
+
+### v23.10.12 (Abril 2026) — Fase 2 ITSM Intelligence: Predictive Analytics, Agente Autónomo, Change Impact, Asset Lifecycle
+
+**Objetivo:** Segunda capa de inteligencia en el Service Desk. Pasar de la detección automática (Fase 1) a la resolución autónoma, predicción de escaladas y análisis de impacto proactivo.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/predictive_analytics_service.py` — Predicción de riesgo de escalada (0-1), severidad auto-clasificada, tiempo estimado de resolución (estadística pura, sin dependencias externas ML). Celery task `predictive_scan` cada 30 min.
+- `app/services/service_desk/autonomous_agent_service.py` — Agente autónomo con 5 playbooks built-in (password_reset, vpn_issue, email_issue, printer_issue, slow_pc). `run_autonomous_resolution()` evalúa y ejecuta; `run_autonomous_scan()` es el entrypoint Celery (batch de 100 tickets new/open).
+- `app/services/service_desk/change_impact_service.py` — Scoring de riesgo 0-100 por Change Request (change_type + CIs afectados + downtime + incidentes activos). BFS sobre grafo de dependencias CMDB. Sugerencia de ventana de mantenimiento basada en historial de incidencias de las últimas 4 semanas. Informe completo para CAB.
+- `alembic/versions/032_itsm_phase2.py` — Migración DB: 4 columnas en `sd_tickets`, 3 en `sd_change_requests`, 4 en `sd_assets`, tablas `sd_autonomous_playbooks` y `sd_autonomous_playbook_executions`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/asset_service.py` — Nuevas funciones lifecycle: `get_expiring_soon()` (warranty/EOL/lease), `calculate_depreciation()` (lineal o declining-balance), `get_lifecycle_dashboard()`, `create_refresh_ticket()`.
+- `app/models/service_desk.py` — Ticket: +`predicted_severity`, `predicted_resolution_minutes`, `escalation_risk_score`, `prediction_generated_at`. ITSMChangeRequest: +`auto_risk_score`, `impact_analysis_json`, `suggested_window_json`. Asset: +`depreciation_type`, `depreciation_rate`, `next_maintenance_date`, `maintenance_contract`. Nuevos modelos: `AutonomousPlaybook`, `AutonomousPlaybookExecution`.
+- `app/models/__init__.py` — Registro de `AutonomousPlaybook`, `AutonomousPlaybookExecution`.
+- `app/worker.py` — 2 nuevas tareas Celery beat: `predictive_scan` (cada 30 min), `asset_expiry_scan` (diario 07:05).
+- `app/db/migrate.py` — 11 nuevas entradas MIGRATIONS (Phase 2); `ALLOWED_TABLES` ampliado.
+
+**Migración:** `alembic upgrade 032_itsm_phase2` o automático vía `python -m app.db.migrate` al arrancar.
+**Sin dependencias externas nuevas.** Todo funciona con el stack Python/SQLAlchemy/Celery existente.
+
+### v23.10.11 (Abril 2026) — Fase 1 ITSM Enhancement: Incident Intelligence, Problem RCA IA, ML Routing, CMDB Auto-Discovery
+
+**Objetivo:** Cerrar las principales brechas competitivas vs ServiceNow/Jira SM identificadas en el informe ITSM comparativo. Añadir automatización inteligente a los flujos de Service Desk.
+
+**Nuevos ficheros:**
+- `app/services/service_desk/incident_intelligence_service.py` — Auto-resolución con scoring IA+histórico, deduplicación de alertas, predicción SLA en riesgo, detección automática de problemas recurrentes.
+- `app/services/service_desk/cmdb_discovery_service.py` — Discovery automático de activos IT desde AWS (EC2/RDS) y Kubernetes (nodes/namespaces), reconciliación incremental con CMDB.
+- `alembic/versions/031_itsm_phase1.py` — Migración DB: 4 columnas RCA en `sd_problems`, 4 columnas discovery en `cmdb_items`, tablas `cmdb_discovery_providers` y `cmdb_discovery_jobs`.
+
+**Ficheros modificados:**
+- `app/services/service_desk/problem_service.py` — Nuevas funciones `suggest_rca_from_ai()` (RCA generado por IA multi-provider) y `create_problem_from_correlation()` (auto-creación desde clusters de incidentes).
+- `app/services/service_desk/workload_service.py` — ML routing: `score_agent_for_ticket()` (skills 40% + disponibilidad 30% + CSAT 30%), `select_best_agent_ml()`, `auto_assign_ticket_ml_command()`.
+- `app/models/service_desk.py` — Modelo `Problem`: +`rca_type`, `rca_ai_suggestion`, `auto_detected`, `affected_services_json`.
+- `app/models/cmdb.py` — Modelo `CMDBItem`: +`external_id`, `discovery_provider`, `last_discovered_at`, `is_discovered`. Nuevos modelos: `CMDBDiscoveryProvider`, `CMDBDiscoveryJob`.
+- `app/models/__init__.py` — Registro de `CMDBDiscoveryProvider`, `CMDBDiscoveryJob`.
+- `app/worker.py` — 3 nuevas tareas Celery beat: `sla_breach_scan` (cada 15 min), `problem_auto_detect` (cada hora :05), `cmdb_discovery_run` (cada hora :30).
+
+**Migración:** `alembic upgrade 031_itsm_phase1` (defensiva, idempotente).
+**Dependencias opcionales:** `boto3` (AWS discovery), `kubernetes` (K8s discovery) — el sistema funciona sin ellas.
+
+### v23.10.10 (Abril 2026) — BI Provider-Agnostic: eliminado hardcoding a Claude/Anthropic
+
+**Objetivo:** Hacer que los servicios de BI (Storytelling y Ask-the-Data) sean completamente agnósticos al proveedor de IA configurado.
+
+**Cambios implementados:**
+- `app/services/ai_provider_service.py`:
+  - Nueva función `_try_fallback_providers()`: si el proveedor primario falla, itera automáticamente por todos los proveedores activos (org-specific → shared) y retorna la primera respuesta exitosa.
+  - Refactorización de `call_ai()`: el fallback ya no recurre a Anthropic de forma hardcodeada sino que llama a `_try_fallback_providers()`. Si OpenAI falla, intenta Gemini; si falla, DeepSeek; si falla, Ollama local, etc.
+- `app/services/bi_storytelling.py`:
+  - Docstring actualizado para reflejar que el proveedor es agnóstico (ya no menciona Claude como destino).
+  - El orden de resolución del proveedor IA es: proveedor default de la organización → fallback a cualquier proveedor disponible → error si ninguno responde.
+
+**Comportamiento resultante:**
+- ✅ BI Storytelling y Ask-the-Data funcionan con cualquier proveedor configurado (Claude, GPT-4, Gemini, DeepSeek, Groq, Ollama, etc.).
+- ✅ Fallback automático y transparente sin intervención manual.
+- ✅ Cero referencias hardcodeadas a Anthropic en servicios BI.
+- ✅ Multi-tenancy mantenido: respeta `org_id` y proveedores compartidos.
+- ✅ Seguridad sin cambios: API keys encriptadas, audit log en `AIUsageLog`, validación de modelos deprecated.
+
+**Flujo de ejecución (Storytelling / Ask-the-Data):**
+```
+call_ai()
+  → 1. Proveedor default de la org
+  → 2. Si falla: _try_fallback_providers() (todos los activos en orden)
+  → 3. Si todos fallan: error "No hay ningún proveedor de IA configurado"
+```
+
 ### v23.10.9 (Abril 2026) — UX Sprint: Autoservicio, Wiki+KB, CMDB standalone y Anuncios top-level
 
 **Objetivo:** Cinco mejoras de navegación y denominación sin cambios de backend ni migraciones.
@@ -418,16 +517,13 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 **Documentación y código:**
 - Se han actualizado los comentarios y la documentación para reflejar estos cambios críticos de seguridad y lógica.
-# Contecflow PSA — Documentación Completa del Sistema
+## Manual operacional completo
 
-## 🛠️ Arquitectura de Orquestación de Servicios (Auditoría 2026)
+### Arquitectura de Orquestación de Servicios (Auditoría 2026)
 
 **Cumplimiento de orquestación de servicios:**
 
 Tras auditoría exhaustiva (abril 2026), se confirma que toda la lógica de negocio del backend está centralizada en módulos de servicios (`app/services/`). Los endpoints y routers de la API únicamente orquestan dependencias, validaciones y delegan la lógica a funciones de servicios, sin implementar reglas de negocio directas ni acceso a base de datos fuera de los servicios.
-
-
-# Manual Operacional
 
 ## Índice
 
@@ -442,11 +538,97 @@ Tras auditoría exhaustiva (abril 2026), se confirma que toda la lógica de nego
 
 ## 1. Arquitectura General
 
-<!-- Mantener aquí diagramas, descripciones de componentes, flujos principales, y cualquier información relevante para comprender la estructura del sistema. -->
+### 1.1 Mapa completo del sistema embebido
 
-...existing code...
+Contecflow PSA es una plataforma PSA/ITSM multi-tenant construida como un sistema embebido de varias capas coordinadas:
+
+| Capa | Superficie real | Responsabilidad principal |
+|------|------------------|---------------------------|
+| Frontend SPA | `frontend/src/` | experiencia React/Vite, dashboards, formularios, portal y flujos operativos |
+| API transaccional | `app/api/v1/` | contrato REST/WS, autenticación, validaciones y orquestación por dominio |
+| Servicios de negocio | `app/services/` | reglas de negocio, cálculos, integraciones, IA, reporting y seguridad contextual |
+| Persistencia | `app/models/`, `app/db/`, `alembic/` | PostgreSQL transaccional, migraciones, sesiones y aislamiento tenant |
+| Analítica embebida | `app/services/olap/` | ETL PostgreSQL → DuckDB, KPIs BI, Ask the Data y métricas OLAP |
+| Automatización | `app/worker.py`, `app/tasks.py`, scheduler en `app/main.py` | Celery, jobs periódicos, alertas, webhooks y ETL nocturno |
+
+### 1.2 Routers agregados del backend
+
+La API pública se agrega desde `app/api/v1/router.py` y se divide en cinco routers de dominio:
+
+| Router agregado | Archivo | Cobertura funcional |
+|-----------------|---------|---------------------|
+| `core` | `app/api/v1/routers/core.py` | auth, usuarios, proyectos, tareas, imputación, dashboards, alerts, settings, timesheets, capacidad, rentabilidad, pipeline, contratos, riesgos, skills, ausencias, cambios, entregables, analytics, portal cliente, service desk, sprints, gastos, automatizaciones y enterprise |
+| `delivery` | `app/api/v1/routers/delivery.py` | billing reports, bookings, custom fields, epics/wiki, issue types, CMDB, activity, RACI/UAT, ALM, clientes, rate cards, milestones, resource forecast, approvals, accounting, OKRs, performance, training, documents, invoices, portfolios, Git, e-sign, report builder, NPS, M365, templates, revenue recognition y predictions |
+| `ai_domain` | `app/api/v1/routers/ai_domain.py` | NexusAssist, NexusAgent, AI modules, AI providers, semantic engine, governance IA, sugerencias y capa AI legacy/compat |
+| `platform` | `app/api/v1/routers/platform.py` | integrations, Jira, GRC, Salesforce sync, currency, SCIM, governance, ABAC, security observability, public forms, developer portal, branding, marketplace, collaborative, labels, translations, UI y resource demand |
+| `framework` | `app/api/v1/routers/framework.py` | health checks, WebSocket, onboarding y notifications |
+
+Además existen aliases legacy en `app/api/v1/router.py` para compatibilidad con `/projects/tasks`, `/projects/milestones`, `/projects/sprints`, `/projects/epics`, `/projects/issue-types` y rutas directas de `sprint-plans`.
+
+### 1.3 Mapa funcional por dominios de negocio
+
+| Dominio | Backend principal | Frontend principal | Qué resuelve |
+|---------|-------------------|--------------------|--------------|
+| Operación PSA | `projects`, `tasks`, `imputations`, `timesheets`, `deliverables`, `changes`, `contracts` | `ProjectsPage`, `TasksPage`, `ImputarPage`, `TimesheetsPage`, `DeliverablesPage`, `ChangesPage`, `ContractsPage` | planificación, ejecución, seguimiento, control económico y entregas |
+| Recursos y RRHH | `capacity`, `bookings`, `resource_forecast`, `skills`, `absences`, `training`, `performance` | `CapacityPage`, `ResourcesPage`, `ResourceForecastPage`, `SkillsPage`, `AbsencesPage`, `TrainingPage`, `PerformanceReviewsPage` | asignación de carga, disponibilidad, matching, formación y desempeño |
+| Financiero | `profitability`, `billing_reports`, `invoices`, `rate_cards`, `accounting_hub`, `revenue-recognition`, `expenses` | `ProfitabilityPage`, `InvoicesPage`, `RateCardsPage`, `RevenuePage`, `ExpensesPage`, `FinanceDashboardPage` | rentabilidad, facturación, reconocimiento de ingresos, tarifas y gastos |
+| ITSM / Delivery | `sd`, `cmdb`, `epics`, `wiki`, `raci`, `alm`, `issue-types`, `milestones`, `nps` | `ServiceDeskPage`, `CMDBPage`, `EpicsPage`, `WikiPage`, `RACIPage`, `ALMPage`, `IssueTypesPage`, `MilestoneBillingPage`, `NPSPage` | service desk, conocimiento, trazabilidad delivery, aceptación y calidad |
+| BI / Analytics | `analytics`, `analytics-extended`, `dashboard`, `report_builder`, `olap`, `ask_the_data`, `bi_storytelling` | `BIPage`, `ReportsPage`, `ProjectsDashboardPage` y dashboards ejecutivos | KPIs, OLAP, preguntas en lenguaje natural, reporting configurable y narrativa IA |
+| AI embebida | `ai_chat`, `ai_modules`, `ai_providers`, `semantic_engine`, `ai_governance`, `ai_suggestions` | `AIHubPage`, `NexusAgentPage`, `MeetingsAIPage`, `SemanticEnginePage`, `GovernancePage` | copiloto NexusAssist, agentes, RAG, semántica, governance y sugerencias |
+| Plataforma y compliance | `integrations`, `governance`, `grc`, `abac`, `scim`, `security_observability`, `translations`, `branding` | `GovernancePage`, `GrcPage`, `ProjectPermissionsPage`, `SettingsPage`, `DeveloperPortalPage` | seguridad, cumplimiento, customización, i18n y operación enterprise |
+| Portal externo | `portal`, `forms`, `developer`, `documents`, `share-link` | `PortalClientePage`, `PortalPublicViewPage`, páginas client-facing | autoservicio del cliente, aprobación, FR/CR, documentación y vistas públicas |
+
+### 1.4 Subsistemas embebidos y de infraestructura
+
+- IA conversacional y agentes: `app/api/v1/endpoints/ai_chat.py`, `app/services/ai_dispatch.py`, `app/services/ai_provider_service.py`, `app/services/ai_chat/`
+- OLAP embebido: `app/services/olap/etl.py` y `app/services/olap/query_engine.py`
+- Scheduler y jobs: `app/worker.py` define tareas periódicas de alertas, informes, imputaciones, revenue recognition, retraining ML, ETL OLAP, rotación de claves y sincronizaciones
+- Tiempo real: `app/api/v1/endpoints/ws.py`, notificaciones y streaming SSE de IA
+- Integraciones y webhooks: `app/services/webhooks.py`, `jira_service.py`, `salesforce_service.py`, `m365_service.py`, `git_service.py`, `esign_service.py`
+- Seguridad tenant-aware: `app/core/deps.py`, `TenantSession`, filtros por `organization_id`, ABAC y dependencias por rol
 
 ## 2. Configuración y Despliegue
+
+### 2.1 Componentes de runtime
+
+| Componente | Ubicación | Observaciones operativas |
+|------------|-----------|--------------------------|
+| Backend API | `app/main.py` | FastAPI; expone `/api/v1` y `/api/v2`; puede arrancar scheduler interno |
+| Worker Celery | `app/worker.py` | necesario para jobs periódicos, webhooks y cargas diferidas en despliegues completos |
+| Frontend | `frontend/` | SPA Vite; consume API v1 y portal externo |
+| Base transaccional | PostgreSQL vía `app/db/` | origen de verdad para operación y reporting operacional |
+| Analítica local | DuckDB en `app/services/olap/` | materializa KPIs y consultas OLAP; fallback de path controlado |
+| Archivos y uploads | `uploads/` + servicios S3/locales | documentos, plantillas, exportaciones y adjuntos |
+
+### 2.2 Arranque local recomendado
+
+```bash
+cp .env.example .env
+bash setup.sh
+bash scripts/start.sh
+```
+
+Si se arranca manualmente:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+cd frontend
+npm install
+cd ..
+
+uvicorn app.main:app --reload
+```
+
+### 2.3 Variables y dependencias sensibles
+
+- `SECRET_KEY`: obligatoria para JWT, TOTP, cifrado y cookies firmadas
+- `CLIENT_PORTAL_SECRET`: firma específica de accesos externos del portal
+- `REDIS_URL`: broker/backend para Celery y colas
+- credenciales de proveedores IA: configuradas por tenant en `ai_providers`
+- rutas/credenciales de almacenamiento y servicios externos: Git, M365, Jira, Salesforce, Slack, e-sign, etc.
 
 ### Requisito para MFA (TOTP)
 
@@ -461,6 +643,7 @@ Si no está instalada, los endpoints de MFA devolverán un error 501 con el mens
 > MFA TOTP no disponible: falta la librería pyotp. Instala con 'pip install pyotp' y reinicia el backend.
 
 Esto garantiza un error claro y acción correctiva inmediata.
+
 ### Rotación de claves y secretos
 
 Para reforzar la seguridad, se recomienda rotar periódicamente las claves y secretos sensibles (API, JWT, OAuth, webhooks, etc.).
@@ -480,80 +663,74 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 - Actualizar secretos en todos los orígenes seguros y sistemas integrados.
 - Documentar la fecha de la última rotación.
 
----
+### 2.4 Workers, scheduler y jobs nocturnos
 
-<!-- Incluir variables de entorno, ejemplos de archivos de configuración e instrucciones de despliegue. -->
+Los procesos asíncronos del sistema se concentran en `app/worker.py`. Los jobs periódicos activos documentados en código incluyen:
 
-...existing code...
+- motor de alertas diario
+- informe semanal de carga
+- verificación de imputaciones faltantes entre semana
+- generación de facturas retainer
+- informes programados
+- rotación de claves
+- sincronización periódica con Jira
+- escalado de aprobaciones por timeout
+- reconocimiento mensual de ingresos
+- reentrenamiento ML
+- ETL OLAP nocturno PostgreSQL → DuckDB
 
 ## 3. Entidades y Tablas Principales
 
+El esquema completo vive en `app/models/` y las migraciones en `alembic/versions/`. Las familias estructurales críticas del sistema son:
 
-| Tabla                | Descripción                                         | Campos principales                                 |
-|----------------------|-----------------------------------------------------|----------------------------------------------------|
-| users                | Usuarios del sistema                                | id, username, email, role, ...                     |
-| clients              | Clientes                                            | id, name, ...                                      |
-| projects             | Proyectos                                           | id, name, client_id, ...                           |
-| webhook_triggers     | Triggers de webhooks configurables                  | id, name, event, url, is_active, secret, ...        |
-| webhook_trigger_logs | Historial de llamadas a webhooks                    | id, trigger_id, status, payload, response, ...      |
-| integrations         | Configuración de integraciones externas             | id, type, config, status, last_sync, ...            |
-| audit_log            | Registro de auditoría global                        | id, resource, resource_id, action, user_id, ...     |
-| rate_tables          | Tablas de tarifas                                   | id, name, organization_id, ...                      |
-| rate_entries         | Entradas de tarifas                                 | id, table_id, concept, amount, valid_from, ...      |
-| onboarding_state     | Estado del onboarding de usuario                    | id, user_id, step, completed, ...                   |
-| templates            | Plantillas de documentos                            | id, name, owner_id, ...                             |
-| forms                | Formularios públicos                                | id, name, fields, ...                               |
-| cmdb_items           | Elementos de la CMDB                                | id, name, category_id, ...                          |
-| ...                  | ...                                                 | ...                                                |
+| Familia | Tablas / modelos representativos | Función |
+|---------|----------------------------------|---------|
+| Identidad y tenant | `users`, `organizations`, `client_users`, `client_user_projects`, `session_security`, `mfa` | autenticación, roles, multi-tenant y portal externo |
+| Operación PSA | `projects`, `tasks`, `imputations`, `timesheets`, `deliverables`, `changes`, `contracts`, `milestones` | ejecución de proyectos, seguimiento, entregas y contratos |
+| Recursos | `bookings`, `skills`, `absences`, estructuras de forecast/capacity | disponibilidad, reservas, matching y planificación |
+| Financiero | `invoices`, `project_milestones`, `rate_cards`, `revenue_recognition_rules`, `expenses` | facturación, tarifas, márgenes, reconocimiento y gasto |
+| ITSM / CMDB | `sd_tickets`, `sd_comments`, `sd_kb_articles`, `cmdb_assets`, `sla_calendars` | service desk, conocimiento y configuración |
+| Colaboración y delivery | `epics`, `wiki_spaces`, `wiki_pages`, `wiki_comments`, `raci`, `approvals`, `documents` | coordinación, aceptación, documentación y gobernanza delivery |
+| AI / semántica | `ai_providers`, `ai_action_logs`, `prompt_templates`, `document_embeddings`, `embedding_configs`, `ai_conversations` | proveedores, auditoría IA, prompts, RAG y conversaciones |
+| Plataforma | `integrations`, `webhook_triggers`, `webhook_trigger_logs`, `audit_log`, `branding`, `translations` | integraciones, eventos, auditoría y customización |
+| Reporting y portfolio | `portfolios`, `portfolio_projects`, configuraciones BI/reportes programados | agregación ejecutiva y reporting |
 
-<!-- Añadidas tablas clave para webhooks, integraciones, logs, tarifas, onboarding, plantillas, formularios y CMDB. -->
-
-<!-- Añadir aquí todas las tablas relevantes, relaciones, y descripciones necesarias para operar y comprender el sistema. Si faltan tablas (por ejemplo, para webhooks, logs, auditoría, etc.), agregarlas. -->
-
-...existing code...
+Cuando una tabla o relación concreta deba auditarse, la referencia canónica es el modelo SQLAlchemy correspondiente, no este resumen funcional.
 
 ## 4. Endpoints y Webhooks
 
+La referencia completa y auditable de la API es el OpenAPI servido por el backend. Para consumo y verificación:
 
-### Endpoints principales
+- OpenAPI JSON: `/api/v1/openapi.json`
+- Router agregado: `app/api/v1/router.py`
+- Routers por dominio: `app/api/v1/routers/*.py`
 
-| Método | Endpoint                                              | Descripción                                      |
-|--------|-------------------------------------------------------|--------------------------------------------------|
-| GET    | /api/v1/users                                         | Listado de usuarios                              |
-| POST   | /api/v1/auth/login                                    | Login de usuario                                 |
-| GET    | /api/v1/webhooks                                      | Listar webhooks configurados                     |
-| POST   | /api/v1/webhooks                                      | Crear webhook                                    |
-| PATCH  | /api/v1/webhooks/{hook_id}                            | Actualizar webhook                               |
-| DELETE | /api/v1/webhooks/{hook_id}                            | Eliminar webhook                                 |
-| POST   | /api/v1/webhooks/{hook_id}/test                       | Enviar payload de prueba a webhook               |
-| GET    | /api/v1/webhooks/events                               | Listar eventos disponibles para webhooks         |
-| POST   | /api/v1/webhooks/fire/{slug}                          | Disparar webhook (endpoint público)              |
-| GET    | /api/v1/webhooks/{trigger_id}/logs                    | Historial de llamadas al webhook                 |
-| GET    | /api/v1/oauth-integrations                            | Listar integraciones configuradas                |
-| POST   | /api/v1/oauth-integrations                            | Crear/configurar integración                     |
-| POST   | /api/v1/oauth-integrations/{integration_id}/sync      | Sincronizar integración                          |
-| GET    | /api/v1/oauth-integrations/calendar/events            | Eventos de calendario sincronizados              |
-| POST   | /api/v1/integrations-hub/slack/commands               | Receptor de slash commands desde Slack           |
-| POST   | /api/v1/integrations-hub/teams/commands               | Receptor de acciones de MS Teams                 |
-| POST   | /api/v1/integrations-hub/jira/commands                | Receptor de comandos desde Jira                  |
-| GET    | /api/v1/rate-tables                                   | Listar tablas de tarifas                         |
-| POST   | /api/v1/rate-tables                                   | Crear tabla de tarifas                           |
-| POST   | /api/v1/rate-tables/{table_id}/entries                | Añadir tarifa                                    |
-| PATCH  | /api/v1/rate-tables/{table_id}/entries/{entry_id}     | Actualizar tarifa                                |
-| DELETE | /api/v1/rate-tables/{table_id}/entries/{entry_id}     | Eliminar tarifa                                  |
-| ...    | ...                                                   | ...                                              |
+### Superficies de API canónicas
 
-<!-- Añadidos endpoints clave para webhooks, integraciones, tarifas, onboarding, plantillas, formularios, CMDB, etc. -->
+| Área | Superficies principales |
+|------|-------------------------|
+| Auth y usuarios | `/auth`, `/users`, `/settings`, `/enterprise` |
+| Operación | `/projects`, `/tasks`, `/imputations`, `/timesheets`, `/deliverables`, `/changes`, `/sprints` |
+| Recursos | `/capacity`, `/bookings`, `/resource-forecast`, `/skills`, `/absences`, `/training`, `/performance` |
+| Financiero | `/profitability`, `/billing-reports`, `/invoices`, `/rate-cards`, `/accounting`, `/revenue-recognition`, `/expenses` |
+| ITSM / delivery | `/sd`, `/cmdb`, `/epics`, `/raci`, `/alm`, `/issue-types`, `/documents`, `/approvals` |
+| AI / analytics | `/analytics`, `/analytics-extended/analytics`, `/ai-chat`, `/ai-modules`, `/ai-providers`, `/semantic`, `/ai-governance`, `/ai/suggestions`, `/ai` |
+| Plataforma | `/integrations`, `/integrations-hub`, `/jira`, `/grc`, `/governance`, `/abac`, `/abac/admin`, `/security-observability/soc`, `/forms`, `/developer`, `/translations`, `/ui` |
+| Tiempo real y framework | `/ws`, `/onboarding`, health composite y notifications |
 
 ### Webhooks
 
-| Evento                | URL/Endpoint                        | Descripción                                      |
-|-----------------------|-------------------------------------|--------------------------------------------------|
-| user.created          | /webhooks/user-created              | Se dispara al crear usuario                      |
-| project.updated       | /webhooks/project-updated           | Se dispara al actualizar un proyecto             |
-| approval.requested    | /webhooks/approval-requested        | Nueva solicitud de aprobación                    |
-| invoice.paid          | /webhooks/invoice-paid              | Factura pagada                                   |
-| ...                   | ...                                 | ...                                              |
+Los eventos de negocio se emiten desde `app/core/events.py` y se despachan a webhooks a través de `app/services/webhooks.py`. Familias clave de evento activas en código:
+
+| Familia | Ejemplos |
+|---------|----------|
+| Proyectos y trabajo | `project.created`, `task.created`, `task.completed`, `deliverable.approved` |
+| Riesgos y cambios | `risk.created`, `risk.mitigated`, `change.approved` |
+| Aprobaciones | `approval.requested`, `approval.approved`, `approval.rejected` |
+| ITSM | `ticket.created`, `ticket.assigned`, `ticket.resolved`, `ticket.closed` |
+| Financiero | `invoice.created`, `invoice.paid`, `budget.exceeded` |
+| Portfolio | `portfolio.created`, `portfolio.updated`, `portfolio.project_added` |
+| Documental | `document.uploaded`, firmas y entregas asociadas |
 
 #### Ejemplo de payload de webhook
 
@@ -568,9 +745,7 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 }
 ```
 
-<!-- Añadir aquí todos los webhooks soportados, eventos, payloads esperados, y ejemplos si es necesario. -->
-
-...existing code...
+Las entregas HTTP tienen reintentos, log de cada intento y firma HMAC cuando el webhook tiene secreto configurado.
 
 ## 5. Integraciones
 
@@ -579,13 +754,15 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 
 | Integración     | Descripción                                 | Endpoints / Configuración clave                  |
 |-----------------|---------------------------------------------|--------------------------------------------------|
-| Slack           | Comandos y notificaciones desde Slack        | /integrations-hub/slack/commands, token API      |
-| Microsoft Teams | Acciones y notificaciones Teams             | /integrations-hub/teams/commands, webhooks       |
-| Jira            | Comandos y sincronización con Jira          | /integrations-hub/jira/commands, credenciales    |
-| GitHub/GitLab   | Conexión y sincronización de repositorios   | /oauth-integrations, token personal              |
-| QuickBooks      | Integración contable                        | /oauth-integrations, credenciales                |
-| Microsoft 365   | Sincronización de calendario y Teams        | /m365/calendar/events, /m365/teams/notify        |
-| ...             | ...                                         | ...                                              |
+| Slack / Block Kit | comandos, vistas previas y notificaciones | `/notifications/slack/block-kit*`, config de app Slack |
+| Microsoft Teams / M365 | calendario, avisos y colaboración | `/m365/*`, conectores Microsoft 365 |
+| Jira | sincronización periódica y comandos | `/jira/*`, job `jira-periodic-sync` |
+| Salesforce | sincronización comercial | `/salesforce-sync/*` |
+| GitHub / GitLab | integración de repositorios y desarrollo | `/git/*`, servicios Git |
+| SCIM / SSO / governance | provisión y gobierno de identidades | `/scim/v2/{org_id}/*`, `/governance/*` |
+| E-sign | firma electrónica documental | `/esign/*` |
+| Marketplace / Developer Portal | extensibilidad y recursos de plataforma | `/marketplace/*`, `/developer/*` |
+| Currency / rates | sincronización ECB/OpenExchangeRates y tablas | `/currency-rates/*`, sync jobs/calls |
 
 #### Ejemplo de configuración de integración
 
@@ -599,19 +776,34 @@ Este script genera una nueva clave secreta, actualiza el archivo `.env` y recuer
 }
 ```
 
-<!-- Documentadas integraciones clave y ejemplo de configuración. -->
-
-...existing code...
+Cada integración tiene su servicio dedicado en `app/services/` y, cuando aplica, tareas periódicas o webhooks asociados.
 
 ## 6. Instrucciones de Uso
 
-<!-- Explicar cómo operar el sistema, ejecutar scripts, pruebas automáticas (incluyendo Playwright), y cualquier flujo relevante para usuarios y operadores. -->
+### 6.1 Operación diaria
 
-...existing code...
+- backend: arrancar API, validar `/health` y revisar logs de warnings reales frente a 401 esperados de bootstrap
+- frontend: arrancar Vite y verificar login, dashboard principal y navegación por rol
+- workers: en entornos completos levantar Celery worker + beat; en despliegues ligeros puede existir respaldo por APScheduler
+
+### 6.2 Scripts útiles del repositorio
+
+- `setup.sh` / `setup.bat`: bootstrap local
+- `scripts/start.sh` / `scripts/start.bat`: arranque coordinado
+- `scripts/run_regression_suite.sh`: regresión backend
+- `scripts/run-ui-tests-linux-mac.sh`: UI/E2E
+- `scripts/rotate_keys.sh`: rotación guiada de secretos
+- `scripts/test_and_report.sh`: ejecución de tests con informe
+
+### 6.3 Mantenimiento de documentación
+
+- no dejar placeholders (`...existing code...`, comentarios HTML de plantilla, filas `...`)
+- si cambia un router, actualizar la tabla de módulos y cualquier sección funcional afectada
+- si cambia una ruta pública, validar también frontend, tests y ejemplos curl del documento
 
 ---
 
-> Nota: Se han eliminado los historiales de cambios, pruebas y cualquier contenido no esencial para la operación y comprensión del sistema. Si falta alguna tabla, endpoint, webhook o integración relevante, por favor agregarla en la sección correspondiente.
+> Nota: Este archivo sigue incluyendo changelog técnico y apéndices de validación porque forman parte del historial operativo del sistema. La prioridad es que no haya placeholders, rutas inventadas ni contenido desanclado del código real.
   Los datos semilla (usuarios, clientes, plantillas de email) se cargan desde archivos JSON externos si existen, o usan defaults parametrizables.
 - **Catálogos y constantes de negocio**  
   Todos los catálogos, triggers, límites y parámetros de negocio se pueden sobreescribir vía archivos JSON o variables de entorno.
@@ -1202,54 +1394,125 @@ Esto arrancará el backend, extraerá los endpoints actuales y actualizará la t
 
 ### Módulos de API
 
+Las rutas listadas aquí son los prefijos efectivos observables desde la API pública. Cuando un router se monta sin `prefix=` externo, se documenta el `prefix` declarado dentro del propio endpoint.
+
+#### Core
+
 | Prefijo | Módulo | Archivo |
 |---------|--------|---------|
+| `/auth` | Autenticación y sesiones | `auth.py` |
 | `/users` | Gestión de usuarios | `users.py` |
 | `/projects` | Proyectos | `projects.py` |
 | `/tasks` | Tareas | `tasks.py` |
 | `/imputations` | Imputación de horas | `imputations.py` |
-| `/timesheets` | Timesheets semanales | `timesheets.py` |
-| `/resources` | Recursos y entregas | `resources.py` |
-| `/capacity` | Capacidad y forecast | `capacity.py` |
-| `/resource-forecast` | Forecast de recursos | `resource_forecast.py` |
-| `/sprints` | Gestión de sprints | `sprints.py` |
-| `/clients` | Clientes y contactos | `clients.py` |
-| `/contracts` | Contratos | `contracts.py` |
-| `/pipeline` | Pipeline CRM | `pipeline.py` |
-| `/invoices` | Facturación | (en financial) |
-| `/milestones` | Hitos SOW | `milestones.py` |
-| `/rate-cards` | Rate Cards | `rate_cards.py` |
-| `/profitability` | Rentabilidad | `profitability.py` |
-| `/expenses` | Gastos | `expenses.py` |
-| `/risks` | Riesgos | `risks.py` |
-| `/changes` | Control de cambios | `changes.py` |
-| `/deliverables` | Entregables | `deliverables.py` |
-| `/okrs` | OKRs | `okrs.py` |
-| `/service-desk` | Service Desk ITSM | `service_desk.py` |
-| `/documents` | Gestión documental | `documents.py` |
+| `/dashboard` | Dashboards operativos | `dashboard.py` |
 | `/alerts` | Alertas automáticas | `alerts.py` |
-| `/approvals` | Flujos de aprobación | `approvals.py` |
-| `/automations` | Motor de automatización | `automations.py` |
+| `/settings` | Configuración global | `settings.py` |
+| `/timesheets` | Timesheets semanales | `timesheets.py` |
+| `/capacity` | Capacidad | `capacity.py` |
+| `/profitability` | Rentabilidad | `profitability.py` |
+| `/pipeline` | Pipeline CRM | `pipeline.py` |
+| `/contracts` | Contratos | `contracts.py` |
+| `/risks` | Riesgos | `risks.py` |
 | `/skills` | Habilidades | `skills.py` |
 | `/absences` | Ausencias | `absences.py` |
-| `/training` | Formación | `training.py` |
+| `/changes` | Control de cambios | `changes.py` |
+| `/deliverables` | Entregables | `deliverables.py` |
+| `/advanced-config` | Configuración avanzada | `advanced_config.py` |
+| `/analytics` | Analytics BI canónico | `analytics.py` |
+| `/portal` | Portal de cliente | `client_portal.py` |
+| `/sd` | Service Desk ITSM | `service_desk` |
+| `/sprints` | Gestión de sprints | `sprints.py` |
+| `/expenses` | Gastos | `expenses.py` |
+| `/automation-workflows` | Automatizaciones (canónico) | `automations.py` |
+| `/automations` | Automatizaciones (compat) | `automations.py` |
+| `/enterprise` | Configuración enterprise | `enterprise.py` |
+
+#### Delivery
+
+| Prefijo | Módulo | Archivo |
+|---------|--------|---------|
+| `/billing-reports` | Billing reports y SmartMatch | `billing_reports.py` |
+| `/bookings` | Reservas y planificación | `bookings.py` |
+| `/custom-fields` | Campos personalizados | `custom_fields.py` |
+| `/epics` | Épicas y wiki | `epics.py` |
+| `/issue-types` | Tipos de issue | `issue_types.py` |
+| `/cmdb` | CMDB delivery | `cmdb.py` |
+| `/activity` | Actividad y menciones | `activity.py` |
+| `/raci` | RACI y UAT | `raci.py` |
+| `/alm` | ALM | `alm.py` |
+| `/clients` | Clientes | `clients.py` |
+| `/rate-cards` | Rate Cards | `rate_cards.py` |
+| `/milestones` | Hitos SOW | `milestones.py` |
+| `/resource-forecast` | Forecast de recursos | `resource_forecast.py` |
+| `/approvals` | Flujos de aprobación | `approvals.py` |
+| `/accounting` | Accounting hub | `accounting_hub.py` |
+| `/okrs` | OKRs | `okrs.py` |
 | `/performance` | Revisiones de desempeño | `performance.py` |
-| `/analytics` | Analítica y reporting | `analytics.py` |
-| `/report-builder` | Constructor de informes | `report_builder.py` |
-| `/dashboard` | KPIs dashboard | `dashboard.py` |
-| `/portfolio` | Portfolios | (en endpoints) |
-| `/esign` | Firma electrónica | `esign.py` |
+| `/training` | Formación | `training.py` |
+| `/documents` | Gestión documental | `documents.py` |
+| `/resources` | Recursos operativos | `resources.py` |
+| `/invoices` | Facturación | `invoices.py` |
+| `/documents-collab/documents` | Colaboración documental | `documents_collab.py` |
+| `/analytics-extended/analytics` | Analytics extendido | `analytics_extended.py` |
+| `/portfolios` | Portfolios | `portfolio.py` |
 | `/git` | Integración GitHub/GitLab | `git_integration.py` |
+| `/esign` | Firma electrónica | `esign.py` |
+| `/reports` | Report Builder | `report_builder.py` |
+| `/nps` | NPS / salud cliente | `nps.py` |
 | `/m365` | Microsoft 365 | `m365.py` |
-| `/nps` | NPS / CSAT | `nps.py` |
-| `/enterprise` | Config. enterprise | `enterprise.py` |
-| `/settings` | Configuración global | `settings.py` |
+| `/templates` | Templates mejorados | `templates.py` |
+| `/revenue-recognition` | Revenue recognition | `revenue.py` |
+| `/predictions` | Predicciones operativas | `predictions.py` |
+
+#### AI
+
+| Prefijo | Módulo | Archivo |
+|---------|--------|---------|
+| `/ai-chat` | NexusAssist y NexusAgent | `ai_chat.py` |
+| `/ai-modules` | Módulos IA especializados | `ai_modules.py` |
 | `/ai-providers` | Proveedores IA | `ai_providers.py` |
-| `/semantic-engine` | Motor semántico | `semantic_engine.py` |
-| `/accounting` | Contabilidad hub | `accounting_hub.py` |
+| `/semantic` | Motor semántico | `semantic_engine.py` |
+| `/ai-governance` | Governance IA | `ai_governance.py` |
+| `/ai/suggestions` | Sugerencias IA | `ai_suggestions.py` |
+| `/ai` | Compat / endpoints AI legacy | `ai.py` |
+
+#### Platform y Framework
+
+| Prefijo | Módulo | Archivo |
+|---------|--------|---------|
 | `/integrations` | Integraciones externas | `integrations.py` |
-| `/client-portal` | Portal de cliente | `client_portal.py` |
-| `/ws` | WebSocket (tiempo real) | `ws.py` |
+| `/integrations-hub` | Integrations hub | `integrations_hub.py` |
+| `/jira` | Jira | `jira.py` |
+| `/grc` | Governance, Risk & Compliance | `grc.py` |
+| `/salesforce-sync` | Salesforce sync | `salesforce_sync.py` |
+| `/currency-rates` | Tipos de cambio | `currency_rates.py` |
+| `/scim/v2/{org_id}` | SCIM provisioning | `scim.py` |
+| `/governance` | Governance | `governance.py` |
+| `/abac` | ABAC | `abac.py` |
+| `/abac/admin` | Administración ABAC | `abac_admin.py` |
+| `/security-observability/soc` | Security observability | `security_observability.py` |
+| `/forms` | Public Forms | `public_forms.py` |
+| `/developer` | Developer Portal | `developer_portal.py` |
+| `/marketplace` | Marketplace | `marketplace.py` |
+| `/collaborative` | Collaborative | `collaborative.py` |
+| `/labels` | Labels | `labels.py` |
+| `/translations` | Traducciones UI | `translations.py` |
+| `/ui` | Configuración UI | `ui.py` |
+| `/resource-demand` | Resource demand | `resource_demand.py` |
+| `/ws` | WebSocket / tiempo real | `ws.py` |
+| `/onboarding` | Onboarding | `onboarding.py` |
+
+#### Alias legacy y compatibilidad
+
+| Prefijo | Propósito | Archivo |
+|---------|-----------|---------|
+| `/projects/tasks` | Alias estático legacy | `tasks.py` |
+| `/projects/milestones` | Alias estático legacy | `milestones.py` |
+| `/projects/sprints` | Alias estático legacy | `sprints.py` |
+| `/projects/epics` | Alias estático legacy | `epics.py` |
+| `/projects/issue-types` | Alias estático legacy | `issue_types.py` |
+| `/sprint-plans` | Compat de sprint planning | `router.py` |
 
 ---
 
@@ -1431,8 +1694,8 @@ La variable de entorno `SECRET_KEY` es obligatoria para el correcto funcionamien
 
 ```bash
 # 1. Clonar y entrar al directorio
-git clone <repo> nexuspm_v23
-cd nexuspm_v23
+git clone <repo> contecflow-PSA
+cd contecflow-PSA
 
 # 2. Copiar y configurar variables de entorno
 cp .env.example .env
@@ -1634,7 +1897,6 @@ pytest test_e2e_projects.py -v
 | `test_tenant_isolation.py` | Aislamiento por organización en usuarios, tareas y mapas de carga (multi-tenant) |
 | `test_projects.py` | Proyectos, fases, miembros |
 | `test_tasks.py` | Tareas, comentarios, asignación |
-| ... | ... |
 | `test_grc.py` | GRC: matriz de permisos, reglas SoD, violaciones, audit log |
 | `test_nps_customer_health.py` | NPS: respuestas, resumen, puntuación de salud del cliente |
 | `test_portfolio.py` | Carteras: CRUD, EVM (CPI/SPI/health), dashboard RAG |
@@ -1765,7 +2027,7 @@ El portal es una experiencia completamente separada, accesible en `/portal`, par
 - URL: `http://localhost:3000/portal`
 - Login con email + contraseña (cuenta `ClientUser`, no `User`)
 - Token httpOnly cookie `portal_access_token` (separado del token de empleados)
-- Endpoint: `POST /api/v1/client-portal/auth/login`
+- Endpoint: `POST /api/v1/portal/auth/login`
 
 ### Funcionalidades disponibles al cliente
 
@@ -1795,7 +2057,7 @@ Un admin puede configurar qué funcionalidades activa para cada cliente en `Clie
 
 ```bash
 # Via API (requiere admin o pm)
-POST /api/v1/client-portal/users
+POST /api/v1/portal/clients
 {
   "email": "cliente@empresa.com",
   "full_name": "Nombre Cliente",
@@ -3342,7 +3604,7 @@ Razon:
 | `/ai-chat/*` | `endpoints/ai_chat` | Activo |
 | `/integrations/*` | `endpoints/integrations` | Activo |
 | `/abac/*` | `endpoints/abac` | Activo |
-| `/service-desk/*` | `endpoints/service_desk` | Activo |
+| `/sd/*` | `endpoints/service_desk` | Activo |
 | `/clients/*` | `endpoints/clients` | Activo |
 
 ### Aliases legacy (deprecados)
