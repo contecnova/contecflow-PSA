@@ -710,6 +710,8 @@ export function PortalDocuments() {
 export function PortalWiki() {
   const t = useLang()
   const [selected, setSelected] = useState(null)
+  const [wikiTab, setWikiTab] = useState('docs')
+  const [searchKB, setSearchKB] = useState('')
 
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['portal-wiki-pages'],
@@ -720,55 +722,114 @@ export function PortalWiki() {
     queryFn: () => CLIENT_API.get(`/portal/wiki/pages/${selected}`).then(r => r.data),
     enabled: !!selected,
   })
+  const { data: kbArticles = [], isLoading: loadingKB } = useQuery({
+    queryKey: ['portal-wiki-kb', searchKB],
+    queryFn: () => CLIENT_API.get('/sd/kb', { params: { public_only: true, search: searchKB || undefined } }).then(r => r.data),
+    enabled: wikiTab === 'kb',
+  })
 
-  if (isLoading) return <div style={{ color: 'var(--text-2)', padding: 40, textAlign: 'center' }}>Cargando...</div>
+  if (isLoading) return <div style={{ color: 'var(--text-2)', padding: 40, textAlign: 'center' }}>{t('wiki_loading')}</div>
+
+  const tabBtn = (active) => ({
+    padding: '7px 16px', borderRadius: 8,
+    border: `1px solid ${active ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+    background: active ? 'var(--accent-muted)' : 'transparent',
+    color: active ? 'var(--accent)' : 'var(--text-2)',
+    fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+  })
 
   return (
     <div>
       <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{t('nav_wiki')}</h2>
-      <p style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 24 }}>{t('wiki_subtitle')}</p>
+      <p style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 20 }}>{t('wiki_subtitle')}</p>
 
-      {selected && pageDetail ? (
-        <div style={S.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setSelected(null)} style={{ ...S.btnSec, padding: '6px 14px', fontSize: 12 }}>← {t('back')}</button>
-            <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{pageDetail.title}</h3>
-          </div>
-          <div style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
-            {(pageDetail.content || []).map((block, i) => {
-              if (block.type === 'heading1') return <h1 key={i} style={{ fontSize: 22, fontWeight: 800, margin: '20px 0 10px' }}>{block.content}</h1>
-              if (block.type === 'heading2') return <h2 key={i} style={{ fontSize: 18, fontWeight: 700, margin: '18px 0 8px', color: 'var(--accent)' }}>{block.content}</h2>
-              if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 15, fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
-              if (block.type === 'bullet') return <li key={i} style={{ marginLeft: 20, marginBottom: 4 }}>{block.content}</li>
-              if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 16px', fontSize: 12, overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
-              if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
-              if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid var(--surface-4)', margin: '16px 0' }} />
-              return <p key={i} style={{ marginBottom: 10 }}>{block.content}</p>
-            })}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 20 }}>
-            {t('last_updated')}: {new Date(pageDetail.updated_at).toLocaleDateString()}
-          </div>
-        </div>
-      ) : (
-        <div>
-          {pages.length === 0 ? (
-            <div style={{ ...S.card, textAlign: 'center', padding: 48 }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>📚</div>
-              <div style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('wiki_empty')}</div>
+      {/* Tab switcher */}
+      <div role="tablist" aria-label={t('nav_wiki')} style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 16 }}>
+        <button role="tab" aria-selected={wikiTab === 'docs'} aria-controls="wiki-panel-docs" id="wiki-tab-docs"
+          onClick={() => { setWikiTab('docs'); setSelected(null) }} style={tabBtn(wikiTab === 'docs')}>{t('wiki_tab_docs')}</button>
+        <button role="tab" aria-selected={wikiTab === 'kb'} aria-controls="wiki-panel-kb" id="wiki-tab-kb"
+          onClick={() => setWikiTab('kb')} style={tabBtn(wikiTab === 'kb')}>{t('wiki_tab_kb')}</button>
+      </div>
+
+      {/* Docs tab */}
+      {wikiTab === 'docs' && (
+        <div id="wiki-panel-docs" role="tabpanel" aria-labelledby="wiki-tab-docs">
+          {selected && pageDetail ? (
+            <div style={S.card}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <button onClick={() => setSelected(null)} style={{ ...S.btnSec, padding: '6px 14px', fontSize: 12 }}>← {t('back')}</button>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{pageDetail.title}</h3>
+              </div>
+              <div style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7 }}>
+                {(pageDetail.content || []).map((block, i) => {
+                  if (block.type === 'heading1') return <h1 key={i} style={{ fontSize: 22, fontWeight: 800, margin: '20px 0 10px' }}>{block.content}</h1>
+                  if (block.type === 'heading2') return <h2 key={i} style={{ fontSize: 18, fontWeight: 700, margin: '18px 0 8px', color: 'var(--accent)' }}>{block.content}</h2>
+                  if (block.type === 'heading3') return <h3 key={i} style={{ fontSize: 15, fontWeight: 700, margin: '14px 0 6px' }}>{block.content}</h3>
+                  if (block.type === 'bullet') return <li key={i} style={{ marginLeft: 20, marginBottom: 4 }}>{block.content}</li>
+                  if (block.type === 'code') return <pre key={i} style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '12px 16px', fontSize: 12, overflow: 'auto', marginBottom: 12 }}>{block.content}</pre>
+                  if (block.type === 'callout') return <div key={i} style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>{block.content}</div>
+                  if (block.type === 'separator') return <hr key={i} style={{ border: 'none', borderTop: '1px solid var(--surface-4)', margin: '16px 0' }} />
+                  return <p key={i} style={{ marginBottom: 10 }}>{block.content}</p>
+                })}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 20 }}>
+                {t('last_updated')}: {new Date(pageDetail.updated_at).toLocaleDateString()}
+              </div>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-              {pages.map(p => (
-                <button key={p.id} type="button" onClick={() => setSelected(p.id)} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
-                  <div style={{ fontSize: 20, marginBottom: 10 }}>📄</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{p.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                    {t('last_updated')}: {new Date(p.updated_at).toLocaleDateString()}
+            <div>
+              {pages.length === 0 ? (
+                <div style={{ ...S.card, textAlign: 'center', padding: 48 }}>
+                  <div style={{ fontSize: 40, marginBottom: 16 }}>📚</div>
+                  <div style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('wiki_empty')}</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {pages.map(p => (
+                    <button key={p.id} type="button" onClick={() => setSelected(p.id)} style={{ ...S.card, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
+                      <div style={{ fontSize: 20, marginBottom: 10 }}>📄</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{p.title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                        {t('last_updated')}: {new Date(p.updated_at).toLocaleDateString()}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KB Articles tab */}
+      {wikiTab === 'kb' && (
+        <div id="wiki-panel-kb" role="tabpanel" aria-labelledby="wiki-tab-kb">
+          <div style={{ marginBottom: 16 }}>
+            <input aria-label={t('wiki_kb_search')} value={searchKB}
+              onChange={e => setSearchKB(e.target.value)}
+              placeholder={t('wiki_kb_search')}
+              style={{ ...S.input, fontSize: 14, padding: '12px 16px' }} />
+          </div>
+          {loadingKB ? (
+            <div style={{ color: 'var(--text-2)', padding: 40, textAlign: 'center' }}>{t('wiki_loading')}</div>
+          ) : kbArticles.length === 0 ? (
+            <div style={{ ...S.card, textAlign: 'center', padding: 48 }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>🔍</div>
+              <div style={{ color: 'var(--text-2)', fontSize: 14 }}>{t('wiki_kb_empty')}</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {kbArticles.map(a => (
+                <div key={a.id} style={{ ...S.card }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>{a.title}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</span>
                   </div>
-                </button>
+                  {a.summary && <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 10px' }}>{a.summary}</p>}
+                  {a.tags && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>🏷 {a.tags}</div>}
+                </div>
               ))}
             </div>
           )}

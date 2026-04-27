@@ -20,6 +20,7 @@ import Config from './service-desk/ConfigTab'
 const LazyMetricsDashboard    = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
+const LazyAnnouncements       = lazy(() => import('./service-desk/ConfigTab').then(m => ({ default: m.AnnouncementsConfig })))
 const Loading = () => <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
 
 export default function ServiceDeskPage() {
@@ -50,6 +51,7 @@ export default function ServiceDeskPage() {
     { id: 'problems', label: `${t('service_desk.tab_problems')}` },
     { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
     { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
+    { id: 'announcements', label: `${t('service_desk.tab_announcements')}` },
     { id: 'metrics',  label: `${t('service_desk.tab_metrics')}` },
     { id: 'config',   label: `${t('service_desk.tab_config')}` },
   ]
@@ -147,6 +149,11 @@ export default function ServiceDeskPage() {
             {tab === 'metrics'  && (
               <div id="sd-panel-metrics" role="tabpanel" aria-labelledby="sd-tab-metrics"><Suspense fallback={<Loading />}>
                 <LazyMetricsDashboard />
+              </Suspense></div>
+            )}
+            {tab === 'announcements' && (
+              <div id="sd-panel-announcements" role="tabpanel" aria-labelledby="sd-tab-announcements"><Suspense fallback={<Loading />}>
+                <LazyAnnouncements />
               </Suspense></div>
             )}
             {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-labelledby="sd-tab-config"><Config /></div>}

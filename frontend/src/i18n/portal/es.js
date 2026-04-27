@@ -239,9 +239,13 @@ const es = {
   support_open_ticket_cta: 'Abrir ticket',
 
   // Wiki
-  wiki_subtitle: 'Documentación y guías del equipo',
+  wiki_subtitle: 'Documentación del proyecto y base de conocimiento',
   wiki_empty: 'No hay documentos disponibles',
   wiki_loading: 'Cargando...',
+  wiki_tab_docs: '📄 Documentación',
+  wiki_tab_kb: '🔍 Artículos KB',
+  wiki_kb_search: 'Buscar artículos...',
+  wiki_kb_empty: 'No hay artículos disponibles',
 
   // Stats
   stats_subtitle: 'Métricas e indicadores del proyecto en tiempo real',

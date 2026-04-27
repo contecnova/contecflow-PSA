@@ -747,7 +747,7 @@ function CannedResponsesManager() {
 }
 
 // ── Announcements Config ──────────────────────────────────────────────────────
-function AnnouncementsConfig() {
+export function AnnouncementsConfig() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -844,7 +844,6 @@ export default function Config() {
     {id:'routing',  label:`${t('service_desk.tab_routing')}`},
     {id:'templates',label:`${t('service_desk.tab_templates')}`},
     {id:'canned',   label:`${t('service_desk.tab_canned')}`},
-    {id:'announcements', label:`${t('service_desk.tab_announcements')}`},
   ]
   return (
     <div>
@@ -865,7 +864,6 @@ export default function Config() {
       {sub === 'routing'       && <RoutingRules />}
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
-      {sub === 'announcements' && <AnnouncementsConfig />}
     </div>
   )
 }
