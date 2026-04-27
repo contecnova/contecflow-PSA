@@ -414,6 +414,14 @@ def archive_conversation(
         raise HTTPException(404)
 
 
+@router.delete("/ai/conversations", summary="Archivar historial de conversaciones")
+def archive_all_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return _svc.archive_all_conversations(db, current_user.id)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEXUSAGENT — Autonomous Multi-Step Agent
 # ═══════════════════════════════════════════════════════════════════════════════

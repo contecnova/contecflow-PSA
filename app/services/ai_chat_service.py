@@ -38,6 +38,7 @@ from app.services.ai_chat.conversation_service import (
     list_conversations,
     get_conversation,
     archive_conversation,
+    archive_all_conversations,
     get_or_create_conversation,
 )
 
@@ -81,6 +82,7 @@ __all__ = [
     "list_conversations",
     "get_conversation",
     "archive_conversation",
+    "archive_all_conversations",
     "get_or_create_conversation",
     # Agent Execution
     "create_agent_execution",

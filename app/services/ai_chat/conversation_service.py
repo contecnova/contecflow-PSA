@@ -51,6 +51,16 @@ def archive_conversation(db: Session, conv_id: str, user_id: str) -> dict:
     return {"ok": True}
 
 
+def archive_all_conversations(db: Session, user_id: str) -> dict:
+    """Archive all active conversations for a user."""
+    updated = db.query(AIConversation).filter(
+        AIConversation.user_id == user_id,
+        AIConversation.is_archived == False,
+    ).update({AIConversation.is_archived: True}, synchronize_session=False)
+    db.commit()
+    return {"ok": True, "archived": updated}
+
+
 def get_or_create_conversation(db: Session, conversation_id, user_id: str, context_type=None, context_id=None):
     """Get existing conversation or create new one."""
     conv = None

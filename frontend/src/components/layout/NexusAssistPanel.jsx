@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
+import { useConfirm } from '../../context/ConfirmContext'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
 
@@ -25,6 +26,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     ? (Object.entries(PAGE_LABELS).find(([k]) => context.page === k || context.page.startsWith(k + '/'))?.[1] || context.page)
     : null
   const qc = useQueryClient()
+  const { openConfirm } = useConfirm()
   const [convId, setConvId]   = useState(null)
   const [input, setInput]     = useState('')
   const [messages, setMessages] = useState([])
@@ -38,6 +40,16 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
     queryKey: ['ai-conversations'],
     queryFn: () => api.get('/ai/conversations').then(r => r.data),
     enabled: open,
+  })
+
+  const { mutate: clearHistory, isPending: isClearingHistory } = useMutation({
+    mutationFn: () => api.delete('/ai/conversations').then(r => r.data),
+    onSuccess: () => {
+      localStorage.removeItem(LAST_CONV_KEY)
+      setConvId(null)
+      setMessages([])
+      qc.invalidateQueries(['ai-conversations'])
+    },
   })
 
   useEffect(() => {
@@ -129,6 +141,19 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
             style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
               padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
             + Nueva
+          </button>
+          <button
+            type="button"
+            disabled={conversations.length === 0 || isClearingHistory}
+            onClick={() => openConfirm({
+              title: 'Borrar historial',
+              message: 'Se archivarán todas las conversaciones de Nexus Assist de tu usuario. Esta acción ocultará el histórico actual.',
+              danger: true,
+              onConfirm: () => clearHistory(),
+            })}
+            style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
+              padding:'4px 10px', color:'var(--text-2)', cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', fontSize:12, fontFamily:'inherit', opacity: conversations.length === 0 || isClearingHistory ? 0.5 : 1 }}>
+            {isClearingHistory ? 'Borrando...' : 'Borrar historial'}
           </button>
           <button onClick={onClose} style={{ background:'transparent', border:'none', fontSize:18, cursor:'pointer', color:'var(--text-2)', padding:'2px 6px' }}>✕</button>
         </div>
