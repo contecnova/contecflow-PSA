@@ -109,7 +109,7 @@ function PortalApp({ changeLang, _currentLang }) {
     { id: 'wiki',      icon: '📚', label: t('nav_wiki') },
     { id: 'documents', icon: '📄', label: t('nav_documents') },
     { id: 'invoices',  icon: '🧾', label: 'Facturas' },
-    { id: 'support',   icon: '🎫', label: t('nav_support') },
+    { id: 'support',   icon: '🛎️', label: t('nav_support') },
     { id: 'messages',  icon: '💬', label: t('nav_messages') },
     { id: 'profile',   icon: '⚙️', label: 'Mi perfil' },
   ]

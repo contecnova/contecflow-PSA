@@ -5,7 +5,7 @@ const es = {
   nav_dashboard: 'Inicio',
   nav_uat: 'Pruebas UAT',
   nav_requests: 'Solicitudes',
-  nav_support: 'Soporte / Tickets',
+  nav_support: 'Autoservicio',
   nav_messages: 'Mensajes',
   nav_roadmap: 'Hoja de ruta',
   nav_documents: 'Documentos',
@@ -174,9 +174,9 @@ const es = {
   doc_download_btn: '⬇ Descargar',
   doc_signed_on: '✓ Firmado',
 
-  // Support / Tickets
-  support_title: 'Soporte y tickets',
-  support_subtitle: 'Abre y gestiona solicitudes de soporte',
+  // Self-Service
+  support_title: 'Autoservicio',
+  support_subtitle: 'Abre tickets, consulta la KB y revisa comunicados',
   support_new: 'Nuevo ticket',
   support_my_tickets: 'Mis tickets',
   support_kb: 'Base de conocimiento',

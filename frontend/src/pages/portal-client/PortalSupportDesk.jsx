@@ -109,7 +109,7 @@ export function PortalSupportDesk() {
           {tickets.length === 0 ? (
             <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🎫</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Sin tickets de soporte</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{t('support_empty')}</div>
               <p style={{ margin: '8px 0 16px' }}>¿Tienes algún problema o necesitas ayuda? Abre un ticket y el equipo te atenderá.</p>
               <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
             </div>
@@ -311,10 +311,10 @@ export function PortalSupportDesk() {
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="portal-support-create-title" style={{ ...S.card, width: 580, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 id="portal-support-create-title" style={{ fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>Abrir ticket de soporte</h3>
+            <h3 id="portal-support-create-title" style={{ fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>{t('support_modal_title')}</h3>
 
             <div style={{ background: 'var(--portal-bg)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>💡 Antes de abrir un ticket, ¿has buscado en la base de conocimiento?</div>
+              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>{t('support_kb_hint')}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input placeholder="Buscar artículo relacionado" aria-label="Buscar artículo relacionado" style={{ ...S.input, flex: 1, fontSize: 12, padding: '8px 12px' }}
                   onChange={e => setSearchKB(e.target.value)} />
