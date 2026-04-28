@@ -293,6 +293,15 @@ class Ticket(Base):
     escalation_risk_score = Column(Float, nullable=True)
     prediction_generated_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Phase 3 — AI Auto-Resolution
+    auto_resolved = Column(Boolean, default=False, index=True)
+    auto_resolved_at = Column(DateTime(timezone=True), nullable=True)
+    auto_resolved_by = Column(String(100), nullable=True)  # "ai_auto_resolution" | user name
+    auto_resolved_confidence = Column(Float, nullable=True)  # 0-1
+    resolution_text = Column(Text, nullable=True)  # AI-suggested resolution
+    root_cause = Column(String(255), nullable=True)  # AI-identified root cause
+    resolution_kb_articles = Column(Text, nullable=True)  # JSON array of KB article numbers
+
     source = Column(String(20), default="portal")
     tags = Column(String(500), nullable=True)
 

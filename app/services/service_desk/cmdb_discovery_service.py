@@ -20,6 +20,7 @@ from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider, CMDBItem
 
@@ -749,3 +750,70 @@ def run_all_active_discoveries(db: Session) -> list[dict]:
             )
 
     return results
+
+
+def get_reconciliation_health(db: Session, provider_type: str | None = None) -> dict:
+    """Build reconciliation health metrics for discovered CIs.
+
+    Metrics:
+      - total_discovered: discovered CIs in CMDB
+      - active_discovered: discovered CIs currently active/maintenance
+      - stale_discovered: discovered CIs decommissioned by reconciliation
+      - duplicate_external_ids: repeated (provider, external_id) pairs
+      - by_provider: per-provider counts
+    """
+    q = db.query(CMDBItem).filter(CMDBItem.is_discovered.is_(True))
+    if provider_type:
+        q = q.filter(CMDBItem.discovery_provider == provider_type)
+
+    rows = q.all()
+    total_discovered = len(rows)
+    stale_discovered = sum(1 for r in rows if r.status == "decommissioned")
+    active_discovered = total_discovered - stale_discovered
+
+    dup_q = (
+        db.query(
+            CMDBItem.discovery_provider,
+            CMDBItem.external_id,
+            func.count(CMDBItem.id).label("n"),
+        )
+        .filter(CMDBItem.is_discovered.is_(True), CMDBItem.external_id.isnot(None))
+        .group_by(CMDBItem.discovery_provider, CMDBItem.external_id)
+        .having(func.count(CMDBItem.id) > 1)
+    )
+    if provider_type:
+        dup_q = dup_q.filter(CMDBItem.discovery_provider == provider_type)
+
+    duplicate_external_ids = dup_q.count()
+
+    provider_counts = {}
+    for r in rows:
+        key = r.discovery_provider or "unknown"
+        if key not in provider_counts:
+            provider_counts[key] = {
+                "total": 0,
+                "active": 0,
+                "decommissioned": 0,
+            }
+        provider_counts[key]["total"] += 1
+        if r.status == "decommissioned":
+            provider_counts[key]["decommissioned"] += 1
+        else:
+            provider_counts[key]["active"] += 1
+
+    score = 100
+    if total_discovered > 0:
+        stale_ratio = stale_discovered / total_discovered
+        score -= int(stale_ratio * 35)
+    score -= min(duplicate_external_ids * 10, 35)
+    score = max(score, 0)
+
+    return {
+        "provider_filter": provider_type,
+        "total_discovered": total_discovered,
+        "active_discovered": active_discovered,
+        "stale_discovered": stale_discovered,
+        "duplicate_external_ids": duplicate_external_ids,
+        "reconciliation_score": score,
+        "by_provider": provider_counts,
+    }

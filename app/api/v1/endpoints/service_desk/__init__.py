@@ -26,6 +26,7 @@ from app.api.v1.endpoints.service_desk import (
     workflow_designer,
     connectors_marketplace,
     governance_ops,
+    ai_auto_resolution,
 )
 
 router = APIRouter()
@@ -41,3 +42,4 @@ router.include_router(misc.router)
 router.include_router(workflow_designer.router)
 router.include_router(connectors_marketplace.router)
 router.include_router(governance_ops.router)
+router.include_router(ai_auto_resolution.router)

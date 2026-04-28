@@ -1,8 +1,9 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
-from fastapi import APIRouter, Depends, Query, Header, Body, Response
+from fastapi import APIRouter, Depends, Query, Header, Body, Response, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+import json
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
@@ -36,7 +37,15 @@ from app.services.service_desk.routing_rule_service import (
 )
 from app.services.service_desk.change_service import (
     serialize_change, list_changes_payload, get_change_payload,
-    create_change_record, update_change_record, approve_change_record,
+    create_change_record, update_change_record, approve_change_record, get_change_by_id,
+)
+from app.services.service_desk.change_management_service import (
+    assess_change_risk_ai,
+    create_rollout_plan,
+    check_change_suitability_for_automation,
+    generate_rollback_automation_script,
+    ChangeType as ChangeAutomationType,
+    RiskLevel,
 )
 from app.services.service_desk.major_incident_service import (
     list_major_incidents_payload, declare_major_incident_record,
@@ -55,6 +64,12 @@ from app.services.service_desk.status_page_service import (
 )
 
 router = APIRouter()
+
+
+def _json_default_serializer(value):
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 # ── Service Catalog ───────────────────────────────────────────────────────────
 
@@ -238,6 +253,110 @@ def approve_change(change_id: str, payload: dict = Body(default={}), db: Session
     cr = approve_change_record(db, current_user, change_id, payload)
     _commit_or_rollback(db)
     return {"ok": True, "status": cr.status.value}
+
+
+@router.post("/changes/{change_id}/assess-risk", summary="Evaluar riesgo de cambio con IA")
+def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    cr = get_change_by_id(db, current_user, change_id)
+    if not cr:
+        raise HTTPException(404, "Change request no encontrado")
+
+    try:
+        impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
+        if not isinstance(impacted, list):
+            impacted = []
+    except Exception:
+        impacted = []
+
+    assessment = assess_change_risk_ai(
+        db,
+        title=cr.title,
+        description=cr.description,
+        impact_areas=[cr.impact_description or "unspecified"],
+        affected_cis=[str(v) for v in impacted],
+        rollback_plan=cr.rollback_plan or "",
+    )
+
+    cr.auto_risk_score = float(assessment.get("risk_score", 0) or 0)
+    cr.impact_analysis_json = json.dumps(assessment)
+    _commit_or_rollback(db)
+    return {"change_id": cr.id, "assessment": assessment}
+
+
+@router.post("/changes/{change_id}/plan-rollout", summary="Planificación de rollout automatizado")
+def plan_change_rollout(
+    change_id: str,
+    payload: dict = Body(default={}),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cr = get_change_by_id(db, current_user, change_id)
+    if not cr:
+        raise HTTPException(404, "Change request no encontrado")
+
+    try:
+        impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
+        if not isinstance(impacted, list):
+            impacted = []
+    except Exception:
+        impacted = []
+
+    estimated_duration = int(payload.get("estimated_duration_minutes", 120))
+    rollout_plan = create_rollout_plan(
+        db,
+        change_id=cr.id,
+        affected_cis=[str(v) for v in impacted],
+        rollback_plan=cr.rollback_plan or "",
+        estimated_duration_minutes=estimated_duration,
+    )
+    cr.suggested_window_json = json.dumps(rollout_plan, default=_json_default_serializer)
+    _commit_or_rollback(db)
+    return {"change_id": cr.id, "rollout_plan": rollout_plan}
+
+
+@router.get("/changes/{change_id}/automation-check", summary="Comprobar nivel de automatización de cambio")
+def automation_check(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    cr = get_change_by_id(db, current_user, change_id)
+    if not cr:
+        raise HTTPException(404, "Change request no encontrado")
+
+    risk_str = (cr.risk.value if cr.risk else "medium").lower()
+    type_str = (cr.change_type.value if cr.change_type else "normal").lower()
+    risk = RiskLevel[risk_str] if risk_str in RiskLevel.__members__ else RiskLevel.medium
+    ctype = (
+        ChangeAutomationType[type_str]
+        if type_str in ChangeAutomationType.__members__
+        else ChangeAutomationType.normal
+    )
+
+    result = check_change_suitability_for_automation(
+        db,
+        change_id=cr.id,
+        risk_level=risk,
+        change_type=ctype,
+    )
+    return {"change_id": cr.id, **result}
+
+
+@router.post("/changes/{change_id}/rollback-script", summary="Generar script de rollback")
+def rollback_script(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    cr = get_change_by_id(db, current_user, change_id)
+    if not cr:
+        raise HTTPException(404, "Change request no encontrado")
+
+    try:
+        impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
+        if not isinstance(impacted, list):
+            impacted = []
+    except Exception:
+        impacted = []
+
+    script = generate_rollback_automation_script(
+        change_id=cr.number or cr.id,
+        rollback_plan=cr.rollback_plan or "echo 'No rollback plan defined'",
+        affected_cis=[str(v) for v in impacted],
+    )
+    return {"change_id": cr.id, "script": script}
 
 # ── Major Incidents ───────────────────────────────────────────────────────────
 

@@ -23,6 +23,7 @@ from app.services.service_desk.cmdb_relation_service import (
 from app.services.service_desk.cmdb_discovery_service import (
     run_discovery_for_provider,
     run_all_active_discoveries,
+    get_reconciliation_health,
 )
 
 router = APIRouter()
@@ -219,3 +220,12 @@ def run_discovery_all(
     db: Session = Depends(get_db), current_user: User = Depends(require_admin)
 ):
     return {"ok": True, "results": run_all_active_discoveries(db)}
+
+
+@router.get("/cmdb/discovery/reconciliation-health", summary="Salud de reconciliación CMDB")
+def reconciliation_health(
+    provider_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    return get_reconciliation_health(db, provider_type=provider_type)

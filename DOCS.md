@@ -11,6 +11,58 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.31 (Abril 2026) — Hardening AI Auto-Resolution + planificación avanzada de cambios
+
+- Se consolida AI auto-resolution sin romper contratos existentes:
+  - Router nuevo: `app/api/v1/endpoints/service_desk/ai_auto_resolution.py`.
+  - Endpoints:
+    - `POST /api/v1/sd/tickets/{ticket_id}/ai-analyze`
+    - `POST /api/v1/sd/tickets/{ticket_id}/ai-auto-resolve`
+    - `POST /api/v1/sd/auto-resolution/run-job`
+  - Mejoras de robustez:
+    - validación de estado con `TicketStatus` (sin comparaciones frágiles string vs enum),
+    - timestamps timezone-aware (`UTC`).
+
+- Se evita duplicar Change Management y se integra en el flujo real existente (`sd_change_requests`):
+  - Se elimina router duplicado no alineado con el modelo actual (`change_management.py`) y migración duplicada (`039_change_management.py`).
+  - Se extiende `app/api/v1/endpoints/service_desk/misc.py` sobre endpoints de cambios existentes:
+    - `POST /api/v1/sd/changes/{change_id}/assess-risk`
+    - `POST /api/v1/sd/changes/{change_id}/plan-rollout`
+    - `GET /api/v1/sd/changes/{change_id}/automation-check`
+    - `POST /api/v1/sd/changes/{change_id}/rollback-script`
+  - Servicio de soporte: `app/services/service_desk/change_management_service.py`.
+  - Persistencia aprovechada en columnas ya existentes de `ITSMChangeRequest`:
+    - `auto_risk_score`,
+    - `impact_analysis_json`,
+    - `suggested_window_json`.
+
+- CMDB auto-reconciliation operable y medible:
+  - Servicio extendido: `app/services/service_desk/cmdb_discovery_service.py`.
+  - Endpoint nuevo: `GET /api/v1/sd/cmdb/discovery/reconciliation-health`.
+  - Métricas expuestas:
+    - `total_discovered`, `active_discovered`, `stale_discovered`,
+    - `duplicate_external_ids`, `reconciliation_score`, `by_provider`.
+  - Soporte de filtro por proveedor vía query param `provider_type`.
+
+- PWA hardening en frontend (App Shell + instalabilidad):
+  - `frontend/index.html` ahora enlaza manifest e iconos móviles (`apple-touch-icon`, `manifest.json`).
+  - `frontend/public/sw.js` actualizado a estrategia robusta:
+    - precache de app shell,
+    - navegación `network-first` con fallback a `index.html`,
+    - estáticos con `stale-while-revalidate`,
+    - API `network-first` con fallback JSON offline.
+
+- Limpieza técnica:
+  - eliminación de backup transitorio `change_management_service.py.bak`,
+  - eliminación de artefacto temporal `test_output.txt`,
+  - se mantiene la agregación de routers de Service Desk sin duplicados.
+
+- Validación ejecutada:
+  - `pytest -q tests/test_changes.py tests/test_service_desk_phase2_critical_flows.py tests/test_ai_auto_resolution_service.py --tb=short`
+  - `pytest -q tests/test_service_desk_change_automation.py tests/test_cmdb_reconciliation_health.py tests/test_ai_auto_resolution_service.py --tb=short`
+  - Resultado: **29 passed, 0 failed** (sumando ambas corridas).
+  - `frontend`: `npm run build` → OK, `built in 5.90s`.
+
 ### v23.10.30 (Abril 2026) — ACTA FINAL GO/NO-GO: Fase 1–3 Consolidadas
 
 **🟢 DECISIÓN: GO — Listo para producción ✅**
