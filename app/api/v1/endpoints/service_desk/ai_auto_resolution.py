@@ -5,8 +5,13 @@ Routes:
   POST /sd/tickets/{ticket_id}/ai-analyze
   POST /sd/tickets/{ticket_id}/ai-auto-resolve
   POST /sd/auto-resolution/run-job
+  POST /sd/tickets/{ticket_id}/auto-resolution/validate
+  POST /sd/tickets/{ticket_id}/auto-resolution/feedback
+  GET  /sd/auto-resolution/stats
+  POST /sd/auto-resolution/run-close-job
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
@@ -17,9 +22,17 @@ from app.models.service_desk import Ticket, TicketStatus
 from app.services.service_desk.ai_auto_resolution_service import (
     analyze_ticket_for_resolution,
     run_daily_auto_resolution_job,
+    validate_auto_resolution,
+    record_resolution_feedback,
+    get_auto_resolution_stats,
+    run_auto_close_job,
 )
 
 router = APIRouter(prefix="/sd", tags=["Service Desk - AI Auto-Resolution"])
+
+
+class FeedbackBody(BaseModel):
+    success: bool
 
 
 @router.post(
@@ -164,6 +177,125 @@ async def run_auto_resolution_job(
     # Run job
     stats = run_daily_auto_resolution_job(db)
     
+    return {
+        **stats,
+        "status": "completed",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.post(
+    "/tickets/{ticket_id}/auto-resolution/validate",
+    summary="Validate post-resolution outcome",
+    response_model=dict,
+    responses={
+        404: {"description": "Ticket not found"},
+        403: {"description": "Not authorized"},
+    },
+)
+async def validate_ticket_auto_resolution(
+    ticket_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Check whether an auto-resolved ticket was subsequently reopened and record
+    that outcome in the feedback loop.
+
+    Returns: {validated, reopened, ticket_id, ticket_number}
+    """
+    if current_user.role not in ["admin", "support"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    result = validate_auto_resolution(db, ticket)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/tickets/{ticket_id}/auto-resolution/feedback",
+    summary="Submit manual feedback on auto-resolution quality",
+    response_model=dict,
+    responses={
+        404: {"description": "Ticket not found"},
+        403: {"description": "Not authorized"},
+    },
+)
+async def submit_auto_resolution_feedback(
+    ticket_id: str,
+    body: FeedbackBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Record whether the auto-resolution was successful or not.
+    This feeds the historical success-rate used in composite confidence scoring.
+
+    Body: {"success": true | false}
+    """
+    if current_user.role not in ["admin", "support"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    record_resolution_feedback(db, ticket, body.success)
+    db.commit()
+    return {"recorded": True, "ticket_id": ticket_id, "success": body.success}
+
+
+@router.get(
+    "/auto-resolution/stats",
+    summary="Get auto-resolution aggregate stats",
+    response_model=dict,
+    responses={
+        403: {"description": "Admin only"},
+    },
+)
+async def get_auto_resolution_statistics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Return aggregate statistics for the auto-resolution feedback loop.
+
+    Returns: {total_auto_resolved, total_feedback, success_rate, buckets}
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    return get_auto_resolution_stats(db)
+
+
+@router.post(
+    "/auto-resolution/run-close-job",
+    summary="Run auto-close job for resolved tickets",
+    response_model=dict,
+    responses={
+        403: {"description": "Admin only"},
+    },
+)
+async def run_auto_close_job_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Close tickets that have been in *resolved* status for more than
+    AUTO_CLOSE_HOURS_AFTER_RESOLUTION hours, and validate those within
+    VALIDATION_WINDOW_HOURS.
+
+    Admin-only. Returns: {closed, validated, errors}
+    """
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    stats = run_auto_close_job(db)
+    db.commit()
     return {
         **stats,
         "status": "completed",

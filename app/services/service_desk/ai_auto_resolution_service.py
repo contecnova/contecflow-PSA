@@ -2,17 +2,20 @@
 AI Auto-Resolution Service — Inteligent ticket resolution using IA + KB + ML.
 
 Capabilidades:
-  - Análisis automático de tickets
+  - Análisis automático de tickets con scoring compuesto (AI + KB + histórico)
   - Búsqueda en KB + reglas
   - Sugerencias de resolución con score de confianza
-  - Auto-resolución si confianza > threshold
+  - Auto-resolución si confianza compuesta > threshold
+  - Post-resolution validation: detecta reaperturas → penaliza scoring
+  - Feedback loop: acumula tasas de éxito por categoría/prioridad en AppSetting
+  - Auto-close job: cierra tickets resueltos sin respuesta tras N horas
   - Audit trail completo
 """
 from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -24,8 +27,270 @@ from app.core.config import settings
 _logger = logging.getLogger("ai_auto_resolution")
 
 # ── Auto-resolution confidence thresholds ────────────────────────────────────
-CONFIDENCE_THRESHOLD_AUTO = 0.85  # Auto-resolve if >= 85%
-CONFIDENCE_THRESHOLD_SUGGEST = 0.65  # Show suggestion if >= 65%
+CONFIDENCE_THRESHOLD_AUTO = 0.85     # Auto-resolve if composite >= 85%
+CONFIDENCE_THRESHOLD_SUGGEST = 0.65  # Show suggestion if composite >= 65%
+
+# ── Feedback loop config ─────────────────────────────────────────────────────
+FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"
+AUTO_CLOSE_HOURS_AFTER_RESOLUTION = 72  # Auto-close resolved tickets after 72h
+VALIDATION_WINDOW_HOURS = 48            # Check for reopens within 48h
+
+
+# ── Feedback loop helpers ─────────────────────────────────────────────────────
+
+def _load_feedback_stats(db: Session) -> dict:
+    """Load per-category/priority feedback counters from AppSetting."""
+    try:
+        from app.models.settings import AppSetting  # noqa: PLC0415
+        row = db.query(AppSetting).filter(AppSetting.key == FEEDBACK_SETTING_KEY).first()
+        if row and row.value:
+            return json.loads(row.value)
+    except Exception:
+        pass
+    return {}
+
+
+def _save_feedback_stats(db: Session, stats: dict) -> None:
+    """Persist feedback counters to AppSetting."""
+    try:
+        from app.models.settings import AppSetting  # noqa: PLC0415
+        row = db.query(AppSetting).filter(AppSetting.key == FEEDBACK_SETTING_KEY).first()
+        if row:
+            row.value = json.dumps(stats)
+        else:
+            db.add(AppSetting(key=FEEDBACK_SETTING_KEY, value=json.dumps(stats)))
+        db.flush()
+    except Exception as exc:
+        _logger.debug("Could not save feedback stats: %s", exc)
+
+
+def _bucket_key(ticket: Ticket) -> str:
+    """Return a stable bucket key for feedback tracking."""
+    category = getattr(ticket, "category", None) or "unknown"
+    priority = str(getattr(ticket, "priority", "p3_medium"))
+    return f"{category}::{priority}"
+
+
+def _get_historical_success_rate(db: Session, ticket: Ticket) -> float:
+    """Return historical auto-resolution success rate (0-100) for this ticket's bucket.
+
+    Uses AppSetting feedback stats when available, falls back to 50 (neutral).
+    """
+    stats = _load_feedback_stats(db)
+    key = _bucket_key(ticket)
+    bucket = stats.get(key, {})
+    total = bucket.get("total", 0)
+    success = bucket.get("success", 0)
+    if total >= 5:
+        return (success / total) * 100.0
+    return 50.0  # neutral default when insufficient data
+
+
+def _composite_confidence(ai_confidence: float, db: Session, ticket: Ticket) -> float:
+    """Compute composite confidence combining AI score, KB similarity, and historical rate.
+
+    Weights:
+      - AI confidence (LLM):   50%
+      - KB similarity score:   30%
+      - Historical success:    20%
+
+    Returns a value in [0, 1].
+    """
+    ai_score = ai_confidence * 100.0
+
+    # KB similarity component from incident_intelligence_service
+    kb_score = 0.0
+    try:
+        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+            _get_top_kb_similarity,
+        )
+        query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
+        kb_sim, _ = _get_top_kb_similarity(db, query_text)
+        kb_score = kb_sim * 100.0
+    except Exception:
+        kb_score = ai_score  # fallback: use AI score
+
+    historical_rate = _get_historical_success_rate(db, ticket)
+
+    composite = (
+        ai_score * 0.50
+        + kb_score * 0.30
+        + historical_rate * 0.20
+    )
+    return min(composite / 100.0, 1.0)
+
+
+def record_resolution_feedback(
+    db: Session,
+    ticket: Ticket,
+    success: bool,
+) -> None:
+    """Record whether an auto-resolution was successful (not reopened) or failed.
+
+    Updates the per-bucket counter in AppSetting for future scoring.
+    """
+    stats = _load_feedback_stats(db)
+    key = _bucket_key(ticket)
+    bucket = stats.setdefault(key, {"total": 0, "success": 0, "failed": 0})
+    bucket["total"] += 1
+    if success:
+        bucket["success"] += 1
+    else:
+        bucket["failed"] += 1
+    _save_feedback_stats(db, stats)
+    _logger.info(
+        "Recorded auto-resolution feedback for bucket '%s': success=%s (total=%d, success=%d)",
+        key, success, bucket["total"], bucket["success"],
+    )
+
+
+def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
+    """Check if an auto-resolved ticket was later reopened (resolution failed).
+
+    Should be called N hours after auto-resolution (e.g. via scheduled job).
+    Updates feedback stats and marks the ticket if re-opened.
+
+    Returns: {validated: bool, reopened: bool, ticket_id, ticket_number}
+    """
+    if not ticket.auto_resolved:
+        return {"validated": False, "reopened": False, "ticket_id": ticket.id, "ticket_number": ticket.number}
+
+    # A "reopened" resolution means the ticket is no longer in resolved/closed state
+    # after having been auto-resolved
+    is_reopened = ticket.status not in [TicketStatus.resolved, TicketStatus.closed]
+
+    record_resolution_feedback(db, ticket, success=not is_reopened)
+
+    if is_reopened:
+        _logger.warning(
+            "Auto-resolved ticket %s was reopened — recording as failed resolution",
+            ticket.number,
+        )
+        try:
+            from app.models.service_desk import TicketHistory  # noqa: PLC0415
+            db.add(TicketHistory(
+                ticket_id=ticket.id,
+                field_name="auto_resolution_validation",
+                old_value="resolved",
+                new_value="reopened_after_auto_resolve",
+                changed_by_user_id=None,
+            ))
+            db.flush()
+        except Exception:
+            pass
+
+    return {
+        "validated": True,
+        "reopened": is_reopened,
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+    }
+
+
+def get_auto_resolution_stats(db: Session) -> dict:
+    """Return aggregate auto-resolution stats: overall + per-bucket success rates."""
+    from sqlalchemy import func as sqlfunc  # noqa: PLC0415
+
+    total_auto = (
+        db.query(sqlfunc.count(Ticket.id))
+        .filter(Ticket.auto_resolved == True)  # noqa: E712
+        .scalar()
+    ) or 0
+
+    total_tickets = (
+        db.query(sqlfunc.count(Ticket.id))
+        .scalar()
+    ) or 1
+
+    feedback = _load_feedback_stats(db)
+    overall_success = 0
+    overall_total = 0
+    per_bucket = []
+    for key, bucket in feedback.items():
+        t = bucket.get("total", 0)
+        s = bucket.get("success", 0)
+        overall_total += t
+        overall_success += s
+        per_bucket.append({
+            "bucket": key,
+            "total": t,
+            "success": s,
+            "failed": bucket.get("failed", 0),
+            "success_rate": round((s / t) * 100, 1) if t > 0 else None,
+        })
+
+    per_bucket.sort(key=lambda x: x["total"], reverse=True)
+
+    return {
+        "total_auto_resolved": total_auto,
+        "pct_of_all_tickets": round((total_auto / total_tickets) * 100, 2),
+        "feedback_total_validated": overall_total,
+        "overall_success_rate": round((overall_success / overall_total) * 100, 1) if overall_total > 0 else None,
+        "per_bucket": per_bucket,
+    }
+
+
+def run_auto_close_job(db: Session) -> dict:
+    """Auto-close tickets that were auto-resolved and have had no reopening
+    within AUTO_CLOSE_HOURS_AFTER_RESOLUTION hours.
+
+    Also triggers post-resolution validation for eligible tickets.
+
+    Returns: {processed, auto_closed, validated, failed}
+    """
+    stats = {"processed": 0, "auto_closed": 0, "validated": 0, "failed": 0}
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=AUTO_CLOSE_HOURS_AFTER_RESOLUTION)
+    validation_cutoff = datetime.now(timezone.utc) - timedelta(hours=VALIDATION_WINDOW_HOURS)
+
+    try:
+        # Tickets eligible for auto-close: auto_resolved, still in resolved state, resolved > cutoff ago
+        candidates = (
+            db.query(Ticket)
+            .filter(
+                Ticket.auto_resolved == True,  # noqa: E712
+                Ticket.status == TicketStatus.resolved,
+                Ticket.auto_resolved_at <= cutoff,
+            )
+            .all()
+        )
+
+        for ticket in candidates:
+            try:
+                ticket.status = TicketStatus.closed
+                ticket.closed_at = datetime.now(timezone.utc)
+                record_resolution_feedback(db, ticket, success=True)
+                stats["auto_closed"] += 1
+                stats["processed"] += 1
+                db.commit()
+            except Exception as exc:
+                _logger.error("auto_close failed for %s: %s", ticket.number, exc)
+                stats["failed"] += 1
+                db.rollback()
+
+        # Validate tickets resolved within the validation window (48h) that need feedback
+        validation_candidates = (
+            db.query(Ticket)
+            .filter(
+                Ticket.auto_resolved == True,  # noqa: E712
+                Ticket.auto_resolved_at >= validation_cutoff,
+                Ticket.auto_resolved_at <= cutoff,  # not yet in auto-close window
+            )
+            .all()
+        )
+
+        for ticket in validation_candidates:
+            try:
+                validate_auto_resolution(db, ticket)
+                stats["validated"] += 1
+                db.commit()
+            except Exception as exc:
+                _logger.error("validate failed for %s: %s", ticket.number, exc)
+                db.rollback()
+
+    except Exception as exc:
+        _logger.error("run_auto_close_job failed: %s", exc)
+
+    return stats
 
 
 def analyze_ticket_for_resolution(
@@ -49,6 +314,7 @@ def analyze_ticket_for_resolution(
         "analysis": "",
         "suggestion": "",
         "confidence": 0.0,
+        "ai_raw_confidence": 0.0,
         "kb_sources": [],
         "action_taken": "none",
         "recommendation": "",
@@ -121,16 +387,18 @@ def analyze_ticket_for_resolution(
             ai_json = json.loads(ai_response)
             result["analysis"] = ai_json.get("analysis", "")
             result["suggestion"] = ai_json.get("suggestion", "")
-            result["confidence"] = ai_json.get("confidence", 0) / 100.0
+            ai_raw_confidence = ai_json.get("confidence", 0) / 100.0
             root_cause = ai_json.get("root_cause", "")
         except (json.JSONDecodeError, ValueError):
             # Fallback if AI returns non-JSON
             result["analysis"] = ai_response[:200]
             result["suggestion"] = "Ver análisis IA más abajo"
-            result["confidence"] = 0.5
+            ai_raw_confidence = 0.5
             root_cause = "No determinada"
 
-        # ── Step 5: Decide action ──────────────────────────────────────────
+        # ── Step 5: Composite confidence (AI + KB similarity + historical) ─
+        result["confidence"] = _composite_confidence(ai_raw_confidence, db, ticket)
+        result["ai_raw_confidence"] = ai_raw_confidence
         if result["confidence"] >= CONFIDENCE_THRESHOLD_AUTO:
             result["action_taken"] = "auto-resolved"
             result["recommendation"] = (
