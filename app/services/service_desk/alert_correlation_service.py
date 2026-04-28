@@ -1,10 +1,11 @@
-"""Alert Correlation Service — ML clustering by CI + temporal window.
+"""Alert Correlation Service — ML clustering by CI + temporal window + semantic similarity.
 
 Agrupa alertas/tickets abiertos en clusters basándose en:
   - CI afectado (ci_id)
   - Categoría
   - Prioridad numérica
   - Proximidad temporal (ventana configurable)
+  - Similitud semántica del título (embedding cosine, si disponible)
 
 Cuando hay sklearn disponible usa DBSCAN; en caso contrario usa un algoritmo
 greedy basado en distancia euclidiana.
@@ -13,6 +14,7 @@ API pública:
   cluster_open_alerts(db, organization_id, window_hours) → list[AlertCluster]
   merge_cluster_to_problem(db, ticket_ids, current_user)  → Problem
   get_correlation_stats(db, organization_id)              → dict
+  run_correlation_scan_job(db)                            → dict  (Celery task)
 """
 from __future__ import annotations
 
@@ -343,3 +345,110 @@ def get_correlation_stats(db: Session, *, organization_id: Optional[str] = None)
             for c in clusters[:10]
         ],
     }
+
+
+# ── Semantic similarity enrichment ────────────────────────────────────────────
+
+def _semantic_score(tickets: list[Ticket]) -> float:
+    """Compute average pairwise cosine similarity of ticket titles/descriptions.
+
+    Returns a score in [0, 1]. Falls back to 0.0 if embeddings are unavailable.
+    Capped at 10 pairs for performance (sample from largest cluster).
+    """
+    if len(tickets) < 2:
+        return 0.0
+    try:
+        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+            _embed_text,
+            _cosine_similarity,
+        )
+        sample = tickets[:5]  # limit to 5 to avoid O(n²) blowup
+        texts = [f"{t.title or ''} {t.description or ''}"[:300] for t in sample]
+        embeddings = [_embed_text(tx) for tx in texts]
+        sims = []
+        for i in range(len(embeddings)):
+            for j in range(i + 1, len(embeddings)):
+                sims.append(_cosine_similarity(embeddings[i], embeddings[j]))
+        return round(sum(sims) / len(sims), 3) if sims else 0.0
+    except Exception:
+        return 0.0
+
+
+def _enrich_cluster_score(cluster: AlertCluster, tickets_by_id: dict[str, Ticket]) -> AlertCluster:
+    """Re-score a cluster by blending structural score with semantic similarity."""
+    members = [tickets_by_id[tid] for tid in cluster.ticket_ids if tid in tickets_by_id]
+    sem = _semantic_score(members)
+    # Blend: 70% structural, 30% semantic
+    blended = round(cluster.correlation_score * 0.70 + sem * 0.30, 3)
+    cluster.correlation_score = blended
+
+    # Re-evaluate suggested action with richer score
+    if blended >= 0.65 and cluster.size >= 3:
+        cluster.suggested_action = "create_problem"
+    elif blended >= 0.35:
+        cluster.suggested_action = "review"
+    else:
+        cluster.suggested_action = "monitor"
+
+    return cluster
+
+
+# ── Auto-scan job ─────────────────────────────────────────────────────────────
+
+def run_correlation_scan_job(db: Session, *, organization_id: Optional[str] = None) -> dict:
+    """Celery-callable job: cluster alerts and auto-create Problems where warranted.
+
+    For each cluster with suggested_action == "create_problem":
+    - Checks no existing open Problem already covers those tickets
+    - Calls merge_cluster_to_problem() and commits
+
+    Returns: {clusters_found, problems_created, errors}
+    """
+    clusters = cluster_open_alerts(db, organization_id=organization_id, window_hours=DEFAULT_WINDOW_HOURS)
+
+    # Semantic enrichment pass
+    if clusters:
+        window_start = datetime.now(timezone.utc) - timedelta(hours=DEFAULT_WINDOW_HOURS)
+        all_ticket_ids: list[str] = []
+        for c in clusters:
+            all_ticket_ids.extend(c.ticket_ids)
+        tickets_map: dict[str, Ticket] = {
+            t.id: t
+            for t in db.query(Ticket).filter(Ticket.id.in_(all_ticket_ids)).all()
+        }
+        clusters = [_enrich_cluster_score(c, tickets_map) for c in clusters]
+
+    stats = {"clusters_found": len(clusters), "problems_created": 0, "errors": 0}
+
+    for cluster in clusters:
+        if cluster.suggested_action != "create_problem":
+            continue
+
+        # Skip if any ticket already linked to a Problem
+        already_linked = (
+            db.query(Ticket)
+            .filter(
+                Ticket.id.in_(cluster.ticket_ids),
+                Ticket.problem_id.isnot(None),
+            )
+            .count()
+        )
+        if already_linked:
+            continue
+
+        try:
+            result = merge_cluster_to_problem(db, ticket_ids=cluster.ticket_ids, current_user=None)
+            db.commit()
+            logger.info(
+                "Alert correlation: auto-created Problem %s for cluster %s (%d tickets)",
+                result["problem_number"],
+                cluster.cluster_id,
+                cluster.size,
+            )
+            stats["problems_created"] += 1
+        except Exception as exc:
+            db.rollback()
+            logger.error("Alert correlation: failed to create Problem for cluster %s: %s", cluster.cluster_id, exc)
+            stats["errors"] += 1
+
+    return stats

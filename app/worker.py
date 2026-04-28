@@ -138,6 +138,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.kedb_effectiveness_scan",
         "schedule": crontab(hour=7, minute=0),
     },
+    # ITSM-P03 — Alert correlation scan — every 30 minutes
+    "alert-correlation-scan": {
+        "task": "app.worker.alert_correlation_scan",
+        "schedule": crontab(minute="*/30"),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -984,6 +989,34 @@ def kedb_effectiveness_scan():
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         _worker_logger.error("kedb_effectiveness_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.alert_correlation_scan")
+def alert_correlation_scan():
+    """ITSM-P03: Cluster open alerts and auto-create Problems for high-confidence groups.
+
+    Runs every 30 minutes. Clusters open tickets by CI + category + temporal proximity
+    + semantic similarity. Automatically creates Problem records for clusters with
+    correlation_score >= 0.65 and size >= 3 that are not already linked to a Problem.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
+
+    db = SessionLocal()
+    try:
+        result = run_correlation_scan_job(db)
+        _worker_logger.info(
+            "Alert correlation scan: %d clusters, %d problems created, %d errors",
+            result.get("clusters_found", 0),
+            result.get("problems_created", 0),
+            result.get("errors", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("alert_correlation_scan error: %s", exc)
         return {"error": str(exc)}
     finally:
         db.close()
