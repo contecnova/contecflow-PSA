@@ -31,6 +31,19 @@ class GovernanceRulesPatchIn(BaseModel):
     require_active_schedules: Optional[bool] = None
 
 
+class SharedViewCreateIn(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    dashboard_key: str = Field(..., min_length=1, max_length=120)
+    filters: dict = Field(default_factory=dict)
+
+
+class SharedViewPatchIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=120)
+    dashboard_key: Optional[str] = Field(None, min_length=1, max_length=120)
+    filters: Optional[dict] = None
+    active: Optional[bool] = None
+
+
 @router.get("/bi/collaboration/comments", summary="Listar comentarios BI por dashboard/widget")
 def list_bi_comments(
     dashboard_key: Optional[str] = Query(None),
@@ -133,3 +146,52 @@ def last_governance_run(
 ):
     org_id = getattr(current_user, "organization_id", None)
     return {"result": svc.get_last_governance_run(db, organization_id=org_id)}
+
+
+@router.get("/bi/collaboration/shared-views", summary="Listar vistas compartidas BI")
+def list_shared_views(
+    include_inactive: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_shared_views(db, organization_id=org_id, only_active=not include_inactive)
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/bi/collaboration/shared-views", summary="Crear vista compartida BI")
+def create_shared_view(
+    payload: SharedViewCreateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    item = svc.create_shared_view(
+        db,
+        organization_id=org_id,
+        name=payload.name,
+        dashboard_key=payload.dashboard_key,
+        filters=payload.filters,
+        created_by=current_user,
+    )
+    return {"ok": True, "view": item}
+
+
+@router.patch("/bi/collaboration/shared-views/{view_id}", summary="Actualizar vista compartida BI")
+def patch_shared_view(
+    view_id: str,
+    payload: SharedViewPatchIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        item = svc.patch_shared_view(
+            db,
+            organization_id=org_id,
+            view_id=view_id,
+            payload={k: v for k, v in payload.model_dump().items() if v is not None},
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Vista compartida no encontrada")
+    return {"ok": True, "view": item}

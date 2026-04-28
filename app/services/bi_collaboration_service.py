@@ -22,6 +22,7 @@ from app.services.scheduled_reports_compat import summarize_scheduled_reports
 COMMENTS_KEY = "bi.phase1.comments"
 RULES_KEY = "bi.phase1.governance.rules"
 LAST_RUN_KEY = "bi.phase1.governance.last_run"
+SHARED_VIEWS_KEY = "bi.phase3.shared_views"
 
 
 def _iso_now() -> str:
@@ -287,3 +288,82 @@ def run_governance_checks(db: Session, *, organization_id: Optional[str]) -> dic
 
 def get_last_governance_run(db: Session, *, organization_id: Optional[str]) -> dict[str, Any] | None:
     return _get_json(db, LAST_RUN_KEY, organization_id, default=None)
+
+
+def list_shared_views(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    only_active: bool = True,
+) -> list[dict[str, Any]]:
+    views = _get_json(db, SHARED_VIEWS_KEY, organization_id, default=[])
+    if only_active:
+        views = [v for v in views if v.get("active", True)]
+    views.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return views
+
+
+def create_shared_view(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    name: str,
+    dashboard_key: str,
+    filters: dict[str, Any] | None,
+    created_by: User,
+) -> dict[str, Any]:
+    views = _get_json(db, SHARED_VIEWS_KEY, organization_id, default=[])
+    payload = {
+        "id": str(uuid.uuid4()),
+        "name": name.strip(),
+        "dashboard_key": dashboard_key,
+        "filters": filters or {},
+        "active": True,
+        "created_at": _iso_now(),
+        "created_by_id": created_by.id,
+        "created_by_name": created_by.full_name,
+    }
+    views.append(payload)
+    _set_json(
+        db,
+        SHARED_VIEWS_KEY,
+        organization_id,
+        views,
+        description="BI Collaboration shared dashboard views (JSON)",
+    )
+    return payload
+
+
+def patch_shared_view(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    view_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    views = _get_json(db, SHARED_VIEWS_KEY, organization_id, default=[])
+    target = None
+    for v in views:
+        if v.get("id") == view_id:
+            target = v
+            break
+    if target is None:
+        raise ValueError("shared_view_not_found")
+
+    if "name" in payload and payload["name"] is not None:
+        target["name"] = str(payload["name"]).strip()
+    if "dashboard_key" in payload and payload["dashboard_key"] is not None:
+        target["dashboard_key"] = str(payload["dashboard_key"])
+    if "filters" in payload and payload["filters"] is not None:
+        target["filters"] = payload["filters"]
+    if "active" in payload and payload["active"] is not None:
+        target["active"] = bool(payload["active"])
+
+    _set_json(
+        db,
+        SHARED_VIEWS_KEY,
+        organization_id,
+        views,
+        description="BI Collaboration shared dashboard views (JSON)",
+    )
+    return target

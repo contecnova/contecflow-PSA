@@ -11,6 +11,41 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.32 (Abril 2026) — BI Collaboration: Shared Views (backend + frontend API + tests)
+
+- Se completa el gap de colaboración BI para vistas compartidas reutilizando el patrón existente basado en `AppSetting` (sin nuevas tablas):
+  - Servicio ampliado: `app/services/bi_collaboration_service.py`.
+  - Clave de persistencia nueva (JSON por organización): `bi.phase3.shared_views`.
+  - Capacidades añadidas:
+    - listado de vistas compartidas activas/inactivas,
+    - creación de vistas compartidas con filtros serializados,
+    - actualización parcial (nombre, dashboard, filtros, estado activo).
+
+- Se exponen endpoints nuevos en el router de colaboración BI existente:
+  - Archivo: `app/api/v1/endpoints/bi_collaboration.py`.
+  - Endpoints:
+    - `GET /api/v1/bi/collaboration/shared-views`
+    - `POST /api/v1/bi/collaboration/shared-views`
+    - `PATCH /api/v1/bi/collaboration/shared-views/{view_id}`
+  - Se mantiene aislamiento multi-tenant por `organization_id` y manejo 404 para recursos inexistentes.
+
+- Cliente frontend actualizado para consumir shared views:
+  - Archivo: `frontend/src/services/api.js`.
+  - Nuevos métodos `biCollaborationApi`:
+    - `listSharedViews(params)`
+    - `createSharedView(payload)`
+    - `patchSharedView(viewId, payload)`
+
+- Cobertura de tests añadida para flujo completo:
+  - Nuevo archivo: `tests/test_bi_collaboration_shared_views.py`.
+  - Casos cubiertos:
+    - flujo list/create/patch/list,
+    - `PATCH` sobre id inexistente retorna `404`.
+
+- Validación ejecutada:
+  - `pytest -q tests/test_bi_collaboration_shared_views.py tests/test_bi_platform.py --tb=short`
+  - Resultado: **6 passed, 0 failed**.
+
 ### v23.10.31 (Abril 2026) — Hardening AI Auto-Resolution + planificación avanzada de cambios
 
 - Se consolida AI auto-resolution sin romper contratos existentes:
