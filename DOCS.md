@@ -11,6 +11,62 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.39 (Abril 2026) — Fix regresión backend: POST /api/v1/pipeline/proposals/templates devolvía 500
+
+- Se corrige el único fallo de la suite de regresión backend detectado en la auditoría de cobertura de tests (v23.10.38).
+- Raíz del problema:
+  - El endpoint `POST /api/v1/pipeline/proposals/templates` acepta `payload: dict = Body(...)` sin esquema Pydantic.
+  - La smoke de regresión de operaciones mutantes (`test_v1_mutating_endpoints_do_not_raise_5xx`) enviaba payload vacío `{}`.
+  - El modelo `ProposalTemplate.name` tiene `nullable=False` → IntegrityError de BD se propagaba como HTTP 500 en lugar de 422.
+- Fix aplicado en `app/services/proposal_service.py`, función `create_template`:
+  - Validación explícita de `name` no vacío → `HTTPException(422)` si falta.
+  - Validación explícita de `organization_id` no nulo → `HTTPException(422)` si el usuario no tiene organización asignada.
+- Validación ejecutada:
+  - `pytest tests/test_regression_invoices_created_at.py tests/test_regression_api_get_smoke.py tests/test_regression_api_operations_smoke.py -v --tb=short`
+  - Resultado: **3 passed / 0 failed — 7.02s**.
+  - Suite de regresión backend pasa completamente en verde.
+
+### v23.10.38 (Abril 2026) — Reporte integral de cobertura y estado de tests (unitarios, integración, regresión y smoke)
+
+- Se realiza análisis operativo completo del sistema de testing, incluyendo inventario de suites, capacidad de ejecución y estado real observado en entorno local.
+
+- Inventario estructural verificado:
+  - Total de archivos de tests en backend + E2E: **145**.
+  - Colección pytest backend (`tests/`): **1392** tests.
+  - Colección pytest E2E (`tests_e2e/`): **37** tests.
+  - Total colectado: **1429** tests.
+
+- Observaciones de clasificación actual:
+  - Los markers custom declarados en `pytest.ini` (`integration`, `smoke`, `slow`, `auth`, `crud`) existen, pero su uso decorador es casi nulo en los tests auditados (predomina clasificación por nombre de archivo/ruta y por tipo de suite).
+  - La regresión está formalizada en `Makefile` y en `scripts/run_regression_suite.sh`.
+
+- Estado de ejecución por tipo de prueba (evidencia real):
+  - **Regresión backend** (`tests/test_regression_invoices_created_at.py`, `tests/test_regression_api_get_smoke.py`, `tests/test_regression_api_operations_smoke.py`):
+    - Resultado: **2 passed, 1 failed (6.92s)**.
+    - Falla principal: `POST /api/v1/pipeline/proposals/templates` devolviendo **500** en smoke de mutaciones OpenAPI.
+  - **Regresión E2E** (suite definida en Makefile/scripts):
+    - Resultado: **2 failed, 3 errors (1 warning, 1.73s)**.
+    - Causa raíz observada: `net::ERR_CONNECTION_REFUSED` contra `http://localhost:3000` (frontend no disponible durante la ejecución).
+  - **Smoke operativo API** (`scripts/smoke_check.py`):
+    - Resultado: **PASS** (autenticación admin + creación de ticket), tiempo observado ~**0.41s**.
+  - **Integración** (tests con patrón `*integration*`):
+    - Archivos ejecutados: `tests/test_integrations_marketplace.py`, `tests/test_jira_integration_smoke.py`.
+    - Resultado: **4 passed (6.04s)**.
+  - **Muestra unitaria representativa**:
+    - `tests/test_abac.py`, `tests/test_ai_governance.py`, `tests/test_alerts.py`.
+    - Resultado: **74 passed (96.31s)**.
+
+- Diagnóstico global del estado de calidad:
+  - Cobertura funcional de suites: **alta** (backend amplio + E2E + smoke + regresión definida).
+  - Salud actual backend unitario/integración: **buena** en la muestra ejecutada.
+  - Salud de regresión backend: **degradada** por al menos un endpoint mutante con 500.
+  - Salud E2E: **no concluyente funcionalmente** en esta corrida por indisponibilidad de frontend (fallo de entorno, no necesariamente regresión de código).
+
+- Riesgos y prioridades inmediatas:
+  1. Corregir el 500 de `POST /api/v1/pipeline/proposals/templates` para restablecer `regression-backend`.
+  2. Estabilizar precondiciones de E2E (frontend en `localhost:3000`, backend y auth listos) antes de usar su resultado como semáforo de release.
+  3. Incrementar uso efectivo de markers (`integration`, `smoke`, `slow`) para segmentación más fiable en CI.
+
 ### v23.10.37 (Abril 2026) — Hardening operativo de orquestación (readiness + scheduler safety + tests worker)
 
 - Se implementa endpoint de readiness compuesto para operación bajo orquestación:

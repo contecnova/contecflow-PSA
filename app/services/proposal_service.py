@@ -128,6 +128,10 @@ def get_template(db: Session, template_id: str) -> ProposalTemplate:
 
 
 def create_template(db: Session, organization_id: str, user_id: str, data: dict) -> ProposalTemplate:
+    if not data.get("name"):
+        raise HTTPException(422, "El campo 'name' es obligatorio para crear una plantilla de propuesta")
+    if not organization_id:
+        raise HTTPException(422, "El usuario no tiene organización asignada")
     t = ProposalTemplate(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
