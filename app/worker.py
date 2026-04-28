@@ -81,6 +81,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.cmdb_discovery_run",
         "schedule": crontab(minute="*/15"),
     },
+    # ITSM-P05: Change Impact — batch-score pending changes every 10 minutes
+    "change-impact-batch-score": {
+        "task": "app.worker.change_impact_batch_score",
+        "schedule": crontab(minute="*/10"),
+    },
     # Phase 2 — Predictive Intelligence scan — every 30 minutes
     "predictive-scan": {
         "task": "app.worker.predictive_scan",
@@ -1045,6 +1050,59 @@ def cmdb_discovery_run():
         return {"providers_run": len(results), "results": results}
     except Exception as exc:  # noqa: BLE001
         _worker_logger.error("cmdb_discovery_run error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.change_impact_batch_score")
+def change_impact_batch_score():
+    """Batch-score Change Requests that haven't been analyzed yet (ITSM-P05).
+
+    Targets changes in 'submitted' or 'in_approval' status with no auto_risk_score.
+    Also auto-approves standard changes with low risk score.
+    Runs every 10 minutes via beat schedule.
+    """
+    from app.db.session import SessionLocal  # noqa: PLC0415
+    from app.models.service_desk import ChangeStatus, ITSMChangeRequest  # noqa: PLC0415
+    from app.services.service_desk.change_impact_service import score_and_persist  # noqa: PLC0415
+    from app.services.service_desk.change_service import _maybe_auto_approve  # noqa: PLC0415
+
+    db = SessionLocal()
+    scored = auto_approved = errors = 0
+    try:
+        pending = (
+            db.query(ITSMChangeRequest)
+            .filter(
+                ITSMChangeRequest.status.in_(
+                    [ChangeStatus.submitted, ChangeStatus.in_approval]
+                ),
+                ITSMChangeRequest.auto_risk_score.is_(None),
+            )
+            .limit(50)  # process up to 50 per tick to avoid long task
+            .all()
+        )
+        for change in pending:
+            try:
+                score_and_persist(db, change.id)
+                if _maybe_auto_approve(db, change, system_user_id="system-batch-score"):
+                    auto_approved += 1
+                db.commit()
+                scored += 1
+            except Exception as exc:  # noqa: BLE001
+                db.rollback()
+                errors += 1
+                _worker_logger.warning(
+                    "change_impact_batch_score: failed for %s: %s", change.id, exc
+                )
+
+        _worker_logger.info(
+            "change_impact_batch_score: scored=%d auto_approved=%d errors=%d",
+            scored, auto_approved, errors,
+        )
+        return {"scored": scored, "auto_approved": auto_approved, "errors": errors}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("change_impact_batch_score error: %s", exc)
         return {"error": str(exc)}
     finally:
         db.close()

@@ -110,6 +110,11 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
         "pir_date": str(change.pir_date) if change.pir_date else None,
         "downtime_minutes": change.downtime_minutes,
         "created_at": str(change.created_at),
+        # ITSM-P05: automated risk score always visible in list
+        "auto_risk_score": change.auto_risk_score,
+        "auto_risk_label": _score_to_label(change.auto_risk_score),
+        "impact_analyzed": change.impact_analysis_json is not None,
+        "suggested_window": _load_window(change.suggested_window_json),
     }
     if full:
         base.update(
@@ -124,6 +129,28 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
             }
         )
     return base
+
+
+def _score_to_label(score) -> str | None:
+    if score is None:
+        return None
+    if score >= 75:
+        return "critical"
+    if score >= 55:
+        return "high"
+    if score >= 30:
+        return "medium"
+    return "low"
+
+
+def _load_window(suggested_window_json: str | None) -> dict | None:
+    if not suggested_window_json:
+        return None
+    try:
+        import json  # noqa: PLC0415
+        return json.loads(suggested_window_json)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def next_change_number(db: Session) -> str:
@@ -197,11 +224,61 @@ def approve_change_request(change: ITSMChangeRequest, approved: bool, approver_i
         change.rejected_reason = reason or "Rechazado por CAB"
 
 
+def _auto_score_change(db: Session, change: ITSMChangeRequest) -> None:
+    """Run impact analysis and persist scores back to the change. No-commit.
+
+    Called after the change is added to the session (id assigned) but before commit.
+    Failures are silenced so they never block change creation.
+    """
+    try:
+        from app.services.service_desk.change_impact_service import score_and_persist  # noqa: PLC0415
+        score_and_persist(db, change.id)
+    except Exception as exc:  # noqa: BLE001
+        import logging  # noqa: PLC0415
+        logging.getLogger(__name__).warning(
+            "Auto-score failed for change %s: %s", change.id, exc
+        )
+
+
+# Risk score threshold for auto-approving standard changes
+_AUTO_APPROVE_MAX_SCORE = 30   # ≤ 30 = "low" risk
+
+
+def _maybe_auto_approve(
+    db: Session,
+    change: ITSMChangeRequest,
+    system_user_id: str | None = None,
+) -> bool:
+    """Auto-approve 'standard' changes with low risk score.
+
+    Returns True if the change was auto-approved.
+    """
+    from app.models.service_desk import ChangeType, ChangeStatus  # noqa: PLC0415
+    try:
+        change_type_val = change.change_type.value if hasattr(change.change_type, "value") else change.change_type
+    except Exception:  # noqa: BLE001
+        change_type_val = ""
+
+    if change_type_val != "standard":
+        return False
+    score = change.auto_risk_score
+    if score is None or score > _AUTO_APPROVE_MAX_SCORE:
+        return False
+
+    change.status = ChangeStatus.approved
+    change.approved_at = datetime.now(tz.utc)
+    change.approved_by = system_user_id or "system-auto-approve"
+    return True
+
+
 def create_change_record(db: Session, current_user: User, payload: dict) -> ITSMChangeRequest:
     number = next_change_number(db)
     change = build_change_request(payload, current_user.id, number)
     enforce_change_org_constraints(db, current_user, change)
     db.add(change)
+    db.flush()  # assign id before scoring
+    _auto_score_change(db, change)
+    _maybe_auto_approve(db, change, system_user_id=current_user.id)
     return change
 
 
@@ -210,8 +287,17 @@ def update_change_record(db: Session, current_user: User, change_id: str, payloa
     if not change:
         raise HTTPException(404)
 
+    prev_status = change.status.value if hasattr(change.status, "value") else change.status
     apply_change_update(change, payload, current_user.id)
     enforce_change_org_constraints(db, current_user, change)
+
+    # Re-score when change moves to submitted or in_approval (ITSM-P05)
+    new_status = payload.get("status", "")
+    if new_status in ("submitted", "in_approval") and prev_status != new_status:
+        db.flush()
+        _auto_score_change(db, change)
+        _maybe_auto_approve(db, change, system_user_id=current_user.id)
+
     return change
 
 
