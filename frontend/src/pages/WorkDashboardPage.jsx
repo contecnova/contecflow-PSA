@@ -1,16 +1,67 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner } from '../components/ui'
-import { Clock } from 'lucide-react'
+import { Clock, Plus, Timer, Ticket } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import {
   COLOR, S, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
+const DAY_NAMES_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const MONTH_NAMES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+function TodayBanner({ navigate }) {
+  const now = new Date()
+  const day = DAY_NAMES_ES[now.getDay()]
+  const date = `${now.getDate()} de ${MONTH_NAMES_ES[now.getMonth()]}`
+  const hour = now.getHours()
+  const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
+
+  const ACTIONS = [
+    { label: 'Nueva tarea',    icon: Plus,   path: '/tasks',        accent: 'var(--accent)' },
+    { label: 'Imputar horas',  icon: Clock,  path: '/time',         accent: 'var(--success)' },
+    { label: 'Nuevo ticket',   icon: Ticket, path: '/service-desk', accent: 'var(--warning)' },
+    { label: 'Cronómetro',     icon: Timer,  path: '/time',         accent: '#a78bfa' },
+  ]
+
+  return (
+    <div style={{
+      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+      borderRadius: 12, padding: '18px 22px', marginBottom: 18,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
+    }}>
+      <div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500, textTransform: 'capitalize', marginBottom: 2 }}>
+          {greeting} · {day}, {date}
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)' }}>¿Qué hacemos hoy?</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {ACTIONS.map(({ label, icon: Icon, path, accent }) => (
+          <button key={label} onClick={() => navigate(path)} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 8,
+            background: `${accent}12`, border: `1px solid ${accent}35`,
+            color: accent, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            fontFamily: 'inherit', transition: 'all 0.1s', whiteSpace: 'nowrap',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = `${accent}60` }}
+            onMouseLeave={e => { e.currentTarget.style.background = `${accent}12`; e.currentTarget.style.borderColor = `${accent}35` }}
+          >
+            <Icon size={13} />{label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function WorkDashboardPage() {
   const t = useAppT()
+  const navigate = useNavigate()
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
@@ -90,6 +141,7 @@ export default function WorkDashboardPage() {
       days={days} setDays={setDays}
       periods={[7, 30, 90]}
     >
+      <TodayBanner navigate={navigate} />
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 14 }}>
         <KpiCard icon="✅" label="Tareas abiertas"

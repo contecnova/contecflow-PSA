@@ -8,7 +8,7 @@ import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH } from '.
 import { SkeletonTable } from '../components/ui/Skeletons'
 import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
-import { CheckSquare } from 'lucide-react'
+import { CheckSquare, X } from 'lucide-react'
 import { fmtDate, STATUS_LABELS, PRIORITY_LABELS, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
@@ -243,12 +243,28 @@ function TaskDetailModal({ task, open, onClose }) {
   const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
   const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
 
-  if (!task || !form) return null
+  if (!open || !task || !form) return null
 
   return (
-    <Modal open={open} onClose={onClose}
-      title={<span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-2)' }}>{task.code}</span>}
-      width={680}>
+    <>
+      <div role="presentation" onMouseDown={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)' }} />
+      <div role="dialog" aria-modal="true"
+        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '95vw',
+          background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
+          zIndex: 201, display: 'flex', flexDirection: 'column',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
+        {/* Drawer header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-2)' }}>{task.code}</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 6 }}>
+            <X size={16} />
+          </button>
+        </div>
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 10 }}
@@ -576,7 +592,9 @@ function TaskDetailModal({ task, open, onClose }) {
           <DocumentsPanel taskId={task.id} />
         </div>
       )}
-    </Modal>
+        </div>
+      </div>
+    </>
   )
 }
 

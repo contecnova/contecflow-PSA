@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -188,10 +189,16 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
             </span>
           )}
         </button>
-        <button onClick={e => { e.stopPropagation(); onEdit(project) }}
-          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
-          ✏️ Editar
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()}
+            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            Ver →
+          </Link>
+          <button onClick={e => { e.stopPropagation(); onEdit(project) }}
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+            ✏️ Editar
+          </button>
+        </div>
       </div>
     </div>
   )
