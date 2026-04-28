@@ -11,6 +11,7 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+<<<<<<< HEAD
 ### v23.10.44 (Abril 2026) — BI Fase 3 + ITSM Fase 4: Embedded Analytics, Export avanzado, Conectores 20+, Data Versioning, CMDB completo, Dependency Mapping D3, Change Impact Analysis, Advanced Reporting, Capacity Planning
 
 Implementación completa del batch v23.10.44. Arquitectura de servicios orquestados; todo el estado en AppSetting JSON blobs (sin nuevas migraciones).
@@ -359,6 +360,24 @@ Se implementan los cinco pilares de la Fase 1 del roadmap BI:
 - **`POST /api/v1/bi/alerts/evaluate`**: Ejecuta el engine sobre las reglas activas de la organización.
 
 
+=======
+### v23.10.40 (Abril 2026) — Fix warning 404 en topología CMDB del frontend
+
+- Se corrige el warning recurrente `GET /api/v1/sd/cmdb/{id}/topology 404` observado al abrir la pestaña de topología en CMDB.
+- Causa raíz:
+  - La vista `frontend/src/pages/CMDBPage.jsx` mezclaba dos dominios de datos:
+    - inventario legacy (`GET /api/v1/cmdb/items`) para poblar el selector,
+    - endpoint de topología Service Desk (`GET /api/v1/sd/cmdb/{ci_id}/topology`) para renderizar el grafo.
+  - Los IDs no pertenecen al mismo modelo en todos los casos, provocando `CI no encontrado` en backend y 404 en logs.
+- Fix aplicado en `frontend/src/pages/CMDBPage.jsx`:
+  - Nuevo query dedicado para topología: `GET /api/v1/sd/cmdb`.
+  - El selector de CI central y la navegación por click en nodos ahora usan ese dataset (`sdTopologyItems`) en lugar de `cmdb/items`.
+  - Se mantiene intacto el inventario legacy en la pestaña de lista.
+- Resultado esperado:
+  - Las llamadas de topología usan IDs válidos para el router `/sd/cmdb/*` y dejan de generar warnings 404 espurios.
+
+### v23.10.39 (Abril 2026) — Fix regresión backend: POST /api/v1/pipeline/proposals/templates devolvía 500
+>>>>>>> 40ffca766c02206ff54d273510b2fe84faf0ab4d
 
 - Se corrige el único fallo de la suite de regresión backend detectado en la auditoría de cobertura de tests (v23.10.38).
 - Raíz del problema:

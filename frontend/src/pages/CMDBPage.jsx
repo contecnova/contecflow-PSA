@@ -313,6 +313,12 @@ export default function CMDBPage() {
     },
   })
 
+  const { data: sdTopologyItems = [] } = useQuery({
+    queryKey: ['sd-cmdb-topology-items'],
+    queryFn: () => api.get('/sd/cmdb').then(r => r.data).catch(() => []),
+    enabled: tab === 'topology',
+  })
+
   const { mutate: deleteItem } = useMutation({
     mutationFn: id => api.delete(`/cmdb/items/${id}`),
     onSuccess: () => qc.invalidateQueries(['cmdb-items']),
@@ -362,11 +368,11 @@ export default function CMDBPage() {
             <div style={{flex:'1 1 280px'}}>
               <label style={ls}>CI central</label>
               <select style={is} value={topoCI?.id || ''} onChange={e => {
-                const ci = items.find(i => i.id === e.target.value)
+                const ci = sdTopologyItems.find(i => i.id === e.target.value)
                 setTopoCI(ci || null)
               }}>
                 <option value="">Seleccionar CI…</option>
-                {items.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
+                {sdTopologyItems.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
               </select>
             </div>
             <div>
@@ -390,7 +396,7 @@ export default function CMDBPage() {
                 edges={topoData?.edges || []}
                 centerName={topoCI?.name}
                 onNodeClick={n => {
-                  const ci = items.find(i => i.id === n.id)
+                  const ci = sdTopologyItems.find(i => i.id === n.id)
                   if (ci) setTopoCI(ci)
                 }}
               />
