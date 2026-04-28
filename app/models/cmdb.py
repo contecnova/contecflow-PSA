@@ -92,6 +92,10 @@ class CMDBItem(Base):
     discovery_provider = Column(String(50),  nullable=True)            # aws | kubernetes | vmware
     last_discovered_at = Column(DateTime(timezone=True), nullable=True) # última vez visto en scan
     is_discovered     = Column(Boolean, default=False)                  # True = gestionado por discovery
+    # Drift detection fields (ITSM-P04)
+    config_hash          = Column(String(64),  nullable=True)           # SHA-256 of attributes JSON
+    drift_detected_at    = Column(DateTime(timezone=True), nullable=True)  # last drift timestamp
+    baseline_attributes  = Column(Text, nullable=True)                  # approved baseline snapshot
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
     updated_at   = Column(DateTime(timezone=True), server_default=func.now(),
                           onupdate=func.now())
@@ -273,6 +277,9 @@ class CMDBDiscoveryProvider(Base):
                              ondelete="CASCADE"), nullable=True, index=True)
     last_run_at     = Column(DateTime(timezone=True), nullable=True)
     last_run_status = Column(String(20),  nullable=True)   # ok | error | running
+    # Cadence control (ITSM-P04)
+    scan_interval_minutes = Column(Integer, default=60)                 # run every N minutes
+    next_run_at           = Column(DateTime(timezone=True), nullable=True)  # next scheduled run
     created_by      = Column(String(36),  ForeignKey("users.id"), nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
     updated_at      = Column(DateTime(timezone=True), server_default=func.now(),

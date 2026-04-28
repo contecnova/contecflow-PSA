@@ -76,10 +76,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.problem_auto_detect",
         "schedule": crontab(minute=5),
     },
-    # CMDB auto-discovery — every hour at :30
+    # CMDB auto-discovery — every 15 min; per-provider cadence respected via next_run_at (ITSM-P04)
     "cmdb-discovery": {
         "task": "app.worker.cmdb_discovery_run",
-        "schedule": crontab(minute=30),
+        "schedule": crontab(minute="*/15"),
     },
     # Phase 2 — Predictive Intelligence scan — every 30 minutes
     "predictive-scan": {
@@ -1024,20 +1024,24 @@ def alert_correlation_scan():
 
 @celery_app.task(name="app.worker.cmdb_discovery_run")
 def cmdb_discovery_run():
-    """Run CMDB auto-discovery for all active providers (AWS, Kubernetes, …).
+    """Run CMDB auto-discovery for providers whose scan window has expired (ITSM-P04).
 
-    Runs every hour at :30. Delegates to run_all_active_discoveries() which
-    handles per-provider error isolation and commits each provider independently.
+    Runs every 15 minutes via beat schedule. Only executes providers where
+    next_run_at <= now, respecting per-provider scan_interval_minutes cadence.
+    Detects config drift, writes CMDBChangelog entries, and updates next_run_at.
     """
     from app.db.session import SessionLocal
     from app.services.service_desk.cmdb_discovery_service import (
-        run_all_active_discoveries,
+        run_due_discoveries,
     )
 
     db = SessionLocal()
     try:
-        results = run_all_active_discoveries(db)
-        _worker_logger.info("CMDB discovery run: %d providers processed", len(results))
+        results = run_due_discoveries(db)
+        _worker_logger.info("CMDB discovery run: %d providers due/processed", len(results))
+        drifted = sum(1 for r in results if r.get("drift_detected") and r.get("updated", 0) > 0)
+        if drifted:
+            _worker_logger.warning("CMDB drift detected in %d provider scan(s)", drifted)
         return {"providers_run": len(results), "results": results}
     except Exception as exc:  # noqa: BLE001
         _worker_logger.error("cmdb_discovery_run error: %s", exc)

@@ -23,6 +23,8 @@ from app.services.service_desk.cmdb_relation_service import (
 from app.services.service_desk.cmdb_discovery_service import (
     run_discovery_for_provider,
     run_all_active_discoveries,
+    run_due_discoveries,
+    get_drift_report,
     get_reconciliation_health,
     deduplicate_candidates,
     auto_merge_duplicates,
@@ -36,12 +38,14 @@ class DiscoveryProviderIn(BaseModel):
     provider_type: str  # aws|azure|gcp|kubernetes|vsphere
     config: dict | None = None
     is_active: bool = True
+    scan_interval_minutes: int = 60
 
 
 class DiscoveryProviderPatch(BaseModel):
     name: Optional[str] = None
     config: Optional[dict] = None
     is_active: Optional[bool] = None
+    scan_interval_minutes: Optional[int] = None
 
 
 def _serialize_discovery_provider(p: CMDBDiscoveryProvider) -> dict:
@@ -50,6 +54,8 @@ def _serialize_discovery_provider(p: CMDBDiscoveryProvider) -> dict:
         "name": p.name,
         "provider_type": p.provider_type,
         "is_active": p.is_active,
+        "scan_interval_minutes": getattr(p, "scan_interval_minutes", 60),
+        "next_run_at": getattr(p, "next_run_at", None),
         "last_run_at": p.last_run_at,
         "last_run_status": p.last_run_status,
         "created_at": p.created_at,
@@ -151,6 +157,7 @@ def create_discovery_provider(
         provider_type=payload.provider_type,
         is_active=payload.is_active,
         config_json=json.dumps(payload.config or {}),
+        scan_interval_minutes=payload.scan_interval_minutes,
         organization_id=getattr(current_user, "organization_id", None),
         created_by=current_user.id,
     )
@@ -177,6 +184,14 @@ def patch_discovery_provider(
         provider.is_active = data["is_active"]
     if "config" in data:
         provider.config_json = json.dumps(data["config"] or {})
+    if "scan_interval_minutes" in data:
+        provider.scan_interval_minutes = max(1, data["scan_interval_minutes"])
+        # Recalculate next_run_at if provider has already run
+        if provider.last_run_at:
+            from datetime import timedelta  # noqa: PLC0415
+            provider.next_run_at = provider.last_run_at + timedelta(
+                minutes=provider.scan_interval_minutes
+            )
     provider.updated_at = datetime.now(timezone.utc)
 
     _commit_or_rollback(db)
@@ -290,3 +305,75 @@ def get_ci_blast_radius(
 ):
     """Análisis de radio de impacto con desglose por criticidad y estimación de usuarios afectados."""
     return get_blast_radius_summary(db, current_user, ci_id)
+
+
+# ── ITSM-P04: Drift Detection endpoints ──────────────────────────────────────
+
+@router.get(
+    "/cmdb/discovery/drift-report",
+    summary="Reporte de drift de configuración CMDB (ITSM-P04)",
+)
+def cmdb_drift_report(
+    hours: int = Query(24, ge=1, le=720, description="Ventana de tiempo en horas"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Lista los CIs donde se detectó drift de configuración en las últimas `hours` horas.
+
+    Para cada CI drifted incluye los últimos cambios del changelog, la IP actual
+    y el proveedor de discovery que lo detectó.
+    """
+    _ = current_user
+    return get_drift_report(db, hours=hours)
+
+
+@router.post(
+    "/cmdb/discovery/run-due",
+    summary="Ejecutar discovery para proveedores con ventana vencida (ITSM-P04)",
+)
+def run_due_discovery(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Ejecuta discovery sólo para proveedores cuya cadencia ha vencido (next_run_at <= now).
+
+    Respeta el `scan_interval_minutes` de cada proveedor para evitar scans
+    innecesarios y reducir carga en entornos grandes.
+    """
+    _ = current_user
+    return {"ok": True, "results": run_due_discoveries(db)}
+
+
+@router.post(
+    "/cmdb/discovery/providers/{provider_id}/approve-baseline",
+    summary="Aprobar baseline de configuración de un CI o proveedor (ITSM-P04)",
+)
+def approve_baseline(
+    provider_id: str,
+    ci_id: Optional[str] = Query(None, description="CI específico; omitir para aprobar todos del proveedor"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Congela el estado actual de `attributes` como baseline aprobado.
+
+    Limpia `drift_detected_at` — el CI ya no aparecerá como drifted hasta el
+    próximo scan que detecte diferencias respecto a este baseline.
+    """
+    from app.models.cmdb import CMDBItem  # noqa: PLC0415
+
+    q = db.query(CMDBItem).filter(CMDBItem.discovery_provider == provider_id)
+    if ci_id:
+        q = q.filter(CMDBItem.id == ci_id)
+
+    cis = q.all()
+    if not cis:
+        return {"ok": False, "error": "No CIs found for provider/ci_id combination"}
+
+    approved = 0
+    for ci in cis:
+        ci.baseline_attributes = ci.attributes
+        ci.drift_detected_at = None
+        approved += 1
+
+    _commit_or_rollback(db)
+    return {"ok": True, "approved": approved}

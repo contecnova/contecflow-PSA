@@ -13,9 +13,10 @@ Si alguna librería no está instalada, ese proveedor lanza ImportError con mens
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Any
 from uuid import uuid4
@@ -23,7 +24,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.cmdb import CMDBDiscoveryJob, CMDBDiscoveryProvider, CMDBItem
+from app.models.cmdb import CMDBChangelog, CMDBDiscoveryJob, CMDBDiscoveryProvider, CMDBItem
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,42 @@ def _load_config(provider: CMDBDiscoveryProvider) -> dict:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+def _compute_config_hash(attributes: str | None) -> str:
+    """SHA-256 of the attributes JSON string (normalised). Returns empty string on None."""
+    if not attributes:
+        return ""
+    try:
+        # Normalise: parse then re-dump with sorted keys so ordering differences are ignored
+        parsed = json.loads(attributes)
+        canonical = json.dumps(parsed, sort_keys=True, separators=(",", ":"))
+    except (json.JSONDecodeError, TypeError):
+        canonical = attributes
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _write_changelog(
+    db: Session,
+    item: CMDBItem,
+    action: str,
+    field: str | None,
+    old_value: str | None,
+    new_value: str | None,
+    summary: str,
+) -> None:
+    """Append a CMDBChangelog record for a CI change detected during discovery."""
+    entry = CMDBChangelog(
+        id=str(uuid4()),
+        item_id=item.id,
+        user_id=None,  # system/scheduler — no human user
+        action=action,
+        field=field,
+        old_value=(old_value[:4000] if old_value else None),
+        new_value=(new_value[:4000] if new_value else None),
+        summary=summary[:500],
+    )
+    db.add(entry)
 
 
 # ── AWS Discovery ─────────────────────────────────────────────────────────────
@@ -762,18 +799,41 @@ def reconcile_cis(
                 discovery_provider=provider_type,
                 is_discovered=True,
                 last_discovered_at=now,
+                config_hash=_compute_config_hash(ci_data.get("attributes")),
             )
             db.add(new_ci)
+            _write_changelog(
+                db, new_ci, "created", None, None,
+                ci_data.get("name", ext_id),
+                f"[discovery:{provider_type}] CI creado automáticamente",
+            )
             created += 1
         else:
-            # UPDATE if any field changed
+            # UPDATE if any field changed; detect attribute/config drift separately
             changed = False
+            old_attributes = existing.attributes
             for field in ("name", "status", "ip_address", "hostname", "version",
                           "description", "attributes", "environment"):
                 new_val = ci_data.get(field)
                 if new_val is not None and getattr(existing, field) != new_val:
+                    _write_changelog(
+                        db, existing, "updated", field,
+                        str(getattr(existing, field, "")),
+                        str(new_val),
+                        f"[discovery:{provider_type}] Campo '{field}' actualizado",
+                    )
                     setattr(existing, field, new_val)
                     changed = True
+
+            # Drift detection: compare config hash of attributes
+            new_hash = _compute_config_hash(ci_data.get("attributes"))
+            if new_hash and existing.config_hash and new_hash != existing.config_hash:
+                existing.drift_detected_at = now
+                logger.info(
+                    "Drift detectado en CI %s (%s): hash %s → %s",
+                    existing.id, existing.name, existing.config_hash, new_hash,
+                )
+            existing.config_hash = new_hash
             existing.last_discovered_at = now
             existing.is_discovered = True
             if changed:
@@ -791,10 +851,41 @@ def reconcile_cis(
     )
     for ci in stale:
         if ci.external_id not in discovered_ext_ids:
+            _write_changelog(
+                db, ci, "updated", "status",
+                ci.status, "decommissioned",
+                f"[discovery:{provider_type}] CI no encontrado en scan — marcado como decommissioned",
+            )
             ci.status = "decommissioned"
             deactivated += 1
 
     db.flush()
+    logger.info(
+        "Reconcile [%s]: created=%d, updated=%d, deactivated=%d",
+        provider_type,
+        created,
+        updated,
+        deactivated,
+    )
+    return {"created": created, "updated": updated, "deactivated": deactivated}
+
+
+# ── Orchestration ─────────────────────────────────────────────────────────────
+
+def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> CMDBDiscoveryJob:
+    """Ejecuta discovery completo para un proveedor y registra el job.
+
+    Commits the job record. Caller must NOT commit before calling this function.
+    After this call, the session is in a clean state (committed).
+
+    Returns:
+        CMDBDiscoveryJob con el resultado del run.
+    """
+    job = CMDBDiscoveryJob(
+        id=str(uuid4()),
+        provider_id=provider.id,
+        status="running",
+        started_at=_utcnow(),
     logger.info(
         "Reconcile [%s]: created=%d, updated=%d, deactivated=%d",
         provider_type,
@@ -860,6 +951,9 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         job.finished_at = _utcnow()
         provider.last_run_at = job.finished_at
         provider.last_run_status = job.status
+        # Schedule next run based on provider cadence
+        interval = max(1, getattr(provider, "scan_interval_minutes", 60) or 60)
+        provider.next_run_at = job.finished_at + timedelta(minutes=interval)
         db.commit()
 
     return job
@@ -908,6 +1002,123 @@ def run_all_active_discoveries(db: Session) -> list[dict]:
             )
 
     return results
+
+
+def run_due_discoveries(db: Session) -> list[dict]:
+    """Ejecuta discovery sólo para proveedores cuya ventana de ejecución ha vencido.
+
+    A provider is due when `next_run_at` is None or is in the past.
+    This enables per-provider cadence control via `scan_interval_minutes`.
+
+    Returns:
+        Lista de resúmenes por proveedor ejecutado.
+    """
+    now = _utcnow()
+    providers = (
+        db.query(CMDBDiscoveryProvider)
+        .filter(
+            CMDBDiscoveryProvider.is_active.is_(True),
+            (CMDBDiscoveryProvider.next_run_at.is_(None))
+            | (CMDBDiscoveryProvider.next_run_at <= now),
+        )
+        .all()
+    )
+
+    logger.info("run_due_discoveries: %d provider(s) due for scan", len(providers))
+    results = []
+    for provider in providers:
+        try:
+            job = run_discovery_for_provider(db, provider)
+            results.append(
+                {
+                    "provider_id": provider.id,
+                    "provider_name": provider.name,
+                    "provider_type": provider.provider_type,
+                    "job_id": job.id,
+                    "status": job.status,
+                    "created": job.cis_created,
+                    "updated": job.cis_updated,
+                    "deactivated": job.cis_deactivated,
+                    "drift_detected": job.status == "ok",
+                    "error": job.error_message,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Fatal error for provider %s: %s", provider.id, exc)
+            results.append(
+                {
+                    "provider_id": provider.id,
+                    "provider_name": provider.name,
+                    "status": "error",
+                    "error": str(exc),
+                }
+            )
+
+    return results
+
+
+def get_drift_report(db: Session, hours: int = 24) -> dict:
+    """Return CIs where config drift was detected in the last `hours` hours.
+
+    For each drifted CI, include the most recent changelog entries for that CI.
+
+    Returns a dict suitable for the REST drift-report endpoint.
+    """
+    cutoff = _utcnow() - timedelta(hours=max(1, hours))
+
+    drifted = (
+        db.query(CMDBItem)
+        .filter(
+            CMDBItem.drift_detected_at >= cutoff,
+            CMDBItem.is_discovered.is_(True),
+        )
+        .order_by(CMDBItem.drift_detected_at.desc())
+        .all()
+    )
+
+    items = []
+    for ci in drifted:
+        # Get the 5 most recent changelog entries for this CI
+        changelog_rows = (
+            db.query(CMDBChangelog)
+            .filter(CMDBChangelog.item_id == ci.id)
+            .order_by(CMDBChangelog.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        changelog = [
+            {
+                "field": row.field,
+                "old_value": row.old_value,
+                "new_value": row.new_value,
+                "summary": row.summary,
+                "created_at": row.created_at,
+            }
+            for row in changelog_rows
+        ]
+        items.append(
+            {
+                "ci_id": ci.id,
+                "name": ci.name,
+                "ci_type": ci.ci_type,
+                "environment": ci.environment,
+                "provider": ci.discovery_provider,
+                "drift_detected_at": ci.drift_detected_at,
+                "last_discovered_at": ci.last_discovered_at,
+                "ip_address": ci.ip_address,
+                "hostname": ci.hostname,
+                "recent_changelog": changelog,
+            }
+        )
+
+    return {
+        "hours": hours,
+        "cutoff": cutoff,
+        "total_drifted": len(items),
+        "items": items,
+    }
+
+
 
 
 def get_reconciliation_health(db: Session, provider_type: str | None = None) -> dict:
