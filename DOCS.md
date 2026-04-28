@@ -20,6 +20,8 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
     - listar vistas compartidas activas,
     - aplicar una vista compartida para restaurar filtros en pantalla,
     - activar/desactivar vistas compartidas existentes.
+  - Mejora UX adicional:
+    - selector "Mostrar vistas inactivas" para poder localizar y reactivar vistas desactivadas desde la misma pantalla.
 
 - Se reutiliza el cliente API de colaboración BI ya extendido:
   - `biCollaborationApi.listSharedViews`
@@ -28,6 +30,7 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 - Validación ejecutada:
   - `frontend`: `npm run build` → OK (`built in 5.63s`).
+  - `frontend` (tras mejora selector inactivas): `npm run build` → OK (`built in 5.57s`).
 
 ### v23.10.32 (Abril 2026) — BI Collaboration: Shared Views (backend + frontend API + tests)
 

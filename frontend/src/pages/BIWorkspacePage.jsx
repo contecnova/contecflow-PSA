@@ -283,6 +283,7 @@ export default function BIPage() {
   const [commentWidget, setCommentWidget] = useState('kpi_grid')
   const [commentText, setCommentText] = useState('')
   const [sharedViewName, setSharedViewName] = useState('')
+  const [showInactiveSharedViews, setShowInactiveSharedViews] = useState(false)
   const [rulesDraft, setRulesDraft] = useState(null)
   const [govRunTick, setGovRunTick] = useState(0)
   const [sharedViewsTick, setSharedViewsTick] = useState(0)
@@ -360,8 +361,8 @@ export default function BIPage() {
   })
 
   const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery({
-    queryKey: ['bi-phase3-shared-views', sharedViewsTick],
-    queryFn: () => biCollaborationApi.listSharedViews().then(r => r.data).catch(() => ({ items: [] })),
+    queryKey: ['bi-phase3-shared-views', sharedViewsTick, showInactiveSharedViews],
+    queryFn: () => biCollaborationApi.listSharedViews({ include_inactive: showInactiveSharedViews }).then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
 
@@ -565,6 +566,8 @@ export default function BIPage() {
   const normalizedUtilPct = utilPct == null ? null : Math.max(0, Math.min(100, utilPct))
   const comments = commentsData?.items || []
   const sharedViews = sharedViewsData?.items || []
+  const activeSharedViews = sharedViews.filter((v) => v.active !== false).length
+  const inactiveSharedViews = sharedViews.length - activeSharedViews
   const connectors = Object.entries(connectorsData?.items || {})
   const forecastHead = forecastRevenue?.forecast || []
   const anomalies = revenueAnomalies?.items || []
@@ -989,8 +992,27 @@ export default function BIPage() {
                 </button>
               </div>
               <div style={{ display: 'grid', gap: 7 }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 11,
+                  color: 'var(--text-2)',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={showInactiveSharedViews}
+                    onChange={(e) => setShowInactiveSharedViews(e.target.checked)}
+                  />
+                  Mostrar vistas inactivas
+                  <span style={{ color: 'var(--text-3)' }}>
+                    ({activeSharedViews} activas{showInactiveSharedViews ? ` · ${inactiveSharedViews} inactivas` : ''})
+                  </span>
+                </label>
                 {sharedViews.length === 0 ? (
-                  <div style={{ color: 'var(--text-3)', fontSize: 12 }}>No hay vistas compartidas todavía.</div>
+                  <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                    {showInactiveSharedViews ? 'No hay vistas compartidas todavía.' : 'No hay vistas activas. Activa "Mostrar vistas inactivas" para restaurarlas.'}
+                  </div>
                 ) : sharedViews.map((v) => (
                   <div key={v.id} style={{
                     border: '1px solid var(--surface-4)',
@@ -1005,7 +1027,7 @@ export default function BIPage() {
                     <div style={{ display: 'grid', gap: 2 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-3)' }}>
-                        {v.dashboard_key} · {v.created_by_name || '—'}
+                        {v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? 'inactiva' : 'activa'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
