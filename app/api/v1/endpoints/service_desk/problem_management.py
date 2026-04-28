@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +14,7 @@ from app.schemas.service_desk import ProblemIn
 from app.services.service_desk import problem_management_service as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -45,6 +47,25 @@ class ApproveRCAIn(BaseModel):
 
 class MarkKEDBReviewedIn(BaseModel):
     extend_days: int = Field(90, ge=7, le=365)
+
+
+# ── RCA Wizard payloads ───────────────────────────────────────────────────────
+
+class WizardStartIn(BaseModel):
+    template: str = Field(
+        ...,
+        pattern="^(five_whys|fishbone|itil_standard)$",
+        description="RCA template to use",
+    )
+
+
+class WizardStepIn(BaseModel):
+    step: int = Field(..., ge=1, description="Step number (1-based)")
+    answer: str = Field(..., min_length=5, max_length=4000, description="Analyst's answer for this step")
+
+
+class WizardAIAssistIn(BaseModel):
+    step: int = Field(..., ge=1, description="Step number to get AI assistance for")
 
 
 @router.get('/problems', summary='Listar problemas (Problem Management)')
@@ -298,3 +319,128 @@ def run_kedb_effectiveness_scan(
     result = _scan(db)
     _commit_or_rollback(db)
     return result
+
+
+# ── RCA Wizard endpoints (ITSM-P06) ──────────────────────────────────────────
+
+
+@router.get('/rca/templates', summary='Listar templates RCA disponibles')
+def list_rca_templates():
+    """Return all available RCA templates with metadata (no auth required)."""
+    from app.services.service_desk.rca_wizard_service import list_available_templates
+
+    return {'templates': list_available_templates()}
+
+
+@router.post('/problems/{problem_id}/rca-wizard/start', summary='Iniciar wizard RCA guiado')
+def start_rca_wizard(
+    problem_id: str,
+    payload: WizardStartIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Initialise (or reset) the RCA wizard for this problem.
+
+    Selecting a template generates the step prompts. Any previous wizard state
+    is discarded. Returns the initial wizard state with all step prompts.
+    """
+    from app.services.service_desk.problem_service import get_scoped_problem_or_404
+    from app.services.service_desk.rca_wizard_service import start_wizard
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+    state = start_wizard(db, problem, template=payload.template)
+    _commit_or_rollback(db)
+    return {'ok': True, 'wizard': state}
+
+
+@router.get('/problems/{problem_id}/rca-wizard', summary='Ver estado actual del wizard RCA')
+def get_rca_wizard_state(
+    problem_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return the current RCA wizard state including answered steps and AI hints."""
+    from app.services.service_desk.problem_service import get_scoped_problem_or_404
+    from app.services.service_desk.rca_wizard_service import get_wizard_state
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+    state = get_wizard_state(problem)
+    if state is None:
+        raise HTTPException(status_code=404, detail='RCA wizard not started for this problem')
+    return {'wizard': state}
+
+
+@router.post('/problems/{problem_id}/rca-wizard/step', summary='Enviar respuesta de un paso del wizard')
+def submit_rca_wizard_step(
+    problem_id: str,
+    payload: WizardStepIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Record the analyst's answer for a specific step.
+
+    Steps can be answered in any order and re-submitted to correct answers.
+    Returns the updated wizard state.
+    """
+    from app.services.service_desk.problem_service import get_scoped_problem_or_404
+    from app.services.service_desk.rca_wizard_service import submit_wizard_step
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+    state = submit_wizard_step(db, problem, step_num=payload.step, answer=payload.answer)
+    _commit_or_rollback(db)
+    return {'ok': True, 'wizard': state}
+
+
+@router.post('/problems/{problem_id}/rca-wizard/ai-assist', summary='Obtener sugerencia IA para un paso del wizard')
+def rca_wizard_ai_assist(
+    problem_id: str,
+    payload: WizardAIAssistIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Request an AI-generated hint for a specific wizard step.
+
+    The hint considers the problem context, previous answers, and the step prompt.
+    The hint is persisted in the step's ai_hint field and returned.
+    """
+    from app.services.service_desk.problem_service import get_scoped_problem_or_404
+    from app.services.service_desk.rca_wizard_service import ai_assist_step
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+    result = ai_assist_step(db, problem, step_num=payload.step)
+    _commit_or_rollback(db)
+    return {'ok': True, **result}
+
+
+@router.post('/problems/{problem_id}/rca-wizard/complete', summary='Finalizar wizard RCA y derivar campos')
+def complete_rca_wizard(
+    problem_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Finalise the RCA wizard.
+
+    Requires all steps to be answered. Derives and writes:
+      - problem.root_cause   — synthesized from wizard answers
+      - problem.rca_type     — AI-classified (hardware|software|process|human|network|unknown)
+      - problem.workaround   — from ITIL step 4 (when applicable)
+
+    Marks the wizard as completed. Returns the derived RCA fields.
+    """
+    from app.services.service_desk.problem_service import get_scoped_problem_or_404
+    from app.services.service_desk.rca_wizard_service import complete_wizard
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+    try:
+        result = complete_wizard(db, problem)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning('complete_rca_wizard: unexpected error: %s', exc)
+        raise HTTPException(status_code=500, detail='Error finalizing RCA wizard')
+    _commit_or_rollback(db)
+    return {'ok': True, 'rca': result}

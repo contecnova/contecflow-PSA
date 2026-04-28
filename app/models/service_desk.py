@@ -414,6 +414,10 @@ class Problem(Base):
     # RCA enrichment (Fase 1 ITSM)
     rca_type = Column(String(30), nullable=True)    # hardware|software|process|human|network|unknown
     rca_ai_suggestion = Column(Text, nullable=True) # JSON with AI-generated RCA suggestion
+
+    # RCA Wizard — ITSM-P06
+    rca_template = Column(String(30), nullable=True)   # five_whys|fishbone|itil_standard|custom
+    rca_wizard_state = Column(Text, nullable=True)     # JSON blob with wizard steps/answers/completion
     auto_detected = Column(Boolean, default=False)  # True when created by auto-detection task
     affected_services_json = Column(Text, nullable=True)  # JSON list of CI ids
 
