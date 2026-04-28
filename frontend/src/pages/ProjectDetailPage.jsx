@@ -194,7 +194,10 @@ function TeamTab({ projectId }) {
   if (members.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
       <div style={{ fontSize: 36, marginBottom: 12 }}>👥</div>
-      <div style={{ fontSize: 14, fontWeight: 600 }}>Sin miembros asignados</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin miembros asignados</div>
+      <Link to="/resources" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+        Gestionar recursos →
+      </Link>
     </div>
   )
 
@@ -245,7 +248,10 @@ function RisksTab({ projectId }) {
   if (risks.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
       <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: 14, fontWeight: 600 }}>Sin riesgos registrados</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin riesgos registrados</div>
+      <Link to="/risks" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+        Ver gestión de riesgos →
+      </Link>
     </div>
   )
 
