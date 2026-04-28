@@ -9,6 +9,7 @@ import { PieChart as PieChartIcon } from 'lucide-react'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
+import useMediaQuery from '../hooks/useMediaQuery'
 
 function dateRange(days) {
   const to = new Date()
@@ -45,6 +46,8 @@ function PeriodButton({ active, label, onClick }) {
         background: active ? '#0ea5e920' : 'transparent',
         color: active ? '#0ea5e9' : 'var(--text-2)',
         borderRadius: 8,
+        minHeight: 48,
+        minWidth: 48,
         padding: '6px 10px',
         fontSize: 12,
         fontWeight: 700,
@@ -74,29 +77,11 @@ function EmptyDash() {
   )
 }
 
-function useIsMobile(maxWidth = 900) {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.matchMedia(`(max-width: ${maxWidth}px)`).matches
-  })
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined
-    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`)
-    const onChange = (event) => setIsMobile(event.matches)
-    setIsMobile(mq.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [maxWidth])
-
-  return isMobile
-}
-
 export default function BIPage() {
   const t = useAppT()
   const { lang } = useAppLang()
   const [days, setDays] = useState(30)
-  const isMobile = useIsMobile()
+  const isMobile = useMediaQuery('(max-width: 900px)')
   const params = useMemo(() => dateRange(days), [days])
   const periodKey = `${days}d`
 
@@ -114,7 +99,7 @@ export default function BIPage() {
         return await getCachedBiKpis(periodKey)
       }
     },
-    staleTime: 60_000,
+    staleTime: 10_000,
   })
 
   const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery({
@@ -128,7 +113,7 @@ export default function BIPage() {
         return (await getCachedBiProjects(periodKey)) ?? []
       }
     },
-    staleTime: 60_000,
+    staleTime: 10_000,
   })
 
   const isLoading = loadingKpis || loadingHealth

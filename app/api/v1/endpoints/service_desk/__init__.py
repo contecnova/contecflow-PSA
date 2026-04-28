@@ -40,6 +40,8 @@ from app.api.v1.endpoints.service_desk import (
     change_impact,
     sd_reports,
     capacity_planning,
+    problem_management,
+    cab_workflow,
 )
 
 router = APIRouter()
@@ -64,3 +66,5 @@ router.include_router(multichannel.router)
 router.include_router(change_impact.router)
 router.include_router(sd_reports.router)
 router.include_router(capacity_planning.router)
+router.include_router(problem_management.router)
+router.include_router(cab_workflow.router)

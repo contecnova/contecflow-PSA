@@ -15,7 +15,7 @@ from app.api.v1.endpoints import (
     gantt_suggestions, template, templates, revenue, predictions,
     bi_collaboration, bi_intelligence, bi_platform,
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
-    bi_embed, bi_export, bi_data_versioning,
+    bi_embed, bi_export, bi_data_versioning, bi_governance,
 )
 from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
 
@@ -66,6 +66,7 @@ router.include_router(bi_report_builder_v2.router,                          tags
 router.include_router(bi_embed.router,                                      tags=["BI Embedded SDK"])
 router.include_router(bi_export.router,                                     tags=["BI Export"])
 router.include_router(bi_data_versioning.router,                            tags=["BI Data Versioning"])
+router.include_router(bi_governance.router,                                 tags=["BI Governance"])
 router.include_router(nps.router,              prefix="/nps",              tags=["NPS & Health"])
 router.include_router(m365.router,             prefix="/m365",             tags=["Microsoft 365"])
 

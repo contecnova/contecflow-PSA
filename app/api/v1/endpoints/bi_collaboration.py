@@ -5,14 +5,18 @@ Designed as an orchestration layer over app.services.bi_collaboration_service.
 """
 from __future__ import annotations
 
+import asyncio
+import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.security import decode_token
 from app.db.session import get_db
+from app.db.session import SessionLocal
 from app.models.user import User
 from app.services import bi_collaboration_service as svc
 
@@ -53,6 +57,10 @@ class DashboardShareIn(BaseModel):
     target_user_id: str = Field(..., min_length=1, max_length=120)
     target_user_name: str = Field(..., min_length=1, max_length=200)
     permission: str = Field(..., pattern="^(view|edit|admin)$")
+
+
+class CachePolicyIn(BaseModel):
+    critical_refresh_seconds: int = Field(..., ge=5, le=10)
 
 
 @router.get("/bi/collaboration/comments", summary="Listar comentarios BI por dashboard/widget")
@@ -317,3 +325,80 @@ def revoke_dashboard_share(
     if not deleted:
         raise HTTPException(status_code=404, detail="Acceso compartido no encontrado")
     return {"ok": True}
+
+
+@router.get('/bi/collaboration/cache-policy', summary='Política de refresco BI (crítico 5-10s)')
+def get_cache_policy(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    return svc.get_cache_policy(db, organization_id=org_id)
+
+
+@router.patch('/bi/collaboration/cache-policy', summary='Actualizar refresco crítico BI (5-10s)')
+def patch_cache_policy(
+    payload: CachePolicyIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    return svc.update_cache_policy(
+        db,
+        organization_id=org_id,
+        critical_refresh_seconds=payload.critical_refresh_seconds,
+    )
+
+
+@router.get('/bi/collaboration/dashboards/{dashboard_key}/updates/snapshot', summary='Snapshot de actualización de dashboard BI')
+def dashboard_updates_snapshot(
+    dashboard_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, 'organization_id', None)
+    return svc.dashboard_update_snapshot(db, organization_id=org_id, dashboard_key=dashboard_key)
+
+
+@router.websocket('/bi/collaboration/dashboards/{dashboard_key}/updates')
+async def dashboard_updates_ws(websocket: WebSocket, dashboard_key: str, token: Optional[str] = Query(default=None)):
+    if not token:
+        await websocket.close(code=4001, reason='Token requerido')
+        return
+
+    payload = decode_token(token)
+    if not payload or payload.get('type') != 'access':
+        await websocket.close(code=4001, reason='Token invalido')
+        return
+
+    user_id = payload.get('sub')
+    if not user_id:
+        await websocket.close(code=4001, reason='Token invalido')
+        return
+
+    await websocket.accept()
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            await websocket.close(code=4004, reason='Usuario no encontrado')
+            return
+
+        org_id = getattr(user, 'organization_id', None)
+        policy = svc.get_cache_policy(db, organization_id=org_id)
+        interval = int(policy.get('critical_refresh_seconds', 10))
+        interval = max(5, min(10, interval))
+
+        while True:
+            snapshot = svc.dashboard_update_snapshot(
+                db,
+                organization_id=org_id,
+                dashboard_key=dashboard_key,
+            )
+            await websocket.send_text(json.dumps(snapshot, ensure_ascii=False))
+            await asyncio.sleep(interval)
+    except WebSocketDisconnect:
+        return
+    finally:
+        db.close()

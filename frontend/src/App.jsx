@@ -4,6 +4,7 @@ import { Component, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/layout/Layout'
+import AppShell from './components/layout/AppShell'
 import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
 import { useAppT } from './hooks/useAppT'
@@ -514,7 +515,9 @@ export default function App() {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppRoutes />
+        <AppShell>
+          <AppRoutes />
+        </AppShell>
       </ConfirmProvider>
     </ToastProvider>
   )

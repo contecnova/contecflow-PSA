@@ -30,26 +30,25 @@ self.addEventListener('fetch', (event) => {
 
   const url = request.url;
 
-  // BI API endpoints: stale-while-revalidate for offline resilience
+  // BI API endpoints: network-first with cache fallback for offline resilience.
   const isBiApi = BI_CACHE_PATTERNS.some((p) => url.includes(p));
   if (isBiApi) {
     event.respondWith(
       caches.open(API_CACHE).then((cache) =>
-        cache.match(request).then((cached) => {
-          const networkFetch = fetch(request)
-            .then((response) => {
-              if (response && response.status === 200) {
-                cache.put(request, response.clone());
-              }
-              return response;
-            })
-            .catch(() => cached || new Response(JSON.stringify({ error: 'Sin conexion' }), {
+        fetch(request)
+          .then((response) => {
+            if (response && response.status === 200) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          })
+          .catch(async () => {
+            const cached = await cache.match(request);
+            return cached || new Response(JSON.stringify({ error: 'Sin conexion' }), {
               headers: { 'Content-Type': 'application/json' },
               status: 503,
-            }));
-          // Return cached immediately; revalidate in background
-          return cached || networkFetch;
-        })
+            });
+          })
       )
     );
     return;
@@ -83,20 +82,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate for speed and freshness.
+  // Static assets: cache-first for instant app shell rendering.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const networkFetch = fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || networkFetch;
+    caches.match(request).then(async (cached) => {
+      if (cached) return cached;
+      try {
+        const response = await fetch(request);
+        if (response && response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      } catch {
+        return cached;
+      }
     })
   );
 });

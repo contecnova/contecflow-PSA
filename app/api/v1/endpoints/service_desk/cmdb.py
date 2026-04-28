@@ -24,6 +24,8 @@ from app.services.service_desk.cmdb_discovery_service import (
     run_discovery_for_provider,
     run_all_active_discoveries,
     get_reconciliation_health,
+    deduplicate_candidates,
+    auto_merge_duplicates,
 )
 
 router = APIRouter()
@@ -229,6 +231,37 @@ def reconciliation_health(
     current_user: User = Depends(require_admin),
 ):
     return get_reconciliation_health(db, provider_type=provider_type)
+
+
+@router.get('/cmdb/discovery/reconciliation-candidates', summary='Preview deduplicación CMDB con confidence score')
+def reconciliation_candidates(
+    provider_type: Optional[str] = Query(None),
+    min_confidence: float = Query(0.85, ge=0.5, le=1.0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    _ = current_user
+    items = deduplicate_candidates(db, provider_type=provider_type, min_confidence=min_confidence)
+    return {"items": items, "count": len(items), "min_confidence": min_confidence}
+
+
+@router.post('/cmdb/discovery/reconciliation-merge', summary='Aplicar auto-merge de CIs duplicados por confidence score')
+def reconciliation_merge(
+    provider_type: Optional[str] = Query(None),
+    min_confidence: float = Query(0.9, ge=0.5, le=1.0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    _ = current_user
+    result = auto_merge_duplicates(
+        db,
+        provider_type=provider_type,
+        min_confidence=min_confidence,
+        limit=limit,
+    )
+    _commit_or_rollback(db)
+    return {"ok": True, **result}
 
 
 # ── Dependency mapping + Blast Radius ────────────────────────────────────────

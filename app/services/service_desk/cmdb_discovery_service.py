@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from typing import Any
 from uuid import uuid4
 
@@ -973,4 +974,108 @@ def get_reconciliation_health(db: Session, provider_type: str | None = None) -> 
         "duplicate_external_ids": duplicate_external_ids,
         "reconciliation_score": score,
         "by_provider": provider_counts,
+    }
+
+
+def _string_similarity(a: str | None, b: str | None) -> float:
+    aa = (a or "").strip().lower()
+    bb = (b or "").strip().lower()
+    if not aa or not bb:
+        return 0.0
+    return SequenceMatcher(None, aa, bb).ratio()
+
+
+def ci_similarity_score(ci_a: CMDBItem, ci_b: CMDBItem) -> float:
+    """Similarity score in [0,1] for duplicate candidate detection."""
+    name_score = _string_similarity(ci_a.name, ci_b.name)
+    host_score = _string_similarity(ci_a.hostname, ci_b.hostname)
+    ip_score = 1.0 if ci_a.ip_address and ci_a.ip_address == ci_b.ip_address else 0.0
+    type_score = 1.0 if ci_a.ci_type == ci_b.ci_type else 0.0
+    env_score = 1.0 if ci_a.environment == ci_b.environment else 0.0
+    return round(name_score * 0.45 + host_score * 0.25 + ip_score * 0.2 + type_score * 0.07 + env_score * 0.03, 4)
+
+
+def deduplicate_candidates(
+    db: Session,
+    *,
+    provider_type: str | None = None,
+    min_confidence: float = 0.85,
+) -> list[dict]:
+    """Find possible duplicates and return merge candidates with confidence score."""
+    q = db.query(CMDBItem).filter(CMDBItem.is_discovered.is_(True), CMDBItem.status != "decommissioned")
+    if provider_type:
+        q = q.filter(CMDBItem.discovery_provider == provider_type)
+    rows = q.order_by(CMDBItem.discovery_provider.asc(), CMDBItem.name.asc()).all()
+
+    candidates: list[dict] = []
+    for i in range(len(rows)):
+        a = rows[i]
+        for j in range(i + 1, len(rows)):
+            b = rows[j]
+            if provider_type and (a.discovery_provider != b.discovery_provider):
+                continue
+            score = ci_similarity_score(a, b)
+            if score < min_confidence:
+                continue
+            keeper, duplicate = (a, b)
+            if (b.last_discovered_at or datetime.min) > (a.last_discovered_at or datetime.min):
+                keeper, duplicate = (b, a)
+
+            candidates.append(
+                {
+                    "provider": a.discovery_provider or b.discovery_provider,
+                    "confidence": score,
+                    "keeper": {
+                        "id": keeper.id,
+                        "name": keeper.name,
+                        "hostname": keeper.hostname,
+                        "ip_address": keeper.ip_address,
+                    },
+                    "duplicate": {
+                        "id": duplicate.id,
+                        "name": duplicate.name,
+                        "hostname": duplicate.hostname,
+                        "ip_address": duplicate.ip_address,
+                    },
+                }
+            )
+    candidates.sort(key=lambda x: x["confidence"], reverse=True)
+    return candidates
+
+
+def auto_merge_duplicates(
+    db: Session,
+    *,
+    provider_type: str | None = None,
+    min_confidence: float = 0.85,
+    limit: int = 100,
+) -> dict:
+    """Apply automatic deduplication by decommissioning likely duplicate CIs."""
+    candidates = deduplicate_candidates(
+        db,
+        provider_type=provider_type,
+        min_confidence=min_confidence,
+    )[: max(1, limit)]
+
+    merged = 0
+    applied: list[dict] = []
+    for c in candidates:
+        dup = db.query(CMDBItem).filter(CMDBItem.id == c["duplicate"]["id"]).first()
+        keep = db.query(CMDBItem).filter(CMDBItem.id == c["keeper"]["id"]).first()
+        if not dup or not keep or dup.status == "decommissioned":
+            continue
+
+        dup.status = "decommissioned"
+        note = f"[auto-merge] merged_into={keep.id} confidence={c['confidence']}"
+        dup.description = f"{dup.description or ''}\n{note}".strip()
+        merged += 1
+        applied.append(c)
+
+    db.flush()
+    return {
+        "provider_filter": provider_type,
+        "min_confidence": min_confidence,
+        "candidates": len(candidates),
+        "merged": merged,
+        "applied": applied,
     }

@@ -3,9 +3,13 @@
   "short_name": "Contecflow",
   "description": "Professional Services Automation",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#080c14",
   "theme_color": "#4f8ef7",
+  "lang": "es-ES",
   "icons": [
     { "src": "/contecflow-icon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },

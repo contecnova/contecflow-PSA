@@ -11,6 +11,43 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.45 (Abril 2026) — Cierre pendientes BI/ITSM: PWA móvil, D3/ECharts/Plotly, BI Governance, WebSocket dashboards, Problem Management formal, CAB workflow, CMDB auto-reconciliation
+
+Implementación incremental sobre v23.10.44. Arquitectura de servicios orquestados; persistencia en AppSetting JSON blobs para nuevos flujos de estado.
+
+#### BI Frontend — Mobile Responsive + PWA
+- **`frontend/tailwind.config.js`**: breakpoints `xs=320px`, `sm=480px`.
+- **`frontend/src/hooks/useMediaQuery.js`** (nuevo): hook shared responsive runtime.
+- **`frontend/src/pages/BIPage.jsx`**: `useMediaQuery`, touch targets 48px, staleTime KPIs → 10s.
+- **`frontend/public/sw.js`**: network-first API + cache-first assets con fallback offline.
+- **`frontend/public/manifest.json`**: `scope`, `display_override`, `orientation`, `lang`.
+- **`frontend/src/components/layout/AppShell.jsx`** + **`App.jsx`**: app shell con safe-areas PWA.
+
+#### BI Frontend — Visualización avanzada (D3 + ECharts + Plotly)
+- **`frontend/package.json`**: añadido `d3`, `d3-sankey`, `plotly.js`, `react-plotly.js`.
+- **`frontend/src/charts/`** (nueva arquitectura): D3: `SankeyChart`, `TreemapChart`, `SunburstChart`, `DendrogramChart`; ECharts: `GaugeChart`, `HeatmapChart`, `FunnelChart`, `CandlestickChart`, `Chart3DBar`; Plotly: `BoxPlotChart`, `ViolinChart`, `Scatter3DChart`; dispatcher `DynamicChart.jsx` + barrel `index.js`.
+- **`frontend/src/components/bi/BiAdvancedViz.jsx`**: refactor completo con `DynamicChart`.
+
+#### BI Backend — Governance (audit trail + lineage + field sensitivity)
+- **`app/services/bi_governance_service.py`** (nuevo): `log_bi_access`, `get_access_history`, `track_data_lineage`, `list_lineage`, `upsert_field_sensitivity`, `list_field_sensitivity`.
+- **`app/api/v1/endpoints/bi_governance.py`** (nuevo): `POST/GET /bi/governance/audit/access`, `GET/POST /bi/governance/lineage`, `GET/PUT /bi/governance/field-sensitivity`.
+
+#### BI Backend — Real-time WebSocket dashboards
+- **`app/services/bi_collaboration_service.py`**: `get_cache_policy`/`update_cache_policy` (crítico 5-10s), `dashboard_update_snapshot`.
+- **`app/api/v1/endpoints/bi_collaboration.py`**: `GET/PATCH /bi/collaboration/cache-policy`, `GET /bi/collaboration/dashboards/{key}/updates/snapshot`, `WS /bi/collaboration/dashboards/{key}/updates?token=...`.
+
+#### ITSM — Problem Management formal
+- **`app/services/service_desk/problem_management_service.py`** (nuevo): correlación, RCA, vinculación incidentes, Problem→Change.
+- **`app/api/v1/endpoints/service_desk/problem_management.py`** (nuevo): `GET/POST /sd/problems`, `POST /sd/problems/correlation`, `POST /sd/problems/{id}/rca`, `GET/POST /sd/problems/{id}/linked-incidents`, `POST /sd/problems/{id}/create-change`.
+
+#### ITSM — CAB Workflow formal
+- **`app/services/service_desk/cab_workflow_service.py`** (nuevo): estado Requester→Manager→CAB→Executor, meeting scheduling, voting con quorum, templates `testing_plan`/`comms_plan`.
+- **`app/api/v1/endpoints/service_desk/cab_workflow.py`** (nuevo): `POST/GET /sd/changes/{id}/cab/workflow`, `POST /sd/changes/{id}/cab/meeting`, `POST /sd/changes/{id}/cab/vote`, `POST /sd/changes/{id}/cab/executor`, `GET /sd/changes/cab/templates`.
+
+#### ITSM — CMDB Auto-reconciliation (dedupe + merge + confidence)
+- **`app/services/service_desk/cmdb_discovery_service.py`**: `ci_similarity_score` (nombre/hostname/ip/tipo/entorno), `deduplicate_candidates` con `confidence`, `auto_merge_duplicates`.
+- **`app/api/v1/endpoints/service_desk/cmdb.py`**: `GET /sd/cmdb/discovery/reconciliation-candidates`, `POST /sd/cmdb/discovery/reconciliation-merge`.
+
 <<<<<<< HEAD
 ### v23.10.44 (Abril 2026) — BI Fase 3 + ITSM Fase 4: Embedded Analytics, Export avanzado, Conectores 20+, Data Versioning, CMDB completo, Dependency Mapping D3, Change Impact Analysis, Advanced Reporting, Capacity Planning
 

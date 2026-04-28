@@ -25,6 +25,7 @@ LAST_RUN_KEY = "bi.phase1.governance.last_run"
 SHARED_VIEWS_KEY = "bi.phase3.shared_views"
 VERSIONS_KEY_PREFIX = "bi.collab.versions."
 SHARES_KEY_PREFIX = "bi.collab.shares."
+CACHE_POLICY_KEY = "bi.collab.cache.policy"
 
 SHARE_PERMISSIONS = {"view", "edit", "admin"}
 
@@ -523,3 +524,60 @@ def revoke_dashboard_share(
         description=f"BI dashboard sharing for {dashboard_key}",
     )
     return True
+
+
+def get_cache_policy(db: Session, *, organization_id: Optional[str]) -> dict[str, Any]:
+    default_policy = {
+        "critical_refresh_seconds": 10,
+        "normal_refresh_seconds": 60,
+        "max_refresh_seconds": 300,
+    }
+    row = _get_json(db, CACHE_POLICY_KEY, organization_id, default={})
+    return {**default_policy, **(row or {})}
+
+
+def update_cache_policy(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    critical_refresh_seconds: Optional[int] = None,
+) -> dict[str, Any]:
+    policy = get_cache_policy(db, organization_id=organization_id)
+    if critical_refresh_seconds is not None:
+        policy["critical_refresh_seconds"] = max(5, min(10, int(critical_refresh_seconds)))
+    _set_json(
+        db,
+        CACHE_POLICY_KEY,
+        organization_id,
+        policy,
+        description="BI collaboration cache and realtime policy",
+    )
+    return policy
+
+
+def dashboard_update_snapshot(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+) -> dict[str, Any]:
+    versions = list_dashboard_versions(db, organization_id=organization_id, dashboard_key=dashboard_key)
+    comments = list_comments(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        include_resolved=False,
+    )
+    shares = list_dashboard_shares(db, organization_id=organization_id, dashboard_key=dashboard_key)
+
+    latest_version = max((v.get("version", 0) for v in versions), default=0)
+    return {
+        "type": "bi_dashboard_update",
+        "dashboard_key": dashboard_key,
+        "timestamp": _iso_now(),
+        "latest_version": latest_version,
+        "version_count": len(versions),
+        "comment_count": len(comments),
+        "share_count": len(shares),
+        "recent_comments": comments[:5],
+    }
