@@ -118,6 +118,8 @@ const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage')
 const ForbiddenPage          = lazy(() => import('./pages/ForbiddenPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 const WorkDashboardPage      = lazy(() => import('./pages/WorkDashboardPage'))
+const TimePage               = lazy(() => import('./pages/TimePage'))
+const ProjectDetailPage      = lazy(() => import('./pages/ProjectDetailPage'))
 const ProjectsDashboardPage  = lazy(() => import('./pages/ProjectsDashboardPage'))
 const TeamDashboardPage      = lazy(() => import('./pages/TeamDashboardPage'))
 const FinanceDashboardPage   = lazy(() => import('./pages/FinanceDashboardPage'))
@@ -243,7 +245,7 @@ function ProtectedRoute({ children, roles }) {
 
 function AppRoutes() {
   const { user } = useAuth()
-  const defaultPath = user?.role === 'employee' ? '/imputar' : '/tasks'
+  const defaultPath = user?.role === 'employee' ? '/time' : '/tasks'
 
   return (
     <>
@@ -276,6 +278,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/projects/:id" element={
+        <ProtectedRoute>
+          <Layout><ProjectDetailPage /></Layout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/projects-dashboard" element={
         <ProtectedRoute roles={['admin','pm','team_lead']}>
           <Layout><ProjectsDashboardPage /></Layout>
@@ -285,6 +293,12 @@ function AppRoutes() {
       <Route path="/tasks" element={
         <ProtectedRoute>
           <Layout><TasksPage /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/time" element={
+        <ProtectedRoute>
+          <Layout><TimePage /></Layout>
         </ProtectedRoute>
       } />
 

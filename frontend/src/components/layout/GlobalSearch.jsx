@@ -2,6 +2,7 @@
  * GlobalSearch — Cmd+K search palette
  */
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -9,11 +10,28 @@ import { useAppT } from '../../i18n/AppLangContext'
 const ICON_MAP = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
 const TYPE_LABELS = { project:'Proyecto', task:'Tarea', ticket:'Ticket', user:'Usuario', invoice:'Factura', opportunity:'Oportunidad' }
 
+const QUICK_ACTIONS = [
+  { label: 'Nueva tarea',         icon: '✅', path: '/tasks',           hint: 'Ir a tareas' },
+  { label: 'Imputar horas',       icon: '⏱',  path: '/time',            hint: 'Registro de tiempo' },
+  { label: 'Nuevo ticket soporte',icon: '🎫', path: '/service-desk',    hint: 'Service desk' },
+  { label: 'Ver proyectos',       icon: '⬡',  path: '/projects',        hint: 'Lista de proyectos' },
+  { label: 'Cronómetro',          icon: '⏲',  path: '/time',            hint: 'Timer de trabajo' },
+  { label: 'Calendario',          icon: '📅', path: '/calendar',        hint: 'Ver calendario' },
+  { label: 'Gastos',              icon: '💸', path: '/expenses',        hint: 'Registrar gasto' },
+  { label: 'Configuración',       icon: '⚙️',  path: '/settings',        hint: 'Ajustes del sistema' },
+]
+
 export default function GlobalSearch({ onClose }) {
   const t = useAppT()
+  const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const inputRef = useRef(null)
+
+  function runAction(path) {
+    navigate(path)
+    onClose()
+  }
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
@@ -51,8 +69,32 @@ export default function GlobalSearch({ onClose }) {
 
         <div style={{ maxHeight:450, overflowY:'auto' }}>
           {debouncedQ.length < 2 ? (
-            <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize:13 }}>
-              {t('common.write_at_least_2')}
+            <div>
+              <div style={{ padding: '10px 18px 6px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                Acciones rápidas
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, padding: '0 10px 10px' }}>
+                {QUICK_ACTIONS.map(action => (
+                  <button key={action.path + action.label}
+                    onClick={() => runAction(action.path)}
+                    type="button"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', cursor: 'pointer',
+                      background: 'transparent', border: 'none', borderRadius: 8,
+                      textAlign: 'left', fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{action.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{action.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>{action.hint}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : results.length === 0 && !isLoading ? (
             <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize:13 }}>
@@ -69,7 +111,7 @@ export default function GlobalSearch({ onClose }) {
                     style={{ display:'flex', gap:12, padding:'10px 18px', cursor:'pointer', alignItems:'center', borderBottom:'.5px solid var(--surface-4)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    onClick={() => { window.location.hash = item.url || '#'; onClose() }}
+                    onClick={() => { if (item.url) navigate(item.url); onClose() }}
                     type="button"
                   >
                     <span style={{ fontSize:16, flexShrink:0 }}>{ICON_MAP[item.type] || '•'}</span>

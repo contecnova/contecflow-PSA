@@ -1,0 +1,178 @@
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { tasksApi, projectsApi } from '../../services/api'
+import { X, CheckSquare, Clock, Ticket, Plus } from 'lucide-react'
+import { useToast } from '../../context/ToastContext'
+
+const ACTIONS = [
+  { id: 'task',   icon: CheckSquare, label: 'Nueva tarea',    color: 'var(--accent)' },
+  { id: 'hours',  icon: Clock,       label: 'Imputar horas',  color: 'var(--success)' },
+  { id: 'ticket', icon: Ticket,      label: 'Nuevo ticket',   color: 'var(--warning)' },
+]
+
+function CreateTaskForm({ onClose }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [title, setTitle] = useState('')
+  const [projectId, setProjectId] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects-quick'],
+    queryFn: () => projectsApi.list({ page_size: 50, status: 'active' }).then(r => {
+      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
+    }),
+    staleTime: 60_000,
+  })
+
+  const { mutate: create, isPending } = useMutation({
+    mutationFn: () => tasksApi.create({ title, project_id: projectId || undefined, status: 'todo', priority: 'medium' }),
+    onSuccess: () => {
+      qc.invalidateQueries(['tasks'])
+      qc.invalidateQueries(['kanban-board'])
+      toast.success('Tarea creada')
+      onClose()
+    },
+    onError: () => toast.error('Error al crear tarea'),
+  })
+
+  return (
+    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>Nueva tarea</div>
+      <input
+        ref={inputRef}
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="Título de la tarea..."
+        onKeyDown={e => { if (e.key === 'Enter' && title.trim()) create() }}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+          borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)',
+          fontSize: 13, outline: 'none', fontFamily: 'inherit',
+        }}
+        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+        onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
+      />
+      {projects.length > 0 && (
+        <select
+          value={projectId}
+          onChange={e => setProjectId(e.target.value)}
+          style={{
+            width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, padding: '8px 12px', color: projectId ? 'var(--text-1)' : 'var(--text-3)',
+            fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        >
+          <option value="">Sin proyecto</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      )}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={onClose} style={{
+          padding: '8px 16px', borderRadius: 8,
+          background: 'transparent', border: '1px solid var(--surface-4)',
+          color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+        }}>
+          Cancelar
+        </button>
+        <button
+          onClick={() => title.trim() && create()}
+          disabled={!title.trim() || isPending}
+          style={{
+            padding: '8px 18px', borderRadius: 8,
+            background: 'var(--accent)', border: 'none',
+            color: '#fff', cursor: title.trim() ? 'pointer' : 'not-allowed',
+            fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+            opacity: title.trim() ? 1 : 0.5,
+          }}
+        >
+          {isPending ? 'Creando…' : 'Crear tarea'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function QuickCreateMenu({ onClose }) {
+  const navigate = useNavigate()
+  const [activeAction, setActiveAction] = useState(null)
+  const panelRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  function handleAction(id) {
+    if (id === 'task') {
+      setActiveAction('task')
+      return
+    }
+    if (id === 'hours') { navigate('/time'); onClose(); return }
+    if (id === 'ticket') { navigate('/service-desk'); onClose(); return }
+  }
+
+  return (
+    <>
+      <div role="presentation" onMouseDown={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 500 }} />
+      <div ref={panelRef}
+        style={{
+          position: 'fixed', top: 52, right: 16, zIndex: 501,
+          width: 280, background: 'var(--surface-1)',
+          border: '1px solid var(--surface-4)', borderRadius: 12,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+          overflow: 'hidden',
+        }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {activeAction === 'task' ? (
+          <CreateTaskForm onClose={onClose} />
+        ) : (
+          <>
+            <div style={{
+              padding: '12px 16px 8px',
+              fontSize: 11, fontWeight: 700, color: 'var(--text-3)',
+              textTransform: 'uppercase', letterSpacing: '.07em',
+              borderBottom: '1px solid var(--surface-4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span>Crear nuevo</span>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', display: 'flex', padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+            <div style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {ACTIONS.map(({ id, icon: Icon, label, color }) => (
+                <button key={id} onClick={() => handleAction(id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 12px', borderRadius: 8,
+                  background: 'transparent', border: 'none',
+                  cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  width: '100%',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                    background: `${color}15`, border: `1px solid ${color}30`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon size={15} color={color} />
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  )
+}

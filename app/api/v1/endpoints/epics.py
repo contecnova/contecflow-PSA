@@ -152,54 +152,56 @@ def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
 
 
 
-@router.get("/epics")
+@router.get("")
 def list_epics(project_id: str = Query(...),
+
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_epics_records(project_id, db)
 
 
-@router.post("/epics")
+@router.post("")
 def create_epic(p: EpicIn, project_id: str = Query(...),
+
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return create_epic_record(p.model_dump(), project_id, cu.id, db)
 
 
-@router.get("/epics/{epic_id}")
+@router.get("/{epic_id}")
 def get_epic(epic_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return get_epic_record(epic_id, db)
 
 
-@router.patch("/epics/{epic_id}")
+@router.patch("/{epic_id}")
 def update_epic(epic_id: str, p: EpicIn,
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return update_epic_record(epic_id, p.model_dump(exclude_unset=True), db)
 
 
-@router.delete("/epics/{epic_id}")
+@router.delete("/{epic_id}")
 def delete_epic(epic_id: str, db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_pm)):
     return delete_epic_record(epic_id, db)
 
 
-@router.post("/epics/{epic_id}/tasks/{task_id}")
+@router.post("/{epic_id}/tasks/{task_id}")
 def add_task_to_epic(epic_id: str, task_id: str,
                      db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return add_task_to_epic_record(epic_id, task_id, db)
 
 
-@router.delete("/epics/{epic_id}/tasks/{task_id}")
+@router.delete("/{epic_id}/tasks/{task_id}")
 def remove_task_from_epic(epic_id: str, task_id: str,
                           db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return remove_task_from_epic_record(epic_id, task_id, db)
 
 
-@router.post("/epics/{epic_id}/dependencies/{depends_on_id}")
+@router.post("/{epic_id}/dependencies/{depends_on_id}")
 def add_dependency(epic_id: str, depends_on_id: str,
                    db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return add_epic_dependency(epic_id, depends_on_id, db)
 
 
-@router.delete("/epics/{epic_id}/dependencies/{depends_on_id}")
+@router.delete("/{epic_id}/dependencies/{depends_on_id}")
 def remove_dependency(epic_id: str, depends_on_id: str,
                       db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return remove_epic_dependency(epic_id, depends_on_id, db)

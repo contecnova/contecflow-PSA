@@ -3,10 +3,12 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton } from '../ui'
-import api from '../../services/api'
+import api, { projectsApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
+import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
 import UserProfilePanel from './UserProfilePanel'
+import AlertsDrawer from './AlertsDrawer'
 import Breadcrumbs from './Breadcrumbs'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
@@ -24,7 +26,7 @@ import {
   Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck, ListChecks,
-  CalendarRange,
+  CalendarRange, Plus,
 } from 'lucide-react'
 
 const ROUTE_LABELS = {
@@ -32,7 +34,7 @@ const ROUTE_LABELS = {
   '/team-dashboard': 'Dashboard', '/finance-dashboard': 'Dashboard',
   '/support-dashboard': 'Dashboard',
   '/tasks': 'Tasks', '/kanban-advanced': 'Kanban',
-  '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
+  '/time': 'Tiempo', '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
   '/calendar': 'Calendar', '/absences': 'Absences', '/documents': 'Documents',
   '/expenses': 'Expenses', '/approvals': 'Approvals', '/projects': 'Projects',
   '/sprints': 'Sprints', '/sprint-planning': 'Sprint Planning AI', '/gantt': 'Gantt',
@@ -74,11 +76,11 @@ const ROUTE_SECTION = {
   '/work-dashboard': 'My Work', '/projects-dashboard': 'Projects',
   '/team-dashboard': 'Team', '/finance-dashboard': 'Finance',
   '/support-dashboard': 'Support',
-  '/tasks': 'My Work', '/kanban-advanced': 'My Work', '/imputar': 'My Work',
+  '/tasks': 'My Work', '/time': 'My Work', '/kanban-advanced': 'My Work', '/imputar': 'My Work',
   '/timer': 'My Work', '/timesheets': 'My Work', '/calendar': 'My Work',
   '/absences': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
   '/approvals': 'My Work',
-  '/projects': 'Projects', '/sprints': 'Projects', '/sprint-planning': 'Projects',
+  '/projects': 'Projects', '/projects/:id': 'Detalle de proyecto', '/sprints': 'Projects', '/sprint-planning': 'Projects',
   '/raci': 'Projects', '/changelog': 'Projects', '/uat': 'Projects',
   '/gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
   '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
@@ -116,7 +118,7 @@ const PATH_NAV_KEY = {
   '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
   '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
   '/support-dashboard': 'support_dashboard',
-  '/imputar': 'log_hours', '/kanban-advanced': 'kanban', '/meetings-ai': 'meetings',
+  '/time': 'time', '/imputar': 'log_hours', '/kanban-advanced': 'kanban', '/meetings-ai': 'meetings',
   '/sprint-planning': 'sprint_planning', '/resource-forecast': 'resource_forecast', '/resource-scheduler': 'resource_scheduler',
   '/org-chart': 'org_chart', '/milestone-billing': 'milestone_billing',
   '/rate-cards': 'rate_cards', '/service-desk': 'service_desk',
@@ -141,7 +143,7 @@ const QUICK_ACCESS = {
   pm:        ['/projects', '/tasks', '/pipeline', '/invoices', '/resources', '/reports'],
   team_lead: ['/tasks', '/sprints', '/projects', '/kanban-advanced', '/imputar', '/timesheets'],
   hr:        ['/resources', '/absences', '/performance-reviews', '/training', '/org-chart'],
-  employee:  ['/tasks', '/imputar', '/timesheets', '/expenses', '/absences', '/service-desk'],
+  employee:  ['/tasks', '/time', '/expenses', '/absences', '/service-desk', '/calendar'],
 }
 
 const NAV_WORKSPACE_KEY = 'contecflow_nav_workspace'
@@ -248,10 +250,7 @@ const NAV_GROUPS = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
     { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Dashboard',       roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
-    { to: '/kanban-advanced', icon: <Columns size={SZ} />,      label: 'Kanban',          roles: ['admin','pm','team_lead','employee'] },
-    { to: '/imputar',         icon: <Clock size={SZ} />,        label: 'Log hours',       roles: ['admin','pm','team_lead','employee'] },
-    { to: '/timer',           icon: <Timer size={SZ} />,        label: 'Timer',           roles: ['admin','pm','team_lead','employee'] },
-    { to: '/timesheets',      icon: <ListChecks size={SZ} />,   label: 'Timesheets',      roles: ['admin','pm','team_lead','employee','hr'] },
+    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar',        roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
@@ -663,12 +662,22 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen, onQuickCreate }) {
   const location = useLocation()
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
   const currentNavItem = allNavItems
     .filter(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))
     .sort((a, b) => b.to.length - a.to.length)[0]
+
+  // Resolve project name for /projects/:id breadcrumb
+  const projectIdMatch = location.pathname.match(/^\/projects\/([^/]+)$/)
+  const projectId = projectIdMatch?.[1]
+  const { data: breadcrumbProject } = useQuery({
+    queryKey: ['breadcrumb-project', projectId],
+    queryFn: () => projectsApi.get(projectId).then(r => r.data),
+    enabled: !!projectId,
+    staleTime: 300_000,
+  })
 
   const breadcrumbs = useMemo(() => {
     const items = []
@@ -693,7 +702,11 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
           accPath += `/${seg}`
           const isLast = idx === extraSegments.length - 1
           const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
-          const label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+          let label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
+          // Use real project name when on /projects/:id
+          if (isIdLike && currentNavItem?.to === '/projects' && breadcrumbProject?.name) {
+            label = breadcrumbProject.name
+          }
           items.push({ label, to: isLast ? null : accPath })
         })
       }
@@ -715,7 +728,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
       items.push({ label, to: isLast ? null : accPath })
     })
     return items
-  }, [location.pathname, section, currentNavItem, t])
+  }, [location.pathname, section, currentNavItem, t, breadcrumbProject])
 
   return (
     <div className="app-topbar" role="banner">
@@ -737,6 +750,21 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
         </button>
       </div>
       <div className="app-topbar-right">
+        <button onClick={onQuickCreate}
+          title="Crear nuevo (⌘+)"
+          aria-label="Crear nuevo"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 30, height: 30,
+            background: 'var(--accent)', border: 'none',
+            borderRadius: 8, color: '#fff', cursor: 'pointer',
+            fontWeight: 700, fontSize: 18, lineHeight: 1,
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Plus size={16} />
+        </button>
         <button onClick={onAiToggle} title={text.ai_title}
           aria-label={text.open_ai} aria-pressed={aiOpen}
           style={{
@@ -766,15 +794,16 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
           </NavLink>
         )}
         {alertCount > 0 && (
-          <NavLink to="/alerts"
+          <button
+            onClick={onAlertsOpen}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
               background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
-              borderRadius: 8, color: 'var(--danger)', textDecoration: 'none',
-              fontSize: 12, fontWeight: 600 }}
+              borderRadius: 8, color: 'var(--danger)', cursor: 'pointer',
+              fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
             title={(text.active_alerts_title || '{count} alertas').replace('{count}', alertCount)}
           >
             <Bell size={13} /><span>{alertCount}</span>
-          </NavLink>
+          </button>
         )}
         {approvalCount > 0 && (
           <NavLink to="/approvals"
@@ -949,6 +978,8 @@ export default function Layout({ children }) {
   const [aiOpen, setAiOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
   const [navSearch, setNavSearch] = useState('')
   const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
   const [timerElapsed, setTimerElapsed] = useState(0)
@@ -1212,6 +1243,8 @@ export default function Layout({ children }) {
           text={text}
           activeTimer={activeTimer}
           timerElapsed={timerElapsed}
+          onAlertsOpen={() => setAlertsDrawerOpen(true)}
+          onQuickCreate={() => setQuickCreateOpen(o => !o)}
         />
         {children}
       </main>
@@ -1220,6 +1253,8 @@ export default function Layout({ children }) {
       {aiOpen && <NexusAssistPanel open={aiOpen} onClose={() => setAiOpen(false)} context={{ page: location.pathname }} />}
       {profileOpen && <UserProfilePanel onClose={() => setProfileOpen(false)} />}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} text={text} />}
+      {alertsDrawerOpen && <AlertsDrawer onClose={() => setAlertsDrawerOpen(false)} />}
+      {quickCreateOpen && <QuickCreateMenu onClose={() => setQuickCreateOpen(false)} />}
       <OfflineIndicator />
     </div>
   )

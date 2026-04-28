@@ -11,6 +11,15 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.47 (Abril 2026) — Schema drift migration + epics routing fix
+
+- **`alembic/versions/d2a3b8e7f041_...py`** (nuevo): migración Alembic que:
+  - Hace merge de dos ramas de cabeza (`c4e5f2a83d17` y `039_itsm_problem_kedb`)
+  - Crea 5 tablas faltantes: `portal_conversation_policies`, `portal_conversations`, `portal_conversation_participants`, `portal_conversation_messages`, `portal_conversation_audits`
+  - (Las 10 columnas RCA/KEDB en `sd_problems` las maneja la migración `039_itsm_problem_kedb`)
+- **`alembic/versions/*038_ai_auto_resolution*.py`**: `alembic stamp 038_ai_auto_resolution` aplicado para marcar columnas ya existentes en `sd_tickets` sin relanzar DDL duplicado.
+- **`app/api/v1/endpoints/epics.py`**: corregido double-prefix en rutas de épicas. Las rutas `/epics`, `/epics/{id}`, `/epics/{id}/tasks/{tid}`, `/epics/{id}/dependencies/{did}` tenían el prefijo `/epics` embebido cuando el router ya está montado en `prefix="/epics"` en `delivery.py`. Cambiadas a `""`, `/{id}`, `/{id}/tasks/{tid}`, `/{id}/dependencies/{did}`. Resuelve el 404 en `GET /api/v1/epics?project_id=...`.
+
 ### v23.10.46 (Abril 2026) — Fix de instalación pip en requirements
 
 - **`requirements.txt`**: eliminado marcador inválido `python_requires>='3.9'` en dependencia `numpy` (línea de requirements). Causa raíz: `python_requires` no es un environment marker válido para líneas de `pip`; se mantiene pin explícito `numpy==1.26.4` en el bloque ML.
