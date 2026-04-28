@@ -11,6 +11,40 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.36 (Abril 2026) — Auditoría completa de arquitectura bajo orquestación de servicios
+
+- Se ejecuta análisis end-to-end de la arquitectura de orquestación con foco en:
+  - plano web (FastAPI, routers, middlewares, lifecycle),
+  - plano asíncrono (Celery worker + beat + APScheduler),
+  - bus de eventos y webhooks,
+  - resiliencia (timeouts, retries, fallback),
+  - observabilidad y cobertura de pruebas críticas.
+
+- Evidencias verificadas en código:
+  - `app/main.py`: lifecycle con preflight de schema drift (`EXPECTED_ALEMBIC_REVISION`, `FAIL_ON_SCHEMA_DRIFT`), inicialización opcional de tracing (OTEL), Sentry y scheduler APScheduler.
+  - `app/worker.py`: orquestación Celery con `beat_schedule` extenso (reportes, rotación de claves, Jira sync, ITSM scans, compliance).
+  - `app/core/events.py` + `app/services/webhooks.py`: patrón de evento desacoplado con entrega asíncrona por Celery (sin I/O síncrono en request path).
+  - `app/core/ratelimit.py` y `app/services/auth_service.py`: degradación controlada a memoria cuando Redis no está disponible (con aviso explícito de riesgo multi-worker).
+
+- Validación ejecutada (pruebas de orquestación):
+  - `pytest -q tests/test_api_versioning.py` → **20 passed**.
+  - `pytest -q tests/test_webhooks.py` → **18 passed**.
+  - `pytest -q tests/test_v235_features.py -k jira_periodic_sync` → **4 passed, 1 deselected**.
+
+- Diagnóstico de estado (arquitectura actual):
+  - **Fuerte**: composición modular de routers, separación request path vs tareas asíncronas, circuit breaker en entrega webhook, preflight de drift de esquema, trazabilidad base (logs + Sentry/OTEL opcionales).
+  - **Riesgo Medio-Alto**: coexistencia APScheduler + Celery Beat puede duplicar ejecuciones en ciertos despliegues si no se gobierna por entorno.
+  - **Riesgo Medio**: algunos flujos degradan a memoria local sin Redis; funcional en nodo único pero no ideal en topología multi-worker/multi-réplica.
+  - **Riesgo Medio**: no hay health/readiness compuesto para broker/scheduler/colas (el `/health` actual valida BD, no orquestador asíncrono).
+  - **Riesgo Bajo-Medio**: cobertura de tests de orquestación existe, pero hay hueco específico en pruebas del task de entrega webhook con retries/circuit-breaker.
+
+- Plan recomendado (priorizado):
+  1. Definir modo único de scheduling por entorno (APScheduler **o** Celery Beat) y forzar guardas de arranque para evitar doble ejecución.
+  2. Incorporar endpoint de readiness ampliado (`db`, `redis`, `celery broker`, `scheduler mode`) para operación en producción.
+  3. Añadir pruebas unitarias de `deliver_webhook_task` para cubrir retries, estados transitorios HTTP y suspensión por circuit breaker.
+  4. Endurecer políticas de despliegue para no permitir fallback en memoria en producción salvo override explícito y auditado.
+
+
 ### v23.10.35 (Abril 2026) — Fix de deriva SQLite para AI Auto-Resolution en Service Desk
 
 - Se corrige un error 500 en métricas de Service Desk (`/api/v1/sd/metrics/itil` y `/api/v1/sd/metrics/agent-performance`) causado por deriva de esquema en SQLite local:
