@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
@@ -140,13 +139,6 @@ export default function BIPage() {
           {[7, 30, 90, 365].map((d) => (
             <PeriodButton key={d} active={days === d} label={d === 365 ? '1a' : `${d}d`} onClick={() => setDays(d)} />
           ))}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16, padding: isMobile ? 10 : 12, border: '1px solid var(--surface-4)', borderRadius: 10, background: 'var(--surface-1)' }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-          Para colaboración, alertas inteligentes, conectores, embed, versionado y reportes avanzados usa el espacio dedicado: {' '}
-          <Link to="/bi" style={{ color: '#0ea5e9', fontWeight: 700 }}>BI Workspace</Link>
         </div>
       </div>
 

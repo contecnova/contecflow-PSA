@@ -95,30 +95,36 @@ export default function WorkDashboardPage() {
         <KpiCard icon="✅" label="Tareas abiertas"
           value={tasksOpen}
           color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
-          accentBar={COLOR.accent} />
+          accentBar={COLOR.accent}
+          action={{ label: 'Ver tareas', to: '/tasks' }} />
         <KpiCard icon="⚠️" label="Tareas vencidas"
           value={tasksOverdue}
           color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
           accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
-          sub={tasksOverdue > 0 ? 'Requieren atención' : 'Todo al día'} />
+          sub={tasksOverdue > 0 ? 'Requieren atención' : 'Todo al día'}
+          action={tasksOverdue > 0 ? { label: 'Revisar vencidas', to: '/tasks' } : undefined} />
         <KpiCard icon="⏱" label="Horas esta semana"
           value={hoursWeek.toFixed(1)}
           color={hoursColor} accentBar={hoursColor}
-          sub={`Objetivo: ${hoursTarget}h`} />
+          sub={`Objetivo: ${hoursTarget}h`}
+          action={{ label: 'Imputar horas', to: '/imputar' }} />
         <KpiCard icon="📅" label={`Horas este mes`}
           value={totalHoursMonth.toFixed(1)}
           color={COLOR.accent} accentBar={COLOR.accent}
-          sub={prev > 0 ? `Mes anterior: ${prev.toFixed(1)}h` : undefined} />
+          sub={prev > 0 ? `Mes anterior: ${prev.toFixed(1)}h` : undefined}
+          action={{ label: 'Ver timesheets', to: '/timesheets' }} />
         <KpiCard icon="🔔" label="Aprobaciones"
           value={pendingApprv}
           color={pendingApprv > 0 ? COLOR.warning : COLOR.success}
           accentBar={pendingApprv > 0 ? COLOR.warning : COLOR.success}
-          sub={pendingApprv > 0 ? 'Pendientes de revisión' : 'Sin pendientes'} />
+          sub={pendingApprv > 0 ? 'Pendientes de revisión' : 'Sin pendientes'}
+          action={pendingApprv > 0 ? { label: 'Revisar', to: '/approvals' } : undefined} />
         <KpiCard icon="💸" label="Gastos pendientes"
           value={pendingExp}
           color={pendingExp > 0 ? COLOR.purple : COLOR.success}
           accentBar={COLOR.purple}
-          sub={pendingExp > 0 ? 'Por aprobar' : 'Sin gastos pendientes'} />
+          sub={pendingExp > 0 ? 'Por aprobar' : 'Sin gastos pendientes'}
+          action={pendingExp > 0 ? { label: 'Ver gastos', to: '/expenses' } : undefined} />
       </div>
 
       {/* Gauge + activity */}

@@ -11,6 +11,10 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.46 (Abril 2026) — Fix de instalación pip en requirements
+
+- **`requirements.txt`**: eliminado marcador inválido `python_requires>='3.9'` en dependencia `numpy` (línea de requirements). Causa raíz: `python_requires` no es un environment marker válido para líneas de `pip`; se mantiene pin explícito `numpy==1.26.4` en el bloque ML.
+
 ### v23.10.45 (Abril 2026) — Cierre pendientes BI/ITSM: PWA móvil, D3/ECharts/Plotly, BI Governance, WebSocket dashboards, Problem Management formal, CAB workflow, CMDB auto-reconciliation
 
 Implementación incremental sobre v23.10.44. Arquitectura de servicios orquestados; persistencia en AppSetting JSON blobs para nuevos flujos de estado.

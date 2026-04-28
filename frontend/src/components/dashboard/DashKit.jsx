@@ -2,6 +2,7 @@
  * DashKit — componentes visuales compartidos para todos los dashboards de sección.
  * Mismo sistema de diseño que MetricsDashboardTab y BIPage.
  */
+import { Link } from 'react-router-dom'
 import { COLOR } from '../../constants/theme'
 
 export { COLOR }
@@ -40,7 +41,7 @@ export function PeriodButton({ active, label, onClick }) {
 }
 
 /* ── KPI card ──────────────────────────────────────────────────────────────── */
-export function KpiCard({ label, value, sub, color, icon, accentBar }) {
+export function KpiCard({ label, value, sub, color, icon, accentBar, action }) {
   const bar = accentBar ?? color ?? COLOR.accent
   return (
     <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
@@ -65,6 +66,19 @@ export function KpiCard({ label, value, sub, color, icon, accentBar }) {
         }}>{value ?? '—'}</div>
         {sub && (
           <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
+        )}
+        {action?.to && (
+          <Link to={action.to} style={{
+            marginTop: 4, fontSize: 11, fontWeight: 600,
+            color: COLOR.accent, textDecoration: 'none',
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            opacity: 0.85,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '1' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '0.85' }}
+          >
+            {action.label ?? 'Ver'} →
+          </Link>
         )}
       </div>
     </div>

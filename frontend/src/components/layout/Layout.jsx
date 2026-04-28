@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton } from '../ui'
+import api from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import NexusAssistPanel from './NexusAssistPanel'
 import UserProfilePanel from './UserProfilePanel'
@@ -245,7 +247,6 @@ const LAYOUT_TEXT = {
 const NAV_GROUPS = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
     { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Dashboard',       roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/search',           icon: <Search size={SZ} />,       label: 'Search',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
     { to: '/kanban-advanced', icon: <Columns size={SZ} />,      label: 'Kanban',          roles: ['admin','pm','team_lead','employee'] },
     { to: '/imputar',         icon: <Clock size={SZ} />,        label: 'Log hours',       roles: ['admin','pm','team_lead','employee'] },
@@ -354,6 +355,27 @@ const NAV_GROUPS = [
     { to: '/developer',           icon: <Wrench size={SZ} />,      label: 'Developer Portal',       roles: ['admin','pm'] },
   ]},
 ]
+
+function formatTimerDisplay(seconds) {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function computeTimerElapsed(timer) {
+  if (!timer) return 0
+  if (timer.paused_at && timer.total_elapsed_seconds != null) return timer.total_elapsed_seconds
+  const startStr = timer.started_at.endsWith('Z') || timer.started_at.includes('+')
+    ? timer.started_at : timer.started_at + 'Z'
+  const paused = timer.paused_duration_secs || 0
+  if (timer.paused_at) {
+    const pausedStr = timer.paused_at.endsWith('Z') || timer.paused_at.includes('+')
+      ? timer.paused_at : timer.paused_at + 'Z'
+    return Math.max(0, Math.floor((new Date(pausedStr) - new Date(startStr)) / 1000) - paused)
+  }
+  return Math.max(0, Math.floor((Date.now() - new Date(startStr)) / 1000) - paused)
+}
 
 const SHORTCUTS = [
   { keys: ['⌘', 'K'], labelKey: 'shortcut_global_search' },
@@ -641,7 +663,7 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   )
 }
 
-function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text }) {
+function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed }) {
   const location = useLocation()
   const section = getSectionLabel(location.pathname, t) || ROUTE_SECTION[location.pathname]
   const currentNavItem = allNavItems
@@ -728,6 +750,21 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
           <Brain size={13} />
           <span>{text.ai_short}</span>
         </button>
+        {activeTimer && !activeTimer.paused_at && (
+          <NavLink to="/timer"
+            title="Cronómetro activo — click para gestionar"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+              background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
+              borderRadius: 8, color: '#34d399', textDecoration: 'none',
+              fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
+              animation: 'timerPulse 2s ease-in-out infinite',
+            }}
+          >
+            <Timer size={12} />
+            <span>{formatTimerDisplay(timerElapsed)}</span>
+          </NavLink>
+        )}
         {alertCount > 0 && (
           <NavLink to="/alerts"
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
@@ -914,6 +951,26 @@ export default function Layout({ children }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [navSearch, setNavSearch] = useState('')
   const [workspace, setWorkspace] = useState(() => localStorage.getItem(NAV_WORKSPACE_KEY) || 'all')
+  const [timerElapsed, setTimerElapsed] = useState(0)
+
+  const { data: activeTimer } = useQuery({
+    queryKey: ['timer-active-layout'],
+    queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
+    refetchInterval: 30_000,
+    retry: false,
+    staleTime: 10_000,
+  })
+
+  useEffect(() => {
+    if (!activeTimer || activeTimer.paused_at) {
+      setTimerElapsed(activeTimer?.total_elapsed_seconds ?? 0)
+      return undefined
+    }
+    const tick = () => setTimerElapsed(computeTimerElapsed(activeTimer))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [activeTimer])
   const [isOverlayNav, setIsOverlayNav] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.innerWidth <= 1024
@@ -1153,6 +1210,8 @@ export default function Layout({ children }) {
           t={t}
           allNavItems={allNavItems}
           text={text}
+          activeTimer={activeTimer}
+          timerElapsed={timerElapsed}
         />
         {children}
       </main>

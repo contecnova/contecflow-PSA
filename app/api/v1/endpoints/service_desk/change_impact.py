@@ -12,8 +12,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, get_db
-from app.models.auth import User
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
 from app.services.service_desk.change_impact_service import (
     analyze_change_impact_full,
     get_cached_impact_analysis,

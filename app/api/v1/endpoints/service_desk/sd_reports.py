@@ -14,8 +14,8 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from app.api.dependencies import get_current_user, get_db
-from app.models.auth import User
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
 from app.services.service_desk.sd_reporting_service import (
     build_drilldown_report,
     export_report_excel,
