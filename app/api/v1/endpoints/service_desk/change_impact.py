@@ -13,7 +13,10 @@ POST /sd/changes/batch-score                  — manually trigger batch scoring
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -23,10 +26,23 @@ from app.services.service_desk.change_impact_service import (
     get_cached_impact_analysis,
     generate_rollback_plan,
     get_risk_matrix_for_change,
+    generate_testing_plan,
+    generate_comms_plan,
+    simulate_change_whatif,
 )
 from app.services.service_desk.change_impact_service import (
     _get_json_setting,  # noqa: PLC2403
 )
+
+
+class WhatIfIn(BaseModel):
+    downtime_minutes: Optional[int] = Field(None, ge=0, le=14400, description="Override downtime in minutes")
+    change_type: Optional[str] = Field(None, pattern="^(standard|normal|emergency)$", description="Override change type")
+    extra_ci_ids: list[str] = Field(default_factory=list, description="Additional CI IDs to add to affected set")
+    remove_ci_ids: list[str] = Field(default_factory=list, description="CI IDs to remove from affected set")
+    scheduled_hour_utc: Optional[int] = Field(None, ge=0, le=23, description="Evaluate specific hour for window (0-23)")
+    scheduled_dow: Optional[int] = Field(None, ge=0, le=6, description="Evaluate specific day-of-week (0=Monday)")
+
 
 router = APIRouter(prefix="/sd/changes", tags=["change-impact"])
 
@@ -78,6 +94,88 @@ def get_rollback_plan(
     if not plan:
         raise HTTPException(404, "Rollback plan no encontrado. Ejecuta POST primero.")
     return plan
+
+
+# ── Testing Plan ──────────────────────────────────────────────────────────────
+
+@router.post("/{change_id}/testing-plan", summary="Generar plan de pruebas estructurado (ITSM-P10)")
+def generate_testing_plan_endpoint(
+    change_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a structured testing plan with executable steps for pre/execution/post phases.
+
+    Steps are adapted to the change's risk level and CI count. The plan is cached
+    in AppSetting and the change's test_plan text field is also updated if empty.
+    """
+    return generate_testing_plan(db, change_id, current_user_id=str(current_user.id))
+
+
+@router.get("/{change_id}/testing-plan", summary="Obtener plan de pruebas en caché (ITSM-P10)")
+def get_testing_plan(
+    change_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    from fastapi import HTTPException  # noqa: PLC0415
+    plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
+    if not plan:
+        raise HTTPException(404, "Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
+    return plan
+
+
+# ── Communications Plan ───────────────────────────────────────────────────────
+
+@router.post("/{change_id}/comms-plan", summary="Generar plan de comunicaciones con audiencias y canales (ITSM-P10)")
+def generate_comms_plan_endpoint(
+    change_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a structured communications plan adapted to risk level.
+
+    Covers all stakeholder audiences (IT, Service Desk, managers, end users,
+    executives for critical changes) with timing (T-7d to T-1h), channel,
+    and message templates including rollback notification templates.
+    """
+    return generate_comms_plan(db, change_id, current_user_id=str(current_user.id))
+
+
+@router.get("/{change_id}/comms-plan", summary="Obtener plan de comunicaciones en caché (ITSM-P10)")
+def get_comms_plan(
+    change_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    from fastapi import HTTPException  # noqa: PLC0415
+    plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
+    if not plan:
+        raise HTTPException(404, "Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
+    return plan
+
+
+# ── What-If Simulation ────────────────────────────────────────────────────────
+
+@router.post("/{change_id}/whatif", summary="Simulación what-if de impacto del cambio (ITSM-P10)")
+def whatif_simulation(
+    change_id: str,
+    payload: WhatIfIn,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Simulate hypothetical changes to a Change Request without persisting anything.
+
+    Returns a side-by-side comparison: original vs simulated risk score, label,
+    components, CI count, and maintenance window. Optionally evaluates a proposed
+    specific time slot (scheduled_hour_utc + scheduled_dow) against the optimal window.
+
+    Useful for answering questions such as:
+      - "What if I reduce downtime to 30 min instead of 120 min?"
+      - "What if I change the type from 'emergency' to 'normal'?"
+      - "What if I schedule on Wednesday at 3 AM — is it better than the suggested window?"
+    """
+    return simulate_change_whatif(db, change_id, overrides=payload.model_dump(exclude_none=True))
 
 
 # ── ITSM-P05: CAB dashboard + batch score ─────────────────────────────────────
