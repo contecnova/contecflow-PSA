@@ -585,6 +585,30 @@ class RoutingRule(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+# ── Routing Feedback — historial de resultados de routing ML (ITSM-P07) ──────
+
+class RoutingFeedback(Base):
+    """Records routing outcomes per ticket for ML model learning.
+
+    Written when a ticket is assigned (routed_at + context) and updated
+    when it closes (resolution_minutes, csat_score, reopened).
+    """
+    __tablename__ = "sd_routing_feedback"
+
+    id                  = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ticket_id           = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)
+    assigned_agent_id   = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    ticket_type         = Column(String(30), nullable=True, index=True)
+    category_id         = Column(String(36), ForeignKey("sd_service_categories.id", ondelete="SET NULL"), nullable=True, index=True)
+    priority            = Column(String(20), nullable=True)
+    support_level       = Column(String(10), nullable=True)
+    resolution_minutes  = Column(Integer, nullable=True)     # filled on close
+    csat_score          = Column(Integer, nullable=True)     # 1-5, filled on CSAT submit
+    reopened            = Column(Boolean, default=False, nullable=False)
+    routed_at           = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    outcome_recorded_at = Column(DateTime(timezone=True), nullable=True)
+
+
 # ── SLA Events — historial de breaches y pausas ───────────────────────────────
 
 class SLAEventType(str, enum.Enum):

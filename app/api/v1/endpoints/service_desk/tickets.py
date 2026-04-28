@@ -43,7 +43,7 @@ from app.services.service_desk.merge_split_service import (
     merge_ticket_command, split_ticket_command, list_ticket_merges_payload,
 )
 from app.services.service_desk.ai_suggest_service import build_ai_ticket_suggestion
-from app.services.service_desk.workload_service import auto_assign_ticket_command, score_agent_for_ticket
+from app.services.service_desk.workload_service import auto_assign_ticket_command, score_agent_for_ticket, auto_assign_ticket_ml_command
 from app.services.service_desk.incident_intelligence_service import score_auto_resolution
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.services.service_desk.portal_auth_service import require_portal_client
@@ -325,7 +325,57 @@ def suggest_ticket_response_ai(ticket_id: str, payload: Optional[dict] = Body(de
 
 @router.post("/tickets/{ticket_id}/auto-assign", summary="Auto-asignar ticket al agente con menos carga del grupo")
 def auto_assign_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
-    result = auto_assign_ticket_command(db, ticket_id, current_user.id)
+    result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
+    _commit_or_rollback(db)
+    return result
+
+
+@router.get("/tickets/{ticket_id}/routing-candidates", summary="Candidatos de asignación ML rankeados por score")
+def routing_candidates(
+    ticket_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Return ranked agents for this ticket with full score breakdown.
+
+    Requires the ticket to have an assigned_group_id.
+    """
+    from app.models.service_desk import AgentGroupMember  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import get_routing_candidates  # noqa: PLC0415
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    if not ticket.assigned_group_id:
+        raise HTTPException(status_code=400, detail="El ticket no tiene grupo asignado")
+
+    members = (
+        db.query(AgentGroupMember)
+        .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+        .all()
+    )
+    candidates = get_routing_candidates(db, ticket, members)
+    return {
+        "ticket_id": ticket_id,
+        "ticket_number": ticket.number,
+        "candidates": candidates,
+        "score_weights": {
+            "availability": "30%",
+            "historical_speed": "35%",
+            "historical_csat": "20%",
+            "skill_match": "15%",
+        },
+    }
+
+
+@router.post("/tickets/{ticket_id}/smart-assign", summary="Asignación ML inteligente con explicación")
+def smart_assign_ticket(
+    ticket_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Assign ticket to the ML-predicted best available agent and return score explanation."""
+    result = auto_assign_ticket_ml_command(db, ticket_id, current_user.id)
     _commit_or_rollback(db)
     return result
 

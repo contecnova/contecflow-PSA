@@ -211,21 +211,38 @@ def select_best_agent_ml(db: Session, members, ticket: Ticket) -> str:
 
 
 def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: str) -> dict:
-    """Auto-assign a ticket using ML-enhanced routing (skills + CSAT + load).
+    """Auto-assign a ticket using ML-enhanced routing (availability + history + CSAT + skills).
 
-    Drops in as a smarter replacement for `auto_assign_ticket_command`.
+    Records a RoutingFeedback event for the chosen assignment.
     """
+    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+        predict_best_agent,
+        record_routing_event,
+        get_routing_candidates,
+    )
+
     ticket = get_ticket_for_auto_assign_or_404(db, ticket_id)
     members = get_group_members_or_400(db, ticket.assigned_group_id)
 
-    best_agent_id = select_best_agent_ml(db, members, ticket)
+    candidates = get_routing_candidates(db, ticket, members)
+    best_agent_id = predict_best_agent(db, ticket, members)
+
+    if not best_agent_id:
+        raise HTTPException(400, "No hay agentes disponibles para este ticket")
+
     old_assignee = apply_auto_assignment(ticket, best_agent_id)
     log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)
+    record_routing_event(db, ticket)
+
+    best_candidate = next((c for c in candidates if c["user_id"] == best_agent_id), {})
 
     return {
         "ok": True,
         "assigned_to": best_agent_id,
         "agent_name": get_user_name_by_id(db, best_agent_id),
-        "method": "ml_score",
+        "method": "ml_score_v2",
+        "composite_score": best_candidate.get("composite_score"),
+        "components": best_candidate.get("components"),
     }
+
 

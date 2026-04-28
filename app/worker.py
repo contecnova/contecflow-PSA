@@ -86,6 +86,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.change_impact_batch_score",
         "schedule": crontab(minute="*/10"),
     },
+    # ITSM-P07: ML Routing outcome backfill — every hour at :20
+    "routing-outcome-scan": {
+        "task": "app.worker.routing_outcome_scan",
+        "schedule": crontab(minute=20),
+    },
     # Phase 2 — Predictive Intelligence scan — every 30 minutes
     "predictive-scan": {
         "task": "app.worker.predictive_scan",
@@ -1108,7 +1113,33 @@ def change_impact_batch_score():
         db.close()
 
 
-@celery_app.task(name="app.worker.predictive_scan")
+@celery_app.task(name="app.worker.routing_outcome_scan")
+def routing_outcome_scan():
+    """Fill in routing outcome data for recently closed tickets (ITSM-P07).
+
+    Finds RoutingFeedback rows missing outcome_recorded_at and backfills
+    resolution_minutes + csat_score from the linked Ticket.
+    Runs every hour via beat schedule.
+    """
+    from app.db.session import SessionLocal  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import run_outcome_scan  # noqa: PLC0415
+
+    db = SessionLocal()
+    try:
+        result = run_outcome_scan(db)
+        _worker_logger.info(
+            "routing_outcome_scan: processed=%d updated=%d errors=%d",
+            result.get("processed", 0), result.get("updated", 0), result.get("errors", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("routing_outcome_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+
 def predictive_scan():
     """Run predictive intelligence scan on all open tickets.
 

@@ -221,6 +221,29 @@ def delete_routing_rule(rule_id: str, db: Session = Depends(get_db), current_use
     _commit_or_rollback(db)
     return {"ok": True}
 
+
+@router.get("/routing/stats", summary="Estadísticas del modelo ML de routing (ITSM-P07)")
+def routing_ml_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    """Return aggregate ML routing statistics: coverage, avg resolution time, top agents."""
+    from app.services.service_desk.ml_routing_service import get_routing_stats  # noqa: PLC0415
+
+    return get_routing_stats(db)
+
+
+@router.post("/routing/run-outcome-scan", summary="Backfill de outcomes de routing (admin)")
+def run_routing_outcome_scan(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Manually trigger the routing outcome backfill job."""
+    from app.services.service_desk.ml_routing_service import run_outcome_scan  # noqa: PLC0415
+
+    result = run_outcome_scan(db)
+    return {"ok": True, **result}
+
 # ── Change Management ─────────────────────────────────────────────────────────
 
 @router.get("/changes", summary="Listar Change Requests ITSM")
