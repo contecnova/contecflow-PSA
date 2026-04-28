@@ -560,6 +560,44 @@ Se implementan los cinco pilares de la Fase 1 del roadmap BI:
 - Resultado esperado:
   - En entornos SQLite con Alembic desalineado o incompleto, el arranque vuelve a auto-corregir estas columnas y evita fallos por `SELECT` sobre campos inexistentes del modelo `Ticket`.
 
+### v23.10.35 (Abril 2026) — Re-auditoría completa y eliminación de INFORME_ITSM_COMPARATIVA.md
+
+- Re-auditoría exhaustiva (desde cero) de los 3 documentos estratégicos restantes contra código real:
+  - `INFORME_BI_ANALISIS_MERCADO.md` (15 brechas)
+  - `ROADMAP_TECNICO_BI_DETALLADO.md` (3 fases)
+  - `INFORME_ITSM_COMPARATIVA.md` (10 gaps ITSM)
+- Resultado de la auditoría BI (15 brechas):
+  - ✅ Mobile/PWA: `useMediaQuery.js`, `biOfflineDb.js` (Dexie), `public/sw.js`, `manifest.json`.
+  - ✅ Visualización avanzada: 13 chart types en `frontend/src/charts/` (Sankey, Treemap, Sunburst, Dendrogram, Gauge, Heatmap, Funnel, Candlestick, Bar3D, BoxPlot, Violin, Scatter3D) + `DynamicChart.jsx`.
+  - ✅ Colaboración: `bi_collaboration_service.py` — comentarios, versioning, shares view/edit/admin.
+  - ✅ Data Governance: `bi_collaboration_service.py` — governance rules + checks + overview.
+  - 🟡 Conectores terceros: catálogo + `run_connector_sync` implementados; OAuth real de producción pendiente.
+  - ✅ Real-time: WebSocket `/bi/intelligence/realtime/stream` + Redis pub/sub.
+  - ✅ ML integrado: `bi_intelligence_service.py` — Prophet, IsoForest, LightGBM.
+  - ✅ Alertas inteligentes: `bi_smart_alerts` — trend/anomaly/threshold + cooldown + ack.
+  - ✅ Report Builder: `bi_report_builder_v2_service.py` — presets, templates, layouts, export.
+  - ✅ Embedded Analytics: `bi_platform.py` — SDK manifest + embed token.
+  - ✅ Scheduled Delivery: `bi_report_delivery_service.py` — email + Slack + Teams.
+  - ✅ Bookmarks: CRUD + `generate_share_token` + URLs compartibles.
+  - 🟡 Data versioning: versioning de config de dashboards ✅; data versioning de fact tables (Iceberg) pendiente.
+  - ✅ Export: JSON/CSV/XLSX desde `export_preset_data`.
+- Resultado de la auditoría ITSM (10 gaps):
+  - ✅ Problem Management: `problem_management_service.py` + `rca_wizard_service.py` + `known_error_service.py`.
+  - ✅ CMDB Discovery: `cmdb_discovery_service.py` — AWS, Kubernetes, vSphere + reconcile.
+  - ✅ Auto-resolution + ML routing: `incident_intelligence_service.py` — `score_auto_resolution`, `auto_resolve_ticket`, `predict_sla_at_risk_tickets`.
+  - ✅ Alert Correlation: `alert_correlation_service.py` — DBSCAN clustering + merge-to-problem.
+  - ✅ Change Impact + CAB: `change_impact_service.py` + `cab_workflow_service.py`.
+  - ✅ Asset Management: `asset_service.py` — lifecycle completo, warranty, expiry alerts.
+  - ✅ Smart Catalog: `smart_catalog_service.py` existe y operativo.
+  - ✅ Predictive Analytics: `predictive_analytics_service.py` existe.
+  - ✅ Autonomous Agents: `autonomous_agent_service.py` existe.
+  - ✅ Multi-channel Portal: `multichannel_service.py` — email/SMS/chat.
+- Acción aplicada por criterio "si está totalmente implementado, eliminar":
+  - Eliminado `INFORME_ITSM_COMPARATIVA.md` del repositorio (todos los gaps identificados tienen implementación real).
+- Documentos restantes (con brechas abiertas, se mantienen):
+  - `INFORME_BI_ANALISIS_MERCADO.md` — pendiente: conectores OAuth producción, data versioning fact tables.
+  - `ROADMAP_TECNICO_BI_DETALLADO.md` — pendiente: Fase 3 infra (Kafka, Airflow, dbt, Iceberg).
+
 ### v23.10.34 (Abril 2026) — Auditoría de informes estratégicos (ITSM/BI/AI) y limpieza documental
 
 - Se auditan 4 documentos estratégicos contra implementación real en backend/frontend:
