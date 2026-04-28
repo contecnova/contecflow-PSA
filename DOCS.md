@@ -52,6 +52,13 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
     - estáticos con `stale-while-revalidate`,
     - API `network-first` con fallback JSON offline.
 
+- Mobile analytics (responsive dashboards) en BI:
+  - `frontend/src/pages/BIPage.jsx` adaptado a móvil con comportamiento responsive real.
+  - Mejoras implementadas:
+    - detección de viewport móvil (`useIsMobile`),
+    - paddings y grids adaptativos para KPIs y widgets,
+    - tabla de estado de proyectos convertida a cards en móviles para mejor legibilidad táctil.
+
 - Limpieza técnica:
   - eliminación de backup transitorio `change_management_service.py.bak`,
   - eliminación de artefacto temporal `test_output.txt`,
@@ -61,7 +68,7 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
   - `pytest -q tests/test_changes.py tests/test_service_desk_phase2_critical_flows.py tests/test_ai_auto_resolution_service.py --tb=short`
   - `pytest -q tests/test_service_desk_change_automation.py tests/test_cmdb_reconciliation_health.py tests/test_ai_auto_resolution_service.py --tb=short`
   - Resultado: **29 passed, 0 failed** (sumando ambas corridas).
-  - `frontend`: `npm run build` → OK, `built in 5.90s`.
+  - `frontend`: `npm run build` → OK, `built in 5.90s` y `5.66s`.
 
 ### v23.10.30 (Abril 2026) — ACTA FINAL GO/NO-GO: Fase 1–3 Consolidadas
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
@@ -73,10 +73,29 @@ function EmptyDash() {
   )
 }
 
+function useIsMobile(maxWidth = 900) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia(`(max-width: ${maxWidth}px)`).matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`)
+    const onChange = (event) => setIsMobile(event.matches)
+    setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [maxWidth])
+
+  return isMobile
+}
+
 export default function BIPage() {
   const t = useAppT()
   const { lang } = useAppLang()
   const [days, setDays] = useState(30)
+  const isMobile = useIsMobile()
   const params = useMemo(() => dateRange(days), [days])
 
   const { data: kpis, isLoading: loadingKpis } = useQuery({
@@ -108,7 +127,7 @@ export default function BIPage() {
   const activeProjects = Number(kpis?.projects_active || 0)
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: isMobile ? 12 : 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle="Dashboard ejecutivo de KPIs" />
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
@@ -118,7 +137,7 @@ export default function BIPage() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 16, padding: 12, border: '1px solid var(--surface-4)', borderRadius: 10, background: 'var(--surface-1)' }}>
+      <div style={{ marginBottom: 16, padding: isMobile ? 10 : 12, border: '1px solid var(--surface-4)', borderRadius: 10, background: 'var(--surface-1)' }}>
         <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
           Para colaboración, alertas inteligentes, conectores, embed, versionado y reportes avanzados usa el espacio dedicado: {' '}
           <Link to="/bi" style={{ color: '#0ea5e9', fontWeight: 700 }}>BI Workspace</Link>
@@ -129,14 +148,14 @@ export default function BIPage() {
         <EmptyDash />
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
             <KpiCard label="Revenue" value={fmtCur(revenue, lang)} />
             <KpiCard label="Coste" value={fmtCur(cost, lang)} />
             <KpiCard label="Margen" value={fmtCur(margin, lang)} note={`Margen %: ${fmtPct(marginPct)}`} />
             <KpiCard label="Proyectos" value={totalProjects} note={`Activos: ${activeProjects}`} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12, marginBottom: 16 }}>
             <NarrativeCard lang={lang} />
             <AskDataWidget />
           </div>
@@ -145,28 +164,51 @@ export default function BIPage() {
             <div style={{ padding: 12, borderBottom: '1px solid var(--surface-4)', fontWeight: 700, color: 'var(--text-1)' }}>
               Estado de proyectos
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ background: 'var(--surface-2)' }}>
-                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Proyecto</th>
-                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Cliente</th>
-                    <th style={{ textAlign: 'left', padding: '10px 12px' }}>Estado</th>
-                    <th style={{ textAlign: 'right', padding: '10px 12px' }}>Budget</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(projectsHealth || []).slice(0, 12).map((p) => (
-                    <tr key={p.id || p.project_id || p.code} style={{ borderTop: '1px solid var(--surface-4)' }}>
-                      <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.name || p.project_name || p.code || '—'}</td>
-                      <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.client_name || '—'}</td>
-                      <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.status || '—'}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtCur(p.budget_amount, lang)}</td>
+            {isMobile ? (
+              <div style={{ display: 'grid', gap: 8, padding: 10 }}>
+                {(projectsHealth || []).slice(0, 12).map((p) => (
+                  <div
+                    key={p.id || p.project_id || p.code}
+                    style={{
+                      border: '1px solid var(--surface-4)',
+                      borderRadius: 10,
+                      padding: 10,
+                      background: 'var(--surface-2)',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+                      {p.name || p.project_name || p.code || '—'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>Cliente: {p.client_name || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>Estado: {p.status || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 700 }}>Budget: {fmtCur(p.budget_amount, lang)}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-2)' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Proyecto</th>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Cliente</th>
+                      <th style={{ textAlign: 'left', padding: '10px 12px' }}>Estado</th>
+                      <th style={{ textAlign: 'right', padding: '10px 12px' }}>Budget</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {(projectsHealth || []).slice(0, 12).map((p) => (
+                      <tr key={p.id || p.project_id || p.code} style={{ borderTop: '1px solid var(--surface-4)' }}>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-1)' }}>{p.name || p.project_name || p.code || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.client_name || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: 'var(--text-2)' }}>{p.status || '—'}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-1)' }}>{fmtCur(p.budget_amount, lang)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}
