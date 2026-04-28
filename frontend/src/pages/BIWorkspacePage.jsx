@@ -283,6 +283,7 @@ export default function BIPage() {
   const [commentWidget, setCommentWidget] = useState('kpi_grid')
   const [commentText, setCommentText] = useState('')
   const [sharedViewName, setSharedViewName] = useState('')
+  const [sharedViewsSearch, setSharedViewsSearch] = useState('')
   const [showInactiveSharedViews, setShowInactiveSharedViews] = useState(false)
   const [rulesDraft, setRulesDraft] = useState(null)
   const [govRunTick, setGovRunTick] = useState(0)
@@ -566,6 +567,12 @@ export default function BIPage() {
   const normalizedUtilPct = utilPct == null ? null : Math.max(0, Math.min(100, utilPct))
   const comments = commentsData?.items || []
   const sharedViews = sharedViewsData?.items || []
+  const sharedViewsQuery = sharedViewsSearch.trim().toLowerCase()
+  const filteredSharedViews = sharedViews.filter((v) => {
+    if (!sharedViewsQuery) return true
+    const name = String(v?.name || '').toLowerCase()
+    return name.includes(sharedViewsQuery)
+  })
   const activeSharedViews = sharedViews.filter((v) => v.active !== false).length
   const inactiveSharedViews = sharedViews.length - activeSharedViews
   const connectors = Object.entries(connectorsData?.items || {})
@@ -992,6 +999,19 @@ export default function BIPage() {
                 </button>
               </div>
               <div style={{ display: 'grid', gap: 7 }}>
+                <input
+                  value={sharedViewsSearch}
+                  onChange={(e) => setSharedViewsSearch(e.target.value)}
+                  placeholder="Buscar vista compartida por nombre..."
+                  style={{
+                    background: 'var(--surface-3)',
+                    border: '1px solid var(--surface-4)',
+                    color: 'var(--text-1)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: 12,
+                  }}
+                />
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1009,11 +1029,15 @@ export default function BIPage() {
                     ({activeSharedViews} activas{showInactiveSharedViews ? ` · ${inactiveSharedViews} inactivas` : ''})
                   </span>
                 </label>
-                {sharedViews.length === 0 ? (
+                {filteredSharedViews.length === 0 ? (
                   <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
-                    {showInactiveSharedViews ? 'No hay vistas compartidas todavía.' : 'No hay vistas activas. Activa "Mostrar vistas inactivas" para restaurarlas.'}
+                    {sharedViews.length === 0
+                      ? (showInactiveSharedViews
+                        ? 'No hay vistas compartidas todavía.'
+                        : 'No hay vistas activas. Activa "Mostrar vistas inactivas" para restaurarlas.')
+                      : 'No hay vistas que coincidan con la búsqueda.'}
                   </div>
-                ) : sharedViews.map((v) => (
+                ) : filteredSharedViews.map((v) => (
                   <div key={v.id} style={{
                     border: '1px solid var(--surface-4)',
                     borderRadius: 8,
