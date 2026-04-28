@@ -27,7 +27,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.service_desk import Problem
+from app.models.service_desk import Problem, ProblemRcaTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +169,14 @@ _TEMPLATES: dict[str, list[dict[str, str]]] = {
 
 _VALID_TEMPLATES = set(_TEMPLATES.keys())
 
+# Stable UUIDs of the seeded system templates (migration 045)
+_SYSTEM_TEMPLATE_IDS: dict[str, str] = {
+    "five_whys":     "00000001-0000-0000-0000-000000000001",
+    "fishbone":      "00000001-0000-0000-0000-000000000002",
+    "itil_standard": "00000001-0000-0000-0000-000000000003",
+}
+_SYSTEM_ID_TO_SLUG = {v: k for k, v in _SYSTEM_TEMPLATE_IDS.items()}
+
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -188,8 +196,15 @@ def _save_state(problem: Problem, state: dict[str, Any]) -> None:
     problem.rca_template = state.get("template")
 
 
-def _build_initial_state(template: str) -> dict[str, Any]:
-    steps_def = _TEMPLATES[template]
+def _build_initial_state(template: str, steps_def: list[dict] | None = None) -> dict[str, Any]:
+    """Build wizard state from built-in or custom steps.
+
+    *template* is the display key stored in the state (slug or UUID).
+    *steps_def* is passed explicitly for DB-backed custom templates;
+    if None, falls back to the built-in _TEMPLATES dict.
+    """
+    if steps_def is None:
+        steps_def = _TEMPLATES[template]
     return {
         "template": template,
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -258,19 +273,55 @@ def _derive_workaround_from_state(state: dict[str, Any]) -> str | None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _load_db_template(db: Session, key: str) -> ProblemRcaTemplate | None:
+    """Resolve *key* (slug or UUID) to a ProblemRcaTemplate row, or None."""
+    # Check if key is a system slug mapped to a UUID
+    uuid_key = _SYSTEM_TEMPLATE_IDS.get(key, key)
+    row = (
+        db.query(ProblemRcaTemplate)
+        .filter(ProblemRcaTemplate.id == uuid_key, ProblemRcaTemplate.is_active.is_(True))
+        .first()
+    )
+    return row
+
+
 def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]:
     """Initialise or reset the RCA wizard for *problem* with *template*.
+
+    *template* can be:
+      • A built-in slug: 'five_whys', 'fishbone', 'itil_standard'
+      • A UUID of a custom active ProblemRcaTemplate row in DB
 
     A new wizard can always be started, even if a previous one exists —
     the prior state is discarded.
 
     Returns the initial wizard state.
     """
+    import json as _j
+
+    # Try DB first (covers both system templates by UUID and custom ones)
+    db_tpl = _load_db_template(db, template)
+    if db_tpl is not None:
+        try:
+            steps_def = _j.loads(db_tpl.steps_json)
+        except Exception:
+            steps_def = None
+        # Canonical key stored in state: slug if system template, else UUID
+        canonical = _SYSTEM_ID_TO_SLUG.get(db_tpl.id, db_tpl.id)
+        state = _build_initial_state(canonical, steps_def=steps_def)
+        _save_state(problem, state)
+        db.flush()
+        return state
+
+    # Fall back to hard-coded built-in templates (offline / DB not yet seeded)
     if template not in _VALID_TEMPLATES:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown template '{template}'. "
-                   f"Valid options: {sorted(_VALID_TEMPLATES)}",
+            detail=(
+                f"Unknown template '{template}'. "
+                f"Built-in options: {sorted(_VALID_TEMPLATES)}. "
+                "You may also pass the UUID of a custom template."
+            ),
         )
     state = _build_initial_state(template)
     _save_state(problem, state)
@@ -511,34 +562,85 @@ def classify_from_wizard(
     return "unknown"
 
 
-def list_available_templates() -> list[dict[str, Any]]:
-    """Return metadata for all available RCA templates (no DB needed)."""
+def list_available_templates(db: Session | None = None) -> list[dict[str, Any]]:
+    """Return metadata for all available RCA templates.
+
+    When *db* is provided the DB-backed ``sd_problem_rca_templates`` table is
+    queried first.  Built-in hard-coded templates are used as fallback when
+    the DB is unavailable or not yet seeded.
+    """
+    import json as _j
+
+    if db is not None:
+        try:
+            rows = (
+                db.query(ProblemRcaTemplate)
+                .filter(ProblemRcaTemplate.is_active.is_(True))
+                .order_by(ProblemRcaTemplate.is_system.desc(), ProblemRcaTemplate.name)
+                .all()
+            )
+            if rows:
+                result = []
+                for row in rows:
+                    try:
+                        steps = _j.loads(row.steps_json)
+                    except Exception:
+                        steps = []
+                    # Use slug as public id for system templates for backwards compat
+                    public_id = _SYSTEM_ID_TO_SLUG.get(row.id, row.id)
+                    result.append({
+                        "id": public_id,
+                        "uuid": row.id,
+                        "name": row.name,
+                        "template_type": row.template_type,
+                        "description": row.description,
+                        "total_steps": len(steps),
+                        "is_system": row.is_system,
+                        "is_active": row.is_active,
+                    })
+                return result
+        except Exception as exc:
+            logger.warning("list_available_templates: DB query failed, using built-ins: %s", exc)
+
+    # Hard-coded fallback (no DB or not yet seeded)
     return [
         {
             "id": "five_whys",
+            "uuid": _SYSTEM_TEMPLATE_IDS["five_whys"],
             "name": "5 Whys (Toyota)",
+            "template_type": "five_whys",
             "description": (
                 "Técnica iterativa de 5 preguntas '¿Por qué?' para llegar a la causa raíz. "
                 "Ideal para problemas simples con cadena causal lineal."
             ),
             "total_steps": 5,
+            "is_system": True,
+            "is_active": True,
         },
         {
             "id": "fishbone",
+            "uuid": _SYSTEM_TEMPLATE_IDS["fishbone"],
             "name": "Diagrama de Ishikawa (Fishbone)",
+            "template_type": "fishbone",
             "description": (
                 "Analiza 6 categorías de causas: Personas, Proceso, Tecnología, Entorno, "
                 "Materiales/Datos, Métricas. Ideal para problemas multifactoriales."
             ),
             "total_steps": 6,
+            "is_system": True,
+            "is_active": True,
         },
         {
             "id": "itil_standard",
+            "uuid": _SYSTEM_TEMPLATE_IDS["itil_standard"],
             "name": "Análisis ITIL Estándar",
+            "template_type": "itil_standard",
             "description": (
                 "Proceso ITIL de 4 pasos: Cronología → Factores contribuyentes → "
                 "Enunciado de causa raíz → Acciones de prevención."
             ),
             "total_steps": 4,
+            "is_system": True,
+            "is_active": True,
         },
     ]
