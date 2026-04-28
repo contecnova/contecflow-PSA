@@ -417,6 +417,20 @@ class Problem(Base):
     auto_detected = Column(Boolean, default=False)  # True when created by auto-detection task
     affected_services_json = Column(Text, nullable=True)  # JSON list of CI ids
 
+    # RCA approval lifecycle (ITSM-P02)
+    investigation_started_at = Column(DateTime(timezone=True), nullable=True)
+    rca_due_date = Column(DateTime(timezone=True), nullable=True)      # SLA deadline for RCA
+    rca_evidence = Column(Text, nullable=True)                          # Supporting evidence (JSON/text)
+    rca_approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    rca_approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # KEDB lifecycle (ITSM-P02)
+    kedb_published_at = Column(DateTime(timezone=True), nullable=True)
+    kedb_expires_at = Column(DateTime(timezone=True), nullable=True)   # Scheduled review/expiry
+    kedb_reviewed_at = Column(DateTime(timezone=True), nullable=True)  # Last manual review
+    kedb_effectiveness_score = Column(Float, nullable=True)            # 0-100 (% tickets resolved via workaround)
+    kb_article_id = Column(String(36), nullable=True)                  # Auto-generated KB article
+
     ci_id = Column(String(36), ForeignKey("sd_configuration_items.id"), nullable=True)
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
 
@@ -428,6 +442,7 @@ class Problem(Base):
 
     ci = relationship("ConfigurationItem")
     owner = relationship("User", foreign_keys=[owner_user_id])
+    rca_approver = relationship("User", foreign_keys=[rca_approved_by])
     related_tickets = relationship("Ticket", foreign_keys="Ticket.problem_id")
 
 

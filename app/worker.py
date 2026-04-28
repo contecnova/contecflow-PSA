@@ -128,6 +128,16 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.autonomous_agent_scan",
         "schedule": crontab(minute="*/5"),
     },
+    # ITSM-P02 — KEDB expiry scan — daily at 06:30
+    "kedb-expiry-scan": {
+        "task": "app.worker.kedb_expiry_scan",
+        "schedule": crontab(hour=6, minute=30),
+    },
+    # ITSM-P02 — KEDB effectiveness recompute — daily at 07:00
+    "kedb-effectiveness-scan": {
+        "task": "app.worker.kedb_effectiveness_scan",
+        "schedule": crontab(hour=7, minute=0),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -925,6 +935,55 @@ def problem_auto_detect():
         return {"clusters_found": len(clusters), "problems_created": problems_created}
     except Exception as exc:  # noqa: BLE001
         _worker_logger.error("problem_auto_detect error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.kedb_expiry_scan")
+def kedb_expiry_scan():
+    """ITSM-P02: Demote expired KEDB entries back to investigating.
+
+    Runs daily at 06:30. Any Known Error entry whose kedb_expires_at has passed
+    is returned to 'investigating' status so it gets re-reviewed before republishing.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.known_error_service import run_kedb_expiry_scan
+
+    db = SessionLocal()
+    try:
+        result = run_kedb_expiry_scan(db)
+        db.commit()
+        _worker_logger.info("KEDB expiry scan: %d entries expired", result.get("expired", 0))
+        return result
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        _worker_logger.error("kedb_expiry_scan error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.kedb_effectiveness_scan")
+def kedb_effectiveness_scan():
+    """ITSM-P02: Recompute effectiveness scores for all KEDB entries.
+
+    Runs daily at 07:00. For each Known Error computes the percentage of linked
+    tickets that were resolved after the entry was published (proxy for workaround
+    effectiveness) and persists the score.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan
+
+    db = SessionLocal()
+    try:
+        result = run_kedb_effectiveness_scan(db)
+        db.commit()
+        _worker_logger.info("KEDB effectiveness scan: %d entries updated", result.get("updated", 0))
+        return result
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        _worker_logger.error("kedb_effectiveness_scan error: %s", exc)
         return {"error": str(exc)}
     finally:
         db.close()
