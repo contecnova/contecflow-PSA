@@ -45,6 +45,43 @@ def _read_alembic_revision(database_url: str) -> str | None:
         engine.dispose()
 
 
+def _scheduler_flags() -> tuple[bool, bool]:
+    """Return scheduler enablement flags from environment variables."""
+    enable_apscheduler = os.getenv("ENABLE_APSCHEDULER", "1") == "1"
+    celery_beat_enabled = (
+        os.getenv("ENABLE_CELERY_BEAT", "0") == "1"
+        or os.getenv("CELERY_BEAT", "0") == "1"
+    )
+    return enable_apscheduler, celery_beat_enabled
+
+
+def _scheduler_mode() -> str:
+    """Resolve active scheduler mode for observability and readiness checks."""
+    enable_apscheduler, celery_beat_enabled = _scheduler_flags()
+    if enable_apscheduler and celery_beat_enabled:
+        return "dual"
+    if enable_apscheduler:
+        return "apscheduler"
+    if celery_beat_enabled:
+        return "celery_beat"
+    return "none"
+
+
+def _enforce_scheduler_mode_safety() -> None:
+    """Prevent unsafe dual scheduling in stage/prod unless explicitly overridden."""
+    if _scheduler_mode() != "dual":
+        return
+    fail_on_dual = os.getenv(
+        "FAIL_ON_DUAL_SCHEDULER",
+        "1" if settings.ENVIRONMENT in {"production", "staging"} else "0",
+    ) == "1"
+    if fail_on_dual:
+        raise RuntimeError(
+            "Dual scheduler mode detected (APScheduler + Celery Beat). "
+            "Disable one scheduler (ENABLE_APSCHEDULER=0 or ENABLE_CELERY_BEAT=0)."
+        )
+
+
 # ── Sentry (P1-3) ─────────────────────────────────────────────────────────────
 if settings.SENTRY_DSN:
     import sentry_sdk
@@ -166,16 +203,17 @@ async def lifespan(_app: FastAPI):
 
     # Scheduler (optional): keep disabled when Celery beat is active in deployment.
     _scheduler = None
-    _enable_apscheduler = os.getenv("ENABLE_APSCHEDULER", "1") == "1"
-    _celery_beat_enabled = (
-        os.getenv("ENABLE_CELERY_BEAT", "0") == "1"
-        or os.getenv("CELERY_BEAT", "0") == "1"
-    )
+    _enable_apscheduler, _celery_beat_enabled = _scheduler_flags()
     if _enable_apscheduler and _celery_beat_enabled:
         logger.warning(
             "⚠️  APScheduler y Celery Beat parecen estar activos a la vez. "
             "Esto puede duplicar tareas programadas (informes/rotación)."
         )
+    try:
+        _enforce_scheduler_mode_safety()
+    except RuntimeError as _sched_exc:
+        logger.error("❌ Scheduler safety check failed: %s", _sched_exc)
+        raise
     if _enable_apscheduler:
         logger.info("⏰ Iniciando scheduler de informes...")
         try:
@@ -625,3 +663,60 @@ def health():
         "project": settings.PROJECT_NAME,
         "db": db_status,
     }
+
+
+@app.get("/ready", tags=["Health"])
+def readiness():
+    """Readiness probe with orchestration dependencies visibility."""
+    from app.db.session import engine
+    from sqlalchemy import text
+
+    checks: dict[str, dict] = {}
+    http_status = 200
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        checks["db"] = {"status": "ok"}
+    except Exception as e:
+        checks["db"] = {"status": "error", "detail": str(e)}
+        http_status = 503
+
+    redis_url = settings.REDIS_URL
+    if redis_url:
+        try:
+            import redis  # type: ignore
+
+            client = redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
+            client.ping()
+            client.close()
+            checks["redis"] = {"status": "ok"}
+            checks["celery_broker"] = {"status": "ok"}
+        except Exception as e:
+            checks["redis"] = {"status": "error", "detail": str(e)}
+            checks["celery_broker"] = {"status": "error", "detail": "unreachable"}
+            http_status = 503
+    else:
+        checks["redis"] = {"status": "disabled", "detail": "REDIS_URL not configured"}
+        checks["celery_broker"] = {"status": "disabled", "detail": "REDIS_URL not configured"}
+
+    mode = _scheduler_mode()
+    scheduler_status = "ok"
+    scheduler_detail = None
+    if mode == "dual":
+        scheduler_status = "error"
+        scheduler_detail = "APScheduler and Celery Beat are active simultaneously"
+        if settings.ENVIRONMENT in {"production", "staging"}:
+            http_status = 503
+    checks["scheduler"] = {
+        "status": scheduler_status,
+        "mode": mode,
+        "detail": scheduler_detail,
+    }
+
+    payload = {
+        "status": "ok" if http_status == 200 else "error",
+        "environment": settings.ENVIRONMENT,
+        "checks": checks,
+    }
+    return JSONResponse(status_code=http_status, content=payload)

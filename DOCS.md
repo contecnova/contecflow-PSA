@@ -11,6 +11,37 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.37 (Abril 2026) — Hardening operativo de orquestación (readiness + scheduler safety + tests worker)
+
+- Se implementa endpoint de readiness compuesto para operación bajo orquestación:
+  - Archivo: `app/main.py`.
+  - Nuevo endpoint: `GET /ready`.
+  - Señales incluidas:
+    - `db` (conectividad SQL),
+    - `redis` (ping cuando `REDIS_URL` está configurado),
+    - `celery_broker` (estado derivado de broker Redis),
+    - `scheduler` (`apscheduler`, `celery_beat`, `dual`, `none`).
+  - Semántica HTTP:
+    - `200` cuando checks críticos están operativos,
+    - `503` cuando falla DB, broker/Redis configurado no accesible o hay modo `dual` en entorno estricto.
+
+- Se endurece la seguridad de scheduling en startup:
+  - Archivo: `app/main.py`.
+  - Nuevos helpers internos:
+    - `_scheduler_flags()`, `_scheduler_mode()`, `_enforce_scheduler_mode_safety()`.
+  - Comportamiento:
+    - Se detecta explícitamente modo dual APScheduler + Celery Beat.
+    - En `production`/`staging` (o con `FAIL_ON_DUAL_SCHEDULER=1`) el arranque falla con error explícito para evitar doble ejecución de jobs.
+
+- Se añade cobertura de tests para orquestación real del worker de webhooks:
+  - Archivo nuevo: `tests/test_orchestration_readiness_and_webhook_worker.py`.
+  - Casos cubiertos:
+    - contrato de `GET /ready` y estructura de checks,
+    - guardia de scheduler dual en producción,
+    - `deliver_webhook_task` reintenta ante error transitorio de red (countdown esperado),
+    - `deliver_webhook_task` suspende webhook por circuit breaker al superar umbral.
+
+
 ### v23.10.36 (Abril 2026) — Auditoría completa de arquitectura bajo orquestación de servicios
 
 - Se ejecuta análisis end-to-end de la arquitectura de orquestación con foco en:
