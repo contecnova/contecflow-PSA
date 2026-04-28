@@ -1,5 +1,5 @@
 """Service Desk — CMDB subdomain router."""
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Query, Body, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -377,3 +377,174 @@ def approve_baseline(
 
     _commit_or_rollback(db)
     return {"ok": True, "approved": approved}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# On-Premise Agent Management Endpoints  (ITSM discovery gap)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from app.services.service_desk.cmdb_discovery_service import (  # noqa: E402
+    generate_agent_token,
+    process_agent_checkin,
+    list_agent_registrations,
+    revoke_agent_token,
+    rotate_agent_token,
+)
+
+
+class AgentRegisterIn(BaseModel):
+    name: str
+    description: Optional[str] = None
+    os_type: Optional[str] = None   # windows | linux
+
+
+class AgentCheckinIn(BaseModel):
+    """Payload sent by the lightweight on-premise agent at each check-in."""
+    os_type: Optional[str] = None           # windows | linux
+    hostname: Optional[str] = None
+    fqdn: Optional[str] = None
+    ip_address: Optional[str] = None
+    os_version: Optional[str] = None
+    kernel_version: Optional[str] = None    # Linux only
+    cpu_count: Optional[int] = None
+    memory_mb: Optional[int] = None
+    disk_gb: Optional[int] = None
+    uptime_seconds: Optional[int] = None
+    interfaces: list[dict] = []
+    services: list[str] = []
+    tags: dict = {}
+
+
+@router.post("/cmdb/agents/register", summary="Registrar agente on-premise y obtener token (admin)", status_code=201)
+def register_agent(
+    payload: AgentRegisterIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Register a new on-premise agent and receive a one-time bearer token.
+
+    The raw token is returned **once only** and must be securely delivered to
+    the target host.  It cannot be recovered — use POST rotate-token if lost.
+    """
+    result = generate_agent_token(
+        db,
+        name=payload.name,
+        description=payload.description,
+        os_type=payload.os_type,
+        created_by=str(current_user.id),
+    )
+    _commit_or_rollback(db)
+    return result
+
+
+@router.post("/cmdb/agents/checkin", summary="Check-in de agente on-premise (bearer token auth)")
+def agent_checkin(
+    payload: AgentCheckinIn,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Receive a system inventory report from an on-premise agent.
+
+    Authentication: `Authorization: Bearer <agent-token>` header.
+    The agent token is validated by SHA-256 hash against the DB — no JWT.
+    Creates or updates the corresponding CMDB CI automatically.
+    """
+    auth_header: str = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+    raw_token = auth_header.removeprefix("Bearer ").strip()
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Empty bearer token")
+
+    client_ip = request.client.host if request.client else None
+    result = process_agent_checkin(db, raw_token, payload.model_dump(), client_ip=client_ip)
+    _commit_or_rollback(db)
+    return result
+
+
+@router.get("/cmdb/agents", summary="Listar agentes on-premise registrados (admin)")
+def list_agents(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Return all registered agents with last check-in metadata."""
+    return {"agents": list_agent_registrations(db)}
+
+
+@router.delete("/cmdb/agents/{agent_id}", summary="Revocar token de agente on-premise (admin)")
+def revoke_agent(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Revoke an agent's token (soft-disable).  The agent will be rejected at next check-in."""
+    revoke_agent_token(db, agent_id)
+    _commit_or_rollback(db)
+    return {"ok": True, "agent_id": agent_id, "revoked": True}
+
+
+@router.post("/cmdb/agents/{agent_id}/rotate-token", summary="Rotar token de agente on-premise (admin)")
+def rotate_agent(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Invalidate the current token and generate a new one.  Returned once only."""
+    result = rotate_agent_token(db, agent_id)
+    _commit_or_rollback(db)
+    return result
+
+
+# ── SNMP Network Scan endpoint ────────────────────────────────────────────────
+
+class SNMPScanIn(BaseModel):
+    hosts: list[str]
+    community: str = "public"
+    port: int = 161
+    timeout: int = 2
+    retries: int = 1
+    version: str = "v2c"
+    scan_interfaces: bool = True
+    v3_user: Optional[str] = None
+    v3_auth_key: Optional[str] = None
+    v3_priv_key: Optional[str] = None
+
+
+@router.post("/cmdb/snmp-scan", summary="Escaneo SNMP de red con descubrimiento de interfaces (admin)")
+def snmp_network_scan(
+    payload: SNMPScanIn,
+    persist: bool = Query(True, description="Reconcile discovered devices into CMDB"),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Ad-hoc SNMP scan of a list of hosts or CIDR ranges.
+
+    Walks sysDescr/sysName/sysLocation/sysContact (SNMPv2c/v3) and optionally
+    the ifTable OID for per-interface details (name, MAC, speed, oper-status).
+
+    When `persist=true` (default), discovered devices are upserted into CMDB
+    via the same reconcile_cis() logic as the scheduled discovery jobs.
+    """
+    from app.services.service_desk.cmdb_discovery_service import (  # noqa: PLC0415
+        discover_snmp_network, reconcile_cis,
+    )
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    if not payload.hosts:
+        raise HTTPException(status_code=400, detail="hosts list is required")
+
+    config = payload.model_dump(exclude_none=True)
+    discovered = discover_snmp_network(config)
+
+    stats: dict = {}
+    if persist and discovered:
+        stats = reconcile_cis(db, discovered, "snmp")
+        _commit_or_rollback(db)
+
+    return {
+        "ok": True,
+        "discovered": len(discovered),
+        "devices": discovered,
+        "persisted": persist,
+        "stats": stats,
+    }

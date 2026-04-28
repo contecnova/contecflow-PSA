@@ -1290,3 +1290,491 @@ def auto_merge_duplicates(
         "merged": merged,
         "applied": applied,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# On-Premise Agent Discovery  (ITSM discovery gap)
+# ══════════════════════════════════════════════════════════════════════════════
+
+import hashlib  # noqa: E402
+import secrets  # noqa: E402
+
+_PROVIDER_AGENT = "agent"
+_SUPPORTED_PROVIDERS.add(_PROVIDER_AGENT)
+
+_AGENT_CI_TYPE_MAP = {
+    "windows": "server",
+    "linux": "server",
+}
+
+
+def generate_agent_token(
+    db: Session,
+    name: str,
+    description: str | None = None,
+    os_type: str | None = None,
+    created_by: str | None = None,
+) -> dict:
+    """Register a new on-premise agent and return a one-time bearer token.
+
+    The raw token is **never stored**.  Only its SHA-256 hex digest is persisted.
+    The caller must deliver the token to the target host; it cannot be recovered later.
+
+    Returns:
+        {
+            "agent_id": str,
+            "token": str,          # raw token — deliver to host, never stored again
+            "token_prefix": str,   # first 8 chars shown in UI for identification
+            "name": str,
+        }
+    """
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    raw_token = secrets.token_hex(32)          # 64-char hex = 256-bit entropy
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    token_prefix = raw_token[:8]
+
+    reg = CMDBAgentRegistration(
+        id=str(uuid4()),
+        name=name,
+        description=description,
+        token_hash=token_hash,
+        token_prefix=token_prefix,
+        os_type=os_type,
+        is_active=True,
+        created_by=created_by,
+    )
+    db.add(reg)
+    db.flush()
+
+    logger.info("Agent registered: %s (id=%s, prefix=%s)", name, reg.id, token_prefix)
+
+    return {
+        "agent_id": reg.id,
+        "token": raw_token,
+        "token_prefix": token_prefix,
+        "name": name,
+    }
+
+
+def _resolve_agent_by_token(db: Session, raw_token: str):
+    """Look up a CMDBAgentRegistration by raw bearer token.
+
+    Returns the registration object or None if token is invalid/revoked.
+    """
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    return (
+        db.query(CMDBAgentRegistration)
+        .filter(
+            CMDBAgentRegistration.token_hash == token_hash,
+            CMDBAgentRegistration.is_active.is_(True),
+        )
+        .first()
+    )
+
+
+def _normalize_agent_payload(payload: dict, agent_id: str) -> dict:
+    """Convert an agent checkin payload into a standard CI dict for reconcile_cis.
+
+    Agent payload fields:
+        os_type, hostname, fqdn, ip_address, os_version, kernel_version,
+        cpu_count, memory_mb, disk_gb, uptime_seconds,
+        interfaces: [{name, ip, mac}],
+        services: [str],
+        tags: {k: v},
+    """
+    os_type = (payload.get("os_type") or "").lower()
+    hostname = payload.get("hostname") or payload.get("fqdn") or agent_id
+    ip = payload.get("ip_address") or ""
+    os_version = payload.get("os_version") or ""
+    kernel = payload.get("kernel_version") or ""
+    cpu = payload.get("cpu_count") or 0
+    memory_mb = payload.get("memory_mb") or 0
+    disk_gb = payload.get("disk_gb") or 0
+    uptime_s = payload.get("uptime_seconds") or 0
+
+    interfaces: list[dict] = payload.get("interfaces") or []
+    services: list[str] = payload.get("services") or []
+    tags: dict = payload.get("tags") or {}
+
+    ci_type = _AGENT_CI_TYPE_MAP.get(os_type, "server")
+    version = os_version
+
+    attributes = {
+        "os_type": os_type,
+        "os_version": os_version,
+        "kernel_version": kernel,
+        "cpu_count": cpu,
+        "memory_mb": memory_mb,
+        "disk_gb": disk_gb,
+        "uptime_seconds": uptime_s,
+        "interfaces": interfaces,
+        "services": services,
+        "tags": tags,
+    }
+
+    environment = tags.get("env") or tags.get("environment") or "production"
+
+    return {
+        "external_id": f"agent:{agent_id}",
+        "name": hostname,
+        "ci_type": ci_type,
+        "status": "active",
+        "environment": environment,
+        "ip_address": ip,
+        "hostname": hostname,
+        "version": version,
+        "description": f"On-premise {os_type.upper() if os_type else 'host'} — {os_version}",
+        "attributes": json.dumps(attributes),
+        "discovery_provider": _PROVIDER_AGENT,
+        "last_discovered_at": _utcnow().isoformat(),
+    }
+
+
+def process_agent_checkin(
+    db: Session,
+    raw_token: str,
+    payload: dict,
+    client_ip: str | None = None,
+) -> dict:
+    """Process an inbound check-in from an on-premise agent.
+
+    1. Validates the bearer token.
+    2. Normalizes the payload to a CI dict.
+    3. Calls reconcile_cis (upsert) for this single host.
+    4. Updates the agent registration (last_checkin_at, hostname, ci_id).
+
+    Returns summary dict with `agent_id`, `ci_id`, `created`/`updated` flags.
+    """
+    from fastapi import HTTPException  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    reg = _resolve_agent_by_token(db, raw_token)
+    if not reg:
+        raise HTTPException(status_code=401, detail="Invalid or revoked agent token")
+
+    ci_dict = _normalize_agent_payload(payload, reg.id)
+
+    # Reconcile just this single agent's CI
+    stats = reconcile_cis(db, [ci_dict], _PROVIDER_AGENT)
+
+    # Find the CI that was created/updated
+    ci = (
+        db.query(CMDBItem)
+        .filter(
+            CMDBItem.external_id == ci_dict["external_id"],
+            CMDBItem.discovery_provider == _PROVIDER_AGENT,
+        )
+        .first()
+    )
+
+    # Update registration metadata
+    now = _utcnow()
+    reg.last_checkin_at = now
+    if client_ip:
+        reg.last_checkin_ip = client_ip
+    reg.last_hostname = ci_dict["name"]
+    if ci:
+        reg.ci_id = ci.id
+    if not reg.os_type and payload.get("os_type"):
+        reg.os_type = payload["os_type"].lower()[:10]
+    db.flush()
+
+    return {
+        "ok": True,
+        "agent_id": reg.id,
+        "ci_id": ci.id if ci else None,
+        "hostname": ci_dict["name"],
+        "created": stats["created"],
+        "updated": stats["updated"],
+        "checkin_at": now.isoformat(),
+    }
+
+
+def list_agent_registrations(db: Session) -> list[dict]:
+    """Return all agent registrations with last check-in info."""
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    rows = db.query(CMDBAgentRegistration).order_by(CMDBAgentRegistration.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "description": r.description,
+            "token_prefix": r.token_prefix,
+            "os_type": r.os_type,
+            "is_active": r.is_active,
+            "last_checkin_at": r.last_checkin_at,
+            "last_checkin_ip": r.last_checkin_ip,
+            "last_hostname": r.last_hostname,
+            "ci_id": r.ci_id,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
+
+def revoke_agent_token(db: Session, agent_id: str) -> None:
+    """Deactivate an agent registration (revoke its token)."""
+    from fastapi import HTTPException  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
+    if not reg:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    reg.is_active = False
+    db.flush()
+
+
+def rotate_agent_token(db: Session, agent_id: str) -> dict:
+    """Generate a new token for an agent registration.
+
+    The old token is immediately invalidated.  Returns the new raw token once.
+    """
+    from fastapi import HTTPException  # noqa: PLC0415
+    from app.models.cmdb import CMDBAgentRegistration  # noqa: PLC0415
+
+    reg = db.query(CMDBAgentRegistration).filter(CMDBAgentRegistration.id == agent_id).first()
+    if not reg:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+
+    raw_token = secrets.token_hex(32)
+    reg.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    reg.token_prefix = raw_token[:8]
+    reg.is_active = True
+    db.flush()
+
+    return {
+        "agent_id": reg.id,
+        "token": raw_token,
+        "token_prefix": reg.token_prefix,
+        "name": reg.name,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SNMP Network Scan Enhancement — ifTable interface discovery
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _snmp_get_interfaces(ip: str, port: int, auth_data, engine) -> list[dict]:
+    """Walk ifTable (1.3.6.1.2.1.2.2) and return interface info dicts.
+
+    Returns list of {ifIndex, ifDescr, ifType, ifSpeed, ifPhysAddress,
+    ifOperStatus, ifAdminStatus} per network interface on the device.
+    Silently returns [] if the walk fails or pysnmp is not available.
+    """
+    try:
+        from pysnmp.hlapi import (  # noqa: PLC0415
+            ContextData, ObjectIdentity, ObjectType,
+            UdpTransportTarget, nextCmd,
+        )
+    except ImportError:
+        return []
+
+    _OID_IF_TABLE = "1.3.6.1.2.1.2.2.1"
+    _IF_COLUMNS = {
+        "1": "ifIndex",
+        "2": "ifDescr",
+        "3": "ifType",
+        "5": "ifSpeed",
+        "6": "ifPhysAddress",
+        "7": "ifAdminStatus",
+        "8": "ifOperStatus",
+    }
+
+    interfaces: dict[str, dict] = {}
+
+    try:
+        transport = UdpTransportTarget((ip, port), timeout=3, retries=1)
+        for error_indication, error_status, _, var_binds in nextCmd(
+            engine,
+            auth_data,
+            transport,
+            ContextData(),
+            ObjectType(ObjectIdentity(_OID_IF_TABLE)),
+            lexicographicMode=False,
+            maxRows=512,
+        ):
+            if error_indication or error_status:
+                break
+            for var_bind in var_binds:
+                oid_str = str(var_bind[0])
+                val_str = str(var_bind[1])
+
+                # OID form: 1.3.6.1.2.1.2.2.1.<column>.<index>
+                parts = oid_str.split(".")
+                if len(parts) < 2:
+                    continue
+                col = parts[-2]
+                idx = parts[-1]
+
+                if col not in _IF_COLUMNS:
+                    continue
+                field = _IF_COLUMNS[col]
+
+                if idx not in interfaces:
+                    interfaces[idx] = {"ifIndex": idx}
+                interfaces[idx][field] = val_str
+
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("SNMP ifTable walk %s: %s", ip, exc)
+
+    return list(interfaces.values())
+
+
+def discover_snmp_network(provider_config: dict) -> list[dict]:
+    """Enhanced SNMP discovery with interface-level data via ifTable walk.
+
+    Extends the basic `discover_snmp` result by adding detailed interface
+    information (name, MAC, speed, oper/admin status) to the `attributes`
+    JSON of each discovered device.
+
+    All arguments are identical to `discover_snmp()`.  Returns the same
+    normalised CI list format but with richer `attributes`.
+    """
+    try:
+        from pysnmp.hlapi import (  # noqa: PLC0415
+            CommunityData, ContextData, ObjectIdentity, ObjectType,
+            SnmpEngine, UdpTransportTarget, getCmd,
+        )
+        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "SNMP discovery requiere pysnmp. Instálalo con: pip install pysnmp"
+        ) from exc
+
+    import ipaddress  # noqa: PLC0415
+
+    community = provider_config.get("community", "public")
+    port = int(provider_config.get("port", 161))
+    timeout = int(provider_config.get("timeout", 2))
+    retries = int(provider_config.get("retries", 1))
+    version = provider_config.get("version", "v2c")
+    scan_interfaces = bool(provider_config.get("scan_interfaces", True))
+
+    raw_hosts: list[str] = provider_config.get("hosts", [])
+
+    host_ips: list[str] = []
+    for h in raw_hosts:
+        try:
+            net = ipaddress.ip_network(h, strict=False)
+            host_ips.extend(str(ip) for ip in list(net.hosts())[:1024])
+        except ValueError:
+            host_ips.append(h)
+
+    discovered: list[dict] = []
+
+    _OID_SYS_DESCR    = "1.3.6.1.2.1.1.1.0"
+    _OID_SYS_NAME     = "1.3.6.1.2.1.1.5.0"
+    _OID_SYS_LOCATION = "1.3.6.1.2.1.1.6.0"
+    _OID_SYS_CONTACT  = "1.3.6.1.2.1.1.4.0"
+    _OID_SYS_OBJECTID = "1.3.6.1.2.1.1.2.0"
+
+    def _auth_data():
+        if version == "v3":
+            return UsmUserData(
+                provider_config.get("v3_user", "admin"),
+                authKey=provider_config.get("v3_auth_key", ""),
+                privKey=provider_config.get("v3_priv_key", ""),
+                authProtocol=usmHMACSHAAuthProtocol,
+                privProtocol=usmAesCfb128Protocol,
+            )
+        return CommunityData(community, mpModel=1)
+
+    engine = SnmpEngine()
+
+    for ip in host_ips:
+        try:
+            transport = UdpTransportTarget((ip, port), timeout=timeout, retries=retries)
+            oids = [
+                ObjectType(ObjectIdentity(_OID_SYS_DESCR)),
+                ObjectType(ObjectIdentity(_OID_SYS_NAME)),
+                ObjectType(ObjectIdentity(_OID_SYS_LOCATION)),
+                ObjectType(ObjectIdentity(_OID_SYS_CONTACT)),
+                ObjectType(ObjectIdentity(_OID_SYS_OBJECTID)),
+            ]
+            error_indication, error_status, _, var_binds = next(
+                getCmd(engine, _auth_data(), transport, ContextData(), *oids)
+            )
+
+            if error_indication or error_status:
+                continue
+
+            values: dict[str, str] = {}
+            for var_bind in var_binds:
+                oid_str = str(var_bind[0])
+                val_str = str(var_bind[1])
+                if _OID_SYS_DESCR in oid_str:
+                    values["sys_descr"] = val_str
+                elif _OID_SYS_NAME in oid_str:
+                    values["sys_name"] = val_str
+                elif _OID_SYS_LOCATION in oid_str:
+                    values["sys_location"] = val_str
+                elif _OID_SYS_CONTACT in oid_str:
+                    values["sys_contact"] = val_str
+                elif _OID_SYS_OBJECTID in oid_str:
+                    values["sys_objectid"] = val_str
+
+            sys_descr = values.get("sys_descr", "")
+            sys_name  = values.get("sys_name", ip)
+
+            # CI type inference from sysDescr
+            descr_lower = sys_descr.lower()
+            if any(kw in descr_lower for kw in ("cisco", "juniper", "arista", "router", "switch", "firewall")):
+                ci_type = "network_device"
+            elif any(kw in descr_lower for kw in ("windows", "microsoft")):
+                ci_type = "server"
+            elif any(kw in descr_lower for kw in ("linux", "ubuntu", "centos", "debian", "rhel")):
+                ci_type = "server"
+            elif any(kw in descr_lower for kw in ("printer", "hp laserjet", "xerox")):
+                ci_type = "printer"
+            elif any(kw in descr_lower for kw in ("ups", "apc")):
+                ci_type = "ups"
+            else:
+                ci_type = "network_device"
+
+            attributes: dict = {
+                "sys_location": values.get("sys_location", ""),
+                "sys_contact":  values.get("sys_contact", ""),
+                "sys_objectid": values.get("sys_objectid", ""),
+                "snmp_version": version,
+                "community": community if version == "v2c" else "(SNMPv3)",
+            }
+
+            # ── Interface discovery via ifTable ────────────────────────────────
+            if scan_interfaces:
+                ifaces = _snmp_get_interfaces(ip, port, _auth_data(), engine)
+                if ifaces:
+                    attributes["interfaces"] = ifaces
+                    attributes["interface_count"] = len(ifaces)
+                    # Collect all non-loopback MACs for fingerprinting
+                    macs = [
+                        iface.get("ifPhysAddress", "")
+                        for iface in ifaces
+                        if iface.get("ifPhysAddress") and iface.get("ifPhysAddress") != "0x"
+                    ]
+                    if macs:
+                        attributes["mac_addresses"] = macs
+
+            discovered.append({
+                "external_id": f"snmp:{ip}",
+                "name": sys_name or ip,
+                "ci_type": ci_type,
+                "status": "active",
+                "environment": "production",
+                "ip_address": ip,
+                "hostname": sys_name or ip,
+                "version": "",
+                "description": sys_descr[:500] if sys_descr else f"SNMP device at {ip}",
+                "attributes": json.dumps(attributes),
+                "discovery_provider": _PROVIDER_SNMP,
+                "last_discovered_at": _utcnow().isoformat(),
+            })
+
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("SNMP host %s error: %s", ip, exc)
+
+    logger.info("SNMP network scan: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
+    return discovered
