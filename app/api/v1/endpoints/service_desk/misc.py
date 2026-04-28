@@ -462,3 +462,199 @@ def add_status_incident_update(incident_id: str, payload: StatusIncidentUpdateIn
     updates_count = add_status_incident_update_record(db, incident_id, payload)
     _commit_or_rollback(db)
     return {"ok": True, "updates_count": updates_count}
+
+
+# ── Problem → Change (RFC) flow ───────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel, Field as _Field  # noqa: E402
+
+
+class ProblemToChangeIn(_BaseModel):
+    change_type: str = _Field("normal", pattern="^(standard|normal|emergency)$")
+    planned_start: Optional[str] = None
+    planned_end: Optional[str] = None
+    custom_title: Optional[str] = _Field(None, max_length=500)
+    custom_description: Optional[str] = None
+
+
+@router.post("/problems/{problem_id}/create-change", summary="Crear RFC desde Problema", status_code=201)
+def create_change_from_problem(
+    problem_id: str,
+    payload: ProblemToChangeIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.service_desk.problem_service import create_change_from_problem as _svc  # noqa: PLC0415
+    try:
+        result = _svc(
+            db,
+            current_user=current_user,
+            problem_id=problem_id,
+            change_type=payload.change_type,
+            planned_start=payload.planned_start,
+            planned_end=payload.planned_end,
+            custom_title=payload.custom_title,
+            custom_description=payload.custom_description,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+    _commit_or_rollback(db)
+    return {"ok": True, **result}
+
+
+# ── Alert Correlation ML ──────────────────────────────────────────────────────
+
+@router.get("/alerts/correlate", summary="Clusterizar alertas abiertas por CI + ventana temporal")
+def correlate_alerts(
+    window_hours: int = Query(4, ge=1, le=48),
+    min_cluster_size: int = Query(2, ge=2, le=20),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.service_desk.alert_correlation_service import cluster_open_alerts  # noqa: PLC0415
+    org_id = getattr(current_user, "organization_id", None)
+    clusters = cluster_open_alerts(db, organization_id=org_id, window_hours=window_hours, min_cluster_size=min_cluster_size)
+    return {
+        "clusters": [
+            {
+                "cluster_id": c.cluster_id,
+                "size": c.size,
+                "ci_id": c.ci_id,
+                "category": c.category,
+                "priority": c.priority,
+                "correlation_score": c.correlation_score,
+                "suggested_action": c.suggested_action,
+                "ticket_numbers": c.ticket_numbers,
+                "ticket_ids": c.ticket_ids,
+                "earliest_at": c.earliest_at.isoformat() if c.earliest_at else None,
+                "latest_at": c.latest_at.isoformat() if c.latest_at else None,
+                "root_ci_ids": c.root_ci_ids,
+            }
+            for c in clusters
+        ],
+        "count": len(clusters),
+        "window_hours": window_hours,
+    }
+
+
+@router.get("/alerts/correlate/stats", summary="Estadísticas de correlación de alertas")
+def correlation_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.service_desk.alert_correlation_service import get_correlation_stats  # noqa: PLC0415
+    org_id = getattr(current_user, "organization_id", None)
+    return get_correlation_stats(db, organization_id=org_id)
+
+
+class MergeClusterIn(_BaseModel):
+    ticket_ids: list[str] = _Field(..., min_length=2)
+    auto_rca: bool = True
+
+
+@router.post("/alerts/correlate/merge-to-problem", summary="Convertir cluster de alertas en Problema", status_code=201)
+def merge_cluster_to_problem(
+    payload: MergeClusterIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _svc  # noqa: PLC0415
+    try:
+        result = _svc(db, ticket_ids=payload.ticket_ids, current_user=current_user, auto_rca=payload.auto_rca)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+    _commit_or_rollback(db)
+    return {"ok": True, **result}
+
+
+# ── CAB Rollout Execution ─────────────────────────────────────────────────────
+
+class RolloutStartIn(_BaseModel):
+    rollout_plan: dict
+
+
+class PhaseAdvanceIn(_BaseModel):
+    status: str = _Field(..., pattern="^(in_progress|completed|failed|skipped)$")
+    notes: str = _Field("", max_length=2000)
+
+
+class RollbackIn(_BaseModel):
+    reason: str = _Field(..., min_length=5, max_length=1000)
+
+
+class EmergencyCABIn(_BaseModel):
+    approver_ids: list[str] = _Field(..., min_length=1)
+    justification: str = _Field(..., min_length=10, max_length=2000)
+
+
+@router.post("/changes/{change_id}/rollout/start", summary="Iniciar ejecución de rollout de cambio", status_code=201)
+def start_rollout(
+    change_id: str,
+    payload: RolloutStartIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.service_desk.change_management_service import start_rollout_execution  # noqa: PLC0415
+    state = start_rollout_execution(db, change_id=change_id, rollout_plan=payload.rollout_plan, current_user=current_user)
+    _commit_or_rollback(db)
+    return {"ok": True, "state": state}
+
+
+@router.get("/changes/{change_id}/rollout", summary="Estado de ejecución de rollout")
+def get_rollout_state(
+    change_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.service_desk.change_management_service import get_rollout_execution_state  # noqa: PLC0415
+    state = get_rollout_execution_state(db, change_id)
+    if not state:
+        raise HTTPException(404, "No hay ejecución de rollout para este cambio")
+    return state
+
+
+@router.post("/changes/{change_id}/rollout/phases/{phase_number}/advance", summary="Avanzar fase de rollout")
+def advance_phase(
+    change_id: str,
+    phase_number: int,
+    payload: PhaseAdvanceIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.service_desk.change_management_service import advance_rollout_phase  # noqa: PLC0415
+    try:
+        state = advance_rollout_phase(db, change_id=change_id, phase_number=phase_number, phase_status=payload.status, notes=payload.notes, current_user=current_user)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+    _commit_or_rollback(db)
+    return {"ok": True, "state": state}
+
+
+@router.post("/changes/{change_id}/rollback", summary="Triggear rollback manual de cambio")
+def trigger_rollback(
+    change_id: str,
+    payload: RollbackIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.service_desk.change_management_service import trigger_change_rollback  # noqa: PLC0415
+    result = trigger_change_rollback(db, change_id=change_id, reason=payload.reason, current_user=current_user)
+    _commit_or_rollback(db)
+    return {"ok": True, **result}
+
+
+@router.post("/changes/{change_id}/cab/fast-track", summary="Fast-track de emergencia en CAB")
+def emergency_cab_fast_track(
+    change_id: str,
+    payload: EmergencyCABIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    from app.services.service_desk.change_management_service import fast_track_emergency_cab  # noqa: PLC0415
+    try:
+        result = fast_track_emergency_cab(db, change_id=change_id, approver_ids=payload.approver_ids, justification=payload.justification, current_user=current_user)
+    except ValueError as exc:
+        raise HTTPException(400, detail=str(exc))
+    _commit_or_rollback(db)
+    return {"ok": True, **result}
+

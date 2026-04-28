@@ -160,3 +160,81 @@ def get_bookmark(
     if not target.get("shared") and target.get("created_by") != current_user.id:
         raise ValueError("access_denied")
     return target
+
+
+# ── Shareable URL ──────────────────────────────────────────────────────────────
+
+SHARE_TOKENS_KEY = "bi.bookmarks.share_tokens"
+
+
+def generate_share_token(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    bookmark_id: str,
+    current_user: User,
+) -> dict[str, Any]:
+    """Create a public share token for a bookmark.
+
+    The token is stored in a separate AppSetting blob
+    (``bi.bookmarks.share_tokens.<org_id>``).  The endpoint
+    ``GET /bi/bookmarks/shared/{token}`` can be accessed without auth.
+    """
+    # Verify access
+    bookmarks = _get_json(db, BOOKMARKS_KEY, organization_id, default=[])
+    target = next((b for b in bookmarks if b.get("id") == bookmark_id), None)
+    if not target:
+        raise ValueError("bookmark_not_found")
+    if target.get("created_by") != current_user.id:
+        raise ValueError("access_denied")
+
+    token = str(uuid.uuid4()).replace("-", "")
+    token_key = f"bi.bookmarks.share_tokens.{organization_id or 'global'}"
+    tokens_map = _get_json(db, token_key, None, default={})
+    tokens_map[token] = {
+        "bookmark_id": bookmark_id,
+        "organization_id": organization_id,
+        "created_by": current_user.id,
+        "created_at": _iso_now(),
+    }
+    _set_json(db, token_key, None, tokens_map, description="BI bookmark share tokens")
+
+    # Mark bookmark as shared
+    target["shared"] = True
+    target["share_token"] = token
+    target["updated_at"] = _iso_now()
+    _set_json(db, BOOKMARKS_KEY, organization_id, bookmarks, description="BI dashboard bookmarks (JSON)")
+
+    return {
+        "bookmark_id": bookmark_id,
+        "share_token": token,
+        "share_url": f"/bi/bookmarks/shared/{token}",
+    }
+
+
+def get_bookmark_by_share_token(db: Session, token: str) -> dict[str, Any]:
+    """Public lookup — no auth required. Searches across all share token blobs."""
+    from app.models.settings import AppSetting  # noqa: PLC0415
+
+    # Find the token mapping row (keyed by org_id)
+    rows = db.query(AppSetting).filter(
+        AppSetting.key.like("bi.bookmarks.share_tokens.%")
+    ).all()
+
+    for row in rows:
+        try:
+            tokens_map: dict = json.loads(row.value or "{}")
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if token not in tokens_map:
+            continue
+
+        entry = tokens_map[token]
+        org_id = entry.get("organization_id")
+        bookmark_id = entry.get("bookmark_id")
+        bookmarks = _get_json(db, BOOKMARKS_KEY, org_id, default=[])
+        bm = next((b for b in bookmarks if b.get("id") == bookmark_id), None)
+        if bm and bm.get("shared"):
+            return bm
+
+    raise ValueError("share_token_not_found")

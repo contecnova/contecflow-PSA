@@ -33,12 +33,14 @@ _PROVIDER_K8S = "kubernetes"
 _PROVIDER_VSPHERE = "vsphere"
 _PROVIDER_AZURE = "azure"
 _PROVIDER_GCP = "gcp"
+_PROVIDER_SNMP = "snmp"
 _SUPPORTED_PROVIDERS = {
     _PROVIDER_AWS,
     _PROVIDER_K8S,
     _PROVIDER_VSPHERE,
     _PROVIDER_AZURE,
     _PROVIDER_GCP,
+    _PROVIDER_SNMP,
 }
 
 
@@ -556,6 +558,159 @@ def discover_gcp(provider_config: dict) -> list[dict]:
     return discovered
 
 
+# ── SNMP Discovery ────────────────────────────────────────────────────────────
+
+def discover_snmp(provider_config: dict) -> list[dict]:
+    """Descubre activos de red mediante SNMP v2c/v3.
+
+    Realiza SNMP walk sobre las OIDs estándar de sistema (sysDescr, sysName,
+    sysLocation, sysContact, ifTable) para cada host del rango indicado.
+
+    Dependencia opcional: ``pysnmp`` (pip install pysnmp).
+
+    Args:
+        provider_config: dict con claves:
+            - hosts (list[str]): lista de IPs o rangos CIDR (e.g. ["192.168.1.0/24"])
+            - community (str): community string SNMP v2c (default "public")
+            - port (int): puerto UDP (default 161)
+            - timeout (int): segundos por host (default 2)
+            - retries (int): reintentos por host (default 1)
+            - version (str): "v2c" | "v3" (default "v2c")
+            - v3_user / v3_auth_key / v3_priv_key: credenciales SNMPv3
+
+    Returns:
+        list[dict] de CIs normalizados.
+    """
+    try:
+        from pysnmp.hlapi import (  # noqa: PLC0415
+            CommunityData, ContextData, ObjectIdentity, ObjectType,
+            SnmpEngine, UdpTransportTarget, bulkCmd, getCmd,
+        )
+        from pysnmp.hlapi import UsmUserData, usmHMACSHAAuthProtocol, usmAesCfb128Protocol  # noqa: PLC0415
+    except ImportError as exc:
+        raise ImportError(
+            "SNMP discovery requiere pysnmp. Instálalo con: pip install pysnmp"
+        ) from exc
+
+    import ipaddress  # noqa: PLC0415
+
+    community = provider_config.get("community", "public")
+    port = int(provider_config.get("port", 161))
+    timeout = int(provider_config.get("timeout", 2))
+    retries = int(provider_config.get("retries", 1))
+    version = provider_config.get("version", "v2c")
+
+    raw_hosts: list[str] = provider_config.get("hosts", [])
+
+    # Expand CIDR ranges into individual IPs (cap at 1024 to avoid huge sweeps)
+    host_ips: list[str] = []
+    for h in raw_hosts:
+        try:
+            net = ipaddress.ip_network(h, strict=False)
+            host_ips.extend(str(ip) for ip in list(net.hosts())[:1024])
+        except ValueError:
+            host_ips.append(h)
+
+    discovered: list[dict] = []
+
+    # OIDs we query per host
+    _OID_SYS_DESCR = "1.3.6.1.2.1.1.1.0"
+    _OID_SYS_NAME  = "1.3.6.1.2.1.1.5.0"
+    _OID_SYS_LOCATION = "1.3.6.1.2.1.1.6.0"
+    _OID_SYS_CONTACT  = "1.3.6.1.2.1.1.4.0"
+    _OID_SYS_OBJECTID = "1.3.6.1.2.1.1.2.0"
+
+    def _auth_data():
+        if version == "v3":
+            return UsmUserData(
+                provider_config.get("v3_user", "admin"),
+                authKey=provider_config.get("v3_auth_key", ""),
+                privKey=provider_config.get("v3_priv_key", ""),
+                authProtocol=usmHMACSHAAuthProtocol,
+                privProtocol=usmAesCfb128Protocol,
+            )
+        return CommunityData(community, mpModel=1)  # mpModel=1 → SNMPv2c
+
+    engine = SnmpEngine()
+
+    for ip in host_ips:
+        try:
+            transport = UdpTransportTarget((ip, port), timeout=timeout, retries=retries)
+            oids = [
+                ObjectType(ObjectIdentity(_OID_SYS_DESCR)),
+                ObjectType(ObjectIdentity(_OID_SYS_NAME)),
+                ObjectType(ObjectIdentity(_OID_SYS_LOCATION)),
+                ObjectType(ObjectIdentity(_OID_SYS_CONTACT)),
+                ObjectType(ObjectIdentity(_OID_SYS_OBJECTID)),
+            ]
+            error_indication, error_status, _, var_binds = next(
+                getCmd(engine, _auth_data(), transport, ContextData(), *oids)
+            )
+
+            if error_indication or error_status:
+                continue  # host unreachable or SNMP error — skip silently
+
+            values: dict[str, str] = {}
+            for var_bind in var_binds:
+                oid_str = str(var_bind[0])
+                val_str = str(var_bind[1])
+                if _OID_SYS_DESCR in oid_str:
+                    values["sys_descr"] = val_str
+                elif _OID_SYS_NAME in oid_str:
+                    values["sys_name"] = val_str
+                elif _OID_SYS_LOCATION in oid_str:
+                    values["sys_location"] = val_str
+                elif _OID_SYS_CONTACT in oid_str:
+                    values["sys_contact"] = val_str
+                elif _OID_SYS_OBJECTID in oid_str:
+                    values["sys_objectid"] = val_str
+
+            sys_descr = values.get("sys_descr", "")
+            sys_name = values.get("sys_name", ip)
+
+            # Infer CI type from sysDescr
+            descr_lower = sys_descr.lower()
+            if any(kw in descr_lower for kw in ("cisco", "juniper", "arista", "router", "switch", "firewall")):
+                ci_type = "network_device"
+            elif any(kw in descr_lower for kw in ("windows", "microsoft")):
+                ci_type = "server"
+            elif any(kw in descr_lower for kw in ("linux", "ubuntu", "centos", "debian", "rhel")):
+                ci_type = "server"
+            elif any(kw in descr_lower for kw in ("printer", "hp laserjet", "xerox")):
+                ci_type = "printer"
+            elif any(kw in descr_lower for kw in ("ups", "apc")):
+                ci_type = "ups"
+            else:
+                ci_type = "network_device"
+
+            discovered.append({
+                "external_id": f"snmp:{ip}",
+                "name": sys_name or ip,
+                "ci_type": ci_type,
+                "status": "active",
+                "environment": "production",
+                "ip_address": ip,
+                "hostname": sys_name or ip,
+                "version": "",
+                "description": sys_descr[:500] if sys_descr else f"SNMP device at {ip}",
+                "attributes": json.dumps({
+                    "sys_location": values.get("sys_location", ""),
+                    "sys_contact": values.get("sys_contact", ""),
+                    "sys_objectid": values.get("sys_objectid", ""),
+                    "snmp_version": version,
+                    "community": community if version == "v2c" else "(SNMPv3)",
+                }),
+                "discovery_provider": _PROVIDER_SNMP,
+                "last_discovered_at": _utcnow().isoformat(),
+            })
+
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("SNMP host %s error: %s", ip, exc)
+
+    logger.info("SNMP discovery: %d activos encontrados de %d hosts sondeados", len(discovered), len(host_ips))
+    return discovered
+
+
 # ── Reconciliation ────────────────────────────────────────────────────────────
 
 def reconcile_cis(
@@ -683,6 +838,8 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
             discovered = discover_azure(config)
         elif provider.provider_type == _PROVIDER_GCP:
             discovered = discover_gcp(config)
+        elif provider.provider_type == _PROVIDER_SNMP:
+            discovered = discover_snmp(config)
         else:
             raise ValueError(f"Proveedor no soportado: {provider.provider_type}")
 

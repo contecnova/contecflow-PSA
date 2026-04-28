@@ -44,6 +44,17 @@ class SharedViewPatchIn(BaseModel):
     active: Optional[bool] = None
 
 
+class DashboardVersionCreateIn(BaseModel):
+    config: dict = Field(..., description="Serialized dashboard configuration snapshot")
+    change_log: Optional[str] = Field(None, max_length=500)
+
+
+class DashboardShareIn(BaseModel):
+    target_user_id: str = Field(..., min_length=1, max_length=120)
+    target_user_name: str = Field(..., min_length=1, max_length=200)
+    permission: str = Field(..., pattern="^(view|edit|admin)$")
+
+
 @router.get("/bi/collaboration/comments", summary="Listar comentarios BI por dashboard/widget")
 def list_bi_comments(
     dashboard_key: Optional[str] = Query(None),
@@ -195,3 +206,114 @@ def patch_shared_view(
     except ValueError:
         raise HTTPException(status_code=404, detail="Vista compartida no encontrada")
     return {"ok": True, "view": item}
+
+
+# ── Dashboard versioning ───────────────────────────────────────────────────────
+
+@router.get("/bi/collaboration/dashboards/{dashboard_key}/versions", summary="Historial de versiones de un dashboard BI")
+def list_dashboard_versions(
+    dashboard_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_dashboard_versions(db, organization_id=org_id, dashboard_key=dashboard_key)
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/bi/collaboration/dashboards/{dashboard_key}/versions", summary="Guardar versión de dashboard BI")
+def create_dashboard_version(
+    dashboard_key: str,
+    payload: DashboardVersionCreateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    item = svc.create_dashboard_version(
+        db,
+        organization_id=org_id,
+        dashboard_key=dashboard_key,
+        config=payload.config,
+        change_log=payload.change_log,
+        current_user=current_user,
+    )
+    return {"ok": True, "version": item}
+
+
+@router.post(
+    "/bi/collaboration/dashboards/{dashboard_key}/versions/{version_id}/restore",
+    summary="Restaurar versión anterior de dashboard BI",
+)
+def restore_dashboard_version(
+    dashboard_key: str,
+    version_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        item = svc.restore_dashboard_version(
+            db,
+            organization_id=org_id,
+            dashboard_key=dashboard_key,
+            version_id=version_id,
+            current_user=current_user,
+        )
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Versión no encontrada")
+    return {"ok": True, "version": item}
+
+
+# ── Dashboard sharing ──────────────────────────────────────────────────────────
+
+@router.get("/bi/collaboration/dashboards/{dashboard_key}/shares", summary="Listar accesos compartidos de dashboard BI")
+def list_dashboard_shares(
+    dashboard_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_dashboard_shares(db, organization_id=org_id, dashboard_key=dashboard_key)
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/bi/collaboration/dashboards/{dashboard_key}/shares", summary="Compartir dashboard BI con usuario")
+def share_dashboard(
+    dashboard_key: str,
+    payload: DashboardShareIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        item = svc.share_dashboard(
+            db,
+            organization_id=org_id,
+            dashboard_key=dashboard_key,
+            target_user_id=payload.target_user_id,
+            target_user_name=payload.target_user_name,
+            permission=payload.permission,
+            shared_by=current_user,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "share": item}
+
+
+@router.delete(
+    "/bi/collaboration/dashboards/{dashboard_key}/shares/{share_id}",
+    summary="Revocar acceso compartido a dashboard BI",
+)
+def revoke_dashboard_share(
+    dashboard_key: str,
+    share_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    deleted = svc.revoke_dashboard_share(
+        db, organization_id=org_id, dashboard_key=dashboard_key, share_id=share_id
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Acceso compartido no encontrado")
+    return {"ok": True}

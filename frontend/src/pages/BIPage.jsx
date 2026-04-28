@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
+import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
 import PageHeader from '../components/layout/PageHeader'
 import { Spinner } from '../components/ui'
 import { PieChart as PieChartIcon } from 'lucide-react'
@@ -97,16 +98,36 @@ export default function BIPage() {
   const [days, setDays] = useState(30)
   const isMobile = useIsMobile()
   const params = useMemo(() => dateRange(days), [days])
+  const periodKey = `${days}d`
+
+  // Purge stale Dexie cache on first mount
+  useEffect(() => { purgeExpiredBiCache() }, [])
 
   const { data: kpis, isLoading: loadingKpis } = useQuery({
     queryKey: ['bi-kpis', params],
-    queryFn: () => api.get('/analytics/olap/kpis', { params }).then((r) => r.data).catch(() => null),
+    queryFn: async () => {
+      try {
+        const data = await api.get('/analytics/olap/kpis', { params }).then((r) => r.data)
+        await cacheBiKpis(periodKey, data)
+        return data
+      } catch {
+        return await getCachedBiKpis(periodKey)
+      }
+    },
     staleTime: 60_000,
   })
 
   const { data: projectsHealth = [], isLoading: loadingHealth } = useQuery({
     queryKey: ['bi-projects-health', params],
-    queryFn: () => api.get('/dashboard/projects-health', { params }).then((r) => r.data).catch(() => []),
+    queryFn: async () => {
+      try {
+        const data = await api.get('/dashboard/projects-health', { params }).then((r) => r.data)
+        await cacheBiProjects(periodKey, data)
+        return data ?? []
+      } catch {
+        return (await getCachedBiProjects(periodKey)) ?? []
+      }
+    },
     staleTime: 60_000,
   })
 

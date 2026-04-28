@@ -508,3 +508,191 @@ def run_autonomous_scan(db: Session) -> dict:
         "assisted": assisted,
         "skipped": skipped,
     }
+
+
+# ── Playbook CRUD (DB-backed) ─────────────────────────────────────────────────
+
+def list_playbooks(db: Session) -> list[dict]:
+    """Return built-in playbooks merged with DB custom playbooks.
+
+    DB playbooks appear first (allow overrides of built-in logic).
+    Returns a list of dicts suitable for API responses.
+    """
+    from app.models.service_desk import AutonomousPlaybook
+
+    db_rows = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.is_active.is_(True)).all()
+    db_playbooks = [
+        {
+            "id": r.id,
+            "name": r.name,
+            "playbook_type": r.playbook_type,
+            "description": r.description,
+            "steps": _safe_json(r.steps_json, []),
+            "conditions": _safe_json(r.conditions_json, {}),
+            "is_active": r.is_active,
+            "success_count": r.success_count,
+            "failure_count": r.failure_count,
+            "source": "custom",
+        }
+        for r in db_rows
+    ]
+
+    builtin_dicts = [
+        {
+            "id": pb["id"],
+            "name": pb["name"],
+            "playbook_type": pb["id"],
+            "description": f"Built-in: {pb['name']}",
+            "steps": pb["steps"],
+            "conditions": {
+                "trigger_keywords": pb.get("trigger_keywords", []),
+                "trigger_categories": pb.get("trigger_categories", []),
+                "max_priority": pb.get("max_priority", "p3_medium"),
+                "auto_resolve": pb.get("auto_resolve", False),
+            },
+            "is_active": True,
+            "success_count": 0,
+            "failure_count": 0,
+            "source": "builtin",
+        }
+        for pb in _BUILTIN_PLAYBOOKS
+    ]
+
+    return db_playbooks + builtin_dicts
+
+
+def _safe_json(raw: Optional[str], default):
+    if not raw:
+        return default
+    try:
+        return json.loads(raw)
+    except Exception:
+        return default
+
+
+def create_playbook(db: Session, data: dict) -> dict:
+    """Create a new custom playbook in the database.
+
+    *data* keys: name, playbook_type, description, steps (list), conditions (dict).
+    """
+    from app.models.service_desk import AutonomousPlaybook
+
+    row = AutonomousPlaybook(
+        name=data["name"],
+        playbook_type=data.get("playbook_type", data["name"].lower().replace(" ", "_")),
+        description=data.get("description"),
+        steps_json=json.dumps(data.get("steps", [])),
+        conditions_json=json.dumps(data.get("conditions", {})),
+        is_active=True,
+    )
+    db.add(row)
+    db.flush()
+    return {
+        "id": row.id,
+        "name": row.name,
+        "playbook_type": row.playbook_type,
+        "status": "created",
+    }
+
+
+def update_playbook(db: Session, playbook_id: str, data: dict) -> dict:
+    """Update an existing custom playbook."""
+    from app.models.service_desk import AutonomousPlaybook
+    from fastapi import HTTPException
+
+    row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
+    if not row:
+        raise HTTPException(404, "Playbook not found")
+
+    if "name" in data:
+        row.name = data["name"]
+    if "description" in data:
+        row.description = data["description"]
+    if "steps" in data:
+        row.steps_json = json.dumps(data["steps"])
+    if "conditions" in data:
+        row.conditions_json = json.dumps(data["conditions"])
+    if "is_active" in data:
+        row.is_active = data["is_active"]
+
+    db.flush()
+    return {"id": row.id, "name": row.name, "status": "updated"}
+
+
+def deactivate_playbook(db: Session, playbook_id: str) -> dict:
+    """Deactivate (soft-delete) a custom playbook."""
+    from app.models.service_desk import AutonomousPlaybook
+    from fastapi import HTTPException
+
+    row = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.id == playbook_id).first()
+    if not row:
+        raise HTTPException(404, "Playbook not found")
+
+    row.is_active = False
+    db.flush()
+    return {"id": playbook_id, "status": "deactivated"}
+
+
+def get_execution_stats(db: Session) -> dict:
+    """Return aggregate statistics on autonomous resolution executions."""
+    from app.models.service_desk import AutonomousPlaybookExecution
+    from sqlalchemy import func
+
+    total = db.query(func.count(AutonomousPlaybookExecution.id)).scalar() or 0
+    success = (
+        db.query(func.count(AutonomousPlaybookExecution.id))
+        .filter(AutonomousPlaybookExecution.status == "success")
+        .scalar() or 0
+    )
+    failed = (
+        db.query(func.count(AutonomousPlaybookExecution.id))
+        .filter(AutonomousPlaybookExecution.status == "failed")
+        .scalar() or 0
+    )
+
+    by_type = (
+        db.query(
+            AutonomousPlaybookExecution.playbook_type,
+            func.count(AutonomousPlaybookExecution.id).label("count"),
+        )
+        .group_by(AutonomousPlaybookExecution.playbook_type)
+        .all()
+    )
+
+    return {
+        "total_executions": total,
+        "success": success,
+        "failed": failed,
+        "success_rate_pct": round(success / total * 100, 1) if total else 0,
+        "by_playbook_type": {t: c for t, c in by_type},
+    }
+
+
+def get_execution_log(db: Session, page: int = 1, page_size: int = 25) -> dict:
+    """Return paginated autonomous agent execution log."""
+    from app.models.service_desk import AutonomousPlaybookExecution
+
+    q = db.query(AutonomousPlaybookExecution).order_by(
+        AutonomousPlaybookExecution.executed_at.desc()
+    )
+    total = q.count()
+    rows = q.offset((page - 1) * page_size).limit(page_size).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "items": [
+            {
+                "id": r.id,
+                "ticket_id": r.ticket_id,
+                "playbook_type": r.playbook_type,
+                "status": r.status,
+                "confidence_score": r.confidence_score,
+                "resolution_note": r.resolution_note,
+                "error_message": r.error_message,
+                "executed_at": r.executed_at.isoformat() if r.executed_at else None,
+                "triggered_by": r.triggered_by,
+            }
+            for r in rows
+        ],
+    }

@@ -106,6 +106,28 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.compliance_check",
         "schedule": crontab(hour=6, minute=0, day_of_week=1),
     },
+    # ── BI Phase 2 tasks ──────────────────────────────────────────────────────
+    # BI scheduled delivery — check every hour at :45
+    "bi-scheduled-delivery": {
+        "task": "app.worker.bi_scheduled_delivery_run",
+        "schedule": crontab(minute=45),
+    },
+    # BI KPI snapshot push via Redis — every 5 minutes
+    "bi-kpi-push": {
+        "task": "app.worker.bi_kpi_push",
+        "schedule": crontab(minute="*/5"),
+    },
+    # BI ML model retrain (Prophet / LightGBM) — weekly on Sundays at 03:30
+    "bi-ml-retrain": {
+        "task": "app.worker.bi_ml_retrain",
+        "schedule": crontab(hour=3, minute=30, day_of_week=0),
+    },
+    # ── ITSM Fase 3 tasks ─────────────────────────────────────────────────────
+    # Autonomous agent scan — every 5 minutes
+    "autonomous-agent-scan": {
+        "task": "app.worker.autonomous_agent_scan",
+        "schedule": crontab(minute="*/5"),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -1090,6 +1112,149 @@ def compliance_check():
         return result
     except Exception as exc:  # noqa: BLE001
         _worker_logger.error("compliance_check error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+# ── BI Phase 2 Celery tasks ────────────────────────────────────────────────────
+
+@celery_app.task(name="app.worker.bi_scheduled_delivery_run")
+def bi_scheduled_delivery_run():
+    """Evaluate and run all due BI report delivery schedules (Slack / Teams / Email / PDF / Excel).
+
+    Runs every hour at :45.
+    """
+    from app.db.session import SessionLocal
+    from app.services.bi_report_delivery_service import run_due_deliveries
+
+    db = SessionLocal()
+    try:
+        result = run_due_deliveries(db)
+        _worker_logger.info(
+            "BI delivery run: %d delivered, %d errors",
+            result.get("total_run", 0),
+            result.get("total_errors", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("bi_scheduled_delivery_run error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.bi_kpi_push")
+def bi_kpi_push():
+    """Compute fresh KPI snapshot for each active org and publish to Redis BI channel.
+
+    Subscribed WebSocket clients receive the snapshot without polling.
+    Runs every 5 minutes.
+    """
+    from app.db.session import SessionLocal
+    from app.models.settings import AppSetting
+    from app.services.bi_intelligence_service import (
+        ml_forecast_revenue,
+        ml_detect_revenue_anomalies,
+        publish_kpi_snapshot,
+    )
+
+    db = SessionLocal()
+    pushed = 0
+    try:
+        # Collect distinct org IDs that have BI connector state
+        org_ids = [
+            row.organization_id
+            for row in db.query(AppSetting.organization_id).distinct().all()
+        ]
+        org_ids = list({oid for oid in org_ids})  # deduplicate (includes None)
+
+        for org_id in org_ids:
+            try:
+                forecast = ml_forecast_revenue(db, organization_id=org_id, months_ahead=3)
+                anomalies = ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=2.0)
+                snapshot = {
+                    "type": "bi_kpi_snapshot",
+                    "organization_id": org_id,
+                    "forecast_head": forecast.get("forecast", [])[:3],
+                    "anomaly_count": len(anomalies.get("items", [])),
+                    "generated_at": forecast.get("generated_at"),
+                }
+                publish_kpi_snapshot(org_id, snapshot)
+                pushed += 1
+            except Exception as exc:
+                _worker_logger.debug("bi_kpi_push skip [org=%s]: %s", org_id, exc)
+
+        _worker_logger.info("bi_kpi_push: pushed %d org snapshots", pushed)
+        return {"pushed": pushed}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("bi_kpi_push error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.worker.bi_ml_retrain")
+def bi_ml_retrain():
+    """Refresh ML model training data stored as AppSetting JSON blobs.
+
+    Logs retraining stats per org. The actual model artifacts are ephemeral
+    (recomputed on demand); this task pre-warms the history series cache.
+    Runs weekly on Sundays at 03:30.
+    """
+    from app.db.session import SessionLocal
+    from app.models.settings import AppSetting
+    from app.services.bi_intelligence_service import ml_detect_anomalies_multivariate
+
+    db = SessionLocal()
+    retrained = 0
+    try:
+        org_ids = list({
+            row.organization_id
+            for row in db.query(AppSetting.organization_id).distinct().all()
+        })
+        for org_id in org_ids:
+            try:
+                # Run anomaly detection to exercise IsolationForest training path
+                ml_detect_anomalies_multivariate(db, organization_id=org_id, contamination=0.1)
+                retrained += 1
+            except Exception as exc:
+                _worker_logger.debug("bi_ml_retrain skip [org=%s]: %s", org_id, exc)
+
+        _worker_logger.info("bi_ml_retrain: warmed models for %d orgs", retrained)
+        return {"retrained": retrained}
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("bi_ml_retrain error: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        db.close()
+
+
+# ── ITSM Fase 3 — Autonomous Agent scan ──────────────────────────────────────
+
+@celery_app.task(name="app.worker.autonomous_agent_scan")
+def autonomous_agent_scan():
+    """Process all newly created open tickets with the autonomous agent.
+
+    Runs every 5 minutes. Tickets eligible for autonomous resolution are
+    handled immediately; others receive playbook-assisted first responses.
+    """
+    from app.db.session import SessionLocal
+    from app.services.service_desk.autonomous_agent_service import run_autonomous_scan
+
+    db = SessionLocal()
+    try:
+        result = run_autonomous_scan(db)
+        _worker_logger.info(
+            "autonomous_agent_scan: evaluated=%d auto_resolved=%d assisted=%d skipped=%d",
+            result.get("evaluated", 0),
+            result.get("auto_resolved", 0),
+            result.get("assisted", 0),
+            result.get("skipped", 0),
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        _worker_logger.error("autonomous_agent_scan error: %s", exc)
         return {"error": str(exc)}
     finally:
         db.close()

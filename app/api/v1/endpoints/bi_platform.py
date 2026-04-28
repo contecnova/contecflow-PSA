@@ -65,6 +65,14 @@ class DatasetSnapshotIn(BaseModel):
     payload: dict[str, Any]
 
 
+class FieldSensitivityIn(BaseModel):
+    dataset_id: str = Field(..., min_length=1, max_length=120)
+    field_name: str = Field(..., min_length=1, max_length=120)
+    sensitivity_level: str = Field(..., pattern="^(public|internal|confidential|restricted)$")
+    pii_types: Optional[list[str]] = Field(default_factory=list)
+    requires_approval: bool = False
+
+
 @router.get("/bi/platform/embed/sdk", summary="Manifest del SDK embebido BI Platform")
 def phase3_embed_sdk(
     db: Session = Depends(get_db),
@@ -298,3 +306,61 @@ def phase3_diff_dataset_snapshots(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Snapshot no encontrado")
+
+
+# ── Field-level sensitivity ───────────────────────────────────────────────────
+
+@router.get("/bi/platform/governance/field-sensitivity", summary="Listar clasificación de sensibilidad de campos BI")
+def phase3_list_field_sensitivity(
+    dataset_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_field_sensitivity(db, organization_id=org_id, dataset_id=dataset_id)
+    return {"items": items, "count": len(items)}
+
+
+@router.put("/bi/platform/governance/field-sensitivity", summary="Crear/actualizar clasificación de sensibilidad de campo")
+def phase3_upsert_field_sensitivity(
+    payload: FieldSensitivityIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        row = svc.upsert_field_sensitivity(
+            db,
+            organization_id=org_id,
+            dataset_id=payload.dataset_id,
+            field_name=payload.field_name,
+            sensitivity_level=payload.sensitivity_level,
+            pii_types=payload.pii_types,
+            requires_approval=payload.requires_approval,
+            current_user=current_user,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "field": row}
+
+
+@router.delete("/bi/platform/governance/field-sensitivity/{sensitivity_id}", summary="Eliminar clasificación de sensibilidad de campo")
+def phase3_delete_field_sensitivity(
+    sensitivity_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    deleted = svc.delete_field_sensitivity(db, organization_id=org_id, sensitivity_id=sensitivity_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Clasificación de campo no encontrada")
+    return {"ok": True}
+
+
+@router.get("/bi/platform/governance/field-sensitivity/summary", summary="Resumen de clasificación de sensibilidad BI")
+def phase3_field_sensitivity_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.get_sensitivity_summary(db, organization_id=org_id)

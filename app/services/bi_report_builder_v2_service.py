@@ -384,3 +384,217 @@ def export_preset_data(
         "count": result.get("count"),
         "generated_at": _iso_now(),
     }
+
+
+# ── BI Phase 2: Dashboard Templates ───────────────────────────────────────────
+
+TEMPLATES_KEY = "bi.report_builder_v2.templates"
+DASHBOARD_LAYOUTS_KEY = "bi.report_builder_v2.layouts"
+
+# ── Component library (static registry) ───────────────────────────────────────
+
+COMPONENT_TYPES: list[dict[str, Any]] = [
+    {
+        "type": "chart_bar",
+        "label": "Gráfico de barras",
+        "category": "visualization",
+        "default_config": {"orientation": "vertical", "stacked": False, "show_legend": True},
+        "accepts_columns": True,
+        "min_w": 4, "min_h": 3,
+    },
+    {
+        "type": "chart_line",
+        "label": "Gráfico de líneas",
+        "category": "visualization",
+        "default_config": {"smooth": True, "show_area": False, "show_legend": True},
+        "accepts_columns": True,
+        "min_w": 4, "min_h": 3,
+    },
+    {
+        "type": "chart_pie",
+        "label": "Gráfico de tarta / donut",
+        "category": "visualization",
+        "default_config": {"donut": False, "show_labels": True},
+        "accepts_columns": True,
+        "min_w": 3, "min_h": 3,
+    },
+    {
+        "type": "chart_scatter",
+        "label": "Gráfico de dispersión",
+        "category": "visualization",
+        "default_config": {"x_col": None, "y_col": None, "size_col": None},
+        "accepts_columns": True,
+        "min_w": 4, "min_h": 3,
+    },
+    {
+        "type": "chart_heatmap",
+        "label": "Mapa de calor",
+        "category": "visualization",
+        "default_config": {"color_scale": "viridis"},
+        "accepts_columns": True,
+        "min_w": 5, "min_h": 4,
+    },
+    {
+        "type": "kpi_card",
+        "label": "Tarjeta KPI",
+        "category": "metric",
+        "default_config": {"metric_col": None, "comparison_col": None, "format": "number", "prefix": "", "suffix": ""},
+        "accepts_columns": True,
+        "min_w": 2, "min_h": 2,
+    },
+    {
+        "type": "table",
+        "label": "Tabla de datos",
+        "category": "data",
+        "default_config": {"paginate": True, "page_size": 25, "sortable": True, "searchable": True},
+        "accepts_columns": True,
+        "min_w": 6, "min_h": 4,
+    },
+    {
+        "type": "text",
+        "label": "Bloque de texto / Markdown",
+        "category": "content",
+        "default_config": {"content": "", "format": "markdown"},
+        "accepts_columns": False,
+        "min_w": 2, "min_h": 1,
+    },
+    {
+        "type": "image",
+        "label": "Imagen / Logo",
+        "category": "content",
+        "default_config": {"src": "", "alt": "", "fit": "contain"},
+        "accepts_columns": False,
+        "min_w": 2, "min_h": 2,
+    },
+    {
+        "type": "divider",
+        "label": "Separador",
+        "category": "layout",
+        "default_config": {"orientation": "horizontal"},
+        "accepts_columns": False,
+        "min_w": 12, "min_h": 1,
+    },
+]
+
+
+def list_component_types() -> list[dict[str, Any]]:
+    """Return the static component type registry."""
+    return COMPONENT_TYPES
+
+
+# ── Template CRUD ──────────────────────────────────────────────────────────────
+
+def list_templates(db: Session, *, organization_id: Optional[str]) -> list[dict[str, Any]]:
+    templates_map = _get_json(db, TEMPLATES_KEY, organization_id, default={})
+    return sorted(templates_map.values(), key=lambda t: t.get("created_at", ""), reverse=True)
+
+
+def get_template(db: Session, *, organization_id: Optional[str], template_id: str) -> dict[str, Any]:
+    templates_map = _get_json(db, TEMPLATES_KEY, organization_id, default={})
+    tpl = templates_map.get(template_id)
+    if not tpl:
+        raise ValueError("template_not_found")
+    return tpl
+
+
+def create_template(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    name: str,
+    description: str = "",
+    layout: list[dict[str, Any]] | None = None,
+    preset_id: str | None = None,
+    tags: list[str] | None = None,
+) -> dict[str, Any]:
+    import uuid
+    templates_map = _get_json(db, TEMPLATES_KEY, organization_id, default={})
+    template_id = str(uuid.uuid4())
+    template = {
+        "id": template_id,
+        "name": name,
+        "description": description,
+        "layout": layout or [],
+        "preset_id": preset_id,
+        "tags": tags or [],
+        "created_at": _iso_now(),
+        "updated_at": _iso_now(),
+    }
+    templates_map[template_id] = template
+    _set_json(db, TEMPLATES_KEY, organization_id, templates_map,
+              description="BI Report Builder v2 dashboard templates (JSON)")
+    return template
+
+
+def update_template(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    template_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    templates_map = _get_json(db, TEMPLATES_KEY, organization_id, default={})
+    tpl = templates_map.get(template_id)
+    if not tpl:
+        raise ValueError("template_not_found")
+    allowed = {"name", "description", "layout", "preset_id", "tags"}
+    for field in allowed:
+        if field in payload:
+            tpl[field] = payload[field]
+    tpl["updated_at"] = _iso_now()
+    templates_map[template_id] = tpl
+    _set_json(db, TEMPLATES_KEY, organization_id, templates_map,
+              description="BI Report Builder v2 dashboard templates (JSON)")
+    return tpl
+
+
+def delete_template(db: Session, *, organization_id: Optional[str], template_id: str) -> bool:
+    templates_map = _get_json(db, TEMPLATES_KEY, organization_id, default={})
+    if template_id not in templates_map:
+        raise ValueError("template_not_found")
+    del templates_map[template_id]
+    _set_json(db, TEMPLATES_KEY, organization_id, templates_map,
+              description="BI Report Builder v2 dashboard templates (JSON)")
+    return True
+
+
+# ── Dashboard layout persistence (drag-and-drop grid) ─────────────────────────
+
+def get_dashboard_layout(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+) -> dict[str, Any]:
+    layouts = _get_json(db, DASHBOARD_LAYOUTS_KEY, organization_id, default={})
+    return layouts.get(dashboard_key, {"dashboard_key": dashboard_key, "components": [], "grid_cols": 12})
+
+
+def save_dashboard_layout(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    components: list[dict[str, Any]],
+    grid_cols: int = 12,
+) -> dict[str, Any]:
+    """Persist drag-and-drop grid layout for a named dashboard.
+
+    Each component item is: ``{id, type, preset_id?, x, y, w, h, config}``.
+    """
+    layouts = _get_json(db, DASHBOARD_LAYOUTS_KEY, organization_id, default={})
+    layout = {
+        "dashboard_key": dashboard_key,
+        "components": components,
+        "grid_cols": grid_cols,
+        "saved_at": _iso_now(),
+    }
+    layouts[dashboard_key] = layout
+    _set_json(db, DASHBOARD_LAYOUTS_KEY, organization_id, layouts,
+              description="BI Report Builder v2 dashboard drag-and-drop layouts (JSON)")
+    return layout
+
+
+def list_dashboard_layouts(db: Session, *, organization_id: Optional[str]) -> list[dict[str, Any]]:
+    layouts = _get_json(db, DASHBOARD_LAYOUTS_KEY, organization_id, default={})
+    return list(layouts.values())

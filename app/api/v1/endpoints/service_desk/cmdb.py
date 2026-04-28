@@ -18,7 +18,7 @@ from app.services.service_desk.cmdb_service import (
 )
 from app.services.service_desk.cmdb_relation_service import (
     get_ci_relations_payload, build_ci_relation, get_ci_impact_payload,
-    get_ci_topology_graph_payload,
+    get_ci_topology_graph_payload, get_dependency_graph_d3, get_blast_radius_summary,
 )
 from app.services.service_desk.cmdb_discovery_service import (
     run_discovery_for_provider,
@@ -229,3 +229,31 @@ def reconciliation_health(
     current_user: User = Depends(require_admin),
 ):
     return get_reconciliation_health(db, provider_type=provider_type)
+
+
+# ── Dependency mapping + Blast Radius ────────────────────────────────────────
+
+@router.get("/cmdb/{ci_id}/dependency-graph", summary="Grafo de dependencias D3.js force-directed")
+def get_dependency_graph(
+    ci_id: str,
+    depth: int = Query(3, ge=1, le=6),
+    limit: int = Query(300, ge=1, le=2000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retorna un grafo compatible con D3.js forceSimulation.
+
+    Nodos incluyen color por tipo de CI y estado operacional.
+    Links incluyen tipo de relación y strength para la simulación.
+    """
+    return get_dependency_graph_d3(db, current_user, ci_id, depth=depth, limit=limit)
+
+
+@router.get("/cmdb/{ci_id}/blast-radius", summary="Resumen de blast radius (CIs afectados + usuarios estimados)")
+def get_ci_blast_radius(
+    ci_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Análisis de radio de impacto con desglose por criticidad y estimación de usuarios afectados."""
+    return get_blast_radius_summary(db, current_user, ci_id)

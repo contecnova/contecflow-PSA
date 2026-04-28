@@ -24,6 +24,9 @@ EMBED_SETTINGS_KEY = "bi.phase3.embed.settings"
 CONNECTORS_CATALOG_KEY = "bi.phase3.connectors.catalog"
 CUSTOM_CONNECTORS_KEY = "bi.phase3.connectors.custom"
 LINEAGE_KEY = "bi.phase3.governance.lineage"
+FIELD_SENSITIVITY_KEY = "bi.phase3.governance.field_sensitivity"
+
+SENSITIVITY_LEVELS = {"public", "internal", "confidential", "restricted"}
 
 
 def _iso_now() -> str:
@@ -424,4 +427,115 @@ def diff_snapshots(
         "to_id": to_id,
         "changes": changes,
         "change_count": len(changes),
+    }
+
+
+# ── Field-level sensitivity classification ────────────────────────────────────
+
+def list_field_sensitivity(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dataset_id: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    items = _get_json(db, FIELD_SENSITIVITY_KEY, organization_id, default=[])
+    if dataset_id:
+        items = [i for i in items if i.get("dataset_id") == dataset_id]
+    return items
+
+
+def upsert_field_sensitivity(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dataset_id: str,
+    field_name: str,
+    sensitivity_level: str,
+    pii_types: Optional[list[str]],
+    requires_approval: bool,
+    current_user: User,
+) -> dict[str, Any]:
+    if sensitivity_level not in SENSITIVITY_LEVELS:
+        raise ValueError("invalid_sensitivity_level")
+
+    items = list_field_sensitivity(db, organization_id=organization_id)
+    existing = next(
+        (i for i in items if i.get("dataset_id") == dataset_id and i.get("field_name") == field_name),
+        None,
+    )
+    now = _iso_now()
+    if existing:
+        existing["sensitivity_level"] = sensitivity_level
+        existing["pii_types"] = pii_types or []
+        existing["requires_approval"] = requires_approval
+        existing["updated_by"] = current_user.id
+        existing["updated_at"] = now
+        row = existing
+    else:
+        row = {
+            "id": str(uuid.uuid4()),
+            "dataset_id": dataset_id,
+            "field_name": field_name,
+            "sensitivity_level": sensitivity_level,
+            "pii_types": pii_types or [],
+            "requires_approval": requires_approval,
+            "created_by": current_user.id,
+            "created_at": now,
+            "updated_by": current_user.id,
+            "updated_at": now,
+        }
+        items.append(row)
+
+    _set_json(
+        db,
+        FIELD_SENSITIVITY_KEY,
+        organization_id,
+        items,
+        description="BI Platform field-level sensitivity classification (JSON)",
+    )
+    return row
+
+
+def delete_field_sensitivity(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    sensitivity_id: str,
+) -> bool:
+    items = list_field_sensitivity(db, organization_id=organization_id)
+    new_items = [i for i in items if i.get("id") != sensitivity_id]
+    if len(new_items) == len(items):
+        return False
+    _set_json(
+        db,
+        FIELD_SENSITIVITY_KEY,
+        organization_id,
+        new_items,
+        description="BI Platform field-level sensitivity classification (JSON)",
+    )
+    return True
+
+
+def get_sensitivity_summary(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+) -> dict[str, Any]:
+    """Return count of fields per sensitivity level and datasets with restricted/PII fields."""
+    items = list_field_sensitivity(db, organization_id=organization_id)
+    by_level: dict[str, int] = {lvl: 0 for lvl in SENSITIVITY_LEVELS}
+    pii_datasets: set[str] = set()
+    restricted_datasets: set[str] = set()
+    for item in items:
+        lvl = item.get("sensitivity_level", "public")
+        by_level[lvl] = by_level.get(lvl, 0) + 1
+        if item.get("pii_types"):
+            pii_datasets.add(item.get("dataset_id", ""))
+        if lvl == "restricted":
+            restricted_datasets.add(item.get("dataset_id", ""))
+    return {
+        "total_classified_fields": len(items),
+        "by_level": by_level,
+        "datasets_with_pii": sorted(pii_datasets),
+        "datasets_with_restricted_fields": sorted(restricted_datasets),
     }

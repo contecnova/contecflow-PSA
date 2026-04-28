@@ -332,3 +332,132 @@ def run_predictive_scan(db: Session) -> dict:
 
     logger.info("Predictive scan: %d scanned, %d updated", scanned, updated)
     return {"scanned": scanned, "updated": updated}
+
+
+# ── SLA breach prediction ─────────────────────────────────────────────────────
+
+def predict_sla_breach(db: Session, ticket: Ticket) -> dict:
+    """Predict the probability and timing of SLA breach for an open ticket.
+
+    Algorithm:
+      1. If the SLA deadline has already passed → probability = 1.0 (already breached).
+      2. If no SLA deadline → return low-confidence estimate based on priority risk.
+      3. Otherwise: compare predicted resolution time against time remaining.
+         breach_prob = predicted_minutes / deadline_minutes_remaining (capped 0-1).
+
+    Returns::
+
+        {
+          "ticket_id": str,
+          "already_breached": bool,
+          "breach_probability": float,   # 0-1
+          "sla_response_due": str | None,
+          "sla_resolution_due": str | None,
+          "minutes_until_resolution_due": int | None,
+          "predicted_resolution_min": int,
+          "risk_level": str,             # critical|high|medium|low
+          "recommendation": str,
+        }
+    """
+    now = datetime.now(tz=timezone.utc)
+
+    # Determine the most relevant SLA deadline (resolution takes precedence)
+    resolution_due = getattr(ticket, "sla_resolution_due", None)
+    response_due = getattr(ticket, "sla_response_due", None)
+
+    # Check already breached
+    already_breached = False
+    minutes_remaining: Optional[int] = None
+    sla_deadline = resolution_due or response_due
+
+    if sla_deadline is not None:
+        if isinstance(sla_deadline, str):
+            try:
+                from datetime import datetime as _dt
+                sla_deadline = _dt.fromisoformat(sla_deadline.replace("Z", "+00:00"))
+            except ValueError:
+                sla_deadline = None
+
+    if sla_deadline is not None:
+        delta = sla_deadline - now
+        if delta.total_seconds() <= 0:
+            already_breached = True
+            minutes_remaining = 0
+        else:
+            minutes_remaining = int(delta.total_seconds() / 60)
+
+    predicted_min = predict_time_to_resolve(db, ticket)
+
+    # Compute breach probability
+    if already_breached:
+        breach_prob = 1.0
+    elif minutes_remaining is None:
+        # No SLA deadline: fall back to escalation risk as proxy
+        breach_prob = predict_escalation_risk(db, ticket)
+    else:
+        # Ratio: if predicted time > remaining → will breach
+        breach_prob = min(1.0, predicted_min / max(1, minutes_remaining))
+
+    # Risk level
+    if breach_prob >= 0.80:
+        risk_level = "critical"
+        recommendation = "Escalar inmediatamente y reasignar a agente senior"
+    elif breach_prob >= 0.55:
+        risk_level = "high"
+        recommendation = "Priorizar y contactar al solicitante para actualización"
+    elif breach_prob >= 0.30:
+        risk_level = "medium"
+        recommendation = "Monitorizar — puede resolver en tiempo si no hay bloqueos"
+    else:
+        risk_level = "low"
+        recommendation = "On track — probabilidad baja de incumplir SLA"
+
+    return {
+        "ticket_id": ticket.id,
+        "already_breached": already_breached,
+        "breach_probability": round(breach_prob, 4),
+        "sla_response_due": response_due.isoformat() if hasattr(response_due, "isoformat") else str(response_due) if response_due else None,
+        "sla_resolution_due": resolution_due.isoformat() if hasattr(resolution_due, "isoformat") else str(resolution_due) if resolution_due else None,
+        "minutes_until_resolution_due": minutes_remaining,
+        "predicted_resolution_min": predicted_min,
+        "risk_level": risk_level,
+        "recommendation": recommendation,
+    }
+
+
+def get_at_risk_tickets(db: Session, limit: int = 50) -> list[dict]:
+    """Return open tickets sorted by SLA breach probability (highest first).
+
+    Filters to only open/in-progress tickets with an SLA deadline.
+    """
+    open_tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.status.notin_([s.value for s in _CLOSED_STATUSES]),
+            Ticket.sla_resolution_due.isnot(None),
+        )
+        .limit(200)
+        .all()
+    )
+
+    results = []
+    for ticket in open_tickets:
+        try:
+            sla_data = predict_sla_breach(db, ticket)
+            results.append({
+                "ticket_id": ticket.id,
+                "ticket_number": ticket.number,
+                "title": ticket.title,
+                "priority": getattr(ticket.priority, "value", str(ticket.priority)),
+                "status": getattr(ticket.status, "value", str(ticket.status)),
+                "breach_probability": sla_data["breach_probability"],
+                "already_breached": sla_data["already_breached"],
+                "minutes_until_due": sla_data["minutes_until_resolution_due"],
+                "risk_level": sla_data["risk_level"],
+                "recommendation": sla_data["recommendation"],
+            })
+        except Exception as exc:
+            logger.warning("SLA breach prediction failed for ticket %s: %s", ticket.id, exc)
+
+    results.sort(key=lambda x: -x["breach_probability"])
+    return results[:limit]

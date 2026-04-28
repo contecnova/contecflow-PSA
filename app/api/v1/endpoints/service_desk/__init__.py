@@ -2,15 +2,20 @@
 Service Desk ITSM/ITIL API — modular aggregator.
 
 Sub-domains:
-  tickets   — ticket CRUD, comments, SLA events, watchers, merge/split, links
-  kb        — knowledge base articles, KEDB
-  cmdb      — configuration item inventory and relations
-  sla       — SLA policies, escalation rules, holidays, priority matrix
-  oncall    — on-call schedules and entries
-  templates — ticket templates, canned responses, agent workspace, inbound email
-  analytics — stats, ITIL metrics, agent performance
-  misc      — catalog, groups, problems, announcements, routing, changes,
-               major incidents, assets, status page
+  tickets     — ticket CRUD, comments, SLA events, watchers, merge/split, links
+  kb          — knowledge base articles, KEDB
+  cmdb        — configuration item inventory and relations
+  sla         — SLA policies, escalation rules, holidays, priority matrix
+  oncall      — on-call schedules and entries
+  templates   — ticket templates, canned responses, agent workspace, inbound email
+  analytics   — stats, ITIL metrics, agent performance
+  misc        — catalog, groups, problems, announcements, routing, changes,
+                 major incidents, assets, status page
+  assets      — hardware lifecycle, license management, software audit
+  smart_catalog — ML recommendations, dynamic forms, provisioning automation
+  predictive  — severity prediction, resolution time, SLA breach probability
+  autonomous  — bot-driven resolution, playbooks, execution audit
+  multichannel — email/SMS inbound webhooks, multi-channel notifications
 """
 from fastapi import APIRouter
 
@@ -27,6 +32,14 @@ from app.api.v1.endpoints.service_desk import (
     connectors_marketplace,
     governance_ops,
     ai_auto_resolution,
+    assets,
+    smart_catalog,
+    predictive,
+    autonomous,
+    multichannel,
+    change_impact,
+    sd_reports,
+    capacity_planning,
 )
 
 router = APIRouter()
@@ -43,3 +56,11 @@ router.include_router(workflow_designer.router)
 router.include_router(connectors_marketplace.router)
 router.include_router(governance_ops.router)
 router.include_router(ai_auto_resolution.router)
+router.include_router(assets.router)
+router.include_router(smart_catalog.router)
+router.include_router(predictive.router)
+router.include_router(autonomous.router)
+router.include_router(multichannel.router)
+router.include_router(change_impact.router)
+router.include_router(sd_reports.router)
+router.include_router(capacity_planning.router)

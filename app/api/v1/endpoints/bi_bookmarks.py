@@ -129,3 +129,40 @@ def delete_bookmark(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail="bookmark_not_found")
+
+
+# ── Shareable URL endpoints ────────────────────────────────────────────────────
+
+@router.post("/bi/bookmarks/{bookmark_id}/share", summary="Generar URL compartible para un bookmark")
+def generate_share_url(
+    bookmark_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Genera un token público único para compartir un bookmark sin necesidad de login."""
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        result = svc.generate_share_token(
+            db,
+            organization_id=org_id,
+            bookmark_id=bookmark_id,
+            current_user=current_user,
+        )
+    except ValueError as exc:
+        code = 404 if "not_found" in str(exc) else 403
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+    return result
+
+
+@router.get("/bi/bookmarks/shared/{share_token}", summary="Cargar bookmark por URL compartida (sin auth)")
+def get_shared_bookmark(
+    share_token: str,
+    db: Session = Depends(get_db),
+):
+    """Endpoint público — no requiere autenticación.
+    Retorna el estado del bookmark asociado al share_token.
+    """
+    try:
+        return svc.get_bookmark_by_share_token(db, share_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

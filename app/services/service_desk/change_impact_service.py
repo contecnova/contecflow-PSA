@@ -412,3 +412,157 @@ def score_and_persist(db: Session, change_id: str) -> dict:
     )
 
     return report
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# v23.10.44 — Automated Change Impact Analysis + Rollback Plan (new)
+# ══════════════════════════════════════════════════════════════════════════════
+
+import math  # noqa: E402
+
+
+def _get_json_setting(db: Session, key: str) -> dict:
+    from app.models.settings import AppSetting  # noqa: PLC0415
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if not row or not row.value:
+        return {}
+    try:
+        return json.loads(row.value)
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _set_json_setting(db: Session, key: str, data: dict) -> None:
+    from app.models.settings import AppSetting  # noqa: PLC0415
+    row = db.query(AppSetting).filter(AppSetting.key == key).first()
+    serialized = json.dumps(data, ensure_ascii=False)
+    if row:
+        row.value = serialized
+    else:
+        row = AppSetting(key=key, value=serialized, description=f"Change impact: {key}")
+        db.add(row)
+    db.flush()
+
+
+_CRITICALITY_RISK_SCORE = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+_RISK_LEVEL_THRESHOLDS = {"critical": 12, "high": 8, "medium": 4}
+
+
+def _risk_level_label(score: float) -> str:
+    if score >= _RISK_LEVEL_THRESHOLDS["critical"]:
+        return "critical"
+    if score >= _RISK_LEVEL_THRESHOLDS["high"]:
+        return "high"
+    if score >= _RISK_LEVEL_THRESHOLDS["medium"]:
+        return "medium"
+    return "low"
+
+
+def get_risk_matrix_for_change(db: Session, change_id: str) -> list[dict]:
+    """Calculate per-CI risk matrix for all CIs affected by the change."""
+    change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+    if not change:
+        raise ValueError(f"Change {change_id} not found")
+
+    risk_data = score_change_risk(db, change)
+    ci_ids = risk_data.get("ci_ids_expanded", [])
+
+    matrix: list[dict] = []
+    for ci_id in ci_ids:
+        ci = db.query(ConfigurationItem).filter(ConfigurationItem.id == ci_id).first()
+        if not ci:
+            continue
+        criticality = (getattr(ci, "criticality", None) or "medium").lower()
+        crit_score = _CRITICALITY_RISK_SCORE.get(criticality, 2)
+
+        dep_count = (
+            db.query(CIRelation)
+            .filter(CIRelation.target_ci_id == ci_id)
+            .count()
+        )
+        recent_incidents = _incident_count_last_days(db, [ci_id], days=30)
+        dep_factor = math.sqrt(dep_count + 1)
+        incident_factor = min(recent_incidents * 0.5, 2.0)
+        risk_score = round(crit_score * dep_factor * (1 + incident_factor), 2)
+
+        matrix.append({
+            "ci_id": ci_id,
+            "ci_name": ci.name,
+            "ci_type": ci.ci_type.value,
+            "criticality": criticality,
+            "dependency_count": dep_count,
+            "recent_incidents": recent_incidents,
+            "risk_score": risk_score,
+            "impact_level": _risk_level_label(risk_score),
+        })
+
+    matrix.sort(key=lambda x: x["risk_score"], reverse=True)
+    return matrix
+
+
+def analyze_change_impact_full(
+    db: Session,
+    change_id: str,
+    current_user_id: Optional[str] = None,
+) -> dict:
+    """Full automated impact analysis: score + risk matrix + narrative + cache."""
+    report = generate_impact_report(db, change_id)
+    matrix = get_risk_matrix_for_change(db, change_id)
+    report["detailed_risk_matrix"] = matrix[:20]
+    report["analyzed_by"] = current_user_id
+
+    # Persist
+    _set_json_setting(db, f"sd.change.impact.{change_id}", report)
+    db.commit()
+    return report
+
+
+def get_cached_impact_analysis(db: Session, change_id: str) -> dict:
+    """Return cached impact analysis or 404."""
+    from fastapi import HTTPException  # noqa: PLC0415
+    result = _get_json_setting(db, f"sd.change.impact.{change_id}")
+    if not result:
+        raise HTTPException(404, "Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.")
+    return result
+
+
+def generate_rollback_plan(
+    db: Session,
+    change_id: str,
+    current_user_id: Optional[str] = None,
+) -> dict:
+    """Generate a structured rollback plan for the change."""
+    change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+    if not change:
+        from fastapi import HTTPException  # noqa: PLC0415
+        raise HTTPException(404, f"Change {change_id} not found")
+
+    cached = _get_json_setting(db, f"sd.change.impact.{change_id}")
+    overall_risk = cached.get("risk_label", "medium") if cached else "medium"
+    affected_count = cached.get("affected_cis", {}).get("expanded_count", 0) if cached else 0
+
+    steps = [
+        {"step": 1, "action": "Detener el despliegue si está en progreso", "responsible": "Ingeniero de operaciones", "estimated_minutes": 5},
+        {"step": 2, "action": "Verificar estado de todos los CIs afectados en el CMDB", "responsible": "CMDB Admin", "estimated_minutes": 10},
+        {"step": 3, "action": f"Restaurar versión anterior de los componentes de '{change.title}'", "responsible": "Equipo técnico", "estimated_minutes": 30 if overall_risk in ("high", "critical") else 15},
+        {"step": 4, "action": "Ejecutar smoke tests en sistemas restaurados", "responsible": "QA / Dev", "estimated_minutes": 20},
+        {"step": 5, "action": "Confirmar estado operacional de los CIs afectados", "responsible": "NOC / Operaciones", "estimated_minutes": 10},
+        {"step": 6, "action": "Notificar a stakeholders sobre el rollback y estado", "responsible": "Change Manager", "estimated_minutes": 5},
+        {"step": 7, "action": "Registrar ticket post-incident y programar PIR", "responsible": "Change Manager", "estimated_minutes": 15},
+    ]
+
+    plan = {
+        "change_id": change_id,
+        "change_number": change.number,
+        "change_title": change.title,
+        "overall_risk": overall_risk,
+        "affected_ci_count": affected_count,
+        "rollback_steps": steps,
+        "total_estimated_minutes": sum(s["estimated_minutes"] for s in steps),
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "generated_by": current_user_id,
+    }
+
+    _set_json_setting(db, f"sd.change.rollback.{change_id}", plan)
+    db.commit()
+    return plan

@@ -23,6 +23,8 @@ const CHART_TYPES = [
   { key: 'funnel',   label: 'Funnel' },
   { key: 'sunburst', label: 'Sunburst' },
   { key: 'boxplot',  label: 'Boxplot' },
+  { key: 'sankey',   label: 'Sankey' },
+  { key: 'network',  label: 'Network' },
 ];
 
 // ── Mock data generators (replaced by real API calls when wired) ──────────────
@@ -195,7 +197,89 @@ function boxplotOption() {
   };
 }
 
-const OPTION_BUILDERS = { treemap: treemapOption, heatmap: heatmapOption, gauge: gaugeOption, radar: radarOption, scatter: scatterOption, funnel: funnelOption, sunburst: sunburstOption, boxplot: boxplotOption };
+function sankeyOption() {
+  // Flujo de ingresos: Cliente → Proyecto → Tipo de servicio
+  const nodes = [
+    { name: 'Cliente A' }, { name: 'Cliente B' }, { name: 'Cliente C' },
+    { name: 'Consultoría' }, { name: 'Desarrollo' }, { name: 'Soporte' },
+    { name: 'Facturado' }, { name: 'En curso' },
+  ];
+  const links = [
+    { source: 'Cliente A',  target: 'Consultoría', value: 180000 },
+    { source: 'Cliente A',  target: 'Desarrollo',  value: 120000 },
+    { source: 'Cliente B',  target: 'Desarrollo',  value: 240000 },
+    { source: 'Cliente B',  target: 'Soporte',     value: 60000  },
+    { source: 'Cliente C',  target: 'Consultoría', value: 90000  },
+    { source: 'Cliente C',  target: 'Soporte',     value: 60000  },
+    { source: 'Consultoría', target: 'Facturado',  value: 230000 },
+    { source: 'Desarrollo',  target: 'Facturado',  value: 280000 },
+    { source: 'Desarrollo',  target: 'En curso',   value: 80000  },
+    { source: 'Soporte',     target: 'Facturado',  value: 100000 },
+    { source: 'Soporte',     target: 'En curso',   value: 20000  },
+  ];
+  return {
+    series: [{
+      type: 'sankey',
+      layout: 'none',
+      data: nodes,
+      links,
+      emphasis: { focus: 'adjacency' },
+      lineStyle: { color: 'gradient', curveness: 0.5 },
+      label: { position: 'right', fontSize: 11 },
+    }],
+    tooltip: { trigger: 'item', formatter: (p) => `${p.name}: ${Number(p.value).toLocaleString('es-ES')}€` },
+  };
+}
+
+function networkOption() {
+  // Grafo de dependencias entre proyectos y equipos
+  const nodes = [
+    { name: 'Proyecto Alpha', symbolSize: 50, category: 0 },
+    { name: 'Proyecto Beta',  symbolSize: 40, category: 0 },
+    { name: 'Proyecto Gamma', symbolSize: 35, category: 0 },
+    { name: 'Team Frontend',  symbolSize: 30, category: 1 },
+    { name: 'Team Backend',   symbolSize: 30, category: 1 },
+    { name: 'Team QA',        symbolSize: 25, category: 1 },
+    { name: 'Team Infra',     symbolSize: 25, category: 1 },
+    { name: 'Cliente A',      symbolSize: 45, category: 2 },
+    { name: 'Cliente B',      symbolSize: 35, category: 2 },
+  ];
+  const edges = [
+    { source: 'Proyecto Alpha', target: 'Team Frontend' },
+    { source: 'Proyecto Alpha', target: 'Team Backend'  },
+    { source: 'Proyecto Alpha', target: 'Team QA'       },
+    { source: 'Proyecto Beta',  target: 'Team Backend'  },
+    { source: 'Proyecto Beta',  target: 'Team Infra'    },
+    { source: 'Proyecto Gamma', target: 'Team Frontend' },
+    { source: 'Proyecto Gamma', target: 'Team QA'       },
+    { source: 'Cliente A', target: 'Proyecto Alpha'     },
+    { source: 'Cliente A', target: 'Proyecto Beta'      },
+    { source: 'Cliente B', target: 'Proyecto Gamma'     },
+  ];
+  const categories = [
+    { name: 'Proyecto' },
+    { name: 'Equipo'   },
+    { name: 'Cliente'  },
+  ];
+  return {
+    legend: [{ data: categories.map((c) => c.name) }],
+    series: [{
+      type: 'graph',
+      layout: 'force',
+      data: nodes,
+      links: edges,
+      categories,
+      roam: true,
+      label: { show: true, position: 'right', fontSize: 10 },
+      force: { repulsion: 200, edgeLength: 100 },
+      lineStyle: { color: 'source', curveness: 0.2 },
+      emphasis: { focus: 'adjacency', lineStyle: { width: 4 } },
+    }],
+    tooltip: {},
+  };
+}
+
+const OPTION_BUILDERS = { treemap: treemapOption, heatmap: heatmapOption, gauge: gaugeOption, radar: radarOption, scatter: scatterOption, funnel: funnelOption, sunburst: sunburstOption, boxplot: boxplotOption, sankey: sankeyOption, network: networkOption };
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function BiAdvancedViz({ style }) {

@@ -138,6 +138,104 @@ def phase2_delivery_run_now(
     return svc.run_scheduled_delivery_now(db, report_id=report_id)
 
 
+# ── BI Phase 2: ML enhanced endpoints ─────────────────────────────────────────
+
+class ConnectorConfigIn(BaseModel):
+    config: dict = Field(default_factory=dict)
+    entity: str = Field("default", min_length=1, max_length=64)
+    field_mapping: Optional[dict] = None
+
+
+@router.get("/bi/intelligence/ml/forecast/timeseries", summary="Forecast de serie temporal (Prophet / regresión lineal)")
+def phase2_timeseries_forecast(
+    metric_key: str = Query("revenue", pattern="^(revenue|cost|hours)$"),
+    periods: int = Query(6, ge=1, le=24),
+    frequency: str = Query("MS", pattern="^(MS|W|D)$"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.ml_forecast_prophet(
+        db,
+        organization_id=org_id,
+        metric_key=metric_key,
+        periods=periods,
+        frequency=frequency,
+    )
+
+
+@router.get("/bi/intelligence/ml/anomalies/multivariate", summary="Detección de anomalías multivariante (IsolationForest)")
+def phase2_multivariate_anomalies(
+    contamination: float = Query(0.1, ge=0.01, le=0.5),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.ml_detect_anomalies_multivariate(db, organization_id=org_id, contamination=contamination)
+
+
+@router.get("/bi/intelligence/ml/predict/overrun", summary="Predicción de overrun de proyectos (LightGBM / heurística)")
+def phase2_predict_overrun(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.ml_predict_project_overrun_lgbm(db, organization_id=org_id)
+
+
+# ── BI Phase 2: ETL connector config + sync ────────────────────────────────────
+
+@router.get("/bi/intelligence/connectors/{connector}/config", summary="Obtener configuración (no sensible) de conector")
+def phase2_get_connector_config(
+    connector: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.get_connector_config(db, organization_id=org_id, connector=connector)
+
+
+@router.put("/bi/intelligence/connectors/{connector}/config", summary="Guardar configuración de conector (ETL)")
+def phase2_save_connector_config(
+    connector: str,
+    payload: ConnectorConfigIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    saved = svc.save_connector_config(
+        db,
+        organization_id=org_id,
+        connector=connector,
+        config=payload.config,
+    )
+    return {"ok": True, "connector": connector, "config": saved}
+
+
+@router.post("/bi/intelligence/connectors/{connector}/etl-sync", summary="Ejecutar sincronización ETL completa del conector")
+def phase2_etl_sync(
+    connector: str,
+    payload: ConnectorConfigIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return svc.run_etl_connector_sync(db, organization_id=org_id, connector=connector)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Conector no soportado")
+
+
+@router.get("/bi/intelligence/connectors/catalog/etl", summary="Listado de conectores ETL disponibles y entidades soportadas")
+def phase2_etl_catalog(current_user: User = Depends(get_current_user)):
+    _ = current_user
+    try:
+        from app.integrations import bi_etl_connectors
+        return {"connectors": bi_etl_connectors.list_connectors()}
+    except Exception:
+        return {"connectors": []}
+
+
 @router.get("/bi/intelligence/realtime/token", summary="Token corto para stream BI en tiempo real")
 def phase2_realtime_token(current_user: User = Depends(get_current_user)):
     token = create_access_token(
@@ -152,6 +250,11 @@ def phase2_realtime_token(current_user: User = Depends(get_current_user)):
 
 @router.websocket("/bi/intelligence/realtime/stream")
 async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Query(default=None)):
+    """BI intelligence real-time stream.
+
+    Tries Redis Pub/Sub first (channel ``contecflow:bi:kpi:<org_id>``).
+    Falls back to 8-second polling when Redis is unavailable.
+    """
     if not token:
         await websocket.close(code=4001, reason="Token requerido")
         return
@@ -169,17 +272,56 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
     await websocket.accept()
 
     db = SessionLocal()
+    org_id: Optional[str] = None
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            org_id = getattr(user, "organization_id", None)
+    finally:
+        db.close()
+
+    # ── Try Redis Pub/Sub first ────────────────────────────────────────────────
+    from app.core.config import settings as _settings
+
+    if _settings.REDIS_URL:
+        try:
+            import redis.asyncio as _aredis  # type: ignore
+
+            r = _aredis.from_url(_settings.REDIS_URL, decode_responses=True)
+            pubsub = r.pubsub()
+            channel = f"contecflow:bi:kpi:{org_id or 'global'}"
+            await pubsub.subscribe(channel)
+            try:
+                while True:
+                    try:
+                        raw = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=30.0)
+                    except asyncio.TimeoutError:
+                        # Send heartbeat to keep connection alive
+                        await websocket.send_text(json.dumps({"type": "heartbeat", "ts": datetime.now(timezone.utc).isoformat()}))
+                        continue
+                    if raw and raw.get("type") == "message":
+                        await websocket.send_text(raw["data"])
+            except WebSocketDisconnect:
+                return
+            finally:
+                await pubsub.unsubscribe(channel)
+                await r.aclose()
+        except (ImportError, Exception):
+            pass  # Fall through to polling mode
+
+    # ── Fallback: polling every 8 s ────────────────────────────────────────────
+    db = SessionLocal()
     try:
         while True:
             user = db.query(User).filter(User.id == user_id).first()
             if not user:
                 await websocket.send_text(json.dumps({"type": "error", "detail": "user_not_found"}))
                 break
-            org_id = getattr(user, "organization_id", None)
+            _org_id = getattr(user, "organization_id", None)
 
-            forecast = svc.ml_forecast_revenue(db, organization_id=org_id, months_ahead=3)
-            anomalies = svc.ml_detect_revenue_anomalies(db, organization_id=org_id, z_threshold=2.0)
-            delivery = svc.delivery_overview(db, organization_id=org_id)
+            forecast = svc.ml_forecast_revenue(db, organization_id=_org_id, months_ahead=3)
+            anomalies = svc.ml_detect_revenue_anomalies(db, organization_id=_org_id, z_threshold=2.0)
+            delivery = svc.delivery_overview(db, organization_id=_org_id)
 
             await websocket.send_text(json.dumps({
                 "type": "bi_intelligence_snapshot",
@@ -193,3 +335,127 @@ async def phase2_realtime_stream(websocket: WebSocket, token: Optional[str] = Qu
         return
     finally:
         db.close()
+
+
+# ── BI Phase 2: Scheduled delivery management ──────────────────────────────────
+
+from app.services import bi_report_delivery_service as delivery_svc  # noqa: E402
+
+
+class DeliveryScheduleCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    report_preset_id: str = Field(..., min_length=1, max_length=120)
+    channels: list[str] = Field(default_factory=list)
+    recipients: list[str] = Field(default_factory=list)
+    frequency: str = Field("daily", pattern="^(hourly|daily|weekly|monthly)$")
+    cron_expression: Optional[str] = Field(None, max_length=100)
+    export_format: str = Field("xlsx", pattern="^(json|csv|xlsx|pdf)$")
+    slack_webhook_url: Optional[str] = Field(None, max_length=500)
+    teams_webhook_url: Optional[str] = Field(None, max_length=500)
+    is_active: bool = True
+
+
+class DeliveryScheduleUpdateIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    channels: Optional[list[str]] = None
+    recipients: Optional[list[str]] = None
+    frequency: Optional[str] = Field(None, pattern="^(hourly|daily|weekly|monthly)$")
+    export_format: Optional[str] = Field(None, pattern="^(json|csv|xlsx|pdf)$")
+    slack_webhook_url: Optional[str] = Field(None, max_length=500)
+    teams_webhook_url: Optional[str] = Field(None, max_length=500)
+    is_active: Optional[bool] = None
+
+
+@router.get("/bi/delivery/schedules", summary="Listar schedules de entrega programada BI")
+def list_delivery_schedules(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return {"items": delivery_svc.list_schedules(db, organization_id=org_id)}
+
+
+@router.get("/bi/delivery/schedules/{schedule_id}", summary="Detalle de schedule de entrega BI")
+def get_delivery_schedule(
+    schedule_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return delivery_svc.get_schedule(db, organization_id=org_id, schedule_id=schedule_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/bi/delivery/schedules", summary="Crear schedule de entrega programada BI", status_code=201)
+def create_delivery_schedule(
+    body: DeliveryScheduleCreateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return delivery_svc.create_schedule(
+            db,
+            organization_id=org_id,
+            name=body.name,
+            report_preset_id=body.report_preset_id,
+            channels=body.channels,
+            recipients=body.recipients,
+            frequency=body.frequency,
+            cron_expression=body.cron_expression,
+            export_format=body.export_format,
+            slack_webhook_url=body.slack_webhook_url,
+            teams_webhook_url=body.teams_webhook_url,
+            is_active=body.is_active,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.put("/bi/delivery/schedules/{schedule_id}", summary="Actualizar schedule de entrega BI")
+def update_delivery_schedule(
+    schedule_id: str,
+    body: DeliveryScheduleUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return delivery_svc.update_schedule(
+            db,
+            organization_id=org_id,
+            schedule_id=schedule_id,
+            payload=body.model_dump(exclude_none=True),
+        )
+    except ValueError as exc:
+        code = 404 if "not_found" in str(exc) else 422
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+
+
+@router.delete("/bi/delivery/schedules/{schedule_id}", summary="Eliminar schedule de entrega BI", status_code=200)
+def delete_delivery_schedule(
+    schedule_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        delivery_svc.delete_schedule(db, organization_id=org_id, schedule_id=schedule_id)
+        return {"ok": True, "schedule_id": schedule_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/bi/delivery/schedules/{schedule_id}/send-now", summary="Ejecutar entrega BI ahora (manual)")
+def send_delivery_now(
+    schedule_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return delivery_svc.send_schedule_now(db, organization_id=org_id, schedule_id=schedule_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

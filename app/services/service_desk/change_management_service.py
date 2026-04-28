@@ -312,3 +312,289 @@ def check_change_suitability_for_automation(
         "requires_manual_gates": requires_manual_gates,
         "reason": f"Risk level: {risk_level.value}, Type: {change_type.value}",
     }
+
+
+# ── Rollout Execution Tracking ────────────────────────────────────────────────
+
+_ROLLOUT_STATE_KEY_PREFIX = "sd.change.rollout."
+
+
+def _rollout_state_key(change_id: str) -> str:
+    return f"{_ROLLOUT_STATE_KEY_PREFIX}{change_id}"
+
+
+def _get_rollout_state(db: Session, change_id: str) -> dict | None:
+    """Load rollout execution state from AppSetting JSON blob."""
+    import json as _json
+    try:
+        from app.models.settings import AppSetting  # noqa: PLC0415
+        row = db.query(AppSetting).filter(AppSetting.key == _rollout_state_key(change_id)).first()
+        if not row or not row.value:
+            return None
+        return _json.loads(row.value)
+    except Exception:
+        return None
+
+
+def _save_rollout_state(db: Session, change_id: str, state: dict) -> None:
+    import json as _json
+    try:
+        from app.models.settings import AppSetting  # noqa: PLC0415
+        key = _rollout_state_key(change_id)
+        row = db.query(AppSetting).filter(AppSetting.key == key).first()
+        if row:
+            row.value = _json.dumps(state)
+        else:
+            db.add(AppSetting(key=key, value=_json.dumps(state), description=f"Rollout execution state for change {change_id}"))
+        db.flush()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Could not save rollout state: %s", exc)
+
+
+def start_rollout_execution(
+    db: Session,
+    change_id: str,
+    rollout_plan: dict,
+    current_user,
+) -> dict:
+    """Persist rollout plan as execution state and mark change as in_progress.
+
+    Each phase gets a status of 'pending'. Does NOT commit — caller must commit.
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+
+    phases = rollout_plan.get("phases", [])
+    execution_phases = [
+        {
+            "phase": p["phase"],
+            "name": p["name"],
+            "status": "pending",      # pending | in_progress | completed | failed | skipped
+            "started_at": None,
+            "completed_at": None,
+            "notes": "",
+            "steps": p.get("steps", []),
+            "validation_checks": p.get("validation_checks", []),
+            "rollback_if_fails": p.get("rollback_if_fails", True),
+            "duration_minutes": p.get("duration_minutes", 0),
+        }
+        for p in phases
+    ]
+
+    state = {
+        "change_id": change_id,
+        "started_by": current_user.id,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "overall_status": "in_progress",  # in_progress | completed | rolled_back | paused
+        "current_phase": 1,
+        "phases": execution_phases,
+        "rollback_triggered": False,
+        "rollback_reason": None,
+    }
+
+    _save_rollout_state(db, change_id, state)
+
+    # Mark the ITSMChangeRequest as in_progress
+    try:
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+        if change:
+            change.status = ChangeStatus.in_progress
+            change.actual_start = datetime.now(timezone.utc)
+    except Exception as exc:
+        _log.warning("Could not update change status to in_progress: %s", exc)
+
+    _log.info("Rollout execution started for change %s by %s", change_id, current_user.id)
+    return state
+
+
+def advance_rollout_phase(
+    db: Session,
+    change_id: str,
+    phase_number: int,
+    phase_status: str,
+    notes: str,
+    current_user,
+) -> dict:
+    """Advance a rollout phase to a new status.
+
+    phase_status: 'in_progress' | 'completed' | 'failed' | 'skipped'
+    If any phase fails and rollback_if_fails is True, triggers rollback automatically.
+    Does NOT commit — caller must commit.
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+
+    VALID_STATUSES = {"in_progress", "completed", "failed", "skipped"}
+    if phase_status not in VALID_STATUSES:
+        raise ValueError(f"Estado de fase inválido: {phase_status}")
+
+    state = _get_rollout_state(db, change_id)
+    if not state:
+        raise ValueError(f"No hay ejecución de rollout para el cambio {change_id}")
+
+    phase = next((p for p in state["phases"] if p["phase"] == phase_number), None)
+    if not phase:
+        raise ValueError(f"Fase {phase_number} no encontrada en el plan de rollout")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    phase["status"] = phase_status
+    phase["notes"] = notes
+    if phase_status == "in_progress" and not phase.get("started_at"):
+        phase["started_at"] = now_iso
+    if phase_status in {"completed", "failed", "skipped"}:
+        phase["completed_at"] = now_iso
+
+    # Auto-trigger rollback on failure when rollback_if_fails=True
+    if phase_status == "failed" and phase.get("rollback_if_fails"):
+        state["overall_status"] = "rolled_back"
+        state["rollback_triggered"] = True
+        state["rollback_reason"] = f"Fase {phase_number} ({phase['name']}) falló: {notes}"
+        _log.warning(
+            "Rollback triggered automatically: change=%s phase=%d reason=%s",
+            change_id, phase_number, notes,
+        )
+        # Mark remaining phases as skipped
+        for p in state["phases"]:
+            if p["phase"] > phase_number and p["status"] == "pending":
+                p["status"] = "skipped"
+        _update_change_status_on_rollback(db, change_id)
+    else:
+        # Advance current_phase pointer
+        if phase_status == "completed":
+            remaining = [p for p in state["phases"] if p["status"] == "pending"]
+            state["current_phase"] = remaining[0]["phase"] if remaining else phase_number
+        # Check if all phases are done
+        all_done = all(p["status"] in {"completed", "skipped"} for p in state["phases"])
+        if all_done and state["overall_status"] == "in_progress":
+            state["overall_status"] = "completed"
+            _update_change_status_on_complete(db, change_id)
+
+    _save_rollout_state(db, change_id, state)
+    _log.info(
+        "Rollout phase %d/%s: change=%s status=%s",
+        phase_number, phase["name"], change_id, phase_status,
+    )
+    return state
+
+
+def _update_change_status_on_rollback(db: Session, change_id: str) -> None:
+    try:
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+        if change:
+            change.status = ChangeStatus.closed_failed
+            change.actual_end = datetime.now(timezone.utc)
+    except Exception:
+        pass
+
+
+def _update_change_status_on_complete(db: Session, change_id: str) -> None:
+    try:
+        from app.models.service_desk import ITSMChangeRequest, ChangeStatus  # noqa: PLC0415
+        change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+        if change:
+            change.status = ChangeStatus.implemented
+            change.actual_end = datetime.now(timezone.utc)
+    except Exception:
+        pass
+
+
+def trigger_change_rollback(
+    db: Session,
+    change_id: str,
+    reason: str,
+    current_user,
+) -> dict:
+    """Manually trigger a rollback for an in-progress change.
+
+    Updates rollout execution state and change status. Does NOT commit.
+    """
+    import logging
+    _log = logging.getLogger(__name__)
+
+    state = _get_rollout_state(db, change_id)
+    if state:
+        state["overall_status"] = "rolled_back"
+        state["rollback_triggered"] = True
+        state["rollback_reason"] = reason
+        now_iso = datetime.now(timezone.utc).isoformat()
+        for p in state["phases"]:
+            if p["status"] in {"pending", "in_progress"}:
+                p["status"] = "skipped"
+                p["completed_at"] = now_iso
+        state["rollback_at"] = now_iso
+        state["rollback_by"] = current_user.id
+        _save_rollout_state(db, change_id, state)
+
+    _update_change_status_on_rollback(db, change_id)
+    _log.warning("Manual rollback triggered: change=%s reason=%s by=%s", change_id, reason, current_user.id)
+    return {"change_id": change_id, "rollback_triggered": True, "reason": reason}
+
+
+def get_rollout_execution_state(db: Session, change_id: str) -> dict | None:
+    """Return current rollout execution state, or None if not started."""
+    return _get_rollout_state(db, change_id)
+
+
+# ── Emergency CAB Fast-Track ──────────────────────────────────────────────────
+
+def fast_track_emergency_cab(
+    db: Session,
+    change_id: str,
+    approver_ids: list[str],
+    justification: str,
+    current_user,
+) -> dict:
+    """Fast-track an emergency change through CAB bypassing normal queuing.
+
+    Requires at least one approver and a business justification.
+    Sets change type to 'emergency' and status to 'approved' with an audit entry.
+    Does NOT commit — caller must commit.
+    """
+    import json as _json
+    import logging
+    from app.models.service_desk import ITSMChangeRequest, ChangeType, ChangeStatus  # noqa: PLC0415
+
+    _log = logging.getLogger(__name__)
+
+    if not approver_ids:
+        raise ValueError("Se requiere al menos un aprobador para fast-track de emergencia")
+    if not justification or len(justification.strip()) < 10:
+        raise ValueError("Se requiere justificación de negocio para cambios de emergencia")
+
+    change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
+    if not change:
+        raise ValueError(f"Cambio {change_id} no encontrado")
+
+    change.change_type = ChangeType.emergency
+    change.status = ChangeStatus.approved
+    change.approved_at = datetime.now(timezone.utc)
+    change.approved_by = current_user.id
+    # Store emergency CAB record in business_justification
+    emergency_record = {
+        "fast_track": True,
+        "justification": justification,
+        "approver_ids": approver_ids,
+        "approved_by": current_user.id,
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+    }
+    existing_justification = change.business_justification or ""
+    change.business_justification = (
+        existing_justification
+        + f"\n\n[EMERGENCY CAB FAST-TRACK]\n{_json.dumps(emergency_record, indent=2)}"
+    )
+
+    _log.warning(
+        "Emergency CAB fast-track approved: change=%s by=%s approvers=%s",
+        change_id, current_user.id, approver_ids,
+    )
+    return {
+        "change_id": change_id,
+        "status": "approved",
+        "change_type": "emergency",
+        "approver_ids": approver_ids,
+        "approved_at": emergency_record["approved_at"],
+    }
+

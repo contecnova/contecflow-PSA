@@ -136,3 +136,145 @@ def list_categories(
 ):
     categories = sorted(set(p["category"] for p in svc.BASE_PRESETS))
     return {"items": categories}
+
+
+# ── BI Phase 2: Component library ─────────────────────────────────────────────
+
+@router.get("/bi/reports/v2/components", summary="Biblioteca de componentes de dashboard (drag-and-drop)")
+def list_component_types(current_user: User = Depends(get_current_user)):
+    _ = current_user
+    return {"items": svc.list_component_types()}
+
+
+# ── BI Phase 2: Dashboard layout persistence ──────────────────────────────────
+
+class DashboardLayoutSaveIn(BaseModel):
+    components: list[dict[str, Any]] = Field(default_factory=list)
+    grid_cols: int = Field(12, ge=4, le=24)
+
+
+@router.get("/bi/reports/v2/layouts", summary="Listar layouts de dashboard guardados")
+def list_dashboard_layouts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return {"items": svc.list_dashboard_layouts(db, organization_id=org_id)}
+
+
+@router.get("/bi/reports/v2/layouts/{dashboard_key}", summary="Obtener layout de dashboard guardado")
+def get_dashboard_layout(
+    dashboard_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.get_dashboard_layout(db, organization_id=org_id, dashboard_key=dashboard_key)
+
+
+@router.put("/bi/reports/v2/layouts/{dashboard_key}", summary="Guardar layout de dashboard (drag-and-drop)")
+def save_dashboard_layout(
+    dashboard_key: str,
+    body: DashboardLayoutSaveIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.save_dashboard_layout(
+        db,
+        organization_id=org_id,
+        dashboard_key=dashboard_key,
+        components=body.components,
+        grid_cols=body.grid_cols,
+    )
+
+
+# ── BI Phase 2: Dashboard templates CRUD ─────────────────────────────────────
+
+class TemplateCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = Field("", max_length=500)
+    layout: list[dict[str, Any]] = Field(default_factory=list)
+    preset_id: Optional[str] = Field(None, max_length=120)
+    tags: list[str] = Field(default_factory=list)
+
+
+class TemplateUpdateIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=500)
+    layout: Optional[list[dict[str, Any]]] = None
+    preset_id: Optional[str] = Field(None, max_length=120)
+    tags: Optional[list[str]] = None
+
+
+@router.get("/bi/reports/v2/templates", summary="Listar templates de dashboard")
+def list_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return {"items": svc.list_templates(db, organization_id=org_id)}
+
+
+@router.get("/bi/reports/v2/templates/{template_id}", summary="Detalle de template de dashboard")
+def get_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return svc.get_template(db, organization_id=org_id, template_id=template_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/bi/reports/v2/templates", summary="Crear template de dashboard", status_code=201)
+def create_template(
+    body: TemplateCreateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    return svc.create_template(
+        db,
+        organization_id=org_id,
+        name=body.name,
+        description=body.description,
+        layout=body.layout,
+        preset_id=body.preset_id,
+        tags=body.tags,
+    )
+
+
+@router.put("/bi/reports/v2/templates/{template_id}", summary="Actualizar template de dashboard")
+def update_template(
+    template_id: str,
+    body: TemplateUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return svc.update_template(
+            db,
+            organization_id=org_id,
+            template_id=template_id,
+            payload=body.model_dump(exclude_none=True),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.delete("/bi/reports/v2/templates/{template_id}", summary="Eliminar template de dashboard", status_code=200)
+def delete_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        svc.delete_template(db, organization_id=org_id, template_id=template_id)
+        return {"ok": True, "template_id": template_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

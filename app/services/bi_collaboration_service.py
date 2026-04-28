@@ -23,6 +23,10 @@ COMMENTS_KEY = "bi.phase1.comments"
 RULES_KEY = "bi.phase1.governance.rules"
 LAST_RUN_KEY = "bi.phase1.governance.last_run"
 SHARED_VIEWS_KEY = "bi.phase3.shared_views"
+VERSIONS_KEY_PREFIX = "bi.collab.versions."
+SHARES_KEY_PREFIX = "bi.collab.shares."
+
+SHARE_PERMISSIONS = {"view", "edit", "admin"}
 
 
 def _iso_now() -> str:
@@ -367,3 +371,155 @@ def patch_shared_view(
         description="BI Collaboration shared dashboard views (JSON)",
     )
     return target
+
+
+# ── Dashboard Versioning ───────────────────────────────────────────────────────
+
+def _versions_key(dashboard_key: str) -> str:
+    return f"{VERSIONS_KEY_PREFIX}{dashboard_key}"
+
+
+def list_dashboard_versions(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+) -> list[dict[str, Any]]:
+    return _get_json(db, _versions_key(dashboard_key), organization_id, default=[])
+
+
+def create_dashboard_version(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    config: dict[str, Any],
+    change_log: Optional[str],
+    current_user: User,
+) -> dict[str, Any]:
+    versions = list_dashboard_versions(db, organization_id=organization_id, dashboard_key=dashboard_key)
+    next_version = (max((v.get("version", 0) for v in versions), default=0) + 1)
+    row: dict[str, Any] = {
+        "id": str(uuid.uuid4()),
+        "dashboard_key": dashboard_key,
+        "version": next_version,
+        "config": config,
+        "change_log": (change_log or "").strip() or f"Versión {next_version}",
+        "created_by_id": current_user.id,
+        "created_by_name": current_user.full_name,
+        "created_at": _iso_now(),
+    }
+    versions.append(row)
+    # Keep last 50 versions
+    versions = versions[-50:]
+    _set_json(
+        db,
+        _versions_key(dashboard_key),
+        organization_id,
+        versions,
+        description=f"BI dashboard versions for {dashboard_key}",
+    )
+    return row
+
+
+def restore_dashboard_version(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    version_id: str,
+    current_user: User,
+) -> dict[str, Any]:
+    """Restore a previous version by creating a new version with the old config."""
+    versions = list_dashboard_versions(db, organization_id=organization_id, dashboard_key=dashboard_key)
+    target = next((v for v in versions if v.get("id") == version_id), None)
+    if not target:
+        raise ValueError("version_not_found")
+    return create_dashboard_version(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        config=target["config"],
+        change_log=f"Restaurado desde v{target['version']}",
+        current_user=current_user,
+    )
+
+
+# ── Dashboard Sharing ─────────────────────────────────────────────────────────
+
+def _shares_key(dashboard_key: str) -> str:
+    return f"{SHARES_KEY_PREFIX}{dashboard_key}"
+
+
+def list_dashboard_shares(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+) -> list[dict[str, Any]]:
+    return _get_json(db, _shares_key(dashboard_key), organization_id, default=[])
+
+
+def share_dashboard(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    target_user_id: str,
+    target_user_name: str,
+    permission: str,
+    shared_by: User,
+) -> dict[str, Any]:
+    if permission not in SHARE_PERMISSIONS:
+        raise ValueError("invalid_permission")
+    shares = list_dashboard_shares(db, organization_id=organization_id, dashboard_key=dashboard_key)
+    # Upsert: if the user already has access, update their permission
+    existing = next((s for s in shares if s.get("user_id") == target_user_id), None)
+    now = _iso_now()
+    if existing:
+        existing["permission"] = permission
+        existing["updated_at"] = now
+        existing["updated_by_id"] = shared_by.id
+        row = existing
+    else:
+        row = {
+            "id": str(uuid.uuid4()),
+            "dashboard_key": dashboard_key,
+            "user_id": target_user_id,
+            "user_name": target_user_name,
+            "permission": permission,
+            "shared_by_id": shared_by.id,
+            "shared_by_name": shared_by.full_name,
+            "created_at": now,
+            "updated_at": now,
+        }
+        shares.append(row)
+    _set_json(
+        db,
+        _shares_key(dashboard_key),
+        organization_id,
+        shares,
+        description=f"BI dashboard sharing for {dashboard_key}",
+    )
+    return row
+
+
+def revoke_dashboard_share(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    share_id: str,
+) -> bool:
+    shares = list_dashboard_shares(db, organization_id=organization_id, dashboard_key=dashboard_key)
+    new_shares = [s for s in shares if s.get("id") != share_id]
+    if len(new_shares) == len(shares):
+        return False
+    _set_json(
+        db,
+        _shares_key(dashboard_key),
+        organization_id,
+        new_shares,
+        description=f"BI dashboard sharing for {dashboard_key}",
+    )
+    return True

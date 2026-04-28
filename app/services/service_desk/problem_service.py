@@ -262,3 +262,83 @@ def create_problem_from_correlation(
         category,
     )
     return problem
+
+
+# ── Problem → Change (RFC) flow ───────────────────────────────────────────────
+
+def create_change_from_problem(
+    db: Session,
+    current_user: User,
+    problem_id: str,
+    change_type: str = "normal",
+    planned_start: str | None = None,
+    planned_end: str | None = None,
+    custom_title: str | None = None,
+    custom_description: str | None = None,
+) -> dict:
+    """Create an ITSMChangeRequest linked to a Problem to address its root cause.
+
+    Prefills the RFC from the problem's root_cause, workaround, and linked CIs.
+    Does NOT commit — caller must commit.
+
+    Returns a dict with the new change's id, number, and status.
+    """
+    import json as _json
+    from app.services.service_desk.change_service import next_change_number, build_change_request
+
+    problem = get_scoped_problem_or_404(db, current_user, problem_id)
+
+    linked_tickets = db.query(Ticket).filter(Ticket.problem_id == problem.id).all()
+    affected_cis: list[str] = []
+    try:
+        if problem.affected_services_json:
+            affected_cis = _json.loads(problem.affected_services_json)
+    except Exception:
+        pass
+
+    title = custom_title or f"[RFC] Resolver causa raíz: {problem.title[:200]}"
+    description = custom_description or (
+        f"RFC generado automáticamente a partir del Problema {problem.number}.\n\n"
+        f"**Causa raíz:** {problem.root_cause or 'Pendiente de análisis'}\n\n"
+        f"**Workaround actual:** {problem.workaround or 'Ninguno'}\n\n"
+        f"**Incidentes relacionados:** {', '.join(t.number for t in linked_tickets) or 'Ninguno'}\n\n"
+        f"**Descripción del problema:** {problem.description or ''}"
+    )
+
+    # Map problem priority to change risk
+    _risk_map = {
+        "p1_critical": "critical",
+        "p2_high": "high",
+        "p3_medium": "medium",
+        "p4_low": "low",
+    }
+    risk = _risk_map.get(str(problem.priority), "medium")
+
+    payload = {
+        "title": title,
+        "description": description,
+        "change_type": change_type,
+        "risk": risk,
+        "priority": str(problem.priority) if problem.priority else "p3_medium",
+        "business_justification": f"Eliminar causa raíz del Problema {problem.number}",
+        "impact_description": f"CIs afectados: {', '.join(affected_cis) or 'Por determinar'}",
+        "related_problem_id": problem.id,
+        "rollback_plan": problem.workaround or "Ver workaround del problema asociado",
+    }
+    if planned_start:
+        payload["planned_start"] = planned_start
+    if planned_end:
+        payload["planned_end"] = planned_end
+
+    number = next_change_number(db)
+    change = build_change_request(payload, requester_id=current_user.id, number=number)
+    db.add(change)
+    db.flush()
+
+    logger.info(
+        "Change %s created from Problem %s by %s",
+        change.number,
+        problem.number,
+        current_user.id,
+    )
+    return {"id": change.id, "number": change.number, "status": change.status}

@@ -1,0 +1,95 @@
+"""SMS Service — Twilio-based SMS notifications and inbound handling.
+
+Requires optional Twilio dependency. Install with:
+    pip install twilio>=8.0.0
+
+Configuration via AppSetting or environment variables:
+    TWILIO_ACCOUNT_SID
+    TWILIO_AUTH_TOKEN
+    TWILIO_FROM_NUMBER  (E.164 format, e.g. +34600000000)
+"""
+from __future__ import annotations
+
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+try:
+    from twilio.rest import Client as TwilioClient  # type: ignore
+    from twilio.request_validator import RequestValidator  # type: ignore
+    _TWILIO_AVAILABLE = True
+except ImportError:
+    _TWILIO_AVAILABLE = False
+    logger.info("Twilio not installed — SMS features disabled. Run: pip install twilio>=8.0.0")
+
+
+def _get_twilio_config() -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Return (account_sid, auth_token, from_number) from settings or env."""
+    try:
+        from app.core.config import settings
+        sid = getattr(settings, "TWILIO_ACCOUNT_SID", None)
+        token = getattr(settings, "TWILIO_AUTH_TOKEN", None)
+        from_num = getattr(settings, "TWILIO_FROM_NUMBER", None)
+        return sid, token, from_num
+    except Exception:
+        return None, None, None
+
+
+def send_sms(to: str, body: str) -> bool:
+    """Send an SMS message via Twilio.
+
+    Args:
+        to:   Recipient phone number in E.164 format (e.g. +34612345678).
+        body: Message text (≤160 characters for single SMS segment).
+
+    Returns:
+        True if sent successfully, False otherwise.
+    """
+    if not _TWILIO_AVAILABLE:
+        logger.warning("SMS send skipped — Twilio not installed")
+        return False
+
+    sid, token, from_num = _get_twilio_config()
+    if not all([sid, token, from_num]):
+        logger.warning("SMS send skipped — Twilio credentials not configured (TWILIO_ACCOUNT_SID/AUTH_TOKEN/FROM_NUMBER)")
+        return False
+
+    try:
+        client = TwilioClient(sid, token)
+        message = client.messages.create(body=body[:1600], from_=from_num, to=to)
+        logger.info("SMS sent to %s — SID: %s", to, message.sid)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.error("SMS send failed to %s: %s", to, exc)
+        return False
+
+
+def validate_twilio_signature(url: str, params: dict, signature: str) -> bool:
+    """Validate that an inbound request is genuinely from Twilio.
+
+    Should be called on every inbound Twilio webhook to prevent spoofing.
+    """
+    if not _TWILIO_AVAILABLE:
+        return True  # Can't validate without library — allow in dev
+
+    _, token, _ = _get_twilio_config()
+    if not token:
+        logger.warning("Cannot validate Twilio signature — AUTH_TOKEN not configured")
+        return True  # Fail open in dev; override in production
+
+    try:
+        validator = RequestValidator(token)
+        return validator.validate(url, params, signature)
+    except Exception as exc:
+        logger.error("Twilio signature validation error: %s", exc)
+        return False
+
+
+def build_sms_ticket_notification(ticket_number: str, title: str, status: str) -> str:
+    """Format a short SMS notification for a ticket status update."""
+    return (
+        f"[ContecFlow] Ticket {ticket_number}: {title[:60]}\n"
+        f"Estado: {status}\n"
+        "Responde a este mensaje para actualizar el ticket."
+    )

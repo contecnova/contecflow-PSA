@@ -15,3 +15,19 @@ fsspec==2026.3.0
 regex==2026.4.4
 tqdm==4.67.3
 hf-xet==1.4.3
+
+# ── BI Phase 2: Advanced forecasting + anomaly detection ──────────────────────
+# Prophet: Facebook time-series forecasting with seasonality decomposition
+prophet>=1.1.5
+# LightGBM: gradient boosting for overrun / churn prediction
+lightgbm>=4.3.0
+# ReportLab: PDF generation for scheduled report delivery
+reportlab>=4.2.0
+# Third-party ETL connector SDKs (install individually as needed):
+# pip install simple-salesforce hubspot-api-client jira stripe xero-python
+# Additional plugin connectors (20+ framework):
+# pip install zendesk freshdesk pysnow datadog-api-client zabbix-utils
+# pip install python-ldap pyad ansible-runner
+# pip install clickup-sdk notion-client airtable-python-wrapper
+# pip install PyGithub python-gitlab atlassian-python-api
+

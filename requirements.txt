@@ -83,6 +83,13 @@ openpyxl==3.1.2
 et_xmlfile==2.0.0
 reportlab==4.4.10
 pillow==12.2.0
+# PowerPoint export with embedded charts
+python-pptx==1.0.2
+# Data manipulation for ETL, Excel charts, analytics
+pandas==2.2.3
+numpy; python_requires>='3.9'           # already pinned above; pandas brings it
+# Columnar data / Iceberg / DuckDB interchange
+pyarrow==17.0.0
 
 # ── OLAP analytical engine ────────────────────────────────────────────────────
 duckdb==1.3.0
@@ -144,3 +151,13 @@ pluggy==1.6.0
 # ── Optional ML stack for transformer embeddings and advanced semantic models ─────────────────────
 # Install these only when you need the ML/semantic features:
 #   pip install -r requirements-ml.txt
+
+# ── Optional: SMS / WhatsApp (Multi-channel Portal) ───────────────────────────
+# Install when you need SMS / Twilio features:
+#   pip install "twilio>=8.0.0"
+# twilio>=8.0.0
+
+# ── Optional: Apache Iceberg table format ─────────────────────────────────────
+# Enables create_iceberg_snapshot() in bi_data_versioning_service.py
+#   pip install "pyiceberg>=0.7.0"
+# pyiceberg>=0.7.0

@@ -144,6 +144,8 @@ def analyze_ticket_for_resolution(
                 f"⚠️ Sugerencia con confianza {result['confidence']*100:.1f}%. "
                 f"Revisión manual recomendada."
             )
+            # Post an internal comment so agents see the suggestion inline
+            _post_resolution_comment(db, ticket, result["suggestion"], is_auto=False)
 
         else:
             result["action_taken"] = "none"
@@ -165,8 +167,39 @@ def analyze_ticket_for_resolution(
 
 
 def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
-    """Search KB for articles related to ticket."""
-    # Simple semantic search: match title/tags
+    """Search KB using cosine similarity via incident_intelligence_service when available,
+    falling back to keyword scoring for simpler environments."""
+    # Try semantic cosine similarity first
+    try:
+        from app.services.service_desk.incident_intelligence_service import (  # noqa: PLC0415
+            _embed_text, _cosine_similarity,
+        )
+        query_text = f"{ticket.title or ''}\n{ticket.description or ''}".strip()
+        q_emb = _embed_text(query_text)
+
+        articles = (
+            db.query(KBArticle)
+            .filter(
+                KBArticle.status == KBStatus.published,
+                KBArticle.is_public == True,  # noqa: E712
+            )
+            .all()
+        )
+        scored = []
+        for a in articles:
+            text = f"{a.title or ''}\n{a.summary or ''}\n{a.body or ''}".strip()
+            if not text:
+                continue
+            sim = _cosine_similarity(q_emb, _embed_text(text))
+            if sim > 0.30:
+                scored.append((sim, a))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        if scored:
+            return [a for _, a in scored[:5]]
+    except Exception:
+        pass
+
+    # Keyword fallback
     search_terms = (ticket.title or "") + " " + (ticket.description or "")
     search_terms = search_terms[:200].lower()
 
@@ -174,7 +207,7 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
         db.query(KBArticle)
         .filter(
             KBArticle.status == KBStatus.published,
-            KBArticle.is_public == True,
+            KBArticle.is_public == True,  # noqa: E712
         )
         .all()
     )
@@ -195,6 +228,23 @@ def _search_kb(db: Session, ticket: Ticket) -> list[KBArticle]:
     # Sort by score desc
     scored.sort(key=lambda x: x[0], reverse=True)
     return [a for _, a in scored[:5]]
+
+
+def _post_resolution_comment(db: Session, ticket: Ticket, suggestion: str, *, is_auto: bool) -> None:
+    """Add a public comment to the ticket with the AI suggestion/resolution."""
+    try:
+        from app.models.service_desk import TicketComment  # noqa: PLC0415
+        prefix = "🤖 **Resolución automática por IA:**" if is_auto else "🤖 **Sugerencia de resolución por IA (revisión manual recomendada):**"
+        body = f"{prefix}\n\n{suggestion}"
+        comment = TicketComment(
+            ticket_id=ticket.id,
+            body=body,
+            is_internal=False,
+            author_name="AI Auto-Resolution",
+        )
+        db.add(comment)
+    except Exception as exc:  # noqa: BLE001
+        _logger.debug("Could not post resolution comment: %s", exc)
 
 
 def _apply_auto_resolution(
@@ -218,6 +268,23 @@ def _apply_auto_resolution(
         ticket.resolution_kb_articles = json.dumps(
             [s["number"] for s in analysis["kb_sources"]]
         )
+
+    # Post a public comment so the requester sees the resolution
+    _post_resolution_comment(db, ticket, analysis["suggestion"], is_auto=True)
+
+    # Trigger SLA close event if available
+    try:
+        from app.services.service_desk.sla_event_service import record_sla_event  # noqa: PLC0415
+        record_sla_event(db, ticket, event_type="resolved", actor="ai_auto_resolution")
+    except Exception:
+        pass
+
+    # Notify watchers if notification service is available
+    try:
+        from app.services.service_desk.watcher_service import notify_watchers  # noqa: PLC0415
+        notify_watchers(db, ticket, event="resolved", message=analysis["suggestion"][:300])
+    except Exception:
+        pass
 
     db.flush()
     _logger.info(
