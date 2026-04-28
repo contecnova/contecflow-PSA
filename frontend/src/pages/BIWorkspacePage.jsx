@@ -282,8 +282,10 @@ export default function BIPage() {
   const [days, setDays] = useState(30)
   const [commentWidget, setCommentWidget] = useState('kpi_grid')
   const [commentText, setCommentText] = useState('')
+  const [sharedViewName, setSharedViewName] = useState('')
   const [rulesDraft, setRulesDraft] = useState(null)
   const [govRunTick, setGovRunTick] = useState(0)
+  const [sharedViewsTick, setSharedViewsTick] = useState(0)
   const [phase2Tick, setPhase2Tick] = useState(0)
   const [presetId, setPresetId] = useState('ops_delivery_mix')
   const [streamLive, setStreamLive] = useState(false)
@@ -354,6 +356,12 @@ export default function BIPage() {
   const { data: commentsData, refetch: refetchComments } = useQuery({
     queryKey: ['bi-phase1-comments', commentWidget],
     queryFn: () => biCollaborationApi.listComments({ dashboard_key: 'executive', widget_id: commentWidget }).then(r => r.data).catch(() => ({ items: [] })),
+    staleTime: 15_000,
+  })
+
+  const { data: sharedViewsData, refetch: refetchSharedViews } = useQuery({
+    queryKey: ['bi-phase3-shared-views', sharedViewsTick],
+    queryFn: () => biCollaborationApi.listSharedViews().then(r => r.data).catch(() => ({ items: [] })),
     staleTime: 15_000,
   })
 
@@ -556,6 +564,7 @@ export default function BIPage() {
   const utilPct = utilPctRaw == null ? null : toFiniteNumber(utilPctRaw, null)
   const normalizedUtilPct = utilPct == null ? null : Math.max(0, Math.min(100, utilPct))
   const comments = commentsData?.items || []
+  const sharedViews = sharedViewsData?.items || []
   const connectors = Object.entries(connectorsData?.items || {})
   const forecastHead = forecastRevenue?.forecast || []
   const anomalies = revenueAnomalies?.items || []
@@ -606,6 +615,37 @@ export default function BIPage() {
   async function handleResolveComment(commentId) {
     await biCollaborationApi.resolveComment(commentId)
     await refetchComments()
+  }
+
+  async function handleCreateSharedView() {
+    const name = (sharedViewName || '').trim()
+    if (!name) return
+    await biCollaborationApi.createSharedView({
+      name,
+      dashboard_key: 'executive',
+      filters: {
+        days,
+        widget_id: commentWidget,
+      },
+    })
+    setSharedViewName('')
+    setSharedViewsTick((x) => x + 1)
+    await refetchSharedViews()
+  }
+
+  async function handleToggleSharedView(view) {
+    await biCollaborationApi.patchSharedView(view.id, { active: !view.active })
+    setSharedViewsTick((x) => x + 1)
+    await refetchSharedViews()
+  }
+
+  function handleApplySharedView(view) {
+    const filters = view?.filters || {}
+    const nextDays = toFiniteNumber(filters.days, days)
+    if (nextDays > 0) setDays(nextDays)
+    if (typeof filters.widget_id === 'string' && filters.widget_id.trim()) {
+      setCommentWidget(filters.widget_id)
+    }
   }
 
   async function handleRunGovernance() {
@@ -905,6 +945,106 @@ export default function BIPage() {
             <div style={S.sectionTitle}>Colaboración BI</div>
           </div>
           <div style={{ ...S.cardPad, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{
+              border: '1px solid var(--surface-4)',
+              borderRadius: 10,
+              padding: 10,
+              display: 'grid',
+              gap: 8,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Vistas compartidas
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input
+                  value={sharedViewName}
+                  onChange={(e) => setSharedViewName(e.target.value)}
+                  placeholder="Nombre de la vista..."
+                  style={{
+                    flex: 1,
+                    minWidth: 170,
+                    background: 'var(--surface-3)',
+                    border: '1px solid var(--surface-4)',
+                    color: 'var(--text-1)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: 12,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateSharedView}
+                  style={{
+                    border: `1px solid ${COLOR.success}`,
+                    background: `${COLOR.success}22`,
+                    color: COLOR.success,
+                    borderRadius: 8,
+                    padding: '7px 12px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Guardar vista
+                </button>
+              </div>
+              <div style={{ display: 'grid', gap: 7 }}>
+                {sharedViews.length === 0 ? (
+                  <div style={{ color: 'var(--text-3)', fontSize: 12 }}>No hay vistas compartidas todavía.</div>
+                ) : sharedViews.map((v) => (
+                  <div key={v.id} style={{
+                    border: '1px solid var(--surface-4)',
+                    borderRadius: 8,
+                    padding: 8,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                    <div style={{ display: 'grid', gap: 2 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-3)' }}>
+                        {v.dashboard_key} · {v.created_by_name || '—'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleApplySharedView(v)}
+                        style={{
+                          border: '1px solid var(--surface-4)',
+                          background: 'transparent',
+                          color: 'var(--text-2)',
+                          borderRadius: 6,
+                          padding: '4px 8px',
+                          fontSize: 11,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Aplicar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSharedView(v)}
+                        style={{
+                          border: `1px solid ${v.active ? COLOR.warning : COLOR.success}`,
+                          background: v.active ? `${COLOR.warning}22` : `${COLOR.success}22`,
+                          color: v.active ? COLOR.warning : COLOR.success,
+                          borderRadius: 6,
+                          padding: '4px 8px',
+                          fontSize: 11,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {v.active ? 'Desactivar' : 'Activar'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <select
               value={commentWidget}
               onChange={(e) => setCommentWidget(e.target.value)}

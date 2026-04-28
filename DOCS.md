@@ -11,6 +11,24 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.33 (Abril 2026) — BI Workspace: integración visual de Shared Views
+
+- Se integra en la UI de BI Workspace el uso operativo de Shared Views ya disponibles en backend:
+  - Archivo: `frontend/src/pages/BIWorkspacePage.jsx`.
+  - Capacidades añadidas en el bloque "Colaboración BI":
+    - crear una vista compartida desde el estado actual (filtros de periodo y widget),
+    - listar vistas compartidas activas,
+    - aplicar una vista compartida para restaurar filtros en pantalla,
+    - activar/desactivar vistas compartidas existentes.
+
+- Se reutiliza el cliente API de colaboración BI ya extendido:
+  - `biCollaborationApi.listSharedViews`
+  - `biCollaborationApi.createSharedView`
+  - `biCollaborationApi.patchSharedView`
+
+- Validación ejecutada:
+  - `frontend`: `npm run build` → OK (`built in 5.63s`).
+
 ### v23.10.32 (Abril 2026) — BI Collaboration: Shared Views (backend + frontend API + tests)
 
 - Se completa el gap de colaboración BI para vistas compartidas reutilizando el patrón existente basado en `AppSetting` (sin nuevas tablas):
