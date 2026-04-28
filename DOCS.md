@@ -11,6 +11,21 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.34 (Abril 2026) — Auditoría de informes estratégicos (ITSM/BI/AI) y limpieza documental
+
+- Se auditan 4 documentos estratégicos contra implementación real en backend/frontend:
+  - `INFORME_ITSM_COMPARATIVA.md`
+  - `INFORME_BI_ANALISIS_MERCADO.md`
+  - `ROADMAP_TECNICO_BI_DETALLADO.md`
+  - `CAMBIOS_AI_PROVIDER_AGNOSTIC.md`
+- Resultado de auditoría:
+  - `CAMBIOS_AI_PROVIDER_AGNOSTIC.md`: **100% implementado** (fallback agnóstico en `ai_provider_service.py`, uso desde `bi_storytelling.py` y `ask_the_data.py`, sin hardcoding Anthropic en servicios BI).
+  - `INFORME_ITSM_COMPARATIVA.md`: **parcialmente implementado** (múltiples capacidades ITSM ya presentes, pero no 100% del documento/recomendaciones).
+  - `INFORME_BI_ANALISIS_MERCADO.md`: **parcialmente implementado** (hay avances significativos, pero varias brechas declaradas siguen abiertas o en estado parcial).
+  - `ROADMAP_TECNICO_BI_DETALLADO.md`: **parcialmente implementado** (gran parte del roadmap está desplegada en BI Platform/Intelligence, con elementos aún pendientes del plan completo).
+- Acción aplicada por criterio "si está totalmente implementado, eliminar":
+  - Eliminado `CAMBIOS_AI_PROVIDER_AGNOSTIC.md` del repositorio.
+
 ### v23.10.33 (Abril 2026) — BI Workspace: integración visual de Shared Views
 
 - Se integra en la UI de BI Workspace el uso operativo de Shared Views ya disponibles en backend:
@@ -23,6 +38,7 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
   - Mejora UX adicional:
     - selector "Mostrar vistas inactivas" para poder localizar y reactivar vistas desactivadas desde la misma pantalla.
     - búsqueda por nombre de vista compartida para localizar rápidamente vistas en listas largas.
+    - ordenación de vistas compartidas por criterio: fecha (recientes/antiguas), autor (A-Z) y nombre (A-Z).
 
 - Se reutiliza el cliente API de colaboración BI ya extendido:
   - `biCollaborationApi.listSharedViews`
@@ -33,6 +49,7 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
   - `frontend`: `npm run build` → OK (`built in 5.63s`).
   - `frontend` (tras mejora selector inactivas): `npm run build` → OK (`built in 5.57s`).
   - `frontend` (tras búsqueda por nombre): `npm run build` → OK (`built in 5.67s`).
+  - `frontend` (tras ordenación por fecha/autor/nombre): `npm run build` → OK (`built in 5.60s`).
 
 ### v23.10.32 (Abril 2026) — BI Collaboration: Shared Views (backend + frontend API + tests)
 

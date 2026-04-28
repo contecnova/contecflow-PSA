@@ -284,6 +284,7 @@ export default function BIPage() {
   const [commentText, setCommentText] = useState('')
   const [sharedViewName, setSharedViewName] = useState('')
   const [sharedViewsSearch, setSharedViewsSearch] = useState('')
+  const [sharedViewsSort, setSharedViewsSort] = useState('date_desc')
   const [showInactiveSharedViews, setShowInactiveSharedViews] = useState(false)
   const [rulesDraft, setRulesDraft] = useState(null)
   const [govRunTick, setGovRunTick] = useState(0)
@@ -572,6 +573,18 @@ export default function BIPage() {
     if (!sharedViewsQuery) return true
     const name = String(v?.name || '').toLowerCase()
     return name.includes(sharedViewsQuery)
+  })
+  const sortedSharedViews = [...filteredSharedViews].sort((a, b) => {
+    if (sharedViewsSort === 'name_asc') {
+      return String(a?.name || '').localeCompare(String(b?.name || ''), 'es', { sensitivity: 'base' })
+    }
+    if (sharedViewsSort === 'author_asc') {
+      return String(a?.created_by_name || '').localeCompare(String(b?.created_by_name || ''), 'es', { sensitivity: 'base' })
+    }
+    const tA = Date.parse(a?.created_at || '') || 0
+    const tB = Date.parse(b?.created_at || '') || 0
+    if (sharedViewsSort === 'date_asc') return tA - tB
+    return tB - tA
   })
   const activeSharedViews = sharedViews.filter((v) => v.active !== false).length
   const inactiveSharedViews = sharedViews.length - activeSharedViews
@@ -1012,6 +1025,23 @@ export default function BIPage() {
                     fontSize: 12,
                   }}
                 />
+                <select
+                  value={sharedViewsSort}
+                  onChange={(e) => setSharedViewsSort(e.target.value)}
+                  style={{
+                    background: 'var(--surface-3)',
+                    border: '1px solid var(--surface-4)',
+                    color: 'var(--text-1)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: 12,
+                  }}
+                >
+                  <option value="date_desc">Más recientes primero</option>
+                  <option value="date_asc">Más antiguas primero</option>
+                  <option value="author_asc">Autor (A-Z)</option>
+                  <option value="name_asc">Nombre (A-Z)</option>
+                </select>
                 <label style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1029,7 +1059,7 @@ export default function BIPage() {
                     ({activeSharedViews} activas{showInactiveSharedViews ? ` · ${inactiveSharedViews} inactivas` : ''})
                   </span>
                 </label>
-                {filteredSharedViews.length === 0 ? (
+                {sortedSharedViews.length === 0 ? (
                   <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
                     {sharedViews.length === 0
                       ? (showInactiveSharedViews
@@ -1037,7 +1067,7 @@ export default function BIPage() {
                         : 'No hay vistas activas. Activa "Mostrar vistas inactivas" para restaurarlas.')
                       : 'No hay vistas que coincidan con la búsqueda.'}
                   </div>
-                ) : filteredSharedViews.map((v) => (
+                ) : sortedSharedViews.map((v) => (
                   <div key={v.id} style={{
                     border: '1px solid var(--surface-4)',
                     borderRadius: 8,
@@ -1052,6 +1082,7 @@ export default function BIPage() {
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
                       <div style={{ fontSize: 10, color: 'var(--text-3)' }}>
                         {v.dashboard_key} · {v.created_by_name || '—'} · {v.active === false ? 'inactiva' : 'activa'}
+                        {v.created_at ? ` · ${new Date(v.created_at).toLocaleString(getLocale(lang))}` : ''}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
