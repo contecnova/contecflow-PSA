@@ -205,6 +205,14 @@ MIGRATIONS = [
 
     # v23.10.13 — Fase 3 ITSM Scale
     ("sd_service_items", "popularity_score", "FLOAT"),
+    # v23.10.14 — AI auto-resolution ticket fields
+    ("sd_tickets", "auto_resolved", "BOOLEAN DEFAULT 0"),
+    ("sd_tickets", "auto_resolved_at", "DATETIME"),
+    ("sd_tickets", "auto_resolved_by", "VARCHAR(100)"),
+    ("sd_tickets", "auto_resolved_confidence", "FLOAT"),
+    ("sd_tickets", "resolution_text", "TEXT"),
+    ("sd_tickets", "root_cause", "VARCHAR(255)"),
+    ("sd_tickets", "resolution_kb_articles", "TEXT"),
     # sd_itsm_metric_snapshots and sd_compliance_reports are new tables
     # — created automatically via Base.metadata.create_all above
 ]

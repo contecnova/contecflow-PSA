@@ -11,6 +11,18 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.35 (Abril 2026) — Fix de deriva SQLite para AI Auto-Resolution en Service Desk
+
+- Se corrige un error 500 en métricas de Service Desk (`/api/v1/sd/metrics/itil` y `/api/v1/sd/metrics/agent-performance`) causado por deriva de esquema en SQLite local:
+  - error observado: `sqlite3.OperationalError: no such column: sd_tickets.auto_resolved`.
+- Ajuste aplicado en migración defensiva de arranque:
+  - Archivo: `app/db/migrate.py`.
+  - Se añaden columnas faltantes de `sd_tickets` al listado `MIGRATIONS`:
+    - `auto_resolved`, `auto_resolved_at`, `auto_resolved_by`, `auto_resolved_confidence`,
+    - `resolution_text`, `root_cause`, `resolution_kb_articles`.
+- Resultado esperado:
+  - En entornos SQLite con Alembic desalineado o incompleto, el arranque vuelve a auto-corregir estas columnas y evita fallos por `SELECT` sobre campos inexistentes del modelo `Ticket`.
+
 ### v23.10.34 (Abril 2026) — Auditoría de informes estratégicos (ITSM/BI/AI) y limpieza documental
 
 - Se auditan 4 documentos estratégicos contra implementación real en backend/frontend:
