@@ -332,6 +332,7 @@ class Ticket(Base):
     time_logs = relationship("TicketTimeLog", back_populates="ticket",
                              cascade="all, delete-orphan")
     child_tickets = relationship("Ticket", foreign_keys=[parent_ticket_id])
+    known_error_links = relationship("KnownErrorTicket", back_populates="ticket", cascade="all, delete-orphan")
 
 
 class TicketComment(Base):
@@ -1238,6 +1239,26 @@ class KnownError(Base):
     publisher  = relationship("User", foreign_keys=[published_by])
     category   = relationship("ServiceCategory", foreign_keys=[category_id])
     kb_article = relationship("KBArticle", foreign_keys=[kb_article_id])
+    affected_ticket_links = relationship("KnownErrorTicket", back_populates="known_error", cascade="all, delete-orphan")
+
+
+class KnownErrorTicket(Base):
+    """Formal link: KnownError -> affected Ticket (ITSM-P08 gap closure)."""
+    __tablename__ = "sd_known_error_tickets"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    known_error_id = Column(String(36), ForeignKey("sd_known_errors.id", ondelete="CASCADE"), nullable=False, index=True)
+    ticket_id = Column(String(36), ForeignKey("sd_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    incident_link_id = Column(String(36), ForeignKey("sd_incident_to_problem.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("known_error_id", "ticket_id", name="uq_known_error_ticket"),
+    )
+
+    known_error = relationship("KnownError", back_populates="affected_ticket_links")
+    ticket = relationship("Ticket", back_populates="known_error_links")
+    incident_link = relationship("IncidentToProblem", foreign_keys=[incident_link_id])
 
 
 class ProblemRcaTemplate(Base):
