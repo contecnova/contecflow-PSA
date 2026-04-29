@@ -17,6 +17,8 @@ from app.api.v1.endpoints import (
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
     bi_embed, bi_export, bi_data_versioning, bi_governance,
     predictive_observability,
+    bi_forecasting, bi_anomaly, bi_gdpr, bi_dashboard_collab,
+    bi_query_builder, bi_conditional_delivery, bi_etl, bi_o365,
 )
 from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
 
@@ -86,3 +88,11 @@ router.include_router(approval_builder_v239.router,                      tags=["
 router.include_router(template.router,         tags=["Templates"])
 router.include_router(revenue.router,          prefix="/revenue-recognition", tags=["Revenue Recognition"])
 router.include_router(predictions.router,      prefix="/predictions",         tags=["AI Predictions"])
+router.include_router(bi_forecasting.router,                                tags=["BI Forecasting"])
+router.include_router(bi_anomaly.router,                                    tags=["BI Anomaly & Churn"])
+router.include_router(bi_gdpr.router,                                       tags=["BI GDPR"])
+router.include_router(bi_dashboard_collab.router,                           tags=["BI Dashboard Collab"])
+router.include_router(bi_query_builder.router,                              tags=["BI Query Builder"])
+router.include_router(bi_conditional_delivery.router,                       tags=["BI Conditional Delivery"])
+router.include_router(bi_etl.router,                                        tags=["BI ETL Connectors"])
+router.include_router(bi_o365.router,                                       tags=["BI Office 365"])

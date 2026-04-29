@@ -833,6 +833,116 @@ export const profitabilityApi = {
   deleteMilestone: (projectId, id)      => api.delete(`/profitability/${projectId}/milestones/${id}`),
 }
 
+// ── BI Forecasting ────────────────────────────────────────────────────────────
+export const biForecastingApi = {
+  getMetrics:     ()                   => api.get('/bi/forecasting/metrics'),
+  forecast:       (metric, params)     => api.get(`/bi/forecasting/${metric}`, { params }),
+  multiForecast:  (data)               => api.post('/bi/forecasting/multi', data),
+}
+
+// ── BI Anomaly / Churn ────────────────────────────────────────────────────────
+export const biAnomalyApi = {
+  getInfo:        ()                   => api.get('/bi/anomaly/info'),
+  detect:         (data)               => api.post('/bi/anomaly/detect', data),
+  predictChurn:   (data)               => api.post('/bi/anomaly/churn', data),
+}
+
+// ── BI GDPR ───────────────────────────────────────────────────────────────────
+export const biGdprApi = {
+  recordConsent:  (data)               => api.post('/bi/gdpr/consent', data),
+  getConsent:     (params)             => api.get('/bi/gdpr/consent', { params }),
+  createDsr:      (data)               => api.post('/bi/gdpr/dsr', data),
+  listDsr:        (params)             => api.get('/bi/gdpr/dsr', { params }),
+  resolveDsr:     (id, data)           => api.patch(`/bi/gdpr/dsr/${id}/resolve`, data),
+  setFieldMask:   (data)               => api.post('/bi/gdpr/field-masks', data),
+  getFieldMasks:  ()                   => api.get('/bi/gdpr/field-masks'),
+}
+
+// ── BI Dashboard Collaboration ────────────────────────────────────────────────
+export const biDashboardCollabApi = {
+  addComment:     (data)               => api.post('/bi/collab/comments', data),
+  listComments:   (params)             => api.get('/bi/collab/comments', { params }),
+  resolveComment: (id)                 => api.patch(`/bi/collab/comments/${id}/resolve`),
+  saveView:       (data)               => api.post('/bi/collab/views', data),
+  listViews:      (params)             => api.get('/bi/collab/views', { params }),
+  addReaction:    (data)               => api.post('/bi/collab/reactions', data),
+}
+
+// ── BI Query Builder ──────────────────────────────────────────────────────────
+export const biQueryBuilderApi = {
+  getSchema:      (params)             => api.get('/bi/query-builder/schema', { params }),
+  saveQuery:      (data)               => api.post('/bi/query-builder/queries', data),
+  listQueries:    ()                   => api.get('/bi/query-builder/queries'),
+  executeQuery:   (id)                 => api.post(`/bi/query-builder/queries/${id}/execute`),
+  deleteQuery:    (id)                 => api.delete(`/bi/query-builder/queries/${id}`),
+}
+
+// ── BI Conditional Delivery ───────────────────────────────────────────────────
+export const biConditionalDeliveryApi = {
+  createRule:     (data)               => api.post('/bi/delivery/rules', data),
+  listRules:      ()                   => api.get('/bi/delivery/rules'),
+  updateRule:     (id, data)           => api.patch(`/bi/delivery/rules/${id}`, data),
+  deleteRule:     (id)                 => api.delete(`/bi/delivery/rules/${id}`),
+  evaluate:       (id)                 => api.post(`/bi/delivery/rules/${id}/evaluate`),
+}
+
+// ── BI ETL Connectors ─────────────────────────────────────────────────────────
+export const biEtlApi = {
+  listConnectors: ()                   => api.get('/bi/etl/connectors'),
+  getConnector:   (id)                 => api.get(`/bi/etl/connectors/${id}`),
+  triggerSync:    (id, data)           => api.post(`/bi/etl/connectors/${id}/sync`, data),
+  getLog:         (id)                 => api.get(`/bi/etl/connectors/${id}/log`),
+  getData:        (id, params)         => api.get(`/bi/etl/data/${id}`, { params }),
+}
+
+// ── BI Office 365 ─────────────────────────────────────────────────────────────
+export const biO365Api = {
+  getConfig:      ()                   => api.get('/bi/o365/config'),
+  saveConfig:     (data)               => api.put('/bi/o365/config', data),
+  triggerSync:    (data)               => api.post('/bi/o365/sync', data),
+  getReport:      (name, params)       => api.get(`/bi/o365/reports/${name}`, { params }),
+  getAdoption:    ()                   => api.get('/bi/o365/adoption'),
+  getSyncLog:     ()                   => api.get('/bi/o365/sync-log'),
+}
+
+// ── Voice Agent (IVR) ─────────────────────────────────────────────────────────
+export const voiceAgentApi = {
+  getConfig:      ()                   => api.get('/sd/voice/config'),
+  updateConfig:   (data)               => api.put('/sd/voice/config', data),
+  createSession:  (data)               => api.post('/sd/voice/sessions', data),
+  listSessions:   (params)             => api.get('/sd/voice/sessions', { params }),
+  getSession:     (id)                 => api.get(`/sd/voice/sessions/${id}`),
+  addTurn:        (id, data)           => api.post(`/sd/voice/sessions/${id}/turn`, data),
+  closeSession:   (id, data)           => api.post(`/sd/voice/sessions/${id}/close`, data),
+  createTicket:   (id)                 => api.post(`/sd/voice/sessions/${id}/ticket`),
+}
+
+// ── Incident Assignment ML ────────────────────────────────────────────────────
+export const incidentAssignmentApi = {
+  recommend:      (ticketId, data)     => api.post(`/sd/incidents/${ticketId}/assign/recommend`, data),
+  stats:          ()                   => api.get('/sd/incidents/assign/stats'),
+}
+
+// ── Change Rollout ────────────────────────────────────────────────────────────
+export const changeRolloutApi = {
+  listPlans:      (params)             => api.get('/sd/change/rollout-plans', { params }),
+  getPlan:        (id)                 => api.get(`/sd/change/rollout-plans/${id}`),
+  createPlan:     (data)               => api.post('/sd/change/rollout-plans', data),
+  approvePlan:    (id, data)           => api.post(`/sd/change/rollout-plans/${id}/approve`, data),
+  advancePhase:   (id, data)           => api.post(`/sd/change/rollout-plans/${id}/advance`, data),
+  rollback:       (id, data)           => api.post(`/sd/change/rollout-plans/${id}/rollback`, data),
+  simulate:       (id)                 => api.get(`/sd/change/rollout-plans/${id}/simulate`),
+}
+
+// ── CMDB 3D Graph ─────────────────────────────────────────────────────────────
+export const cmdb3dApi = {
+  getGraph:       (params)             => api.get('/sd/cmdb/3d-graph', { params }),
+  blastRadius:    (ciId)               => api.get(`/sd/cmdb/blast-radius/${ciId}`),
+  createLink:     (data)               => api.post('/sd/cmdb/asset-links', data),
+  listLinks:      (params)             => api.get('/sd/cmdb/asset-links', { params }),
+  getImpact:      (assetId)            => api.get(`/sd/cmdb/asset-impact/${assetId}`),
+}
+
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.
  *  detail can be an array of {type,loc,msg,input,url} objects or a plain string. */
 export function apiErrorMsg(e, fallback = 'Error') {

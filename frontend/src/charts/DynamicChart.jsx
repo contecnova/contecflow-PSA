@@ -12,6 +12,8 @@ import {
   BoxPlotChart,
   ViolinChart,
   Scatter3DChart,
+  NetworkChart,
+  SurfaceChart,
 } from './index'
 
 const COMPONENT_MAP = {
@@ -27,6 +29,8 @@ const COMPONENT_MAP = {
   box: BoxPlotChart,
   violin: ViolinChart,
   scatter3d: Scatter3DChart,
+  network: NetworkChart,
+  surface: SurfaceChart,
 }
 
 export default function DynamicChart({ type = 'treemap', data, config = {} }) {
