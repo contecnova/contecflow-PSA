@@ -20,6 +20,7 @@ from app.services.service_desk.asset_service import (
     get_expiring_soon,
     get_lifecycle_dashboard,
     list_assets_payload,
+    list_assets_by_ci_payload,
     retire_asset_record,
     update_asset_record,
     create_refresh_ticket,
@@ -118,6 +119,16 @@ def list_assets(
     current_user: User = Depends(get_current_user),
 ):
     return list_assets_payload(db, asset_type, status, assigned_user_id, search, page, page_size)
+
+
+@router.get("/by-ci/{ci_id}", summary="Listar activos vinculados a un CI")
+def list_assets_by_ci(
+    ci_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ = current_user
+    return list_assets_by_ci_payload(db, ci_id)
 
 
 @router.post("", summary="Crear nuevo activo")

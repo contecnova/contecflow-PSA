@@ -4,9 +4,10 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
-from app.models.service_desk import ConfigurationItem
+from app.models.service_desk import Asset, ConfigurationItem
 from app.models.user import User
 from app.schemas.service_desk import CIIn
+from app.services.service_desk.cmdb_relation_service import get_ci_impact_payload
 from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 from app.services.sla_service import next_ci_number as _next_ci_number
 
@@ -98,3 +99,109 @@ def get_scoped_ci_or_404(
 def apply_ci_update(ci: ConfigurationItem, payload: CIIn) -> None:
     for k, v in payload.model_dump().items():
         setattr(ci, k, v)
+
+
+def get_ci_deprecation_impact_payload(
+    db: Session,
+    current_user: User,
+    ci_id: str,
+    *,
+    max_depth: int = 5,
+    limit: int = 500,
+    include_root_assets: bool = True,
+) -> dict:
+    """Estimate deprecation impact for one CI, including linked assets.
+
+    Uses the CMDB dependency impact graph and maps impacted CIs to assets via
+    ``Asset.ci_id``.
+    """
+    root_ci = get_scoped_ci_or_404(db, current_user, ci_id)
+    impact = get_ci_impact_payload(db, current_user, ci_id, max_depth=max_depth, limit=limit)
+
+    impacted_ci_ids = {item["ci_id"] for item in impact.get("impacted", [])}
+    if include_root_assets:
+        impacted_ci_ids.add(ci_id)
+
+    # Only include active lifecycle assets as deprecation impact candidates.
+    assets_q = (
+        db.query(Asset)
+        .options(joinedload(Asset.assigned_user), joinedload(Asset.ci))
+        .filter(Asset.ci_id.in_(impacted_ci_ids))
+        .filter(Asset.status.notin_(["retired", "disposed"]))
+    )
+    impacted_assets = assets_q.order_by(Asset.code).all()
+
+    assets_by_status: dict[str, int] = {}
+    assets_by_type: dict[str, int] = {}
+    for a in impacted_assets:
+        st = str(a.status.value if hasattr(a.status, "value") else a.status)
+        tp = str(a.asset_type.value if hasattr(a.asset_type, "value") else a.asset_type)
+        assets_by_status[st] = assets_by_status.get(st, 0) + 1
+        assets_by_type[tp] = assets_by_type.get(tp, 0) + 1
+
+    highest = impact.get("highest_criticality")
+    if not highest:
+        criticality_values = [
+            str((i.get("criticality") or "medium")).lower()
+            for i in impact.get("impacted", [])
+        ]
+        highest = (
+            "critical" if "critical" in criticality_values
+            else "high" if "high" in criticality_values
+            else "medium" if criticality_values
+            else "low"
+        )
+
+    risk_level = (
+        "critical" if highest == "critical" or len(impacted_assets) >= 25
+        else "high" if highest == "high" or len(impacted_assets) >= 10
+        else "medium" if impact.get("impacted_count", 0) > 0 or len(impacted_assets) > 0
+        else "low"
+    )
+
+    recommendations = [
+        "Identificar y planificar reemplazo de activos desplegados ligados al CI deprecado.",
+        "Definir ventana de cambio y rollback antes de retirar dependencias aguas abajo.",
+    ]
+    if assets_by_status.get("deployed", 0) > 0:
+        recommendations.append("Coordinar comunicación con usuarios propietarios de activos en estado deployed.")
+    if impact.get("impacted_count", 0) > 0:
+        recommendations.append("Ejecutar pruebas de regresión sobre CIs impactados directos e indirectos.")
+
+    return {
+        "ci": {
+            "id": root_ci.id,
+            "code": root_ci.code,
+            "name": root_ci.name,
+            "ci_type": str(root_ci.ci_type.value if hasattr(root_ci.ci_type, "value") else root_ci.ci_type),
+            "status": str(root_ci.status.value if hasattr(root_ci.status, "value") else root_ci.status),
+            "criticality": root_ci.criticality,
+        },
+        "summary": {
+            "risk_level": risk_level,
+            "impacted_ci_count": impact.get("impacted_count", 0),
+            "impacted_asset_count": len(impacted_assets),
+            "direct_impacted_ci_count": len([i for i in impact.get("impacted", []) if i.get("depth") == 1]),
+            "max_depth": impact.get("max_depth", max_depth),
+            "truncated": impact.get("truncated", False),
+            "highest_criticality": highest,
+            "assets_by_status": assets_by_status,
+            "assets_by_type": assets_by_type,
+        },
+        "impacted_cis": impact.get("impacted", []),
+        "impacted_assets": [
+            {
+                "id": a.id,
+                "code": a.code,
+                "name": a.name,
+                "asset_type": str(a.asset_type.value if hasattr(a.asset_type, "value") else a.asset_type),
+                "status": str(a.status.value if hasattr(a.status, "value") else a.status),
+                "assigned_user_id": a.assigned_user_id,
+                "assigned_user_name": a.assigned_user.full_name if a.assigned_user else None,
+                "ci_id": a.ci_id,
+                "ci_name": a.ci.name if a.ci else None,
+            }
+            for a in impacted_assets
+        ],
+        "recommendations": recommendations,
+    }

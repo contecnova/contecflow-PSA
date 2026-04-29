@@ -14,7 +14,7 @@ from app.services.service_desk.ticket_ops_service import commit_or_rollback as _
 from app.schemas.service_desk import CIIn
 from app.services.service_desk.cmdb_service import (
     list_cmdb_items, serialize_cmdb_items, enforce_ci_org_constraints,
-    build_ci, get_scoped_ci_or_404, apply_ci_update,
+    build_ci, get_scoped_ci_or_404, apply_ci_update, get_ci_deprecation_impact_payload,
 )
 from app.services.service_desk.cmdb_relation_service import (
     get_ci_relations_payload, build_ci_relation, get_ci_impact_payload,
@@ -305,6 +305,26 @@ def get_ci_blast_radius(
 ):
     """Análisis de radio de impacto con desglose por criticidad y estimación de usuarios afectados."""
     return get_blast_radius_summary(db, current_user, ci_id)
+
+
+@router.get("/cmdb/{ci_id}/deprecation-impact", summary="Impacto de deprecación de un CI (incluye activos vinculados)")
+def get_ci_deprecation_impact(
+    ci_id: str,
+    max_depth: int = Query(5, ge=1, le=10),
+    limit: int = Query(500, ge=1, le=2000),
+    include_root_assets: bool = Query(True, description="Incluir activos vinculados al CI origen"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Evalúa el impacto de retirar/deprecar un CI usando dependencia CMDB + assets enlazados por ci_id."""
+    return get_ci_deprecation_impact_payload(
+        db,
+        current_user,
+        ci_id,
+        max_depth=max_depth,
+        limit=limit,
+        include_root_assets=include_root_assets,
+    )
 
 
 # ── ITSM-P04: Drift Detection endpoints ──────────────────────────────────────

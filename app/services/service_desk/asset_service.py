@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.models.service_desk import Asset, AssetHistory, AssetStatus, AssetType
+from app.models.service_desk import Asset, AssetHistory, AssetStatus, AssetType, ConfigurationItem
 from app.models.user import User
 
 
@@ -21,6 +21,7 @@ def next_asset_code(db: Session) -> str:
 
 
 def asset_out(asset: Asset) -> dict:
+    ci = getattr(asset, "ci", None)
     return {
         "id": asset.id,
         "code": asset.code,
@@ -49,6 +50,9 @@ def asset_out(asset: Asset) -> dict:
         "assigned_user_name": asset.assigned_user.full_name if asset.assigned_user else None,
         "department": asset.department,
         "ci_id": asset.ci_id,
+        "ci_code": ci.code if ci else None,
+        "ci_name": ci.name if ci else None,
+        "ci_status": str(ci.status.value if hasattr(ci.status, "value") else ci.status) if ci else None,
         "tags": asset.tags,
         "notes": asset.notes,
         "managed_by_user_id": asset.managed_by_user_id,
@@ -65,7 +69,7 @@ def list_assets_payload(
     page: int,
     page_size: int,
 ) -> dict:
-    q = db.query(Asset).options(joinedload(Asset.assigned_user))
+    q = db.query(Asset).options(joinedload(Asset.assigned_user), joinedload(Asset.ci))
     if asset_type:
         q = q.filter(Asset.asset_type == asset_type)
     if status:
@@ -117,6 +121,7 @@ def get_asset_with_relations_or_404(db: Session, asset_id: str) -> Asset:
     asset = db.query(Asset).options(
         joinedload(Asset.assigned_user),
         joinedload(Asset.managed_by),
+        joinedload(Asset.ci),
         joinedload(Asset.history),
     ).filter(Asset.id == asset_id).first()
     if not asset:
@@ -155,8 +160,17 @@ def build_asset(payload, code: str) -> Asset:
     return Asset(code=code, **payload.model_dump())
 
 
+def _ensure_ci_exists_or_404(db: Session, ci_id: Optional[str]) -> None:
+    if not ci_id:
+        return
+    exists = db.query(ConfigurationItem.id).filter(ConfigurationItem.id == ci_id).first()
+    if not exists:
+        raise HTTPException(404, "Linked CI not found")
+
+
 def create_asset_record(db: Session, payload) -> Asset:
     validate_asset_type(payload.asset_type)
+    _ensure_ci_exists_or_404(db, getattr(payload, "ci_id", None))
     asset = build_asset(payload, code=next_asset_code(db))
     db.add(asset)
     return asset
@@ -188,8 +202,26 @@ def apply_asset_update_with_history(db: Session, asset: Asset, update_data: dict
 def update_asset_record(db: Session, asset_id: str, payload, changed_by: str) -> Asset:
     asset = get_asset_for_update_or_404(db, asset_id)
     update_data = payload.model_dump(exclude_unset=True)
+    if "ci_id" in update_data:
+        _ensure_ci_exists_or_404(db, update_data.get("ci_id"))
     apply_asset_update_with_history(db, asset, update_data, changed_by)
     return asset
+
+
+def list_assets_by_ci_payload(db: Session, ci_id: str) -> dict:
+    _ensure_ci_exists_or_404(db, ci_id)
+    assets = (
+        db.query(Asset)
+        .options(joinedload(Asset.assigned_user), joinedload(Asset.ci))
+        .filter(Asset.ci_id == ci_id)
+        .order_by(Asset.code)
+        .all()
+    )
+    return {
+        "ci_id": ci_id,
+        "count": len(assets),
+        "assets": [asset_out(a) for a in assets],
+    }
 
 
 def retire_asset_with_history(db: Session, asset: Asset, changed_by: str) -> None:
