@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { timesheetsApi, imputationsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Clock } from 'lucide-react'
@@ -42,17 +42,17 @@ function WeekLines({ weekStart, onClose }) {
 
   const { data: lines = [], isLoading } = useQuery({
     queryKey: ['timesheet-lines', weekStart],
-    queryFn: () => api.get(`/timesheets/my/${weekStart}/lines`).then(r => r.data),
+    queryFn: () => timesheetsApi.weekLines(weekStart).then(r => r.data),
   })
 
   const { mutate: updateLine, isPending: updating } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/imputations/${id}`, data),
+    mutationFn: ({ id, data }) => imputationsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] }); setEditingId(null) },
     onError: e => toast.error(e?.response?.data?.detail || 'Error al actualizar'),
   })
 
   const { mutate: deleteLine } = useMutation({
-    mutationFn: (id) => api.delete(`/imputations/${id}`),
+    mutationFn: (id) => imputationsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['timesheet-lines', weekStart] }),
     onError: e => toast.error(e?.response?.data?.detail || 'Error al eliminar'),
   })
@@ -155,7 +155,7 @@ function ReviewModal({ timesheet, onClose }) {
   const { _invalidate } = useInvalidate()
   const [notes, setNotes] = useState('')
   const { mutate: review, isPending } = useMutation({
-    mutationFn: ({ approved }) => api.post(`/timesheets/${timesheet.id}/review`, { approved, notes }),
+    mutationFn: ({ approved }) => timesheetsApi.review(timesheet.id, { approved, notes }),
     onSuccess: () => { qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['timesheets-team']); qc.invalidateQueries(['timesheets-mine']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -206,23 +206,23 @@ export default function TimesheetsPage() {
 
   const { data: mySheets = [], isLoading: loadingMine } = useQuery({
     queryKey: ['timesheets-mine'],
-    queryFn: () => api.get('/timesheets/my').then(r => r.data),
+    queryFn: () => timesheetsApi.my().then(r => r.data),
   })
 
   const { data: pending = [], isLoading: loadingPending } = useQuery({
     queryKey: ['timesheets-pending'],
-    queryFn: () => api.get('/timesheets/pending').then(r => r.data),
+    queryFn: () => timesheetsApi.pending().then(r => r.data),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { data: teamSheets = [], isLoading: loadingTeam } = useQuery({
     queryKey: ['timesheets-team'],
-    queryFn: () => api.get('/timesheets/team').then(r => r.data),
+    queryFn: () => timesheetsApi.team().then(r => r.data),
     enabled: hasRole('admin', 'pm', 'hr'),
   })
 
   const { mutate: submit, isPending: submitting } = useMutation({
-    mutationFn: (weekStart) => api.post(`/timesheets/my/${weekStart}/submit`),
+    mutationFn: (weekStart) => timesheetsApi.submit(weekStart),
     onSuccess: () => { qc.invalidateQueries(['timesheets-mine']); qc.invalidateQueries(['timesheets-pending']); qc.invalidateQueries(['dash-hours-week']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

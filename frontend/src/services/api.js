@@ -677,6 +677,75 @@ export const wikiApi = {
   deleteTag:    (id)            => api.delete(`/wiki-tags/${id}`),
 }
 
+// ── Skills ────────────────────────────────────────────────────────────────────
+export const skillsApi = {
+  catalog:        ()               => api.get('/skills/catalog'),
+  createCatalog:  (data)           => api.post('/skills/catalog', data),
+  deleteCatalog:  (id)             => api.delete(`/skills/catalog/${id}`),
+  userSkills:     (userId)         => api.get(`/skills/users/${userId}`),
+  userHistory:    (userId)         => api.get(`/skills/users/${userId}/history`),
+  addUserSkill:   (userId, data)   => api.post(`/skills/users/${userId}`, data),
+  removeUserSkill:(userId, skillId)=> api.delete(`/skills/users/${userId}/${skillId}`),
+  matrix:         ()               => api.get('/skills/matrix'),
+  search:         (params)         => api.get('/skills/search', { params }),
+}
+
+// ── Enterprise Subcontractors ─────────────────────────────────────────────────
+export const enterpriseSubsApi = {
+  dashboard:        ()                     => api.get('/enterprise/subcontractors-dashboard'),
+  list:             ()                     => api.get('/enterprise/subcontractors'),
+  create:           (data)                 => api.post('/enterprise/subcontractors', data),
+  update:           (id, data)             => api.patch(`/enterprise/subcontractors/${id}`, data),
+  delete:           (id)                   => api.delete(`/enterprise/subcontractors/${id}`),
+  workers:          (subId)                => api.get(`/enterprise/subcontractors/${subId}/workers`),
+  createWorker:     (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/workers`, data),
+  updateWorker:     (id, data)             => api.patch(`/enterprise/subcontractors/workers/${id}`, data),
+  deleteWorker:     (id)                   => api.delete(`/enterprise/subcontractors/workers/${id}`),
+  addWorkerSkill:   (id, data)             => api.post(`/enterprise/subcontractors/workers/${id}/skills`, data),
+  removeWorkerSkill:(id, skillId)          => api.delete(`/enterprise/subcontractors/workers/${id}/skills/${skillId}`),
+  assignments:      (subId)                => api.get(`/enterprise/subcontractors/${subId}/assignments`),
+  createAssignment: (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/assignments`, data),
+  timelogs:         (subId)                => api.get(`/enterprise/subcontractors/${subId}/timelogs`),
+  createTimelog:    (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/timelogs`, data),
+  invoices:         (subId)                => api.get(`/enterprise/subcontractors/${subId}/invoices`),
+  createInvoice:    (subId, data)          => api.post(`/enterprise/subcontractors/${subId}/invoices`, data),
+  updateInvoice:    (subId, id, data)      => api.patch(`/enterprise/subcontractors/${subId}/invoices/${id}`, data),
+}
+
+// ── ALM Extended (contracts, cost-centers, compliance) ────────────────────────
+export const almExtApi = {
+  dashboard:       ()              => api.get('/alm/dashboard'),
+  contracts:       ()              => api.get('/alm/contracts'),
+  createContract:  (data)          => api.post('/alm/contracts', data),
+  updateContract:  (id, data)      => api.patch(`/alm/contracts/${id}`, data),
+  deleteContract:  (id)            => api.delete(`/alm/contracts/${id}`),
+  costCenters:     ()              => api.get('/alm/cost-centers'),
+  createCostCenter:(data)          => api.post('/alm/cost-centers', data),
+  updateCostCenter:(id, data)      => api.patch(`/alm/cost-centers/${id}`, data),
+  deleteCostCenter:(id)            => api.delete(`/alm/cost-centers/${id}`),
+  compliance:      ()              => api.get('/alm/compliance'),
+}
+
+// ── CAB (Change Advisory Board) ───────────────────────────────────────────────
+export const cabApi = {
+  changes: ()             => api.get('/cab/changes'),
+  windows: ()             => api.get('/cab/windows'),
+  vote:    (id, data)     => api.post(`/cab/changes/${id}/vote`, data),
+  close:   (id, data)     => api.post(`/cab/changes/${id}/close`, data),
+}
+
+// ── Project Change Requests ───────────────────────────────────────────────────
+export const projectChangesApi = {
+  list:       (projectId)           => api.get(`/changes/${projectId}`),
+  allPending: ()                    => api.get('/changes/all/pending'),
+  create:     (projectId, data)     => api.post(`/changes/${projectId}`, data),
+  update:     (projectId, id, data) => api.patch(`/changes/${projectId}/${id}`, data),
+  review:     (projectId, id, data) => api.post(`/changes/${projectId}/${id}/review`, data),
+  submit:     (projectId, id)       => api.post(`/changes/${projectId}/${id}/submit`),
+  implement:  (projectId, id)       => api.post(`/changes/${projectId}/${id}/implement`),
+  delete:     (projectId, id)       => api.delete(`/changes/${projectId}/${id}`),
+}
+
 // ── NPS ───────────────────────────────────────────────────────────────────────
 export const npsApi = {
   leaderboard:    ()            => api.get('/nps/leaderboard'),

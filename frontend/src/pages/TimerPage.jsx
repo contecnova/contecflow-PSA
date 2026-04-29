@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
@@ -65,7 +65,7 @@ function StartModal({ onClose, onStart, isPending, user }) {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-list-timer'],
-    queryFn: () => api.get('/projects?page_size=200&status=active').then(r =>
+    queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
     enabled: hasRate,
@@ -73,8 +73,7 @@ function StartModal({ onClose, onStart, isPending, user }) {
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-for-project-timer', projectId],
-    // assigned_to_me=true → backend filters to current user's assigned tasks only
-    queryFn: () => api.get(`/tasks?project_id=${projectId}&assigned_to_me=true&page_size=200`).then(r =>
+    queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: 200 }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
     enabled: !!projectId && hasRate,
@@ -224,13 +223,13 @@ export default function TimerPage() {
 
   const { data: currentTimer } = useQuery({
     queryKey: ['timer-current'],
-    queryFn: () => api.get('/imputations/timer/current').then(r => r.data),
+    queryFn: () => imputationsApi.timerCurrent().then(r => r.data),
     refetchInterval: 30_000,
   })
 
   const { data: timerHistory = [] } = useQuery({
     queryKey: ['timer-history'],
-    queryFn: () => api.get('/imputations?page_size=50').then(r => {
+    queryFn: () => imputationsApi.list({ page_size: 50 }).then(r => {
       const data = r.data
       const items = Array.isArray(data) ? data : (data.items || [])
       return items.filter(imp => imp.timer_session_id)
@@ -250,22 +249,22 @@ export default function TimerPage() {
   }, [currentTimer])
 
   const startMutation = useMutation({
-    mutationFn: (p) => api.post('/imputations/timer/start', p).then(r => r.data),
+    mutationFn: (p) => imputationsApi.timerStart(p).then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro iniciado'); qc.setQueryData(['timer-current'], data); setShowStart(false) },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al iniciar'),
   })
   const pauseMutation = useMutation({
-    mutationFn: () => api.post('/imputations/timer/pause').then(r => r.data),
+    mutationFn: () => imputationsApi.timerPause().then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro pausado'); qc.setQueryData(['timer-current'], data) },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al pausar'),
   })
   const resumeMutation = useMutation({
-    mutationFn: () => api.post('/imputations/timer/resume').then(r => r.data),
+    mutationFn: () => imputationsApi.timerResume().then(r => r.data),
     onSuccess: (data) => { toast.success('Cronómetro reanudado'); qc.setQueryData(['timer-current'], data) },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
   })
   const stopMutation = useMutation({
-    mutationFn: (p) => api.post('/imputations/timer/stop', p).then(r => r.data),
+    mutationFn: (p) => imputationsApi.timerStop(p).then(r => r.data),
     onSuccess: () => {
       toast.success('Sesión guardada como imputación')
       qc.setQueryData(['timer-current'], null)

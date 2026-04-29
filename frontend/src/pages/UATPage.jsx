@@ -5,7 +5,7 @@
  */
 import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { uatApi, projectsApi, tasksApi } from '../services/api'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
@@ -170,21 +170,19 @@ export default function UATPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => r.data),
+    queryFn: () => projectsApi.list().then(r => r.data),
   })
 
   const { data: tasksData = [] } = useQuery({
     queryKey: ['tasks', selectedProject],
-    queryFn: () => api.get('/tasks', { params: { project_id: selectedProject } }).then(r => r.data),
+    queryFn: () => tasksApi.list({ project_id: selectedProject }).then(r => r.data),
     enabled: !!selectedProject,
     select: d => (Array.isArray(d) ? d : d?.tasks || []),
   })
 
   const { data: uatData, isLoading } = useQuery({
     queryKey: ['uat-cases', selectedProject, statusFilter],
-    queryFn: () => api.get(`/projects/${selectedProject}/uat`, {
-      params: { status: statusFilter || undefined },
-    }).then(r => r.data),
+    queryFn: () => uatApi.list(selectedProject, { status: statusFilter || undefined }).then(r => r.data),
     enabled: !!selectedProject,
   })
 
@@ -192,26 +190,26 @@ export default function UATPage() {
   const stats = uatData?.stats || {}
 
   const { mutate: createCase } = useMutation({
-    mutationFn: data => api.post(`/projects/${selectedProject}/uat`, data),
+    mutationFn: data => uatApi.create(selectedProject, data),
     onSuccess: () => { qc.invalidateQueries(['uat-cases']); setShowCreate(false); toast.success('Caso UAT creado') },
     onError: e => toast.error(extractErr(e, 'Error al crear caso')),
   })
 
   const { mutate: updateCase } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/projects/${selectedProject}/uat/${id}`, data),
+    mutationFn: ({ id, data }) => uatApi.update(selectedProject, id, data),
     onSuccess: () => { qc.invalidateQueries(['uat-cases']); setEditCase(null); toast.success('Caso actualizado') },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
 
   const { mutate: deleteCase } = useMutation({
-    mutationFn: id => api.delete(`/projects/${selectedProject}/uat/${id}`),
+    mutationFn: id => uatApi.remove(selectedProject, id),
     onSuccess: () => { qc.invalidateQueries(['uat-cases']); toast.success('Caso eliminado') },
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const handleExport = async () => {
     try {
-      const r = await api.get(`/projects/${selectedProject}/uat/export`)
+      const r = await uatApi.export(selectedProject)
       setExportReport(r.data)
     } catch (e) {
       toast.error(extractErr(e, 'Error al exportar'))

@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { trainingApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { BookOpen } from 'lucide-react'
@@ -37,7 +37,7 @@ function CourseModal({ course, onClose }) {
     duration_h:course?.duration_h||'', url:course?.url||'', cost:course?.cost||''
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/training/courses/${course.id}`, d) : api.post('/training/courses', d),
+    mutationFn: d => isEdit ? trainingApi.updateCourse(course.id, d) : trainingApi.createCourse(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-courses'] }); onClose() },
     onError: e => toast.error(extractErr(e,'Error')),
   })
@@ -79,10 +79,10 @@ function CertModal({ cert, userId, onClose }) {
     url:cert?.url||'', notes:cert?.notes||''
   })
   const { data: users = [] } = useQuery({
-    queryKey:['users'], queryFn:()=>api.get('/users').then(r=>Array.isArray(r.data)?r.data:(r.data?.users||[]))
+    queryKey:['users'], queryFn:()=>usersApi.list().then(r=>Array.isArray(r.data)?r.data:(r.data?.users||[]))
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/training/certifications/${cert.id}`, d) : api.post('/training/certifications', d),
+    mutationFn: d => isEdit ? trainingApi.updateCert(cert.id, d) : trainingApi.createCert(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['training-certs'] }); onClose() },
     onError: e => toast.error(extractErr(e,'Error')),
   })
@@ -132,25 +132,25 @@ export default function TrainingPage() {
 
   const { data: courses = [], isLoading: loadC } = useQuery({
     queryKey:['training-courses'],
-    queryFn:()=>api.get('/training/courses').then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.courses().then(r=>r.data).catch(()=>[]),
   })
   const { data: certs = [], isLoading: loadCert } = useQuery({
     queryKey:['training-certs'],
-    queryFn:()=>api.get('/training/certifications').then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.certs().then(r=>r.data).catch(()=>[]),
     enabled: tab === 'certs',
   })
   const { data: enrollments = [] } = useQuery({
     queryKey:['training-enrollments'],
-    queryFn:()=>api.get('/training/enrollments').then(r=>r.data).catch(()=>[]),
+    queryFn:()=>trainingApi.enrollments().then(r=>r.data).catch(()=>[]),
     enabled: tab === 'enrollments',
   })
 
   const { mutate: delCourse } = useMutation({
-    mutationFn: id => api.delete(`/training/courses/${id}`),
+    mutationFn: id => trainingApi.deleteCourse(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['training-courses'] }),
   })
   const { mutate: delCert } = useMutation({
-    mutationFn: id => api.delete(`/training/certifications/${id}`),
+    mutationFn: id => trainingApi.deleteCert(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['training-certs'] }),
   })
 
