@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import api from '../services/api'
 import { useToast } from './ToastContext'
 
-const AuthContext = createContext(null)
+export const AuthContext = createContext(null)
 
 // Key used to hint that an active session cookie may exist.
 // The value is never a token — it's only used to avoid a guaranteed-401

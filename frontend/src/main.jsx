@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { AppLangProvider } from './i18n/AppLangContext'
 import { AuthProvider } from './context/AuthContext'
+import { ToastProvider } from './context/ToastContext'
 import { useAppT } from './hooks/useAppT'
 import { initOfflineSync } from './services/offlineQueue'
 import api from './services/api'
@@ -131,15 +132,17 @@ if (import.meta.env.DEV) {
 // ── Render ────────────────────────────────────────────────────────────────────
 ReactDOM.createRoot(document.getElementById('root')).render(
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-    <AuthProvider>
-      <AppLangProvider>
-        <QueryClientProvider client={queryClient}>
-          <RootBoundary>
-            <App />
-          </RootBoundary>
-        </QueryClientProvider>
-      </AppLangProvider>
-    </AuthProvider>
+    <AppLangProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <RootBoundary>
+              <App />
+            </RootBoundary>
+          </QueryClientProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </AppLangProvider>
   </BrowserRouter>
 )
 

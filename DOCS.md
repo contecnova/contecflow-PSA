@@ -6144,3 +6144,50 @@ Validación técnica:
 
 Nota operativa:
 - Si el backend en ejecución no usa autoreload, es necesario reiniciarlo para que estos cambios entren en vigor.
+
+## 14. Frontend startup crash (`useToast` en `AuthProvider`) y warning de icono PWA
+
+Problema observado:
+- Al arrancar frontend en Vite, la app caía con `Uncaught Error: useToast must be inside ToastProvider` desde `AuthProvider`.
+- Además, el navegador mostraba warning del manifest al intentar cargar `/contecflow-icon.svg`.
+
+Causa:
+- `AuthProvider` usa `useToast()`, pero en el árbol raíz no estaba montado `ToastProvider` por encima.
+- El archivo `frontend/public/contecflow-icon.svg` estaba inválido (solo contenía un comentario), por eso el manifest no podía tratarlo como imagen.
+
+Corrección aplicada:
+- `frontend/src/main.jsx`
+  - Se importa y monta `ToastProvider`.
+  - Se reordena el árbol de providers a:
+    - `BrowserRouter` → `AppLangProvider` → `ToastProvider` → `AuthProvider` → `QueryClientProvider` → `RootBoundary` → `App`.
+  - Con esto, cualquier `useToast()` dentro de `AuthProvider` queda dentro del contexto correcto.
+- `frontend/public/contecflow-icon.svg`
+  - Se reemplaza por un SVG válido.
+- `frontend/public/manifest.json`
+  - Se elimina la entrada SVG y se dejan iconos PNG (`icon-192.png`, `icon-512.png`) para evitar advertencias de compatibilidad.
+
+Resultado esperado:
+- Desaparece el crash inicial en render por contexto de toast.
+- Desaparece el warning del manifest asociado a `contecflow-icon.svg`.
+
+### Ajuste adicional: `useAuth must be used inside AuthProvider` en `AppLangProvider`
+
+Síntoma posterior detectado:
+- Tras reordenar providers para resolver Toast, aparecía un nuevo crash en arranque:
+  - `useAuth must be used inside AuthProvider` desde `AppLangProvider`.
+
+Causa raíz:
+- `AppLangProvider` consumía `useAuth()` (estricto) para persistir preferencia de idioma.
+- Pero `AppLangProvider` debe envolver a `ToastProvider` (Toast usa `useAppT`) y `AuthProvider` debe envolver consumidores de auth, generando dependencia circular.
+
+Corrección aplicada:
+- `frontend/src/context/AuthContext.jsx`
+  - Se exporta `AuthContext` además de `useAuth`.
+- `frontend/src/i18n/AppLangContext.jsx`
+  - Se reemplaza `useAuth()` por lectura opcional con `useContext(AuthContext)`.
+  - Si no existe provider de auth en ese nivel, `user` se trata como `null` y no rompe render.
+  - Se mantiene el comportamiento: solo se persiste idioma al backend cuando hay usuario autenticado.
+
+Resultado:
+- Se elimina el crash de `AppLangProvider`.
+- Queda resuelto el ciclo de dependencias entre `AppLangProvider`, `ToastProvider` y `AuthProvider` sin degradar funcionalidad.

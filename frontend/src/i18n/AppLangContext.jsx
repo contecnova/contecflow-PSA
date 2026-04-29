@@ -8,7 +8,7 @@
  *   t('tasks.new_task', 'es')    → fuerza español independientemente
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { AuthContext } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
 import { deepMergeTranslations, resolveTranslation } from './translationRuntime.mjs'
 import api from '../services/api'
@@ -54,8 +54,9 @@ export function AppLangProvider({ children }) {
     const navLang = (navigator.language || 'es').slice(0,2)
     return navLang in APP_LANGUAGES ? navLang : 'es'
   })
-  // Obtener usuario autenticado
-  const { user } = useAuth()
+  // Auth es opcional aquí para evitar dependencia circular de providers en bootstrap.
+  const auth = useContext(AuthContext)
+  const user = auth?.user ?? null
   const inTest = isTestEnvironment()
 
   const [customTrans, setCustomTrans] = useState(() => {

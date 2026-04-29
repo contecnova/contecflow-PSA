@@ -1,1 +1,5 @@
-<!-- SVG icono Contecflow (migrado de contecflow-icon.svg) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Contecflow icon">
+	<rect width="512" height="512" rx="112" fill="#080c14"/>
+	<path d="M130 256c0-69.6 56.4-126 126-126h126v72H256c-29.8 0-54 24.2-54 54s24.2 54 54 54h126v72H256c-69.6 0-126-56.4-126-126z" fill="#4f8ef7"/>
+	<circle cx="370" cy="256" r="38" fill="#7fb2ff"/>
+</svg>
