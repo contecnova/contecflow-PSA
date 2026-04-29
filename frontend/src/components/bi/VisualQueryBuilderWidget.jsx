@@ -88,6 +88,7 @@ export default function VisualQueryBuilderWidget() {
   const entityDef = entity ? entities[entity] : null
   const allColumns = useMemo(() => Object.keys(entityDef?.columns || {}), [entityDef])
   const effectiveColumns = selectedColumns.length ? selectedColumns : allColumns
+  const validOperators = useMemo(() => new Set(Object.keys(operators || {})), [operators])
 
   const groupedEntities = useMemo(() => {
     const acc = {}
@@ -115,19 +116,41 @@ export default function VisualQueryBuilderWidget() {
     setSelectedColumns((prev) => (prev.includes(col) ? prev.filter((x) => x !== col) : [...prev, col]))
   }
 
-  const buildQueryPayload = () => ({
-    entity,
-    columns: effectiveColumns,
-    filters: filters
-      .filter((f) => f.column && f.operator)
-      .map((f) => ({
-        column: f.column,
-        operator: f.operator,
-        value: NULL_OPS.has(f.operator) ? null : f.value,
-      })),
-    sort: sortColumn ? { column: sortColumn, direction: sortDirection } : null,
-    limit: 100,
-  })
+  const buildQueryPayload = () => {
+    const validColumns = new Set(allColumns)
+    const columns = effectiveColumns.filter((c) => validColumns.has(c))
+
+    const normalizedFilters = filters
+      .filter((f) => validColumns.has(f.column) && validOperators.has(f.operator))
+      .map((f) => {
+        if (NULL_OPS.has(f.operator)) {
+          return { column: f.column, operator: f.operator, value: null }
+        }
+        if (f.operator === 'in') {
+          const raw = Array.isArray(f.value) ? f.value : String(f.value || '').split(',')
+          const list = raw.map((x) => String(x).trim()).filter(Boolean)
+          return { column: f.column, operator: f.operator, value: list }
+        }
+        return {
+          column: f.column,
+          operator: f.operator,
+          value: f.value == null ? '' : String(f.value),
+        }
+      })
+      .filter((f) => NULL_OPS.has(f.operator) || (f.operator === 'in' ? f.value.length > 0 : f.value !== ''))
+
+    const sort = validColumns.has(sortColumn)
+      ? { column: sortColumn, direction: sortDirection }
+      : null
+
+    return {
+      entity,
+      columns,
+      filters: normalizedFilters,
+      sort,
+      limit: 100,
+    }
+  }
 
   const saveTemplate = () => {
     const name = templateName.trim()
@@ -141,8 +164,14 @@ export default function VisualQueryBuilderWidget() {
   const loadTemplate = (item) => {
     const q = item?.query || {}
     setEntity(q.entity || 'projects')
-    setSelectedColumns(Array.isArray(q.columns) ? q.columns : [])
-    setFilters(Array.isArray(q.filters) ? q.filters : [])
+    const templateColumns = Array.isArray(q.columns) ? q.columns.filter((c) => typeof c === 'string') : []
+    setSelectedColumns(templateColumns)
+    const templateFilters = Array.isArray(q.filters)
+      ? q.filters
+        .filter((f) => f && typeof f.column === 'string' && typeof f.operator === 'string')
+        .map((f) => ({ column: f.column, operator: f.operator, value: f.value ?? '' }))
+      : []
+    setFilters(templateFilters)
     setSortColumn(q.sort?.column || '')
     setSortDirection(q.sort?.direction || 'asc')
   }

@@ -6267,3 +6267,26 @@ Corrección aplicada:
 
 Resultado esperado:
 - Desaparece el warning de clave faltante `nav.time` en la navegación.
+
+## 18. BI Query Builder: 400 en `query-builder/preview`
+
+Problema observado:
+- En frontend aparecía `POST /api/v1/bi/intelligence/query-builder/preview 400 (Bad Request)` al pulsar preview.
+
+Causa:
+- El backend valida estrictamente columnas y operadores del Query Builder visual.
+- Plantillas/filtros con columnas u operadores inválidos (o valores vacíos incompatibles) pueden disparar `400`.
+
+Corrección aplicada:
+- `frontend/src/components/bi/VisualQueryBuilderWidget.jsx`
+  - Se sanea el payload antes de enviar preview:
+    - columnas: solo las válidas para la entidad activa.
+    - filtros: solo con `column` y `operator` válidos.
+    - operador `in`: normaliza valor a array (acepta texto separado por comas).
+    - operadores null (`is_null`, `is_not_null`): fuerzan `value: null`.
+    - se descartan filtros vacíos para evitar validaciones backend innecesarias.
+    - `sort` solo se envía si la columna de orden existe en la entidad.
+  - Al cargar plantillas se filtran estructuras inválidas para evitar arrastrar payload legacy roto.
+
+Resultado esperado:
+- Se reducen/eliminan los 400 de preview causados por payload inválido en Query Builder.
