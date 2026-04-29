@@ -196,10 +196,10 @@ def _normalize_sql_for_duckdb(sql: str) -> str:
 def _fallback_sql_for_question(question: str) -> Optional[str]:
     q = (question or "").lower()
 
-        # Frequent BI question: projects with negative margin in current year.
-        if ("margen" in q and ("negativo" in q or "negativa" in q)
-                        and ("proyecto" in q or "proyectos" in q)):
-                return """
+    # Frequent BI question: projects with negative margin in current year.
+    if ("margen" in q and ("negativo" in q or "negativa" in q)
+                    and ("proyecto" in q or "proyectos" in q)):
+        return """
 SELECT
     dp.name AS proyecto,
     fp.margin AS margen_eur,
@@ -216,13 +216,13 @@ ORDER BY fp.margin ASC
 LIMIT 200
 """.strip()
 
-        # "Top projects by hours this month"
-        if (
-            ("proyecto" in q or "proyectos" in q)
-            and ("hora" in q or "horas" in q)
-            and ("este mes" in q or "mes actual" in q)
-        ):
-                return """
+    # "Top projects by hours this month"
+    if (
+        ("proyecto" in q or "proyectos" in q)
+        and ("hora" in q or "horas" in q)
+        and ("este mes" in q or "mes actual" in q)
+    ):
+        return """
 SELECT
     dp.name AS proyecto,
     ROUND(SUM(fi.hours), 2) AS horas_imputadas
@@ -236,13 +236,13 @@ ORDER BY horas_imputadas DESC
 LIMIT 5
 """.strip()
 
-        # "Users with utilization below 70%"
-        if (
-            ("usuario" in q or "usuarios" in q)
-            and ("utiliz" in q)
-            and ("70" in q)
-        ):
-                return """
+    # "Users with utilization below 70%"
+    if (
+        ("usuario" in q or "usuarios" in q)
+        and ("utiliz" in q)
+        and ("70" in q)
+    ):
+        return """
 SELECT
     du.full_name AS usuario,
     ROUND(
@@ -266,7 +266,7 @@ ORDER BY utilizacion_pct ASC
 LIMIT 200
 """.strip()
 
-        return None
+    return None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

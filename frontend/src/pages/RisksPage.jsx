@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, usersApi } from '../services/api'
+import { projectsApi, usersApi, risksApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { AlertTriangle } from 'lucide-react'
@@ -158,8 +158,8 @@ function RiskFormModal({ risk, projectId, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit
-      ? api.patch(`/risks/${projectId}/${risk.id}`, data)
-      : api.post(`/risks/${projectId}`, data),
+      ? risksApi.update(projectId, risk.id, data)
+      : risksApi.create(projectId, data),
     onSuccess: () => { qc.invalidateQueries(['risks', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -264,12 +264,12 @@ export default function RisksPage() {
   const { data: risksData, isLoading } = useQuery({
     queryKey: ['risks', selectedProject],
     queryFn: () => selectedProject
-      ? api.get(`/risks/${selectedProject}`).then(r => r.data)
-      : api.get('/risks/all/portfolio').then(r => ({ risks: r.data, summary: { total: r.data.length } })),
+      ? risksApi.list(selectedProject).then(r => r.data)
+      : risksApi.portfolioAll().then(r => ({ risks: r.data, summary: { total: r.data.length } })),
   })
 
   const { mutate: deleteRisk } = useMutation({
-    mutationFn: ({ projectId, riskId }) => api.delete(`/risks/${projectId}/${riskId}`),
+    mutationFn: ({ projectId, riskId }) => risksApi.delete(projectId, riskId),
     onSuccess: () => qc.invalidateQueries(['risks', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

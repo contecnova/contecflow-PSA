@@ -341,45 +341,59 @@ export const epicsApi = {
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 export const contractsApi = {
-  list:       (params)      => api.get('/contracts', { params }),
-  get:        (id)          => api.get(`/contracts/${id}`),
-  create:     (data)        => api.post('/contracts', data),
-  update:     (id, data)    => api.patch(`/contracts/${id}`, data),
-  delete:     (id)          => api.delete(`/contracts/${id}`),
-  workOrders: (id)          => api.get(`/contracts/${id}/work-orders`),
+  list:                (params)           => api.get('/contracts', { params }),
+  get:                 (id)               => api.get(`/contracts/${id}`),
+  create:              (data)             => api.post('/contracts', data),
+  update:              (id, data)         => api.patch(`/contracts/${id}`, data),
+  delete:              (id)               => api.delete(`/contracts/${id}`),
+  workOrders:          (id)               => api.get(`/contracts/${id}/work-orders`),
+  createWorkOrder:     (id, data)         => api.post(`/contracts/${id}/work-orders`, data),
+  updateWorkOrderStatus:(id, woId, status)=> api.patch(`/contracts/${id}/work-orders/${woId}/status`, null, { params: { status } }),
 }
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
 export const expensesApi = {
-  list:    (params)   => api.get('/expenses', { params }),
-  my:      (params)   => api.get('/expenses/my', { params }),
-  pending: ()         => api.get('/expenses/pending'),
-  get:     (id)       => api.get(`/expenses/${id}`),
-  create:  (data)     => api.post('/expenses', data),
-  update:  (id, data) => api.patch(`/expenses/${id}`, data),
-  approve: (id)       => api.post(`/expenses/${id}/approve`),
-  reject:  (id, data) => api.post(`/expenses/${id}/reject`, data),
-  delete:  (id)       => api.delete(`/expenses/${id}`),
+  list:      (params)    => api.get('/expenses', { params }),
+  my:        (params)    => api.get('/expenses/my', { params }),
+  pending:   ()          => api.get('/expenses/pending'),
+  team:      (params)    => api.get('/expenses/team', { params }),
+  get:       (id)        => api.get(`/expenses/${id}`),
+  create:    (data)      => api.post('/expenses', data),
+  update:    (id, data)  => api.patch(`/expenses/${id}`, data),
+  updateMy:  (id, data)  => api.patch(`/expenses/my/${id}`, data),
+  approve:   (id)        => api.post(`/expenses/${id}/approve`),
+  reject:    (id, data)  => api.post(`/expenses/${id}/reject`, data),
+  review:    (id, data)  => api.post(`/expenses/${id}/review`, data),
+  submitMy:  (id)        => api.post(`/expenses/my/${id}/submit`),
+  recall:    (id)        => api.post(`/expenses/my/${id}/recall`),
+  reimburse: (id)        => api.post(`/expenses/${id}/reimburse`),
+  delete:    (id)        => api.delete(`/expenses/${id}`),
+  deleteMy:  (id)        => api.delete(`/expenses/my/${id}`),
+  ocr:       (fd)        => api.post('/expenses/ocr', fd),
 }
 
 // ── Risks ─────────────────────────────────────────────────────────────────────
 export const risksApi = {
-  list:   (projectId, params) => api.get(`/risks/${projectId}`, { params }),
-  get:    (projectId, riskId) => api.get(`/risks/${projectId}/${riskId}`),
-  create: (projectId, data)   => api.post(`/risks/${projectId}`, data),
-  update: (projectId, riskId, data) => api.patch(`/risks/${projectId}/${riskId}`, data),
-  delete: (projectId, riskId) => api.delete(`/risks/${projectId}/${riskId}`),
-  scores: ()                  => api.get('/risks/scores'),
+  list:         (projectId, params) => api.get(`/risks/${projectId}`, { params }),
+  get:          (projectId, riskId) => api.get(`/risks/${projectId}/${riskId}`),
+  create:       (projectId, data)   => api.post(`/risks/${projectId}`, data),
+  update:       (projectId, riskId, data) => api.patch(`/risks/${projectId}/${riskId}`, data),
+  delete:       (projectId, riskId) => api.delete(`/risks/${projectId}/${riskId}`),
+  scores:       ()                  => api.get('/risks/scores'),
+  portfolioAll: ()                  => api.get('/risks/all/portfolio'),
 }
 
 // ── OKRs ─────────────────────────────────────────────────────────────────────
 export const okrsApi = {
-  list:       (params)      => api.get('/okrs', { params }),
-  get:        (id)          => api.get(`/okrs/${id}`),
-  create:     (data)        => api.post('/okrs', data),
-  update:     (id, data)    => api.patch(`/okrs/${id}`, data),
-  delete:     (id)          => api.delete(`/okrs/${id}`),
-  updateKR:   (id, krid, d) => api.patch(`/okrs/${id}/key-results/${krid}`, d),
+  list:     (params)      => api.get('/okrs', { params }),
+  get:      (id)          => api.get(`/okrs/${id}`),
+  create:   (data)        => api.post('/okrs', data),
+  update:   (id, data)    => api.patch(`/okrs/${id}`, data),
+  delete:   (id)          => api.delete(`/okrs/${id}`),
+  updateKR: (id, krid, d) => api.patch(`/okrs/${id}/key-results/${krid}`, d),
+  createKR: (data)        => api.post('/okrs/key-results', data),
+  deleteKR: (id)          => api.delete(`/okrs/key-results/${id}`),
+  checkin:  (krId, data)  => api.post(`/okrs/key-results/${krId}/checkin`, data),
 }
 
 // ── Pipeline (opportunities) ──────────────────────────────────────────────────
@@ -437,18 +451,23 @@ export const trainingApi = {
 
 // ── Absences ──────────────────────────────────────────────────────────────────
 export const absencesApi = {
-  my:        (params)    => api.get('/absences/my', { params }),
-  pending:   ()          => api.get('/absences/pending'),
-  team:      (params)    => api.get('/absences/team', { params }),
-  calendar:  (params)    => api.get('/absences/calendar', { params }),
-  get:       (id)        => api.get(`/absences/${id}`),
-  create:    (data)      => api.post('/absences', data),
-  update:    (id, data)  => api.patch(`/absences/${id}`, data),
-  approve:   (id)        => api.post(`/absences/${id}/approve`),
-  reject:    (id, data)  => api.post(`/absences/${id}/reject`, data),
-  delete:    (id)        => api.delete(`/absences/${id}`),
-  balance:   (params)    => api.get('/absences/balance', { params }),
-  policies:  ()          => api.get('/absences/policies'),
+  my:             (params)    => api.get('/absences/my', { params }),
+  pending:        ()          => api.get('/absences/pending'),
+  team:           (params)    => api.get('/absences/team', { params }),
+  calendar:       (params)    => api.get('/absences/calendar', { params }),
+  get:            (id)        => api.get(`/absences/${id}`),
+  create:         (data)      => api.post('/absences', data),
+  createMy:       (data)      => api.post('/absences/my', data),
+  update:         (id, data)  => api.patch(`/absences/${id}`, data),
+  updateMy:       (id, data)  => api.patch(`/absences/my/${id}`, data),
+  approve:        (id)        => api.post(`/absences/${id}/approve`),
+  reject:         (id, data)  => api.post(`/absences/${id}/reject`, data),
+  review:         (id, data)  => api.post(`/absences/${id}/review`, data),
+  delete:         (id)        => api.delete(`/absences/${id}`),
+  deleteMy:       (id)        => api.delete(`/absences/my/${id}`),
+  balance:        (params)    => api.get('/absences/balance', { params }),
+  vacationBalance:()          => api.get('/absences/my/vacation-balance'),
+  policies:       ()          => api.get('/absences/policies'),
 }
 
 // ── ALM — Assets, Licenses, Vendors ──────────────────────────────────────────
@@ -646,6 +665,56 @@ export const wikiApi = {
   createTag:    (space, data)   => api.post(`/wiki-tags/${space}`, data),
   updateTag:    (id, data)      => api.patch(`/wiki-tags/${id}`, data),
   deleteTag:    (id)            => api.delete(`/wiki-tags/${id}`),
+}
+
+// ── NPS ───────────────────────────────────────────────────────────────────────
+export const npsApi = {
+  leaderboard:    ()            => api.get('/nps/leaderboard'),
+  summary:        (id, days)    => api.get(`/nps/${id}/summary`, { params: { days } }),
+  health:         (id, limit)   => api.get(`/nps/${id}/health`, { params: { limit } }),
+  healthCompute:  (id)          => api.post(`/nps/${id}/health-compute`),
+  respond:        (id, data)    => api.post(`/nps/${id}/responses`, data),
+}
+
+// ── Portfolios ────────────────────────────────────────────────────────────────
+export const portfolioApi = {
+  list:          ()             => api.get('/portfolios'),
+  get:           (id)           => api.get(`/portfolios/${id}`),
+  dashboard:     (id)           => api.get(`/portfolios/${id}/dashboard`),
+  create:        (data)         => api.post('/portfolios', data),
+  update:        (id, data)     => api.patch(`/portfolios/${id}`, data),
+  delete:        (id)           => api.delete(`/portfolios/${id}`),
+  addProject:    (id, pid)      => api.post(`/portfolios/${id}/projects`, { project_id: pid }),
+  removeProject: (id, pid)      => api.delete(`/portfolios/${id}/projects/${pid}`),
+}
+
+// ── Performance Reviews ───────────────────────────────────────────────────────
+export const performanceApi = {
+  cycles:        ()             => api.get('/performance/cycles'),
+  myReviews:     ()             => api.get('/performance/my-reviews'),
+  cycleReviews:  (id)           => api.get(`/performance/cycles/${id}/reviews`),
+  createCycle:   (data)         => api.post('/performance/cycles', data),
+  activateCycle: (id)           => api.post(`/performance/cycles/${id}/activate`),
+  closeCycle:    (id)           => api.post(`/performance/cycles/${id}/close`),
+  updateReview:  (id, data)     => api.patch(`/performance/reviews/${id}`, data),
+  submitReview:  (id)           => api.post(`/performance/reviews/${id}/submit`),
+}
+
+// ── Capacity Planning ─────────────────────────────────────────────────────────
+export const capacityApi = {
+  board:       (params)         => api.get('/capacity/board', { params }),
+  createPlan:  (data)           => api.post('/capacity/plans', data),
+  updatePlan:  (id, data)       => api.patch(`/capacity/plans/${id}`, data),
+  deletePlan:  (id)             => api.delete(`/capacity/plans/${id}`),
+}
+
+// ── Profitability ─────────────────────────────────────────────────────────────
+export const profitabilityApi = {
+  get:             (projectId)          => api.get(`/profitability/${projectId}`),
+  summary:         (params)             => api.get('/profitability/summary', { params }),
+  createMilestone: (projectId, data)    => api.post(`/profitability/${projectId}/milestones`, data),
+  updateMilestone: (projectId, id, data)=> api.patch(`/profitability/${projectId}/milestones/${id}`, data),
+  deleteMilestone: (projectId, id)      => api.delete(`/profitability/${projectId}/milestones/${id}`),
 }
 
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.

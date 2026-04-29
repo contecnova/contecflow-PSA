@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, contractsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { ScrollText } from 'lucide-react'
@@ -118,7 +118,7 @@ function ContractFormModal({ contract, onClose }) {
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => isEdit ? api.patch(`/contracts/${contract.id}`, data) : api.post('/contracts', data),
+    mutationFn: (data) => isEdit ? contractsApi.update(contract.id, data) : contractsApi.create(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -246,12 +246,12 @@ function ContractDetail({ contract, onClose, onEdit }) {
   const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
 
   const { mutate: createWO } = useMutation({
-    mutationFn: (data) => api.post(`/contracts/${contract.id}/work-orders`, data),
+    mutationFn: (data) => contractsApi.createWorkOrder(contract.id, data),
     onSuccess: () => { woValidation.setErrors({}); qc.invalidateQueries(['contracts']); setShowWO(false); setWoForm({ name: '', amount: '', hours: '', start_date: '', end_date: '' }) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateWOStatus } = useMutation({
-    mutationFn: ({ woId, status }) => api.patch(`/contracts/${contract.id}/work-orders/${woId}/status?status=${status}`),
+    mutationFn: ({ woId, status }) => contractsApi.updateWorkOrderStatus(contract.id, woId, status),
     onSuccess: () => qc.invalidateQueries(['contracts']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -366,7 +366,7 @@ export default function ContractsPage() {
 
   const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts', statusFilter],
-    queryFn: () => api.get('/contracts', { params: statusFilter ? { status: statusFilter } : {} }).then(r => r.data),
+    queryFn: () => contractsApi.list(statusFilter ? { status: statusFilter } : {}).then(r => r.data),
   })
 
   // Contratos que vencen en los próximos 90 días

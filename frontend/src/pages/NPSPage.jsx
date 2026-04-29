@@ -14,7 +14,7 @@ import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
 } from 'recharts'
-import api from '../services/api'
+import { npsApi, clientsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
@@ -105,29 +105,29 @@ export default function NPSPage() {
 
   const { data: leaderboard = [] } = useQuery({
     queryKey: ['health-leaderboard'],
-    queryFn: () => api.get('/nps/leaderboard').then(r => r.data),
+    queryFn: () => npsApi.leaderboard().then(r => r.data),
     refetchInterval: 60000,
   })
 
   const { data: clients = [] } = useQuery({
     queryKey: ['clients-list-nps'],
-    queryFn: () => api.get('/clients').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => clientsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
 
   const { data: summary } = useQuery({
     queryKey: ['nps-summary', clientId, npsDays],
-    queryFn: () => api.get(`/nps/${clientId}/summary?days=${npsDays}`).then(r => r.data),
+    queryFn: () => npsApi.summary(clientId, npsDays).then(r => r.data),
     enabled: !!clientId,
   })
 
   const { data: health = [] } = useQuery({
     queryKey: ['health-history', clientId],
-    queryFn: () => api.get(`/nps/${clientId}/health?limit=30`).then(r => r.data),
+    queryFn: () => npsApi.health(clientId, 30).then(r => r.data),
     enabled: !!clientId,
   })
 
   const { mutate: computeHealth, isLoading: computing } = useMutation({
-    mutationFn: () => api.post(`/nps/${clientId}/health-compute`),
+    mutationFn: () => npsApi.healthCompute(clientId),
     onSuccess: () => qc.invalidateQueries(['health-history', clientId, 'health-leaderboard']),
   })
 
@@ -135,7 +135,7 @@ export default function NPSPage() {
     if (!clientId) return
     setSubmitting(true)
     try {
-      await api.post(`/nps/${clientId}/responses`, {
+      await npsApi.respond(clientId, {
         score: Number(scoreInput), comment, respondent, source: 'manual',
       })
       setComment(''); setRespondent(''); setScoreInput(9)

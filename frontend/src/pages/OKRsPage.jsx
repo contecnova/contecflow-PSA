@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { okrsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Trophy } from 'lucide-react'
@@ -58,8 +58,7 @@ function KRRow({ kr, _onCheckin, onDelete }) {
   const typeCfg = KR_TYPE_CFG[kr.kr_type] || KR_TYPE_CFG.percentage
 
   const { mutate: submitCheckin, isPending } = useMutation({
-    mutationFn: () => api.post(`/okrs/key-results/${kr.id}/checkin`,
-      { value: parseFloat(checkinVal), note: checkinNote }),
+    mutationFn: () => okrsApi.checkin(kr.id, { value: parseFloat(checkinVal), note: checkinNote }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['okrs'] })
       setShowCheckin(false)
@@ -205,8 +204,8 @@ function ObjModal({ obj, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/okrs/${obj.id}`, d)
-      : api.post('/okrs', d),
+      ? okrsApi.update(obj.id, d)
+      : okrsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -265,7 +264,7 @@ function KRModal({ objective, onClose }) {
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post('/okrs/key-results', d),
+    mutationFn: d => okrsApi.createKR(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -319,17 +318,17 @@ export default function OKRsPage() {
 
   const { data: objectives = [], isLoading } = useQuery({
     queryKey: ['okrs', year, period],
-    queryFn: () => api.get('/okrs', { params: { year, ...(period && { period }) } }).then(r => r.data),
+    queryFn: () => okrsApi.list({ year, ...(period && { period }) }).then(r => r.data),
   })
 
   const { mutate: deleteObj } = useMutation({
-    mutationFn: id => api.delete(`/okrs/${id}`),
+    mutationFn: id => okrsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: deleteKR } = useMutation({
-    mutationFn: id => api.delete(`/okrs/key-results/${id}`),
+    mutationFn: id => okrsApi.deleteKR(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['okrs'] }),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

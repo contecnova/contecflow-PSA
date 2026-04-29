@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { absencesApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Umbrella } from 'lucide-react'
@@ -79,12 +79,12 @@ function RequestModal({ onClose }) {
 
   const { data: balance } = useQuery({
     queryKey: ['vacation-balance-my'],
-    queryFn: () => api.get('/absences/my/vacation-balance').then(r => r.data).catch(() => null),
+    queryFn: () => absencesApi.vacationBalance().then(r => r.data).catch(() => null),
     staleTime: 60000,
   })
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data) => api.post('/absences/my', data),
+    mutationFn: (data) => absencesApi.createMy(data),
     onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); validation.setErrors({}); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
@@ -158,7 +158,7 @@ function ReviewModal({ absence, onClose }) {
   const qc = useQueryClient()
   const [notes, setNotes] = useState('')
   const { mutate, isPending } = useMutation({
-    mutationFn: ({ approved }) => api.post(`/absences/${absence.id}/review`, { approved, rejection_reason: notes }),
+    mutationFn: ({ approved }) => absencesApi.review(absence.id, { approved, rejection_reason: notes }),
     onSuccess: () => { qc.invalidateQueries(['absences-pending']); qc.invalidateQueries(['team-absences']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['dash-team-load']); onClose() },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })
@@ -196,7 +196,7 @@ function CalendarView({ year, month }) {
   const t = useAppT()
   const { data } = useQuery({
     queryKey: ['absence-calendar', year, month],
-    queryFn: () => api.get(`/absences/calendar?year=${year}&month=${month}`).then(r => r.data),
+    queryFn: () => absencesApi.calendar({ year, month }).then(r => r.data),
   })
 
   if (!data) return <Spinner />
@@ -262,7 +262,7 @@ function EditAbsenceModal({ absence, onClose }) {
   const validation = useFormValidation(buildAbsenceRequestSchema(t))
 
   const { mutate, isPending, error } = useMutation({
-    mutationFn: (data) => api.patch(`/absences/my/${absence.id}`, data),
+    mutationFn: (data) => absencesApi.updateMy(absence.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['absences-my'] })
       qc.invalidateQueries({ queryKey: ['absences-pending'] })
@@ -372,25 +372,25 @@ export default function AbsencesPage() {
 
   const { data: myAbsences = [], isLoading: loadingMine } = useQuery({
     queryKey: ['absences-my'],
-    queryFn: () => api.get('/absences/my').then(r => r.data),
+    queryFn: () => absencesApi.my().then(r => r.data),
     enabled: tab === 'mine',
   })
 
   const { data: pending = [] } = useQuery({
     queryKey: ['absences-pending'],
-    queryFn: () => api.get('/absences/pending').then(r => r.data),
+    queryFn: () => absencesApi.pending().then(r => r.data),
     enabled: hasRole('admin', 'hr', 'pm'),
   })
 
   const { data: teamAbsences = [] } = useQuery({
     queryKey: ['team-absences'],
-    queryFn: () => api.get('/absences/team').then(r => r.data),
+    queryFn: () => absencesApi.team().then(r => r.data),
     enabled: tab === 'team' && hasRole('admin', 'hr', 'pm'),
   })
   const { sort: teamAbsSort, setSort: setTeamAbsSort, sortedData: sortedTeamAbs } = useSort(teamAbsences, 'start_date', 'desc')
 
   const { mutate: cancel } = useMutation({
-    mutationFn: (id) => api.delete(`/absences/my/${id}`),
+    mutationFn: (id) => absencesApi.deleteMy(id),
     onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); },
     onError: e => toast.error(extractErr(e, t('common.error'))),
   })

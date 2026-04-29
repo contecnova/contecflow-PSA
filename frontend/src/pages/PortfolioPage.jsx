@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import api, { portfolioApi, projectsApi } from '../services/api';
 import { useAppT } from '../i18n/AppLangContext'
 import {
   Briefcase, Plus, ChevronRight, ChevronDown, X, Check,
@@ -85,11 +85,11 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }) {
 
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-for-portfolio'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   });
 
   const { mutate: addProject } = useMutation({
-    mutationFn: pid => api.post(`/portfolios/${portfolioId}/projects`, { project_id: pid }),
+    mutationFn: pid => portfolioApi.addProject(portfolioId, pid),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }); onAdded(); },
   });
 
@@ -131,13 +131,13 @@ function PortfolioDashboard({ portfolioId, onClose }) {
 
   const { data: dash, isLoading } = useQuery({
     queryKey: ['portfolio-dashboard', portfolioId],
-    queryFn: () => api.get(`/portfolios/${portfolioId}/dashboard`).then(r => r.data),
+    queryFn: () => portfolioApi.dashboard(portfolioId).then(r => r.data),
     enabled: !!portfolioId,
     refetchInterval: 60000,
   });
 
   const { mutate: removeProject } = useMutation({
-    mutationFn: pid => api.delete(`/portfolios/${portfolioId}/projects/${pid}`),
+    mutationFn: pid => portfolioApi.removeProject(portfolioId, pid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolio-dashboard', portfolioId] }),
   });
 
@@ -291,21 +291,21 @@ export default function PortfolioPage() {
 
   const { data: portfolios = [], isLoading } = useQuery({
     queryKey: ['portfolios'],
-    queryFn: () => api.get('/portfolios').then(r => r.data),
+    queryFn: () => portfolioApi.list().then(r => r.data),
   });
 
   const { mutate: createPortfolio } = useMutation({
-    mutationFn: data => api.post('/portfolios', { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: data => portfolioApi.create({ ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setShowCreate(false); },
   });
 
   const { mutate: updatePortfolio } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/portfolios/${id}`, { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
+    mutationFn: ({ id, data }) => portfolioApi.update(id, { ...data, budget_total: data.budget_total ? Number(data.budget_total) : null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portfolios'] }); setEditing(null); },
   });
 
   const { mutate: deletePortfolio } = useMutation({
-    mutationFn: id => api.delete(`/portfolios/${id}`),
+    mutationFn: id => portfolioApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['portfolios'] }),
   });
 

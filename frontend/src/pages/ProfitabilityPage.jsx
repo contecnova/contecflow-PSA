@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { profitabilityApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { TrendingUp } from 'lucide-react'
@@ -36,12 +36,12 @@ function MilestoneRow({ m, projectId, onUpdate }) {
   const qc = useQueryClient()
   const toast = useToast()
   const { mutate: update } = useMutation({
-    mutationFn: (data) => api.patch(`/profitability/${projectId}/milestones/${m.id}`, data),
+    mutationFn: (data) => profitabilityApi.updateMilestone(projectId, m.id, data),
     onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); if (onUpdate) onUpdate() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: () => api.delete(`/profitability/${projectId}/milestones/${m.id}`),
+    mutationFn: () => profitabilityApi.deleteMilestone(projectId, m.id),
     onSuccess: () => qc.invalidateQueries(['profitability-detail', projectId]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -80,11 +80,11 @@ function ProjectDetail({ projectId, onClose }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['profitability-detail', projectId],
-    queryFn: () => api.get(`/profitability/${projectId}`).then(r => r.data),
+    queryFn: () => profitabilityApi.get(projectId).then(r => r.data),
   })
 
   const { mutate: addMilestone } = useMutation({
-    mutationFn: (d) => api.post(`/profitability/${projectId}/milestones`, d),
+    mutationFn: (d) => profitabilityApi.createMilestone(projectId, d),
     onSuccess: () => { qc.invalidateQueries(['profitability-detail', projectId]); setShowAddMilestone(false); setMsForm({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 }) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -258,7 +258,7 @@ export default function ProfitabilityPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['profitability-summary', statusFilter],
-    queryFn: () => api.get(`/profitability/summary?status=${statusFilter}`).then(r => r.data),
+    queryFn: () => profitabilityApi.summary({ status: statusFilter }).then(r => r.data),
   })
 
   const projects = data?.projects || []

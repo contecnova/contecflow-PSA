@@ -9,7 +9,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, usersApi } from '../services/api'
+import { projectsApi, usersApi, capacityApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { TrendingUp } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
@@ -72,7 +72,7 @@ function AssignModal({ prefill, onClose }) {
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post('/capacity/plans', d),
+    mutationFn: d => capacityApi.createPlan(d),
     onSuccess: () => {
       qc.invalidateQueries(['capacity-board'])
       qc.invalidateQueries(['forecast-heatmap'])
@@ -159,7 +159,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
   const color     = LOAD_COLOR(loadPct)
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: id => api.delete(`/capacity/plans/${id}`),
+    mutationFn: id => capacityApi.deletePlan(id),
     onSuccess: () => { qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); toast.success('Asignación eliminada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -265,18 +265,16 @@ export default function CapacityPage() {
 
   const { data: board = [], isLoading } = useQuery({
     queryKey: ['capacity-board', weeksAhead],
-    queryFn: () => api.get('/capacity/board', {
-      params: {
-        week_from: weekStarts[0],
-        week_to:   weekStarts[weekStarts.length - 1],
-      }
+    queryFn: () => capacityApi.board({
+      week_from: weekStarts[0],
+      week_to:   weekStarts[weekStarts.length - 1],
     }).then(r => r.data),
     staleTime: 30000,
   })
 
   const { mutate: movePlan } = useMutation({
     mutationFn: ({ id, user_id, week_start }) =>
-      api.patch(`/capacity/plans/${id}`, { user_id, week_start }),
+      capacityApi.updatePlan(id, { user_id, week_start }),
     onSuccess: () => {
       qc.invalidateQueries(['capacity-board'])
       qc.invalidateQueries(['forecast-heatmap'])

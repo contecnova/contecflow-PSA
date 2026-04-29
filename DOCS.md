@@ -11,6 +11,26 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.45 (Abril 2026) — Hardening BI Collaboration y Ask-the-Data en entornos locales
+
+- BI Collaboration (`app/services/bi_collaboration_service.py`):
+  - Se añade verificación explícita de existencia de tabla (`dashboard_comments`) antes de consultar/escribir en modo relacional.
+  - Si la tabla no existe, `list_comments`, `create_comment` y `resolve_comment` usan fallback directo a `AppSetting` (`bi.phase1.comments`) sin depender de excepciones SQL.
+  - Resultado: se evita la cascada de `500` en:
+    - `GET /api/v1/bi/collaboration/comments`
+    - `GET /api/v1/bi/governance/overview`
+    - `POST /api/v1/bi/governance/run-checks`
+- Ask-the-Data (`app/services/ask_the_data.py`):
+  - Se añade normalización defensiva de SQL generado por LLM para reducir errores de parseo en DuckDB (p. ej. comas espurias antes de `LIMIT`).
+  - Se incorporan fallbacks de consulta para preguntas frecuentes detectadas en runtime:
+    - "top proyectos por horas este mes"
+    - "usuarios con utilización por debajo de 70%"
+  - Los errores de parser/sintaxis pasan a registrarse como `warning` en lugar de `error` cuando son casos de validación/consulta no fatales.
+- Validación ejecutada:
+  - `tests/test_bi_collaboration_relational.py::test_bi_comments_fallback_when_table_missing` ✅
+  - `tests/test_ai_suggest_service.py` ✅
+  - No se encontraron tests específicos de `ask_the_data` en `tests/`.
+
 ### v23.10.44 (Abril 2026) — Fix migración Alembic 045 compatible con SQLite
 
 - Se corrige un bloqueo de migraciones en entornos SQLite durante `alembic upgrade heads`.

@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { performanceApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { BarChart2 } from 'lucide-react'
@@ -64,12 +64,12 @@ function ReviewForm({ review, onClose }) {
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: d => api.patch(`/performance/reviews/${review.id}`, d),
+    mutationFn: d => performanceApi.updateReview(review.id, d),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['perf-my-reviews'] }),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: submit, isPending: submitting } = useMutation({
-    mutationFn: () => api.post(`/performance/reviews/${review.id}/submit`),
+    mutationFn: () => performanceApi.submitReview(review.id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['perf-my-reviews'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -138,7 +138,7 @@ function ReviewForm({ review, onClose }) {
 function CycleCard({ cycle, onActivate, onClose }) {
   const { data: reviews = [], isLoading } = useQuery({
     queryKey: ['perf-cycle-reviews', cycle.id],
-    queryFn: () => api.get(`/performance/cycles/${cycle.id}/reviews`).then(r => r.data).catch(() => []),
+    queryFn: () => performanceApi.cycleReviews(cycle.id).then(r => r.data).catch(() => []),
     enabled: cycle.status === 'active' || cycle.status === 'closed',
   })
   const statusCfg = STATUS_CFG[cycle.status] || STATUS_CFG.draft
@@ -235,7 +235,7 @@ function NewCycleModal({ onClose }) {
     borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post('/performance/cycles', d),
+    mutationFn: d => performanceApi.createCycle(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['perf-cycles'] }); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -279,21 +279,21 @@ export default function PerformanceReviewsPage() {
 
   const { data: cycles = [], isLoading: loadingCycles } = useQuery({
     queryKey: ['perf-cycles'],
-    queryFn: () => api.get('/performance/cycles').then(r => r.data).catch(() => []),
+    queryFn: () => performanceApi.cycles().then(r => r.data).catch(() => []),
   })
   const { data: myReviews = [], isLoading: loadingMine } = useQuery({
     queryKey: ['perf-my-reviews'],
-    queryFn: () => api.get('/performance/my-reviews').then(r => r.data).catch(() => []),
+    queryFn: () => performanceApi.myReviews().then(r => r.data).catch(() => []),
     enabled: tab === 'pending',
   })
 
   const { mutate: activate } = useMutation({
-    mutationFn: id => api.post(`/performance/cycles/${id}/activate`),
+    mutationFn: id => performanceApi.activateCycle(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['perf-cycles'] }),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: closeCycle } = useMutation({
-    mutationFn: id => api.post(`/performance/cycles/${id}/close`),
+    mutationFn: id => performanceApi.closeCycle(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['perf-cycles'] }),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

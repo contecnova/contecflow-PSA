@@ -8,7 +8,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, expensesApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, useSort, SortableTH } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Receipt } from 'lucide-react'
@@ -126,7 +126,7 @@ function ExpenseModal({ expense, onClose }) {
   const projects = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/expenses/my/${expense.id}`, d) : api.post('/expenses', d),
+    mutationFn: d => isEdit ? expensesApi.updateMy(expense.id, d) : expensesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -148,7 +148,7 @@ function ExpenseModal({ expense, onClose }) {
               setOcrLoading(true)
               try {
                 const fd = new FormData(); fd.append('file', file)
-                const res = await api.post('/expenses/ocr', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+                const res = await expensesApi.ocr(fd)
                 const ex = res.data.extracted
                 setForm(f => ({
                   ...f,
@@ -245,7 +245,7 @@ function ReviewModal({ expense, onClose }) {
   const qc = useQueryClient()
   const [reason, setReason] = useState('')
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post(`/expenses/${expense.id}/review`, d),
+    mutationFn: d => expensesApi.review(expense.id, d),
     onSuccess: () => { qc.invalidateQueries(['expenses-pending']); qc.invalidateQueries(['expenses-team']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -295,23 +295,23 @@ function MyExpenses() {
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['expenses-my', statusFilter],
-    queryFn: () => api.get('/expenses/my', { params: { status: statusFilter || undefined } }).then(r => r.data),
+    queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data),
   })
   const expenses = Array.isArray(raw) ? raw : []
   const { sort: expSort, setSort: setExpSort, sortedData: sortedExpenses } = useSort(expenses, 'expense_date', 'desc')
 
   const { mutate: submit, isPending: saving } = useMutation({
-    mutationFn: id => api.post(`/expenses/my/${id}/submit`),
+    mutationFn: id => expensesApi.submitMy(id),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: recall } = useMutation({
-    mutationFn: id => api.post(`/expenses/my/${id}/recall`),
+    mutationFn: id => expensesApi.recall(id),
     onSuccess: () => { qc.invalidateQueries(['expenses-my']); qc.invalidateQueries(['expenses-pending']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/expenses/my/${id}`),
+    mutationFn: id => expensesApi.deleteMy(id),
     onSuccess: () => qc.invalidateQueries(['expenses-my']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -391,14 +391,14 @@ function PendingApproval() {
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['expenses-pending'],
-    queryFn: () => api.get('/expenses/pending').then(r => r.data),
+    queryFn: () => expensesApi.pending().then(r => r.data),
     refetchInterval: 30000,
   })
   const expenses = Array.isArray(raw) ? raw : []
   const { sort: pendSort, setSort: setPendSort, sortedData: sortedPending } = useSort(expenses, 'expense_date', 'desc')
 
   const { mutate: _reimburse } = useMutation({
-    mutationFn: id => api.post(`/expenses/${id}/reimburse`),
+    mutationFn: id => expensesApi.reimburse(id),
     onSuccess: () => qc.invalidateQueries(['expenses-pending']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -450,7 +450,7 @@ function TeamExpenses() {
 
   const { data: raw, isLoading } = useQuery({
     queryKey: ['expenses-team', projectFilter, statusFilter],
-    queryFn: () => api.get('/expenses/team', { params: { project_id: projectFilter || undefined, status: statusFilter || undefined } }).then(r => r.data),
+    queryFn: () => expensesApi.team({ project_id: projectFilter || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
 
   const expenses = raw?.expenses || []
@@ -467,7 +467,7 @@ function TeamExpenses() {
 
   const qcTeam = useQueryClient()
   const { mutate: reimburse } = useMutation({
-    mutationFn: id => api.post(`/expenses/${id}/reimburse`),
+    mutationFn: id => expensesApi.reimburse(id),
     onSuccess: () => qcTeam.invalidateQueries(['expenses-team']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
