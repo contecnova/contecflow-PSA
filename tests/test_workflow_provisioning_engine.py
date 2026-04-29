@@ -134,3 +134,104 @@ def test_run_workflow_now_executes_ansible_step(client, admin_token, monkeypatch
     out = run_res.json()
     assert out["ok"] is True
     assert out["errors"] == 0
+
+
+def test_update_workflow_step_retries_endpoint(client, admin_token):
+    wf_id = _create_active_workflow(
+        client,
+        admin_token,
+        "provision_identity",
+        {
+            "type": "provision_identity",
+            "operation": "create_ad_user",
+            "url": "https://idm.example.local/ad/users",
+        },
+    )
+
+    wf_list_res = client.get("/api/v1/billing-reports/automation-workflows", headers=auth(admin_token))
+    assert wf_list_res.status_code == 200, wf_list_res.text
+    workflow = next(w for w in wf_list_res.json() if w["id"] == wf_id)
+    step_id = workflow["steps"][0]["id"]
+
+    patch_res = client.patch(
+        f"/api/v1/billing-reports/automation-workflows/{wf_id}/steps/{step_id}/retries",
+        headers=auth(admin_token),
+        json={"max_retries": 2, "delay_seconds": 1, "backoff": "linear"},
+    )
+    assert patch_res.status_code == 200, patch_res.text
+    data = patch_res.json()
+    assert data["ok"] is True
+    assert data["retry"]["max_retries"] == 2
+    assert data["retry"]["delay_seconds"] == 1
+    assert data["retry"]["backoff"] == "linear"
+
+
+def test_run_workflow_now_retries_failed_action_and_records_metrics(client, admin_token, monkeypatch):
+    from app.services import bookings_service as svc
+
+    calls = {"n": 0}
+
+    def flaky_provision(config, context):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient_idm_error")
+        return {"ok": True, "action_type": "create_ad_user", "status_code": 201}
+
+    monkeypatch.setattr(svc, "_execute_provision_action", flaky_provision)
+
+    wf_id = _create_active_workflow(
+        client,
+        admin_token,
+        "provision_identity",
+        {
+            "type": "provision_identity",
+            "operation": "create_ad_user",
+            "url": "https://idm.example.local/ad/users",
+            "retry": {"max_retries": 1, "delay_seconds": 0, "backoff": "none"},
+        },
+    )
+
+    run_res = client.post(
+        f"/api/v1/billing-reports/automation-workflows/{wf_id}/run",
+        headers=auth(admin_token),
+        json={"context": {"employee_username": "jdoe"}},
+    )
+    assert run_res.status_code == 200, run_res.text
+    out = run_res.json()
+    assert out["ok"] is True
+    assert out["errors"] == 0
+    assert calls["n"] == 2
+
+    hist_res = client.get(
+        f"/api/v1/billing-reports/automation-workflows/{wf_id}/executions",
+        headers=auth(admin_token),
+    )
+    assert hist_res.status_code == 200, hist_res.text
+    step_log = hist_res.json()[0]["steps_log"][0]
+    assert step_log["retry_attempts"] == 1
+    assert step_log["execution_attempts"] == 2
+    assert step_log["duration_ms"] >= 0
+    assert step_log["workflow_metrics"]["total_retry_attempts"] == 1
+
+
+def test_run_workflow_now_rejects_non_allowlisted_terraform_command(client, admin_token):
+    wf_id = _create_active_workflow(
+        client,
+        admin_token,
+        "terraform",
+        {
+            "type": "terraform",
+            "command": "state",
+            "allowed_commands": ["plan", "apply", "destroy"],
+            "workdir": "/iac/provisioning",
+        },
+    )
+
+    run_res = client.post(
+        f"/api/v1/billing-reports/automation-workflows/{wf_id}/run",
+        headers=auth(admin_token),
+        json={"context": {}},
+    )
+    assert run_res.status_code == 200, run_res.text
+    out = run_res.json()
+    assert out["errors"] >= 1

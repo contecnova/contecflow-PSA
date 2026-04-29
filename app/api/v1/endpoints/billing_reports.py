@@ -1,6 +1,7 @@
 """
 billing_reports — thin router delegating to app.services.billing_reports_service
 """
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body, Response
 from sqlalchemy.orm import Session
 from typing import Any, Dict, Optional, List
@@ -8,6 +9,7 @@ from typing import Any, Dict, Optional, List
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.deps import get_current_user, require_any_manager
+from app.models.billing_reports import WorkflowStep
 from app.models.user import User
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -433,6 +435,47 @@ def run_workflow_now(
 ):
     context = payload.get("context") or {}
     return _bookings_svc.execute_workflow_now_record(wf_id, context, current_user.id, db)
+
+
+@router.patch("/automation-workflows/{wf_id}/steps/{step_id}/retries", response_model=Dict[str, Any], summary="Configurar reintentos por step")
+def update_workflow_step_retries(
+    wf_id: str,
+    step_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    max_retries = int(payload.get("max_retries", 0))
+    delay_seconds = int(payload.get("delay_seconds", 0))
+    backoff = str(payload.get("backoff", "none") or "none").lower()
+    if max_retries < 0 or max_retries > 10:
+        raise HTTPException(400, "max_retries must be between 0 and 10")
+    if delay_seconds < 0 or delay_seconds > 120:
+        raise HTTPException(400, "delay_seconds must be between 0 and 120")
+    if backoff not in {"none", "linear", "exponential"}:
+        raise HTTPException(400, "backoff must be one of: none, linear, exponential")
+
+    step = db.query(WorkflowStep).filter(
+        WorkflowStep.id == step_id,
+        WorkflowStep.workflow_id == wf_id,
+    ).first()
+    if not step:
+        raise HTTPException(404, "Workflow step not found")
+
+    cfg = json.loads(step.config) if step.config else {}
+    cfg["retry"] = {
+        "max_retries": max_retries,
+        "delay_seconds": delay_seconds,
+        "backoff": backoff,
+    }
+    step.config = json.dumps(cfg)
+    db.commit()
+    return {
+        "ok": True,
+        "workflow_id": wf_id,
+        "step_id": step_id,
+        "retry": cfg["retry"],
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

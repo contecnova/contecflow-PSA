@@ -10,6 +10,7 @@ import logging
 import secrets
 import shutil
 import subprocess
+import time as _time_sleep
 from datetime import date, datetime, time, timedelta, timezone
 from app.core.config import settings
 from app.core.security import create_access_token
@@ -41,6 +42,33 @@ from sqlalchemy.orm import joinedload
 logger = logging.getLogger(__name__)
 
 SUPPORTED_CURRENCIES = ["EUR", "USD", "GBP", "PLN", "CHF", "SEK", "DKK", "NOK", "JPY", "CAD", "AUD", "MXN", "BRL"]
+ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
+
+
+def _coerce_retry_policy(config: dict) -> dict:
+    retry = config.get("retry") or {}
+    max_retries = int(retry.get("max_retries", config.get("max_retries", 0)) or 0)
+    delay_seconds = int(retry.get("delay_seconds", config.get("retry_delay_seconds", 0)) or 0)
+    backoff = str(retry.get("backoff", "none") or "none").lower()
+    if backoff not in {"none", "linear", "exponential"}:
+        backoff = "none"
+    return {
+        "max_retries": max(0, min(max_retries, 10)),
+        "delay_seconds": max(0, min(delay_seconds, 120)),
+        "backoff": backoff,
+    }
+
+
+def _retry_sleep_seconds(policy: dict, retry_index: int) -> int:
+    base = int(policy.get("delay_seconds", 0) or 0)
+    if base <= 0:
+        return 0
+    mode = policy.get("backoff", "none")
+    if mode == "exponential":
+        return min(base * (2 ** max(retry_index - 1, 0)), 120)
+    if mode == "linear":
+        return min(base * max(retry_index, 1), 120)
+    return min(base, 120)
 
 
 # ── Serialisers ───────────────────────────────────────────────────────────────
@@ -994,11 +1022,18 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
 
 def _execute_terraform_action(config: dict, context: dict) -> dict:
     """Run Terraform command (init+apply/destroy/plan) for provisioning."""
+    workdir = _render_step_value(config.get("workdir"), context)
+    command = str(config.get("command") or "apply").lower()
+    allowed_commands = {
+        str(c).lower() for c in (config.get("allowed_commands") or sorted(ALLOWED_TERRAFORM_COMMANDS))
+    }
+    if command not in allowed_commands:
+        raise ValueError(f"Terraform command '{command}' is not in allowed_commands")
+    if command not in ALLOWED_TERRAFORM_COMMANDS:
+        raise ValueError(f"Terraform command '{command}' is not allowed by runtime policy")
     if not shutil.which("terraform"):
         raise RuntimeError("terraform executable not found in PATH")
 
-    workdir = _render_step_value(config.get("workdir"), context)
-    command = str(config.get("command") or "apply").lower()
     auto_approve = bool(config.get("auto_approve", True))
     var_file = _render_step_value(config.get("var_file"), context)
     vars_map = _render_step_value(config.get("vars") or {}, context)
@@ -1032,6 +1067,9 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
     timeout_seconds = int(config.get("timeout_seconds", 1800))
     if not playbook:
         raise ValueError("Ansible action requires 'playbook'")
+    allowed_playbooks = {str(p) for p in (config.get("allowed_playbooks") or [])}
+    if allowed_playbooks and str(playbook) not in allowed_playbooks:
+        raise ValueError(f"Ansible playbook '{playbook}' is not in allowed_playbooks")
 
     cmd = ["ansible-playbook", str(playbook)]
     if inventory:
@@ -1123,11 +1161,35 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
             steps   = sorted(wf.steps, key=lambda s: s.order)
             results = []
             for step in steps[item.step_index:]:
+                step_started_at = datetime.now(timezone.utc)
                 config     = json.loads(step.config) if step.config else {}
-                step_result = {"step": step.name or step.step_type, "ok": True}
+                retry_policy = _coerce_retry_policy(config)
+                step_result = {
+                    "step": step.name or step.step_type,
+                    "ok": True,
+                    "retry_policy": retry_policy,
+                    "retry_attempts": 0,
+                }
                 if step.step_type == "action":
-                    action_res = _execute_step_action(config, context, db)
-                    step_result.update(action_res)
+                    max_retries = int(retry_policy.get("max_retries", 0))
+                    last_action_res = None
+                    for retry_idx in range(0, max_retries + 1):
+                        try:
+                            action_res = _execute_step_action(config, context, db)
+                            last_action_res = action_res
+                            if action_res.get("ok", True):
+                                step_result.update(action_res)
+                                break
+                            step_result["retry_attempts"] = retry_idx
+                        except Exception as e:
+                            last_action_res = {"ok": False, "error": str(e)}
+                        if retry_idx < max_retries:
+                            step_result["retry_attempts"] = retry_idx + 1
+                            wait_s = _retry_sleep_seconds(retry_policy, retry_idx + 1)
+                            if wait_s > 0:
+                                _time_sleep.sleep(wait_s)
+                            continue
+                        step_result.update(last_action_res or {"ok": False, "error": "workflow_step_failed"})
                 elif step.step_type == "wait":
                     delay_minutes = config.get("duration", 60)
                     unit = config.get("unit", "minutes")
@@ -1170,12 +1232,26 @@ def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
                             step_result["response"] = resp.text[:1000]
                     except Exception as e:
                         step_result["ok"] = False; step_result["error"] = str(e)[:100]
+                step_finished_at = datetime.now(timezone.utc)
+                step_result["started_at"] = step_started_at.isoformat()
+                step_result["completed_at"] = step_finished_at.isoformat()
+                step_result["duration_ms"] = int((step_finished_at - step_started_at).total_seconds() * 1000)
+                step_result["execution_attempts"] = int(step_result.get("retry_attempts", 0)) + 1
                 results.append(step_result)
                 if not step_result.get("ok", True):
                     raise RuntimeError(step_result.get("error") or "workflow_step_failed")
+            total_duration_ms = int(sum((r.get("duration_ms") or 0) for r in results))
+            total_retry_attempts = int(sum((r.get("retry_attempts") or 0) for r in results))
+            for r in results:
+                r["workflow_metrics"] = {
+                    "step_count": len(results),
+                    "total_duration_ms": total_duration_ms,
+                    "total_retry_attempts": total_retry_attempts,
+                }
             exec_log = WorkflowExecution(
                 workflow_id=item.workflow_id, trigger_context=item.trigger_data,
-                status="completed", steps_log=json.dumps(results), completed_at=now,
+                status="completed", steps_log=json.dumps(results),
+                completed_at=now,
             ) if not item.execution_id else None
             if exec_log: db.add(exec_log)
             wf.run_count     = (wf.run_count or 0) + 1
