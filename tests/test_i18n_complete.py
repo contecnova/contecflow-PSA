@@ -88,3 +88,110 @@ def test_no_lang_is_empty_object():
         assert not re.search(r"const \w+ = \{\s*\}", content), (
             f"Language file {lang}.mjs appears to export an empty object"
         )
+
+
+# ── Deep key comparison ────────────────────────────────────────────────────────
+
+def _extract_all_dotted_keys(filepath: Path) -> set[str]:
+    """
+    Extract ALL dotted keys from a MJS lang file that looks like:
+        const lang = {
+          namespace: {
+            key1: 'value',
+            key2: 'value',
+          },
+        }
+
+    Returns keys like "namespace.key1", "namespace.key2", etc.
+    Handles 2-level nesting (namespace.leaf_key) which is the convention in this codebase.
+    Does NOT attempt to parse JS — uses a heuristic line-by-line regex.
+    """
+    text = filepath.read_text(encoding="utf-8")
+    keys: set[str] = set()
+    current_ns = None
+    ns_pattern    = re.compile(r"^\s{2,4}(\w+)\s*:\s*\{")
+    leaf_pattern   = re.compile(r"^\s{4,8}(\w+)\s*:")
+
+    for line in text.splitlines():
+        ns_match = ns_pattern.match(line)
+        if ns_match:
+            current_ns = ns_match.group(1)
+            continue
+        if current_ns:
+            if re.match(r"^\s{2,4}\}", line):
+                # Closing the namespace block
+                current_ns = None
+                continue
+            leaf_match = leaf_pattern.match(line)
+            if leaf_match:
+                keys.add(f"{current_ns}.{leaf_match.group(1)}")
+
+    return keys
+
+
+def test_all_langs_have_same_keys_as_english():
+    """
+    Deep key-by-key comparison: every language must define the same dotted keys
+    as English (namespace.leaf). Reports missing keys per language.
+    """
+    en_file = LANGS_DIR / "en.mjs"
+    if not en_file.exists():
+        return
+
+    en_keys = _extract_all_dotted_keys(en_file)
+    assert len(en_keys) > 10, "English key extraction seems broken — too few keys found"
+
+    missing_per_lang: dict[str, list[str]] = {}
+
+    for lang in EXPECTED_LANGS - {"en"}:
+        lang_file = LANGS_DIR / f"{lang}.mjs"
+        if not lang_file.exists():
+            continue
+        lang_keys = _extract_all_dotted_keys(lang_file)
+        absent = sorted(en_keys - lang_keys)
+        if absent:
+            missing_per_lang[lang] = absent
+
+    if missing_per_lang:
+        report_lines = []
+        for lang, keys in sorted(missing_per_lang.items()):
+            report_lines.append(f"\n  [{lang}] missing {len(keys)} keys:")
+            for k in keys[:20]:
+                report_lines.append(f"    - {k}")
+            if len(keys) > 20:
+                report_lines.append(f"    ... and {len(keys) - 20} more")
+        assert not missing_per_lang, "i18n key parity failures:" + "".join(report_lines)
+
+
+def test_no_lang_has_extra_keys_vs_english():
+    """
+    Guard against typos: no language should define keys that don't exist in English.
+    Extra keys often indicate a renamed or removed English key that wasn't cleaned up.
+    """
+    en_file = LANGS_DIR / "en.mjs"
+    if not en_file.exists():
+        return
+
+    en_keys = _extract_all_dotted_keys(en_file)
+    extra_per_lang: dict[str, list[str]] = {}
+
+    for lang in EXPECTED_LANGS - {"en"}:
+        lang_file = LANGS_DIR / f"{lang}.mjs"
+        if not lang_file.exists():
+            continue
+        lang_keys = _extract_all_dotted_keys(lang_file)
+        extra = sorted(lang_keys - en_keys)
+        if extra:
+            extra_per_lang[lang] = extra
+
+    if extra_per_lang:
+        report_lines = []
+        for lang, keys in sorted(extra_per_lang.items()):
+            report_lines.append(f"\n  [{lang}] has {len(keys)} extra keys (not in English):")
+            for k in keys[:10]:
+                report_lines.append(f"    + {k}")
+            if len(keys) > 10:
+                report_lines.append(f"    ... and {len(keys) - 10} more")
+        # Warn but don't fail — extra keys are less critical than missing ones
+        import warnings
+        warnings.warn("i18n extra key warnings (not failures):" + "".join(report_lines))

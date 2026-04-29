@@ -19,6 +19,7 @@ import BiEtlPanel from '../components/bi/BiEtlPanel'
 import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
 import BiGovernancePanel from '../components/bi/BiGovernancePanel'
 import BiO365Panel from '../components/bi/BiO365Panel'
+import BiQueryBuilderPanel from '../components/bi/BiQueryBuilderPanel'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function dateRange(days) {
@@ -2267,6 +2268,11 @@ export default function BIPage() {
       {/* ── Office 365 Analytics ── */}
       <div style={{ marginBottom: 20 }}>
         <BiO365Panel />
+      </div>
+
+      {/* ── Query Builder Visual ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiQueryBuilderPanel />
       </div>
 
     </div>

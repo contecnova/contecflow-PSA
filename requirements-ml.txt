@@ -19,6 +19,8 @@ hf-xet==1.4.3
 # ── BI Phase 2: Advanced forecasting + anomaly detection ──────────────────────
 # Prophet: Facebook time-series forecasting with seasonality decomposition
 prophet>=1.1.5
+# statsmodels: ARIMA, SARIMAX, Holt-Winters time series models
+statsmodels>=0.14.0
 # LightGBM: gradient boosting for overrun / churn prediction
 lightgbm>=4.3.0
 # ReportLab: PDF generation for scheduled report delivery

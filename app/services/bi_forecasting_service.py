@@ -23,7 +23,14 @@ try:
 except ImportError:
     _PROPHET_AVAILABLE = False
 
-SUPPORTED_METHODS = ["linear_trend", "holt", "prophet"]
+# ── Graceful statsmodels ARIMA import ─────────────────────────────────────────
+try:
+    from statsmodels.tsa.arima.model import ARIMA as _ARIMA  # type: ignore
+    _STATSMODELS_AVAILABLE = True
+except ImportError:
+    _STATSMODELS_AVAILABLE = False
+
+SUPPORTED_METHODS = ["linear_trend", "holt", "arima", "prophet"]
 SUPPORTED_METRICS = [
     "revenue", "margin", "tickets_open", "utilization",
     "tasks_overdue", "budget_used_pct", "active_projects",
@@ -56,6 +63,19 @@ def _holt_double_exp(values: list[float], horizon: int, alpha: float = 0.3, beta
         level = alpha * v + (1 - alpha) * (level + trend)
         trend = beta * (level - prev_level) + (1 - beta) * trend
     return [level + (i + 1) * trend for i in range(horizon)]
+
+
+def _arima_forecast(values: list[float], horizon: int) -> list[float]:
+    """ARIMA(1,1,1) via statsmodels. Fallback to Holt if unavailable or fit fails."""
+    if not _STATSMODELS_AVAILABLE or len(values) < 6:
+        return _holt_double_exp(values, horizon)
+    try:
+        model = _ARIMA(values, order=(1, 1, 1))
+        result = model.fit()
+        fc = result.forecast(steps=horizon)
+        return [float(v) for v in fc]
+    except Exception:
+        return _holt_double_exp(values, horizon)
 
 
 def _prophet_forecast(
@@ -96,7 +116,7 @@ def forecast(
         values: historical observations (oldest first)
         timestamps: ISO date strings matching values (required for prophet)
         horizon: number of future periods to predict
-        method: linear_trend | holt | prophet
+        method: linear_trend | holt | arima | prophet
         freq: pandas freq string (M=monthly, W=weekly, D=daily)
 
     Returns dict with:
@@ -112,6 +132,8 @@ def forecast(
 
     if method == "linear_trend":
         preds = _linear_trend(values, horizon)
+    elif method == "arima":
+        preds = _arima_forecast(values, horizon)
     elif method == "prophet":
         preds = _prophet_forecast(timestamps or [], values, horizon, freq)
     else:  # holt (default)
@@ -134,6 +156,7 @@ def forecast(
         "horizon": horizon,
         "freq": freq,
         "prophet_available": _PROPHET_AVAILABLE,
+        "arima_available": _STATSMODELS_AVAILABLE,
         "history": [round(v, 4) for v in values],
         "forecast": [round(p, 4) for p in preds],
         "lower_bound": [round(l, 4) for l in lower],

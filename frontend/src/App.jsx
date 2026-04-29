@@ -8,6 +8,7 @@ import AppShell from './components/layout/AppShell'
 import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
 import { useAppT } from './hooks/useAppT'
+import useOfflineSync from './hooks/useOfflineSync'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
   SkeletonKanban, SkeletonGantt, SkeletonServiceDesk,
@@ -530,9 +531,37 @@ export default function App() {
     <ToastProvider>
       <ConfirmProvider>
         <AppShell>
+          <OfflineBanner />
           <AppRoutes />
         </AppShell>
       </ConfirmProvider>
     </ToastProvider>
+  )
+}
+
+function OfflineBanner() {
+  const { isOnline, pendingCount } = useOfflineSync()
+  if (isOnline) return null
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999,
+        background: '#f59e0b',
+        color: '#000',
+        textAlign: 'center',
+        padding: '6px 12px',
+        fontSize: 13,
+        fontWeight: 600,
+      }}
+    >
+      Sin conexión — trabajando en modo offline
+      {pendingCount > 0 && ` (${pendingCount} operaciones pendientes)`}
+    </div>
   )
 }
