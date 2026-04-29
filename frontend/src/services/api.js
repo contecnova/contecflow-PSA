@@ -510,6 +510,99 @@ export const changesApi = {
   approve: (id, data) => api.post(`/sd/changes/${id}/approve`, data),
 }
 
+// ── ML Predictions ────────────────────────────────────────────────────────────
+export const predictionsApi = {
+  overrunRisk:    (projectId)  => api.post('/predictions/overrun-risk', { project_id: projectId }),
+  portfolioRisk:  ()           => api.get('/predictions/portfolio-risk'),
+  train:          ()           => api.post('/predictions/train'),
+  models:         ()           => api.get('/predictions/models'),
+  logs:           (params)     => api.get('/predictions/logs', { params }),
+}
+
+// ── Revenue Recognition (ASC 606) ─────────────────────────────────────────────
+export const revenueRecognitionApi = {
+  dashboard:           (year, months) => api.get('/revenue-recognition/dashboard', { params: { year, months } }),
+  contracts:           (params)       => api.get('/revenue-recognition/contracts', { params }),
+  getContract:         (id)           => api.get(`/revenue-recognition/contracts/${id}`),
+  createContract:      (data)         => api.post('/revenue-recognition/contracts', data),
+  updateContract:      (id, data)     => api.patch(`/revenue-recognition/contracts/${id}`, data),
+  deleteContract:      (id)           => api.delete(`/revenue-recognition/contracts/${id}`),
+  obligations:         (contractId)   => api.get(`/revenue-recognition/contracts/${contractId}/obligations`),
+  createObligation:    (contractId, d)=> api.post(`/revenue-recognition/contracts/${contractId}/obligations`, d),
+  updateObligation:    (id, data)     => api.patch(`/revenue-recognition/obligations/${id}`, data),
+  deleteObligation:    (id)           => api.delete(`/revenue-recognition/obligations/${id}`),
+  entries:             (params)       => api.get('/revenue-recognition/entries', { params }),
+  reverseEntry:        (id)           => api.post(`/revenue-recognition/entries/${id}/reverse`),
+  periodCloses:        ()             => api.get('/revenue-recognition/period-closes'),
+  closePeriod:         (data)         => api.post('/revenue-recognition/period-closes', data),
+  reopenPeriod:        (year, month)  => api.delete(`/revenue-recognition/period-closes/${year}/${month}`),
+  runMonthly:          (data)         => api.post('/revenue-recognition/run-monthly', data),
+}
+
+// ── CMDB ──────────────────────────────────────────────────────────────────────
+export const cmdbApi = {
+  items:          (params)   => api.get('/cmdb/items', { params }),
+  getItem:        (id)       => api.get(`/cmdb/items/${id}`),
+  createItem:     (data)     => api.post('/cmdb/items', data),
+  updateItem:     (id, data) => api.patch(`/cmdb/items/${id}`, data),
+  deleteItem:     (id)       => api.delete(`/cmdb/items/${id}`),
+  changelog:      (id)       => api.get(`/cmdb/items/${id}/changelog`),
+  categories:     ()         => api.get('/cmdb/categories'),
+  relations:      (id)       => api.get(`/cmdb/items/${id}/relations`),
+  createRelation: (data)     => api.post('/cmdb/relations', data),
+  deleteRelation: (id)       => api.delete(`/cmdb/relations/${id}`),
+  topology:       (id, r)    => api.get(`/sd/cmdb/${id}/topology`, { params: { radius: r } }),
+  topologyItems:  ()         => api.get('/sd/cmdb'),
+}
+
+// ── Timesheets ────────────────────────────────────────────────────────────────
+export const timesheetsApi = {
+  my:          ()              => api.get('/timesheets/my'),
+  pending:     ()              => api.get('/timesheets/pending'),
+  team:        ()              => api.get('/timesheets/team'),
+  weekLines:   (weekStart)     => api.get(`/timesheets/my/${weekStart}/lines`),
+  submit:      (weekStart)     => api.post(`/timesheets/my/${weekStart}/submit`),
+  review:      (id, data)      => api.post(`/timesheets/${id}/review`, data),
+}
+
+// ── Documents ─────────────────────────────────────────────────────────────────
+export const documentsApi = {
+  list:      (params)   => api.get('/documents', { params }),
+  get:       (id)       => api.get(`/documents/${id}`),
+  upload:    (fd)       => api.post('/documents/upload', fd),
+  update:    (id, data) => api.patch(`/documents/${id}`, data),
+  delete:    (id)       => api.delete(`/documents/${id}`),
+  approve:   (id, data) => api.post(`/documents/${id}/approve`, data),
+  aiSummary: (id)       => api.post(`/documents/${id}/ai-summary`),
+  addVersion:(id, fd)   => api.post(`/documents/${id}/versions`, fd),
+}
+
+// ── Custom Fields ─────────────────────────────────────────────────────────────
+export const customFieldsApi = {
+  list:   (projectId)          => api.get(`/custom-fields/${projectId}`),
+  create: (projectId, data)    => api.post(`/custom-fields/${projectId}`, data),
+  update: (projectId, id, data)=> api.patch(`/custom-fields/${projectId}/${id}`, data),
+  delete: (projectId, id)      => api.delete(`/custom-fields/${projectId}/${id}`),
+}
+
+// ── Wiki ──────────────────────────────────────────────────────────────────────
+export const wikiApi = {
+  spaces:       ()              => api.get('epics/wiki/spaces'),
+  createSpace:  (data)          => api.post('epics/wiki/spaces', data),
+  pages:        (spaceId)       => api.get(`epics/wiki/spaces/${spaceId}/pages`),
+  getPage:      (id)            => api.get(`epics/wiki/pages/${id}`),
+  createPage:   (spaceId, data) => api.post(`epics/wiki/spaces/${spaceId}/pages`, data),
+  updatePage:   (id, data)      => api.patch(`epics/wiki/pages/${id}`, data),
+  deletePage:   (id)            => api.delete(`epics/wiki/pages/${id}`),
+  versions:     (id)            => api.get(`epics/wiki/pages/${id}/versions`),
+  restorePage:  (id, vn)        => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
+  search:       (q, spaceId)    => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
+  tags:         (space)         => api.get(`/wiki-tags/${space}`),
+  createTag:    (space, data)   => api.post(`/wiki-tags/${space}`, data),
+  updateTag:    (id, data)      => api.patch(`/wiki-tags/${id}`, data),
+  deleteTag:    (id)            => api.delete(`/wiki-tags/${id}`),
+}
+
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.
  *  detail can be an array of {type,loc,msg,input,url} objects or a plain string. */
 export function apiErrorMsg(e, fallback = 'Error') {

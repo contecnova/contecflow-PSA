@@ -6,10 +6,10 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
-import { Spinner, EmptyState } from '../components/ui'
+import api, { predictionsApi } from '../services/api'
+import { Spinner, EmptyState, Button } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
-import { AlertOctagon } from 'lucide-react'
+import { AlertOctagon, Brain, RefreshCw } from 'lucide-react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -34,10 +34,164 @@ function ScoreBar({ value, label, _color }) {
   )
 }
 
+const ML_RISK_CFG = {
+  low:      { color: 'var(--success)', label: 'Bajo',     bg: 'rgba(29,158,117,0.12)' },
+  medium:   { color: 'var(--warning)', label: 'Moderado', bg: 'rgba(250,199,117,0.15)' },
+  high:     { color: '#F87171',        label: 'Alto',     bg: 'rgba(248,113,113,0.12)' },
+  critical: { color: '#EF4444',        label: 'Crítico',  bg: 'rgba(239,68,68,0.15)' },
+}
+
+function MLPredictionsTab() {
+  const toast = useToast()
+  const qc = useQueryClient()
+
+  const { data: portfolio, isLoading: lPortfolio } = useQuery({
+    queryKey: ['ml-portfolio-risk'],
+    queryFn: () => predictionsApi.portfolioRisk().then(r => r.data),
+    retry: 1,
+  })
+  const { data: models = [], isLoading: lModels } = useQuery({
+    queryKey: ['ml-models'],
+    queryFn: () => predictionsApi.models().then(r => r.data).catch(() => []),
+  })
+  const { data: logs = [], isLoading: lLogs } = useQuery({
+    queryKey: ['ml-logs'],
+    queryFn: () => predictionsApi.logs({ limit: 30 }).then(r => r.data).catch(() => []),
+  })
+  const { mutate: train, isPending: training } = useMutation({
+    mutationFn: () => predictionsApi.train(),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['ml-models'])
+      const d = res.data
+      toast.success(d.message || `Modelo entrenado: ${d.samples_used || 0} muestras`)
+    },
+    onError: e => toast.error(extractErr(e, 'Error al entrenar el modelo')),
+  })
+
+  const projects = portfolio?.projects || []
+  const summary  = portfolio?.summary  || {}
+
+  return (
+    <div>
+      {/* Portfolio KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Proyectos analizados', value: summary.total || 0, icon: '🔍' },
+          { label: 'Alto / Crítico',       value: (summary.high || 0) + (summary.critical || 0), icon: '🔴', color: 'var(--danger)' },
+          { label: 'Riesgo moderado',      value: summary.medium || 0, icon: '🟡', color: 'var(--warning)' },
+          { label: 'Bajo riesgo',          value: summary.low || 0,    icon: '🟢', color: 'var(--success)' },
+        ].map((k, i) => (
+          <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>{k.icon}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: k.color || 'var(--text-1)' }}>{k.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Projects risk list */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'flex-start' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            Cartera de proyectos — ML
+          </div>
+          {lPortfolio ? <div style={{ padding: 24 }}><Spinner /></div> : projects.length === 0 ? (
+            <EmptyState icon="🤖" title="Sin predicciones ML" description="Entrena el modelo primero para ver predicciones de riesgo" />
+          ) : (
+            <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+              {projects.map(p => {
+                const cfg = ML_RISK_CFG[p.risk_level] || ML_RISK_CFG.low
+                return (
+                  <div key={p.project_id} style={{ padding: '12px 18px', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name}</div>
+                      {p.recommendation && (
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>💡 {p.recommendation}</div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                      {p.cpi != null && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>CPI {p.cpi?.toFixed(2)}</span>}
+                      {p.spi != null && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>SPI {p.spi?.toFixed(2)}</span>}
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, fontWeight: 500 }}>{cfg.label}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Right panel: models + training + logs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Train */}
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Entrenar modelo</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>
+              Usa el historial de proyectos cerrados para entrenar el modelo de predicción de sobrecosto/retraso.
+            </div>
+            <Button onClick={() => train()} disabled={training} style={{ width: '100%' }}>
+              <Brain size={13} style={{ marginRight: 6 }} />
+              {training ? 'Entrenando...' : 'Entrenar ahora'}
+            </Button>
+          </div>
+
+          {/* Models */}
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              Versiones del modelo
+            </div>
+            <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+              {lModels ? <div style={{ padding: 16 }}><Spinner /></div> : models.length === 0 ? (
+                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>Sin modelos entrenados</div>
+              ) : models.map((m, i) => (
+                <div key={m.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 500 }}>v{m.version || i + 1}</span>
+                    {m.is_active && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Activo</span>}
+                  </div>
+                  <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
+                    {m.samples_used || 0} muestras · {m.trained_at?.slice(0, 10) || ''}
+                    {m.accuracy_score != null && <span> · AUC {m.accuracy_score.toFixed(2)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Logs */}
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              Historial de predicciones
+            </div>
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {lLogs ? <div style={{ padding: 16 }}><Spinner /></div> : logs.length === 0 ? (
+                <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>Sin predicciones registradas</div>
+              ) : logs.map((l, i) => {
+                const cfg = ML_RISK_CFG[l.risk_level] || ML_RISK_CFG.low
+                return (
+                  <div key={l.id || i} style={{ padding: '8px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: 11 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150, fontWeight: 500 }}>{l.project_name || l.project_id}</span>
+                      <span style={{ color: cfg.color, fontWeight: 500, flexShrink: 0 }}>{cfg.label}</span>
+                    </div>
+                    <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{l.predicted_at?.slice(0, 16) || ''}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function RiskScoresPage() {
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
+  const [tab, setTab] = useState('rules')
   const [selected, setSelected] = useState(null)
   const [filterLevel, setFilterLevel] = useState('all')
 
@@ -72,6 +226,22 @@ export default function RiskScoresPage() {
     <div style={{ padding:32 }}>
       <PageHeader icon={<AlertOctagon size={18} />} title={t('risk_scores.title')} subtitle={t('risk_scores.subtitle')} />
 
+      {/* Tab nav */}
+      <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--surface-4)', paddingBottom:0 }}>
+        {[['rules','🛡️ Riesgo basado en señales'],['ml','🤖 Predicciones ML']].map(([id,label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ padding:'8px 18px', fontSize:13, fontWeight: tab===id ? 700 : 400,
+              color: tab===id ? 'var(--accent)' : 'var(--text-2)', background:'transparent',
+              border:'none', borderBottom: tab===id ? '2px solid var(--accent)' : '2px solid transparent',
+              cursor:'pointer', fontFamily:'inherit', transition:'color .15s' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'ml' && <MLPredictionsTab />}
+
+      {tab === 'rules' && <>
       {/* Summary KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
         {[
@@ -216,6 +386,7 @@ export default function RiskScoresPage() {
           </div>
         )}
       </div>
+      </>}
     </div>
   )
 }

@@ -11,6 +11,35 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.44 (Abril 2026) — Fix migración Alembic 045 compatible con SQLite
+
+- Se corrige un bloqueo de migraciones en entornos SQLite durante `alembic upgrade heads`.
+- Error observado:
+  - `sqlite3.OperationalError: no such function: NOW` en `alembic/versions/045_rca_templates_seed.py`.
+- Causa raíz:
+  - la migración usaba `NOW()` en SQL crudo, función no soportada por SQLite.
+- Fix aplicado:
+  - reemplazo de `NOW()` por `CURRENT_TIMESTAMP` en el `INSERT` de seed de `sd_problem_rca_templates`.
+- Resultado:
+  - las migraciones avanzan correctamente hasta `047_bi_collaboration_relational_tables`.
+  - la tabla `dashboard_comments` queda creada en la BD activa (`sqlite:///./contecflow.db`).
+
+### v23.10.43 (Abril 2026) — Fix 500 en BI Collaboration por tabla dashboard_comments ausente (SQLite drift)
+
+- Se corrige el error 500 observado en:
+  - `GET /api/v1/bi/collaboration/comments`
+  - `GET /api/v1/bi/governance/overview` (al calcular `unresolved_comments`).
+- Error raíz en entornos SQLite locales con migraciones desalineadas:
+  - `sqlite3.OperationalError: no such table: dashboard_comments`.
+- Fix aplicado en `app/services/bi_collaboration_service.py`:
+  - Se añade manejo defensivo de `OperationalError/ProgrammingError` para detectar tabla ausente.
+  - `list_comments` ahora hace fallback a almacenamiento legacy en `AppSetting` (`bi.phase1.comments`) en vez de propagar excepción.
+  - `create_comment` y `resolve_comment` también soportan fallback legacy cuando falta la tabla relacional.
+  - Se mantiene compatibilidad multi-tenant mediante `organization_id` y filtros (`dashboard_key`, `widget_id`, `include_resolved`).
+- Cobertura de regresión añadida:
+  - `tests/test_bi_collaboration_relational.py::test_bi_comments_fallback_when_table_missing`.
+  - El test elimina `dashboard_comments` y verifica que listar/crear/resolver comentarios y governance overview siguen respondiendo `200`.
+
 ### v23.10.42 (Abril 2026) — Hardening de flujo Git local (pull seguro sin merges implícitos)
 
 - Se revierte la configuración previa que forzaba merge por defecto en `git pull`.

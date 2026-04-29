@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { cmdbApi } from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Database } from 'lucide-react'
@@ -58,8 +58,8 @@ function CMDBItemForm({ item, categories, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/cmdb/items/${item.id}`, d).then(r => r.data)
-      : api.post('/cmdb/items', d).then(r => r.data),
+      ? cmdbApi.updateItem(item.id, d).then(r => r.data)
+      : cmdbApi.createItem(d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['cmdb-items']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -146,17 +146,17 @@ function RelationsModal({ item, allItems, onClose }) {
 
   const { data: rels, isLoading } = useQuery({
     queryKey: ['item-rels', item.id],
-    queryFn: () => api.get(`/cmdb/items/${item.id}/relations`).then(r => r.data).catch(() => ({outgoing:[],incoming:[]})),
+    queryFn: () => cmdbApi.relations(item.id).then(r => r.data).catch(() => ({outgoing:[],incoming:[]})),
   })
 
   const { mutate: createRel, isPending } = useMutation({
-    mutationFn: () => api.post('/cmdb/relations', {from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
+    mutationFn: () => cmdbApi.createRelation({from_item_id: fromId, to_item_id: toId, rel_type: relType}).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['item-rels', item.id]); setToId('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: deleteRel } = useMutation({
-    mutationFn: id => api.delete(`/cmdb/relations/${id}`),
+    mutationFn: id => cmdbApi.deleteRelation(id),
     onSuccess: () => qc.invalidateQueries(['item-rels', item.id]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -226,7 +226,7 @@ function RelationsModal({ item, allItems, onClose }) {
 function ChangelogModal({ item, onClose }) {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['cmdb-changelog', item.id],
-    queryFn: () => api.get(`/cmdb/items/${item.id}/changelog`).then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.changelog(item.id).then(r => r.data).catch(() => []),
   })
 
   const ACTION_COLOR = { created: 'var(--success)', updated: 'var(--accent)', deleted: 'var(--danger)' }
@@ -303,34 +303,34 @@ export default function CMDBPage() {
   const { data: drillRels } = useQuery({
     queryKey: ['item-rels', drillCI?.id],
     queryFn: () => drillCI
-      ? api.get(`/cmdb/items/${drillCI.id}/relations`).then(r => r.data).catch(() => ({ outgoing: [], incoming: [] }))
+      ? cmdbApi.relations(drillCI.id).then(r => r.data).catch(() => ({ outgoing: [], incoming: [] }))
       : Promise.resolve({ outgoing: [], incoming: [] }),
     enabled: !!drillCI,
   })
 
   const { data: categories = [] } = useQuery({
     queryKey: ['cmdb-categories'],
-    queryFn: () => api.get('/cmdb/categories').then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.categories().then(r => r.data).catch(() => []),
   })
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['cmdb-items', filterType, filterStatus, searchQ],
     queryFn: () => {
-      const p = new URLSearchParams()
-      if (filterType)   p.set('ci_type', filterType)
-      if (filterStatus) p.set('status', filterStatus)
-      if (searchQ)      p.set('q', searchQ)
-      return api.get(`/cmdb/items?${p}`).then(r => r.data).catch(() => [])
+      const p = {}
+      if (filterType)   p.ci_type = filterType
+      if (filterStatus) p.status  = filterStatus
+      if (searchQ)      p.q       = searchQ
+      return cmdbApi.items(p).then(r => r.data).catch(() => [])
     },
   })
 
   const { data: sdTopologyItems = [] } = useQuery({
     queryKey: ['sd-cmdb-topology-items'],
-    queryFn: () => api.get('/sd/cmdb').then(r => r.data).catch(() => []),
+    queryFn: () => cmdbApi.topologyItems().then(r => r.data).catch(() => []),
     enabled: tab === 'topology',
   })
 
   const { mutate: deleteItem } = useMutation({
-    mutationFn: id => api.delete(`/cmdb/items/${id}`),
+    mutationFn: id => cmdbApi.deleteItem(id),
     onSuccess: () => qc.invalidateQueries(['cmdb-items']),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
@@ -347,7 +347,7 @@ export default function CMDBPage() {
   const { data: topoData, isFetching: topoLoading } = useQuery({
     queryKey: ['cmdb-topology', topoCI?.id, topoRadius],
     queryFn: () => topoCI
-      ? api.get(`/sd/cmdb/${topoCI.id}/topology?radius=${topoRadius}`).then(r => r.data).catch(() => ({ nodes: [], edges: [] }))
+      ? cmdbApi.topology(topoCI.id, topoRadius).then(r => r.data).catch(() => ({ nodes: [], edges: [] }))
       : Promise.resolve({ nodes: [], edges: [] }),
     enabled: tab === 'topology' && !!topoCI,
   })

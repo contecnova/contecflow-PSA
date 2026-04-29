@@ -103,7 +103,7 @@ def upgrade() -> None:
                 INSERT INTO sd_problem_rca_templates
                     (id, name, template_type, steps_json, description, is_system, is_active, created_by, created_at)
                 VALUES
-                    (:id, :name, :template_type, :steps_json, :description, :is_system, :is_active, :created_by, NOW())
+                    (:id, :name, :template_type, :steps_json, :description, :is_system, :is_active, :created_by, CURRENT_TIMESTAMP)
                 """
             ),
             row,

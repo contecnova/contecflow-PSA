@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, revenueRecognitionApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
@@ -36,6 +36,99 @@ const ASC_METHOD_CFG = {
 
 const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
+// ── Obligations panel (per-contract) ─────────────────────────────────────────
+function ObligationsPanel({ contractId, onClose }) {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState({ name:'', method:'over_time', standalone_price:'', notes:'' })
+
+  const { data: obs = [], isLoading } = useQuery({
+    queryKey: ['asc606-obligations', contractId],
+    queryFn: () => revenueRecognitionApi.obligations(contractId).then(r => r.data),
+  })
+
+  const reset = () => { setForm({ name:'', method:'over_time', standalone_price:'', notes:'' }); setEditing(null); setShowForm(false) }
+
+  const { mutate: save, isPending: saving } = useMutation({
+    mutationFn: d => editing
+      ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
+      : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries(['asc606-obligations', contractId]); reset() },
+    onError: e => toast.error(extractErr(e, 'Error al guardar obligación')),
+  })
+
+  const { mutate: del } = useMutation({
+    mutationFn: id => revenueRecognitionApi.deleteObligation(id),
+    onSuccess: () => qc.invalidateQueries(['asc606-obligations', contractId]),
+    onError: e => toast.error(extractErr(e, 'Error')),
+  })
+
+  return (
+    <Modal open onClose={onClose} title="Obligaciones de desempeño" width={560}>
+      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+        {isLoading ? <Spinner /> : obs.length === 0 && !showForm ? (
+          <EmptyState icon="📋" title="Sin obligaciones" description="Añade las obligaciones de desempeño de este contrato" />
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {obs.map(ob => {
+              const mCfg = ASC_METHOD_CFG[ob.method] || { label: ob.method, icon:'•' }
+              return (
+                <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500 }}>{ob.name}</div>
+                    <div style={{ fontSize:11, color:'var(--text-2)', marginTop:2 }}>
+                      {mCfg.icon} {mCfg.label}
+                      {ob.standalone_price > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price)}</span>}
+                      {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                    <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:ob.standalone_price||'', notes:ob.notes||'' }); setShowForm(true) }}
+                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize:11, color:'var(--text-2)' }}>✏</button>
+                    <button onClick={() => del(ob.id)}
+                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize:11, color:'var(--danger)' }}>🗑</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showForm ? (
+          <div style={{ border:'.5px solid var(--surface-4)', borderRadius:8, padding:'14px', display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div><label style={ls}>Nombre</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={fs} placeholder="Ej: Fase 1 — Análisis" />
+              </div>
+              <div><label style={ls}>Método</label>
+                <select value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} style={fs}>
+                  {Object.entries(ASC_METHOD_CFG).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div><label style={ls}>Precio de venta independiente (€)</label>
+              <input type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} style={fs} placeholder="0" />
+            </div>
+            <div><label style={ls}>Notas</label>
+              <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} style={{...fs,resize:'vertical'}} />
+            </div>
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+              <Button variant="secondary" onClick={reset}>Cancelar</Button>
+              <Button onClick={() => save({ ...form, standalone_price: parseFloat(form.standalone_price)||0 })} disabled={saving || !form.name.trim()}>
+                {saving ? '...' : editing ? 'Guardar' : 'Añadir'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="secondary" onClick={() => setShowForm(true)}>+ Añadir obligación</Button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 function fmtEur(n) {
   if (!n && n !== 0) return '—'
   return new Intl.NumberFormat('es-ES', { style:'currency', currency:'EUR', minimumFractionDigits:0, maximumFractionDigits:0 }).format(n)
@@ -57,6 +150,8 @@ export default function RevenuePage() {
   const [dashYear, setDashYear] = useState(currentYear)
   const [showCreateContract, setShowCreateContract] = useState(false)
   const [showCloseModal, setShowCloseModal] = useState(false)
+  const [obligationsFor, setObligationsFor] = useState(null)
+  const [entryFilter, setEntryFilter] = useState({ contract_id: '', year: '', month: '' })
   const [closePeriod, setClosePeriod] = useState({ year: currentYear, month: currentMonth, notes: '' })
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency:'EUR', start_date:'', end_date:'', duration_months:'', notes:'' })
 
@@ -80,6 +175,23 @@ export default function RevenuePage() {
     queryKey: ['asc606-period-closes'],
     queryFn: () => api.get('/revenue-recognition/period-closes').then(r => r.data),
     enabled: tab === 'asc606',
+  })
+
+  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+    queryKey: ['asc606-entries', entryFilter],
+    queryFn: () => {
+      const p = {}
+      if (entryFilter.contract_id) p.contract_id = entryFilter.contract_id
+      if (entryFilter.year)        p.year         = entryFilter.year
+      if (entryFilter.month)       p.month        = entryFilter.month
+      return revenueRecognitionApi.entries(p).then(r => r.data).catch(() => [])
+    },
+    enabled: tab === 'entries',
+  })
+  const { mutate: reverseEntry } = useMutation({
+    mutationFn: id => revenueRecognitionApi.reverseEntry(id),
+    onSuccess: () => { qc.invalidateQueries(['asc606-entries']); toast.success('Entrada revertida') },
+    onError: e => toast.error(extractErr(e, 'Error al revertir')),
   })
 
   // ── Existing mutations ─────────────────────────────────────────────────────
@@ -156,6 +268,7 @@ export default function RevenuePage() {
     { id:'summary', label:'Resumen' },
     { id:'rules',   label:'Reglas por proyecto' },
     { id:'asc606',  label:'Contratos ASC 606' },
+    { id:'entries', label:'Entradas contables' },
     { id:'info',    label:'ASC 606 / IFRS 15' },
   ]
 
@@ -361,12 +474,16 @@ export default function RevenuePage() {
                               <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
                             )}
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
                             <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize:13, fontWeight:500 }}>{fmtEur(c.contract_value)}</div></div>
                             <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize:13 }}>{c.currency}</div></div>
                             <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize:13 }}>{c.start_date || '—'}</div></div>
                             <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize:13 }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
                           </div>
+                          <button onClick={() => setObligationsFor(c.id)}
+                            style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
+                            📋 Obligaciones de desempeño
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -375,6 +492,98 @@ export default function RevenuePage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Entradas contables ── */}
+      {tab === 'entries' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {/* Filters */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', gap:10, alignItems:'flex-end' }}>
+            <div>
+              <label style={ls}>Contrato</label>
+              <select value={entryFilter.contract_id} onChange={e => setEntryFilter(f=>({...f, contract_id:e.target.value}))} style={fs}>
+                <option value="">Todos los contratos</option>
+                {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={ls}>Año</label>
+              <select value={entryFilter.year} onChange={e => setEntryFilter(f=>({...f, year:e.target.value}))} style={{...fs, width:100}}>
+                <option value="">Todos</option>
+                {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={ls}>Mes</label>
+              <select value={entryFilter.month} onChange={e => setEntryFilter(f=>({...f, month:e.target.value}))} style={{...fs, width:110}}>
+                <option value="">Todos</option>
+                {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
+              </select>
+            </div>
+            {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
+              <button onClick={() => setEntryFilter({ contract_id:'', year:'', month:'' })}
+                style={{ alignSelf:'flex-end', padding:'9px 14px', borderRadius:8, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                ✕ Limpiar
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          {entriesLoading ? <Spinner /> : entries.length === 0 ? (
+            <EmptyState icon="📋" title="Sin entradas contables" description="Las entradas se generan al ejecutar el reconocimiento mensual" />
+          ) : (
+            <div style={{ ...card, overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                <thead>
+                  <tr style={{ borderBottom:'1px solid var(--surface-4)', background:'var(--surface-3)' }}>
+                    {['Contrato','Período','Método','Reconocido','Diferido','Estado',''].map((h,i) => (
+                      <th key={h||i} style={{ padding:'10px 14px', textAlign:i<=1?'left':'center', fontSize:10, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.07em', whiteSpace:'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e, idx) => {
+                    const mCfg = ASC_METHOD_CFG[e.method] || { label:e.method||'—', icon:'•' }
+                    const isReversed = e.is_reversed || e.status === 'reversed'
+                    return (
+                      <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)', background: idx%2===0?'transparent':'rgba(255,255,255,0.02)', opacity: isReversed ? 0.5 : 1 }}>
+                        <td style={{ padding:'10px 14px' }}>
+                          <div style={{ fontWeight:500 }}>{e.contract_name || e.contract_id}</div>
+                          {e.obligation_name && <div style={{ fontSize:11, color:'var(--text-3)' }}>{e.obligation_name}</div>}
+                        </td>
+                        <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12 }}>
+                          {e.period_year}-{String(e.period_month).padStart(2,'0')}
+                        </td>
+                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                          <span style={{ fontSize:11 }}>{mCfg.icon} {mCfg.label}</span>
+                        </td>
+                        <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
+                          {fmtEur(e.recognized_amount ?? e.amount)}
+                        </td>
+                        <td style={{ padding:'10px 14px', textAlign:'center', color:'var(--warning)' }}>
+                          {fmtEur(e.deferred_amount ?? 0)}
+                        </td>
+                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                          {isReversed
+                            ? <span style={{ fontSize:11, color:'var(--danger)' }}>Revertida</span>
+                            : <span style={{ fontSize:11, color:'var(--success)' }}>Activa</span>}
+                        </td>
+                        <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                          {!isReversed && (
+                            <button onClick={() => { if (window.confirm('¿Revertir esta entrada?')) reverseEntry(e.id) }}
+                              style={{ fontSize:11, padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
+                              ↩ Revertir
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -562,6 +771,9 @@ export default function RevenuePage() {
           </div>
         </Modal>
       )}
+
+      {/* ── Modal obligaciones ── */}
+      {obligationsFor && <ObligationsPanel contractId={obligationsFor} onClose={() => setObligationsFor(null)} />}
     </div>
   )
 }
