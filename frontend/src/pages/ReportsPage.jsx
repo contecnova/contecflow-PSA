@@ -305,16 +305,14 @@ function ChartRenderer({ data, chartType, meta, color = 'var(--accent)', height 
   if (chartType === 'pie' || chartType === 'donut') {
     return (
       <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-        <ResponsiveContainer width={300} height={height}>
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
-              innerRadius={chartType === 'donut' ? 70 : 0} outerRadius={120}
-              paddingAngle={2}>
-              {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
-            </Pie>
-            <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
-          </PieChart>
-        </ResponsiveContainer>
+        <PieChart width={300} height={height}>
+          <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%"
+            innerRadius={chartType === 'donut' ? 70 : 0} outerRadius={120}
+            paddingAngle={2}>
+            {data.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+          </Pie>
+          <Tooltip content={<CustomTooltip isCurrency={isCurrency} isPercent={isPercent} />} />
+        </PieChart>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {data.map((row, i) => {
             const total = data.reduce((s, r) => s + (r.value || 0), 0)

@@ -6290,3 +6290,20 @@ Corrección aplicada:
 
 Resultado esperado:
 - Se reducen/eliminan los 400 de preview causados por payload inválido en Query Builder.
+
+## 19. Warning Recharts: `ResponsiveContainer` con ancho/alto fijos
+
+Problema observado:
+- En consola del frontend aparecía:
+  - `The width(300) and height(360) are both fixed numbers, maybe you don't need to use a ResponsiveContainer.`
+
+Causa:
+- En el renderer de gráficos de reportes se usaba `ResponsiveContainer` para un `PieChart` con dimensiones fijas (`width=300` y `height` fijo).
+
+Corrección aplicada:
+- `frontend/src/pages/ReportsPage.jsx`
+  - En el caso `pie/donut` se reemplaza `ResponsiveContainer` por `PieChart` con `width`/`height` directos.
+  - Se mantiene el mismo layout visual del bloque y de la leyenda.
+
+Resultado esperado:
+- Desaparece el warning de Recharts sobre uso innecesario de `ResponsiveContainer` con tamaño fijo.
