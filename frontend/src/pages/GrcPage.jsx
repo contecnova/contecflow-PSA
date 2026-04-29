@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api from '../services/api'
+import { grcApi, approvalsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { ShieldCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
@@ -70,7 +70,7 @@ function MatrixTab() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['grc-permissions'],
-    queryFn: () => api.get('/grc/permissions').then(r => r.data.matrix),
+    queryFn: () => grcApi.permissions().then(r => r.data.matrix),
   })
   const matrix = data || {}
 

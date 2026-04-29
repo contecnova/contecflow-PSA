@@ -408,7 +408,7 @@ export function PortalUATTab({ _cid, projects }) {
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['uat-team-client', selectedProject],
-    queryFn: () => api.get('/portal/uat/team', { params: { project_id: selectedProject } }).then(r => r.data).catch(() => []),
+    queryFn: () => portalApi.uat({ project_id: selectedProject }).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
   })
 
@@ -491,7 +491,7 @@ export function PortalSolicitudesTab({ cid }) {
     let ws
     let reconnectTimer
     function connectWS() {
-      api.get('/ws/ticket').then(res => {
+      wsApi.ticket().then(res => {
         const ticket = res.data.ticket
         ws = new window.WebSocket(`${resolveWsBase()}/api/v1/ws/notifications?ticket=${ticket}`)
         ws.onclose = () => { reconnectTimer = setTimeout(connectWS, 5000) }
@@ -520,18 +520,18 @@ export function PortalSolicitudesTab({ cid }) {
 
   const { data: frs = [], isLoading } = useQuery({
     queryKey: ['portal-frs-client', cid],
-    queryFn: () => api.get('/portal/feature-requests/team', { params: { client_org_id: cid } }).then(r => r.data).catch(() => []),
+    queryFn: () => portalApi.featureRequests({ client_org_id: cid }).then(r => r.data).catch(() => []),
     enabled: !!cid,
   })
 
   const { mutate: respond, isPending } = useMutation({
-    mutationFn: ({ id, data }) => api.post(`/portal/feature-requests/${id}/respond`, data),
+    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries(['portal-frs-client', cid]); setResponding(null) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => api.post(`/portal/feature-requests/${id}/respond`, { status }),
+    mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
     onSuccess: () => qc.invalidateQueries(['portal-frs-client', cid]),
     onError: e => toast.error(extractErr(e, 'Error al actualizar estado')),
   })
@@ -700,7 +700,7 @@ export function PortalDocumentosTab({ cid, projects }) {
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs-team', cid, selectedProject],
     queryFn: () => selectedProject
-      ? api.get('/portal/documents/team', { params: { project_id: selectedProject } }).then(r => r.data).catch(() => [])
+      ? portalApi.documents({ project_id: selectedProject }).then(r => r.data).catch(() => [])
       : Promise.resolve([]),
     enabled: !!selectedProject,
   })
@@ -749,7 +749,7 @@ export function PortalSettingsTab({ cid }) {
   const qc = useQueryClient()
   const { data: cfg, isLoading } = useQuery({
     queryKey: ['client-portal-cfg', cid],
-    queryFn: () => api.get(`/clients/${cid}/portal-config`).then(r => r.data),
+    queryFn: () => clientExtApi.portalConfig(cid).then(r => r.data),
   })
   const [modules, setModules] = useState([])
   const [sdWithout, setSdWithout] = useState(true)
@@ -772,7 +772,7 @@ export function PortalSettingsTab({ cid }) {
   }, [cfg])
 
   const { mutate: save, isPending: saving } = useMutation({
-    mutationFn: d => api.patch(`/clients/${cid}/portal-config`, d),
+    mutationFn: d => clientExtApi.updatePortalConfig(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-portal-cfg', cid]); toast.success('✅ Configuración guardada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

@@ -532,8 +532,8 @@ export const ticketsApi = {
   split:   (id, data) => api.post(`/sd/tickets/${id}/split`, data),
   links:   (id)       => api.get(`/sd/tickets/${id}/links`),
   addLink:    (id, data) => api.post(`/sd/tickets/${id}/links`, data),
-  timelog:    (id, data) => api.post(`/sd/tickets/${id}/timelog`, data),
-  escalate:   (id)       => api.post(`/sd/tickets/${id}/escalate`),
+  timelog:    (id, data)         => api.post(`/sd/tickets/${id}/time-log`, data),
+  escalate:   (id, level = 'l2') => api.post(`/sd/tickets/${id}/escalate?to_level=${level}`, {}),
   slaPause:   (id, data) => api.post(`/sd/tickets/${id}/sla/pause`, data),
   slaResume:  (id)       => api.post(`/sd/tickets/${id}/sla/resume`),
 }
@@ -715,10 +715,14 @@ export const wikiApi = {
   versions:     (id)            => api.get(`epics/wiki/pages/${id}/versions`),
   restorePage:  (id, vn)        => api.post(`epics/wiki/pages/${id}/restore/${vn}`),
   search:       (q, spaceId)    => api.get(`epics/wiki/search`, { params: { q, space_id: spaceId } }),
-  tags:         (space)         => api.get(`/wiki-tags/${space}`),
-  createTag:    (space, data)   => api.post(`/wiki-tags/${space}`, data),
-  updateTag:    (id, data)      => api.patch(`/wiki-tags/${id}`, data),
-  deleteTag:    (id)            => api.delete(`/wiki-tags/${id}`),
+  tags:             (space)         => api.get(`/wiki-tags/${space}`),
+  createTag:        (space, data)   => api.post(`/wiki-tags/${space}`, data),
+  updateTag:        (id, data)      => api.patch(`/wiki-tags/${id}`, data),
+  deleteTag:        (id)            => api.delete(`/wiki-tags/${id}`),
+  // portal-scoped wiki (different URL prefix)
+  portalSpaces:     ()              => api.get('wiki/spaces'),
+  portalPages:      (spaceId)       => api.get(`wiki/spaces/${spaceId}/pages`),
+  portalUpdatePage: (id, data)      => api.patch(`wiki/pages/${id}`, data),
 }
 
 // ── Skills ────────────────────────────────────────────────────────────────────

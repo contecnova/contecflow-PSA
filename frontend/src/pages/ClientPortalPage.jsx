@@ -11,7 +11,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api from '../services/api'
+import { portalApi, projectsApi, deliverablesApi, wikiApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Globe } from 'lucide-react'
@@ -89,16 +89,16 @@ function ClientUsersTab({ projectId }) {
   const [editingClient, setEditingClient] = useState(null)
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['portal-clients', projectId],
-    queryFn: () => api.get('/portal/clients', { params: { project_id: projectId } }).then(r => r.data),
+    queryFn: () => portalApi.clients({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { mutate: deleteClient } = useMutation({
-    mutationFn: (id) => api.delete(`/portal/clients/${id}`),
+    mutationFn: (id) => portalApi.deleteClient(id),
     onSuccess: () => qc.invalidateQueries(['portal-clients', projectId]),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: toggleActive } = useMutation({
-    mutationFn: ({ id, active }) => api.patch(`/portal/clients/${id}`, { is_active: active }),
+    mutationFn: ({ id, active }) => portalApi.updateClient(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['portal-clients', projectId]),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -165,11 +165,11 @@ function CreateClientModal({ projectId, onClose }) {
 
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => api.get('/projects', { params: { page_size: 200 } }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => api.post('/portal/clients', data),
+    mutationFn: (data) => portalApi.createClient(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['portal-clients', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -245,10 +245,10 @@ function EditClientModal({ client, onClose, onSaved }) {
   const t = useAppT()
   const { data: allProjects = [] } = useQuery({
     queryKey: ['projects-list'],
-    queryFn: () => api.get('/projects', { params: { page_size: 200 } }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: (data) => api.patch(`/portal/clients/${client.id}`, data),
+    mutationFn: (data) => portalApi.updateClient(client.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -351,12 +351,12 @@ function UATTab({ projectId }) {
   const [selectedId, setSelectedId] = useState(null)
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ['uat-team', projectId],
-    queryFn: () => api.get('/portal/uat/team', { params: { project_id: projectId } }).then(r => r.data),
+    queryFn: () => portalApi.uat({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { data: deliverables = [] } = useQuery({
     queryKey: ['deliverables-uat', projectId],
-    queryFn: () => api.get(`/deliverables/${projectId}`).then(r => r.data.deliverables || []),
+    queryFn: () => deliverablesApi.get(projectId).then(r => r.data.deliverables || []),
     enabled: !!projectId,
   })
   // Always read live data so UATDetailModal reflects updates without reopening
@@ -427,9 +427,9 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data) => {
-      const res = await api.post(`/portal/uat/${projectId}`, data.form)
+      const res = await portalApi.createUat(projectId, data.form)
       for (const tc of data.testCases.filter(t => t.title)) {
-        await api.post(`/portal/uat/${res.data.id}/test-cases`, { title: tc.title, steps: tc.steps, expected_result: tc.expected_result, order: data.testCases.indexOf(tc) })
+        await portalApi.addTestCase(res.data.id, { title: tc.title, steps: tc.steps, expected_result: tc.expected_result, order: data.testCases.indexOf(tc) })
       }
       return res
     },
@@ -503,7 +503,7 @@ function UATDetailModal({ session: initialSession, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
   const { mutate: updateIssue } = useMutation({
-    mutationFn: ({ id, status }) => api.patch(`/portal/uat/issues/${id}?status=${status}`),
+    mutationFn: ({ id, status }) => portalApi.updateUatStatus(id, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['uat-team'], exact: false }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -607,18 +607,18 @@ function FeatureRequestsTab({ projectId }) {
 
   const { data: frs = [], isLoading } = useQuery({
     queryKey: ['portal-frs', projectId],
-    queryFn: () => api.get('/portal/feature-requests/team', { params: { project_id: projectId } }).then(r => Array.isArray(r.data) ? r.data : []),
+    queryFn: () => portalApi.featureRequests({ project_id: projectId }).then(r => Array.isArray(r.data) ? r.data : []),
     enabled: !!projectId,
   })
 
   const { mutate: respond, isPending } = useMutation({
-    mutationFn: ({ id, data }) => api.post(`/portal/feature-requests/${id}/respond`, data),
+    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries(['portal-frs', projectId]); setResponding(null) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => api.post(`/portal/feature-requests/${id}/respond`, { status }),
+    mutationFn: ({ id, status }) => portalApi.respondFeatureRequest(id, { status }),
     onSuccess: () => qc.invalidateQueries(['portal-frs', projectId]),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -736,11 +736,11 @@ function DocumentsTab({ projectId }) {
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs', projectId],
-    queryFn: () => api.get('/portal/documents/team', { params: { project_id: projectId } }).then(r => r.data),
+    queryFn: () => portalApi.documents({ project_id: projectId }).then(r => r.data),
     enabled: !!projectId,
   })
   const { mutate: addDoc } = useMutation({
-    mutationFn: (data) => api.post(`/portal/documents?project_id=${projectId}`, data),
+    mutationFn: (data) => portalApi.createDocument(projectId, data),
     onSuccess: () => { qc.invalidateQueries(['portal-docs', projectId]); setShowAdd(false) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -825,18 +825,18 @@ function WikiPortalTab({ projectId }) {
   const t = useAppT()
   const { data: spaces = [] } = useQuery({
     queryKey: ['wiki-spaces-portal', projectId],
-    queryFn: () => api.get('wiki/spaces').then(r => r.data.filter(s => !projectId || s.project_id === projectId || !s.project_id)),
+    queryFn: () => wikiApi.portalSpaces().then(r => r.data.filter(s => !projectId || s.project_id === projectId || !s.project_id)),
   })
   const [selectedSpace, setSelectedSpace] = React.useState('')
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['wiki-pages-portal-op', selectedSpace],
-    queryFn: () => api.get(`wiki/spaces/${selectedSpace}/pages`).then(r => r.data),
+    queryFn: () => wikiApi.portalPages(selectedSpace).then(r => r.data),
     enabled: !!selectedSpace,
   })
   const toast = useToast()
   const qc = useQueryClient()
   const { mutate: setVis } = useMutation({
-    mutationFn: ({ id, visibility }) => api.patch(`wiki/pages/${id}`, { visibility }),
+    mutationFn: ({ id, visibility }) => wikiApi.portalUpdatePage(id, { visibility }),
     onSuccess: () => qc.invalidateQueries(['wiki-pages-portal-op', selectedSpace]),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -894,7 +894,7 @@ function StatsPanel({ projectId }) {
   const t = useAppT()
   const { data: stats } = useQuery({
     queryKey: ['portal-stats', projectId],
-    queryFn: () => api.get(`/portal/stats/${projectId}`).then(r => r.data),
+    queryFn: () => portalApi.stats(projectId).then(r => r.data),
     enabled: !!projectId,
     refetchInterval: 30000,
   })
@@ -927,7 +927,7 @@ export default function ClientPortalPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects', { params: { page_size: 200 } }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list({ page_size: 200 }).then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
   })
 
   const TABS = [

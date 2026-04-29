@@ -7,7 +7,7 @@ import { Button, Spinner, Modal } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
 import { COLOR } from '../../constants/theme'
-import api from '../../services/api'
+import { sdCannedApi, ticketsApi, usersApi } from '../../services/api'
 import { PBadge, SBadge, fmtDate, fmtMinutes, INPUT_STYLE, LABEL_STYLE } from './sdUtils'
 
 // ── CannedResponsePicker ──────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
   const [search, setSearch] = useState('')
   const { data: responses = [] } = useQuery({
     queryKey: ['canned-responses', search],
-    queryFn: () => api.get('/sd/canned-responses', { params: search ? { search } : {} }).then(r => r.data).catch(() => []),
+    queryFn: () => sdCannedApi.list(search ? { search } : {}).then(r => r.data).catch(() => []),
     staleTime: 60000,
   })
   const cats = [...new Set(responses.map(r => r.category || 'General'))].sort()
@@ -77,7 +77,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
     keep_original_description: ticket?.description || '', tags: '',
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.post(`/sd/tickets/${ticket.id}/split`, data),
+    mutationFn: data => ticketsApi.split(ticket.id, data),
     onSuccess: res => {
       toast.success(`${t('service_desk.ticket_created_success')} ${res?.data?.child?.number || ''}`)
       onCreated?.(res?.data)
@@ -140,7 +140,7 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
     status: ticket.status || 'new', resolution: ticket.resolution || '', tags: ticket.tags || '',
   })
   const { mutate, isPending } = useMutation({
-    mutationFn: data => api.patch(`/sd/tickets/${ticket.id}`, data),
+    mutationFn: data => ticketsApi.update(ticket.id, data),
     onSuccess: onSaved,
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -236,17 +236,17 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['sd-ticket', ticketId],
-    queryFn: () => api.get(`/sd/tickets/${ticketId}`).then(r => r.data),
+    queryFn: () => ticketsApi.get(ticketId).then(r => r.data),
     enabled: !!ticketId,
     refetchInterval: 30000,
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
   })
   const { data: links = [] } = useQuery({
     queryKey: ['sd-ticket-links', ticketId],
-    queryFn: () => api.get(`/sd/tickets/${ticketId}/links`).then(r => r.data),
+    queryFn: () => ticketsApi.links(ticketId).then(r => r.data),
     enabled: !!ticketId,
   })
 
@@ -256,12 +256,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
   }
 
   const { mutate: addComment, isPending: commenting } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/comments`, { body: commentText, is_internal: false }),
+    mutationFn: () => ticketsApi.comment(ticketId, { body: commentText, is_internal: false }),
     onSuccess: () => { invalidate(); setCommentText(''); toast.success(t('service_desk.comment_added')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: suggestReply, isPending: suggestingReply } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/ai-suggest`, { content: commentText }),
+    mutationFn: () => ticketsApi.aiSuggest(ticketId, { content: commentText }),
     onSuccess: res => {
       const draft = res?.data?.draft || ''
       if (!draft) { toast.error(t('common.error')); return }
@@ -271,27 +271,27 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
     onError: e => toast.error(extractErr(e, 'Error al sugerir respuesta IA')),
   })
   const { mutate: logTime, isPending: loggingTime } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/time-log`, { minutes: Number(timeMin) }),
+    mutationFn: () => ticketsApi.timelog(ticketId, { minutes: Number(timeMin) }),
     onSuccess: () => { invalidate(); setTimeMin(''); toast.success(`${timeMin} min`) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateTicket } = useMutation({
-    mutationFn: data => api.patch(`/sd/tickets/${ticketId}`, data),
+    mutationFn: data => ticketsApi.update(ticketId, data),
     onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: escalate } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/escalate?to_level=l2`, {}),
+    mutationFn: () => ticketsApi.escalate(ticketId),
     onSuccess: () => { invalidate(); toast.success(t('service_desk.ticket_escalated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: pauseSLA } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/sla/pause`, { note: 'Esperando respuesta del cliente' }),
+    mutationFn: () => ticketsApi.slaPause(ticketId, { note: 'Esperando respuesta del cliente' }),
     onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_paused')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: resumeSLA } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/sla/resume`),
+    mutationFn: () => ticketsApi.slaResume(ticketId),
     onSuccess: () => { invalidate(); qc.invalidateQueries({ queryKey: ['sd-sla-events'] }); toast.success(t('service_desk.sla_resumed')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
