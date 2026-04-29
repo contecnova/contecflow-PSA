@@ -11,6 +11,25 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.41 (Abril 2026) — Fix drift de esquema en Problem Management (columna rca_template)
+
+- Se corrige el error 500 en `GET /api/v1/sd/problems` con SQLite:
+  - error observado: `sqlite3.OperationalError: no such column: sd_problems.rca_template`.
+- Causa raíz verificada:
+  - Existían dos heads de Alembic en paralelo (`042_routing_feedback` y `d2a3b8e7f041`).
+  - Algunas BDs locales quedaban en la rama `d2a3b8e7f041`, sin aplicar la rama `041_rca_wizard` que introduce `rca_template` y `rca_wizard_state`.
+- Fix aplicado:
+  - Nueva migración merge: `alembic/versions/044_merge_heads_rca_wizard_portal.py` para unificar heads y permitir upgrade lineal a una única head.
+  - Hardening de preflight de esquema en `app/main.py`:
+    - ahora lee **todas** las revisiones en `alembic_version` (no solo `LIMIT 1`),
+    - compara revisiones aplicadas contra todas las heads del repositorio Alembic,
+    - detecta drift de ramas faltantes y muestra guidance con `python -m alembic upgrade heads`.
+  - Refuerzo de migración defensiva SQLite en `app/db/migrate.py`:
+    - se añaden `sd_problems.rca_template` y `sd_problems.rca_wizard_state` al listado `MIGRATIONS`.
+- Resultado esperado:
+  - Se evita el falso “Schema preflight OK” cuando falta una rama de Alembic.
+  - Los entornos locales SQLite reducen riesgo de deriva en columnas RCA Wizard.
+
 ### v23.10.40 (Abril 2026) — Fix warning 404 en topología CMDB del frontend
 
 - Se corrige el warning recurrente `GET /api/v1/sd/cmdb/{id}/topology 404` observado al abrir la pestaña de topología en CMDB.

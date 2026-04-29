@@ -175,6 +175,8 @@ MIGRATIONS = [
     # Problem RCA enrichment
     ("sd_problems", "rca_type",              "VARCHAR(30)"),
     ("sd_problems", "rca_ai_suggestion",     "TEXT"),
+    ("sd_problems", "rca_template",          "VARCHAR(30)"),
+    ("sd_problems", "rca_wizard_state",      "TEXT"),
     ("sd_problems", "auto_detected",         "BOOLEAN DEFAULT 0"),
     ("sd_problems", "affected_services_json","TEXT"),
     # CMDB auto-discovery fields
