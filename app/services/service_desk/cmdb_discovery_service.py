@@ -886,32 +886,6 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         provider_id=provider.id,
         status="running",
         started_at=_utcnow(),
-    logger.info(
-        "Reconcile [%s]: created=%d, updated=%d, deactivated=%d",
-        provider_type,
-        created,
-        updated,
-        deactivated,
-    )
-    return {"created": created, "updated": updated, "deactivated": deactivated}
-
-
-# ── Orchestration ─────────────────────────────────────────────────────────────
-
-def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> CMDBDiscoveryJob:
-    """Ejecuta discovery completo para un proveedor y registra el job.
-
-    Commits the job record. Caller must NOT commit before calling this function.
-    After this call, the session is in a clean state (committed).
-
-    Returns:
-        CMDBDiscoveryJob con el resultado del run.
-    """
-    job = CMDBDiscoveryJob(
-        id=str(uuid4()),
-        provider_id=provider.id,
-        status="running",
-        started_at=_utcnow(),
         triggered_by="scheduler",
     )
     db.add(job)

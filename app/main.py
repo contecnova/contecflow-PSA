@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import logging
 import os
 import time
+from pathlib import Path
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.pool import NullPool
 from app.core.config import settings
@@ -31,18 +32,33 @@ from app.api.v1.router import api_router
 from app.api.v2.router import api_v2_router
 
 
-def _read_alembic_revision(database_url: str) -> str | None:
-    """Read the current Alembic revision from DB without mutating schema."""
+def _read_alembic_revisions(database_url: str) -> set[str] | None:
+    """Read current Alembic revision set from DB without mutating schema."""
     engine = create_engine(database_url, poolclass=NullPool)
     try:
         inspector = inspect(engine)
         if not inspector.has_table("alembic_version"):
             return None
         with engine.connect() as conn:
-            row = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).first()
-            return str(row[0]) if row and row[0] else None
+            rows = conn.execute(text("SELECT version_num FROM alembic_version")).fetchall()
+            revisions = {str(row[0]) for row in rows if row and row[0]}
+            return revisions or None
     finally:
         engine.dispose()
+
+
+def _read_alembic_heads() -> set[str] | None:
+    """Read Alembic script heads from local migration repository."""
+    try:
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+
+        cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+        script = ScriptDirectory.from_config(cfg)
+        heads = set(script.get_heads())
+        return heads or None
+    except Exception:
+        return None
 
 
 def _scheduler_flags() -> tuple[bool, bool]:
@@ -167,25 +183,39 @@ async def lifespan(_app: FastAPI):
         logger.info("⏭️  Schema preflight omitido en testing")
     else:
         try:
-            _current_rev = _read_alembic_revision(settings.DATABASE_URL)
-            if _current_rev is None:
+            _current_revs = _read_alembic_revisions(settings.DATABASE_URL)
+            _heads = _read_alembic_heads()
+
+            if _current_revs is None:
                 _msg = (
                     "No existe tabla alembic_version. Ejecuta migraciones fuera del startup "
-                    "(p.ej. `python -m alembic upgrade head`) antes de arrancar."
+                    "(p.ej. `python -m alembic upgrade heads`) antes de arrancar."
                 )
                 if _enforce_drift:
                     raise RuntimeError(_msg)
                 logger.warning("⚠️  %s", _msg)
-            elif _expected_rev and _current_rev != _expected_rev:
+            elif _expected_rev and _expected_rev not in _current_revs:
                 _msg = (
-                    f"Schema drift detectado: expected={_expected_rev} current={_current_rev}. "
+                    f"Schema drift detectado: expected={_expected_rev} current={sorted(_current_revs)}. "
                     "Aplica migraciones fuera del proceso web."
                 )
                 if _enforce_drift:
                     raise RuntimeError(_msg)
                 logger.warning("⚠️  %s", _msg)
+            elif _heads and _current_revs != _heads:
+                _missing = sorted(_heads - _current_revs)
+                _extra = sorted(_current_revs - _heads)
+                _msg = (
+                    "Schema drift detectado entre revisiones aplicadas y heads de Alembic: "
+                    f"current={sorted(_current_revs)} heads={sorted(_heads)} "
+                    f"missing={_missing} extra={_extra}. "
+                    "Aplica migraciones fuera del proceso web (p.ej. `python -m alembic upgrade heads`)."
+                )
+                if _enforce_drift:
+                    raise RuntimeError(_msg)
+                logger.warning("⚠️  %s", _msg)
             else:
-                logger.info("✅ Schema preflight OK (alembic_revision=%s)", _current_rev)
+                logger.info("✅ Schema preflight OK (alembic_revisions=%s)", sorted(_current_revs))
         except Exception as _schema_exc:
             logger.error("❌ Schema preflight failed: %s", _schema_exc)
             raise
