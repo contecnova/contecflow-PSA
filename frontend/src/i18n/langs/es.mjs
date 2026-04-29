@@ -2836,5 +2836,30 @@ const es = {
     create_form: 'Crear formulario',
   },
 
+  visual_query_builder: {
+    title: 'Constructor visual de consultas',
+    subtitle: 'Constructor visual sin SQL para consultas ad hoc',
+    entity_placeholder: 'Selecciona entidad...',
+    template_placeholder: 'Nombre de plantilla...',
+    saving: 'Guardando...',
+    save: 'Guardar',
+    saved_templates: 'Plantillas guardadas',
+    delete_btn: 'Eliminar',
+    columns: 'Columnas',
+    filters: 'Filtros',
+    add_filter: '+ Filtro',
+    field_placeholder: 'Campo...',
+    n_a: 'No aplica',
+    value_placeholder: 'Valor',
+    no_sort: 'Sin orden',
+    asc: 'Asc',
+    desc: 'Desc',
+    loading: 'Consultando...',
+    preview: 'Previsualizar',
+    error: 'No se pudo ejecutar la consulta visual.',
+    truncated: '(truncado)',
+    results: 'resultados',
+  },
+
 };
 export default es;

@@ -41,6 +41,7 @@ const zh = {
     okrs: 'OKRs', performance_reviews: '绩效评估', training: '培训与证书',
     bi: 'BI与高管', webhook_log: 'Webhook日志', jira_integration: 'Jira集成', notifications: '通知',
     executive: '高管仪表盘',
+    bi_workspace: 'BI工作区',
     log_hours: '登记工时', timer: '计时器', calendar: '日历',
     documents: '文档', approvals: '审批', gantt: '甘特图',
     dependencies: '依赖', git: 'Git集成',
@@ -325,6 +326,31 @@ const zh = {
     type_question: '问题', type_problem: '问题', type_change: '变更',
     priority_p1: 'P1 — 关键', priority_p2: 'P2 — 高',
   },
-  
+
+  visual_query_builder: {
+    title: '可视化查询构建器',
+    subtitle: '无SQL的即席查询可视化构建器',
+    entity_placeholder: '选择实体...',
+    template_placeholder: '模板名称...',
+    saving: '保存中...',
+    save: '保存',
+    saved_templates: '已保存的模板',
+    delete_btn: '删除',
+    columns: '列',
+    filters: '筛选器',
+    add_filter: '+ 筛选器',
+    field_placeholder: '字段...',
+    n_a: '不适用',
+    value_placeholder: '值',
+    no_sort: '不排序',
+    asc: '升序',
+    desc: '降序',
+    loading: '查询中...',
+    preview: '预览',
+    error: '无法执行可视化查询。',
+    truncated: '(已截断)',
+    results: '结果',
+  },
+
 };
 export default zh;
