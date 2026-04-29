@@ -16,6 +16,9 @@ import TicketDetail from './service-desk/TicketDetail'
 import CreateTicketModal from './service-desk/CreateTicketModal'
 import KanbanTicketsTab from './service-desk/KanbanTicketsTab'
 import Config from './service-desk/ConfigTab'
+import VoiceAgentPanel from '../components/servicedesk/VoiceAgentPanel'
+import IncidentAssignmentPanel from '../components/servicedesk/IncidentAssignmentPanel'
+import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 
 const LazyMetricsDashboard    = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
@@ -54,6 +57,9 @@ export default function ServiceDeskPage() {
     { id: 'announcements', label: `${t('service_desk.tab_announcements')}` },
     { id: 'metrics',  label: `${t('service_desk.tab_metrics')}` },
     { id: 'config',   label: `${t('service_desk.tab_config')}` },
+    { id: 'voice',    label: t('service_desk.tab_voice', 'Agente de voz') },
+    { id: 'assign',   label: t('service_desk.tab_assign', 'Asignación ML') },
+    { id: 'rollout',  label: t('service_desk.tab_rollout', 'Rollout de cambios') },
   ]
 
   return (
@@ -157,6 +163,9 @@ export default function ServiceDeskPage() {
               </Suspense></div>
             )}
             {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-labelledby="sd-tab-config"><Config /></div>}
+            {tab === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-labelledby="sd-tab-voice"><VoiceAgentPanel /></div>}
+            {tab === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-labelledby="sd-tab-assign"><IncidentAssignmentPanel /></div>}
+            {tab === 'rollout'  && <div id="sd-panel-rollout" role="tabpanel" aria-labelledby="sd-tab-rollout"><ChangeRolloutPanel /></div>}
           </div>
         )}
         {/* Detail panel — inline on desktop split, full-width on mobile */}

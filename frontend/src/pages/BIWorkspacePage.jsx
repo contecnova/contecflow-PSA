@@ -11,6 +11,14 @@ import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
 import VisualQueryBuilderWidget from '../components/bi/VisualQueryBuilderWidget'
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
+import BiForecastingPanel from '../components/bi/BiForecastingPanel'
+import BiAnomalyPanel from '../components/bi/BiAnomalyPanel'
+import BiGdprPanel from '../components/bi/BiGdprPanel'
+import BiConditionalDeliveryPanel from '../components/bi/BiConditionalDeliveryPanel'
+import BiEtlPanel from '../components/bi/BiEtlPanel'
+import BiDashboardCollabPanel from '../components/bi/BiDashboardCollabPanel'
+import BiGovernancePanel from '../components/bi/BiGovernancePanel'
+import BiO365Panel from '../components/bi/BiO365Panel'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function dateRange(days) {
@@ -2219,6 +2227,46 @@ export default function BIPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── BI ML: Forecasting avanzado ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiForecastingPanel />
+      </div>
+
+      {/* ── BI ML: Anomaly Detection + Churn ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiAnomalyPanel />
+      </div>
+
+      {/* ── BI GDPR / Privacidad ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiGdprPanel />
+      </div>
+
+      {/* ── BI Entrega condicional ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiConditionalDeliveryPanel />
+      </div>
+
+      {/* ── BI ETL Conectores ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiEtlPanel />
+      </div>
+
+      {/* ── BI Dashboard Collaboration ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiDashboardCollabPanel />
+      </div>
+
+      {/* ── BI Governance ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiGovernancePanel />
+      </div>
+
+      {/* ── Office 365 Analytics ── */}
+      <div style={{ marginBottom: 20 }}>
+        <BiO365Panel />
       </div>
 
     </div>
