@@ -18,6 +18,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import hashlib
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 SCHEDULES_KEY_TPL = "bi.delivery.schedules"
 DELIVERY_LOG_KEY_TPL = "bi.delivery.log"
+DELIVERY_SNAPSHOT_KEY_TPL = "bi.delivery.snapshot"
 
 VALID_CHANNELS = {"email", "slack", "teams"}
 VALID_FORMATS = {"json", "csv", "xlsx", "pdf"}
@@ -70,6 +72,90 @@ def _set_json(db: Session, key: str, organization_id: Optional[str], value: Any,
     db.commit()
 
 
+def _snapshot_key(schedule_id: str) -> str:
+    return f"{DELIVERY_SNAPSHOT_KEY_TPL}.{schedule_id}"
+
+
+def _normalize_row(row: Dict[str, Any], columns: List[str]) -> Dict[str, Any]:
+    return {c: row.get(c) for c in columns}
+
+
+def _row_token(row: Dict[str, Any], columns: List[str]) -> str:
+    payload = json.dumps(_normalize_row(row, columns), ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _report_fingerprint(columns: List[str], rows: List[Dict[str, Any]]) -> str:
+    tokens = sorted(_row_token(r, columns) for r in rows)
+    payload = json.dumps({"columns": columns, "tokens": tokens}, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _compute_report_diff(
+    previous: Optional[Dict[str, Any]],
+    columns: List[str],
+    rows: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    current_fp = _report_fingerprint(columns, rows)
+    current_tokens = sorted(_row_token(r, columns) for r in rows)
+    current_set = set(current_tokens)
+
+    prev_fp = None
+    prev_tokens: List[str] = []
+    if previous and isinstance(previous, dict):
+        prev_fp = previous.get("fingerprint")
+        prev_tokens = list(previous.get("row_tokens") or [])
+    prev_set = set(prev_tokens)
+
+    added = sorted(current_set - prev_set)
+    removed = sorted(prev_set - current_set)
+
+    has_changes = prev_fp is None or prev_fp != current_fp
+    return {
+        "has_changes": has_changes,
+        "previous_exists": prev_fp is not None,
+        "previous_fingerprint": prev_fp,
+        "current_fingerprint": current_fp,
+        "previous_row_count": len(prev_tokens),
+        "current_row_count": len(current_tokens),
+        "added_rows": len(added),
+        "removed_rows": len(removed),
+        "added_samples": added[:10],
+        "removed_samples": removed[:10],
+    }
+
+
+def _build_snapshot(columns: List[str], rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    row_tokens = sorted(_row_token(r, columns) for r in rows)
+    return {
+        "captured_at": _iso_now(),
+        "columns": columns,
+        "row_count": len(rows),
+        "row_tokens": row_tokens,
+        "fingerprint": _report_fingerprint(columns, rows),
+    }
+
+
+def _append_delivery_log(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    entry: Dict[str, Any],
+) -> None:
+    logs = _get_json(db, DELIVERY_LOG_KEY_TPL, organization_id, default=[])
+    if not isinstance(logs, list):
+        logs = []
+    logs.append(entry)
+    logs = logs[-300:]
+    _set_json(
+        db,
+        DELIVERY_LOG_KEY_TPL,
+        organization_id,
+        logs,
+        description="BI scheduled delivery execution log (JSON)",
+    )
+
+
 # ── Schedule CRUD ──────────────────────────────────────────────────────────────
 
 def list_schedules(db: Session, *, organization_id: Optional[str]) -> List[Dict[str, Any]]:
@@ -99,6 +185,7 @@ def create_schedule(
     slack_webhook_url: Optional[str] = None,
     teams_webhook_url: Optional[str] = None,
     is_active: bool = True,
+    send_only_on_change: bool = False,
 ) -> Dict[str, Any]:
     _validate_channels(channels)
     _validate_format(export_format)
@@ -118,6 +205,7 @@ def create_schedule(
         "slack_webhook_url": slack_webhook_url,
         "teams_webhook_url": teams_webhook_url,
         "is_active": is_active,
+        "send_only_on_change": bool(send_only_on_change),
         "created_at": _iso_now(),
         "updated_at": _iso_now(),
         "last_run_at": None,
@@ -145,7 +233,7 @@ def update_schedule(
     allowed = {
         "name", "channels", "recipients", "frequency", "cron_expression",
         "export_format", "slack_webhook_url", "teams_webhook_url", "is_active",
-        "report_preset_id",
+        "report_preset_id", "send_only_on_change",
     }
     for field in allowed:
         if field in payload:
@@ -402,6 +490,7 @@ def send_schedule_now(
     title = sched.get("name", preset_id)
     channels = sched.get("channels", [])
     recipients = sched.get("recipients", [])
+    send_only_on_change = bool(sched.get("send_only_on_change", False))
 
     started_at = _iso_now()
     errors: List[str] = []
@@ -415,6 +504,15 @@ def send_schedule_now(
     except Exception as exc:
         errors.append(f"report_generation: {exc}")
         columns, rows = [], []
+
+    prev_snapshot = _get_json(
+        db,
+        _snapshot_key(schedule_id),
+        organization_id,
+        default=None,
+    )
+    diff = _compute_report_diff(prev_snapshot, columns, rows)
+    skipped_no_changes = bool(send_only_on_change and not diff.get("has_changes"))
 
     # Generate attachment
     attachment_bytes: Optional[bytes] = None
@@ -435,55 +533,118 @@ def send_schedule_now(
         f"Formato: `{export_format}` | Filas: `{len(rows)}`"
     )
 
-    # Dispatch to each channel
-    for channel in channels:
-        try:
-            if channel == "slack":
-                url = sched.get("slack_webhook_url", "")
-                if url:
-                    ok = _send_slack(url, title=title, summary=summary)
-                    results["slack"] = "ok" if ok else "failed"
-                else:
-                    results["slack"] = "skipped_no_url"
+    if skipped_no_changes:
+        for channel in channels:
+            results[channel] = "skipped_no_changes"
+    else:
+        # Dispatch to each channel
+        for channel in channels:
+            try:
+                if channel == "slack":
+                    url = sched.get("slack_webhook_url", "")
+                    if url:
+                        ok = _send_slack(url, title=title, summary=summary)
+                        results["slack"] = "ok" if ok else "failed"
+                    else:
+                        results["slack"] = "skipped_no_url"
 
-            elif channel == "teams":
-                url = sched.get("teams_webhook_url", "")
-                if url:
-                    ok = _send_teams(url, title=title, summary=summary)
-                    results["teams"] = "ok" if ok else "failed"
-                else:
-                    results["teams"] = "skipped_no_url"
+                elif channel == "teams":
+                    url = sched.get("teams_webhook_url", "")
+                    if url:
+                        ok = _send_teams(url, title=title, summary=summary)
+                        results["teams"] = "ok" if ok else "failed"
+                    else:
+                        results["teams"] = "skipped_no_url"
 
-            elif channel == "email":
-                if recipients:
-                    body_html = f"<h2>📊 {title}</h2><p>{summary.replace(chr(10), '<br>')}</p>"
-                    ok = _send_email(recipients, subject=f"[Contecflow BI] {title}", body_html=body_html,
-                                     attachment_bytes=attachment_bytes, attachment_filename=attachment_filename)
-                    results["email"] = "ok" if ok else "failed"
-                else:
-                    results["email"] = "skipped_no_recipients"
-        except Exception as exc:
-            errors.append(f"{channel}: {exc}")
-            results[channel] = "error"
+                elif channel == "email":
+                    if recipients:
+                        body_html = f"<h2>📊 {title}</h2><p>{summary.replace(chr(10), '<br>')}</p>"
+                        ok = _send_email(recipients, subject=f"[Contecflow BI] {title}", body_html=body_html,
+                                         attachment_bytes=attachment_bytes, attachment_filename=attachment_filename)
+                        results["email"] = "ok" if ok else "failed"
+                    else:
+                        results["email"] = "skipped_no_recipients"
+            except Exception as exc:
+                errors.append(f"{channel}: {exc}")
+                results[channel] = "error"
+
+    if not errors and columns:
+        _set_json(
+            db,
+            _snapshot_key(schedule_id),
+            organization_id,
+            _build_snapshot(columns, rows),
+            description="BI scheduled delivery last report snapshot (JSON)",
+        )
 
     # Update schedule metadata
     schedules = _get_json(db, SCHEDULES_KEY_TPL, organization_id, default={})
     if schedule_id in schedules:
         schedules[schedule_id]["last_run_at"] = _iso_now()
-        schedules[schedule_id]["last_status"] = "error" if errors else "ok"
+        schedules[schedule_id]["last_status"] = "error" if errors else ("skipped_no_changes" if skipped_no_changes else "ok")
+        schedules[schedule_id]["last_diff"] = diff
+        if diff.get("has_changes"):
+            schedules[schedule_id]["last_change_detected_at"] = _iso_now()
         if errors:
             schedules[schedule_id]["error_count"] = schedules[schedule_id].get("error_count", 0) + 1
         _set_json(db, SCHEDULES_KEY_TPL, organization_id, schedules,
                   description="BI scheduled delivery configs (JSON)")
 
+    _append_delivery_log(
+        db,
+        organization_id=organization_id,
+        entry={
+            "schedule_id": schedule_id,
+            "ok": not errors,
+            "status": "error" if errors else ("skipped_no_changes" if skipped_no_changes else "ok"),
+            "rows_delivered": len(rows),
+            "results": results,
+            "diff": diff,
+            "timestamp": _iso_now(),
+        },
+    )
+
     return {
         "schedule_id": schedule_id,
         "ok": not errors,
+        "send_only_on_change": send_only_on_change,
+        "skipped_no_changes": skipped_no_changes,
+        "diff": diff,
         "results": results,
         "rows_delivered": len(rows),
         "errors": errors,
         "started_at": started_at,
         "finished_at": _iso_now(),
+    }
+
+
+def get_schedule_report_diff(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    schedule_id: str,
+) -> Dict[str, Any]:
+    """Return diff between last sent snapshot and current report preview."""
+    from app.services.bi_report_builder_v2_service import preview_preset  # type: ignore
+
+    sched = get_schedule(db, organization_id=organization_id, schedule_id=schedule_id)
+    preset_id = sched.get("report_preset_id", "")
+
+    report_data = preview_preset(db, organization_id=organization_id, preset_id=preset_id, limit=5000)
+    columns = report_data.get("columns") or []
+    rows = report_data.get("rows") or []
+
+    prev_snapshot = _get_json(
+        db,
+        _snapshot_key(schedule_id),
+        organization_id,
+        default=None,
+    )
+    return {
+        "schedule_id": schedule_id,
+        "preset_id": preset_id,
+        "diff": _compute_report_diff(prev_snapshot, columns, rows),
+        "checked_at": _iso_now(),
     }
 
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
+import httpx as _httpx
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -31,6 +32,8 @@ logger = logging.getLogger(__name__)
 _REGISTRY: Dict[str, "BaseConnector"] = {}
 
 _SYNC_DATA_KEY_TPL = "bi.etl.sync_data.{connector}.{org}"
+_SYNC_LOG_KEY_TPL = "bi.etl.sync_log.{connector}.{org}"
+_SYNC_LOG_MAX_ENTRIES = 100
 
 
 def _iso_now() -> str:
@@ -60,6 +63,87 @@ def _set_json(
         db.add(row)
     else:
         row.value = payload
+    db.commit()
+
+
+# ── HTTP helpers (replaces urllib.request across all connectors) ───────────────
+
+def _http_get(
+    url: str,
+    headers: Optional[Dict[str, str]] = None,
+    timeout: int = 20,
+) -> Any:
+    """Synchronous HTTP GET using httpx."""
+    with _httpx.Client(timeout=timeout) as client:
+        resp = client.get(url, headers=headers or {})
+        resp.raise_for_status()
+        return resp.json()
+
+
+def _http_post(
+    url: str,
+    payload: Optional[Any] = None,
+    headers: Optional[Dict[str, str]] = None,
+    raw_body: Optional[str] = None,
+    timeout: int = 20,
+) -> Any:
+    """Synchronous HTTP POST using httpx.
+
+    Pass *raw_body* (str) to send a pre-serialised string body instead of *payload* (dict).
+    """
+    with _httpx.Client(timeout=timeout) as client:
+        if raw_body is not None:
+            resp = client.post(url, content=raw_body.encode(), headers=headers or {})
+        elif payload is not None:
+            resp = client.post(url, json=payload, headers=headers or {})
+        else:
+            resp = client.post(url, headers=headers or {})
+        resp.raise_for_status()
+        return resp.json()
+
+
+def _log_sync(
+    db: Session,
+    connector: str,
+    organization_id: Optional[str],
+    result: Dict[str, Any],
+) -> None:
+    """Append a sync event to the connector's rolling log stored as AppSetting JSON."""
+    key = _SYNC_LOG_KEY_TPL.format(connector=connector, org=organization_id or "global")
+    q = db.query(AppSetting).filter(AppSetting.key == key)
+    if organization_id:
+        q = q.filter(AppSetting.organization_id == organization_id)
+    else:
+        q = q.filter(AppSetting.organization_id.is_(None))
+    row = q.first()
+    logs: list = []
+    if row and row.value:
+        try:
+            logs = json.loads(row.value)
+        except Exception:
+            logs = []
+    entry = {
+        "connector": connector,
+        "ok": result.get("ok", False),
+        "records_ingested": result.get("records_ingested", 0),
+        "error": result.get("error"),
+        "started_at": result.get("started_at"),
+        "finished_at": result.get("finished_at"),
+    }
+    logs.append(entry)
+    if len(logs) > _SYNC_LOG_MAX_ENTRIES:
+        logs = logs[-_SYNC_LOG_MAX_ENTRIES:]
+    serialized = json.dumps(logs, ensure_ascii=False, separators=(",", ":"))
+    if not row:
+        row = AppSetting(
+            key=key,
+            organization_id=organization_id,
+            description=f"BI ETL sync log: {connector}",
+            value=serialized,
+        )
+        db.add(row)
+    else:
+        row.value = serialized
     db.commit()
 
 
@@ -116,14 +200,14 @@ class BaseConnector(ABC):
         filters: Optional[Dict] = None,
         field_mapping: Optional[Dict] = None,
     ) -> Dict[str, Any]:
-        """Full ETL pipeline: connect → extract → transform → load."""
+        """Full ETL pipeline: connect → extract → transform → load → log."""
         started_at = _iso_now()
         try:
             client = self.connect(config)
             raw = self.extract(client, entity=entity, filters=filters or {})
             records = self.transform(raw, mapping=field_mapping)
             count = self.load(db, records, organization_id)
-            return {
+            result = {
                 "ok": True,
                 "connector": self.name,
                 "records_ingested": count,
@@ -132,7 +216,7 @@ class BaseConnector(ABC):
             }
         except Exception as exc:
             logger.warning("BI ETL sync error [%s]: %s", self.name, exc)
-            return {
+            result = {
                 "ok": False,
                 "connector": self.name,
                 "records_ingested": 0,
@@ -140,6 +224,8 @@ class BaseConnector(ABC):
                 "started_at": started_at,
                 "finished_at": _iso_now(),
             }
+        _log_sync(db, self.name, organization_id, result)
+        return result
 
 
 # ── Salesforce connector ───────────────────────────────────────────────────────
@@ -396,7 +482,6 @@ class ZendeskConnector(BaseConnector):
     name = "zendesk"
 
     def connect(self, config: Dict[str, Any]) -> Any:
-        import urllib.request  # stdlib, no pip install needed  # noqa: PLC0415
         return {
             "subdomain": config.get("subdomain", ""),
             "email": config.get("email", ""),
@@ -406,14 +491,10 @@ class ZendeskConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "tickets", filters: Optional[Dict] = None) -> List[Dict]:
         try:
             import base64  # noqa: PLC0415
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
 
             creds = base64.b64encode(f"{client['email']}/token:{client['token']}".encode()).decode()
             url = f"https://{client['subdomain']}.zendesk.com/api/v2/{entity}.json?per_page=100"
-            req = urllib.request.Request(url, headers={"Authorization": f"Basic {creds}"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"Authorization": f"Basic {creds}"})
             return data.get(entity, [])
         except Exception as exc:
             logger.warning("ZendeskConnector.extract error: %s", exc)
@@ -436,14 +517,10 @@ class FreshdeskConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "tickets", filters: Optional[Dict] = None) -> List[Dict]:
         try:
             import base64  # noqa: PLC0415
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
 
             creds = base64.b64encode(f"{client['api_key']}:X".encode()).decode()
             url = f"https://{client['domain']}.freshdesk.com/api/v2/{entity}?per_page=100"
-            req = urllib.request.Request(url, headers={"Authorization": f"Basic {creds}"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return _json.loads(resp.read())
+            return _http_get(url, headers={"Authorization": f"Basic {creds}"})
         except Exception as exc:
             logger.warning("FreshdeskConnector.extract error: %s", exc)
             return []
@@ -466,20 +543,13 @@ class ServiceNowConnector(BaseConnector):
     def extract(self, client: Any, entity: str = "incident", filters: Optional[Dict] = None) -> List[Dict]:
         try:
             import base64  # noqa: PLC0415
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
 
             creds = base64.b64encode(f"{client['username']}:{client['password']}".encode()).decode()
             url = (
                 f"https://{client['instance']}.service-now.com/api/now/table/{entity}"
                 "?sysparm_limit=100&sysparm_fields=sys_id,number,short_description,state,priority,category"
             )
-            req = urllib.request.Request(
-                url,
-                headers={"Authorization": f"Basic {creds}", "Accept": "application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"Authorization": f"Basic {creds}", "Accept": "application/json"})
             return data.get("result", [])
         except Exception as exc:
             logger.warning("ServiceNowConnector.extract error: %s", exc)
@@ -498,12 +568,8 @@ class PipedriveConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "deals", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://api.pipedrive.com/v1/{entity}?api_token={client['api_token']}&limit=100"
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url)
             return data.get("data") or []
         except Exception as exc:
             logger.warning("PipedriveConnector.extract error: %s", exc)
@@ -525,16 +591,8 @@ class ZohoCRMConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "Deals", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://www.zohoapis.{client['domain']}/crm/v3/{entity}?fields=id,Deal_Name,Amount,Stage,Closing_Date&per_page=100"
-            req = urllib.request.Request(
-                url,
-                headers={"Authorization": f"Zoho-oauthtoken {client['access_token']}"},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"Authorization": f"Zoho-oauthtoken {client['access_token']}"})
             return data.get("data") or []
         except Exception as exc:
             logger.warning("ZohoCRMConnector.extract error: %s", exc)
@@ -557,20 +615,12 @@ class QuickBooksConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "Invoice", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             base = "sandbox-quickbooks.api.intuit.com" if client["sandbox"] else "quickbooks.api.intuit.com"
             url = f"https://{base}/v3/company/{client['realm_id']}/query?query=select * from {entity} MAXRESULTS 100"
-            req = urllib.request.Request(
+            data = _http_get(
                 url,
-                headers={
-                    "Authorization": f"Bearer {client['access_token']}",
-                    "Accept": "application/json",
-                },
+                headers={"Authorization": f"Bearer {client['access_token']}", "Accept": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
             return (data.get("QueryResponse") or {}).get(entity, [])
         except Exception as exc:
             logger.warning("QuickBooksConnector.extract error: %s", exc)
@@ -592,19 +642,11 @@ class GitHubConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "issues", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://api.github.com/repos/{client['repo']}/{entity}?per_page=100&state=all"
-            req = urllib.request.Request(
+            return _http_get(
                 url,
-                headers={
-                    "Authorization": f"token {client['token']}",
-                    "Accept": "application/vnd.github.v3+json",
-                },
+                headers={"Authorization": f"token {client['token']}", "Accept": "application/vnd.github.v3+json"},
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return _json.loads(resp.read())
         except Exception as exc:
             logger.warning("GitHubConnector.extract error: %s", exc)
             return []
@@ -626,16 +668,8 @@ class GitLabConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "issues", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://{client['host']}/api/v4/projects/{client['project_id']}/{entity}?per_page=100"
-            req = urllib.request.Request(
-                url,
-                headers={"PRIVATE-TOKEN": client["token"]},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return _json.loads(resp.read())
+            return _http_get(url, headers={"PRIVATE-TOKEN": client["token"]})
         except Exception as exc:
             logger.warning("GitLabConnector.extract error: %s", exc)
             return []
@@ -657,19 +691,11 @@ class DatadogConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "monitors", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://api.{client['site']}/api/v1/{entity}?count=100"
-            req = urllib.request.Request(
+            return _http_get(
                 url,
-                headers={
-                    "DD-API-KEY": client["api_key"],
-                    "DD-APPLICATION-KEY": client["app_key"],
-                },
+                headers={"DD-API-KEY": client["api_key"], "DD-APPLICATION-KEY": client["app_key"]},
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return _json.loads(resp.read())
         except Exception as exc:
             logger.warning("DatadogConnector.extract error: %s", exc)
             return []
@@ -687,20 +713,11 @@ class MondayConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "items", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
-            query = '{"query": "{ boards { id name items_count } }"}'
-            req = urllib.request.Request(
+            data = _http_post(
                 "https://api.monday.com/v2",
-                data=query.encode(),
-                headers={
-                    "Authorization": client["token"],
-                    "Content-Type": "application/json",
-                },
+                raw_body='{"query": "{ boards { id name items_count } }"}',
+                headers={"Authorization": client["token"], "Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
             return (data.get("data") or {}).get("boards", [])
         except Exception as exc:
             logger.warning("MondayConnector.extract error: %s", exc)
@@ -722,16 +739,8 @@ class AsanaConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "tasks", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://app.asana.com/api/1.0/projects/{client['project_gid']}/tasks?opt_fields=gid,name,completed,due_on,assignee"
-            req = urllib.request.Request(
-                url,
-                headers={"Authorization": f"Bearer {client['token']}"},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"Authorization": f"Bearer {client['token']}"})
             return data.get("data", [])
         except Exception as exc:
             logger.warning("AsanaConnector.extract error: %s", exc)
@@ -754,15 +763,11 @@ class TrelloConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "cards", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = (
                 f"https://api.trello.com/1/boards/{client['board_id']}/cards"
                 f"?key={client['api_key']}&token={client['token']}&fields=id,name,due,idList,desc"
             )
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                return _json.loads(resp.read())
+            return _http_get(url)
         except Exception as exc:
             logger.warning("TrelloConnector.extract error: %s", exc)
             return []
@@ -783,16 +788,8 @@ class ShopifyConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "orders", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://{client['shop']}/admin/api/2024-01/{entity}.json?limit=100&status=any"
-            req = urllib.request.Request(
-                url,
-                headers={"X-Shopify-Access-Token": client["access_token"]},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"X-Shopify-Access-Token": client["access_token"]})
             return data.get(entity, [])
         except Exception as exc:
             logger.warning("ShopifyConnector.extract error: %s", exc)
@@ -811,11 +808,8 @@ class IntercomConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "conversations", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://api.intercom.io/{entity}?per_page=100&display_as=plaintext"
-            req = urllib.request.Request(
+            data = _http_get(
                 url,
                 headers={
                     "Authorization": f"Bearer {client['token']}",
@@ -823,8 +817,6 @@ class IntercomConnector(BaseConnector):
                     "Intercom-Version": "2.10",
                 },
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
             return data.get("conversations", [])
         except Exception as exc:
             logger.warning("IntercomConnector.extract error: %s", exc)
@@ -846,16 +838,8 @@ class ClickUpConnector(BaseConnector):
 
     def extract(self, client: Any, entity: str = "tasks", filters: Optional[Dict] = None) -> List[Dict]:
         try:
-            import urllib.request  # noqa: PLC0415
-            import json as _json  # noqa: PLC0415
-
             url = f"https://api.clickup.com/api/v2/list/{client['list_id']}/task?include_closed=true&subtasks=true"
-            req = urllib.request.Request(
-                url,
-                headers={"Authorization": client["token"]},
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = _json.loads(resp.read())
+            data = _http_get(url, headers={"Authorization": client["token"]})
             return data.get("tasks", [])
         except Exception as exc:
             logger.warning("ClickUpConnector.extract error: %s", exc)
@@ -924,9 +908,6 @@ class WebhookPluginConnector(BaseConnector):
         return config
 
     def extract(self, client: Any, entity: str = "default", filters: Optional[Dict] = None) -> List[Dict]:
-        import urllib.request  # noqa: PLC0415
-        import json as _json  # noqa: PLC0415
-
         url = client.get("endpoint_url", "")
         if not url:
             return []
@@ -936,10 +917,10 @@ class WebhookPluginConnector(BaseConnector):
         data_path = client.get("data_path", "")
 
         try:
-            data_bytes = _json.dumps(payload_data or {}).encode() if method == "POST" else None
-            req = urllib.request.Request(url, data=data_bytes, headers=headers, method=method)
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                raw = _json.loads(resp.read())
+            if method == "POST":
+                raw = _http_post(url, payload=payload_data, headers=headers)
+            else:
+                raw = _http_get(url, headers=headers)
 
             # Navigate to data_path
             result = raw

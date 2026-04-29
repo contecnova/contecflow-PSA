@@ -10,12 +10,13 @@ from app.api.v1.endpoints import (
     alm, clients, rate_cards, milestones, resource_forecast, approvals,
     accounting_hub, okrs, performance, training, documents, resources,
     invoices, documents_collab, analytics_extended, portfolio,
-    git_integration, esign, report_builder, nps, m365,
+    git_integration, esign, report_builder, nps, m365, m365_bi,
     backlog, export_template, cicd, events, documents_edit,
     gantt_suggestions, template, templates, revenue, predictions,
     bi_collaboration, bi_intelligence, bi_platform,
     bi_smart_alerts, bi_bookmarks, bi_report_builder_v2,
     bi_embed, bi_export, bi_data_versioning, bi_governance,
+    predictive_observability,
 )
 from app.api.v1.endpoints.v239 import baselines as baselines_v239, approval_builder as approval_builder_v239
 
@@ -67,8 +68,10 @@ router.include_router(bi_embed.router,                                      tags
 router.include_router(bi_export.router,                                     tags=["BI Export"])
 router.include_router(bi_data_versioning.router,                            tags=["BI Data Versioning"])
 router.include_router(bi_governance.router,                                 tags=["BI Governance"])
+router.include_router(predictive_observability.router,                      tags=["Predictive Observability"])
 router.include_router(nps.router,              prefix="/nps",              tags=["NPS & Health"])
 router.include_router(m365.router,             prefix="/m365",             tags=["Microsoft 365"])
+router.include_router(m365_bi.router,                                          tags=["M365 BI Embed"])
 
 # ── Framework/pipeline modules ─────────────────────────────────────────────────
 router.include_router(backlog.router,          tags=["Backlog"])

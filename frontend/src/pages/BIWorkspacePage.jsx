@@ -9,6 +9,7 @@ import { useAppT, useAppLang } from '../i18n/AppLangContext'
 import { COLOR } from '../constants/theme'
 import NarrativeCard from '../components/bi/NarrativeCard'
 import AskDataWidget from '../components/bi/AskDataWidget'
+import VisualQueryBuilderWidget from '../components/bi/VisualQueryBuilderWidget'
 import BiAdvancedViz from '../components/bi/BiAdvancedViz'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -949,11 +950,12 @@ export default function BIPage() {
       {/* ── BI Intelligence row ── */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(400px, 1fr))',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))',
         gap: 14, marginBottom: 20,
       }}>
         <NarrativeCard lang={lang} />
         <AskDataWidget />
+        <VisualQueryBuilderWidget />
       </div>
 
       {/* ── Collaboration + governance ── */}

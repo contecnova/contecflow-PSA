@@ -29,6 +29,7 @@ from app.services.scheduled_reports import execute_report_now
 from app.services.scheduled_reports_compat import summarize_scheduled_reports
 
 CONNECTORS_KEY = "bi.phase2.connectors"
+VISUAL_QUERY_TEMPLATES_KEY_PREFIX = "bi.intelligence.query_builder.templates"
 
 
 def _iso_now() -> str:
@@ -397,6 +398,134 @@ def preview_advanced_report(
     }
 
 
+def get_visual_query_builder_schema() -> dict[str, Any]:
+    """Expose a no-SQL catalog for visual query builder clients."""
+    return {
+        "entities": report_builder_service.ENTITIES,
+        "operators": report_builder_service.OPERATORS,
+        "groups": report_builder_service.GROUPS,
+    }
+
+
+def preview_visual_query(
+    db: Session,
+    *,
+    current_user: User,
+    entity: str,
+    columns: list[str],
+    filters: list[dict[str, Any]],
+    sort_column: Optional[str] = None,
+    sort_direction: str = "asc",
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Run a visual query-builder request without exposing SQL."""
+    if entity not in report_builder_service.ENTITIES:
+        raise ValueError("entity_not_found")
+
+    selected_columns = columns or list(
+        report_builder_service.ENTITIES.get(entity, {}).get("columns", {}).keys()
+    )
+
+    rows = report_builder_service.execute_report(
+        entity,
+        selected_columns,
+        filters=filters,
+        sort_column=sort_column,
+        sort_direction=sort_direction,
+        limit=min(max(1, limit), 500),
+        current_user=current_user,
+        db=db,
+    )
+
+    return {
+        "entity": entity,
+        "columns": selected_columns,
+        "count": len(rows),
+        "rows": rows,
+        "truncated": len(rows) >= min(max(1, limit), 500),
+    }
+
+
+def _visual_templates_key(user_id: str) -> str:
+    return f"{VISUAL_QUERY_TEMPLATES_KEY_PREFIX}.{user_id}"
+
+
+def list_visual_query_templates(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    user_id: str,
+) -> list[dict[str, Any]]:
+    templates = _get_json(
+        db,
+        _visual_templates_key(user_id),
+        organization_id,
+        default=[],
+    )
+    if not isinstance(templates, list):
+        return []
+    return templates
+
+
+def save_visual_query_template(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    user_id: str,
+    name: str,
+    query: dict[str, Any],
+) -> dict[str, Any]:
+    entity = str(query.get("entity") or "")
+    if entity not in report_builder_service.ENTITIES:
+        raise ValueError("entity_not_found")
+
+    templates = list_visual_query_templates(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    next_id = max((int(t.get("id", 0)) for t in templates), default=0) + 1
+    item = {
+        "id": next_id,
+        "name": name.strip(),
+        "query": query,
+        "saved_at": _iso_now(),
+    }
+    templates.append(item)
+    _set_json(
+        db,
+        _visual_templates_key(user_id),
+        organization_id,
+        templates,
+        description="BI Intelligence visual query builder templates (JSON)",
+    )
+    return item
+
+
+def delete_visual_query_template(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    user_id: str,
+    template_id: int,
+) -> None:
+    templates = list_visual_query_templates(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    updated = [t for t in templates if int(t.get("id", -1)) != template_id]
+    if len(updated) == len(templates):
+        raise ValueError("template_not_found")
+    _set_json(
+        db,
+        _visual_templates_key(user_id),
+        organization_id,
+        updated,
+        description="BI Intelligence visual query builder templates (JSON)",
+    )
+
+
 def delivery_overview(db: Session, *, organization_id: Optional[str]) -> dict[str, Any]:
     _ = organization_id
     stats = summarize_scheduled_reports(db)
@@ -728,6 +857,28 @@ def run_etl_connector_sync(
     _set_json(db, CONNECTORS_KEY, organization_id, state, description="BI Intelligence connectors state (JSON)")
 
     return {"connector": connector, **result}
+
+
+def get_connector_sync_log(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    connector: str,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Return the rolling sync log for a connector (stored via _log_sync in bi_etl_connectors)."""
+    from app.integrations.bi_etl_connectors import _SYNC_LOG_KEY_TPL  # type: ignore
+
+    key = _SYNC_LOG_KEY_TPL.format(connector=connector, org=organization_id or "global")
+    entries = _get_json(db, key, organization_id, default=[])
+    if isinstance(entries, list):
+        entries = entries[-limit:][::-1]  # most-recent first
+    return {
+        "connector": connector,
+        "organization_id": organization_id,
+        "entries": entries,
+        "total": len(entries),
+    }
 
 
 def publish_kpi_snapshot(organization_id: Optional[str], snapshot: dict[str, Any]) -> None:

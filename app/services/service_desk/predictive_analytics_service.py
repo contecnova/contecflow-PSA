@@ -17,6 +17,7 @@ Funciones públicas:
 from __future__ import annotations
 
 import logging
+import json
 import statistics
 from datetime import datetime, timezone
 from typing import Optional
@@ -24,12 +25,14 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.settings import AppSetting
 from app.models.service_desk import (
     Ticket,
     TicketPriority,
     TicketStatus,
     TicketType,
 )
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +73,117 @@ _DEFAULT_RESOLUTION_MINUTES = {
     TicketPriority.p4_low: 4320,
 }
 
+PREDICTIVE_BASELINES_KEY = "itsm.predictive.baselines"
+
+
+def _setting_row(db: Session, key: str, organization_id: Optional[str]) -> Optional[AppSetting]:
+    q = db.query(AppSetting).filter(AppSetting.key == key)
+    if organization_id:
+        q = q.filter(AppSetting.organization_id == organization_id)
+    else:
+        q = q.filter(AppSetting.organization_id.is_(None))
+    return q.first()
+
+
+def _set_json(db: Session, key: str, organization_id: Optional[str], value: dict, description: str) -> None:
+    row = _setting_row(db, key, organization_id)
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if not row:
+        db.add(AppSetting(key=key, organization_id=organization_id, value=payload, description=description))
+    else:
+        row.value = payload
+        if not row.description:
+            row.description = description
+    db.flush()
+
+
+def _ticket_org_id(db: Session, ticket: Ticket) -> Optional[str]:
+    user_id = ticket.requester_user_id or ticket.assigned_to_user_id or ticket.created_by_user_id
+    if not user_id:
+        return None
+    user = db.query(User.id, User.organization_id).filter(User.id == user_id).first()
+    return user.organization_id if user else None
+
+
+def _load_baseline_map(db: Session, organization_id: Optional[str]) -> dict:
+    row = _setting_row(db, PREDICTIVE_BASELINES_KEY, organization_id)
+    if not row or not row.value:
+        return {}
+    try:
+        payload = json.loads(row.value)
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _baseline_lookup(db: Session, ticket: Ticket) -> tuple[Optional[float], Optional[float]]:
+    """Return (median_resolution_minutes, escalation_rate) from persisted baseline if available."""
+    org_id = _ticket_org_id(db, ticket)
+    baseline_map = _load_baseline_map(db, org_id)
+    by_bucket = baseline_map.get("by_bucket") or {}
+    ticket_type = getattr(ticket.ticket_type, "value", str(ticket.ticket_type or ""))
+    priority = getattr(ticket.priority, "value", str(ticket.priority or ""))
+    bucket_key = f"{ticket_type}::{priority}"
+    entry = by_bucket.get(bucket_key) or {}
+    median = entry.get("median_resolution_minutes")
+    esc_rate = entry.get("escalation_rate")
+    return (float(median) if median is not None else None, float(esc_rate) if esc_rate is not None else None)
+
+
+def recompute_predictive_baselines(db: Session, *, organization_id: Optional[str]) -> dict:
+    """Recompute and persist ITSM predictive baselines from closed tickets.
+
+    Stores per ticket_type+priority medians and escalation rates used by prediction paths.
+    """
+    q = db.query(Ticket).filter(
+        Ticket.status.in_([TicketStatus.resolved.value, TicketStatus.closed.value]),
+        Ticket.resolution_minutes.isnot(None),
+        Ticket.resolution_minutes > 0,
+    )
+    if organization_id:
+        org_user_ids = db.query(User.id).filter(User.organization_id == organization_id).scalar_subquery()
+        q = q.filter(
+            (Ticket.requester_user_id.in_(org_user_ids))
+            | (Ticket.assigned_to_user_id.in_(org_user_ids))
+            | (Ticket.created_by_user_id.in_(org_user_ids))
+        )
+
+    tickets = q.all()
+    by_bucket: dict[str, dict] = {}
+    for t in tickets:
+        ticket_type = getattr(t.ticket_type, "value", str(t.ticket_type or ""))
+        priority = getattr(t.priority, "value", str(t.priority or ""))
+        key = f"{ticket_type}::{priority}"
+        row = by_bucket.setdefault(key, {"resolutions": [], "escalated": 0, "total": 0})
+        row["resolutions"].append(float(t.resolution_minutes or 0))
+        row["total"] += 1
+        if priority in {TicketPriority.p1_critical.value, TicketPriority.p2_high.value}:
+            row["escalated"] += 1
+
+    compact: dict[str, dict] = {}
+    for key, row in by_bucket.items():
+        resolutions = row["resolutions"]
+        compact[key] = {
+            "median_resolution_minutes": round(float(statistics.median(resolutions)), 2) if resolutions else None,
+            "escalation_rate": round(float(row["escalated"] / max(1, row["total"])), 4),
+            "samples": int(row["total"]),
+        }
+
+    payload = {
+        "generated_at": datetime.now(tz=timezone.utc).isoformat(),
+        "samples": len(tickets),
+        "by_bucket": compact,
+    }
+    _set_json(
+        db,
+        PREDICTIVE_BASELINES_KEY,
+        organization_id,
+        payload,
+        description="ITSM predictive model baselines (resolution/escalation)",
+    )
+    db.commit()
+    return payload
+
 
 # ── Historical context helpers ────────────────────────────────────────────────
 
@@ -82,6 +196,10 @@ def _get_historical_resolution(
 
     Match on: same ticket_type + same priority (+ optionally same category).
     """
+    median_baseline, _ = _baseline_lookup(db, ticket)
+    if median_baseline is not None:
+        return median_baseline
+
     q = (
         db.query(Ticket.resolution_minutes)
         .filter(
@@ -109,6 +227,10 @@ def _get_escalation_history_rate(
 
     Returns 0.0 when no history is available.
     """
+    _, esc_baseline = _baseline_lookup(db, ticket)
+    if esc_baseline is not None:
+        return min(1.0, max(0.0, esc_baseline))
+
     total = (
         db.query(func.count(Ticket.id))
         .filter(

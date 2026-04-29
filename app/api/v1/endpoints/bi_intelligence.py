@@ -32,6 +32,30 @@ class AdvancedPreviewIn(BaseModel):
     limit: int = Field(50, ge=1, le=200)
 
 
+class QueryBuilderFilterIn(BaseModel):
+    column: str = Field(..., min_length=1, max_length=120)
+    operator: str = Field(..., min_length=1, max_length=40)
+    value: Optional[object] = None
+
+
+class QueryBuilderSortIn(BaseModel):
+    column: str = Field(..., min_length=1, max_length=120)
+    direction: str = Field("asc", pattern="^(asc|desc)$")
+
+
+class VisualQueryPreviewIn(BaseModel):
+    entity: str = Field(..., min_length=1, max_length=120)
+    columns: list[str] = Field(default_factory=list)
+    filters: list[QueryBuilderFilterIn] = Field(default_factory=list)
+    sort: Optional[QueryBuilderSortIn] = None
+    limit: int = Field(100, ge=1, le=500)
+
+
+class VisualQueryTemplateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    query: VisualQueryPreviewIn
+
+
 @router.get("/bi/intelligence/ml/forecast/revenue", summary="Forecast de revenue BI Intelligence")
 def phase2_revenue_forecast(
     months_ahead: int = Query(6, ge=1, le=18),
@@ -94,6 +118,50 @@ def phase2_sync_connector(
         raise HTTPException(status_code=404, detail="Conector no soportado")
 
 
+@router.post(
+    "/bi/intelligence/connectors/{connector}/sync/async",
+    summary="Encolar sync de conector como tarea Celery",
+)
+def enqueue_connector_sync(
+    connector: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Encola `sync_connector_data` en Celery y devuelve el task_id.
+
+    El sync se ejecuta en background por el worker; usa
+    `GET /bi/intelligence/connectors/{connector}/sync/log` para ver el resultado.
+    """
+    from app.worker import sync_connector_data
+
+    org_id = str(getattr(current_user, "organization_id", None) or "")
+    task = sync_connector_data.apply_async(
+        kwargs={"connector_id": connector, "org_id": org_id or None}
+    )
+    return {"queued": True, "task_id": task.id, "connector": connector}
+
+
+@router.get(
+    "/bi/intelligence/connectors/{connector}/sync/log",
+    summary="Ver log de sincronización del conector",
+)
+def connector_sync_log(
+    connector: str,
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Devuelve las últimas *limit* entradas del log de sync para el conector indicado.
+
+    Cada entrada incluye: ok, records_ingested, error, started_at, finished_at.
+    """
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return svc.get_connector_sync_log(db, organization_id=org_id, connector=connector, limit=limit)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Conector no soportado")
+
+
 @router.get("/bi/intelligence/reports/presets", summary="Presets de Report Builder avanzado BI Intelligence")
 def phase2_report_presets(current_user: User = Depends(get_current_user)):
     _ = current_user
@@ -117,6 +185,107 @@ def phase2_report_preview(
         )
     except ValueError:
         raise HTTPException(status_code=404, detail="Preset no encontrado")
+
+
+@router.get(
+    "/bi/intelligence/query-builder/schema",
+    summary="Schema del Query Builder visual (sin SQL)",
+)
+def phase2_visual_query_builder_schema(current_user: User = Depends(get_current_user)):
+    _ = current_user
+    return svc.get_visual_query_builder_schema()
+
+
+@router.post(
+    "/bi/intelligence/query-builder/preview",
+    summary="Preview de consulta visual (sin SQL)",
+)
+def phase2_visual_query_builder_preview(
+    payload: VisualQueryPreviewIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return svc.preview_visual_query(
+            db,
+            current_user=current_user,
+            entity=payload.entity,
+            columns=payload.columns,
+            filters=[f.model_dump() for f in payload.filters],
+            sort_column=payload.sort.column if payload.sort else None,
+            sort_direction=payload.sort.direction if payload.sort else "asc",
+            limit=payload.limit,
+        )
+    except ValueError as exc:
+        if str(exc) == "entity_not_found":
+            raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get(
+    "/bi/intelligence/query-builder/templates",
+    summary="Listar plantillas del Query Builder visual",
+)
+def phase2_visual_query_builder_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    templates = svc.list_visual_query_templates(
+        db,
+        organization_id=org_id,
+        user_id=str(current_user.id),
+    )
+    return {"items": templates, "count": len(templates)}
+
+
+@router.post(
+    "/bi/intelligence/query-builder/templates",
+    summary="Guardar plantilla del Query Builder visual",
+)
+def phase2_save_visual_query_builder_template(
+    payload: VisualQueryTemplateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        item = svc.save_visual_query_template(
+            db,
+            organization_id=org_id,
+            user_id=str(current_user.id),
+            name=payload.name,
+            query=payload.query.model_dump(exclude_none=True),
+        )
+    except ValueError as exc:
+        if str(exc) == "entity_not_found":
+            raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"ok": True, "item": item}
+
+
+@router.delete(
+    "/bi/intelligence/query-builder/templates/{template_id}",
+    summary="Eliminar plantilla del Query Builder visual",
+)
+def phase2_delete_visual_query_builder_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        svc.delete_visual_query_template(
+            db,
+            organization_id=org_id,
+            user_id=str(current_user.id),
+            template_id=template_id,
+        )
+    except ValueError as exc:
+        if str(exc) == "template_not_found":
+            raise HTTPException(status_code=404, detail="Plantilla no encontrada") from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"ok": True, "template_id": template_id}
 
 
 @router.get("/bi/intelligence/delivery/overview", summary="Overview de scheduled delivery BI Intelligence")
@@ -353,6 +522,7 @@ class DeliveryScheduleCreateIn(BaseModel):
     slack_webhook_url: Optional[str] = Field(None, max_length=500)
     teams_webhook_url: Optional[str] = Field(None, max_length=500)
     is_active: bool = True
+    send_only_on_change: bool = False
 
 
 class DeliveryScheduleUpdateIn(BaseModel):
@@ -364,6 +534,7 @@ class DeliveryScheduleUpdateIn(BaseModel):
     slack_webhook_url: Optional[str] = Field(None, max_length=500)
     teams_webhook_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
+    send_only_on_change: Optional[bool] = None
 
 
 @router.get("/bi/delivery/schedules", summary="Listar schedules de entrega programada BI")
@@ -409,6 +580,7 @@ def create_delivery_schedule(
             slack_webhook_url=body.slack_webhook_url,
             teams_webhook_url=body.teams_webhook_url,
             is_active=body.is_active,
+            send_only_on_change=body.send_only_on_change,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -457,5 +629,18 @@ def send_delivery_now(
     org_id = getattr(current_user, "organization_id", None)
     try:
         return delivery_svc.send_schedule_now(db, organization_id=org_id, schedule_id=schedule_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/bi/delivery/schedules/{schedule_id}/diff", summary="Ver diff del reporte vs último envío")
+def get_delivery_diff(
+    schedule_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return delivery_svc.get_schedule_report_diff(db, organization_id=org_id, schedule_id=schedule_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

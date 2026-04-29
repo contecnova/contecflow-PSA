@@ -197,6 +197,10 @@ class Settings(BaseSettings):
     M365_TEAMS_NOTIFICATIONS_ENABLED: bool = Field(default=False, env="M365_TEAMS_NOTIFICATIONS_ENABLED")
     # Incoming Teams webhook for outbound notifications
     TEAMS_WEBHOOK_URL: Optional[str] = Field(default=None, env="TEAMS_WEBHOOK_URL")
+    # BI embed in Teams / SharePoint
+    SHAREPOINT_SITE_ID: Optional[str] = Field(default=None, env="SHAREPOINT_SITE_ID")
+    # Base URL used to build embed iframe URLs (defaults to FRONTEND_URL)
+    FRONTEND_EMBED_BASE_URL: str = Field(default="", env="FRONTEND_EMBED_BASE_URL")
 
     # ── SMTP (outbound email) ─────────────────────────────────────────────────
     SMTP_HOST: str = Field(default="", env="SMTP_HOST")
