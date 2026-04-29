@@ -1,18 +1,19 @@
 /**
- * CMDBTopologyGraph — SVG force-free radial topology viewer.
+ * CMDBTopologyGraph — 2D SVG radial + 3D Plotly scatter3d topology viewer.
  *
  * Props:
- *  - nodes: [{id, name, ci_type, status, is_center}]
+ *  - nodes: [{id, name, ci_type, status, is_center, hostname?}]
  *  - edges: [{source, target, rel_type}]
  *  - onNodeClick: (node) => void
  *  - centerName: string
  */
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
+import Plot from 'react-plotly.js'
 
 const CI_ICONS = {
-  server:'🖥️', application:'📱', database:'🗄️', network:'🌐',
-  service:'⚙️', container:'📦', cloud:'☁️', endpoint:'💻',
-  storage:'💾', other:'📌',
+  server: '🖥️', application: '📱', database: '🗄️', network: '🌐',
+  service: '⚙️', container: '📦', cloud: '☁️', endpoint: '💻',
+  storage: '💾', other: '📌',
 }
 
 const STATUS_COLORS = {
@@ -30,34 +31,413 @@ const REL_COLORS = {
   backs_up: '#64748b',
 }
 
-function layoutNodes(nodes, width, height) {
-  const center = nodes.find(n => n.is_center)
-  const rest = nodes.filter(n => !n.is_center)
+// Impact coloring by BFS hop distance from selected source node
+const IMPACT_COLORS = {
+  0: '#8b5cf6', // source — violet
+  1: '#ef4444', // hop 1 — red (direct impact)
+  2: '#f97316', // hop 2 — orange
+  3: '#eab308', // hop 3 — yellow
+}
+const IMPACT_LABELS = {
+  0: 'Origen del impacto',
+  1: 'Impacto directo (hop 1)',
+  2: 'Impacto indirecto (hop 2)',
+  3: 'Impacto periférico (hop 3)',
+}
 
+// ─── BFS ─────────────────────────────────────────────────────────────────────
+
+function bfsDistances(nodes, edges, sourceId) {
+  const adj = {}
+  nodes.forEach(n => { adj[n.id] = [] })
+  edges.forEach(e => {
+    if (adj[e.source] !== undefined) adj[e.source].push(e.target)
+    if (adj[e.target] !== undefined) adj[e.target].push(e.source)
+  })
+  const dist = { [sourceId]: 0 }
+  const queue = [sourceId]
+  while (queue.length) {
+    const curr = queue.shift()
+    for (const nb of (adj[curr] || [])) {
+      if (dist[nb] === undefined) {
+        dist[nb] = dist[curr] + 1
+        queue.push(nb)
+      }
+    }
+  }
+  return dist
+}
+
+// ─── 2D LAYOUT (radial layered by BFS hop) ───────────────────────────────────
+
+function layoutNodes2D(nodes, edges, width, height) {
+  const center = nodes.find(n => n.is_center) || nodes[0]
+  if (!center) return {}
   const cx = width / 2
   const cy = height / 2
-  const r = Math.min(width, height) * 0.35
-
-  const positions = {}
-  if (center) positions[center.id] = { x: cx, y: cy }
-
-  rest.forEach((n, i) => {
-    const angle = (2 * Math.PI * i) / rest.length - Math.PI / 2
-    positions[n.id] = {
-      x: cx + r * Math.cos(angle),
-      y: cy + r * Math.sin(angle),
-    }
+  const dist = bfsDistances(nodes, edges, center.id)
+  const layers = {}
+  nodes.forEach(n => {
+    const d = dist[n.id] ?? 99
+    if (!layers[d]) layers[d] = []
+    layers[d].push(n)
   })
-
+  const positions = {}
+  Object.entries(layers).forEach(([dStr, layerNodes]) => {
+    const d = Number(dStr)
+    if (d === 0) { positions[center.id] = { x: cx, y: cy }; return }
+    const r = Math.min(width, height) * (0.17 + 0.16 * d)
+    layerNodes.forEach((n, i) => {
+      const angle = (2 * Math.PI * i) / layerNodes.length - Math.PI / 2
+      positions[n.id] = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+    })
+  })
   return positions
 }
 
-export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick, centerName }) {
-  const W = 680
-  const H = 480
-  const [hovered, setHovered] = useState(null)
+// ─── 3D LAYOUT (fibonacci sphere per BFS layer) ──────────────────────────────
 
-  const positions = useMemo(() => layoutNodes(nodes, W, H), [nodes])
+function fibonacciSphere(n, R) {
+  if (n === 0) return []
+  if (n === 1) return [[R, 0, 0]]
+  const phi = Math.PI * (3 - Math.sqrt(5))
+  return Array.from({ length: n }, (_, i) => {
+    const y = (1 - (i / (n - 1)) * 2) * R
+    const r = Math.sqrt(Math.max(0, R * R - y * y))
+    const theta = phi * i
+    return [r * Math.cos(theta), y, r * Math.sin(theta)]
+  })
+}
+
+function layout3D(nodes, edges) {
+  if (!nodes.length) return {}
+  const center = nodes.find(n => n.is_center) || nodes[0]
+  const dist = bfsDistances(nodes, edges, center.id)
+  const layers = {}
+  nodes.forEach(n => {
+    const d = dist[n.id] ?? 99
+    if (!layers[d]) layers[d] = []
+    layers[d].push(n.id)
+  })
+  const positions = { [center.id]: { x: 0, y: 0, z: 0 } }
+  Object.entries(layers).forEach(([dStr, ids]) => {
+    const d = Number(dStr)
+    if (d === 0) return
+    const pts = fibonacciSphere(ids.length, d * 2.8)
+    ids.forEach((id, i) => {
+      positions[id] = { x: pts[i][0], y: pts[i][1], z: pts[i][2] }
+    })
+  })
+  return positions
+}
+
+// ─── TOOLBAR BUTTON STYLE ────────────────────────────────────────────────────
+
+const tbBtn = (active) => ({
+  padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+  border: '1px solid var(--surface-4)', fontFamily: 'inherit',
+  background: active ? 'var(--accent)' : 'var(--surface-3)',
+  color: active ? '#fff' : 'var(--text-2)', transition: 'background .15s, color .15s',
+})
+
+// ─── 2D SVG COMPONENT ────────────────────────────────────────────────────────
+
+function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange, hovered, setHovered }) {
+  const W = 700
+  const H = 500
+
+  const positions = useMemo(() => layoutNodes2D(nodes, edges, W, H), [nodes, edges])
+
+  const getColor = useCallback((node) => {
+    if (impactDist) {
+      const d = impactDist[node.id]
+      if (d === undefined || d > impactRadius) return '#334155'
+      return IMPACT_COLORS[Math.min(d, 3)]
+    }
+    return STATUS_COLORS[node.status] || STATUS_COLORS.active
+  }, [impactDist, impactRadius])
+
+  const getEdgeOpacity = useCallback((e) => {
+    if (!impactDist) return 0.45
+    const sd = impactDist[e.source], td = impactDist[e.target]
+    if (sd === undefined || td === undefined) return 0.1
+    if (Math.max(sd, td) <= impactRadius) return 0.85
+    return 0.1
+  }, [impactDist, impactRadius])
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', maxHeight: 500, borderRadius: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)' }}
+      aria-label="CMDB topology graph 2D"
+    >
+      <defs>
+        {Object.entries(REL_COLORS).map(([rel, color]) => (
+          <marker key={rel} id={`arrow-${rel}`} markerWidth="8" markerHeight="8" refX="16" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.7} />
+          </marker>
+        ))}
+      </defs>
+
+      {/* Edges */}
+      {edges.map((e, i) => {
+        const sp = positions[e.source], tp = positions[e.target]
+        if (!sp || !tp) return null
+        const color = REL_COLORS[e.rel_type] || '#64748b'
+        const isHov = hovered === e.source || hovered === e.target
+        const opacity = getEdgeOpacity(e)
+        return (
+          <g key={i}>
+            <line
+              x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y}
+              stroke={color} strokeWidth={isHov ? 2.5 : 1.5}
+              strokeOpacity={isHov ? 0.9 : opacity}
+              markerEnd={`url(#arrow-${e.rel_type || 'depends_on'})`}
+            />
+            {isHov && (
+              <text x={(sp.x + tp.x) / 2} y={(sp.y + tp.y) / 2 - 5}
+                textAnchor="middle" fill={color} fontSize="10" fontFamily="inherit" opacity={0.9}>
+                {e.rel_type}
+              </text>
+            )}
+          </g>
+        )
+      })}
+
+      {/* Nodes */}
+      {nodes.map((n) => {
+        const p = positions[n.id]
+        if (!p) return null
+        const isCenter = !!n.is_center
+        const isHov = hovered === n.id
+        const isImpactSrc = impactDist && impactDist[n.id] === 0
+        const nodeColor = getColor(n)
+        const r = isCenter ? 30 : 22
+        const isOutside = impactDist && (impactDist[n.id] === undefined || impactDist[n.id] > impactRadius)
+
+        return (
+          <g
+            key={n.id}
+            transform={`translate(${p.x},${p.y})`}
+            style={{ cursor: 'pointer' }}
+            onMouseEnter={() => setHovered(n.id)}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => { onImpactSourceChange(n.id); onNodeClick && onNodeClick(n) }}
+            role="button"
+            aria-label={`CI ${n.name}`}
+          >
+            {(isCenter || isImpactSrc) && (
+              <circle r={r + 8} fill="none" stroke={nodeColor} strokeWidth={2} opacity={0.3} />
+            )}
+            {isImpactSrc && (
+              <circle r={r + 14} fill="none" stroke={IMPACT_COLORS[0]} strokeWidth={1}
+                strokeDasharray="6 4" opacity={0.5} />
+            )}
+            <circle
+              r={r}
+              fill={isCenter ? 'var(--accent)' : (isOutside ? 'var(--surface-4)' : 'var(--surface-2)')}
+              stroke={nodeColor}
+              strokeWidth={isHov ? 3 : (isImpactSrc ? 2.5 : 1.5)}
+              opacity={isOutside ? 0.35 : 0.95}
+            />
+            {!isCenter && !isOutside && (
+              <circle r={r + 4} fill="none" stroke={nodeColor} strokeWidth={1.5}
+                strokeDasharray="4 3" opacity={0.3} />
+            )}
+            <text textAnchor="middle" dominantBaseline="middle"
+              fontSize={isCenter ? 18 : 14} style={{ userSelect: 'none' }}
+              opacity={isOutside ? 0.25 : 1}>
+              {CI_ICONS[n.ci_type] || '📌'}
+            </text>
+            <text
+              textAnchor="middle" y={r + 13} fontSize="10"
+              fill={isCenter ? 'var(--accent)' : (isOutside ? 'var(--text-3)' : 'var(--text-1)')}
+              fontWeight={isCenter ? 700 : 500} fontFamily="inherit"
+              style={{ userSelect: 'none' }} opacity={isOutside ? 0.35 : 1}
+            >
+              {n.name && n.name.length > 16 ? n.name.slice(0, 15) + '…' : (n.name || n.id)}
+            </text>
+            {isHov && (
+              <foreignObject x={r + 6} y={-r} width="170" height="92">
+                <div
+                  xmlns="http://www.w3.org/1999/xhtml"
+                  style={{
+                    background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
+                    borderRadius: 8, padding: '6px 10px', fontSize: 11,
+                    color: 'var(--text-1)', boxShadow: '0 4px 16px rgba(0,0,0,.5)',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: 3 }}>{n.name}</div>
+                  <div style={{ color: 'var(--text-2)' }}>{n.ci_type} · {n.status}</div>
+                  {n.hostname && <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{n.hostname}</div>}
+                  {impactDist && impactDist[n.id] !== undefined && impactDist[n.id] <= impactRadius && (
+                    <div style={{ marginTop: 3, color: IMPACT_COLORS[Math.min(impactDist[n.id], 3)], fontWeight: 600 }}>
+                      {IMPACT_LABELS[Math.min(impactDist[n.id], 3)]}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 10 }}>
+                    Click → drill-down &amp; fijar impacto
+                  </div>
+                </div>
+              </foreignObject>
+            )}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+// ─── 3D PLOTLY COMPONENT ─────────────────────────────────────────────────────
+
+function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }) {
+  const positions = useMemo(() => layout3D(nodes, edges), [nodes, edges])
+
+  const getNodeColor = useCallback((n) => {
+    if (impactDist) {
+      const d = impactDist[n.id]
+      if (d === undefined || d > impactRadius) return '#334155'
+      return IMPACT_COLORS[Math.min(d, 3)]
+    }
+    return STATUS_COLORS[n.status] || STATUS_COLORS.active
+  }, [impactDist, impactRadius])
+
+  const edgeX = [], edgeY = [], edgeZ = []
+  edges.forEach(e => {
+    const sp = positions[e.source], tp = positions[e.target]
+    if (!sp || !tp) return
+    edgeX.push(sp.x, tp.x, null)
+    edgeY.push(sp.y, tp.y, null)
+    edgeZ.push(sp.z, tp.z, null)
+  })
+
+  const nodeTrace = {
+    type: 'scatter3d',
+    mode: 'markers+text',
+    x: nodes.map(n => positions[n.id]?.x ?? 0),
+    y: nodes.map(n => positions[n.id]?.y ?? 0),
+    z: nodes.map(n => positions[n.id]?.z ?? 0),
+    text: nodes.map(n => n.name && n.name.length > 13 ? n.name.slice(0, 12) + '…' : (n.name || n.id)),
+    textposition: 'top center',
+    textfont: { size: 9, color: '#cbd5e1' },
+    customdata: nodes.map(n => n.id),
+    marker: {
+      size: nodes.map(n => n.is_center ? 14 : 9),
+      color: nodes.map(n => getNodeColor(n)),
+      opacity: nodes.map(n => {
+        if (impactDist) {
+          const d = impactDist[n.id]
+          return (d === undefined || d > impactRadius) ? 0.2 : 1
+        }
+        return 0.9
+      }),
+      line: { color: '#1e293b', width: 1 },
+      symbol: nodes.map(n => n.is_center ? 'diamond' : 'circle'),
+    },
+    hovertemplate: nodes.map(n => {
+      const d = impactDist ? impactDist[n.id] : undefined
+      const impactLine = (d !== undefined && d <= impactRadius)
+        ? `<br><b>${IMPACT_LABELS[Math.min(d, 3)]}</b>`
+        : ''
+      return `<b>${n.name}</b><br>${n.ci_type} · ${n.status}${n.hostname ? '<br>' + n.hostname : ''}${impactLine}<extra></extra>`
+    }),
+    showlegend: false,
+  }
+
+  const edgeTrace = {
+    type: 'scatter3d',
+    mode: 'lines',
+    x: edgeX, y: edgeY, z: edgeZ,
+    line: { color: '#475569', width: 1.5 },
+    hoverinfo: 'none',
+    showlegend: false,
+    opacity: 0.45,
+  }
+
+  const layout = {
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    margin: { l: 0, r: 0, t: 0, b: 0 },
+    scene: {
+      bgcolor: '#0f172a',
+      xaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
+      yaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
+      zaxis: { showgrid: false, zeroline: false, showticklabels: false, showspikes: false },
+    },
+    uirevision: 'topology3d',
+  }
+
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
+      <Plot
+        data={[edgeTrace, nodeTrace]}
+        layout={layout}
+        config={{ displayModeBar: false, responsive: true }}
+        style={{ width: '100%', height: 500 }}
+        onClick={(event) => {
+          if (!event.points?.length) return
+          const pt = event.points[0]
+          // curveNumber 1 = nodeTrace (edgeTrace is 0)
+          if (pt.curveNumber === 1) {
+            const nodeId = pt.customdata
+            const node = nodes.find(n => n.id === nodeId)
+            if (node) {
+              onImpactSourceChange(nodeId)
+              onNodeClick && onNodeClick(node)
+            }
+          }
+        }}
+      />
+    </div>
+  )
+}
+
+// ─── IMPACT LEGEND ───────────────────────────────────────────────────────────
+
+function ImpactLegend({ impactRadius, sourceName }) {
+  return (
+    <div style={{
+      display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      fontSize: 11, padding: '8px 2px',
+    }}>
+      {sourceName && (
+        <span style={{ color: 'var(--text-2)', marginRight: 4 }}>
+          Impacto de <strong style={{ color: IMPACT_COLORS[0] }}>{sourceName}</strong>:
+        </span>
+      )}
+      {Array.from({ length: impactRadius + 1 }, (_, d) => (
+        <span key={d} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: IMPACT_COLORS[d], display: 'inline-block', flexShrink: 0 }} />
+          <span style={{ color: 'var(--text-2)' }}>{IMPACT_LABELS[d]}</span>
+        </span>
+      ))}
+      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#334155', display: 'inline-block', flexShrink: 0 }} />
+        <span style={{ color: 'var(--text-3)' }}>Sin impacto / fuera del radio</span>
+      </span>
+    </div>
+  )
+}
+
+// ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
+
+export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick, centerName }) {
+  const [hovered, setHovered] = useState(null)
+  const [viewMode, setViewMode] = useState('2d')
+  const [impactSource, setImpactSource] = useState(null)
+  const [impactRadius, setImpactRadius] = useState(2)
+
+  const impactDist = useMemo(
+    () => impactSource ? bfsDistances(nodes, edges, impactSource) : null,
+    [impactSource, nodes, edges],
+  )
+
+  const impactSourceNode = nodes.find(n => n.id === impactSource)
+
+  const handleImpactSource = useCallback((nodeId) => {
+    setImpactSource(prev => prev === nodeId ? null : nodeId)
+  }, [])
 
   if (!nodes.length) {
     return (
@@ -69,144 +449,75 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
   }
 
   return (
-    <div style={{ position: 'relative' }}>
-      {centerName && (
-        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>
-          Topología centrada en <strong style={{ color: 'var(--accent)' }}>{centerName}</strong>
-          {' — '}{nodes.length} nodos · {edges.length} relaciones
+    <div>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', padding: '6px 0' }}>
+        {/* 2D / 3D toggle */}
+        <div style={{ display: 'flex', gap: 2, background: 'var(--surface-4)', padding: 2, borderRadius: 8 }}>
+          {[['2d', '2D SVG'], ['3d', '3D Plotly']].map(([mode, label]) => (
+            <button key={mode} onClick={() => setViewMode(mode)} style={tbBtn(viewMode === mode)}>{label}</button>
+          ))}
+        </div>
+
+        {/* Impact radius buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 6 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            Radio impacto:
+          </span>
+          {[1, 2, 3].map(r => (
+            <button key={r} onClick={() => setImpactRadius(r)} style={tbBtn(impactRadius === r)}>{r}</button>
+          ))}
+        </div>
+
+        {/* Clear impact */}
+        {impactSource && (
+          <button
+            onClick={() => setImpactSource(null)}
+            style={{
+              padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+              border: '1px solid var(--danger)', background: 'transparent',
+              color: 'var(--danger)', fontFamily: 'inherit',
+            }}
+          >
+            ✕ Limpiar impacto
+          </button>
+        )}
+
+        {centerName && (
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-3)' }}>
+            Centro: <strong style={{ color: 'var(--accent)' }}>{centerName}</strong>
+            {' · '}{nodes.length} nodos · {edges.length} aristas
+          </span>
+        )}
+      </div>
+
+      {/* Hint */}
+      {!impactSource && (
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
+          💡 Haz clic en cualquier nodo para analizar su radio de impacto y abrir el panel de detalle
         </div>
       )}
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', maxHeight: 480, borderRadius: 12, background: 'var(--surface-3)', border: '1px solid var(--surface-4)' }}
-      >
-        {/* Marker arrowhead */}
-        <defs>
-          {Object.entries(REL_COLORS).map(([rel, color]) => (
-            <marker
-              key={rel}
-              id={`arrow-${rel}`}
-              markerWidth="8" markerHeight="8"
-              refX="16" refY="3"
-              orient="auto"
-            >
-              <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.7} />
-            </marker>
-          ))}
-        </defs>
 
-        {/* Edges */}
-        {edges.map((e, i) => {
-          const sp = positions[e.source]
-          const tp = positions[e.target]
-          if (!sp || !tp) return null
-          const color = REL_COLORS[e.rel_type] || '#64748b'
-          const isHov = hovered === e.source || hovered === e.target
-          return (
-            <g key={i}>
-              <line
-                x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y}
-                stroke={color}
-                strokeWidth={isHov ? 2.5 : 1.5}
-                strokeOpacity={isHov ? 0.9 : 0.45}
-                markerEnd={`url(#arrow-${e.rel_type || 'depends_on'})`}
-              />
-              {/* Relation label on midpoint */}
-              {isHov && (
-                <text
-                  x={(sp.x + tp.x) / 2}
-                  y={(sp.y + tp.y) / 2 - 5}
-                  textAnchor="middle"
-                  fill={color}
-                  fontSize="10"
-                  fontFamily="inherit"
-                  opacity={0.9}
-                >
-                  {e.rel_type}
-                </text>
-              )}
-            </g>
-          )
-        })}
+      {/* Graph */}
+      {viewMode === '2d' ? (
+        <Graph2D
+          nodes={nodes} edges={edges}
+          impactDist={impactDist} impactRadius={impactRadius}
+          onNodeClick={onNodeClick} onImpactSourceChange={handleImpactSource}
+          hovered={hovered} setHovered={setHovered}
+        />
+      ) : (
+        <Graph3D
+          nodes={nodes} edges={edges}
+          impactDist={impactDist} impactRadius={impactRadius}
+          onNodeClick={onNodeClick} onImpactSourceChange={handleImpactSource}
+        />
+      )}
 
-        {/* Nodes */}
-        {nodes.map((n) => {
-          const p = positions[n.id]
-          if (!p) return null
-          const sc = STATUS_COLORS[n.status] || STATUS_COLORS.active
-          const isCenter = !!n.is_center
-          const isHov = hovered === n.id
-          const r = isCenter ? 30 : 22
-          return (
-            <g
-              key={n.id}
-              transform={`translate(${p.x},${p.y})`}
-              style={{ cursor: 'pointer' }}
-              onMouseEnter={() => setHovered(n.id)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => onNodeClick && onNodeClick(n)}
-            >
-              <circle
-                r={r}
-                fill={isCenter ? 'var(--accent)' : 'var(--surface-2)'}
-                stroke={isCenter ? 'var(--accent)' : sc}
-                strokeWidth={isCenter ? 0 : (isHov ? 2.5 : 1.5)}
-                opacity={isHov ? 1 : 0.9}
-              />
-              {/* Status ring */}
-              {!isCenter && (
-                <circle r={r + 4} fill="none" stroke={sc} strokeWidth={1.5} strokeDasharray="4 3" opacity={0.4} />
-              )}
-              <text textAnchor="middle" dominantBaseline="middle" fontSize={isCenter ? 18 : 14} style={{ userSelect: 'none' }}>
-                {CI_ICONS[n.ci_type] || '📌'}
-              </text>
-              <text
-                textAnchor="middle"
-                y={r + 13}
-                fontSize="10"
-                fill={isCenter ? 'var(--accent)' : 'var(--text-1)'}
-                fontWeight={isCenter ? 700 : 500}
-                fontFamily="inherit"
-                style={{ userSelect: 'none' }}
-              >
-                {n.name && n.name.length > 16 ? n.name.slice(0, 15) + '…' : (n.name || n.id)}
-              </text>
-              {/* Hover card */}
-              {isHov && (
-                <foreignObject x={r + 6} y={-(r)} width="160" height="70">
-                  <div
-                    xmlns="http://www.w3.org/1999/xhtml"
-                    style={{
-                      background: 'var(--surface-2)',
-                      border: '1px solid var(--surface-4)',
-                      borderRadius: 8,
-                      padding: '6px 10px',
-                      fontSize: 11,
-                      color: 'var(--text-1)',
-                      boxShadow: '0 4px 16px rgba(0,0,0,.4)',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, marginBottom: 3 }}>{n.name}</div>
-                    <div style={{ color: 'var(--text-2)' }}>{n.ci_type} · {n.status}</div>
-                    {n.hostname && <div style={{ color: 'var(--text-2)', marginTop: 2 }}>{n.hostname}</div>}
-                  </div>
-                </foreignObject>
-              )}
-            </g>
-          )
-        })}
-      </svg>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-        {Object.entries(REL_COLORS).map(([rel, color]) => (
-          <div key={rel} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-2)' }}>
-            <div style={{ width: 24, height: 2, background: color, borderRadius: 1 }} />
-            {rel.replace(/_/g, ' ')}
-          </div>
-        ))}
-      </div>
+      {/* Impact legend */}
+      {impactDist && (
+        <ImpactLegend impactRadius={impactRadius} sourceName={impactSourceNode?.name} />
+      )}
     </div>
   )
 }

@@ -292,11 +292,21 @@ export default function CMDBPage() {
   const [tab, setTab] = useState('list')  // 'list' | 'topology'
   const [topoCI, setTopoCI] = useState(null)  // CI selected for topology
   const [topoRadius, setTopoRadius] = useState(2)
+  const [drillCI, setDrillCI] = useState(null)  // CI selected for drill-down panel
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
+
+  // ─── Drill-down: relations data for the panel ──────────────────────────────
+  const { data: drillRels } = useQuery({
+    queryKey: ['item-rels', drillCI?.id],
+    queryFn: () => drillCI
+      ? api.get(`/cmdb/items/${drillCI.id}/relations`).then(r => r.data).catch(() => ({ outgoing: [], incoming: [] }))
+      : Promise.resolve({ outgoing: [], incoming: [] }),
+    enabled: !!drillCI,
+  })
 
   const { data: categories = [] } = useQuery({
     queryKey: ['cmdb-categories'],
@@ -362,45 +372,176 @@ export default function CMDBPage() {
 
       {/* ─── TOPOLOGÍA ─────────────────────────────────────────────── */}
       {tab === 'topology' && (
-        <div style={ps}>
-          {/* Selector de CI */}
-          <div style={{display:'flex',gap:12,alignItems:'flex-end',marginBottom:20,flexWrap:'wrap'}}>
-            <div style={{flex:'1 1 280px'}}>
-              <label style={ls}>CI central</label>
-              <select style={is} value={topoCI?.id || ''} onChange={e => {
-                const ci = sdTopologyItems.find(i => i.id === e.target.value)
-                setTopoCI(ci || null)
-              }}>
-                <option value="">Seleccionar CI…</option>
-                {sdTopologyItems.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
-              </select>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+          {/* Graph panel */}
+          <div style={{ ...ps, flex: 1, minWidth: 0 }}>
+            {/* Selector de CI */}
+            <div style={{display:'flex',gap:12,alignItems:'flex-end',marginBottom:20,flexWrap:'wrap'}}>
+              <div style={{flex:'1 1 280px'}}>
+                <label style={ls}>CI central</label>
+                <select style={is} value={topoCI?.id || ''} onChange={e => {
+                  const ci = sdTopologyItems.find(i => i.id === e.target.value)
+                  setTopoCI(ci || null)
+                  setDrillCI(null)
+                }}>
+                  <option value="">Seleccionar CI…</option>
+                  {sdTopologyItems.map(ci => <option key={ci.id} value={ci.id}>{CI_TYPE_ICONS[ci.ci_type]||'📌'} {ci.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={ls}>Radio de expansión</label>
+                <select style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+                  {[1,2,3].map(r => <option key={r} value={r}>{r} {r===1?'nivel':'niveles'}</option>)}
+                </select>
+              </div>
+              {topoCI && (
+                <button onClick={() => { setTopoCI(null); setDrillCI(null) }}
+                  style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
+                    background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                  ✕ Limpiar
+                </button>
+              )}
             </div>
-            <div>
-              <label style={ls}>Radio de expansión</label>
-              <select style={{...is,width:120}} value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
-                {[1,2,3].map(r => <option key={r} value={r}>{r} {r===1?'nivel':'niveles'}</option>)}
-              </select>
-            </div>
-            {topoCI && (
-              <button onClick={() => setTopoCI(null)}
-                style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
-                  background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
-                ✕ Limpiar
-              </button>
-            )}
+            {topoLoading
+              ? <Spinner />
+              : <CMDBTopologyGraph
+                  nodes={topoData?.nodes || []}
+                  edges={topoData?.edges || []}
+                  centerName={topoCI?.name}
+                  onNodeClick={n => {
+                    const ci = sdTopologyItems.find(i => i.id === n.id) || n
+                    setDrillCI(ci)
+                  }}
+                />
+            }
           </div>
-          {topoLoading
-            ? <Spinner />
-            : <CMDBTopologyGraph
-                nodes={topoData?.nodes || []}
-                edges={topoData?.edges || []}
-                centerName={topoCI?.name}
-                onNodeClick={n => {
-                  const ci = sdTopologyItems.find(i => i.id === n.id)
-                  if (ci) setTopoCI(ci)
-                }}
-              />
-          }
+
+          {/* Drill-down panel */}
+          {drillCI && (
+            <div style={{
+              width: 310, flexShrink: 0, background: 'var(--surface-2)',
+              border: '1px solid var(--surface-4)', borderRadius: 12,
+              padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14,
+              maxHeight: 660, overflowY: 'auto',
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 22 }}>{CI_TYPE_ICONS[drillCI.ci_type] || '📌'}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-1)' }}>{drillCI.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{drillCI.ci_type}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDrillCI(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                  aria-label="Cerrar panel de detalle"
+                >✕</button>
+              </div>
+
+              {/* Status + environment badges */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {drillCI.status && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 9px', borderRadius: 20,
+                    background: (STATUS_CFG[drillCI.status]?.color || 'var(--text-3)') + '20',
+                    color: STATUS_CFG[drillCI.status]?.color || 'var(--text-3)',
+                  }}>
+                    {STATUS_CFG[drillCI.status]?.label || drillCI.status}
+                  </span>
+                )}
+                {drillCI.environment && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 9px', borderRadius: 20,
+                    background: (ENV_CFG[drillCI.environment]?.color || 'var(--text-3)') + '20',
+                    color: ENV_CFG[drillCI.environment]?.color || 'var(--text-3)',
+                  }}>
+                    {ENV_CFG[drillCI.environment]?.label || drillCI.environment}
+                  </span>
+                )}
+              </div>
+
+              {/* Description */}
+              {drillCI.description && (
+                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                  {drillCI.description}
+                </div>
+              )}
+
+              {/* Key attributes */}
+              <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                  Atributos
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {[
+                    ['Hostname', drillCI.hostname],
+                    ['IP', drillCI.ip_address || drillCI.attributes?.ip_address],
+                    ['Versión', drillCI.version],
+                    ['OS', drillCI.attributes?.os],
+                    ['Stack', drillCI.attributes?.tech_stack],
+                    ['URL', drillCI.attributes?.url],
+                    ['Proveedor cloud', drillCI.attributes?.cloud_provider],
+                    ['Región', drillCI.attributes?.region],
+                    ['Imagen', drillCI.attributes?.image],
+                    ['Cluster', drillCI.attributes?.cluster],
+                    ['RAM (GB)', drillCI.attributes?.ram_gb],
+                    ['CPU cores', drillCI.attributes?.cpu_cores],
+                  ].filter(([, v]) => v).map(([label, value]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                      <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{label}</span>
+                      <span style={{ color: 'var(--text-1)', fontFamily: 'monospace', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Relations */}
+              {drillRels && ((drillRels.outgoing?.length > 0) || (drillRels.incoming?.length > 0)) && (
+                <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                    Relaciones
+                  </div>
+                  {(drillRels.outgoing || []).map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--accent)' }}>↗</span>
+                      <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.rel_type} → {r.to_item?.name}
+                      </span>
+                    </div>
+                  ))}
+                  {(drillRels.incoming || []).map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--warning)' }}>↙</span>
+                      <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.from_item?.name} → {r.rel_type}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
+                <Button
+                  onClick={() => {
+                    const ci = sdTopologyItems.find(i => i.id === drillCI.id) || drillCI
+                    setTopoCI(ci)
+                    setDrillCI(null)
+                  }}
+                >
+                  🔗 Ver como CI central
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => { setEditing(drillCI); setShowForm(true) }}
+                >
+                  ✏ Editar activo
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

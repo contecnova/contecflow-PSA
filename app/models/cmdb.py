@@ -307,3 +307,32 @@ class CMDBDiscoveryJob(Base):
     triggered_by    = Column(String(20), default="scheduler")  # scheduler | manual
     provider        = relationship("CMDBDiscoveryProvider", back_populates="jobs")
 
+
+# ── On-Premise Agent Registrations (ITSM-P10/discovery gap) ──────────────────
+
+class CMDBAgentRegistration(Base):
+    """Registered on-premise agent (one per managed host).
+
+    The raw token is returned once at registration.  Only its SHA-256 hash
+    is persisted so that a DB breach does not expose usable tokens.
+    """
+    __tablename__ = "cmdb_agent_registrations"
+
+    id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name          = Column(String(255), nullable=False)        # friendly name, e.g. "web01.corp.local"
+    description   = Column(Text,        nullable=True)
+    token_hash    = Column(String(64),  nullable=False, unique=True, index=True)  # SHA-256 hex
+    token_prefix  = Column(String(8),   nullable=False)        # first 8 chars for display/audit
+    os_type       = Column(String(10),  nullable=True)         # windows | linux
+    is_active     = Column(Boolean,     default=True)
+    last_checkin_at = Column(DateTime(timezone=True), nullable=True)
+    last_checkin_ip = Column(String(45), nullable=True)
+    last_hostname   = Column(String(255), nullable=True)
+    ci_id         = Column(String(36),  ForeignKey("cmdb_items.id", ondelete="SET NULL"), nullable=True)
+    created_by    = Column(String(36),  ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    ci         = relationship("CMDBItem",  foreign_keys=[ci_id])
+    creator    = relationship("User",      foreign_keys=[created_by])
+

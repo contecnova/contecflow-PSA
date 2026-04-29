@@ -10,7 +10,6 @@ Lifecycle management for Known Errors:
 """
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -19,11 +18,13 @@ from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import (
+    IncidentToProblem,
     KBArticle,
     KBStatus,
+    KnownError,
+    KnownErrorTicket,
     Problem,
     ProblemStatus,
-    Ticket,
     TicketStatus,
 )
 
@@ -36,58 +37,95 @@ KEDB_DEFAULT_REVIEW_DAYS = 90
 # ── Query helpers ─────────────────────────────────────────────────────────────
 
 
-def get_known_errors(db: Session) -> list[Problem]:
-    """Return all active KEDB entries (status=known_error with workaround)."""
+def get_known_errors(db: Session) -> list[KnownError]:
+    """Return all active KEDB entries from the relational KnownError table."""
     return (
-        db.query(Problem)
-        .options(joinedload(Problem.ci), joinedload(Problem.related_tickets))
-        .filter(
-            Problem.status == ProblemStatus.known_error,
-            Problem.workaround.isnot(None),
+        db.query(KnownError)
+        .options(
+            joinedload(KnownError.problem).joinedload(Problem.ci),
+            joinedload(KnownError.affected_ticket_links).joinedload(KnownErrorTicket.ticket),
         )
-        .order_by(Problem.kedb_published_at.desc().nullslast(), Problem.created_at.desc())
+        .filter(KnownError.is_active.is_(True))
+        .order_by(KnownError.published_at.desc().nullslast(), KnownError.created_at.desc())
         .all()
     )
 
 
-def get_expiring_known_errors(db: Session, within_days: int = 7) -> list[Problem]:
-    """Return KEDB entries whose review date falls within the next N days."""
+def get_expiring_known_errors(db: Session, within_days: int = 7) -> list[KnownError]:
+    """Return active KEDB entries whose review date falls within the next N days."""
     now = datetime.now(timezone.utc)
     deadline = now + timedelta(days=within_days)
     return (
-        db.query(Problem)
+        db.query(KnownError)
         .filter(
-            Problem.status == ProblemStatus.known_error,
-            Problem.kedb_expires_at.isnot(None),
-            Problem.kedb_expires_at <= deadline,
-            Problem.kedb_expires_at >= now,
+            KnownError.is_active.is_(True),
+            KnownError.expires_at.isnot(None),
+            KnownError.expires_at <= deadline,
+            KnownError.expires_at >= now,
         )
         .all()
     )
 
 
-def serialize_known_error(problem: Problem) -> dict:
-    """Serialize a KEDB entry for API responses."""
-    tickets = problem.related_tickets or []
+def _ensure_known_error_ticket_links(db: Session, known_error: KnownError) -> int:
+    """Sync KnownErrorTicket rows from IncidentToProblem links for same problem."""
+    links = (
+        db.query(IncidentToProblem)
+        .filter(IncidentToProblem.problem_id == known_error.problem_id)
+        .all()
+    )
+    created = 0
+    for lnk in links:
+        exists = (
+            db.query(KnownErrorTicket)
+            .filter(
+                KnownErrorTicket.known_error_id == known_error.id,
+                KnownErrorTicket.ticket_id == lnk.ticket_id,
+            )
+            .first()
+        )
+        if exists:
+            continue
+        db.add(
+            KnownErrorTicket(
+                id=str(uuid.uuid4()),
+                known_error_id=known_error.id,
+                ticket_id=lnk.ticket_id,
+                incident_link_id=lnk.id,
+            )
+        )
+        created += 1
+    if created:
+        db.flush()
+    return created
+
+
+def serialize_known_error(known_error: KnownError) -> dict:
+    """Serialize a relational KEDB entry for API responses."""
+    problem = known_error.problem
+    links = known_error.affected_ticket_links or []
     return {
-        "id": problem.id,
-        "number": problem.number,
-        "title": problem.title,
-        "description": problem.description,
-        "workaround": problem.workaround,
-        "root_cause": problem.root_cause,
-        "rca_type": problem.rca_type,
-        "rca_evidence": problem.rca_evidence,
-        "rca_approved_at": problem.rca_approved_at.isoformat() if problem.rca_approved_at else None,
-        "ci": problem.ci.name if problem.ci else None,
-        "ci_id": problem.ci_id,
-        "priority": problem.priority.value if problem.priority else None,
-        "affected_tickets": len(tickets),
-        "kedb_published_at": problem.kedb_published_at.isoformat() if problem.kedb_published_at else None,
-        "kedb_expires_at": problem.kedb_expires_at.isoformat() if problem.kedb_expires_at else None,
-        "kedb_reviewed_at": problem.kedb_reviewed_at.isoformat() if problem.kedb_reviewed_at else None,
-        "kedb_effectiveness_score": problem.kedb_effectiveness_score,
-        "kb_article_id": problem.kb_article_id,
+        "id": known_error.id,
+        "problem_id": problem.id if problem else known_error.problem_id,
+        "number": problem.number if problem else None,
+        "title": known_error.title,
+        "description": known_error.description,
+        "workaround": known_error.workaround,
+        "root_cause": known_error.root_cause,
+        "rca_type": known_error.rca_type,
+        "rca_evidence": problem.rca_evidence if problem else None,
+        "rca_approved_at": problem.rca_approved_at.isoformat() if problem and problem.rca_approved_at else None,
+        "ci": problem.ci.name if problem and problem.ci else None,
+        "ci_id": problem.ci_id if problem else None,
+        "priority": problem.priority.value if problem and problem.priority else None,
+        "affected_tickets": len(links),
+        "affected_ticket_ids": [lnk.ticket_id for lnk in links],
+        "kedb_published_at": known_error.published_at.isoformat() if known_error.published_at else None,
+        "kedb_expires_at": known_error.expires_at.isoformat() if known_error.expires_at else None,
+        "kedb_reviewed_at": known_error.reviewed_at.isoformat() if known_error.reviewed_at else None,
+        "kedb_effectiveness_score": known_error.effectiveness_score,
+        "kb_article_id": known_error.kb_article_id,
+        "is_active": known_error.is_active,
     }
 
 
@@ -128,9 +166,47 @@ def promote_to_known_error(
         if kb_article:
             problem.kb_article_id = kb_article.id
 
+    known_error = (
+        db.query(KnownError)
+        .filter(KnownError.problem_id == problem.id, KnownError.is_active.is_(True))
+        .order_by(KnownError.published_at.desc().nullslast())
+        .first()
+    )
+    if not known_error:
+        known_error = KnownError(
+            id=str(uuid.uuid4()),
+            problem_id=problem.id,
+            title=problem.title,
+            description=problem.description,
+            workaround=problem.workaround,
+            root_cause=problem.root_cause,
+            rca_type=problem.rca_type,
+            category_id=None,
+            published_by=problem.owner_user_id,
+            published_at=now,
+            expires_at=now + timedelta(days=review_days),
+            reviewed_at=problem.kedb_reviewed_at,
+            effectiveness_score=problem.kedb_effectiveness_score,
+            kb_article_id=problem.kb_article_id,
+            is_active=True,
+        )
+        db.add(known_error)
+    else:
+        known_error.title = problem.title
+        known_error.description = problem.description
+        known_error.workaround = problem.workaround
+        known_error.root_cause = problem.root_cause
+        known_error.rca_type = problem.rca_type
+        known_error.published_at = now
+        known_error.expires_at = now + timedelta(days=review_days)
+        known_error.kb_article_id = problem.kb_article_id
+
+    db.flush()
+    _ensure_known_error_ticket_links(db, known_error)
+
     db.flush()
     _logger.info("Problem %s promoted to Known Error (KEDB)", problem.number)
-    return serialize_known_error(problem)
+    return serialize_known_error(known_error)
 
 
 def _create_kb_article_from_problem(db: Session, problem: Problem) -> Optional[KBArticle]:
@@ -227,11 +303,23 @@ def recompute_effectiveness(db: Session, problem: Problem) -> float:
 
     Returns the score (0-100) and persists it to problem.kedb_effectiveness_score.
     """
-    tickets: list[Ticket] = problem.related_tickets or []
+    known_error = (
+        db.query(KnownError)
+        .options(joinedload(KnownError.affected_ticket_links).joinedload(KnownErrorTicket.ticket))
+        .filter(KnownError.problem_id == problem.id, KnownError.is_active.is_(True))
+        .order_by(KnownError.published_at.desc().nullslast())
+        .first()
+    )
+    if not known_error:
+        return 0.0
+
+    _ensure_known_error_ticket_links(db, known_error)
+
+    tickets = [lnk.ticket for lnk in (known_error.affected_ticket_links or []) if lnk.ticket is not None]
     if not tickets:
         return 0.0
 
-    published = problem.kedb_published_at
+    published = known_error.published_at
     relevant = [
         t for t in tickets
         if t.status in (TicketStatus.resolved, TicketStatus.closed)
@@ -245,6 +333,8 @@ def recompute_effectiveness(db: Session, problem: Problem) -> float:
     ]
 
     score = round(len(relevant) / len(tickets) * 100, 1)
+    known_error.effectiveness_score = score
+    # Keep legacy column updated for backwards compatibility.
     problem.kedb_effectiveness_score = score
     db.flush()
     return score
@@ -258,10 +348,13 @@ def run_kedb_effectiveness_scan(db: Session) -> dict:
     """
     known_errors = get_known_errors(db)
     updated = []
-    for problem in known_errors:
+    for known_error in known_errors:
+        problem = known_error.problem
+        if not problem:
+            continue
         try:
             score = recompute_effectiveness(db, problem)
-            updated.append({"number": problem.number, "score": score})
+            updated.append({"number": problem.number, "known_error_id": known_error.id, "score": score})
         except Exception as exc:
             _logger.warning("Effectiveness scan failed for Problem %s: %s", problem.number, exc)
     _logger.info("KEDB effectiveness scan: %d entries updated", len(updated))
@@ -285,6 +378,17 @@ def mark_kedb_reviewed(
     now = datetime.now(timezone.utc)
     problem.kedb_reviewed_at = now
     problem.kedb_expires_at = now + timedelta(days=extend_days)
+
+    known_error = (
+        db.query(KnownError)
+        .filter(KnownError.problem_id == problem.id, KnownError.is_active.is_(True))
+        .order_by(KnownError.published_at.desc().nullslast())
+        .first()
+    )
+    if known_error:
+        known_error.reviewed_at = now
+        known_error.expires_at = now + timedelta(days=extend_days)
+
     db.flush()
     return {
         "problem_id": problem.id,
@@ -304,24 +408,29 @@ def run_kedb_expiry_scan(db: Session) -> dict:
     """
     now = datetime.now(timezone.utc)
     expired = (
-        db.query(Problem)
+        db.query(KnownError)
+        .options(joinedload(KnownError.problem))
         .filter(
-            Problem.status == ProblemStatus.known_error,
-            Problem.kedb_expires_at.isnot(None),
-            Problem.kedb_expires_at < now,
+            KnownError.is_active.is_(True),
+            KnownError.expires_at.isnot(None),
+            KnownError.expires_at < now,
         )
         .all()
     )
     results = []
-    for problem in expired:
+    for known_error in expired:
+        problem = known_error.problem
         try:
-            problem.status = ProblemStatus.investigating
+            known_error.is_active = False
+            if problem:
+                problem.status = ProblemStatus.investigating
             results.append({
-                "number": problem.number,
-                "expired_at": problem.kedb_expires_at.isoformat() if problem.kedb_expires_at else None,
+                "known_error_id": known_error.id,
+                "number": problem.number if problem else None,
+                "expired_at": known_error.expires_at.isoformat() if known_error.expires_at else None,
             })
         except Exception as exc:
-            _logger.warning("KEDB expiry: could not demote Problem %s: %s", problem.number, exc)
+            _logger.warning("KEDB expiry: could not demote KnownError %s: %s", known_error.id, exc)
 
     if results:
         db.flush()
@@ -337,13 +446,13 @@ def get_kedb_stats(db: Session) -> dict:
     known_errors = get_known_errors(db)
     expiring = get_expiring_known_errors(db, within_days=30)
 
-    scores = [p.kedb_effectiveness_score for p in known_errors if p.kedb_effectiveness_score is not None]
+    scores = [k.effectiveness_score for k in known_errors if k.effectiveness_score is not None]
     avg_effectiveness = round(sum(scores) / len(scores), 1) if scores else None
 
     return {
         "total_known_errors": len(known_errors),
         "expiring_within_30d": len(expiring),
         "avg_effectiveness_score": avg_effectiveness,
-        "with_kb_article": sum(1 for p in known_errors if p.kb_article_id),
-        "with_approved_rca": sum(1 for p in known_errors if p.rca_approved_at),
+        "with_kb_article": sum(1 for k in known_errors if k.kb_article_id),
+        "with_approved_rca": sum(1 for k in known_errors if k.problem and k.problem.rca_approved_at),
     }

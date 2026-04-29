@@ -54,9 +54,24 @@ class MarkKEDBReviewedIn(BaseModel):
 class WizardStartIn(BaseModel):
     template: str = Field(
         ...,
-        pattern="^(five_whys|fishbone|itil_standard)$",
-        description="RCA template to use",
+        min_length=3,
+        max_length=36,
+        description="Built-in slug (five_whys|fishbone|itil_standard) or UUID of a custom ProblemRcaTemplate",
     )
+
+
+class RcaTemplateCreateIn(BaseModel):
+    name: str = Field(..., min_length=3, max_length=255)
+    template_type: str = Field(..., pattern="^(five_whys|fishbone|itil_standard|custom)$")
+    steps_json: str = Field(..., description="JSON array of {step, label, prompt} objects")
+    description: Optional[str] = None
+
+
+class RcaTemplateUpdateIn(BaseModel):
+    name: Optional[str] = Field(None, min_length=3, max_length=255)
+    description: Optional[str] = None
+    steps_json: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class WizardStepIn(BaseModel):
@@ -325,11 +340,96 @@ def run_kedb_effectiveness_scan(
 
 
 @router.get('/rca/templates', summary='Listar templates RCA disponibles')
-def list_rca_templates():
-    """Return all available RCA templates with metadata (no auth required)."""
+def list_rca_templates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return all available RCA templates from DB (with built-in fallback)."""
     from app.services.service_desk.rca_wizard_service import list_available_templates
 
-    return {'templates': list_available_templates()}
+    return {'templates': list_available_templates(db)}
+
+
+@router.post('/rca/templates', summary='Crear template RCA personalizado (admin)', status_code=201)
+def create_rca_template(
+    payload: RcaTemplateCreateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a custom RCA template stored in sd_problem_rca_templates."""
+    import json
+    # Validate steps_json is valid JSON array
+    try:
+        steps = json.loads(payload.steps_json)
+        if not isinstance(steps, list) or not steps:
+            raise ValueError('steps_json must be a non-empty JSON array')
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail=f'Invalid steps_json: {exc}')
+
+    tpl = svc.create_rca_template(
+        db,
+        current_user=current_user,
+        name=payload.name,
+        template_type=payload.template_type,
+        steps_json=payload.steps_json,
+        description=payload.description,
+    )
+    _commit_or_rollback(db)
+    return {'ok': True, 'id': tpl.id, 'name': tpl.name, 'total_steps': len(steps)}
+
+
+@router.put('/rca/templates/{template_id}', summary='Actualizar template RCA (admin)')
+def update_rca_template(
+    template_id: str,
+    payload: RcaTemplateUpdateIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a non-system custom RCA template."""
+    from app.models.service_desk import ProblemRcaTemplate
+
+    tpl = svc.get_rca_template(db, template_id=template_id)
+    if not tpl:
+        raise HTTPException(status_code=404, detail='RCA template not found')
+    if tpl.is_system:
+        raise HTTPException(status_code=403, detail='System templates cannot be modified')
+
+    if payload.name is not None:
+        tpl.name = payload.name
+    if payload.description is not None:
+        tpl.description = payload.description
+    if payload.steps_json is not None:
+        import json
+        try:
+            steps = json.loads(payload.steps_json)
+            if not isinstance(steps, list) or not steps:
+                raise ValueError('steps_json must be a non-empty JSON array')
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=400, detail=f'Invalid steps_json: {exc}')
+        tpl.steps_json = payload.steps_json
+    if payload.is_active is not None:
+        tpl.is_active = payload.is_active
+
+    _commit_or_rollback(db)
+    return {'ok': True, 'id': tpl.id}
+
+
+@router.delete('/rca/templates/{template_id}', summary='Eliminar template RCA custom (admin)')
+def delete_rca_template(
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Soft-delete (deactivate) a non-system custom RCA template."""
+    tpl = svc.get_rca_template(db, template_id=template_id)
+    if not tpl:
+        raise HTTPException(status_code=404, detail='RCA template not found')
+    if tpl.is_system:
+        raise HTTPException(status_code=403, detail='System templates cannot be deleted')
+
+    tpl.is_active = False
+    _commit_or_rollback(db)
+    return {'ok': True, 'id': tpl.id, 'deactivated': True}
 
 
 @router.post('/problems/{problem_id}/rca-wizard/start', summary='Iniciar wizard RCA guiado')
