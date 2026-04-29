@@ -510,6 +510,51 @@ export const changesApi = {
   approve: (id, data) => api.post(`/sd/changes/${id}/approve`, data),
 }
 
+// ── Revenue (legacy engine) ───────────────────────────────────────────────────
+export const revenueApi = {
+  rules:       ()               => api.get('/revenue/rules'),
+  summary:     ()               => api.get('/revenue/summary'),
+  createRule:  (data)           => api.post('/revenue/rules', data),
+  autoCompute: (period)         => api.post('/revenue/auto-compute', { period }),
+  compute:     (id, period)     => api.post(`/revenue/rules/${id}/compute`, { period }),
+}
+
+// ── Invoices ──────────────────────────────────────────────────────────────────
+export const invoicesApi = {
+  list:          (params)          => api.get('/invoices', { params }),
+  get:           (id)              => api.get(`/invoices/${id}`),
+  summary:       ()                => api.get('/invoices/summary'),
+  create:        (data)            => api.post('/invoices', data),
+  updateStatus:  (id, status)      => api.patch(`/invoices/${id}/status`, { status }),
+  pdf:           (id)              => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
+  fromTimesheets:(data)            => api.post('/invoices/from-timesheets', data),
+}
+
+// ── Accounting Hub (Xero / QuickBooks) ────────────────────────────────────────
+export const accountingApi = {
+  syncStatus:    ()                => api.get('/accounting/sync-status'),
+  xeroTest:      ()                => api.post('/accounting/xero/test'),
+  qbTest:        ()                => api.post('/accounting/qb/test'),
+  pushInvoice:   (data)            => api.post('/accounting/push-invoice', data),
+  pushBulk:      (data)            => api.post('/accounting/push-invoices-bulk', data),
+  xeroContacts:  ()                => api.get('/accounting/xero/contacts'),
+}
+
+// ── Currency Rates ────────────────────────────────────────────────────────────
+export const currencyApi = {
+  rates:   (params)        => api.get('/currency/rates', { params }),
+  upsert:  (data)          => api.post('/currency/rates', data),
+  convert: (params)        => api.get('/currency/convert', { params }),
+  report:  (params)        => api.get('/currency/report', { params }),
+}
+
+// ── Predictive Observability ──────────────────────────────────────────────────
+export const predictiveObservabilityApi = {
+  status:        (orgId)   => api.get('/bi/predictive/observability/status', { params: orgId ? { organization_id: orgId } : {} }),
+  health:        (params)  => api.get('/bi/predictive/observability/health', { params }),
+  triggerRetrain:()        => api.post('/bi/predictive/observability/trigger-retrain'),
+}
+
 // ── ML Predictions ────────────────────────────────────────────────────────────
 export const predictionsApi = {
   overrunRisk:    (projectId)  => api.post('/predictions/overrun-risk', { project_id: projectId }),

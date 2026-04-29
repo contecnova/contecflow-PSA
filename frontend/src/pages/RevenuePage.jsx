@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, revenueRecognitionApi } from '../services/api'
+import api, { projectsApi, revenueRecognitionApi, revenueApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
@@ -156,24 +156,24 @@ export default function RevenuePage() {
   const [contractForm, setContractForm] = useState({ project_id:'', name:'', method:'over_time', contract_value:'', currency:'EUR', start_date:'', end_date:'', duration_months:'', notes:'' })
 
   // ── Existing queries ───────────────────────────────────────────────────────
-  const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => api.get('/revenue/rules').then(r=>r.data) })
-  const { data: summary } = useQuery({ queryKey:['rev-summary'], queryFn:() => api.get('/revenue/summary').then(r=>r.data) })
+  const { data: rules = [], isLoading } = useQuery({ queryKey:['rev-rules'], queryFn:() => revenueApi.rules().then(r=>r.data) })
+  const { data: summary } = useQuery({ queryKey:['rev-summary'], queryFn:() => revenueApi.summary().then(r=>r.data) })
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data || []) })
 
   // ── New ASC 606 queries ────────────────────────────────────────────────────
   const { data: asc606Dashboard } = useQuery({
     queryKey: ['asc606-dashboard', dashYear],
-    queryFn: () => api.get(`/revenue-recognition/dashboard?year=${dashYear}`).then(r => r.data),
+    queryFn: () => revenueRecognitionApi.dashboard(dashYear).then(r => r.data),
     enabled: tab === 'asc606',
   })
   const { data: contracts = [], isLoading: contractsLoading } = useQuery({
     queryKey: ['asc606-contracts'],
-    queryFn: () => api.get('/revenue-recognition/contracts').then(r => r.data),
+    queryFn: () => revenueRecognitionApi.contracts().then(r => r.data),
     enabled: tab === 'asc606',
   })
   const { data: periodCloses = [] } = useQuery({
     queryKey: ['asc606-period-closes'],
-    queryFn: () => api.get('/revenue-recognition/period-closes').then(r => r.data),
+    queryFn: () => revenueRecognitionApi.periodCloses().then(r => r.data),
     enabled: tab === 'asc606',
   })
 
@@ -196,12 +196,12 @@ export default function RevenuePage() {
 
   // ── Existing mutations ─────────────────────────────────────────────────────
   const { mutate: createRule, isPending:creating } = useMutation({
-    mutationFn: d => api.post('/revenue/rules', d),
+    mutationFn: d => revenueApi.createRule(d),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: _autoCompute, isPending: _autoComputing } = useMutation({
-    mutationFn: () => api.post('/revenue/auto-compute', { period: computePeriod }),
+    mutationFn: () => revenueApi.autoCompute(computePeriod),
     onSuccess: (res) => {
       qc.invalidateQueries(['revenue-rules'])
       toast.success(`Auto-compute: ${res.data.total_recognised?.toLocaleString('es-ES', {style:'currency',currency:'EUR'})} reconocidos`)
@@ -209,14 +209,14 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: compute, isPending:computing } = useMutation({
-    mutationFn: ({ id, period }) => api.post(`/revenue/rules/${id}/compute`, { period }),
+    mutationFn: ({ id, period }) => revenueApi.compute(id, period),
     onSuccess: () => { qc.invalidateQueries(['rev-rules']); qc.invalidateQueries(['rev-summary']); setShowCompute(null) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   // ── New ASC 606 mutations ──────────────────────────────────────────────────
   const { mutate: createContract, isPending: creatingContract } = useMutation({
-    mutationFn: d => api.post('/revenue-recognition/contracts', d),
+    mutationFn: d => revenueRecognitionApi.createContract(d),
     onSuccess: () => {
       qc.invalidateQueries(['asc606-contracts'])
       qc.invalidateQueries(['asc606-dashboard', dashYear])
@@ -226,7 +226,7 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, 'Error al crear contrato')),
   })
   const { mutate: closePeriodMut, isPending: closingPeriod } = useMutation({
-    mutationFn: d => api.post('/revenue-recognition/period-closes', d),
+    mutationFn: d => revenueRecognitionApi.closePeriod(d),
     onSuccess: () => {
       qc.invalidateQueries(['asc606-period-closes'])
       setShowCloseModal(false)
@@ -235,12 +235,12 @@ export default function RevenuePage() {
     onError: e => toast.error(extractErr(e, 'Error al cerrar período')),
   })
   const { mutate: reopenPeriodMut } = useMutation({
-    mutationFn: ({ year, month }) => api.delete(`/revenue-recognition/period-closes/${year}/${month}`),
+    mutationFn: ({ year, month }) => revenueRecognitionApi.reopenPeriod(year, month),
     onSuccess: () => { qc.invalidateQueries(['asc606-period-closes']); toast.success('Período reabierto') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: runMonthly, isPending: runningMonthly } = useMutation({
-    mutationFn: d => api.post('/revenue-recognition/run-monthly', d),
+    mutationFn: d => revenueRecognitionApi.runMonthly(d),
     onSuccess: (res) => {
       qc.invalidateQueries(['asc606-dashboard', dashYear])
       const r = res.data.recognized

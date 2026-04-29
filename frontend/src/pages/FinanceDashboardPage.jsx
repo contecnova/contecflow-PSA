@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api, { currencyApi } from '../services/api'
 import { Spinner } from '../components/ui'
 import { DollarSign } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
+import { extractErr } from '../utils/helpers'
 import {
   COLOR, S, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange, fmtCur, typePalette,
@@ -51,6 +52,20 @@ export default function FinanceDashboardPage() {
     queryKey: ['fin-dash-top-proj', days],
     queryFn: () => api.get('/profitability/projects', { params }).then(r => r.data).catch(() => []),
     staleTime: 60_000,
+  })
+
+  const qc = useQueryClient()
+  const [showRateForm, setShowRateForm] = useState(false)
+  const [rateForm, setRateForm] = useState({ from_currency: 'EUR', to_currency: 'USD', rate: '' })
+  const { data: rates = [] } = useQuery({
+    queryKey: ['currency-rates'],
+    queryFn: () => currencyApi.rates().then(r => r.data).catch(() => []),
+    staleTime: 300_000,
+  })
+  const { mutate: upsertRate, isPending: savingRate } = useMutation({
+    mutationFn: d => currencyApi.upsert(d),
+    onSuccess: () => { qc.invalidateQueries(['currency-rates']); setShowRateForm(false); setRateForm({ from_currency:'EUR', to_currency:'USD', rate:'' }) },
+    onError: e => toast.error(extractErr(e, 'Error al guardar tipo de cambio')),
   })
 
   useEffect(() => {
@@ -244,6 +259,51 @@ export default function FinanceDashboardPage() {
           </div>
         </SectionCard>
       )}
+
+      {/* Currency exchange rates */}
+      <SectionCard title="Tipos de cambio"
+        badge={<button onClick={() => setShowRateForm(v => !v)}
+          style={{ fontSize:11, padding:'2px 9px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>
+          {showRateForm ? '✕' : '+ Añadir'}
+        </button>}
+      >
+        {showRateForm && (
+          <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:14, flexWrap:'wrap' }}>
+            {[['from_currency','De','EUR'],['to_currency','A','USD']].map(([k,l,ph]) => (
+              <div key={k} style={{ flex:'0 0 90px' }}>
+                <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>{l}</div>
+                <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({...f,[k]:e.target.value.toUpperCase()}))}
+                  style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder={ph} />
+              </div>
+            ))}
+            <div style={{ flex:'0 0 100px' }}>
+              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>Tasa</div>
+              <input type="number" step="0.0001" min="0" value={rateForm.rate} onChange={e => setRateForm(f => ({...f,rate:e.target.value}))}
+                style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder="1.0850" />
+            </div>
+            <button onClick={() => upsertRate({ from_currency:rateForm.from_currency, to_currency:rateForm.to_currency, rate:parseFloat(rateForm.rate) })}
+              disabled={savingRate || !rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
+              style={{ padding:'7px 14px', borderRadius:6, border:'1px solid var(--accent)', background:'var(--accent-muted)', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:600 }}>
+              {savingRate ? '...' : 'Guardar'}
+            </button>
+          </div>
+        )}
+        {rates.length === 0 ? (
+          <DashEmpty icon="💱" title="Sin tipos de cambio" description="Añade tasas de conversión para gestionar proyectos multi-divisa" />
+        ) : (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+            {rates.map(r => (
+              <div key={r.id} style={{ background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', fontSize:13 }}>
+                <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.from_currency}</span>
+                <span style={{ color:'var(--text-3)', margin:'0 6px' }}>→</span>
+                <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.to_currency}</span>
+                <span style={{ marginLeft:10, fontWeight:600, color:'var(--accent)' }}>{r.rate}</span>
+                {r.effective_date && <span style={{ marginLeft:8, fontSize:11, color:'var(--text-3)' }}>{r.effective_date}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
     </DashPageShell>
   )
 }

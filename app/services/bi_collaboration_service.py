@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.models.bi_collaboration import (
@@ -56,6 +56,15 @@ def _from_json_value(value: str, default: Any) -> Any:
 def _is_missing_table_error(exc: Exception, table_name: str) -> bool:
     message = str(exc).lower()
     return f"no such table: {table_name}" in message
+
+
+def _table_exists(db: Session, table_name: str) -> bool:
+    """Return True when the underlying DB has table_name available."""
+    try:
+        bind = db.get_bind()
+        return table_name in inspect(bind).get_table_names()
+    except Exception:
+        return False
 
 
 def _legacy_list_comments(
@@ -161,6 +170,15 @@ def list_comments(
     widget_id: Optional[str] = None,
     include_resolved: bool = False,
 ) -> list[dict[str, Any]]:
+    if not _table_exists(db, "dashboard_comments"):
+        return _legacy_list_comments(
+            db,
+            organization_id=organization_id,
+            dashboard_key=dashboard_key,
+            widget_id=widget_id,
+            include_resolved=include_resolved,
+        )
+
     try:
         q = db.query(DashboardComment)
         if organization_id:
@@ -210,6 +228,32 @@ def create_comment(
     message: str,
     author: User,
 ) -> dict[str, Any]:
+    if not _table_exists(db, "dashboard_comments"):
+        legacy_rows = _get_json(db, COMMENTS_KEY, organization_id, default=[])
+        if not isinstance(legacy_rows, list):
+            legacy_rows = []
+        payload = {
+            "id": str(uuid.uuid4()),
+            "dashboard_key": dashboard_key,
+            "widget_id": widget_id,
+            "message": message.strip(),
+            "author_id": author.id,
+            "author_name": author.full_name,
+            "resolved": False,
+            "resolved_at": None,
+            "resolved_by": None,
+            "created_at": _iso_now(),
+        }
+        legacy_rows.append(payload)
+        _set_json(
+            db,
+            COMMENTS_KEY,
+            organization_id,
+            legacy_rows,
+            description="BI Collaboration comments (legacy JSON fallback)",
+        )
+        return payload
+
     try:
         row = DashboardComment(
             organization_id=organization_id,
@@ -278,6 +322,40 @@ def resolve_comment(
     comment_id: str,
     current_user: User,
 ) -> dict[str, Any]:
+    if not _table_exists(db, "dashboard_comments"):
+        legacy_rows = _get_json(db, COMMENTS_KEY, organization_id, default=[])
+        if not isinstance(legacy_rows, list):
+            legacy_rows = []
+        now = _iso_now()
+        for row in legacy_rows:
+            if not isinstance(row, dict):
+                continue
+            if row.get("id") != comment_id:
+                continue
+            row["resolved"] = True
+            row["resolved_at"] = now
+            row["resolved_by"] = current_user.full_name
+            _set_json(
+                db,
+                COMMENTS_KEY,
+                organization_id,
+                legacy_rows,
+                description="BI Collaboration comments (legacy JSON fallback)",
+            )
+            return {
+                "id": row.get("id"),
+                "dashboard_key": row.get("dashboard_key"),
+                "widget_id": row.get("widget_id"),
+                "message": row.get("message") or "",
+                "author_id": row.get("author_id"),
+                "author_name": row.get("author_name"),
+                "resolved": True,
+                "resolved_at": row.get("resolved_at"),
+                "resolved_by": row.get("resolved_by"),
+                "created_at": row.get("created_at"),
+            }
+        raise ValueError("comment_not_found")
+
     try:
         q = db.query(DashboardComment).filter(DashboardComment.id == comment_id)
         if organization_id:

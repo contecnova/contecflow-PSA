@@ -6,7 +6,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, invoicesApi, accountingApi, clientsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { CreditCard, Download } from 'lucide-react'
@@ -24,8 +24,13 @@ function InvoicesTab() {
 
   // ── Sync contable ────────────────────────────────────────────────────────
   const [syncProvider, setSyncProvider] = useState('xero')
+  const { data: syncStatus } = useQuery({
+    queryKey: ['accounting-sync-status'],
+    queryFn: () => accountingApi.syncStatus().then(r => r.data).catch(() => null),
+    staleTime: 60_000,
+  })
   const { mutate: syncBulk, isPending: syncing } = useMutation({
-    mutationFn: () => api.post('/accounting/push-invoices-bulk', { provider: syncProvider, limit: 100 }),
+    mutationFn: () => accountingApi.pushBulk({ provider: syncProvider, limit: 100 }),
     onSuccess: (res) => toast.success(t('invoices.sync_success', { count: res.data.synced, provider: syncProvider })),
     onError: (e) => toast.error(e?.response?.data?.detail || t('invoices.sync_error')),
   })
@@ -40,20 +45,20 @@ function InvoicesTab() {
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices', selectedProject, statusFilter],
-    queryFn: () => api.get('/invoices', { params: { project_id: selectedProject || undefined, status: statusFilter || undefined } }).then(r => r.data),
+    queryFn: () => invoicesApi.list({ project_id: selectedProject || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
-  const { data: summary } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => api.get('/invoices/summary').then(r => r.data) })
+  const { data: summary } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => api.get('/clients').then(r => r.data) })
+  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.items || []) }) })
   const projects = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/invoices', d),
+    mutationFn: d => invoicesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']); qc.invalidateQueries(['clients']); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['client-invoices']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => api.patch(`/invoices/${id}/status`, { status }),
+    mutationFn: ({ id, status }) => invoicesApi.updateStatus(id, status),
     onSuccess: () => { qc.invalidateQueries(['invoices']); qc.invalidateQueries(['invoice-summary']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -62,7 +67,7 @@ function InvoicesTab() {
     setPdfLoadingId(inv.id)
     toast.info(t('invoices.pdf_generating', { number: inv.number }))
     try {
-      const res = await api.get(`/invoices/${inv.id}/pdf`, { responseType: 'blob' })
+      const res = await invoicesApi.pdf(inv.id)
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
@@ -77,7 +82,7 @@ function InvoicesTab() {
     }
   }
   const { mutate: generatePreview } = useMutation({
-    mutationFn: d => api.post('/invoices/from-timesheets', d).then(r => r.data),
+    mutationFn: d => invoicesApi.fromTimesheets(d).then(r => r.data),
     onSuccess: data => {
       setPreviewData(data)
       setForm(f => ({ ...f, client_name: data.client_name || f.client_name, lines: data.lines }))
@@ -138,6 +143,16 @@ function InvoicesTab() {
                 cursor: syncing ? 'wait' : 'pointer', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </button>
+            {syncStatus && (
+              <span style={{ fontSize: 11, color: syncStatus.last_sync_at ? 'var(--text-3)' : 'var(--warning)' }}>
+                {syncStatus.last_sync_at
+                  ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString('es-ES')}`
+                  : 'Sin sincronizar'}
+                {syncStatus.pending_count > 0 && (
+                  <span style={{ marginLeft: 6, color: 'var(--warning)', fontWeight: 600 }}>({syncStatus.pending_count} pendientes)</span>
+                )}
+              </span>
+            )}
             <Button onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>
           </div>
         </div>

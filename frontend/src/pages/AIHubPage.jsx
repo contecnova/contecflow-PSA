@@ -4,7 +4,7 @@ import { extractErr } from '../utils/helpers'
 import { useId, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { predictiveObservabilityApi } from '../services/api'
 import { PROVIDER_DOCS } from '../constants/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -307,6 +307,17 @@ export default function AIHubPage() {
     queryFn: () => api.get('/ai-providers/stats').then(r => r.data),
     enabled: tab === 'stats',
   })
+  const { data: obsHealth, isLoading: obsLoading } = useQuery({
+    queryKey: ['predictive-obs-health'],
+    queryFn: () => predictiveObservabilityApi.health({}).then(r => r.data).catch(() => null),
+    enabled: tab === 'observability',
+    staleTime: 120_000,
+  })
+  const { mutate: triggerRetrain, isPending: retraining } = useMutation({
+    mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
+    onSuccess: (res) => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries(['predictive-obs-health']) },
+    onError: e => toast.error(extractErr(e, 'Error al reentrenar')),
+  })
 
   const { mutate: setDefault } = useMutation({
     mutationFn: id => api.post(`/ai-providers/${id}/set-default`),
@@ -385,7 +396,7 @@ export default function AIHubPage() {
 
       {/* Tabs */}
       <div role="tablist" aria-label={t('ai.hub_title')} style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {[['providers',t('ai.providers')],['stats',t('ai.usage')],['guide',t('ai.guide')]].map(([id, label]) => (
+        {[['providers',t('ai.providers')],['stats',t('ai.usage')],['observability','🔬 Observabilidad'],['guide',t('ai.guide')]].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} aria-controls={`aihub-panel-${id}`} id={`aihub-tab-${id}`} onClick={() => setTab(id)}
             style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
@@ -546,6 +557,96 @@ export default function AIHubPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* OBSERVABILITY TAB */}
+      {tab === 'observability' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Estado de salud de los modelos predictivos ITSM y BI (solo admins)</div>
+            <Button onClick={() => triggerRetrain()} disabled={retraining}>
+              {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
+            </Button>
+          </div>
+
+          {obsLoading ? <Spinner /> : !obsHealth ? (
+            <div style={{ ...card, padding: '32px', textAlign: 'center', color: 'var(--text-3)' }}>
+              Sin datos de observabilidad — requiere permisos de administrador
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {[
+                { key: 'itsm', label: 'Modelo ITSM', data: obsHealth.itsm },
+                { key: 'bi',   label: 'Modelo BI',   data: obsHealth.bi },
+              ].map(({ key, label, data }) => {
+                if (!data) return null
+                const statusColor = data.status === 'healthy' ? 'var(--success)' : data.status === 'attention' ? 'var(--warning)' : 'var(--text-3)'
+                return (
+                  <div key={key} style={{ ...card, padding: '18px 20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+                      <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, background: `${statusColor}18`, color: statusColor, fontWeight: 600 }}>
+                        {data.status || 'unknown'}
+                      </span>
+                    </div>
+                    {data.score != null && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                          <span style={{ color: 'var(--text-2)' }}>Score de salud</span>
+                          <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
+                        </div>
+                        <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: 3, width: `${Math.min(data.score * 100, 100)}%`, background: statusColor, transition: 'width .4s' }} />
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                      {data.total_predictions != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-3)' }}>Predicciones</span>
+                          <span>{data.total_predictions}</span>
+                        </div>
+                      )}
+                      {data.accuracy != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-3)' }}>Precisión</span>
+                          <span>{(data.accuracy * 100).toFixed(1)}%</span>
+                        </div>
+                      )}
+                      {data.drift_detected != null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--text-3)' }}>Drift detectado</span>
+                          <span style={{ color: data.drift_detected ? 'var(--warning)' : 'var(--success)' }}>
+                            {data.drift_detected ? '⚠ Sí' : '✓ No'}
+                          </span>
+                        </div>
+                      )}
+                      {data.reason && (
+                        <div style={{ marginTop: 6, padding: '6px 10px', background: 'var(--surface-3)', borderRadius: 6, color: 'var(--text-2)', lineHeight: 1.4 }}>
+                          {data.reason}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {obsHealth && (
+            <div style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 28 }}>
+                {obsHealth.overall_status === 'healthy' ? '✅' : obsHealth.overall_status === 'attention' ? '⚠️' : '❓'}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>Estado global: {obsHealth.overall_status}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                  Score combinado: {obsHealth.overall_score != null ? `${(obsHealth.overall_score * 100).toFixed(0)}%` : '—'}
+                </div>
+              </div>
             </div>
           )}
         </div>
