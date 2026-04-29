@@ -711,39 +711,39 @@ export default function BIPage() {
     if (!rulesDraft) return
     await biCollaborationApi.updateGovernanceRules(rulesDraft)
     await refetchRules()
+  }
 
-    async function handleLogGovAuditEvent() {
-      await biGovernanceAuditApi.logAccessEvent({
-        user_id: govAuditUserFilter.trim() || 'console',
-        resource: 'bi_dashboard',
-        action: 'view',
-      }).catch(() => null)
-      setGovAuditTick(x => x + 1)
-    }
+  async function handleLogGovAuditEvent() {
+    await biGovernanceAuditApi.logAccessEvent({
+      user_id: govAuditUserFilter.trim() || 'console',
+      resource: 'bi_dashboard',
+      action: 'view',
+    }).catch(() => null)
+    setGovAuditTick(x => x + 1)
+  }
 
-    async function handleAddLineageEdge() {
-      const src = newLineageSource.trim()
-      const tgt = newLineageTarget.trim()
-      if (!src || !tgt) return
-      await biGovernanceAuditApi.trackLineage({ source_table: src, target_table: tgt }).catch(() => null)
-      setNewLineageSource('')
-      setNewLineageTarget('')
-      setGovAuditTick(x => x + 1)
-    }
+  async function handleAddLineageEdge() {
+    const src = newLineageSource.trim()
+    const tgt = newLineageTarget.trim()
+    if (!src || !tgt) return
+    await biGovernanceAuditApi.trackLineage({ source_table: src, target_table: tgt }).catch(() => null)
+    setNewLineageSource('')
+    setNewLineageTarget('')
+    setGovAuditTick(x => x + 1)
+  }
 
-    async function handleUpsertFieldSensitivity() {
-      const field = newFieldName.trim()
-      const dataset = newFieldDataset.trim()
-      if (!field || !dataset) return
-      await biGovernanceAuditApi.upsertFieldSensitivity({
-        dataset_id: dataset,
-        field_name: field,
-        sensitivity: newFieldSensitivity,
-      }).catch(() => null)
-      setNewFieldName('')
-      setNewFieldDataset('')
-      setGovAuditTick(x => x + 1)
-    }
+  async function handleUpsertFieldSensitivity() {
+    const field = newFieldName.trim()
+    const dataset = newFieldDataset.trim()
+    if (!field || !dataset) return
+    await biGovernanceAuditApi.upsertFieldSensitivity({
+      dataset_id: dataset,
+      field_name: field,
+      sensitivity: newFieldSensitivity,
+    }).catch(() => null)
+    setNewFieldName('')
+    setNewFieldDataset('')
+    setGovAuditTick(x => x + 1)
   }
 
   async function handleToggleConnector(name, enabled) {

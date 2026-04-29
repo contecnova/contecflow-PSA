@@ -1223,6 +1223,7 @@ const en = {
     group_business: 'Clients & Finance',
     group_support: 'Support & ITSM',
     group_analytics: 'Analytics & BI',
+    'sd/workflow_designer': 'SD Workflow Designer',
     group_ai: 'AI & Automation',
     group_settings: 'Settings'
   },
@@ -1431,6 +1432,7 @@ const en = {
   service_desk: {
     title: 'Service Desk',
     subtitle: 'Centralized ticket, incident and support request management',
+    ann_empty_desc: 'There are no active announcements at the moment.',
   },
   reports: {
     title: 'Analytics & Reports',
