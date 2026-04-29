@@ -581,11 +581,37 @@ export const accountingApi = {
 }
 
 // ── Currency Rates ────────────────────────────────────────────────────────────
+const getWithFallback = async (paths, config) => {
+  let lastErr
+  for (const path of paths) {
+    try {
+      return await api.get(path, config)
+    } catch (err) {
+      lastErr = err
+      if (err?.response?.status !== 404) throw err
+    }
+  }
+  throw lastErr
+}
+
+const postWithFallback = async (paths, data, config) => {
+  let lastErr
+  for (const path of paths) {
+    try {
+      return await api.post(path, data, config)
+    } catch (err) {
+      lastErr = err
+      if (err?.response?.status !== 404) throw err
+    }
+  }
+  throw lastErr
+}
+
 export const currencyApi = {
-  rates:   (params)        => api.get('/currency/rates', { params }),
-  upsert:  (data)          => api.post('/currency/rates', data),
-  convert: (params)        => api.get('/currency/convert', { params }),
-  report:  (params)        => api.get('/currency/report', { params }),
+  rates:   (params)        => getWithFallback(['/currency-rates/currency/rates', '/bookings/currency/rates', '/currency/rates'], { params }),
+  upsert:  (data)          => postWithFallback(['/currency-rates/currency/rates', '/bookings/currency/rates', '/currency/rates'], data),
+  convert: (params)        => getWithFallback(['/currency-rates/currency/convert', '/currency/convert'], { params }),
+  report:  (params)        => getWithFallback(['/currency-rates/currency/report', '/currency/report'], { params }),
 }
 
 // ── Predictive Observability ──────────────────────────────────────────────────

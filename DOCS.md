@@ -6191,3 +6191,32 @@ Corrección aplicada:
 Resultado:
 - Se elimina el crash de `AppLangProvider`.
 - Queda resuelto el ciclo de dependencias entre `AppLangProvider`, `ToastProvider` y `AuthProvider` sin degradar funcionalidad.
+
+## 15. Frontend warnings en consola: i18n missing key y 404 de currency rates
+
+Problemas observados en desarrollo:
+- Warning i18n: `[i18n-missing] resources.analyzing_load_patterns (lang=es, source=humanized)`.
+- Error de red: `GET /api/v1/currency/rates 404` al cargar dashboard financiero.
+
+Causas:
+- Faltaba la clave `resources.analyzing_load_patterns` en el catálogo de traducciones.
+- El frontend llamaba rutas legacy (`/currency/*`) que no existen en algunos despliegues, donde la API está expuesta bajo prefijos como `/currency-rates/currency/*`.
+
+Correcciones aplicadas:
+- `frontend/src/i18n/langs/es.mjs`
+  - Se añaden claves:
+    - `resources.analyzing_load_patterns`
+    - `resources.empty_title`
+    - `resources.empty_desc`
+- `frontend/src/i18n/langs/en.mjs`
+  - Se añaden las mismas claves para cobertura de fallback.
+- `frontend/src/services/api.js`
+  - Se añaden helpers con fallback por 404 (`getWithFallback`, `postWithFallback`).
+  - `currencyApi` ahora intenta rutas compatibles por orden:
+    - `/currency-rates/currency/*`
+    - `/bookings/currency/*` (cuando aplica)
+    - `/currency/*` (legacy)
+
+Resultado esperado:
+- Desaparece el warning de clave i18n faltante en la vista de recursos.
+- Se evita el 404 de `currency/rates` en entornos con prefijos de router distintos.
