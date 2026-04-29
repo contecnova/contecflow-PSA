@@ -229,8 +229,8 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`epics/wiki/pages/${editPage.id}`, d).then(r=>r.data)
-      : api.post(`epics/wiki/spaces/${spaceId}/pages`, d).then(r=>r.data),
+      ? wikiApi.updatePage(editPage.id, d).then(r=>r.data)
+      : wikiApi.createPage(spaceId, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries(['wiki-pages', spaceId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -345,18 +345,18 @@ function WikiTagsInline() {
 
   const { data: spaces = [] } = useQuery({
     queryKey: ['wiki-spaces-tags'],
-    queryFn: () => api.get('epics/wiki/spaces').then(r => r.data).catch(() => []),
+    queryFn: () => wikiApi.spaces().then(r => r.data).catch(() => []),
   })
   const { data: tags = [], isLoading } = useQuery({
     queryKey: ['wiki-tags-inline', space],
-    queryFn: () => space ? api.get(`/wiki-tags/${space}`).then(r => r.data).catch(() => []) : [],
+    queryFn: () => space ? wikiApi.tags(space).then(r => r.data).catch(() => []) : [],
     enabled: !!space,
   })
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: d => editing
-      ? api.patch(`/wiki-tags/${editing.id}`, d).then(r => r.data)
-      : api.post(`/wiki-tags/${space}`, d).then(r => r.data),
+      ? wikiApi.updateTag(editing.id, d).then(r => r.data)
+      : wikiApi.createTag(space, d).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries(['wiki-tags-inline', space])
       setShowForm(false); setEditing(null); setForm({ name: '', color: 'var(--accent)' })
@@ -365,7 +365,7 @@ function WikiTagsInline() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/wiki-tags/${id}`),
+    mutationFn: id => wikiApi.deleteTag(id),
     onSuccess: () => { qc.invalidateQueries(['wiki-tags-inline', space]); toast.success('Etiqueta eliminada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -461,48 +461,48 @@ export default function WikiPage() {
   const [spaceForm,  setSpaceForm] = useState({name:'',slug:'',description:'',project_id:'',is_public:false})
   const [showHistory, setShowHistory] = useState(false)
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:versions=[], isLoading:lVer } = useQuery({
     queryKey:['wiki-versions', page?.id],
-    queryFn:()=>api.get(`epics/wiki/pages/${page.id}/versions`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>wikiApi.versions(page.id).then(r=>r.data).catch(()=>[]),
     enabled:!!page?.id && showHistory,
   })
 
-    const { data:spaces=[],isLoading:lSpaces } = useQuery({queryKey:['wiki-spaces'],queryFn:()=>api.get('epics/wiki/spaces').then(r=>r.data).catch(()=>[])})
-  const { data:pages=[],isLoading:lPages }   = useQuery({queryKey:['wiki-pages',space?.id],queryFn:()=>api.get(`epics/wiki/spaces/${space.id}/pages`).then(r=>r.data).catch(()=>[]),enabled:!!space})
+    const { data:spaces=[],isLoading:lSpaces } = useQuery({queryKey:['wiki-spaces'],queryFn:()=>wikiApi.spaces().then(r=>r.data).catch(()=>[])})
+  const { data:pages=[],isLoading:lPages }   = useQuery({queryKey:['wiki-pages',space?.id],queryFn:()=>wikiApi.pages(space.id).then(r=>r.data).catch(()=>[]),enabled:!!space})
 
   const { mutate:createSpace,isPending:cSpace } = useMutation({
-    mutationFn: d=>api.post('epics/wiki/spaces',d).then(r=>r.data),
+    mutationFn: d=>wikiApi.createSpace(d).then(r=>r.data),
     onSuccess: ()=>{qc.invalidateQueries(['wiki-spaces']);setSpaceModal(false);setSpaceForm({name:'',slug:'',description:'',project_id:'',is_public:false})},
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate:restoreVersion, isPending:restoring } = useMutation({
-    mutationFn: (vn)=>api.post(`epics/wiki/pages/${page.id}/restore/${vn}`).then(r=>r.data),
+    mutationFn: (vn)=>wikiApi.restorePage(page.id, vn).then(r=>r.data),
     onSuccess: (d)=>{
       qc.invalidateQueries(['wiki-pages', space?.id])
       qc.invalidateQueries(['wiki-versions', page?.id])
       setShowHistory(false)
       toast.info(`Restaurado a versión ${d.restored_to}. Nueva versión: ${d.new_version}`)
       // Recargar página actual
-      api.get(`epics/wiki/pages/${page.id}`).then(r=>setPage(r.data)).catch(()=>{})
+      wikiApi.getPage(page.id).then(r=>setPage(r.data)).catch(()=>{})
     },
     onError: e => toast.error(extractErr(e, 'Error al restaurar')),
   })
 
     const { mutate:deletePage } = useMutation({
-    mutationFn: id=>api.delete(`epics/wiki/pages/${id}`),
+    mutationFn: id=>wikiApi.deletePage(id),
     onSuccess: ()=>{qc.invalidateQueries(['wiki-pages',space?.id]);setPage(null)},
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const openPage = async (p) => {
-    const full = await api.get(`epics/wiki/pages/${p.id}`).then(r=>r.data).catch(()=>p)
+    const full = await wikiApi.getPage(p.id).then(r=>r.data).catch(()=>p)
     setPage(full)
   }
 
   const doSearch = async () => {
     if(!searchQ.trim()) return
-    const r = await api.get(`epics/wiki/search?q=${encodeURIComponent(searchQ)}${space?`&space_id=${space.id}`:''}`)
+    const r = await wikiApi.search(searchQ, space?.id)
     setSearchRes(r.data)
   }
 

@@ -7,7 +7,7 @@
 import _React, { useState, useRef, useCallback, useMemo } from 'react';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../services/api';
+import { documentsApi, projectsApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -359,7 +359,7 @@ function UploadModal({ open, onClose, onSuccess }) {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-minimal'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
     staleTime: 30000,
   });
 
@@ -373,7 +373,7 @@ function UploadModal({ open, onClose, onSuccess }) {
       if (form.tags) fd.append('tags', form.tags);
       fd.append('requires_approval', String(form.requires_approval));
       if (form.project_id) fd.append('project_id', form.project_id);
-      return api.post('/documents/upload', fd);
+      return documentsApi.upload(fd);
     },
     onSuccess: () => { toast.success('Documento subido correctamente'); onSuccess(); },
     onError: e => toast.error(e.response?.data?.detail
@@ -529,7 +529,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
   const { data: doc, isLoading } = useQuery({
     queryKey: ['document', documentId],
     queryFn: async () => {
-      const res = await api.get(`/documents/${documentId}`);
+      const res = await documentsApi.get(documentId);
       const d = res.data;
       if (d.versions) d.versions = d.versions.map(v => ({ ...v, download_url: v.download_url || v.s3_url }));
       return d;
@@ -538,13 +538,13 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
   });
 
   const approveMutation = useMutation({
-    mutationFn: status => api.post(`/documents/${documentId}/approve`, { status }),
+    mutationFn: status => documentsApi.approve(documentId, { status }),
     onSuccess: (_, s) => { toast.success(s === 'approved' ? 'Documento aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   });
 
   const summaryMutation = useMutation({
-    mutationFn: () => api.post(`/documents/${documentId}/ai-summary`),
+    mutationFn: () => documentsApi.aiSummary(documentId),
     onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); },
     onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
   });
@@ -554,14 +554,14 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
       const fd = new FormData();
       fd.append('file', file);
       if (changeNote) fd.append('change_note', changeNote);
-      return api.post(`/documents/${documentId}/versions`, fd);
+      return documentsApi.addVersion(documentId, fd);
     },
     onSuccess: () => { toast.success('Nueva versión subida'); qc.invalidateQueries({ queryKey: ['document', documentId] }); setFile(null); setChangeNote(''); setShowUploadVersion(false); onRefresh(); },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
   });
 
   const updateMetaMutation = useMutation({
-    mutationFn: data => api.patch(`/documents/${documentId}`, data),
+    mutationFn: data => documentsApi.update(documentId, data),
     onSuccess: () => {
       toast.success('Metadatos actualizados');
       qc.invalidateQueries({ queryKey: ['document', documentId] });
@@ -895,7 +895,7 @@ export default function DocumentsPage() {
       const p = { limit: 200 };
       if (filterCat) p.category = filterCat;
       if (search) p.search = search;
-      return api.get('/documents', { params: p }).then(r => Array.isArray(r.data) ? r.data : []);
+      return documentsApi.list(p).then(r => Array.isArray(r.data) ? r.data : []);
     },
   });
 
@@ -928,19 +928,19 @@ export default function DocumentsPage() {
   }, [docsRaw]);
 
   const deleteMutation = useMutation({
-    mutationFn: id => api.delete(`/documents/${id}`),
+    mutationFn: id => documentsApi.delete(id),
     onSuccess: () => { toast.success('Documento eliminado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
     onError: () => toast.error('Error al eliminar'),
   });
 
   const summaryMutation = useMutation({
-    mutationFn: id => api.post(`/documents/${id}/ai-summary`),
+    mutationFn: id => documentsApi.aiSummary(id),
     onSuccess: () => { toast.success('Resumen IA generado'); qc.invalidateQueries({ queryKey: ['documents'] }); },
     onError: e => toast.error(e.response?.data?.detail || 'Error IA'),
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: () => Promise.all([...selectedIds].map(id => api.delete(`/documents/${id}`))),
+    mutationFn: () => Promise.all([...selectedIds].map(id => documentsApi.delete(id))),
     onSuccess: () => { toast.success(`${selectedIds.size} documento(s) eliminados`); setSelectedIds(new Set()); qc.invalidateQueries({ queryKey: ['documents'] }); },
     onError: () => toast.error('Error en operación masiva'),
   });
