@@ -1284,6 +1284,7 @@ const es = {
     work_dashboard: 'Mi panel de trabajo',
     team_dashboard: 'Panel de equipo',
     timesheets: 'Hojas de horas',
+    time: 'Tiempo',
     projects_dashboard: 'Panel de proyectos',
     raci: 'Matriz RACI',
     changelog: 'Registro de cambios',

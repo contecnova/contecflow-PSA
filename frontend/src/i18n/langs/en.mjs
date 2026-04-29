@@ -1225,7 +1225,8 @@ const en = {
     group_analytics: 'Analytics & BI',
     'sd/workflow_designer': 'SD Workflow Designer',
     group_ai: 'AI & Automation',
-    group_settings: 'Settings'
+    group_settings: 'Settings',
+    time: 'Time',
   },
   login: {
     brand_title: 'Welcome to the new era of management',

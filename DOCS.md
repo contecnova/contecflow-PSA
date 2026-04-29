@@ -6220,3 +6220,50 @@ Correcciones aplicadas:
 Resultado esperado:
 - Desaparece el warning de clave i18n faltante en la vista de recursos.
 - Se evita el 404 de `currency/rates` en entornos con prefijos de router distintos.
+
+## 16. Consola frontend: claves i18n faltantes y `ReferenceError` en BI Workspace
+
+Problemas observados:
+- Warnings i18n:
+  - `[i18n-missing] nav.sd/workflow_designer (lang=es, source=humanized)`
+  - `[i18n-missing] service_desk.ann_empty_desc (lang=es, source=humanized)`
+- Error bloqueante en BI:
+  - `ReferenceError: handleLogGovAuditEvent is not defined` en `BIWorkspacePage.jsx`.
+
+Causas:
+- Faltaban claves de traducción en el catálogo (`es` y fallback `en`).
+- En `BIWorkspacePage.jsx`, los handlers de gobernanza (`handleLogGovAuditEvent`, `handleAddLineageEdge`, `handleUpsertFieldSensitivity`) quedaron anidados por error dentro de `handleSaveGovernanceRules`, por lo que no existían en el scope del render.
+
+Correcciones aplicadas:
+- `frontend/src/i18n/langs/es.mjs`
+  - Se añaden claves:
+    - `nav['sd/workflow_designer']`
+    - `service_desk.ann_empty_desc`
+- `frontend/src/i18n/langs/en.mjs`
+  - Se añaden claves equivalentes para fallback:
+    - `nav['sd/workflow_designer']`
+    - `service_desk.ann_empty_desc`
+- `frontend/src/pages/BIWorkspacePage.jsx`
+  - Se corrige el scope de funciones: los tres handlers se mueven al nivel del componente (fuera de `handleSaveGovernanceRules`).
+
+Resultado esperado:
+- Desaparecen los warnings i18n indicados.
+- Deja de romper BI Workspace por `handleLogGovAuditEvent is not defined`.
+
+## 17. Warning i18n: `nav.time` faltante
+
+Problema observado:
+- En frontend aparecía el warning:
+  - `[i18n-missing] nav.time (lang=es, source=humanized)`
+
+Causa:
+- Faltaba la clave `time` dentro del bloque `nav` en los catálogos de idioma.
+
+Corrección aplicada:
+- `frontend/src/i18n/langs/es.mjs`
+  - Se añade `nav.time = 'Tiempo'`.
+- `frontend/src/i18n/langs/en.mjs`
+  - Se añade `nav.time = 'Time'` para mantener fallback consistente.
+
+Resultado esperado:
+- Desaparece el warning de clave faltante `nav.time` en la navegación.
