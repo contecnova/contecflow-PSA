@@ -53,7 +53,7 @@ function _noop_table() {
   return {
     put: async () => null,
     get: async () => null,
-    getAll: async () => [],
+    toArray: async () => [],
     delete: async () => null,
     where: () => ({ toArray: async () => [], delete: async () => null }),
   }
@@ -100,32 +100,57 @@ export async function readCache(key) {
 /**
  * Sync all pending queued operations to the backend.
  * Safe to call multiple times — idempotent on empty queue.
+ * Conflict resolution strategy: on HTTP 409 the server version wins —
+ * the local op is discarded and counted as a conflict.
  * @param {function} apiFn — async function(op) => response (default: fetch)
+ * @returns {{ synced: number, failed: number, conflicts: number, total: number }}
  */
 export async function syncPendingOps(apiFn) {
-  if (!navigator.onLine) return { synced: 0, failed: 0 }
+  if (!navigator.onLine) return { synced: 0, failed: 0, conflicts: 0, total: 0 }
   
-  const ops = await offlineDb.pendingOps.getAll()
+  const ops = await offlineDb.pendingOps.toArray()
   let synced = 0
   let failed = 0
+  let conflicts = 0
 
   for (const op of ops) {
     try {
+      let response
       if (apiFn) {
-        await apiFn(op)
+        response = await apiFn(op)
       } else {
-        await fetch(op.url, {
+        response = await fetch(op.url, {
           method: op.method,
           headers: { 'Content-Type': 'application/json', ...(op.headers ?? {}) },
           body: op.body ? JSON.stringify(op.body) : undefined,
         })
+        // Treat non-2xx as errors (except 409 handled below)
+        if (!response.ok && response.status !== 409) {
+          throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status })
+        }
       }
+
+      // 409 Conflict — server wins: discard local op
+      const status = response?.status ?? (response?.response?.status)
+      if (status === 409) {
+        await offlineDb.pendingOps.delete(op.id)
+        conflicts++
+        continue
+      }
+
       await offlineDb.pendingOps.delete(op.id)
       synced++
-    } catch {
+    } catch (err) {
+      // Also catch 409 thrown by apiFn
+      const httpStatus = err?.status ?? err?.response?.status
+      if (httpStatus === 409) {
+        await offlineDb.pendingOps.delete(op.id)
+        conflicts++
+        continue
+      }
       failed++
       // Increment retry count; give up after 5
-      if (op.retries >= 5) {
+      if ((op.retries ?? 0) >= 5) {
         await offlineDb.pendingOps.delete(op.id)
       } else {
         await offlineDb.pendingOps.put({ ...op, retries: (op.retries ?? 0) + 1 })
@@ -133,7 +158,7 @@ export async function syncPendingOps(apiFn) {
     }
   }
 
-  return { synced, failed, total: ops.length }
+  return { synced, failed, conflicts, total: ops.length }
 }
 
 /**
@@ -161,7 +186,7 @@ export function useOfflineSync(apiInstance) {
   }, [])
 
   useEffect(() => {
-    offlineDb.pendingOps.getAll().then(ops => setPendingCount(ops.length)).catch(() => {})
+    offlineDb.pendingOps.toArray().then(ops => setPendingCount(ops.length)).catch(() => {})
   }, [isOnline])
 
   useEffect(() => {
@@ -177,5 +202,5 @@ export function useOfflineSync(apiInstance) {
       .catch(() => {})
   }, [isOnline, apiInstance])
 
-  return { isOnline, pendingCount, lastSyncResult }
+  return { isOnline, pendingCount, lastSyncResult, conflicts: lastSyncResult?.conflicts ?? 0 }
 }

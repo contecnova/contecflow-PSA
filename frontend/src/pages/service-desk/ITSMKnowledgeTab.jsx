@@ -2,6 +2,7 @@ import { useAppT } from "../../hooks/useAppT";
 import { useId, useState } from 'react'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import RcaWizardModal from '../../components/servicedesk/RcaWizardModal'
 
 import { extractErr } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
@@ -32,12 +33,41 @@ function PBadge({ v }) {
   )
 }
 
+function KELinkedTickets({ kedbId }) {
+  const { data: tickets, isLoading } = useQuery({
+    queryKey: ['sd-ke-tickets', kedbId],
+    queryFn: () => api.get(`/sd/known-errors/${kedbId}/tickets`).then(r => r.data).catch(() => []),
+    staleTime: 30000,
+  })
+  if (isLoading) return <div style={{ padding: '8px 0' }}><Spinner /></div>
+  if (!tickets?.length) return (
+    <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0', borderTop: '1px solid var(--surface-4)', marginTop: 10 }}>
+      No hay tickets vinculados a este error conocido.
+    </div>
+  )
+  return (
+    <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 8 }}>Tickets vinculados</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tickets.map(tk => (
+          <div key={tk.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)' }}>#{tk.id}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-1)', flex: 1 }}>{tk.title}</span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{tk.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function KnownErrors() {
   useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [expandedKE, setExpandedKE] = useState(null)
 
   const { data: kedb = [], isLoading } = useQuery({
     queryKey: ['sd-kedb'],
@@ -71,7 +101,12 @@ function KnownErrors() {
                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{ke.title}</span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4 }}>{ke.affected_tickets || 0} tickets</span>
+                <button
+                  onClick={() => setExpandedKE(expandedKE === ke.id ? null : ke.id)}
+                  style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  {ke.affected_tickets || 0} tickets {expandedKE === ke.id ? '▲' : '▼'}
+                </button>
                 <button onClick={() => setEditing(ke)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
               </div>
             </div>
@@ -97,6 +132,10 @@ function KnownErrors() {
                 </div>
               </div>
             ) : null}
+            {/* Linked tickets */}
+            {expandedKE === ke.id && (
+              <KELinkedTickets kedbId={ke.id} />
+            )}
           </div>
         ))}
       </div>}
@@ -164,6 +203,7 @@ function Problems() {
   const toast = useToast()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [rcaWizardProblem, setRcaWizardProblem] = useState(null)
 
   const { data: problems = [], isLoading } = useQuery({
     queryKey: ['sd-problems'],
@@ -183,6 +223,15 @@ function Problems() {
     mutationFn: id => api.delete(`/sd/problems/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-problems'] }); toast.success('Problema eliminado') },
     onError: e => toast.error(extractErr(e, 'Error')),
+  })
+  const { mutate: promoteToKE, variables: promotingId } = useMutation({
+    mutationFn: id => api.post(`/sd/problems/${id}/promote-known-error`),
+    onSuccess: () => {
+      toast.success('Problema promovido a Error Conocido (KEDB)')
+      qc.invalidateQueries({ queryKey: ['sd-problems'] })
+      qc.invalidateQueries({ queryKey: ['sd-kedb'] })
+    },
+    onError: e => toast.error(extractErr(e, 'Error al promover')),
   })
 
   const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -230,6 +279,16 @@ function Problems() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{p.title}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => setRcaWizardProblem(p)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: '#63b3ed', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>🔍 RCA</button>
+                      {p.status !== 'known_error' && (
+                        <button
+                          onClick={() => openConfirmGlobal({ message: `¿Promover "${p.title}" a Error Conocido (KEDB)?`, onConfirm: () => promoteToKE(p.id), danger: false })}
+                          disabled={promotingId === p.id}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(251,146,60,0.4)', background: 'transparent', color: '#fb923c', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          📋 Promover a KE
+                        </button>
+                      )}
                       <button onClick={() => { setEditing(p); setShowModal(true) }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
                       <button onClick={() => confirm(`Eliminar "${p.title}"?`) && deleteProblem(p.id)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,71,87,0.3)', background: 'transparent', color: COLOR.danger, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
                     </div>
@@ -262,6 +321,13 @@ function Problems() {
           }
           isPending={creating || updating}
           IS={IS} LS={LS}
+        />
+      )}
+      {rcaWizardProblem && (
+        <RcaWizardModal
+          problem={rcaWizardProblem}
+          onClose={() => setRcaWizardProblem(null)}
+          onCompleted={() => qc.invalidateQueries({ queryKey: ['sd-problems'] })}
         />
       )}
     </div>

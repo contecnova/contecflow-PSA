@@ -33,7 +33,7 @@ from app.services.service_desk.voice_agent_service import (
     list_sessions,
 )
 
-router = APIRouter(prefix="/sd/voice", tags=["Service Desk - Voice Agent IVR"])
+router = APIRouter(prefix="/voice", tags=["Service Desk - Voice Agent IVR"])
 
 
 class ConfigUpdate(BaseModel):

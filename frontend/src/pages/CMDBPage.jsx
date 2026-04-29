@@ -277,6 +277,170 @@ function ChangelogModal({ item, onClose }) {
 }
 
 
+// ── Linked assets for a CI (drill-down panel) ────────────────────────────────
+function CILinkedAssets({ ciId }) {
+  const { data: assets, isLoading } = useQuery({
+    queryKey: ['ci-assets', ciId],
+    queryFn: () => api.get(`/assets/by-ci/${ciId}`).then(r => r.data).catch(() => []),
+    staleTime: 30000,
+  })
+  if (isLoading) return null
+  if (!assets?.length) return (
+    <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Activos vinculados</div>
+      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Ningún activo vinculado a este CI.</div>
+    </div>
+  )
+  return (
+    <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+        Activos vinculados ({assets.length})
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {assets.map(a => (
+          <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
+            <span style={{ fontSize: 13 }}>{CI_TYPE_ICONS[a.asset_type] || '📦'}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+              {a.serial_number && <div style={{ fontSize: 10, color: 'var(--text-3)' }}>S/N: {a.serial_number}</div>}
+            </div>
+            <span style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{a.status || 'activo'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── CMDB Agents on-prem tab ──────────────────────────────────────────────────
+function CMDBAgentsTab() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const [agentName, setAgentName] = useState('')
+  const [platform, setPlatform] = useState('linux')
+  const [newToken, setNewToken] = useState(null)
+
+  const { data: agents = [], isLoading } = useQuery({
+    queryKey: ['cmdb-agents'],
+    queryFn: () => api.get('/cmdb/agents').then(r => r.data).catch(() => []),
+    refetchInterval: 15000,
+  })
+
+  const { mutate: registerAgent, isPending } = useMutation({
+    mutationFn: () => api.post('/cmdb/agents/register', { name: agentName.trim(), platform }),
+    onSuccess: (res) => {
+      toast.success('Agente registrado')
+      setNewToken(res.data?.token ?? res.data?.registration_token ?? null)
+      setAgentName('')
+      qc.invalidateQueries({ queryKey: ['cmdb-agents'] })
+    },
+    onError: () => toast.error('Error al registrar agente'),
+  })
+
+  const { mutate: deleteAgent } = useMutation({
+    mutationFn: (id) => api.delete(`/cmdb/agents/${id}`),
+    onSuccess: () => { toast.success('Agente eliminado'); qc.invalidateQueries({ queryKey: ['cmdb-agents'] }) },
+    onError: () => toast.error('Error al eliminar agente'),
+  })
+
+  const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Registration form */}
+      <div style={{ ...ps }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+          🤖 Registrar nuevo agente on-prem
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
+          <div>
+            <label style={labelStyle}>Nombre del agente</label>
+            <input value={agentName} onChange={e => setAgentName(e.target.value)} style={inputStyle} placeholder="agent-datacenter-01" />
+          </div>
+          <div>
+            <label style={labelStyle}>Plataforma</label>
+            <select value={platform} onChange={e => setPlatform(e.target.value)} style={{ ...inputStyle, width: 120 }}>
+              <option value="linux">🐧 Linux</option>
+              <option value="windows">🪟 Windows</option>
+              <option value="macos">🍎 macOS</option>
+            </select>
+          </div>
+          <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>
+            Registrar
+          </Button>
+        </div>
+
+        {/* Show token after registration */}
+        {newToken && (
+          <div style={{ marginTop: 16, background: 'rgba(99,179,237,0.08)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 10, padding: '14px 18px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#63b3ed', textTransform: 'uppercase', marginBottom: 8 }}>
+              🔑 Token de registro (úsalo una sola vez)
+            </div>
+            <code style={{ display: 'block', fontSize: 12, color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'monospace', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
+              {newToken}
+            </code>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>
+              Ejecuta el agente con: <code style={{ fontFamily: 'monospace' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
+            </div>
+            <button onClick={() => setNewToken(null)} style={{ marginTop: 10, background: 'none', border: 'none', color: '#718096', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Ocultar token
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Registered agents list */}
+      <div style={{ ...ps }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+          📋 Agentes registrados ({agents.length})
+        </div>
+        {isLoading ? <Spinner /> :
+         agents.length === 0 ? (
+           <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>
+             No hay agentes registrados. Registra el primero arriba.
+           </div>
+         ) : (
+           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+             <thead>
+               <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                 {['Nombre', 'Plataforma', 'Estado', 'Último ping', 'CIs descubiertos', ''].map(h => (
+                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
+                 ))}
+               </tr>
+             </thead>
+             <tbody>
+               {agents.map(ag => (
+                 <tr key={ag.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                   <td style={{ padding: '10px 10px', fontWeight: 600, color: 'var(--text-1)' }}>{ag.name}</td>
+                   <td style={{ padding: '10px 10px', color: 'var(--text-2)' }}>
+                     {ag.platform === 'linux' ? '🐧' : ag.platform === 'windows' ? '🪟' : '🍎'} {ag.platform}
+                   </td>
+                   <td style={{ padding: '10px 10px' }}>
+                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: ag.status === 'active' ? 'rgba(72,187,120,0.15)' : 'rgba(160,174,192,0.15)', color: ag.status === 'active' ? '#48bb78' : '#718096' }}>
+                       {ag.status || 'pendiente'}
+                     </span>
+                   </td>
+                   <td style={{ padding: '10px 10px', color: 'var(--text-3)', fontSize: 12 }}>
+                     {ag.last_ping ? new Date(ag.last_ping).toLocaleString() : '—'}
+                   </td>
+                   <td style={{ padding: '10px 10px', color: 'var(--text-2)', textAlign: 'center' }}>
+                     {ag.discovered_count ?? '—'}
+                   </td>
+                   <td style={{ padding: '10px 10px' }}>
+                     <button onClick={() => openConfirmGlobal({ message: `¿Eliminar agente "${ag.name}"?`, onConfirm: () => deleteAgent(ag.id), danger: true })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                   </td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         )
+        }
+      </div>
+    </div>
+  )
+}
+
 export default function CMDBPage() {
   const t = useAppT()
   const toast = useToast()
@@ -360,7 +524,7 @@ export default function CMDBPage() {
 
       {/* Tabs */}
       <div style={{display:'flex',gap:4,marginBottom:20,borderBottom:'1px solid var(--surface-4)',paddingBottom:0}}>
-        {[['list','📋 Inventario'],['topology','🔗 Topología'],['3d','🌐 3D / Blast Radius']].map(([id,label]) => (
+        {[['list','📋 Inventario'],['topology','🔗 Topología'],['3d','🌐 3D / Blast Radius'],['agents','🤖 Agentes on-prem']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{padding:'8px 18px',fontSize:13,fontWeight:tab===id?700:400,
               color:tab===id?'var(--accent)':'var(--text-2)',background:'transparent',
@@ -522,6 +686,9 @@ export default function CMDBPage() {
                   ))}
                 </div>
               )}
+
+              {/* Linked Assets */}
+              <CILinkedAssets ciId={drillCI.id} />
 
               {/* Actions */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
@@ -715,6 +882,9 @@ export default function CMDBPage() {
 
       {/* ── CMDB 3D Graph + Blast Radius ── */}
       {tab === '3d' && <Cmdb3dGraph />}
+
+      {/* ─── AGENTES ON-PREM ─────────────────────────────────────────────── */}
+      {tab === 'agents' && <CMDBAgentsTab />}
     </div>
   )
 }

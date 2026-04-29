@@ -76,7 +76,7 @@ export default function VoiceAgentPanel() {
     <div className={cardCls}>
       <div className="flex items-center gap-2 mb-4">
         <Phone className="w-5 h-5 text-green-500" />
-        <h2 className="text-lg font-bold">{t('sd.voice.title', 'Agente de Voz / IVR')}</h2>
+        <h2 className="text-lg font-bold">{t('sd.voice.title')}</h2>
       </div>
 
       {/* Tabs */}
@@ -87,7 +87,7 @@ export default function VoiceAgentPanel() {
             onClick={() => setTab(tb)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === tb ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
-            {tb === 'sessions' ? t('sd.voice.sessions', 'Sesiones') : t('sd.voice.config', 'Configuración IVR')}
+            {tb === 'sessions' ? t('sd.voice.sessions') : t('sd.voice.config')}
           </button>
         ))}
       </div>
@@ -109,7 +109,7 @@ export default function VoiceAgentPanel() {
               className="flex items-center gap-1 px-4 py-1.5 rounded bg-green-600 text-white text-sm hover:bg-green-700 disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              {t('sd.voice.new_session', 'Nueva llamada')}
+              {t('sd.voice.new_session')}
             </button>
           </div>
 
@@ -131,7 +131,7 @@ export default function VoiceAgentPanel() {
                     onClick={() => createTicketMutation.mutate(activeSession.id)}
                     className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
                   >
-                    {t('sd.voice.create_ticket', 'Crear ticket')}
+                    {t('sd.voice.create_ticket')}
                   </button>
                   <button
                     onClick={() => closeMutation.mutate(activeSession.id)}
@@ -156,7 +156,7 @@ export default function VoiceAgentPanel() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder={t('sd.voice.type_text', 'Texto del usuario...')}
+                  placeholder={t('sd.voice.type_text')}
                   value={turnText}
                   onChange={e => setTurnText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && turnText && addTurnMutation.mutate({ id: activeSession.id, text: turnText })}
@@ -192,7 +192,7 @@ export default function VoiceAgentPanel() {
               </div>
             ))}
             {!isLoading && !sessions.length && (
-              <p className="text-sm text-gray-400">{t('sd.voice.no_sessions', 'No hay sesiones registradas')}</p>
+              <p className="text-sm text-gray-400">{t('sd.voice.no_sessions')}</p>
             )}
           </div>
         </div>
@@ -201,11 +201,11 @@ export default function VoiceAgentPanel() {
       {tab === 'config' && config && (
         <div className="space-y-3 text-sm">
           <div>
-            <p className="font-medium mb-1">{t('sd.voice.greeting', 'Saludo')}</p>
+            <p className="font-medium mb-1">{t('sd.voice.greeting')}</p>
             <p className={`px-3 py-2 rounded ${dark ? 'bg-gray-800' : 'bg-gray-100'}`}>{config.greeting}</p>
           </div>
           <div>
-            <p className="font-medium mb-1">{t('sd.voice.dtmf_menu', 'Menú DTMF')}</p>
+            <p className="font-medium mb-1">{t('sd.voice.dtmf_menu')}</p>
             <div className="space-y-1">
               {Object.entries(config.dtmf_menu ?? {}).map(([key, val]) => (
                 <div key={key} className={`flex gap-3 px-3 py-1.5 rounded text-xs ${dark ? 'bg-gray-800' : 'bg-gray-100'}`}>

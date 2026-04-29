@@ -1642,6 +1642,8 @@ const es = {
     tab_cmdb: 'CMDB', tab_metrics: 'Métricas ITIL', tab_config: 'Config',
     tab_catalog: 'Catálogo', tab_sla: 'SLAs', tab_groups: 'Grupos', tab_routing: 'Routing',
     tab_templates: 'Templates', tab_canned: 'Resp. rápidas', tab_announcements: 'Anuncios',
+    tab_voice: 'Agente de voz', tab_assign: 'Asignación ML', tab_rollout: 'Rollout de cambios',
+    tab_autoresolve: 'Auto-resolución', tab_alertcorr: 'Correlación alertas',
     status_open: 'Abierto', status_in_progress: 'En progreso', status_waiting_client: 'Esperando cliente',
     status_pending_change: 'Pendiente cambio', status_resolved: 'Resuelto',
     detail_requester: 'Solicitante', detail_group: 'Grupo', detail_project: 'Proyecto',
@@ -1655,6 +1657,20 @@ const es = {
     impact_enterprise: 'Empresa entera', impact_department: 'Departamento',
     impact_user: 'Usuario individual', impact_minimal: 'Impacto mínimo',
     status_new: 'Nuevo', status_assigned: 'Asignado', status_closed: 'Cerrado', status_cancelled: 'Cancelado',
+  },
+
+  sd: {
+    voice: {
+      title: 'Agente de Voz / IVR',
+      sessions: 'Sesiones',
+      config: 'Configuración IVR',
+      new_session: 'Nueva llamada',
+      create_ticket: 'Crear ticket',
+      type_text: 'Texto del usuario...',
+      no_sessions: 'No hay sesiones registradas',
+      greeting: 'Saludo',
+      dtmf_menu: 'Menú DTMF',
+    },
   },
 
   alm: {

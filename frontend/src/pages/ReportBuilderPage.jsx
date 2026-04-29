@@ -5,7 +5,7 @@
  * Right panel: live preview table + export button + save template
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
@@ -60,10 +60,12 @@ function EntityPicker({ entities, groups, value, onChange }) {
   )
 }
 
-// ── Column panel with search + select-all ─────────────────────────────────
-function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll }) {
+// ── Column panel with search + select-all + drag-to-reorder ──────────────────
+function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll, onReorder }) {
   const [search, setSearch] = useState('')
   const cols = useMemo(() => entityDef?.columns || {}, [entityDef])
+  const dragItem = useRef(null)
+  const dragOver = useRef(null)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -73,6 +75,27 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
   }, [cols, search])
 
   const _allVisible = filtered.every(([k]) => selected.includes(k))
+
+  // Drag-to-reorder selected columns
+  const handleDragStart = (e, idx) => {
+    dragItem.current = idx
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const handleDragOver = (e, idx) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    dragOver.current = idx
+  }
+  const handleDrop = () => {
+    if (dragItem.current === null || dragOver.current === null) return
+    if (dragItem.current === dragOver.current) return
+    const reordered = [...selected]
+    const [dragged] = reordered.splice(dragItem.current, 1)
+    reordered.splice(dragOver.current, 0, dragged)
+    onReorder(reordered)
+    dragItem.current = null
+    dragOver.current = null
+  }
 
   return (
     <div>
@@ -109,7 +132,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       </div>
 
       {/* Column list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 320, overflowY: 'auto', paddingRight: 2 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: 12, color: '#4a5568', fontSize: 12 }}>Sin resultados</div>
         )}
@@ -126,6 +149,37 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
           </label>
         ))}
       </div>
+
+      {/* Drag-to-reorder selected columns */}
+      {selected.length > 1 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+            Orden de columnas (arrastra para reordenar)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {selected.map((key, idx) => (
+              <div
+                key={key}
+                draggable
+                onDragStart={e => handleDragStart(e, idx)}
+                onDragOver={e => handleDragOver(e, idx)}
+                onDrop={handleDrop}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: '#2d3748', border: '1px solid #4a5568',
+                  borderRadius: 5, padding: '4px 8px', cursor: 'grab',
+                  fontSize: 11, color: '#e2e8f0',
+                  userSelect: 'none',
+                }}
+              >
+                <span style={{ color: '#4a5568', fontSize: 12 }}>⠿</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cols[key]?.label || key}</span>
+                <span style={{ fontSize: 10, color: '#4a5568' }}>{idx + 1}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -231,6 +285,8 @@ export default function ReportBuilderPage() {
   }, [entityDef])
 
   const deselectAllColumns = useCallback(() => setColumns([]), [])
+
+  const reorderColumns = useCallback((newOrder) => setColumns(newOrder), [])
 
   const changeEntity = (e) => {
     setEntity(e.target.value)
@@ -388,6 +444,7 @@ export default function ReportBuilderPage() {
                     onToggle={toggleColumn}
                     onSelectAll={selectAllColumns}
                     onDeselectAll={deselectAllColumns}
+                    onReorder={reorderColumns}
                   />
                 </div>
 

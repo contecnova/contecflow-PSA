@@ -1434,7 +1434,27 @@ const en = {
     title: 'Service Desk',
     subtitle: 'Centralized ticket, incident and support request management',
     ann_empty_desc: 'There are no active announcements at the moment.',
+    tab_voice: 'Voice Agent',
+    tab_assign: 'ML Assignment',
+    tab_rollout: 'Change Rollout',
+    tab_autoresolve: 'Auto-resolution',
+    tab_alertcorr: 'Alert Correlation',
   },
+
+  sd: {
+    voice: {
+      title: 'Voice Agent / IVR',
+      sessions: 'Sessions',
+      config: 'IVR Configuration',
+      new_session: 'New call',
+      create_ticket: 'Create ticket',
+      type_text: 'User text...',
+      no_sessions: 'No sessions registered',
+      greeting: 'Greeting',
+      dtmf_menu: 'DTMF Menu',
+    },
+  },
+
   reports: {
     title: 'Analytics & Reports',
     subtitle: 'Custom reports and business intelligence dashboards',

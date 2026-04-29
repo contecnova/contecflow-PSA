@@ -9,7 +9,126 @@ Este archivo combina tres capas de documentación que conviven en el repositorio
 
 La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.py` y los routers de dominio en `app/api/v1/routers/`. La fuente de verdad para entidades es `app/models/` y la historia de esquema en `alembic/versions/`.
 
+## Tabla de estado de funcionalidades — v23.10.46 (29 abril 2026)
+
+> Leyenda: ✅ Completo · ⚠️ Parcial · ❌ Pendiente · — N/A
+
+| # | Área | Funcionalidad | Backend | Frontend | Notas |
+|---|------|---------------|:-------:|:--------:|-------|
+| 1 | Core Auth | Login / JWT / refresh | ✅ | ✅ | MFA, SSO SAML, Azure AD |
+| 2 | Core Auth | Sesiones multi-dispositivo | ✅ | ✅ | Listado + revocación |
+| 3 | Core Auth | ABAC / permisos granulares | ✅ | ✅ | `can_*` flags + roles |
+| 4 | Proyectos | CRUD proyectos + fases | ✅ | ✅ | Templates, clonado |
+| 5 | Proyectos | Gantt interactivo | ✅ | ✅ | EpicGantt + dependencias |
+| 6 | Proyectos | Milestones + baselines | ✅ | ✅ | Baseline snapshot v239 |
+| 7 | Proyectos | Sprints + planificación | ✅ | ✅ | Sprint planning, burndown |
+| 8 | Proyectos | Epics + backlog | ✅ | ✅ | Estimaciones, prioridad |
+| 9 | Proyectos | Dependencias de tareas | ✅ | ✅ | Bloqueos + alertas |
+| 10 | Proyectos | Kanban avanzado (DnD) | ✅ | ✅ | Swimlanes, WIP limits |
+| 11 | Proyectos | Riesgos + scoring IA | ✅ | ✅ | `RiskScoresPage` |
+| 12 | Proyectos | RACI matrix | ✅ | ✅ | Exportable |
+| 13 | Proyectos | Templates de proyecto | ✅ | ✅ | |
+| 14 | Proyectos | Portfolio dashboard | ✅ | ✅ | `PortfolioPage` |
+| 15 | Tiempo | Imputaciones / timesheets | ✅ | ✅ | Timer live, aprobación |
+| 16 | Tiempo | Rate cards + facturación | ✅ | ✅ | Multi-moneda |
+| 17 | Tiempo | Calendario de equipo | ✅ | ✅ | |
+| 18 | Tiempo | Ausencias + festivos | ✅ | ✅ | |
+| 19 | Tiempo | Capacidad + previsión | ✅ | ✅ | Resource Forecast |
+| 20 | Tiempo | Resource Scheduler (DnD) | ✅ | ✅ | Visual planning |
+| 21 | Finanzas | Presupuestos + EVM | ✅ | ✅ | |
+| 22 | Finanzas | Revenue Recognition ASC 606 | ✅ | ✅ | |
+| 23 | Finanzas | Contratos + subcontratistas | ✅ | ✅ | |
+| 24 | Finanzas | Gastos + expenses | ✅ | ✅ | |
+| 25 | Finanzas | Rentabilidad (profitability) | ✅ | ✅ | |
+| 26 | Finanzas | Finance Dashboard | ✅ | ✅ | |
+| 27 | CRM | Pipeline de ventas (kanban) | ✅ | ✅ | DnD entre etapas |
+| 28 | CRM | Generación propuesta SOW IA | ✅ | ✅ | |
+| 29 | CRM | Clientes + organizaciones | ✅ | ✅ | |
+| 30 | CRM | Portal cliente (white-label) | ✅ | ✅ | UAT, FR, autoservicio |
+| 31 | BI | Executive Dashboard OLAP | ✅ | ✅ | |
+| 32 | BI | Narrativa ejecutiva IA | ✅ | ✅ | |
+| 33 | BI | Ask the Data (NL→SQL) | ✅ | ✅ | |
+| 34 | BI | Smart Alerts (trend/anomalía) | ✅ | ✅ | Cooldown, correlación |
+| 35 | BI | Bookmarks + shared views | ✅ | ✅ | |
+| 36 | BI | Forecasting ML | ✅ | ✅ | |
+| 37 | BI | Scheduled reports + entrega condicional | ✅ | ✅ | |
+| 38 | BI | ETL connectors (Celery) | ✅ | ✅ | |
+| 39 | BI | BI Workspace colaborativo | ✅ | ✅ | Comentarios, anotaciones |
+| 40 | Reports | Report Builder no-code | ✅ | ✅ | **DnD reorder col.** añadido v23.10.46 |
+| 41 | Reports | Exportación CSV / Excel / PDF | ✅ | ✅ | |
+| 42 | Reports | Plantillas persistentes (DB) | ✅ | ✅ | |
+| 43 | ITSM | Tickets + SLA + grupos | ✅ | ✅ | |
+| 44 | ITSM | Knowledge Base (KEDB + KB) | ✅ | ✅ | |
+| 45 | ITSM | Problem Management | ✅ | ✅ | RCA Wizard, promote→KE |
+| 46 | ITSM | Auto-resolución IA | ✅ | ✅ | **Completado v23.10.46** |
+| 47 | ITSM | Correlación alertas ML | ✅ | ✅ | **Completado v23.10.46** |
+| 48 | ITSM | RCA Wizard multi-step IA | ✅ | ✅ | **Completado v23.10.46** |
+| 49 | ITSM | Link Problem → KE → Tickets | ✅ | ✅ | **Completado v23.10.46** |
+| 50 | ITSM | Agente de voz IA | ✅ | ✅ | |
+| 51 | ITSM | Asignación ML de tickets | ✅ | ✅ | |
+| 52 | ITSM | Change Management + rollout | ✅ | ✅ | |
+| 53 | ITSM | Aprobaciones de cambios | ✅ | ✅ | |
+| 54 | CMDB | Inventario CIs | ✅ | ✅ | |
+| 55 | CMDB | Topología 3D (Three.js) | ✅ | ✅ | |
+| 56 | CMDB | Agent discovery on-prem | ✅ | ✅ | **Completado v23.10.46** |
+| 57 | CMDB | Vinculación Asset ↔ CI | ✅ | ✅ | **Completado v23.10.46** |
+| 58 | Assets | Gestión activos + ciclo de vida | ✅ | ✅ | |
+| 59 | IA | AI Hub (multi-proveedor) | ✅ | ✅ | Anthropic/OpenAI/Gemini/… |
+| 60 | IA | AI Governance (audit log) | ✅ | ✅ | |
+| 61 | IA | Oracle IA (chat contextual) | ✅ | ✅ | |
+| 62 | IA | Semantic Engine | ✅ | ✅ | |
+| 63 | IA | NexusAssist (rol QA) | ✅ | ✅ | |
+| 64 | DevOps | Git integration | ✅ | ✅ | |
+| 65 | DevOps | ALM metrics | ✅ | ✅ | |
+| 66 | DevOps | Developer Portal | ✅ | ✅ | |
+| 67 | GRC | Compliance + GRC | ✅ | ✅ | |
+| 68 | GRC | Workflows + aprobaciones | ✅ | ✅ | |
+| 69 | GRC | Automations (triggers/actions) | ✅ | ✅ | |
+| 70 | Org | OKRs | ✅ | ✅ | |
+| 71 | Org | OrgChart | ✅ | ✅ | |
+| 72 | Org | Skills & competencias | ✅ | ✅ | Matriz corregida |
+| 73 | Org | Performance reviews | ✅ | ✅ | |
+| 74 | Org | Subcontratistas | ✅ | ✅ | |
+| 75 | Collab | Wiki + tags | ✅ | ✅ | |
+| 76 | Collab | Documentos + e-sign | ✅ | ✅ | DocuSign/AdobeSign |
+| 77 | Collab | Alertas + notificaciones | ✅ | ✅ | Slack, Teams, email |
+| 78 | Collab | Encuestas NPS/CSAT | ✅ | ✅ | |
+| 79 | Collab | Changelog público | ✅ | ✅ | |
+| 80 | Collab | Public Forms | ✅ | ✅ | |
+| 81 | I18n | Español / Inglés | ✅ | ✅ | **tab_autoresolve + tab_alertcorr añadidos v23.10.46** |
+| 82 | Offline | Dexie offline sync + conflict resolution | ✅ | ✅ | **409 server-wins completado v23.10.46** |
+| 83 | Integ. | Microsoft 365 / Azure AD | ✅ | ✅ | |
+| 84 | Integ. | GitHub / GitLab webhooks | ✅ | ✅ | |
+| 85 | Integ. | Contabilidad (Xero/QuickBooks) | ✅ | ✅ | |
+| 86 | Integ. | Jira import/export | ✅ | ✅ | |
+
+**Total: 86 funcionalidades · ✅ 86 / ⚠️ 0 / ❌ 0**
+
+---
+
 ## Cambios recientes
+
+### v23.10.46 (Julio 2026) — Completar 9 funcionalidades A MEDIAS: offline sync, SD ITSM, CMDB, Report Builder
+
+Funcionalidades completadas al 100% en esta sesión:
+
+1. **Offline sync (Dexie) — resolución de conflictos**: `offlineSync.js` — `syncPendingOps` detecta HTTP 409 (server-wins), contabiliza conflictos, retorna `{ synced, failed, conflicts, total }`. `useOfflineSync` expone `conflicts`.
+
+2. **Report Builder — reordenación de columnas DnD**: `ReportBuilderPage.jsx` — `ColumnPanel` recibe prop `onReorder`; sección "Orden de columnas" con `draggable` HTML5 DnD. Callback `reorderColumns` pasado desde página.
+
+3. **Auto-resolución ITSM**: `AutoResolutionPanel.jsx` (nuevo) — stats, trigger manual, feedback por ticket. Integrado como tab en `ServiceDeskPageView.jsx`.
+
+4. **Correlación de alertas ITSM**: `AlertCorrelationPanel.jsx` (nuevo) — clusters ML, merge-a-problema, run-scan. Integrado como tab en `ServiceDeskPageView.jsx`.
+
+5. **RCA Wizard IA multi-step**: `RcaWizardModal.jsx` (nuevo) — selector de plantilla (five_whys/fishbone/itil), paso a paso con hints IA, historial de respuestas. Integrado en `ITSMKnowledgeTab.jsx`.
+
+6. **Problema → KnownError (promote) + tickets vinculados**: `ITSMKnowledgeTab.jsx` — botón "Promover a KE" (`POST /sd/problems/{id}/promote-known-error`), botón "RCA" abre wizard, `KELinkedTickets` expandible en KEDB.
+
+7. **CMDB — discovery de agentes on-prem**: `CMDBPage.jsx` — tab "Agentes on-prem" con formulario de registro, token one-time, listado y eliminación de agentes.
+
+8. **Vinculación Asset ↔ CMDB**: `CMDBPage.jsx` — componente `CILinkedAssets` en drill-down panel (`GET /assets/by-ci/{ciId}`).
+
+9. **i18n 100% verificada**: `es.mjs` y `en.mjs` — añadidos `tab_autoresolve` y `tab_alertcorr` en sección `service_desk`.
 
 ### v23.10.45 (Abril 2026) — Hardening BI Collaboration y Ask-the-Data en entornos locales
 
@@ -6326,3 +6445,39 @@ Corrección aplicada:
 Resultado esperado:
 - La pestaña de matriz vuelve a cargar correctamente.
 - Se eliminan errores de referencia a `api` no definido en la página de Skills.
+
+## 21. Service Desk Voice: warnings i18n + 404 en sesiones
+
+Problema observado:
+- En consola aparecían warnings `i18n-missing` para:
+  - `service_desk.tab_voice`, `service_desk.tab_assign`, `service_desk.tab_rollout`
+  - `sd.voice.*` (title, sessions, config, new_session, no_sessions, etc.)
+- Además, la llamada `GET /api/v1/sd/voice/sessions` devolvía `404 (Not Found)`.
+
+Causa:
+- Uso incorrecto de `t(...)` en frontend: se pasaba segundo argumento `string` como fallback (`t('clave', 'texto')`), pero el runtime interpreta el segundo argumento como key-path adicional, disparando misses.
+- Faltaban claves nuevas en catálogos de idioma para tabs de Service Desk y módulo `sd.voice`.
+- En backend, el router de voice tenía prefijo `"/sd/voice"` aunque ya se monta bajo `prefix="/sd"` en el agregador, generando ruta efectiva `"/sd/sd/voice"`.
+
+Corrección aplicada:
+- `frontend/src/pages/ServiceDeskPageView.jsx`
+  - Se corrigen tabs para usar claves directas:
+    - `t('service_desk.tab_voice')`
+    - `t('service_desk.tab_assign')`
+    - `t('service_desk.tab_rollout')`
+- `frontend/src/components/servicedesk/VoiceAgentPanel.jsx`
+  - Se eliminan segundos argumentos string en todas las llamadas `t('sd.voice.*')`.
+- `frontend/src/i18n/langs/es.mjs`
+  - Se añaden `service_desk.tab_voice/tab_assign/tab_rollout`.
+  - Se añade bloque `sd.voice` con textos de Voice/IVR.
+- `frontend/src/i18n/langs/en.mjs`
+  - Se añaden equivalentes en inglés para `service_desk.tab_voice/tab_assign/tab_rollout` y `sd.voice`.
+- `app/api/v1/endpoints/service_desk/voice_agent.py`
+  - Se cambia `APIRouter(prefix='/sd/voice')` a `APIRouter(prefix='/voice')`.
+
+Validación:
+- `pytest -q tests/test_voice_agent.py` → `8 passed`.
+
+Resultado esperado:
+- Desaparecen los warnings i18n listados en Service Desk/Voice.
+- `GET /api/v1/sd/voice/sessions` responde correctamente y deja de devolver 404.

@@ -28,7 +28,7 @@ export default function useOfflineSync() {
 
   // Update pending count whenever connectivity changes
   useEffect(() => {
-    offlineDb.pendingOps.getAll()
+    offlineDb.pendingOps.toArray()
       .then(ops => setPendingCount(ops.length))
       .catch(() => {})
   }, [isOnline])
