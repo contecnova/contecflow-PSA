@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+import shutil
+import subprocess
 from datetime import date, datetime, time, timedelta, timezone
 from app.core.config import settings
 from app.core.security import create_access_token
@@ -918,13 +920,193 @@ def enqueue_workflow_record(payload: dict, user_id, db) -> dict:
     return {"ok": True, "queue_id": item.id, "execute_at": execute_at.isoformat()}
 
 
-def process_workflow_queue_record(db) -> dict:
+def _render_step_value(value, context: dict):
+    if isinstance(value, str):
+        try:
+            return value.format_map({k: ("" if v is None else v) for k, v in context.items()})
+        except Exception:
+            return value
+    if isinstance(value, list):
+        return [_render_step_value(v, context) for v in value]
+    if isinstance(value, dict):
+        return {k: _render_step_value(v, context) for k, v in value.items()}
+    return value
+
+
+def _run_cli(cmd: list[str], cwd: str | None = None, timeout_seconds: int = 1200) -> dict:
+    started = datetime.now(timezone.utc)
+    proc = subprocess.run(
+        cmd,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+    finished = datetime.now(timezone.utc)
+    return {
+        "ok": proc.returncode == 0,
+        "exit_code": proc.returncode,
+        "stdout": (proc.stdout or "")[-4000:],
+        "stderr": (proc.stderr or "")[-4000:],
+        "duration_ms": int((finished - started).total_seconds() * 1000),
+        "command": cmd,
+    }
+
+
+def _execute_provision_action(config: dict, context: dict) -> dict:
+    """Execute real provisioning call against external IdM/IAM APIs.
+
+    Expected config keys:
+      - operation: create_ad_user|disable_ad_user|assign_license|revoke_license
+      - url: endpoint URL
+      - method: POST|PATCH|PUT|DELETE (default POST)
+      - headers: dict (optional)
+      - payload: dict/list/string template rendered from context (optional)
+      - timeout_seconds: int (optional, default 15)
+    """
+    import httpx  # noqa: PLC0415
+
+    operation = str(config.get("operation") or config.get("type") or "provision").lower()
+    url = config.get("url")
+    if not url:
+        raise ValueError("Provision action requires 'url'")
+
+    method = str(config.get("method") or "POST").upper()
+    headers = _render_step_value(config.get("headers") or {}, context)
+    payload = _render_step_value(config.get("payload") or {}, context)
+    timeout_seconds = int(config.get("timeout_seconds", 15))
+
+    started = datetime.now(timezone.utc)
+    with httpx.Client(timeout=timeout_seconds) as client:
+        resp = client.request(method, url, headers=headers, json=payload)
+    finished = datetime.now(timezone.utc)
+
+    return {
+        "operation": operation,
+        "ok": 200 <= resp.status_code < 300,
+        "status_code": resp.status_code,
+        "response": resp.text[:2000],
+        "request_url": url,
+        "duration_ms": int((finished - started).total_seconds() * 1000),
+    }
+
+
+def _execute_terraform_action(config: dict, context: dict) -> dict:
+    """Run Terraform command (init+apply/destroy/plan) for provisioning."""
+    if not shutil.which("terraform"):
+        raise RuntimeError("terraform executable not found in PATH")
+
+    workdir = _render_step_value(config.get("workdir"), context)
+    command = str(config.get("command") or "apply").lower()
+    auto_approve = bool(config.get("auto_approve", True))
+    var_file = _render_step_value(config.get("var_file"), context)
+    vars_map = _render_step_value(config.get("vars") or {}, context)
+    timeout_seconds = int(config.get("timeout_seconds", 1800))
+
+    init_res = _run_cli(["terraform", "init", "-input=false"], cwd=workdir, timeout_seconds=timeout_seconds)
+    if not init_res["ok"]:
+        return {"ok": False, "phase": "init", **init_res}
+
+    cmd = ["terraform", command, "-input=false"]
+    if command in ("apply", "destroy") and auto_approve:
+        cmd.append("-auto-approve")
+    if var_file:
+        cmd.extend(["-var-file", str(var_file)])
+    for k, v in vars_map.items():
+        cmd.extend(["-var", f"{k}={v}"])
+
+    run_res = _run_cli(cmd, cwd=workdir, timeout_seconds=timeout_seconds)
+    run_res["phase"] = command
+    return run_res
+
+
+def _execute_ansible_action(config: dict, context: dict) -> dict:
+    """Run ansible-playbook for provisioning/configuration tasks."""
+    if not shutil.which("ansible-playbook"):
+        raise RuntimeError("ansible-playbook executable not found in PATH")
+
+    playbook = _render_step_value(config.get("playbook"), context)
+    inventory = _render_step_value(config.get("inventory"), context)
+    workdir = _render_step_value(config.get("workdir"), context)
+    timeout_seconds = int(config.get("timeout_seconds", 1800))
+    if not playbook:
+        raise ValueError("Ansible action requires 'playbook'")
+
+    cmd = ["ansible-playbook", str(playbook)]
+    if inventory:
+        cmd.extend(["-i", str(inventory)])
+
+    extra_vars = _render_step_value(config.get("extra_vars") or {}, context)
+    if extra_vars:
+        cmd.extend(["--extra-vars", json.dumps(extra_vars)])
+
+    tags = _render_step_value(config.get("tags"), context)
+    if tags:
+        cmd.extend(["--tags", str(tags)])
+
+    return _run_cli(cmd, cwd=workdir, timeout_seconds=timeout_seconds)
+
+
+def _execute_step_action(config: dict, context: dict, db) -> dict:
+    action_type = str(config.get("type", "create_alert")).lower()
+    if action_type == "create_alert":
+        from app.models.alert import Alert  # noqa: PLC0415
+
+        db.add(
+            Alert(
+                alert_type="workflow",
+                message=config.get("message", "Workflow ejecutado"),
+                severity=config.get("severity", "info"),
+                project_id=context.get("project_id"),
+            )
+        )
+        return {"ok": True, "action_type": action_type}
+
+    if action_type == "notify_role":
+        from app.services.notifications import notify_role  # noqa: PLC0415
+
+        notify_role(
+            db,
+            config.get("role", "admin"),
+            "automation",
+            config.get("message", "Workflow ejecutado"),
+        )
+        return {"ok": True, "action_type": action_type}
+
+    if action_type in {
+        "provision_identity",
+        "create_ad_user",
+        "disable_ad_user",
+        "assign_license",
+        "revoke_license",
+    }:
+        if action_type != "provision_identity":
+            config = {**config, "operation": action_type}
+        return _execute_provision_action(config, context)
+
+    if action_type in {"terraform", "terraform_apply", "terraform_destroy", "terraform_plan"}:
+        if action_type != "terraform":
+            mapped_cmd = action_type.replace("terraform_", "")
+            config = {**config, "command": mapped_cmd}
+        return _execute_terraform_action(config, context)
+
+    if action_type in {"ansible", "ansible_playbook"}:
+        return _execute_ansible_action(config, context)
+
+    raise ValueError(f"Unsupported action type: {action_type}")
+
+
+def process_workflow_queue_record(db, workflow_id: str | None = None) -> dict:
     now = datetime.now(timezone.utc)
-    pending = db.query(WorkflowQueueItem).filter(
+    q = db.query(WorkflowQueueItem).filter(
         WorkflowQueueItem.status == "pending",
         WorkflowQueueItem.execute_at <= now,
         WorkflowQueueItem.attempts < 3,
-    ).limit(20).all()
+    )
+    if workflow_id:
+        q = q.filter(WorkflowQueueItem.workflow_id == workflow_id)
+    pending = q.limit(20).all()
     processed = 0
     errors = 0
     for item in pending:
@@ -944,17 +1126,8 @@ def process_workflow_queue_record(db) -> dict:
                 config     = json.loads(step.config) if step.config else {}
                 step_result = {"step": step.name or step.step_type, "ok": True}
                 if step.step_type == "action":
-                    action_type = config.get("type", "create_alert")
-                    if action_type == "create_alert":
-                        from app.models.alert import Alert
-                        db.add(Alert(alert_type="workflow",
-                                     message=config.get("message", "Workflow ejecutado"),
-                                     severity=config.get("severity", "info"),
-                                     project_id=context.get("project_id")))
-                    elif action_type == "notify_role":
-                        from app.services.notifications import notify_role
-                        notify_role(db, config.get("role", "admin"), "automation",
-                                    config.get("message", "Workflow ejecutado"))
+                    action_res = _execute_step_action(config, context, db)
+                    step_result.update(action_res)
                 elif step.step_type == "wait":
                     delay_minutes = config.get("duration", 60)
                     unit = config.get("unit", "minutes")
@@ -987,13 +1160,19 @@ def process_workflow_queue_record(db) -> dict:
                     try:
                         import httpx
                         url = config.get("url")
+                        method = str(config.get("method", "POST")).upper()
+                        headers = _render_step_value(config.get("headers") or {}, context)
+                        payload = _render_step_value(config.get("payload") or {"event": config.get("event"), "context": context}, context)
                         if url:
                             with httpx.Client(timeout=5.0) as client:
-                                resp = client.post(url, json={"event": config.get("event"), "context": context})
+                                resp = client.request(method, url, headers=headers, json=payload)
                             step_result["http_status"] = resp.status_code
+                            step_result["response"] = resp.text[:1000]
                     except Exception as e:
                         step_result["ok"] = False; step_result["error"] = str(e)[:100]
                 results.append(step_result)
+                if not step_result.get("ok", True):
+                    raise RuntimeError(step_result.get("error") or "workflow_step_failed")
             exec_log = WorkflowExecution(
                 workflow_id=item.workflow_id, trigger_context=item.trigger_data,
                 status="completed", steps_log=json.dumps(results), completed_at=now,
@@ -1013,3 +1192,20 @@ def process_workflow_queue_record(db) -> dict:
             db.commit()
     return {"processed": processed, "errors": errors,
             "remaining": db.query(WorkflowQueueItem).filter(WorkflowQueueItem.status == "pending").count()}
+
+
+def execute_workflow_now_record(workflow_id: str, context: dict, triggered_by, db) -> dict:
+    """Enqueue and process one workflow immediately, returning execution summary."""
+    enqueue_res = enqueue_workflow_record(
+        {"workflow_id": workflow_id, "context": context or {}, "delay_minutes": 0},
+        triggered_by,
+        db,
+    )
+    process_res = process_workflow_queue_record(db, workflow_id=workflow_id)
+    return {
+        "ok": True,
+        "workflow_id": workflow_id,
+        "queue_id": enqueue_res.get("queue_id"),
+        "processed": process_res.get("processed", 0),
+        "errors": process_res.get("errors", 0),
+    }

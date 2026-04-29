@@ -23,6 +23,7 @@ from app.services.billing_reports.data_source_service import (
     run_pipeline_report,
 )
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
+from app.services import bookings_service as _bookings_svc
 from app.schemas.billing_reports import (
     ReportSave,
     InvoiceCreate,
@@ -421,6 +422,17 @@ def workflow_executions(
     current_user: User = Depends(require_any_manager),
 ):
     return get_workflow_executions(db, wf_id, page, page_size, response)
+
+
+@router.post("/automation-workflows/{wf_id}/run", response_model=Dict[str, Any], summary="Ejecutar workflow ahora")
+def run_workflow_now(
+    wf_id: str,
+    payload: dict = Body(default={}),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    context = payload.get("context") or {}
+    return _bookings_svc.execute_workflow_now_record(wf_id, context, current_user.id, db)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
