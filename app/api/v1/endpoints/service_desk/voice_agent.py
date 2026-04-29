@@ -161,3 +161,130 @@ def create_ticket(
 ):
     org_id = getattr(current_user, "organization_id", None)
     return create_ticket_from_session(db, str(org_id) if org_id else None, session_id, current_user.id)
+
+
+# ── Twilio Webhook (no auth — validated by Twilio signature) ──────────────────
+
+@router.post(
+    "/webhook/twilio",
+    summary="Twilio IVR webhook — recibe llamadas y responde con TwiML",
+    include_in_schema=False,
+)
+@limiter.limit("120/minute")
+async def twilio_ivr_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    Twilio calls this endpoint when a call is received.
+    Validates the Twilio signature (X-Twilio-Signature header) and responds with TwiML.
+    Creates a voice session for tracking.
+
+    Production usage:
+      1. Configure Twilio phone number webhook URL to point here.
+      2. Set TWILIO_AUTH_TOKEN env var for signature validation.
+      3. Optionally set TWILIO_ACCOUNT_SID for outbound calls.
+    """
+    import os
+    import hmac
+    import hashlib
+    import base64
+    from urllib.parse import urlencode
+
+    from app.services.service_desk.voice_agent_service import get_config
+
+    # ── Twilio signature validation ───────────────────────────────────────────
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "")
+    if auth_token:
+        signature = request.headers.get("X-Twilio-Signature", "")
+        form_body = await request.form()
+        url = str(request.url)
+        sorted_params = "".join(f"{k}{v}" for k, v in sorted(form_body.items()))
+        computed = base64.b64encode(
+            hmac.new(auth_token.encode(), (url + sorted_params).encode(), hashlib.sha1).digest()
+        ).decode()
+        if not hmac.compare_digest(computed, signature):
+            from fastapi import Response
+            return Response(
+                content='<?xml version="1.0"?><Response><Reject /></Response>',
+                media_type="application/xml",
+                status_code=403,
+            )
+
+    # ── Parse Twilio form data ────────────────────────────────────────────────
+    form_data = dict(await request.form()) if not auth_token else dict(form_body)
+    caller_id = form_data.get("From", "unknown")
+    call_sid  = form_data.get("CallSid", "")
+    org_id    = None  # Single-tenant: override with org resolution logic if multi-tenant
+
+    # Create a tracking session
+    session = create_session(db, org_id, caller_id, channel="phone")
+    add_transcript_turn(db, org_id, session["id"], "bot", f"Incoming call from {caller_id} (SID: {call_sid})")
+
+    # ── Load greeting from config ─────────────────────────────────────────────
+    cfg = get_config(db, org_id)
+    greeting = cfg.get("greeting", "Gracias por llamar. ¿En qué le podemos ayudar?")
+    language  = cfg.get("language", "es-ES")
+    dtmf_menu = cfg.get("dtmf_menu", {})
+
+    # ── Build TwiML response ──────────────────────────────────────────────────
+    gather_verbs = "\n".join(
+        f'<Say language="{language}">{label}</Say>'
+        for key, label in sorted((dtmf_menu or {}).items())
+    )
+
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="{language}">{greeting}</Say>
+  <Gather numDigits="1" action="/api/v1/sd/voice/webhook/twilio/gather?session_id={session['id']}" method="POST" timeout="5">
+    {gather_verbs}
+  </Gather>
+  <Say language="{language}">No hemos recibido ninguna selección. Le transferimos con un agente.</Say>
+  <Dial><Queue>general</Queue></Dial>
+</Response>"""
+
+    from fastapi import Response
+    return Response(content=twiml, media_type="application/xml")
+
+
+@router.post(
+    "/webhook/twilio/gather",
+    summary="Twilio IVR gather callback — procesa selección DTMF",
+    include_in_schema=False,
+)
+@limiter.limit("120/minute")
+async def twilio_gather_webhook(
+    request: Request,
+    session_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Processes DTMF digit selection from a Twilio <Gather> verb."""
+    from app.services.service_desk.voice_agent_service import get_config
+
+    form_data = dict(await request.form())
+    digit     = form_data.get("Digits", "")
+    caller_id = form_data.get("From", "unknown")
+    org_id    = None
+
+    cfg = get_config(db, org_id)
+    dtmf_menu = cfg.get("dtmf_menu", {})
+    language  = cfg.get("language", "es-ES")
+
+    selected_option = (dtmf_menu or {}).get(digit, "")
+
+    if session_id:
+        add_transcript_turn(db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_option}")
+
+    if digit and selected_option:
+        message = f"Ha seleccionado: {selected_option}. Le transferimos ahora."
+    else:
+        message = "Opción no válida. Le transferimos con un agente."
+
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say language="{language}">{message}</Say>
+  <Dial><Queue>{selected_option or 'general'}</Queue></Dial>
+</Response>"""
+
+    from fastapi import Response
+    return Response(content=twiml, media_type="application/xml")

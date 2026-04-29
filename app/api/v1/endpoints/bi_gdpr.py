@@ -123,6 +123,55 @@ def resolve_dsr(
         raise HTTPException(status_code=404, detail=str(exc))
 
 
+@router.patch("/bi/gdpr/dsr/{dsr_id}/resolve", summary="Resolver una DSR")
+@limiter.limit("20/minute")
+def resolve_dsr(
+    request: Request,
+    dsr_id: str,
+    body: DSRResolveIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        return svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/bi/gdpr/dsr/{dsr_id}/erasure-execute", summary="Ejecutar pipeline de borrado/anonimización GDPR real")
+@limiter.limit("5/minute")
+def execute_erasure(
+    request: Request,
+    dsr_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Physically anonymise all personal data for the subject referenced in a DSR.
+    DSR must exist and be of type 'erasure'. Automatically resolves the DSR after execution.
+    Requires admin role.
+    """
+    if getattr(current_user, "role", None) not in ("admin", "superadmin"):
+        raise HTTPException(status_code=403, detail="Admin role required for erasure execution")
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        dsr_list = svc.list_dsrs(db, org_id=org_id)
+        dsr = next((d for d in dsr_list if d["id"] == dsr_id), None)
+        if not dsr:
+            raise HTTPException(status_code=404, detail="DSR not found")
+        if dsr["request_type"] != "erasure":
+            raise HTTPException(status_code=422, detail="DSR is not an erasure request")
+        report = svc.execute_erasure(db, subject_id=dsr["subject_id"], org_id=org_id)
+        # Auto-resolve the DSR
+        svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes="Erasure pipeline executed automatically")
+        return {"ok": True, "dsr_id": dsr_id, "erasure_report": report}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.get("/bi/gdpr/dsr", summary="Listar solicitudes DSR")
 @limiter.limit("30/minute")
 def list_dsrs(

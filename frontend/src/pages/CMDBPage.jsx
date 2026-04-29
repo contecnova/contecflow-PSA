@@ -9,6 +9,7 @@ import PageHeader from '../components/layout/PageHeader'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import CMDBTopologyGraph from '../components/cmdb/CMDBTopologyGraph'
+import Cmdb3dGraph from '../components/servicedesk/Cmdb3dGraph'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
 const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
@@ -359,7 +360,7 @@ export default function CMDBPage() {
 
       {/* Tabs */}
       <div style={{display:'flex',gap:4,marginBottom:20,borderBottom:'1px solid var(--surface-4)',paddingBottom:0}}>
-        {[['list','📋 Inventario'],['topology','🔗 Topología']].map(([id,label]) => (
+        {[['list','📋 Inventario'],['topology','🔗 Topología'],['3d','🌐 3D / Blast Radius']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{padding:'8px 18px',fontSize:13,fontWeight:tab===id?700:400,
               color:tab===id?'var(--accent)':'var(--text-2)',background:'transparent',
@@ -711,6 +712,9 @@ export default function CMDBPage() {
       {showForm && <CMDBItemForm item={editing} categories={categories} onClose={() => { setShowForm(false); setEditing(null) }} />}
       {relItem && <RelationsModal item={relItem} allItems={items} onClose={() => setRelItem(null)} />}
       {historyItem && <ChangelogModal item={historyItem} onClose={() => setHistoryItem(null)} />}
+
+      {/* ── CMDB 3D Graph + Blast Radius ── */}
+      {tab === '3d' && <Cmdb3dGraph />}
     </div>
   )
 }

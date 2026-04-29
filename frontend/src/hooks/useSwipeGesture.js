@@ -1,46 +1,82 @@
 /**
- * useSwipeGesture.js — Touch swipe gesture detection hook.
+ * useSwipeGesture.js — Touch swipe + pinch-zoom gesture detection hook.
  * 
  * Usage:
- *   const { onTouchStart, onTouchEnd } = useSwipeGesture({
+ *   const { onTouchStart, onTouchEnd, onTouchMove } = useSwipeGesture({
  *     onSwipeLeft: () => goNext(),
  *     onSwipeRight: () => goPrev(),
+ *     onPinchIn: () => zoomOut(),
+ *     onPinchOut: () => zoomIn(),
  *     threshold: 50,
  *   })
- *   <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>...</div>
+ *   <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onTouchMove={onTouchMove}>...</div>
  */
 import { useRef, useCallback } from 'react'
 
 const DEFAULT_THRESHOLD = 50  // px
 const DEFAULT_VELOCITY_THRESHOLD = 0.3  // px/ms
+const PINCH_THRESHOLD = 20  // px distance change to trigger pinch
 
 /**
  * @param {object} opts
- * @param {function} [opts.onSwipeLeft]   — swipe left (next)
- * @param {function} [opts.onSwipeRight]  — swipe right (prev)
- * @param {function} [opts.onSwipeUp]     — swipe up
- * @param {function} [opts.onSwipeDown]   — swipe down
- * @param {number}   [opts.threshold=50]  — minimum distance in px
- * @param {number}   [opts.velocityThreshold=0.3] — minimum px/ms velocity
+ * @param {function} [opts.onSwipeLeft]
+ * @param {function} [opts.onSwipeRight]
+ * @param {function} [opts.onSwipeUp]
+ * @param {function} [opts.onSwipeDown]
+ * @param {function} [opts.onPinchIn]   — fingers coming together (zoom out)
+ * @param {function} [opts.onPinchOut]  — fingers spreading (zoom in)
+ * @param {number}   [opts.threshold=50]
+ * @param {number}   [opts.velocityThreshold=0.3]
+ * @param {number}   [opts.pinchThreshold=20]
  */
 export function useSwipeGesture({
   onSwipeLeft,
   onSwipeRight,
   onSwipeUp,
   onSwipeDown,
+  onPinchIn,
+  onPinchOut,
   threshold = DEFAULT_THRESHOLD,
   velocityThreshold = DEFAULT_VELOCITY_THRESHOLD,
+  pinchThreshold = PINCH_THRESHOLD,
 } = {}) {
   const touchStart = useRef(null)
+  const pinchStart = useRef(null)
+
+  const _pinchDist = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
 
   const onTouchStart = useCallback((e) => {
+    if (e.touches.length === 2) {
+      // Two-finger pinch start
+      pinchStart.current = _pinchDist(e.touches)
+      touchStart.current = null
+      return
+    }
     const touch = e.touches[0]
     touchStart.current = {
       x: touch.clientX,
       y: touch.clientY,
       time: Date.now(),
     }
+    pinchStart.current = null
   }, [])
+
+  const onTouchMove = useCallback((e) => {
+    if (e.touches.length === 2 && pinchStart.current !== null) {
+      e.preventDefault?.()
+      const dist = _pinchDist(e.touches)
+      const delta = dist - pinchStart.current
+      if (Math.abs(delta) >= pinchThreshold) {
+        if (delta < 0 && onPinchIn) onPinchIn(delta)
+        else if (delta > 0 && onPinchOut) onPinchOut(delta)
+        pinchStart.current = dist  // reset so continuous pinch fires incrementally
+      }
+    }
+  }, [onPinchIn, onPinchOut, pinchThreshold])
 
   const onTouchEnd = useCallback((e) => {
     if (!touchStart.current) return
@@ -73,9 +109,10 @@ export function useSwipeGesture({
 
   const onTouchCancel = useCallback(() => {
     touchStart.current = null
+    pinchStart.current = null
   }, [])
 
-  return { onTouchStart, onTouchEnd, onTouchCancel }
+  return { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel }
 }
 
 export default useSwipeGesture

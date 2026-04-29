@@ -13,6 +13,7 @@ import Breadcrumbs from './Breadcrumbs'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import useNotificationBadges from '../../hooks/useNotificationBadges'
 import OfflineIndicator from '../OfflineIndicator'
+import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang } from '../../i18n/AppLangContext'
 import {
   LayoutDashboard, CheckSquare, Columns, Clock, Calendar, Umbrella,
@@ -974,6 +975,10 @@ export default function Layout({ children }) {
 
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const swipeHandlers = useSwipeGesture({
+    onSwipeRight: () => setMobileOpen(true),
+    onSwipeLeft:  () => setMobileOpen(false),
+  })
   const [searchOpen, setSearchOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -1218,7 +1223,8 @@ export default function Layout({ children }) {
 
       <main id="main-content" aria-label={text.main_content} role="main"
         className="app-main-shell"
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}>
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}
+        {...swipeHandlers}>
         <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
           ariaLabel={text.open_menu}
           style={{

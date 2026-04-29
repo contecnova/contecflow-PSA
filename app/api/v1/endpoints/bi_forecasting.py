@@ -44,6 +44,7 @@ def get_forecast_metrics(
         "metrics": svc.SUPPORTED_METRICS,
         "methods": svc.SUPPORTED_METHODS,
         "prophet_available": svc._PROPHET_AVAILABLE,
+        "arima_available": svc._STATSMODELS_AVAILABLE,
     }
 
 

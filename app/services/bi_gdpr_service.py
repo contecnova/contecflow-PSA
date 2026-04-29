@@ -2,15 +2,17 @@
 bi_gdpr_service.py — GDPR compliance for BI data.
 
 Handles:
-  - Data erasure requests (DSR delete) — removes personal data from analytics snapshots
+  - Data erasure requests (DSR delete) — anonymises personal data in DB + analytics snapshots
   - Consent management — track which users have consented to BI analytics collection
   - DSR (Data Subject Request) status tracking
   - Field-level data masking metadata
 
 State persisted in AppSetting JSON, scoped by organization.
+Erasure operations act on real DB rows (Ticket.requester_*, User fields).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from datetime import datetime, timezone
@@ -159,3 +161,88 @@ def set_field_mask(
 
 def list_field_masks(db: Session, *, org_id: Optional[str]) -> list[dict]:
     return list(_get_setting(db, _KEY_MASKS, org_id, {}).values())
+
+
+# ── Erasure pipeline ──────────────────────────────────────────────────────────
+
+def _anon_hash(value: str) -> str:
+    """One-way pseudonymisation: SHA-256 first 12 chars, prefixed."""
+    return "[erased:" + hashlib.sha256(value.encode()).hexdigest()[:12] + "]"
+
+
+def execute_erasure(db: Session, *, subject_id: str, org_id: Optional[str]) -> dict:
+    """
+    Physically anonymise personal data for *subject_id* across all relevant tables.
+
+    subject_id can be:
+      - A User.id — anonymises User row + Ticket requester fields
+      - An email string — resolves to User first, then anonymises
+
+    Returns a report of operations performed.
+    """
+    from app.models.user import User
+    from app.models.service_desk import Ticket
+
+    report: dict[str, Any] = {
+        "subject_id": subject_id,
+        "executed_at": _iso_now(),
+        "operations": [],
+    }
+
+    # ── Resolve user ──────────────────────────────────────────────────────────
+    user_q = db.query(User)
+    if "@" in subject_id:
+        user = user_q.filter(User.email == subject_id).first()
+    else:
+        user = user_q.filter(User.id == subject_id).first()
+
+    user_id_for_tickets = subject_id
+
+    if user:
+        user_id_for_tickets = user.id
+        original_email = user.email
+        # Anonymise User row
+        user.email = _anon_hash(original_email) + "@erased.invalid"
+        user.username = _anon_hash(user.username)
+        user.full_name = "[ERASED]"
+        user.first_name = "[ERASED]"
+        user.last_name = "[ERASED]"
+        user.phone = None
+        user.avatar_url = None
+        db.add(user)
+        report["operations"].append({
+            "table": "users",
+            "row_id": user.id,
+            "fields_cleared": ["email", "username", "full_name", "first_name", "last_name", "phone", "avatar_url"],
+        })
+
+    # ── Anonymise ticket requester fields ─────────────────────────────────────
+    tickets = db.query(Ticket).filter(
+        (Ticket.requester_user_id == user_id_for_tickets) |
+        (Ticket.requester_email == subject_id)
+    ).all()
+
+    for t in tickets:
+        if t.requester_name:
+            t.requester_name = "[ERASED]"
+        if t.requester_email:
+            t.requester_email = _anon_hash(t.requester_email) + "@erased.invalid"
+        t.requester_user_id = None
+        db.add(t)
+
+    if tickets:
+        report["operations"].append({
+            "table": "sd_tickets",
+            "count": len(tickets),
+            "fields_cleared": ["requester_name", "requester_email", "requester_user_id"],
+        })
+
+    # ── Purge analytics consent & DSR snapshot (no historical PII) ───────────
+    consents: dict = _get_setting(db, _KEY_CONSENT, org_id, {})
+    if subject_id in consents:
+        del consents[subject_id]
+        _set_setting(db, _KEY_CONSENT, org_id, consents)
+        report["operations"].append({"table": "appsetting[bi.gdpr.consent]", "action": "deleted", "key": subject_id})
+
+    db.commit()
+    return report
