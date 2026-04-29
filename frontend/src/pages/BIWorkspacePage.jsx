@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { biCollaborationApi, biIntelligenceApi, biPlatformApi, biSmartAlertsApi, biBookmarksApi, biReportBuilderV2Api } from '../services/api'
+import api, { biCollaborationApi, biIntelligenceApi, biPlatformApi, biSmartAlertsApi, biBookmarksApi, biReportBuilderV2Api, biGovernanceAuditApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { Spinner } from '../components/ui'
 import { PieChart as PieChartIcon } from 'lucide-react'
@@ -312,6 +312,14 @@ export default function BIPage() {
   const [newBookmarkName, setNewBookmarkName] = useState('')
   const [rbv2SelectedPreset, setRbv2SelectedPreset] = useState('finance_revenue_by_client')
   const [rbv2PreviewData, setRbv2PreviewData] = useState(null)
+  // ── BI Governance Audit state
+  const [govAuditTick, setGovAuditTick] = useState(0)
+  const [govAuditUserFilter, setGovAuditUserFilter] = useState('')
+  const [newLineageSource, setNewLineageSource] = useState('')
+  const [newLineageTarget, setNewLineageTarget] = useState('')
+  const [newFieldName, setNewFieldName] = useState('')
+  const [newFieldSensitivity, setNewFieldSensitivity] = useState('low')
+  const [newFieldDataset, setNewFieldDataset] = useState('')
 
   const params = dateRange(days)
 
@@ -487,6 +495,27 @@ export default function BIPage() {
   useEffect(() => {
     if (governanceRules) setRulesDraft(governanceRules)
   }, [governanceRules])
+
+  // ── BI Governance Audit / Lineage / Field-sensitivity queries
+  const { data: govAuditData, refetch: refetchGovAudit } = useQuery({
+    queryKey: ['bi-gov-audit', govAuditTick, govAuditUserFilter],
+    queryFn: () => biGovernanceAuditApi.getAccessHistory(
+      govAuditUserFilter.trim() ? { user_id: govAuditUserFilter.trim(), limit: 50 } : { limit: 50 }
+    ).then(r => r.data).catch(() => ({ items: [] })),
+    staleTime: 15_000,
+  })
+
+  const { data: govLineageData, refetch: refetchGovLineage } = useQuery({
+    queryKey: ['bi-gov-lineage', govAuditTick],
+    queryFn: () => biGovernanceAuditApi.listLineage().then(r => r.data).catch(() => ({ items: [] })),
+    staleTime: 15_000,
+  })
+
+  const { data: govFieldData, refetch: refetchGovFields } = useQuery({
+    queryKey: ['bi-gov-fields', govAuditTick],
+    queryFn: () => biGovernanceAuditApi.listFieldSensitivity().then(r => r.data).catch(() => ({ items: [] })),
+    staleTime: 15_000,
+  })
 
   useEffect(() => {
     let ws = null
@@ -682,6 +711,39 @@ export default function BIPage() {
     if (!rulesDraft) return
     await biCollaborationApi.updateGovernanceRules(rulesDraft)
     await refetchRules()
+
+    async function handleLogGovAuditEvent() {
+      await biGovernanceAuditApi.logAccessEvent({
+        user_id: govAuditUserFilter.trim() || 'console',
+        resource: 'bi_dashboard',
+        action: 'view',
+      }).catch(() => null)
+      setGovAuditTick(x => x + 1)
+    }
+
+    async function handleAddLineageEdge() {
+      const src = newLineageSource.trim()
+      const tgt = newLineageTarget.trim()
+      if (!src || !tgt) return
+      await biGovernanceAuditApi.trackLineage({ source_table: src, target_table: tgt }).catch(() => null)
+      setNewLineageSource('')
+      setNewLineageTarget('')
+      setGovAuditTick(x => x + 1)
+    }
+
+    async function handleUpsertFieldSensitivity() {
+      const field = newFieldName.trim()
+      const dataset = newFieldDataset.trim()
+      if (!field || !dataset) return
+      await biGovernanceAuditApi.upsertFieldSensitivity({
+        dataset_id: dataset,
+        field_name: field,
+        sensitivity: newFieldSensitivity,
+      }).catch(() => null)
+      setNewFieldName('')
+      setNewFieldDataset('')
+      setGovAuditTick(x => x + 1)
+    }
   }
 
   async function handleToggleConnector(name, enabled) {
@@ -1937,6 +1999,169 @@ export default function BIPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ── BI Governance: Audit trail, Data Lineage, Field Sensitivity ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 10, fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>
+          Gobernanza BI — Auditoría, Linaje y Clasificación de Campos
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
+
+          {/* Audit access trail */}
+          <div style={S.card}>
+            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Auditoría de accesos</span>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  value={govAuditUserFilter}
+                  onChange={e => setGovAuditUserFilter(e.target.value)}
+                  placeholder="user_id (filtro)"
+                  style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11, width: 130 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setGovAuditTick(x => x + 1)}
+                  style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}
+                >Filtrar</button>
+              </div>
+            </div>
+            <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
+              <button
+                type="button"
+                onClick={handleLogGovAuditEvent}
+                style={{ justifySelf: 'flex-start', padding: '6px 14px', borderRadius: 8, border: `1px solid ${COLOR.accent}`, background: COLOR.accentMuted, color: COLOR.accent, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+              >Registrar acceso</button>
+              {(govAuditData?.items || []).length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>Sin eventos de auditoria.</div>
+              ) : (
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                  {(govAuditData?.items || []).slice(0, 20).map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
+                      <span style={{ fontSize: 10, background: `${COLOR.info}18`, color: COLOR.info, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0 }}>{ev.action || 'view'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.resource || '—'}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{ev.user_id || '—'} · {ev.accessed_at ? new Date(ev.accessed_at).toLocaleString() : '—'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Data Lineage */}
+          <div style={S.card}>
+            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Linaje de datos</span>
+              <button
+                type="button"
+                onClick={() => refetchGovLineage()}
+                style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}
+              >Refrescar</button>
+            </div>
+            <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <input
+                  value={newLineageSource}
+                  onChange={e => setNewLineageSource(e.target.value)}
+                  placeholder="Tabla origen"
+                  style={{ flex: 1, minWidth: 80, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11 }}
+                />
+                <span style={{ alignSelf: 'center', color: 'var(--text-3)', fontSize: 13 }}>{'→'}</span>
+                <input
+                  value={newLineageTarget}
+                  onChange={e => setNewLineageTarget(e.target.value)}
+                  placeholder="Tabla destino"
+                  style={{ flex: 1, minWidth: 80, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddLineageEdge}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${COLOR.accent}`, background: COLOR.accentMuted, color: COLOR.accent, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                >Añadir</button>
+              </div>
+              {(govLineageData?.items || []).length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>Sin edges de linaje registrados.</div>
+              ) : (
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                  {(govLineageData?.items || []).slice(0, 20).map((edge, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {edge.source_table || edge.source || '—'}
+                      </span>
+                      <span style={{ color: 'var(--text-3)', fontSize: 12, flexShrink: 0 }}>{'→'}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-1)', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {edge.target_table || edge.target || '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Field Sensitivity */}
+          <div style={S.card}>
+            <div style={{ ...S.cardPad, borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Clasificacion de campos</span>
+              <button
+                type="button"
+                onClick={() => refetchGovFields()}
+                style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}
+              >Refrescar</button>
+            </div>
+            <div style={{ ...S.cardPad, display: 'grid', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <input
+                  value={newFieldDataset}
+                  onChange={e => setNewFieldDataset(e.target.value)}
+                  placeholder="Dataset ID"
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11 }}
+                />
+                <input
+                  value={newFieldName}
+                  onChange={e => setNewFieldName(e.target.value)}
+                  placeholder="Campo (ej. email)"
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11 }}
+                />
+                <select
+                  value={newFieldSensitivity}
+                  onChange={e => setNewFieldSensitivity(e.target.value)}
+                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', fontSize: 11 }}
+                >
+                  {['low', 'medium', 'high', 'critical', 'pii'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleUpsertFieldSensitivity}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${COLOR.warning}`, background: `${COLOR.warning}18`, color: COLOR.warning, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                >Clasificar</button>
+              </div>
+              {(govFieldData?.items || []).length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '8px 0' }}>Sin campos clasificados.</div>
+              ) : (
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'grid', gap: 4 }}>
+                  {(govFieldData?.items || []).slice(0, 20).map((f, i) => {
+                    const sensColor = f.sensitivity === 'critical' || f.sensitivity === 'pii' ? COLOR.danger : f.sensitivity === 'high' ? COLOR.warning : COLOR.success
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--surface-4)' }}>
+                        <span style={{ fontSize: 10, background: `${sensColor}18`, color: sensColor, borderRadius: 6, padding: '2px 7px', fontWeight: 700, flexShrink: 0, textTransform: 'uppercase' }}>{f.sensitivity || '—'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-1)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.field_name || '—'}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{f.dataset_id || '—'}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
 

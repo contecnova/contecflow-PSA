@@ -1,5 +1,5 @@
 """Service Desk — Miscellaneous subdomain router (catalog, groups, problems, announcements, routing, changes, major incidents, assets, status page)."""
-from fastapi import APIRouter, Depends, Query, Header, Body, Response, HTTPException
+from fastapi import APIRouter, Depends, Query, Header, Body, Response, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -7,6 +7,7 @@ import json
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.ratelimit import limiter
 from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import (
@@ -160,20 +161,23 @@ def list_problems(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, l
     return list_problems_payload(db, current_user, page, page_size)
 
 @router.post("/problems", summary="Crear problema")
-def create_problem(payload: ProblemIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def create_problem(request: Request, payload: ProblemIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     p = create_problem_record(db, current_user, payload)
     _commit_or_rollback(db); db.refresh(p)
     return {"id": p.id, "number": p.number}
 
 @router.patch("/problems/{problem_id}", summary="Actualizar problema")
-def update_problem(problem_id: str, payload: ProblemUpdateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def update_problem(request: Request, problem_id: str, payload: ProblemUpdateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     p = get_scoped_problem_or_404(db, current_user, problem_id)
     apply_problem_update(db, current_user, p, payload)
     _commit_or_rollback(db)
     return {"ok": True}
 
 @router.post("/problems/{problem_id}/link-ticket/{ticket_id}", summary="Vincular ticket a problema")
-def link_ticket_to_problem(problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def link_ticket_to_problem(request: Request, problem_id: str, ticket_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     link_ticket_to_problem_record(db, current_user, problem_id, ticket_id)
     _commit_or_rollback(db)
     return {"ok": True}

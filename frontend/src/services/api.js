@@ -273,6 +273,16 @@ export const biBookmarksApi = {
   delete: (id)                         => api.delete(`/bi/bookmarks/${id}`),
 }
 
+export const biGovernanceAuditApi = {
+  // BI Governance — audit trail, data lineage, field sensitivity
+  logAccessEvent: (payload)            => api.post('/bi/governance/audit/access', payload),
+  getAccessHistory: (params)           => api.get('/bi/governance/audit/access', { params }),
+  listLineage: (target_table)          => api.get('/bi/governance/lineage', { params: target_table ? { target_table } : undefined }),
+  trackLineage: (payload)              => api.post('/bi/governance/lineage', payload),
+  listFieldSensitivity: (dataset_id)   => api.get('/bi/governance/field-sensitivity', { params: dataset_id ? { dataset_id } : undefined }),
+  upsertFieldSensitivity: (payload)    => api.put('/bi/governance/field-sensitivity', payload),
+}
+
 export const biReportBuilderV2Api = {
   listPresets: (params)                => api.get('/bi/reports/v2/presets', { params }),
   getPreset: (presetId)                => api.get(`/bi/reports/v2/presets/${presetId}`),

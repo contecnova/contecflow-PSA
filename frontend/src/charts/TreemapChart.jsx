@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { hierarchy, treemap } from 'd3'
+import { useChartTheme } from './useChartTheme'
 
 export default function TreemapChart({ data, width = 900, height = 380 }) {
+  const { tokens } = useChartTheme()
   const nodes = useMemo(() => {
     const root = hierarchy(data || {
       name: 'Revenue',
@@ -22,8 +24,8 @@ export default function TreemapChart({ data, width = 900, height = 380 }) {
     <svg width={width} height={height} role="img" aria-label="Treemap chart">
       {nodes.map((n) => (
         <g key={n.data.name}>
-          <rect x={n.x0} y={n.y0} width={n.x1 - n.x0} height={n.y1 - n.y0} fill="#0f766e" opacity={0.85} rx={3} />
-          <text x={n.x0 + 6} y={n.y0 + 16} fill="#f8fafc" fontSize="11">
+          <rect x={n.x0} y={n.y0} width={n.x1 - n.x0} height={n.y1 - n.y0} fill={tokens.accent} opacity={0.85} rx={3} />
+          <text x={n.x0 + 6} y={n.y0 + 16} fill={tokens.text1} fontSize="11">
             {n.data.name}
           </text>
         </g>

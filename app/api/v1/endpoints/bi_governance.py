@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
+from app.core.ratelimit import limiter
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_governance_service as svc
@@ -38,6 +39,7 @@ class FieldSensitivityIn(BaseModel):
 
 
 @router.post('/bi/governance/audit/access', summary='Registrar evento de acceso BI con before/after + metadata cliente')
+@limiter.limit("30/minute")
 def log_access(
     payload: AuditAccessIn,
     request: Request,
@@ -62,7 +64,9 @@ def log_access(
 
 
 @router.get('/bi/governance/audit/access', summary='Consultar auditoria BI por ventana temporal')
+@limiter.limit("60/minute")
 def list_access_history(
+    request: Request,
     days: int = Query(30, ge=1, le=90),
     user_id: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
@@ -83,7 +87,9 @@ def list_access_history(
 
 
 @router.get('/bi/governance/lineage', summary='Listar data lineage BI')
+@limiter.limit("60/minute")
 def list_lineage(
+    request: Request,
     target_table: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -94,8 +100,10 @@ def list_lineage(
 
 
 @router.post('/bi/governance/lineage', summary='Registrar/actualizar data lineage BI')
+@limiter.limit("30/minute")
 def track_lineage(
     payload: LineageIn,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -112,7 +120,9 @@ def track_lineage(
 
 
 @router.get('/bi/governance/field-sensitivity', summary='Listar sensibilidad de campos BI')
+@limiter.limit("60/minute")
 def list_fields(
+    request: Request,
     dataset_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -123,8 +133,10 @@ def list_fields(
 
 
 @router.put('/bi/governance/field-sensitivity', summary='Crear/actualizar sensibilidad de campo BI')
+@limiter.limit("30/minute")
 def upsert_field(
     payload: FieldSensitivityIn,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

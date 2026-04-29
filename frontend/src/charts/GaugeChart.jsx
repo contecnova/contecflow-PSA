@@ -1,8 +1,11 @@
 import ReactECharts from 'echarts-for-react'
+import { useChartTheme } from './useChartTheme'
 
 export default function GaugeChart({ data, width = 900, height = 380 }) {
+  const { dark } = useChartTheme()
   const value = Number(data?.value ?? 72)
   const option = {
+    backgroundColor: 'transparent',
     series: [{
       type: 'gauge',
       min: 0,
@@ -12,5 +15,9 @@ export default function GaugeChart({ data, width = 900, height = 380 }) {
       data: [{ value, name: data?.name || 'Utilizacion' }],
     }],
   }
-  return <ReactECharts option={option} style={{ width, height }} notMerge lazyUpdate />
+  return (
+    <div role="img" aria-label={data?.name ? `Gauge chart: ${data.name}` : 'Gauge chart'}>
+      <ReactECharts option={option} theme={dark ? 'dark' : 'light'} style={{ width, height }} notMerge lazyUpdate />
+    </div>
+  )
 }

@@ -23,6 +23,7 @@ logger = logging.getLogger("contecflow.v14")
 
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.ratelimit import limiter
 from app.models.user import User
 from app.models.cab import (
     WebhookTrigger,
@@ -51,9 +52,11 @@ class CABVoteCreate(BaseModel):
 
 
 @router.post("/cab/changes/{cr_id}/vote", summary="Votar en CAB sobre una CR")
+@limiter.limit("20/minute")
 def cast_cab_vote(
     cr_id: str,
     payload: CABVoteCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -64,9 +67,11 @@ def cast_cab_vote(
 
 
 @router.post("/cab/changes/{cr_id}/close", summary="Cerrar votación CAB — aprobar o rechazar")
+@limiter.limit("20/minute")
 def close_cab_vote(
     cr_id: str,
     payload: dict = Body(...),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -96,8 +101,10 @@ class WindowCreate(BaseModel):
 
 
 @router.post("/cab/windows", summary="Crear ventana de mantenimiento")
+@limiter.limit("20/minute")
 def create_maintenance_window(
     payload: WindowCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -105,9 +112,11 @@ def create_maintenance_window(
 
 
 @router.post("/cab/changes/{cr_id}/schedule", summary="Asignar CR a ventana de mantenimiento")
+@limiter.limit("20/minute")
 def schedule_cr_in_window(
     cr_id: str,
     payload: dict = Body(...),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -158,6 +167,7 @@ def create_webhook_trigger(
 
 
 @router.post("/webhooks/fire/{slug}", summary="Disparar webhook — endpoint público")
+@limiter.limit("20/minute")
 async def fire_webhook(
     slug: str,
     request: Request,
@@ -328,8 +338,10 @@ class GDPRRequestCreate(BaseModel):
 
 
 @router.post("/gdpr/requests", summary="Crear solicitud GDPR")
+@limiter.limit("10/minute")
 def create_gdpr_request(
     payload: GDPRRequestCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -337,8 +349,10 @@ def create_gdpr_request(
 
 
 @router.post("/gdpr/requests/{request_id}/process", summary="Procesar solicitud GDPR")
+@limiter.limit("5/minute")
 def process_gdpr_request(
     request_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -354,10 +368,12 @@ def process_gdpr_request(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get("/global-search", summary="Búsqueda global full-text")
+@limiter.limit("30/minute")
 def global_search(
     q: str = Query(..., min_length=1),
     types: Optional[str] = Query(None),
     limit: int = Query(30, le=100),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -540,9 +556,11 @@ def create_revenue_rule(
 
 
 @router.post("/revenue/rules/{rule_id}/compute", summary="Calcular reconocimiento del período")
+@limiter.limit("10/minute")
 def compute_revenue_period(
     rule_id: str,
     payload: dict = Body(...),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
@@ -555,8 +573,10 @@ def compute_revenue_period(
 
 
 @router.post("/revenue/auto-compute", summary="Computar Rev Rec automáticamente para todos los proyectos activos")
+@limiter.limit("5/minute")
 def auto_compute_revenue(
     period: Optional[str] = Body(None, embed=True),
+    request: Request = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):

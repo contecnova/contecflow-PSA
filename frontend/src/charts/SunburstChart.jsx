@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { hierarchy, partition, arc } from 'd3'
+import { useChartTheme } from './useChartTheme'
 
 export default function SunburstChart({ data, width = 900, height = 380 }) {
+  const { tokens } = useChartTheme()
   const radius = Math.min(width, height) / 2 - 8
   const chartData = useMemo(() => {
     const root = hierarchy(data || {

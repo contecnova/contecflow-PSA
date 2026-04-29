@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey'
+import { useChartTheme } from './useChartTheme'
 
 export default function SankeyChart({ data, width = 900, height = 380 }) {
+  const { tokens } = useChartTheme()
   const graph = useMemo(() => {
     const nodes = (data?.nodes || [
       { id: 'Leads' },
@@ -29,7 +31,7 @@ export default function SankeyChart({ data, width = 900, height = 380 }) {
           <path
             key={i}
             d={sankeyLinkHorizontal()(link)}
-            stroke="#0ea5e9"
+            stroke={tokens.info}
             strokeWidth={Math.max(1, link.width)}
           />
         ))}
@@ -42,11 +44,11 @@ export default function SankeyChart({ data, width = 900, height = 380 }) {
               y={node.y0}
               width={node.x1 - node.x0}
               height={Math.max(1, node.y1 - node.y0)}
-              fill="#1d4ed8"
+              fill={tokens.accent}
               opacity={0.8}
               rx={2}
             />
-            <text x={node.x1 + 6} y={(node.y0 + node.y1) / 2} dominantBaseline="middle" fill="#e5e7eb" fontSize="11">
+            <text x={node.x1 + 6} y={(node.y0 + node.y1) / 2} dominantBaseline="middle" fill={tokens.text1} fontSize="11">
               {node.id}
             </text>
           </g>
