@@ -10,7 +10,7 @@ import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ENTITY_TYPES = [
@@ -27,8 +27,11 @@ const inp   = { background: 'var(--surface-3)', border: '1px solid var(--surface
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
-  const [q, setQ] = useState('')
-  const [entity, setEntity] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const q = searchParams.get('q') || ''
+  const entity = searchParams.get('entity') || 'all'
+  const setQ = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set('q', v) : n.delete('q'); return n }, { replace: true })
+  const setEntity = (v) => setSearchParams(p => { const n = new URLSearchParams(p); v && v !== 'all' ? n.set('entity', v) : n.delete('entity'); return n }, { replace: true })
   const _toast = useToast()
   const nav = useNavigate()
 

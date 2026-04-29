@@ -109,6 +109,45 @@ function NotifItem({ notif, onMarkRead }) {
   )
 }
 
+function GroupedNotifList({ notifications, onMarkRead }) {
+  const groups = notifications.reduce((acc, n) => {
+    const key = n.type || 'other'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(n)
+    return acc
+  }, {})
+
+  const sortedGroups = Object.entries(groups).sort(([, a], [, b]) => {
+    const unreadA = a.filter(n => !n.is_read).length
+    const unreadB = b.filter(n => !n.is_read).length
+    return unreadB - unreadA
+  })
+
+  return (
+    <div>
+      {sortedGroups.map(([type, notifs]) => {
+        const cfg = TYPE_CFG[type] || { icon: '🔔', color: 'var(--text-2)', label: 'Notificación' }
+        const unread = notifs.filter(n => !n.is_read).length
+        return (
+          <div key={type} style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 4px' }}>
+              <span style={{ fontSize: 14 }}>{cfg.icon}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
+              {unread > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, background: cfg.color, color: '#fff', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
+              )}
+              <div style={{ flex: 1, height: 1, background: 'var(--surface-4)', marginLeft: 4 }} />
+            </div>
+            {notifs.map(n => (
+              <NotifItem key={n.id} notif={n} onMarkRead={onMarkRead} />
+            ))}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function NotificationsPage() {
   const t = useAppT()
   const { user } = useAuth()
@@ -243,11 +282,7 @@ export default function NotificationsPage() {
         <EmptyState icon="🔔" title="Sin notificaciones"
           description={filter === 'unread' ? 'Todo al día — no tienes notificaciones sin leer' : 'Sin notificaciones en este filtro'} />
       ) : (
-        <div>
-          {filtered.map(n => (
-            <NotifItem key={n.id} notif={n} onMarkRead={id => markRead(id)} />
-          ))}
-        </div>
+        <GroupedNotifList notifications={filtered} onMarkRead={id => markRead(id)} />
       )}
     </div>
   )

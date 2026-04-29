@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -906,10 +906,16 @@ export default function ProjectsPage() {
   const { hasRole } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
-  const [view, setView] = useState('grid')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('search') || ''
+  const statusFilter = searchParams.get('status') || ''
+  const typeFilter = searchParams.get('type') || ''
+  const view = searchParams.get('view') || 'grid'
+  const setParam = (k, v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  const setSearch = (v) => setParam('search', v)
+  const setStatusFilter = (v) => setParam('status', v)
+  const setTypeFilter = (v) => setParam('type', v)
+  const setView = (v) => setParam('view', v)
   const [showCreate, setShowCreate] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [selected, setSelected] = useState(null)

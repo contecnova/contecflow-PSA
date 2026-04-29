@@ -217,6 +217,55 @@ export function DashPageShell({ icon, title, subtitle, days, setDays, periods = 
   )
 }
 
+/* ── Skeleton loaders ──────────────────────────────────────────────────────── */
+const skeletonPulse = `
+  @keyframes skeletonPulse {
+    0%,100% { opacity: 0.45; }
+    50%      { opacity: 0.9; }
+  }
+`
+if (typeof document !== 'undefined' && !document.getElementById('skeleton-pulse-style')) {
+  const style = document.createElement('style')
+  style.id = 'skeleton-pulse-style'
+  style.textContent = skeletonPulse
+  document.head.appendChild(style)
+}
+const skBox = (w, h, r = 6, extra = {}) => ({
+  width: w, height: h, borderRadius: r,
+  background: 'var(--surface-4)',
+  animation: 'skeletonPulse 1.4s ease-in-out infinite',
+  ...extra,
+})
+
+export function KpiCardSkeleton() {
+  return (
+    <div style={{ ...S.card, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: 3, background: 'var(--surface-4)', borderRadius: '14px 14px 0 0' }} />
+      <div style={{ ...S.cardPad, flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={skBox(32, 32, 8)} />
+          <div style={skBox(80, 10, 4)} />
+        </div>
+        <div style={skBox(60, 34, 6)} />
+        <div style={skBox(100, 9, 4)} />
+      </div>
+    </div>
+  )
+}
+
+export function GaugeCardSkeleton() {
+  return (
+    <div style={{ ...S.card, ...S.cardPad, display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={skBox(68, 68, '50%', { flexShrink: 0 })} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={skBox(80, 10, 4)} />
+        <div style={skBox(50, 26, 6)} />
+        <div style={skBox(100, 9, 4)} />
+      </div>
+    </div>
+  )
+}
+
 /* ── Empty state ───────────────────────────────────────────────────────────── */
 export function DashEmpty({ icon = '📊', title = 'Sin datos', description }) {
   return (

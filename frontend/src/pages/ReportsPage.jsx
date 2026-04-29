@@ -1020,13 +1020,17 @@ function ScheduledReportsTab() {
 // ── PresetsTab ─────────────────────────────────────────────────────────────────
 function PresetsTab({ presets, supportedMetrics, onOpen }) {
   const [filterCat, setFilterCat] = useState('all')
+  const [searchQ, setSearchQ] = useState('')
   // When supportedMetrics is null the analytics catalogue is unavailable (e.g. 503).
   // In that case show all presets so the user can still browse and attempt to run them.
   const enabledPresets = supportedMetrics !== null
     ? presets.filter(p => supportedMetrics.has(p.metric))
     : presets
   const cats = ['all', ...new Set(enabledPresets.map(p => p.cat).filter(Boolean))]
-  const filtered = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
+  const byCat = filterCat === 'all' ? enabledPresets : enabledPresets.filter(p => p.cat === filterCat)
+  const filtered = searchQ.trim().length < 2
+    ? byCat
+    : byCat.filter(p => p.label.toLowerCase().includes(searchQ.toLowerCase()) || p.cat?.toLowerCase().includes(searchQ.toLowerCase()))
   const catIcons = { Horas:'⏱️', Costes:'💸', Rentabilidad:'💰', Capacidad:'📅',
     Proyectos:'⬡', Negocio:'💼', RRHH:'👥', 'Service Desk':'🎫', Agilidad:'🏃', ALM:'🔑', IA:'🧠' }
   const chartLabels = { bar:'Barras', bar_grouped:'Agrupadas', bar_stacked:'Apiladas',
@@ -1034,6 +1038,21 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
 
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <input
+          value={searchQ}
+          onChange={e => setSearchQ(e.target.value)}
+          placeholder="Buscar plantilla..."
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)',
+            fontSize: 13, outline: 'none', fontFamily: 'inherit',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
+        />
+      </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {cats.map(c => (
           <button key={c} onClick={() => setFilterCat(c)}
@@ -1045,6 +1064,11 @@ function PresetsTab({ presets, supportedMetrics, onOpen }) {
           </button>
         ))}
       </div>
+      {searchQ.trim().length >= 2 && (
+        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10 }}>
+          {filtered.length === 0 ? 'Sin resultados' : `${filtered.length} plantilla${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {filtered.map(p => (
           <button key={p.id} type="button" onClick={() => onOpen(p)}

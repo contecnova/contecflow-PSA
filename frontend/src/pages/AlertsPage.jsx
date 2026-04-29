@@ -1,12 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
 import { alertsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
-import { Bell } from 'lucide-react'
+import { Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
+
+function alertSourceUrl(alert) {
+  if (alert.project?.id) return `/projects/${alert.project.id}`
+  const t = alert.alert_type
+  if (t === 'task_blocked' || t === 'hours_deviation') return '/tasks'
+  if (t === 'overload' || t === 'burnout_risk' || t === 'no_imputation') return '/team'
+  return null
+}
 
 const SEVERITY_CONFIG = {
   critical: { bg: 'var(--danger-bg)', border: 'var(--danger-border)', dot: 'var(--danger)', label: 'alerts.severity_critical' },
@@ -30,6 +39,7 @@ export default function AlertsPage() {
   const { hasRole } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
 
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts-page'],
@@ -103,6 +113,7 @@ export default function AlertsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {alerts.map(alert => {
             const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.info
+            const sourceUrl = alertSourceUrl(alert)
             return (
               <div key={alert.id} style={{
                 display: 'flex', gap: 16, padding: '16px 20px',
@@ -123,10 +134,18 @@ export default function AlertsPage() {
                         <div style={{ fontSize: 14, fontWeight: 700 }}>{alert.title}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {alert.alert_type} · {fmtRelative(alert.created_at)}
+                          {alert.project?.name && <span style={{ marginLeft: 6, color: cfg.dot }}>· {alert.project.name}</span>}
+                          {alert.user?.display_name && <span style={{ marginLeft: 6 }}>· {alert.user.display_name}</span>}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
+                      {sourceUrl && (
+                        <button onClick={() => navigate(sourceUrl)}
+                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <ExternalLink size={10} /> Ver origen
+                        </button>
+                      )}
                       {!alert.is_read && (
                         <button onClick={() => markRead(alert.id)}
                           style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>

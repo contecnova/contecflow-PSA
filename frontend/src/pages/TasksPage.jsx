@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -603,8 +604,6 @@ export default function TasksPage() {
   const { hasRole } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [view, setView] = useState('kanban')
-
   // ── Kanban drag-and-drop state ────────────────────────────────────────────
   const dragTask      = useRef(null)
   const ghostRef      = useRef(null)
@@ -679,11 +678,20 @@ export default function TasksPage() {
     setDropTarget(status)
   }, [])
   const handleColumnLeave = useCallback(() => {}, [])
-  const [projectFilter, setProjectFilter] = useState('')
-  const [statusFilter, setStatusFilter]   = useState('')
-  const [search, setSearch]               = useState('')
-  const [priorityFilter, setPriorityFilter]= useState('')
-  const [assigneeFilter, setAssigneeFilter]= useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view           = searchParams.get('view') || 'kanban'
+  const projectFilter  = searchParams.get('project_id') || ''
+  const statusFilter   = searchParams.get('status') || ''
+  const search         = searchParams.get('search') || ''
+  const priorityFilter = searchParams.get('priority') || ''
+  const assigneeFilter = searchParams.get('assignee') || ''
+  const setTaskParam = (k, v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
+  const setView           = (v) => setTaskParam('view', v === 'kanban' ? '' : v)
+  const setProjectFilter  = (v) => setTaskParam('project_id', v)
+  const setStatusFilter   = (v) => setTaskParam('status', v)
+  const setSearch         = (v) => setTaskParam('search', v)
+  const setPriorityFilter = (v) => setTaskParam('priority', v)
+  const setAssigneeFilter = (v) => setTaskParam('assignee', v)
   const [selectedTask, setSelectedTask] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(new Set())  // bulk selection

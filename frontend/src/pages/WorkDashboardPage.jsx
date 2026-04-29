@@ -1,22 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner } from '../components/ui'
 import { Clock, Plus, Timer, Ticket } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { useToast } from '../context/ToastContext'
 import {
-  COLOR, S, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, S, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
-const DAY_NAMES_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-const MONTH_NAMES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
-
 function TodayBanner({ navigate }) {
   const now = new Date()
-  const day = DAY_NAMES_ES[now.getDay()]
-  const date = `${now.getDate()} de ${MONTH_NAMES_ES[now.getMonth()]}`
+  const day = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(now)
+  const date = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(now)
   const hour = now.getHours()
   const greeting = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
 
@@ -62,20 +60,22 @@ function TodayBanner({ navigate }) {
 export default function WorkDashboardPage() {
   const t = useAppT()
   const navigate = useNavigate()
+  const toast = useToast()
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
-  const { data: kpis, isLoading: lk } = useQuery({
+  const { data: kpis, isLoading: lk, isError: kpisError } = useQuery({
     queryKey: ['work-dash-kpis', days],
-    queryFn: () => api.get('/dashboard/kpis', { params }).then(r => r.data).catch(() => ({})),
+    queryFn: () => api.get('/dashboard/kpis', { params }).then(r => r.data),
     staleTime: 60_000,
+    retry: 1,
   })
 
   const { data: approvals = [], isLoading: la } = useQuery({
     queryKey: ['work-dash-approvals'],
     queryFn: () => api.get('/approvals/requests', { params: { status: 'pending' } }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }).catch(e => { console.error('Error loading approvals:', e); return [] }),
     staleTime: 60_000,
   })
 
@@ -83,13 +83,15 @@ export default function WorkDashboardPage() {
     queryKey: ['work-dash-expenses'],
     queryFn: () => api.get('/expenses', { params: { status: 'pending', page_size: 100 } }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }).catch(e => { console.error('Error loading expenses:', e); return [] }),
     staleTime: 60_000,
   })
 
   const { data: hoursData = [] } = useQuery({
     queryKey: ['work-dash-hours', days],
-    queryFn: () => api.get('/analytics/query/hours_by_month', { params }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => api.get('/analytics/query/hours_by_month', { params }).then(r => r.data?.rows || []).catch(e => {
+      console.error('Error loading hours data:', e); return []
+    }),
     staleTime: 60_000,
   })
 
@@ -97,17 +99,13 @@ export default function WorkDashboardPage() {
     queryKey: ['work-dash-absences'],
     queryFn: () => api.get('/absences', { params: { page_size: 100 } }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    }).catch(e => { console.error('Error loading absences:', e); return [] }),
     staleTime: 60_000,
   })
 
-  if (lk || la) return (
-    <div style={{ padding: 32 }}>
-      <div style={{ display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>
-        <Spinner />
-      </div>
-    </div>
-  )
+  useEffect(() => {
+    if (kpisError) toast.error('No se pudieron cargar los KPIs del dashboard')
+  }, [kpisError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const tasksOpen    = kpis?.tasks_open ?? 0
   const tasksOverdue = kpis?.tasks_overdue ?? 0
@@ -116,8 +114,8 @@ export default function WorkDashboardPage() {
   const pendingExp   = expenses.length
   const pendingAbsences = absences.filter(a => a.status === 'pending').length
 
-  const hoursTarget  = 40
-  const hoursWeekPct = Math.min(Math.round((hoursWeek / hoursTarget) * 100), 100)
+  const hoursTarget  = kpis?.weekly_hours_target ?? 40
+  const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)
   const hoursColor   = hoursWeekPct >= 80 ? COLOR.success : hoursWeekPct >= 50 ? COLOR.warning : COLOR.danger
 
   const last  = hoursData[hoursData.length - 1]?.value || 0
@@ -142,8 +140,9 @@ export default function WorkDashboardPage() {
       periods={[7, 30, 90]}
     >
       <TodayBanner navigate={navigate} />
-      {/* KPI row */}
+      {/* KPI row — skeletons while loading */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 14 }}>
+        {(lk || la) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
         <KpiCard icon="✅" label="Tareas abiertas"
           value={tasksOpen}
           color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
@@ -177,10 +176,12 @@ export default function WorkDashboardPage() {
           accentBar={COLOR.purple}
           sub={pendingExp > 0 ? 'Por aprobar' : 'Sin gastos pendientes'}
           action={pendingExp > 0 ? { label: 'Ver gastos', to: '/expenses' } : undefined} />
+        </>}
       </div>
 
       {/* Gauge + activity */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
+        {(lk || la) ? <><GaugeCardSkeleton /><GaugeCardSkeleton /></> : <>
         <GaugeCard label="Horas semana / objetivo"
           value={hoursWeekPct} color={hoursColor}
           sub={`${hoursWeek.toFixed(1)}h de ${hoursTarget}h objetivo`} />
@@ -188,6 +189,7 @@ export default function WorkDashboardPage() {
           value={kpis?.tasks_completion_pct ?? (tasksOpen > 0 ? Math.max(0, 100 - Math.round((tasksOverdue / tasksOpen) * 100)) : 100)}
           color={COLOR.success}
           sub="Ratio de resolución de tareas" />
+        </>}
       </div>
 
       {/* Activity breakdown */}

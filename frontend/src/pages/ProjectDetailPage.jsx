@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, risksApi } from '../services/api'
 import { Spinner, LoadBar, Badge } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
-import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink } from 'lucide-react'
+import { useToast } from '../context/ToastContext'
+import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check } from 'lucide-react'
 
 const TABS = [
   { id: 'overview',  label: 'Overview',    icon: FolderOpen },
@@ -296,15 +297,94 @@ function RisksTab({ projectId }) {
   )
 }
 
+function EditProjectForm({ project, onSave, onCancel, isPending }) {
+  const [form, setForm] = useState({
+    name: project.name || '',
+    description: project.description || '',
+    status: project.status || 'active',
+    end_date_planned: project.end_date_planned?.slice(0, 10) || '',
+    budget_amount: project.budget_amount ?? '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+    borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)',
+    fontSize: 13, outline: 'none', fontFamily: 'inherit',
+  }
+  const labelStyle = { fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
+      <div>
+        <label style={labelStyle}>Nombre del proyecto</label>
+        <input value={form.name} onChange={e => set('name', e.target.value)} style={inputStyle}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      </div>
+      <div>
+        <label style={labelStyle}>Estado</label>
+        <select value={form.status} onChange={e => set('status', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+          {Object.entries(STATUS_CFG).map(([v, cfg]) => (
+            <option key={v} value={v}>{cfg.label}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label style={labelStyle}>Fecha fin prevista</label>
+        <input type="date" value={form.end_date_planned} onChange={e => set('end_date_planned', e.target.value)} style={inputStyle}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      </div>
+      <div>
+        <label style={labelStyle}>Presupuesto (€)</label>
+        <input type="number" value={form.budget_amount} onChange={e => set('budget_amount', e.target.value)} style={inputStyle}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      </div>
+      <div>
+        <label style={labelStyle}>Descripción</label>
+        <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
+          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.6 }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
+          <Check size={13} />{isPending ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+        <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+          <X size={13} /> Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
+  const qc = useQueryClient()
   const [tab, setTab] = useState('overview')
+  const [editing, setEditing] = useState(false)
 
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', id],
     queryFn: () => projectsApi.get(id).then(r => r.data),
     staleTime: 30_000,
+  })
+
+  const { mutate: updateProject, isPending: saving } = useMutation({
+    mutationFn: (data) => projectsApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries(['project', id])
+      qc.invalidateQueries(['projects'])
+      toast.success('Proyecto actualizado')
+      setEditing(false)
+    },
+    onError: () => toast.error('Error al guardar cambios'),
   })
 
   if (isLoading) return (
@@ -381,6 +461,19 @@ export default function ProjectDetailPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            {tab === 'overview' && !editing && (
+              <button onClick={() => setEditing(true)} style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
+                background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+                borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.1s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
+              >
+                <Edit2 size={12} /> Editar
+              </button>
+            )}
             <Link to={`/tasks?project_id=${project.id}`} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
@@ -427,10 +520,14 @@ export default function ProjectDetailPage() {
 
       {/* Content */}
       <div style={{ flex: 1, padding: 24, maxWidth: 900 }}>
-        {tab === 'overview'  && <OverviewTab project={project} />}
-        {tab === 'tasks'     && <TasksTab projectId={id} />}
-        {tab === 'team'      && <TeamTab projectId={id} />}
-        {tab === 'risks'     && <RisksTab projectId={id} />}
+        {tab === 'overview' && editing
+          ? <EditProjectForm project={project} onSave={updateProject} onCancel={() => setEditing(false)} isPending={saving} />
+          : tab === 'overview'  ? <OverviewTab project={project} />
+          : tab === 'tasks'     ? <TasksTab projectId={id} />
+          : tab === 'team'      ? <TeamTab projectId={id} />
+          : tab === 'risks'     ? <RisksTab projectId={id} />
+          : null
+        }
       </div>
     </div>
   )

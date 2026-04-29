@@ -22,7 +22,7 @@ function CreateTaskForm({ onClose }) {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-quick'],
-    queryFn: () => projectsApi.list({ page_size: 50, status: 'active' }).then(r => {
+    queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }),
     staleTime: 60_000,

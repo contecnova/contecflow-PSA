@@ -1,23 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner } from '../components/ui'
 import { DollarSign } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
+import { useToast } from '../context/ToastContext'
 import {
-  COLOR, S, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, S, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
 
 export default function FinanceDashboardPage() {
   const [days, setDays] = useState(90)
   const { lang } = useAppLang()
+  const toast = useToast()
   const params = dateRange(days)
 
-  const { data: profitSummary, isLoading: lp } = useQuery({
+  const { data: profitSummary, isLoading: lp, isError: profitError } = useQuery({
     queryKey: ['fin-dash-profit', days],
-    queryFn: () => api.get('/profitability/summary', { params: { ...params, period: 'custom' } }).then(r => r.data).catch(() => null),
+    queryFn: () => api.get('/profitability/summary', { params: { ...params, period: 'custom' } }).then(r => r.data),
     staleTime: 60_000,
+    retry: 1,
   })
 
   const { data: clients = [], isLoading: lc } = useQuery({
@@ -50,11 +53,9 @@ export default function FinanceDashboardPage() {
     staleTime: 60_000,
   })
 
-  if (lp || lc) return (
-    <div style={{ padding: 32, display: 'flex', justifyContent: 'center', minHeight: 300, alignItems: 'center' }}>
-      <Spinner />
-    </div>
-  )
+  useEffect(() => {
+    if (profitError) toast.error('No se pudieron cargar los datos de rentabilidad')
+  }, [profitError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const revenue   = profitSummary?.total_revenue ?? 0
   const costs     = profitSummary?.total_cost ?? 0
@@ -99,6 +100,7 @@ export default function FinanceDashboardPage() {
     >
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 14 }}>
+        {(lp || lc) ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : <>
         <KpiCard icon="📈" label="Ingresos"
           value={fmtCur(revenue, lang)}
           color={COLOR.accent} accentBar={COLOR.accent} />
@@ -122,10 +124,11 @@ export default function FinanceDashboardPage() {
           color={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
           accentBar={overdueAmount > 0 ? COLOR.danger : COLOR.warning}
           sub={overdueAmount > 0 ? `${fmtCur(overdueAmount, lang)} vencidas` : `${pendingInvoices.length} por cobrar`} />
+        </>}
       </div>
 
       {/* Gauges */}
-      {marginPct != null && (
+      {!lp && marginPct != null && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 20 }}>
           <GaugeCard label="Margen bruto"
             value={marginPct} color={marginColor}

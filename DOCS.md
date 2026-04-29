@@ -11,6 +11,17 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 
 ## Cambios recientes
 
+### v23.10.42 (Abril 2026) — Hardening de flujo Git local (pull seguro sin merges implícitos)
+
+- Se revierte la configuración previa que forzaba merge por defecto en `git pull`.
+- Configuración aplicada para reducir riesgo operativo:
+  - eliminado `pull.rebase` en scope local y global,
+  - establecido `pull.ff=only` en scope local y global.
+- Efecto esperado:
+  - `git pull` solo avanza por fast-forward,
+  - evita commits de merge implícitos y reduce riesgo de integrar cambios no revisados en `main`.
+  - si hay divergencia real, Git falla de forma explícita para decidir estrategia manualmente.
+
 ### v23.10.41 (Abril 2026) — Fix drift de esquema en Problem Management (columna rca_template)
 
 - Se corrige el error 500 en `GET /api/v1/sd/problems` con SQLite:
