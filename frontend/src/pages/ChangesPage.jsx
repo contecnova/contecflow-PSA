@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api, { projectsApi } from '../services/api'
+import { projectsApi, projectChangesApi, cabApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { ArrowLeftRight } from 'lucide-react'
@@ -91,8 +91,8 @@ function CRFormModal({ cr, projectId, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit
-      ? api.patch(`/changes/${projectId}/${cr.id}`, data)
-      : api.post(`/changes/${projectId}`, data),
+      ? projectChangesApi.update(projectId, cr.id, data)
+      : projectChangesApi.create(projectId, data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -161,7 +161,7 @@ function ReviewCRModal({ cr, projectId, onClose }) {
   const [notes, setNotes] = useState('')
   const validation = useFormValidation(reviewSchema)
   const { mutate, isPending } = useMutation({
-    mutationFn: ({ approved, resolution_notes }) => api.post(`/changes/${projectId}/${cr.id}/review`, { approved, resolution_notes }),
+    mutationFn: ({ approved, resolution_notes }) => projectChangesApi.review(projectId, cr.id, { approved, resolution_notes }),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['changes', projectId]); qc.invalidateQueries(['all-pending-crs']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -213,19 +213,19 @@ function CABBoard() {
   const qc = useQueryClient()
   const { data: pendingCRs = [], isLoading } = useQuery({
     queryKey: ['cab-pending'],
-    queryFn: () => api.get('/cab/changes').then(r => r.data),
+    queryFn: () => cabApi.changes().then(r => r.data),
   })
   const { data: windows = [] } = useQuery({
     queryKey: ['maintenance-windows'],
-    queryFn: () => api.get('/cab/windows').then(r => r.data),
+    queryFn: () => cabApi.windows().then(r => r.data),
   })
   const { mutate: vote, isPending: _saving } = useMutation({
-    mutationFn: ({ id, vote, comment }) => api.post(`/cab/changes/${id}/vote`, { vote, comment }),
+    mutationFn: ({ id, vote, comment }) => cabApi.vote(id, { vote, comment }),
     onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: close } = useMutation({
-    mutationFn: ({ id, decision }) => api.post(`/cab/changes/${id}/close`, { decision }),
+    mutationFn: ({ id, decision }) => cabApi.close(id, { decision }),
     onSuccess: () => { qc.invalidateQueries(['cab-pending']); qc.invalidateQueries(['changes']); qc.invalidateQueries(['all-pending-crs']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -321,28 +321,28 @@ export default function ChangesPage() {
 
   const { data: changesData, isLoading } = useQuery({
     queryKey: ['changes', selectedProject],
-    queryFn: () => api.get(`/changes/${selectedProject}`).then(r => r.data),
+    queryFn: () => projectChangesApi.list(selectedProject).then(r => r.data),
     enabled: !!selectedProject,
   })
 
   const { data: allPending = [] } = useQuery({
     queryKey: ['all-pending-crs'],
-    queryFn: () => api.get('/changes/all/pending').then(r => r.data),
+    queryFn: () => projectChangesApi.allPending().then(r => r.data),
     enabled: hasRole('admin', 'pm') && tab === 'pending',
   })
 
   const { mutate: submit, isPending: saving } = useMutation({
-    mutationFn: (cr) => api.post(`/changes/${cr.project_id}/${cr.id}/submit`),
+    mutationFn: (cr) => projectChangesApi.submit(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: implement } = useMutation({
-    mutationFn: (cr) => api.post(`/changes/${cr.project_id}/${cr.id}/implement`),
+    mutationFn: (cr) => projectChangesApi.implement(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: (cr) => api.delete(`/changes/${cr.project_id}/${cr.id}`),
+    mutationFn: (cr) => projectChangesApi.delete(cr.project_id, cr.id),
     onSuccess: () => qc.invalidateQueries(['changes', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

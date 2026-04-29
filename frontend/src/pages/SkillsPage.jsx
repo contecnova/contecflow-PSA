@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { skillsApi, usersApi } from '../services/api'
+import api from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Zap } from 'lucide-react'
@@ -111,21 +111,21 @@ function UserSkillModal({ user, onClose }) {
   const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
   const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => api.get('/skills/catalog').then(r => r.data) })
-  const { data: userSkills = [] } = useQuery({ queryKey: ['user-skills', user.id], queryFn: () => api.get(`/skills/users/${user.id}`).then(r => r.data) })
+  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
+  const { data: userSkills = [] } = useQuery({ queryKey: ['user-skills', user.id], queryFn: () => skillsApi.userSkills(user.id).then(r => r.data) })
   const { data: skillHistory = [] } = useQuery({
     queryKey: ['skill-history', user.id],
-    queryFn: () => api.get(`/skills/users/${user.id}/history`).then(r => r.data).catch(() => []),
+    queryFn: () => skillsApi.userHistory(user.id).then(r => r.data).catch(() => []),
     enabled: modalTab === 'history',
   })
 
   const { mutate: addSkill } = useMutation({
-    mutationFn: (data) => api.post(`/skills/users/${user.id}`, data),
+    mutationFn: (data) => skillsApi.addUserSkill(user.id, data),
     onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: removeSkill } = useMutation({
-    mutationFn: (skillId) => api.delete(`/skills/users/${user.id}/${skillId}`),
+    mutationFn: (skillId) => skillsApi.removeUserSkill(user.id, skillId),
     onSuccess: () => { qc.invalidateQueries(['user-skills', user.id]); qc.invalidateQueries(['skills-matrix']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -262,13 +262,13 @@ function StaffingSearch() {
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
 
-  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => api.get('/skills/catalog').then(r => r.data) })
+  const { data: catalog = [] } = useQuery({ queryKey: ['skills-catalog'], queryFn: () => skillsApi.catalog().then(r => r.data) })
 
   const search = async () => {
     if (selectedSkills.length === 0) return
     setSearching(true)
     try {
-      const r = await api.get(`/skills/search?skill_ids=${selectedSkills.join(',')}&min_level=${minLevel}`)
+      const r = await skillsApi.search({ skill_ids: selectedSkills.join(','), min_level: minLevel })
       setResults(r.data)
     } finally { setSearching(false) }
   }
@@ -340,7 +340,7 @@ function StaffingSearch() {
 function UserSkillPreview({ userId }) {
   const { data: skills = [] } = useQuery({
     queryKey: ['user-skills-preview', userId],
-    queryFn: () => api.get(`/skills/users/${userId}`).then(r => r.data),
+    queryFn: () => skillsApi.userSkills(userId).then(r => r.data),
   })
   if (skills.length === 0) return <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin skills registrados · haz clic para añadir</div>
   return (
@@ -368,29 +368,29 @@ export default function SkillsPage() {
 
   const { data: matrix, isLoading: loadingMatrix } = useQuery({
     queryKey: ['skills-matrix'],
-    queryFn: () => api.get('/skills/matrix').then(r => r.data),
+    queryFn: () => skillsApi.matrix().then(r => r.data),
     enabled: tab === 'matrix',
   })
 
   const { data: catalog = [], isLoading: loadingCatalog } = useQuery({
     queryKey: ['skills-catalog'],
-    queryFn: () => api.get('/skills/catalog').then(r => r.data),
+    queryFn: () => skillsApi.catalog().then(r => r.data),
     enabled: tab === 'catalog',
   })
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
     enabled: tab === 'profiles',
   })
 
   const { mutate: createSkill } = useMutation({
-    mutationFn: (data) => api.post('/skills/catalog', data),
+    mutationFn: (data) => skillsApi.createCatalog(data),
     onSuccess: () => qc.invalidateQueries(['skills-catalog']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteSkill } = useMutation({
-    mutationFn: (id) => api.delete(`/skills/catalog/${id}`),
+    mutationFn: (id) => skillsApi.deleteCatalog(id),
     onSuccess: () => qc.invalidateQueries(['skills-catalog']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })

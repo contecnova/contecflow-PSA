@@ -6307,3 +6307,22 @@ Corrección aplicada:
 
 Resultado esperado:
 - Desaparece el warning de Recharts sobre uso innecesario de `ResponsiveContainer` con tamaño fijo.
+
+## 20. Skills & Competencias: matriz no carga
+
+Problema observado:
+- La vista de Skills fallaba al abrir la pestaña de matriz, por lo que no se mostraban datos de la matriz de skills y competencias.
+
+Causa:
+- En la página de frontend se invocaba `api.get(...)` en múltiples queries/mutations, pero no existía import del cliente `api`.
+- El archivo importaba `skillsApi` y `usersApi` (sin uso), lo que dejaba una referencia no definida en runtime.
+
+Corrección aplicada:
+- `frontend/src/pages/SkillsPage.jsx`
+  - Se reemplaza el import no utilizado:
+    - de: `import { skillsApi, usersApi } from '../services/api'`
+    - a:  `import api from '../services/api'`
+
+Resultado esperado:
+- La pestaña de matriz vuelve a cargar correctamente.
+- Se eliminan errores de referencia a `api` no definido en la página de Skills.

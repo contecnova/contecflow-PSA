@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api from '../services/api'
+import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import { Layers } from 'lucide-react'
@@ -123,7 +123,7 @@ function ALMDashboard({ onNavigate }) {
   const t = useAppT()
   const { data: dash = {}, isLoading } = useQuery({
     queryKey: ['alm-dashboard'],
-    queryFn: () => api.get('/alm/dashboard').then(r => r.data),
+    queryFn: () => almExtApi.dashboard().then(r => r.data),
     refetchInterval: 60000,
   })
   const kpis = dash.kpis || {}
@@ -220,7 +220,7 @@ function VendorModal({ vendor, onClose }) {
   })
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/alm/vendors/${vendor.id}`, d) : api.post('/alm/vendors', d),
+    mutationFn: d => isEdit ? vendorsApi.update(vendor.id, d) : vendorsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['alm-vendors']); qc.invalidateQueries(['alm-dashboard']); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -263,10 +263,10 @@ function VendorsTab() {
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ['alm-vendors'],
-    queryFn: () => api.get('/alm/vendors').then(r => r.data),
+    queryFn: () => vendorsApi.list().then(r => r.data),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/alm/vendors/${id}`),
+    mutationFn: id => vendorsApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['alm-vendors']),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -463,7 +463,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
     validation.clearFieldError(k)
   }
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/alm/contracts/${contract.id}`, d) : api.post('/alm/contracts', d),
+    mutationFn: d => isEdit ? almExtApi.updateContract(contract.id, d) : almExtApi.createContract(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -581,13 +581,13 @@ function ContractsTab() {
   const [statusFilter, setStatusFilter] = useState('active')
   const [urgentOnly, setUrgentOnly] = useState(false)
 
-  const { data: contracts = [], isLoading } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => api.get('/alm/contracts').then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => api.get('/alm/vendors').then(r => r.data) })
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
-  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => api.get('/alm/cost-centers').then(r => r.data) })
+  const { data: contracts = [], isLoading } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
+  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list().then(r => r.data) })
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/alm/contracts/${id}`),
+    mutationFn: id => almExtApi.deleteContract(id),
     onSuccess: () => { qc.invalidateQueries(['alm-contracts']); qc.invalidateQueries(['alm-dashboard']) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -670,8 +670,8 @@ function LicenseAssignModal({ license, onClose }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
-  const { data: assets = [] } = useQuery({ queryKey: ['alm-assets'], queryFn: () => api.get('/alm/assets').then(r => r.data) })
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
+  const { data: assets = [] } = useQuery({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list().then(r => r.data) })
   const [form, setForm] = useState({ user_id: '', asset_id: '', project_id: '', expires_at: '', notes: '' })
   const validation = useFormValidation(almLicenseAssignSchema)
   const s = k => e => {
@@ -680,7 +680,7 @@ function LicenseAssignModal({ license, onClose }) {
   }
   const availSeats = license.total_seats ? license.total_seats - (license.used_seats || 0) : null
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post(`/alm/licenses/${license.id}/assign`, d),
+    mutationFn: d => licensesApi.assign(license.id, d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-licenses']); qc.invalidateQueries(['alm-license', license.id]); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -749,7 +749,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
     validation.clearFieldError(k)
   }
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/alm/licenses/${license.id}`, d) : api.post('/alm/licenses', d),
+    mutationFn: d => isEdit ? licensesApi.update(license.id, d) : licensesApi.create(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-licenses']); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -858,13 +858,13 @@ function LicensesTab() {
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const { data: licenses = [], isLoading } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => api.get('/alm/licenses').then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => api.get('/alm/vendors').then(r => r.data) })
-  const { data: contracts = [] } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => api.get('/alm/contracts').then(r => r.data) })
-  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => api.get('/alm/cost-centers').then(r => r.data) })
+  const { data: licenses = [], isLoading } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list().then(r => r.data) })
+  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list().then(r => r.data) })
+  const { data: contracts = [] } = useQuery({ queryKey: ['alm-contracts'], queryFn: () => almExtApi.contracts().then(r => r.data) })
+  const { data: costCenters = [] } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/alm/licenses/${id}`),
+    mutationFn: id => licensesApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['alm-licenses']),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -996,7 +996,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
   }
   const showNetwork = ['server','vm','network','desktop'].includes(form.type)
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/alm/assets/${asset.id}`, d) : api.post('/alm/assets', d),
+    mutationFn: d => isEdit ? assetsApi.update(asset.id, d) : assetsApi.create(d),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries(['alm-assets']); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -1105,12 +1105,12 @@ function AssetsTab() {
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  const { data: assets = [], isLoading } = useQuery({ queryKey: ['alm-assets'], queryFn: () => api.get('/alm/assets').then(r => r.data) })
-  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => api.get('/alm/vendors').then(r => r.data) })
-  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
+  const { data: assets = [], isLoading } = useQuery({ queryKey: ['alm-assets'], queryFn: () => assetsApi.list().then(r => r.data) })
+  const { data: vendors = [] } = useQuery({ queryKey: ['alm-vendors'], queryFn: () => vendorsApi.list().then(r => r.data) })
+  const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/alm/assets/${id}`),
+    mutationFn: id => assetsApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['alm-assets']),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -1201,15 +1201,15 @@ function CostCentersTab() {
   const [form, setForm] = useState({ code: '', name: '', description: '', budget_annual: '', currency: 'EUR' })
   const s = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
-  const { data: centers = [], isLoading } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => api.get('/alm/cost-centers').then(r => r.data) })
+  const { data: centers = [], isLoading } = useQuery({ queryKey: ['alm-cost-centers'], queryFn: () => almExtApi.costCenters().then(r => r.data) })
 
   const { mutate: save, isPending } = useMutation({
-    mutationFn: d => editing ? api.patch(`/alm/cost-centers/${editing.id}`, d) : api.post('/alm/cost-centers', d),
+    mutationFn: d => editing ? almExtApi.updateCostCenter(editing.id, d) : almExtApi.createCostCenter(d),
     onSuccess: () => { qc.invalidateQueries(['alm-cost-centers']); setShowForm(false); setEditing(null); setForm({ code: '', name: '', description: '', budget_annual: '', currency: 'EUR' }) },
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/alm/cost-centers/${id}`),
+    mutationFn: id => almExtApi.deleteCostCenter(id),
     onSuccess: () => qc.invalidateQueries(['alm-cost-centers']),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
@@ -1269,7 +1269,7 @@ function ComplianceTab() {
   const t = useAppT()
   const { data: report = {}, isLoading, refetch } = useQuery({
     queryKey: ['alm-compliance'],
-    queryFn: () => api.get('/alm/compliance').then(r => r.data),
+    queryFn: () => almExtApi.compliance().then(r => r.data),
   })
   const issues = report.issues || []
 

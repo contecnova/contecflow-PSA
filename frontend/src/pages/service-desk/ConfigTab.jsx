@@ -6,7 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
-import api from '../../services/api'
+import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi } from '../../services/api'
 import { PRIORITY_LABEL, PBadge } from './sdUtils'
 import { RoutingRules } from './QueueAndRoutingSections'
 
@@ -20,39 +20,39 @@ function CatalogConfig() {
 
   const { data: catalog = [], isLoading } = useQuery({
     queryKey: ['sd-catalog'],
-    queryFn: () => api.get('/sd/catalog').then(r => r.data),
+    queryFn: () => sdCatalogApi.get().then(r => r.data),
   })
 
   const [editingCat, setEditingCat] = useState(null)
   const [editingSvc, setEditingSvc] = useState(null)
 
   const { mutate: createCat, isPending: creatingCat } = useMutation({
-    mutationFn: d => api.post('/sd/catalog/categories', d),
+    mutationFn: d => sdCatalogApi.createCategory(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('service_desk.cat_new_title')) },
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateCat } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/sd/catalog/categories/${id}`, d),
+    mutationFn: ({id, ...d}) => sdCatalogApi.updateCategory(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('service_desk.cat_edit_title')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteCat } = useMutation({
-    mutationFn: id => api.delete(`/sd/catalog/categories/${id}`),
+    mutationFn: id => sdCatalogApi.deleteCategory(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
-    mutationFn: d => api.post('/sd/catalog/services', d),
+    mutationFn: d => sdCatalogApi.createService(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('service_desk.svc_new_title')) },
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateSvc } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/sd/catalog/services/${id}`, d),
+    mutationFn: ({id, ...d}) => sdCatalogApi.updateService(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('service_desk.svc_edit_title')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteSvc } = useMutation({
-    mutationFn: id => api.delete(`/sd/catalog/services/${id}`),
+    mutationFn: id => sdCatalogApi.deleteService(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); toast.success(t('common.delete')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -229,21 +229,21 @@ function SLAConfig() {
 
   const { data: policies = [], isLoading } = useQuery({
     queryKey: ['sd-sla-policies'],
-    queryFn: () => api.get('/sd/sla-policies').then(r => r.data),
+    queryFn: () => sdSlaPoliciesApi.list().then(r => r.data),
   })
   const [editing, setEditing] = useState(null)
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/sd/sla-policies', d),
+    mutationFn: d => sdSlaPoliciesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setShowNew(false); toast.success(t('service_desk.sla_created')) },
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/sd/sla-policies/${id}`, d),
+    mutationFn: ({id, ...d}) => sdSlaPoliciesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setEditing(null); toast.success(t('service_desk.sla_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => api.delete(`/sd/sla-policies/${id}`),
+    mutationFn: id => sdSlaPoliciesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); toast.success(t('service_desk.sla_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -357,35 +357,35 @@ function GroupsConfig() {
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ['sd-groups'],
-    queryFn: () => api.get('/sd/groups').then(r => r.data),
+    queryFn: () => sdGroupsApi.list().then(r => r.data),
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
   })
   const [editing, setEditing] = useState(null)
   const { mutate: createGroup, isPending } = useMutation({
-    mutationFn: d => api.post('/sd/groups', d),
+    mutationFn: d => sdGroupsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setShowNew(false); toast.success(t('service_desk.groups_created')) },
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: updateGroup } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/sd/groups/${id}`, d),
+    mutationFn: ({id, ...d}) => sdGroupsApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); setEditing(null); toast.success(t('service_desk.groups_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: deleteGroup } = useMutation({
-    mutationFn: id => api.delete(`/sd/groups/${id}`),
+    mutationFn: id => sdGroupsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-groups']}); toast.success(t('service_desk.groups_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: addMember } = useMutation({
-    mutationFn: ({gid, uid}) => api.post(`/sd/groups/${gid}/members/${uid}`),
+    mutationFn: ({gid, uid}) => sdGroupsApi.addMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: removeMember } = useMutation({
-    mutationFn: ({gid, uid}) => api.delete(`/sd/groups/${gid}/members/${uid}`),
+    mutationFn: ({gid, uid}) => sdGroupsApi.removeMember(gid, uid),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-groups']}),
     onError: e => toast.error(extractErr(e, 'Error'))
   })
@@ -503,26 +503,26 @@ function TemplatesConfig() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['sd-templates'],
-    queryFn: () => api.get('/sd/ticket-templates').then(r => r.data),
+    queryFn: () => sdTemplatesApi.list().then(r => r.data),
   })
   const [editing, setEditing] = useState(null)
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/sd/ticket-templates', d),
+    mutationFn: d => sdTemplatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setShowNew(false); toast.success(t('service_desk.templates_created')) },
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/sd/ticket-templates/${id}`, d),
+    mutationFn: ({id, ...d}) => sdTemplatesApi.update(id, d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); setEditing(null); toast.success(t('service_desk.templates_updated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({id, is_active}) => api.patch(`/sd/ticket-templates/${id}`, {is_active}),
+    mutationFn: ({id, is_active}) => sdTemplatesApi.update(id, {is_active}),
     onSuccess: () => qc.invalidateQueries({queryKey:['sd-templates']}),
     onError: e => toast.error(extractErr(e, 'Error'))
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => api.delete(`/sd/ticket-templates/${id}`),
+    mutationFn: id => sdTemplatesApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-templates']}); toast.success(t('service_desk.templates_deleted')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -645,7 +645,7 @@ function CannedResponsesManager() {
 
   const { data: responses = [], isLoading } = useQuery({
     queryKey: ['canned-responses-all'],
-    queryFn: () => api.get('/sd/canned-responses').then(r => r.data).catch(() => []),
+    queryFn: () => sdCannedApi.list().then(r => r.data).catch(() => []),
   })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
     padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit',
@@ -654,17 +654,17 @@ function CannedResponsesManager() {
     letterSpacing:'0.06em', display:'block', marginBottom:4 }
 
   const { mutate: create } = useMutation({
-    mutationFn: d => api.post('/sd/canned-responses', d),
+    mutationFn: d => sdCannedApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setForm({ title:'', body:'', category:'', shortcut:'' }) },
     onError: e => toast.error(e?.response?.data?.detail || 'Error'),
   })
   const { mutate: update } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/sd/canned-responses/${id}`, data),
+    mutationFn: ({ id, data }) => sdCannedApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['canned-responses-all'] }); setEditing(null) },
     onError: e => toast.error(e?.response?.data?.detail || 'Error'),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/sd/canned-responses/${id}`),
+    mutationFn: id => sdCannedApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['canned-responses-all'] }),
     onError: e => toast.error(e?.response?.data?.detail || 'Error'),
   })
@@ -760,15 +760,15 @@ export function AnnouncementsConfig() {
 
   const { data: anns = [], isLoading } = useQuery({
     queryKey: ['sd-announcements'],
-    queryFn: () => api.get('/sd/announcements').then(r => r.data),
+    queryFn: () => sdAnnouncementsApi.list().then(r => r.data),
   })
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => api.post('/sd/announcements', d),
+    mutationFn: d => sdAnnouncementsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['sd-announcements']); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/sd/announcements/${id}`),
+    mutationFn: id => sdAnnouncementsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['sd-announcements']); toast.success(t('service_desk.ann_deactivated')) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

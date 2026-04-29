@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { usersApi } from '../services/api'
+import { usersApi, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 
@@ -25,17 +25,17 @@ function WebhooksTab() {
   const [showLogs, setShowLogs] = useState(null)
   const [form, setForm] = useState({ name:'', slug:'', workflow_id:'' })
 
-  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => api.get('/webhooks').then(r => r.data) })
-  const { data: workflows = [] } = useQuery({ queryKey:['workflows-ent'], queryFn:() => api.get('/automation-workflows').then(r => r.data) })
-  const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => api.get(`/webhooks/${showLogs}/logs`).then(r => r.data), enabled:!!showLogs })
+  const { data: triggers = [], isLoading } = useQuery({ queryKey:['wh-triggers'], queryFn:() => webhooksApi.list().then(r => r.data) })
+  const { data: workflows = [] } = useQuery({ queryKey:['workflows-ent'], queryFn:() => autoWorkflowsApi.list().then(r => r.data) })
+  const { data: logs = [] } = useQuery({ queryKey:['wh-logs', showLogs], queryFn:() => webhooksApi.logs(showLogs).then(r => r.data), enabled:!!showLogs })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/webhooks', d),
+    mutationFn: d => webhooksApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['wh-triggers']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/webhooks/${id}`),
+    mutationFn: id => webhooksApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['wh-triggers']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -111,17 +111,17 @@ function GDPRTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ request_type:'erasure', subject_user_id:'', subject_email:'', notes:'' })
 
-  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => api.get('/gdpr/requests').then(r => r.data) })
+  const { data: requests = [], isLoading } = useQuery({ queryKey:['gdpr'], queryFn:() => gdprApi.list().then(r => r.data) })
   const { data: usersRaw = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/gdpr/requests', d),
+    mutationFn: d => gdprApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['gdpr']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: process } = useMutation({
-    mutationFn: id => api.post(`/gdpr/requests/${id}/process`),
+    mutationFn: id => gdprApi.process(id),
     onSuccess: () => qc.invalidateQueries(['gdpr']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -197,16 +197,16 @@ function EmailTab() {
   const [sendForm, setSendForm] = useState({ to:'', subject:'', body_html:'', template_id:'' })
   const [newTpl, setNewTpl] = useState({ name:'', subject:'', body_html:'', category:'automation' })
 
-  const { data: catalog } = useQuery({ queryKey:['email-tpl'], queryFn:() => api.get('/email/templates').then(r => r.data) })
-  const { data: logs = [] } = useQuery({ queryKey:['email-logs'], queryFn:() => api.get('/email/logs').then(r => r.data) })
+  const { data: catalog } = useQuery({ queryKey:['email-tpl'], queryFn:() => emailApi.catalog().then(r => r.data) })
+  const { data: logs = [] } = useQuery({ queryKey:['email-logs'], queryFn:() => emailApi.logs().then(r => r.data) })
 
   const { mutate: send, isPending:sending } = useMutation({
-    mutationFn: d => api.post('/email/send', {...d, to:[d.to]}),
+    mutationFn: d => emailApi.send({...d, to:[d.to]}),
     onSuccess: () => { qc.invalidateQueries(['email-logs']); setShowSend(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: createTpl } = useMutation({
-    mutationFn: d => api.post('/email/templates', d),
+    mutationFn: d => emailApi.createTemplate(d),
     onSuccess: () => { qc.invalidateQueries(['email-tpl']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -306,24 +306,24 @@ function IntegrationsTab() {
 
   const { data: integrations = [] } = useQuery({
     queryKey: ['integrations'],
-    queryFn: () => api.get('/oauth-integrations').then(r => r.data),
+    queryFn: () => oauthIntegrationsApi.list().then(r => r.data),
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/oauth-integrations', d),
+    mutationFn: d => oauthIntegrationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['integrations']); setConfiguring(null); toast.success('Integración guardada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/oauth-integrations/${id}`),
+    mutationFn: id => oauthIntegrationsApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Integración eliminada') },
 
     onError: e => toast.error(extractErr(e, 'Error'))
   })
 
   const { mutate: sync } = useMutation({
-    mutationFn: id => api.post(`/oauth-integrations/${id}/sync`, {}),
+    mutationFn: id => oauthIntegrationsApi.sync(id, {}),
     onSuccess: () => { qc.invalidateQueries(['integrations']); toast.success('Sincronización completada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -334,18 +334,18 @@ function IntegrationsTab() {
     try {
       const cfg = typeof integ.config === 'string' ? JSON.parse(integ.config || '{}') : (integ.config || {})
       if (integ.integration_type === 'slack') {
-        const res = await api.post('/integrations-hub/slack/test', { webhook_url: cfg.webhook_url || '' })
+        const res = await integrationsHubApi.testSlack({ webhook_url: cfg.webhook_url || '' })
         setTestResult({ ok: true, message: res.data.message })
       } else if (integ.integration_type === 'teams') {
-        const res = await api.post('/integrations-hub/teams/test', { webhook_url: cfg.webhook_url || '' })
+        const res = await integrationsHubApi.testTeams({ webhook_url: cfg.webhook_url || '' })
         setTestResult({ ok: true, message: res.data.message })
       } else if (integ.integration_type === 'jira') {
-        const res = await api.post('/integrations-hub/jira/test', {
+        const res = await integrationsHubApi.testJira({
           base_url: cfg.base_url || '', email: cfg.email || '', api_token: cfg.api_token || ''
         })
         setTestResult({ ok: true, message: `Conectado: ${res.data.total} proyectos Jira disponibles` })
       } else {
-        const res = await api.post(`/oauth-integrations/${integ.id}/sync`, {})
+        const res = await oauthIntegrationsApi.sync(integ.id, {})
         setTestResult({ ok: true, message: `Sincronizados: ${res.data.synced} elementos` })
       }
     } catch (e) {
@@ -472,15 +472,15 @@ function IntegrationsTab() {
 function AuditTab() {
   const { data: logs = [] } = useQuery({
     queryKey: ['audit-ent'],
-    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=50').then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:50}).then(r => r.data?.logs || []).catch(() => []),
   })
   const { data: resetRequestLogs = [] } = useQuery({
     queryKey: ['audit-ent-reset-request'],
-    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=20&action=PASSWORD_RESET_REQUEST').then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_REQUEST'}).then(r => r.data?.logs || []).catch(() => []),
   })
   const { data: resetCompleteLogs = [] } = useQuery({
     queryKey: ['audit-ent-reset-complete'],
-    queryFn: () => api.get('/enterprise/audit-log?page=1&page_size=20&action=PASSWORD_RESET_COMPLETE').then(r => r.data?.logs || []).catch(() => []),
+    queryFn: () => enterpriseApi.auditLog({page:1,page_size:20,action:'PASSWORD_RESET_COMPLETE'}).then(r => r.data?.logs || []).catch(() => []),
   })
 
   const passwordResetLogs = [...resetCompleteLogs, ...resetRequestLogs]
@@ -548,14 +548,14 @@ function APIKeysTab() {
   const [newKey, setNewKey] = useState(null)
   const [form, setForm] = useState({ name:'', rate_limit_per_hour:1000 })
 
-  const { data: keys = [] } = useQuery({ queryKey:['api-keys'], queryFn:() => api.get('/api-keys').then(r => r.data) })
+  const { data: keys = [] } = useQuery({ queryKey:['api-keys'], queryFn:() => apiKeysApi.list().then(r => r.data) })
   const { mutate: create } = useMutation({
-    mutationFn: d => api.post('/api-keys', { ...d, scopes:['read'] }).then(r => r.data),
+    mutationFn: d => apiKeysApi.create({ ...d, scopes:['read'] }).then(r => r.data),
     onSuccess: data => { qc.invalidateQueries(['api-keys']); setNewKey(data); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: revoke } = useMutation({
-    mutationFn: id => api.delete(`/api-keys/${id}`),
+    mutationFn: id => apiKeysApi.delete(id),
     onSuccess: () => qc.invalidateQueries(['api-keys']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -617,17 +617,17 @@ function SSOTab() {
 
   const { data: configs = [], _isLoading } = useQuery({
     queryKey: ['sso-cfg'],
-    queryFn: () => api.get('/enterprise/sso').then(r => r.data).catch(() => []),
+    queryFn: () => enterpriseApi.ssoList().then(r => r.data).catch(() => []),
   })
 
   const { mutate: create, isPending: creating } = useMutation({
-    mutationFn: d => api.post('/enterprise/sso', d),
+    mutationFn: d => enterpriseApi.ssoCreate(d),
     onSuccess: () => { qc.invalidateQueries(['sso-cfg']); setShowCreate(false); toast.success('SSO creado') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/enterprise/sso/${id}`),
+    mutationFn: id => enterpriseApi.ssoDelete(id),
     onSuccess: () => { qc.invalidateQueries(['sso-cfg']); toast.success('SSO eliminado') },
 
     onError: e => toast.error(extractErr(e, 'Error'))
@@ -635,7 +635,7 @@ function SSOTab() {
 
   const testSSO = async (id) => {
     try {
-      const res = await api.post(`/enterprise/sso/${id}/test`)
+      const res = await enterpriseApi.ssoTest(id)
       setTestResult(res.data)
     } catch (e) {
       const _raw2 = e?.response?.data?.detail

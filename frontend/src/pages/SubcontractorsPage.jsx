@@ -3,7 +3,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi } from '../services/api'
+import { enterpriseSubsApi, projectsApi, skillsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { Users } from 'lucide-react'
 import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle } from '../components/ui'
@@ -51,7 +51,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   const t = useAppT()
   const { data: skillCatalog = [] } = useQuery({
     queryKey: ['skills-catalog'],
-    queryFn: () => api.get('/skills/catalog').then(r => r.data),
+    queryFn: () => skillsApi.catalog().then(r => r.data),
     staleTime: 300000,
   })
 
@@ -59,8 +59,8 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
 
   const { mutate: save, isPending: saving } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/enterprise/subcontractors/workers/${worker.id}`, d)
-      : api.post(`/enterprise/subcontractors/${subId}/workers`, d),
+      ? enterpriseSubsApi.updateWorker(worker.id, d)
+      : enterpriseSubsApi.createWorker(subId, d),
     onSuccess: (res) => {
       qc.invalidateQueries(['sub-workers', subId])
       qc.invalidateQueries({ queryKey: ['users'] })
@@ -76,13 +76,13 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
   })
 
   const { mutate: addSkill, isPending: addingSkill } = useMutation({
-    mutationFn: d => api.post(`/enterprise/subcontractors/workers/${worker?.id}/skills`, d),
+    mutationFn: d => enterpriseSubsApi.addWorkerSkill(worker?.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); setShowSkillForm(false); setSkillForm({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' }); toast.success('Skill añadida') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: removeSkill } = useMutation({
-    mutationFn: skill_id => api.delete(`/enterprise/subcontractors/workers/${worker?.id}/skills/${skill_id}`),
+    mutationFn: skill_id => enterpriseSubsApi.removeWorkerSkill(worker?.id, skill_id),
     onSuccess: () => { qc.invalidateQueries(['sub-workers', subId]); toast.success('Skill eliminada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -245,11 +245,11 @@ function WorkersPanel({ subId }) {
 
   const { data: workers = [], isLoading } = useQuery({
     queryKey: ['sub-workers', subId],
-    queryFn: () => api.get(`/enterprise/subcontractors/${subId}/workers`).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.workers(subId).then(r => r.data),
   })
 
   const { mutate: deactivate } = useMutation({
-    mutationFn: id => api.delete(`/enterprise/subcontractors/workers/${id}`),
+    mutationFn: id => enterpriseSubsApi.deleteWorker(id),
     onSuccess: () => {
       qc.invalidateQueries(['sub-workers', subId])
       qc.invalidateQueries({ queryKey: ['users'] })
@@ -354,15 +354,15 @@ function SubDetail({ sub, onBack }) {
 
   const { data: assignments = [] } = useQuery({
     queryKey: ['sub-assignments', sub.id],
-    queryFn: () => api.get(`/enterprise/subcontractors/${sub.id}/assignments`).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.assignments(sub.id).then(r => r.data),
   })
   const { data: timelogs = [] } = useQuery({
     queryKey: ['sub-timelogs', sub.id],
-    queryFn: () => api.get(`/enterprise/subcontractors/${sub.id}/timelogs`).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.timelogs(sub.id).then(r => r.data),
   })
   const { data: invoices = [] } = useQuery({
     queryKey: ['sub-invoices', sub.id],
-    queryFn: () => api.get(`/enterprise/subcontractors/${sub.id}/invoices`).then(r => r.data),
+    queryFn: () => enterpriseSubsApi.invoices(sub.id).then(r => r.data),
   })
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -370,25 +370,25 @@ function SubDetail({ sub, onBack }) {
   })
 
   const { mutate: logHours, isPending: logging } = useMutation({
-    mutationFn: d => api.post(`/enterprise/subcontractors/${sub.id}/timelogs`, d),
+    mutationFn: d => enterpriseSubsApi.createTimelog(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-timelogs', sub.id]); setShowTimelog(false); toast.success('Horas registradas') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: createInv, isPending: invoicing } = useMutation({
-    mutationFn: d => api.post(`/enterprise/subcontractors/${sub.id}/invoices`, d),
+    mutationFn: d => enterpriseSubsApi.createInvoice(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-invoices', sub.id]); setShowInvoice(false); toast.success('Factura registrada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: createAssign, isPending: assigning } = useMutation({
-    mutationFn: d => api.post(`/enterprise/subcontractors/${sub.id}/assignments`, d),
+    mutationFn: d => enterpriseSubsApi.createAssignment(sub.id, d),
     onSuccess: () => { qc.invalidateQueries(['sub-assignments', sub.id]); setShowAssign(false); toast.success('Asignación creada') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: updateInvStatus } = useMutation({
-    mutationFn: ({ id, status }) => api.patch(`/enterprise/subcontractors/${sub.id}/invoices/${id}`, { status }),
+    mutationFn: ({ id, status }) => enterpriseSubsApi.updateInvoice(sub.id, id, { status }),
     onSuccess: () => qc.invalidateQueries(['sub-invoices', sub.id]),
     onError: e => toast.error(extractErr(e, 'Error'))
   })
@@ -687,11 +687,11 @@ export default function SubcontractorsPage() {
 
   const { data: dashboard } = useQuery({
     queryKey: ['sub-dashboard'],
-    queryFn: () => api.get('/enterprise/subcontractors-dashboard').then(r => r.data),
+    queryFn: () => enterpriseSubsApi.dashboard().then(r => r.data),
   })
   const { data: subs = [], isLoading } = useQuery({
     queryKey: ['subcontractors'],
-    queryFn: () => api.get('/enterprise/subcontractors').then(r => r.data),
+    queryFn: () => enterpriseSubsApi.list().then(r => r.data),
   })
 
   const [showEdit, setShowEdit] = useState(false)
@@ -701,7 +701,7 @@ export default function SubcontractorsPage() {
   const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort(subs, 'name')
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/enterprise/subcontractors', d),
+    mutationFn: d => enterpriseSubsApi.create(d),
     onSuccess: (res) => {
       qc.invalidateQueries(['subcontractors'])
       setShowCreate(false)
@@ -712,7 +712,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: update, isPending: updating } = useMutation({
-    mutationFn: ({id, ...d}) => api.patch(`/enterprise/subcontractors/${id}`, d),
+    mutationFn: ({id, ...d}) => enterpriseSubsApi.update(id, d),
     onSuccess: (_res) => {
       qc.invalidateQueries(['subcontractors'])
       setShowEdit(false)
@@ -722,7 +722,7 @@ export default function SubcontractorsPage() {
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => api.delete(`/enterprise/subcontractors/${id}`),
+    mutationFn: id => enterpriseSubsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries(['subcontractors'])
       qc.invalidateQueries(['sub-dashboard'])

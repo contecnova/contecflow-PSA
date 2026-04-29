@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
-import api from '../../services/api'
+import { clientExtApi, contractsApi, licensesApi, portalApi, wsApi } from '../../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../../components/ui'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
@@ -42,7 +42,7 @@ export function ProjectsTab({ cid }) {
 
   const { data: linked = [], isLoading: loadingLinked } = useQuery({
     queryKey: ['client-projects-linked', cid],
-    queryFn: () => api.get(`/clients/${cid}/projects`).then(r => r.data),
+    queryFn: () => clientExtApi.projects(cid).then(r => r.data),
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
@@ -50,20 +50,20 @@ export function ProjectsTab({ cid }) {
 
   const { data: available = [], isLoading: loadingAvail, refetch: refetchAvailable } = useQuery({
     queryKey: ['client-projects-available', cid],
-    queryFn: () => api.get(`/clients/${cid}/projects/available`).then(r => r.data),
+    queryFn: () => clientExtApi.availableProjects(cid).then(r => r.data),
     staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   })
 
   const { mutate: link } = useMutation({
-    mutationFn: pid => api.post(`/clients/${cid}/projects/${pid}/link`).then(r => r.data),
+    mutationFn: pid => clientExtApi.linkProject(cid, pid).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['client-projects-linked', cid]); qc.invalidateQueries(['client-projects-available', cid]); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']) },
     onError: e => toast.error(extractErr(e, 'Error al vincular')),
   })
 
   const { mutate: unlink } = useMutation({
-    mutationFn: pid => api.delete(`/clients/${cid}/projects/${pid}/link`).then(r => r.data),
+    mutationFn: pid => clientExtApi.unlinkProject(cid, pid).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['client-projects-linked', cid]); qc.invalidateQueries(['client-projects-available', cid]); qc.invalidateQueries(['client-detail']); qc.invalidateQueries(['clients']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -147,15 +147,15 @@ export function ContactsTab({ cid }) {
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['client-contacts', cid],
-    queryFn: () => api.get(`/clients/${cid}/contacts`).then(r => r.data),
+    queryFn: () => clientExtApi.contacts(cid).then(r => r.data),
   })
   const { mutate: add } = useMutation({
-    mutationFn: d => api.post(`/clients/${cid}/contacts`, d).then(r => r.data),
+    mutationFn: d => clientExtApi.createContact(cid, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['client-contacts', cid]); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: remove } = useMutation({
-    mutationFn: id => api.delete(`/clients/${cid}/contacts/${id}`),
+    mutationFn: id => clientExtApi.deleteContact(cid, id),
     onSuccess: () => qc.invalidateQueries(['client-contacts', cid]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -234,16 +234,16 @@ export function LicensesTab({ cid }) {
   const [selectedLic, setSelectedLic] = useState('')
   const [licNote, setLicNote] = useState('')
 
-  const { data: linked = [] } = useQuery({ queryKey: ['client-licenses', cid], queryFn: () => api.get(`/clients/${cid}/licenses`).then(r => r.data) })
-  const { data: allLics = [] } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => api.get('/alm/licenses').then(r => r.data) })
+  const { data: linked = [] } = useQuery({ queryKey: ['client-licenses', cid], queryFn: () => clientExtApi.licenses(cid).then(r => r.data) })
+  const { data: allLics = [] } = useQuery({ queryKey: ['alm-licenses'], queryFn: () => licensesApi.list().then(r => r.data) })
 
   const { mutate: link } = useMutation({
-    mutationFn: d => api.post(`/clients/${cid}/licenses`, d),
+    mutationFn: d => clientExtApi.linkLicense(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']); setShowLink(false); setSelectedLic(''); setLicNote('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: unlink } = useMutation({
-    mutationFn: id => api.delete(`/clients/${cid}/licenses/${id}`),
+    mutationFn: id => clientExtApi.unlinkLicense(cid, id),
     onSuccess: () => { qc.invalidateQueries(['client-licenses', cid]); qc.invalidateQueries(['alm-licenses']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -306,16 +306,16 @@ export function ContractsTab({ cid }) {
   const [showLink, setShowLink] = useState(false)
   const [selectedCon, setSelectedCon] = useState('')
 
-  const { data: linked = [] } = useQuery({ queryKey: ['client-contracts', cid], queryFn: () => api.get(`/clients/${cid}/contracts`).then(r => r.data) })
-  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => api.get('/contracts').then(r => r.data) })
+  const { data: linked = [] } = useQuery({ queryKey: ['client-contracts', cid], queryFn: () => clientExtApi.contracts(cid).then(r => r.data) })
+  const { data: allCons = [] } = useQuery({ queryKey: ['contracts'], queryFn: () => contractsApi.list().then(r => r.data) })
 
   const { mutate: link } = useMutation({
-    mutationFn: d => api.post(`/clients/${cid}/contracts`, d),
+    mutationFn: d => clientExtApi.linkContract(cid, d),
     onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']); setShowLink(false); setSelectedCon('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: unlink } = useMutation({
-    mutationFn: id => api.delete(`/clients/${cid}/contracts/${id}`),
+    mutationFn: id => clientExtApi.unlinkContract(cid, id),
     onSuccess: () => { qc.invalidateQueries(['client-contracts', cid]); qc.invalidateQueries(['contracts']); qc.invalidateQueries(['alm-contracts']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })

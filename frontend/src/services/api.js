@@ -211,6 +211,7 @@ export const analyticsApi = {
   olapPortfolio:   ()              => api.get('/analytics/olap/portfolio-health'),
   olapMargin:      (months)        => api.get('/analytics/olap/margin-evolution', { params: { months } }),
   olapUtilization: ()              => api.get('/analytics/olap/utilization'),
+  catalogue:       ()              => api.get('/analytics/catalogue'),
 }
 
 export const biCollaborationApi = {
@@ -530,7 +531,11 @@ export const ticketsApi = {
   aiSuggest: (id, data) => api.post(`/sd/tickets/${id}/ai-suggest`, data),
   split:   (id, data) => api.post(`/sd/tickets/${id}/split`, data),
   links:   (id)       => api.get(`/sd/tickets/${id}/links`),
-  addLink: (id, data) => api.post(`/sd/tickets/${id}/links`, data),
+  addLink:    (id, data) => api.post(`/sd/tickets/${id}/links`, data),
+  timelog:    (id, data) => api.post(`/sd/tickets/${id}/timelog`, data),
+  escalate:   (id)       => api.post(`/sd/tickets/${id}/escalate`),
+  slaPause:   (id, data) => api.post(`/sd/tickets/${id}/sla/pause`, data),
+  slaResume:  (id)       => api.post(`/sd/tickets/${id}/sla/resume`),
 }
 
 export const problemsApi = {
@@ -693,7 +698,9 @@ export const customFieldsApi = {
   list:   (projectId)          => api.get(`/custom-fields/${projectId}`),
   create: (projectId, data)    => api.post(`/custom-fields/${projectId}`, data),
   update: (projectId, id, data)=> api.patch(`/custom-fields/${projectId}/${id}`, data),
-  delete: (projectId, id)      => api.delete(`/custom-fields/${projectId}/${id}`),
+  delete:    (projectId, id)           => api.delete(`/custom-fields/${projectId}/${id}`),
+  getValues: (projectId, taskId)       => api.get(`/custom-fields/${projectId}/values/${taskId}`),
+  setValues: (projectId, taskId, data) => api.post(`/custom-fields/${projectId}/values/${taskId}`, data),
 }
 
 // ── Wiki ──────────────────────────────────────────────────────────────────────
@@ -941,6 +948,244 @@ export const cmdb3dApi = {
   createLink:     (data)               => api.post('/sd/cmdb/asset-links', data),
   listLinks:      (params)             => api.get('/sd/cmdb/asset-links', { params }),
   getImpact:      (assetId)            => api.get(`/sd/cmdb/asset-impact/${assetId}`),
+}
+
+// ── WebSocket Ticket ──────────────────────────────────────────────────────────
+export const wsApi = {
+  ticket: () => api.get('/ws/ticket'),
+}
+
+// ── Sprint (project-scoped) ───────────────────────────────────────────────────
+export const projectSprintsApi = {
+  list:          (projectId)                    => api.get(`/sprints/${projectId}/sprints`),
+  create:        (projectId, data)              => api.post(`/sprints/${projectId}/sprints`, data),
+  update:        (projectId, id, data)          => api.patch(`/sprints/${projectId}/sprints/${id}`, data),
+  start:         (projectId, id)                => api.post(`/sprints/${projectId}/sprints/${id}/start`),
+  close:         (projectId, id)                => api.post(`/sprints/${projectId}/sprints/${id}/close`),
+  burndown:      (projectId, id)                => api.get(`/sprints/${projectId}/sprints/${id}/burndown`),
+  backlog:       (projectId)                    => api.get(`/sprints/${projectId}/backlog`),
+  velocity:      (projectId)                    => api.get(`/sprints/${projectId}/velocity`),
+  addTasks:      (projectId, sprintId, taskIds) => api.post(`/sprints/${projectId}/sprints/${sprintId}/tasks`, { task_ids: taskIds }),
+  removeTask:    (projectId, sprintId, taskId)  => api.delete(`/sprints/${projectId}/sprints/${sprintId}/tasks/${taskId}`),
+  retrospective: (projectId, sprintId)          => api.get(`/projects/${projectId}/sprints/${sprintId}/retrospective`),
+}
+
+// ── Semantic ──────────────────────────────────────────────────────────────────
+export const semanticApi = {
+  suggestTask:    (data) => api.post('/semantic/suggest/task', data),
+  estimateEffort: (data) => api.post('/semantic/estimate/effort', data),
+}
+
+// ── GRC ───────────────────────────────────────────────────────────────────────
+export const grcApi = {
+  permissions:      ()                           => api.get('/grc/permissions'),
+  seedPermissions:  ()                           => api.post('/grc/permissions/seed'),
+  updatePermission: (role, module, action, data) => api.patch(`/grc/permissions/${role}/${module}/${action}`, data),
+  sodRules:         ()                           => api.get('/grc/sod-rules'),
+  createSodRule:    (data)                       => api.post('/grc/sod-rules', data),
+  updateSodRule:    (id, data)                   => api.patch(`/grc/sod-rules/${id}`, data),
+  deleteSodRule:    (id)                         => api.delete(`/grc/sod-rules/${id}`),
+  sodCheck:         ()                           => api.get('/grc/sod-check'),
+  violations:       (params)                     => api.get('/grc/violations', { params }),
+  resolveViolation: (id, data)                   => api.patch(`/grc/violations/${id}/resolve`, data),
+  auditLog:         (params)                     => api.get('/grc/audit-log', { params }),
+}
+
+// ── Automations ───────────────────────────────────────────────────────────────
+export const automationsApi = {
+  list:       ()         => api.get('/automations'),
+  templates:  ()         => api.get('/automations/templates/list'),
+  create:     (data)     => api.post('/automations', data),
+  update:     (id, data) => api.patch(`/automations/${id}`, data),
+  delete:     (id)       => api.delete(`/automations/${id}`),
+  test:       (id)       => api.post(`/automations/${id}/test`),
+  executions: (id)       => api.get(`/automations/${id}/executions`),
+}
+
+export const autoWorkflowsApi = {
+  list:   ()             => api.get('/automation-workflows'),
+  update: (id, data)     => api.patch(`/automation-workflows/${id}`, data),
+  delete: (id)           => api.delete(`/automation-workflows/${id}`),
+}
+
+export const workflowsLegacyApi = {
+  list:   ()         => api.get('/workflows'),
+  create: (data)     => api.post('/workflows', data),
+  update: (id, data) => api.patch(`/workflows/${id}`, data),
+}
+
+// ── Scheduled Reports ─────────────────────────────────────────────────────────
+export const scheduledReportsApi = {
+  list:   ()         => api.get('/scheduled-reports'),
+  create: (data)     => api.post('/scheduled-reports', data),
+  delete: (id)       => api.delete(`/scheduled-reports/${id}`),
+  run:    (id)       => api.post(`/scheduled-reports/${id}/run`),
+  toggle: (id, data) => api.patch(`/scheduled-reports/${id}`, data),
+}
+
+// ── AI Providers ──────────────────────────────────────────────────────────────
+export const aiProvidersApi = {
+  list:        ()         => api.get('/ai-providers'),
+  catalog:     ()         => api.get('/ai-providers/catalog'),
+  stats:       ()         => api.get('/ai-providers/stats'),
+  diagnostics: ()         => api.get('/ai-providers/diagnostics'),
+  create:      (data)     => api.post('/ai-providers', data),
+  update:      (id, data) => api.patch(`/ai-providers/${id}`, data),
+  delete:      (id)       => api.delete(`/ai-providers/${id}`),
+  test:        (id)       => api.post(`/ai-providers/${id}/test`),
+  syncModels:  (id)       => api.post(`/ai-providers/${id}/sync-models`),
+  setDefault:  (id)       => api.post(`/ai-providers/${id}/set-default`),
+  syncAll:     ()         => api.post('/ai-providers/sync-models/all'),
+}
+
+// ── Service Desk Config ───────────────────────────────────────────────────────
+export const sdCatalogApi = {
+  get:            ()         => api.get('/sd/catalog'),
+  createCategory: (data)     => api.post('/sd/catalog/categories', data),
+  updateCategory: (id, data) => api.patch(`/sd/catalog/categories/${id}`, data),
+  deleteCategory: (id)       => api.delete(`/sd/catalog/categories/${id}`),
+  createService:  (data)     => api.post('/sd/catalog/services', data),
+  updateService:  (id, data) => api.patch(`/sd/catalog/services/${id}`, data),
+  deleteService:  (id)       => api.delete(`/sd/catalog/services/${id}`),
+}
+
+export const sdSlaPoliciesApi = {
+  list:   ()         => api.get('/sd/sla-policies'),
+  create: (data)     => api.post('/sd/sla-policies', data),
+  update: (id, data) => api.patch(`/sd/sla-policies/${id}`, data),
+  delete: (id)       => api.delete(`/sd/sla-policies/${id}`),
+}
+
+export const sdGroupsApi = {
+  list:         ()         => api.get('/sd/groups'),
+  create:       (data)     => api.post('/sd/groups', data),
+  update:       (id, data) => api.patch(`/sd/groups/${id}`, data),
+  delete:       (id)       => api.delete(`/sd/groups/${id}`),
+  addMember:    (gid, uid) => api.post(`/sd/groups/${gid}/members/${uid}`),
+  removeMember: (gid, uid) => api.delete(`/sd/groups/${gid}/members/${uid}`),
+}
+
+export const sdTemplatesApi = {
+  list:   ()         => api.get('/sd/ticket-templates'),
+  create: (data)     => api.post('/sd/ticket-templates', data),
+  update: (id, data) => api.patch(`/sd/ticket-templates/${id}`, data),
+  delete: (id)       => api.delete(`/sd/ticket-templates/${id}`),
+}
+
+export const sdCannedApi = {
+  list:   (params)   => api.get('/sd/canned-responses', { params }),
+  create: (data)     => api.post('/sd/canned-responses', data),
+  update: (id, data) => api.patch(`/sd/canned-responses/${id}`, data),
+  delete: (id)       => api.delete(`/sd/canned-responses/${id}`),
+}
+
+export const sdAnnouncementsApi = {
+  list:   ()     => api.get('/sd/announcements'),
+  create: (data) => api.post('/sd/announcements', data),
+  delete: (id)   => api.delete(`/sd/announcements/${id}`),
+}
+
+export const sdRoutingApi = {
+  list:                ()         => api.get('/sd/routing-rules'),
+  create:              (data)     => api.post('/sd/routing-rules', data),
+  update:              (id, data) => api.patch(`/sd/routing-rules/${id}`, data),
+  delete:              (id)       => api.delete(`/sd/routing-rules/${id}`),
+  queue:               (params)   => api.get('/sd/tickets/my-queue', { params }),
+  tickets:             (params)   => api.get('/sd/tickets', { params }),
+  majorIncidents:      ()         => api.get('/sd/major-incidents'),
+  createMajorIncident: (data)     => api.post('/sd/major-incidents', data),
+}
+
+export const sdKbApi = {
+  list:        (params)   => api.get('/sd/kb', { params }),
+  create:      (data)     => api.post('/sd/kb', data),
+  update:      (id, data) => api.patch(`/sd/kb/${id}`, data),
+  delete:      (id)       => api.delete(`/sd/kb/${id}`),
+  knownErrors: ()         => api.get('/sd/known-errors'),
+}
+
+// ── Enterprise ────────────────────────────────────────────────────────────────
+export const webhooksApi = {
+  list:   ()         => api.get('/webhooks'),
+  create: (data)     => api.post('/webhooks', data),
+  delete: (id)       => api.delete(`/webhooks/${id}`),
+  logs:   (id)       => api.get(`/webhooks/${id}/logs`),
+}
+
+export const gdprApi = {
+  list:    ()     => api.get('/gdpr/requests'),
+  create:  (data) => api.post('/gdpr/requests', data),
+  process: (id)   => api.post(`/gdpr/requests/${id}/process`),
+}
+
+export const emailApi = {
+  catalog:        ()     => api.get('/email/templates'),
+  logs:           ()     => api.get('/email/logs'),
+  send:           (data) => api.post('/email/send', data),
+  createTemplate: (data) => api.post('/email/templates', data),
+}
+
+export const oauthIntegrationsApi = {
+  list:   ()             => api.get('/oauth-integrations'),
+  create: (data)         => api.post('/oauth-integrations', data),
+  delete: (id)           => api.delete(`/oauth-integrations/${id}`),
+  sync:   (id, data)     => api.post(`/oauth-integrations/${id}/sync`, data),
+}
+
+export const enterpriseApi = {
+  auditLog:  (params) => api.get('/enterprise/audit-log', { params }),
+  ssoList:   ()       => api.get('/enterprise/sso'),
+  ssoCreate: (data)   => api.post('/enterprise/sso', data),
+  ssoDelete: (id)     => api.delete(`/enterprise/sso/${id}`),
+  ssoTest:   (id)     => api.post(`/enterprise/sso/${id}/test`),
+}
+
+export const integrationsHubApi = {
+  testSlack:  (data) => api.post('/integrations-hub/slack/test', data),
+  testTeams:  (data) => api.post('/integrations-hub/teams/test', data),
+  testJira:   (data) => api.post('/integrations-hub/jira/test', data),
+}
+
+export const apiKeysApi = {
+  list:   ()         => api.get('/api-keys'),
+  create: (data)     => api.post('/api-keys', data),
+  delete: (id)       => api.delete(`/api-keys/${id}`),
+}
+
+// ── Client Portal ─────────────────────────────────────────────────────────────
+export const portalApi = {
+  clients:              (params)          => api.get('/portal/clients', { params }),
+  createClient:         (data)            => api.post('/portal/clients', data),
+  updateClient:         (id, data)        => api.patch(`/portal/clients/${id}`, data),
+  deleteClient:         (id)              => api.delete(`/portal/clients/${id}`),
+  uat:                  (params)          => api.get('/portal/uat/team', { params }),
+  createUat:            (projectId, data) => api.post(`/portal/uat/${projectId}`, data),
+  addTestCase:          (id, data)        => api.post(`/portal/uat/${id}/test-cases`, data),
+  updateUatStatus:      (id, params)      => api.patch(`/portal/uat/issues/${id}`, null, { params }),
+  featureRequests:      (params)          => api.get('/portal/feature-requests/team', { params }),
+  respondFeatureRequest:(id, data)        => api.post(`/portal/feature-requests/${id}/respond`, data),
+  documents:            (params)          => api.get('/portal/documents/team', { params }),
+  createDocument:       (projectId, data) => api.post('/portal/documents', data, { params: { project_id: projectId } }),
+  stats:                (projectId)       => api.get(`/portal/stats/${projectId}`),
+}
+
+// ── Client Extensions ─────────────────────────────────────────────────────────
+export const clientExtApi = {
+  projects:           (cid)       => api.get(`/clients/${cid}/projects`),
+  availableProjects:  (cid)       => api.get(`/clients/${cid}/projects/available`),
+  linkProject:        (cid, pid)  => api.post(`/clients/${cid}/projects/${pid}/link`),
+  unlinkProject:      (cid, pid)  => api.delete(`/clients/${cid}/projects/${pid}/link`),
+  contacts:           (cid)       => api.get(`/clients/${cid}/contacts`),
+  createContact:      (cid, data) => api.post(`/clients/${cid}/contacts`, data),
+  deleteContact:      (cid, id)   => api.delete(`/clients/${cid}/contacts/${id}`),
+  licenses:           (cid)       => api.get(`/clients/${cid}/licenses`),
+  linkLicense:        (cid, data) => api.post(`/clients/${cid}/licenses`, data),
+  unlinkLicense:      (cid, id)   => api.delete(`/clients/${cid}/licenses/${id}`),
+  contracts:          (cid)       => api.get(`/clients/${cid}/contracts`),
+  linkContract:       (cid, data) => api.post(`/clients/${cid}/contracts`, data),
+  unlinkContract:     (cid, id)   => api.delete(`/clients/${cid}/contracts/${id}`),
+  portalConfig:       (cid)       => api.get(`/clients/${cid}/portal-config`),
+  updatePortalConfig: (cid, data) => api.patch(`/clients/${cid}/portal-config`, data),
 }
 
 /** Normalise a Pydantic v2 / FastAPI error detail to a plain string.
