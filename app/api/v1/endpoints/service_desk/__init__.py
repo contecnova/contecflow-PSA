@@ -43,6 +43,10 @@ from app.api.v1.endpoints.service_desk import (
     problem_management,
     cab_workflow,
     alert_correlation,
+    incident_assignment,
+    change_rollout,
+    cmdb_3d,
+    voice_agent,
 )
 
 router = APIRouter()
@@ -70,3 +74,7 @@ router.include_router(capacity_planning.router)
 router.include_router(problem_management.router)
 router.include_router(cab_workflow.router)
 router.include_router(alert_correlation.router)
+router.include_router(incident_assignment.router)
+router.include_router(change_rollout.router)
+router.include_router(cmdb_3d.router)
+router.include_router(voice_agent.router)
