@@ -59,6 +59,17 @@ api.interceptors.response.use(
       }
     }
 
+    // 429 — Rate limit: dispatch event so the UI can show a user-facing warning
+    if (status === 429) {
+      const retryAfter = err.response?.headers?.['retry-after']
+      window.dispatchEvent(new CustomEvent('api:rate-limited', {
+        detail: {
+          retryAfter: retryAfter ? Number(retryAfter) : null,
+          path: original?.url || '',
+        },
+      }))
+    }
+
     return Promise.reject(err)
   }
 )

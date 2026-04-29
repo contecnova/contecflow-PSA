@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import api from '../services/api'
+import { useToast } from './ToastContext'
 
 const AuthContext = createContext(null)
 
@@ -12,6 +13,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sessionExpired, setSessionExpired] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     // Only attempt session restoration if a hint says the user logged in before.
@@ -44,6 +46,19 @@ export function AuthProvider({ children }) {
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)
   }, [])
+
+  // 429 — Rate limit global handler: shows a toast whenever any endpoint is throttled
+  useEffect(() => {
+    const handler = (e) => {
+      const retryAfter = e.detail?.retryAfter
+      const msg = retryAfter
+        ? `Demasiadas peticiones. Espera ${retryAfter}s antes de reintentar.`
+        : 'Demasiadas peticiones. Espera un momento antes de reintentar.'
+      toast.warning(msg, 5000)
+    }
+    window.addEventListener('api:rate-limited', handler)
+    return () => window.removeEventListener('api:rate-limited', handler)
+  }, [toast])
 
   const login = useCallback(async (username, password) => {
     const { data } = await api.post('/auth/login', { username, password })
