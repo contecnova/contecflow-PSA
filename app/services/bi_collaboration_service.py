@@ -1,8 +1,8 @@
 """BI Collaboration service orchestration.
 
-Provides a lightweight collaboration + governance layer for BI dashboards
-without introducing new tables. Data is persisted in AppSetting JSON blobs,
-scoped by organization for multi-tenant isolation.
+Collaboration state (comments, versions, shares, notifications) is persisted
+in relational tables. Governance and cache policy keep using AppSetting JSON
+for now to preserve backward compatibility with existing runtime configs.
 """
 from __future__ import annotations
 
@@ -13,7 +13,14 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
+from app.models.bi_collaboration import (
+    DashboardComment,
+    DashboardNotification,
+    DashboardShare,
+    DashboardVersion,
+)
 from app.models.settings import AppSetting
 from app.models.user import User
 from app.services.analytics_service import METRIC_CACHE_TTL
@@ -36,6 +43,33 @@ def _iso_now() -> str:
 
 def _to_json_value(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _from_json_value(value: str, default: Any) -> Any:
+    try:
+        return json.loads(value)
+    except Exception:
+        return default
+
+
+def _emit_dashboard_notification(
+    db: Session,
+    *,
+    organization_id: Optional[str],
+    dashboard_key: str,
+    event_type: str,
+    payload: dict[str, Any],
+    recipient_user_id: Optional[str] = None,
+) -> None:
+    db.add(
+        DashboardNotification(
+            organization_id=organization_id,
+            dashboard_key=dashboard_key,
+            event_type=event_type,
+            recipient_user_id=recipient_user_id,
+            payload_json=_to_json_value(payload),
+        )
+    )
 
 
 def _setting_row(db: Session, key: str, organization_id: Optional[str]) -> Optional[AppSetting]:
@@ -82,18 +116,33 @@ def list_comments(
     widget_id: Optional[str] = None,
     include_resolved: bool = False,
 ) -> list[dict[str, Any]]:
-    comments = _get_json(db, COMMENTS_KEY, organization_id, default=[])
-    out: list[dict[str, Any]] = []
-    for item in comments:
-        if dashboard_key and item.get("dashboard_key") != dashboard_key:
-            continue
-        if widget_id and item.get("widget_id") != widget_id:
-            continue
-        if not include_resolved and item.get("resolved"):
-            continue
-        out.append(item)
-    out.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return out
+    q = db.query(DashboardComment)
+    if organization_id:
+        q = q.filter(DashboardComment.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardComment.organization_id.is_(None))
+    if dashboard_key:
+        q = q.filter(DashboardComment.dashboard_key == dashboard_key)
+    if widget_id:
+        q = q.filter(DashboardComment.widget_id == widget_id)
+    if not include_resolved:
+        q = q.filter(DashboardComment.resolved.is_(False))
+    rows = q.order_by(DashboardComment.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "dashboard_key": r.dashboard_key,
+            "widget_id": r.widget_id,
+            "message": r.message,
+            "author_id": r.author_id,
+            "author_name": r.author_name,
+            "resolved": bool(r.resolved),
+            "resolved_at": r.resolved_at.isoformat() if r.resolved_at else None,
+            "resolved_by": r.resolved_by,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 def create_comment(
@@ -105,28 +154,36 @@ def create_comment(
     message: str,
     author: User,
 ) -> dict[str, Any]:
-    comments = _get_json(db, COMMENTS_KEY, organization_id, default=[])
-    payload = {
-        "id": str(uuid.uuid4()),
-        "dashboard_key": dashboard_key,
-        "widget_id": widget_id,
-        "message": message.strip(),
-        "author_id": author.id,
-        "author_name": author.full_name,
+    row = DashboardComment(
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        widget_id=widget_id,
+        message=message.strip(),
+        author_id=author.id,
+        author_name=author.full_name,
+        resolved=False,
+    )
+    db.add(row)
+    _emit_dashboard_notification(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        event_type="comment_created",
+        payload={"widget_id": widget_id, "author_id": author.id, "message": row.message[:200]},
+    )
+    db.commit()
+    return {
+        "id": row.id,
+        "dashboard_key": row.dashboard_key,
+        "widget_id": row.widget_id,
+        "message": row.message,
+        "author_id": row.author_id,
+        "author_name": row.author_name,
         "resolved": False,
         "resolved_at": None,
         "resolved_by": None,
-        "created_at": _iso_now(),
+        "created_at": row.created_at.isoformat() if row.created_at else None,
     }
-    comments.append(payload)
-    _set_json(
-        db,
-        COMMENTS_KEY,
-        organization_id,
-        comments,
-        description="BI Collaboration collaboration comments (JSON)",
-    )
-    return payload
 
 
 def resolve_comment(
@@ -136,25 +193,37 @@ def resolve_comment(
     comment_id: str,
     current_user: User,
 ) -> dict[str, Any]:
-    comments = _get_json(db, COMMENTS_KEY, organization_id, default=[])
-    target: Optional[dict[str, Any]] = None
-    for item in comments:
-        if item.get("id") == comment_id:
-            item["resolved"] = True
-            item["resolved_at"] = _iso_now()
-            item["resolved_by"] = current_user.full_name
-            target = item
-            break
-    if target is None:
+    q = db.query(DashboardComment).filter(DashboardComment.id == comment_id)
+    if organization_id:
+        q = q.filter(DashboardComment.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardComment.organization_id.is_(None))
+    row = q.first()
+    if row is None:
         raise ValueError("comment_not_found")
-    _set_json(
+    row.resolved = True
+    row.resolved_at = datetime.now(timezone.utc)
+    row.resolved_by = current_user.full_name
+    _emit_dashboard_notification(
         db,
-        COMMENTS_KEY,
-        organization_id,
-        comments,
-        description="BI Collaboration collaboration comments (JSON)",
+        organization_id=organization_id,
+        dashboard_key=row.dashboard_key,
+        event_type="comment_resolved",
+        payload={"comment_id": row.id, "resolved_by": current_user.id},
     )
-    return target
+    db.commit()
+    return {
+        "id": row.id,
+        "dashboard_key": row.dashboard_key,
+        "widget_id": row.widget_id,
+        "message": row.message,
+        "author_id": row.author_id,
+        "author_name": row.author_name,
+        "resolved": bool(row.resolved),
+        "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+        "resolved_by": row.resolved_by,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
 
 
 def default_governance_rules() -> dict[str, Any]:
@@ -386,7 +455,25 @@ def list_dashboard_versions(
     organization_id: Optional[str],
     dashboard_key: str,
 ) -> list[dict[str, Any]]:
-    return _get_json(db, _versions_key(dashboard_key), organization_id, default=[])
+    q = db.query(DashboardVersion).filter(DashboardVersion.dashboard_key == dashboard_key)
+    if organization_id:
+        q = q.filter(DashboardVersion.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardVersion.organization_id.is_(None))
+    rows = q.order_by(DashboardVersion.version.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "dashboard_key": r.dashboard_key,
+            "version": int(r.version or 0),
+            "config": _from_json_value(r.config or "{}", {}),
+            "change_log": r.change_log,
+            "created_by_id": r.created_by_id,
+            "created_by_name": r.created_by_name,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 def create_dashboard_version(
@@ -398,29 +485,53 @@ def create_dashboard_version(
     change_log: Optional[str],
     current_user: User,
 ) -> dict[str, Any]:
-    versions = list_dashboard_versions(db, organization_id=organization_id, dashboard_key=dashboard_key)
-    next_version = (max((v.get("version", 0) for v in versions), default=0) + 1)
-    row: dict[str, Any] = {
-        "id": str(uuid.uuid4()),
-        "dashboard_key": dashboard_key,
-        "version": next_version,
-        "config": config,
-        "change_log": (change_log or "").strip() or f"Versión {next_version}",
-        "created_by_id": current_user.id,
-        "created_by_name": current_user.full_name,
-        "created_at": _iso_now(),
-    }
-    versions.append(row)
-    # Keep last 50 versions
-    versions = versions[-50:]
-    _set_json(
-        db,
-        _versions_key(dashboard_key),
-        organization_id,
-        versions,
-        description=f"BI dashboard versions for {dashboard_key}",
+    q = db.query(func.max(DashboardVersion.version)).filter(DashboardVersion.dashboard_key == dashboard_key)
+    if organization_id:
+        q = q.filter(DashboardVersion.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardVersion.organization_id.is_(None))
+    max_ver = q.scalar() or 0
+    next_version = int(max_ver) + 1
+
+    row = DashboardVersion(
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        version=next_version,
+        config=_to_json_value(config or {}),
+        change_log=(change_log or "").strip() or f"Versión {next_version}",
+        created_by_id=current_user.id,
+        created_by_name=current_user.full_name,
     )
-    return row
+    db.add(row)
+    _emit_dashboard_notification(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        event_type="version_created",
+        payload={"version": next_version, "created_by": current_user.id},
+    )
+
+    db.flush()
+    # Keep last 50 versions per dashboard+organization.
+    trim_q = db.query(DashboardVersion).filter(DashboardVersion.dashboard_key == dashboard_key)
+    if organization_id:
+        trim_q = trim_q.filter(DashboardVersion.organization_id == organization_id)
+    else:
+        trim_q = trim_q.filter(DashboardVersion.organization_id.is_(None))
+    stale = trim_q.order_by(DashboardVersion.version.desc()).offset(50).all()
+    for old in stale:
+        db.delete(old)
+    db.commit()
+    return {
+        "id": row.id,
+        "dashboard_key": row.dashboard_key,
+        "version": row.version,
+        "config": _from_json_value(row.config or "{}", {}),
+        "change_log": row.change_log,
+        "created_by_id": row.created_by_id,
+        "created_by_name": row.created_by_name,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
 
 
 def restore_dashboard_version(
@@ -458,7 +569,26 @@ def list_dashboard_shares(
     organization_id: Optional[str],
     dashboard_key: str,
 ) -> list[dict[str, Any]]:
-    return _get_json(db, _shares_key(dashboard_key), organization_id, default=[])
+    q = db.query(DashboardShare).filter(DashboardShare.dashboard_key == dashboard_key)
+    if organization_id:
+        q = q.filter(DashboardShare.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardShare.organization_id.is_(None))
+    rows = q.order_by(DashboardShare.created_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "dashboard_key": r.dashboard_key,
+            "user_id": r.user_id,
+            "user_name": r.user_name,
+            "permission": r.permission,
+            "shared_by_id": r.shared_by_id,
+            "shared_by_name": r.shared_by_name,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for r in rows
+    ]
 
 
 def share_dashboard(
@@ -473,36 +603,53 @@ def share_dashboard(
 ) -> dict[str, Any]:
     if permission not in SHARE_PERMISSIONS:
         raise ValueError("invalid_permission")
-    shares = list_dashboard_shares(db, organization_id=organization_id, dashboard_key=dashboard_key)
-    # Upsert: if the user already has access, update their permission
-    existing = next((s for s in shares if s.get("user_id") == target_user_id), None)
-    now = _iso_now()
-    if existing:
-        existing["permission"] = permission
-        existing["updated_at"] = now
-        existing["updated_by_id"] = shared_by.id
-        row = existing
-    else:
-        row = {
-            "id": str(uuid.uuid4()),
-            "dashboard_key": dashboard_key,
-            "user_id": target_user_id,
-            "user_name": target_user_name,
-            "permission": permission,
-            "shared_by_id": shared_by.id,
-            "shared_by_name": shared_by.full_name,
-            "created_at": now,
-            "updated_at": now,
-        }
-        shares.append(row)
-    _set_json(
-        db,
-        _shares_key(dashboard_key),
-        organization_id,
-        shares,
-        description=f"BI dashboard sharing for {dashboard_key}",
+    q = db.query(DashboardShare).filter(
+        DashboardShare.dashboard_key == dashboard_key,
+        DashboardShare.user_id == target_user_id,
     )
-    return row
+    if organization_id:
+        q = q.filter(DashboardShare.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardShare.organization_id.is_(None))
+    row = q.first()
+    now = datetime.now(timezone.utc)
+    if row:
+        row.permission = permission
+        row.updated_at = now
+        row.user_name = target_user_name
+    else:
+        row = DashboardShare(
+            organization_id=organization_id,
+            dashboard_key=dashboard_key,
+            user_id=target_user_id,
+            user_name=target_user_name,
+            permission=permission,
+            shared_by_id=shared_by.id,
+            shared_by_name=shared_by.full_name,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(row)
+    _emit_dashboard_notification(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        event_type="share_updated",
+        payload={"user_id": target_user_id, "permission": permission, "shared_by": shared_by.id},
+        recipient_user_id=target_user_id,
+    )
+    db.commit()
+    return {
+        "id": row.id,
+        "dashboard_key": row.dashboard_key,
+        "user_id": row.user_id,
+        "user_name": row.user_name,
+        "permission": row.permission,
+        "shared_by_id": row.shared_by_id,
+        "shared_by_name": row.shared_by_name,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+    }
 
 
 def revoke_dashboard_share(
@@ -512,17 +659,28 @@ def revoke_dashboard_share(
     dashboard_key: str,
     share_id: str,
 ) -> bool:
-    shares = list_dashboard_shares(db, organization_id=organization_id, dashboard_key=dashboard_key)
-    new_shares = [s for s in shares if s.get("id") != share_id]
-    if len(new_shares) == len(shares):
-        return False
-    _set_json(
-        db,
-        _shares_key(dashboard_key),
-        organization_id,
-        new_shares,
-        description=f"BI dashboard sharing for {dashboard_key}",
+    q = db.query(DashboardShare).filter(
+        DashboardShare.id == share_id,
+        DashboardShare.dashboard_key == dashboard_key,
     )
+    if organization_id:
+        q = q.filter(DashboardShare.organization_id == organization_id)
+    else:
+        q = q.filter(DashboardShare.organization_id.is_(None))
+    row = q.first()
+    if row is None:
+        return False
+    target_user_id = row.user_id
+    db.delete(row)
+    _emit_dashboard_notification(
+        db,
+        organization_id=organization_id,
+        dashboard_key=dashboard_key,
+        event_type="share_revoked",
+        payload={"share_id": share_id, "user_id": target_user_id},
+        recipient_user_id=target_user_id,
+    )
+    db.commit()
     return True
 
 

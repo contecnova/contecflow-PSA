@@ -134,4 +134,7 @@ from app.models.workflow_designer import (  # noqa: F401
 from app.models.service_desk_ai_governance import (  # noqa: F401
     SDAIEvaluationRun, SDAIDriftSnapshot,
 )
+from app.models.bi_collaboration import (  # noqa: F401
+    DashboardComment, DashboardVersion, DashboardShare, DashboardNotification,
+)
 
