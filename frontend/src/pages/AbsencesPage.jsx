@@ -3,8 +3,9 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { absencesApi } from '../services/api'
-import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Umbrella } from 'lucide-react'
 import { fmtDate, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -13,8 +14,8 @@ import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const typeLabels = (t) => ({
@@ -56,7 +57,7 @@ function StatusBadge({ status }) {
   const t = useAppT()
   const cfgMap = statusCfg(t)
   const cfg = cfgMap[status] || cfgMap.pending
-  return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
 }
 
 function RequestModal({ onClose }) {
@@ -66,8 +67,8 @@ function RequestModal({ onClose }) {
   const toast = useToast()
   const [form, setForm] = useState({ type: 'vacation', start_date: '', end_date: '', reason: '' })
   const validation = useFormValidation(buildAbsenceRequestSchema(t))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = (k) => (e) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -110,8 +111,8 @@ function RequestModal({ onClose }) {
               { label: t('absences.balance_total'), value: balance.days_entitled, color: 'var(--accent)' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color, fontFamily: "'Space Mono', monospace" }}>{value}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{label}</div>
+                <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{label}</div>
               </div>
             ))}
           </div>
@@ -121,25 +122,25 @@ function RequestModal({ onClose }) {
           <select id={typeId} value={form.type} onChange={set('type')} style={validation.inputStyle(fs, 'type')}>
             {Object.entries(typeLabels(t)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.type}</div>}
+          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.type}</div>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label htmlFor={startId} style={ls}>{t('absences.label_start_required')}</label>
             <input id={startId} type="date" value={form.start_date} onChange={set('start_date')} style={validation.inputStyle(fs, 'start_date')} />
-            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.start_date}</div>}
+            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.start_date}</div>}
           </div>
           <div>
             <label htmlFor={endId} style={ls}>{t('absences.label_end_required')}</label>
             <input id={endId} type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.end_date}</div>}
+            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
         <div>
           <label htmlFor={reasonId} style={ls}>{t('absences.label_reason_optional')}</label>
           <textarea id={reasonId} value={form.reason} onChange={set('reason')} rows={2} style={{ ...fs, resize: 'vertical' }} placeholder={t('absences.reason_placeholder')} />
         </div>
-        {error && <div style={{ fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{Array.isArray(error.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error.response?.data?.detail || t('absences.error_submit'))}</div>}
+        {error && <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{Array.isArray(error.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error.response?.data?.detail || t('absences.error_submit'))}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={submit} disabled={isPending}>
@@ -172,16 +173,16 @@ function ReviewModal({ absence, onClose }) {
           { label: t('absences.working_days_label'), value: `${absence.working_days} ${t('absences.days_unit')}` },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
           </div>
         ))}
       </div>
-      {absence.reason && <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 16 }}>{absence.reason}</p>}
+      {absence.reason && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{absence.reason}</p>}
       <div style={{ marginBottom: 16 }}>
-        <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
+        <label htmlFor={`${idPrefix}-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>{t('absences.label_notes_rejection')}</label>
         <textarea id={`${idPrefix}-notes`} value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -219,10 +220,10 @@ function CalendarView({ year, month }) {
 
   return (
     <Card style={{ padding: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>{MONTH_NAMES[month]} {year}</h3>
+      <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{MONTH_NAMES[month]} {year}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {DAY_NAMES.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', padding: '4px 0' }}>{d}</div>
         ))}
         {Array.from({ length: firstDay }).map((_, i) => <div key={'empty-' + i} />)}
         {days.map(day => {
@@ -231,15 +232,15 @@ function CalendarView({ year, month }) {
           const isWeekend = (firstDay + day - 1) % 7 >= 5
           return (
             <div key={day} style={{ minHeight: 52, background: holiday ? 'var(--purple-bg)' : isWeekend ? 'var(--surface-1)' : 'var(--surface-2)', border: `1px solid ${holiday ? 'rgba(167,139,250,0.25)' : 'var(--surface-4)'}`, borderRadius: 6, padding: '4px 6px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: holiday ? 'var(--purple)' : isWeekend ? 'var(--text-3)' : 'var(--text-2)', marginBottom: 2 }}>{day}</div>
-              {holiday && <div style={{ fontSize: 9, color: 'var(--purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{holiday.name}</div>}
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: holiday ? 'var(--purple)' : isWeekend ? 'var(--text-3)' : 'var(--text-2)', marginBottom: 2 }}>{day}</div>
+              {holiday && <div style={{ fontSize: "var(--text-3xs)", color: 'var(--purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{holiday.name}</div>}
               {absences.slice(0, 2).map(a => (
                 <div key={a.id} title={`${a.user_name} - ${typeLabels(t)[a.type]}`}
-                  style={{ fontSize: 9, background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 3, padding: '1px 4px', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  style={{ fontSize: "var(--text-3xs)", background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 3, padding: '1px 4px', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {a.user_name.split(' ')[0]}
                 </div>
               ))}
-              {absences.length > 2 && <div style={{ fontSize: 9, color: 'var(--text-2)' }}>+{absences.length - 2}</div>}
+              {absences.length > 2 && <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-2)' }}>+{absences.length - 2}</div>}
             </div>
           )
         })}
@@ -277,9 +278,9 @@ function EditAbsenceModal({ absence, onClose }) {
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
   const typeId = `${idPrefix}-type`
   const startId = `${idPrefix}-start`
@@ -301,7 +302,7 @@ function EditAbsenceModal({ absence, onClose }) {
     <Modal open title={t('absences.modal_edit_title')} onClose={onClose} width={460}>
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div style={{ padding:'10px 14px', background:'var(--warning-bg)',
-          border:'1px solid rgba(255,184,0,0.3)', borderRadius:8, fontSize:12, color:'var(--warning)' }}>
+          border:'1px solid rgba(255,184,0,0.3)', borderRadius:8, fontSize: "var(--text-sm)", color:'var(--warning)' }}>
           {t('absences.warning_edit_pending_only')}
         </div>
 
@@ -310,7 +311,7 @@ function EditAbsenceModal({ absence, onClose }) {
           <select id={typeId} value={form.type} onChange={setField('type')} style={validation.inputStyle(IS, 'type')}>
             {Object.entries(typeLabels(t)).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.type}</div>}
+          {validation.errors.type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.type}</div>}
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -318,13 +319,13 @@ function EditAbsenceModal({ absence, onClose }) {
             <label htmlFor={startId} style={LS}>{t('absences.start_label')}</label>
             <input id={startId} type="date" value={form.start_date}
               onChange={setField('start_date')} style={validation.inputStyle(IS, 'start_date')} />
-            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.start_date}</div>}
+            {validation.errors.start_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.start_date}</div>}
           </div>
           <div>
             <label htmlFor={endId} style={LS}>{t('absences.end_label')}</label>
             <input id={endId} type="date" value={form.end_date}
               onChange={setField('end_date')} style={validation.inputStyle(IS, 'end_date')} />
-            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.end_date}</div>}
+            {validation.errors.end_date && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
 
@@ -337,7 +338,7 @@ function EditAbsenceModal({ absence, onClose }) {
 
         {error && (
           <div style={{ padding:'8px 12px', background:'var(--danger-bg)',
-            border:'1px solid rgba(255,71,87,0.3)', borderRadius:8, fontSize:12, color:'var(--danger)' }}>
+            border:'1px solid rgba(255,71,87,0.3)', borderRadius:8, fontSize: "var(--text-sm)", color:'var(--danger)' }}>
             {Array.isArray(error?.response?.data?.detail) ? error.response.data.detail.map(e => e.msg).join(', ') : (error?.response?.data?.detail || t('absences.error_update'))}
           </div>
         )}
@@ -407,7 +408,7 @@ export default function AbsencesPage() {
   const MONTH_NAMES = monthNames(t)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Umbrella size={18} />}
         title={t('absences.title')}
@@ -415,14 +416,13 @@ export default function AbsencesPage() {
         actions={<Button onClick={() => setShowRequest(true)} icon="＋">{t('absences.request_absence_btn')}</Button>}
       />
 
-      <div role="tablist" aria-label={t('absences.sections_aria')} style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {tabs.map(tabItem => (
-          <button key={tabItem.id} role="tab" aria-selected={tab === tabItem.id} aria-controls={`absences-panel-${tabItem.id}`} id={`absences-tab-${tabItem.id}`} onClick={() => setTab(tabItem.id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === tabItem.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabItem.id ? 'var(--accent-muted)' : 'transparent', color: tab === tabItem.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {tabItem.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={tabs}
+        active={tab}
+        onChange={setTab}
+        ariaLabel={t('absences.sections_aria')}
+        style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+      />
 
       {tab === 'mine' && (
         <div id="absences-panel-mine" role="tabpanel" aria-labelledby="absences-tab-mine">
@@ -433,23 +433,23 @@ export default function AbsencesPage() {
               {myAbsences.map(a => (
                 <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
                     </div>
-                    {a.rejection_reason && <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
+                    {a.rejection_reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
                   </div>
                   <StatusBadge status={a.status} />
                   <div style={{ display:'flex', gap:6 }}>
                     {a.status === 'pending' && (
                       <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => setEditingAbsence(a)}
                         style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
-                          padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                          padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
                         {t('absences.edit_action')}
                       </button>
                     )}
                     {(a.status === 'pending' || a.status === 'approved') && (
-                      <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
+                      <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
                     )}
                   </div>
                 </div>
@@ -463,10 +463,10 @@ export default function AbsencesPage() {
         <div id="absences-panel-calendar" role="tabpanel" aria-labelledby="absences-tab-calendar">
           <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}>
             <button aria-label={t('absences.month_prev_aria')} onClick={() => { if (calMonth === 1) { setCalMonth(12); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
-            <span aria-live="polite" style={{ fontSize: 16, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>{MONTH_NAMES[calMonth]} {calYear}</span>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>‹</button>
+            <span aria-live="polite" style={{ fontSize: "var(--text-lg)", fontWeight: 700, minWidth: 160, textAlign: 'center' }}>{MONTH_NAMES[calMonth]} {calYear}</span>
             <button aria-label={t('absences.month_next_aria')} onClick={() => { if (calMonth === 12) { setCalMonth(1); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 14px', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>›</button>
           </div>
           <CalendarView year={calYear} month={calMonth} />
         </div>
@@ -479,13 +479,13 @@ export default function AbsencesPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {pending.map(a => (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid #ffb80030', borderRadius: 12 }}>
+                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{a.user_name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.user_name}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
                     </div>
-                    {a.reason && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
+                    {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
                   </div>
                   <StatusBadge status={a.status} />
                   <Button size="sm" onClick={() => setReviewing(a)}>{t('absences.review_action')}</Button>
@@ -502,7 +502,7 @@ export default function AbsencesPage() {
             <EmptyState icon="👥" title={t('absences.empty_team_title')} />
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
                 <SortableTH col="user_name" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.person_col')}</SortableTH>
                 <SortableTH col="type" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.type_label')}</SortableTH>
                 <SortableTH col="start_date" sort={teamAbsSort} onSort={setTeamAbsSort}>{t('absences.start_label')}</SortableTH>
@@ -512,11 +512,11 @@ export default function AbsencesPage() {
               </div>
               {sortedTeamAbs.map(a => (
                 <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{a.user_name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{typeLabels(t)[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
-                  <span style={{ fontSize: 12 }}>{fmtDate(a.start_date)}</span>
-                  <span style={{ fontSize: 12 }}>{fmtDate(a.end_date)}</span>
-                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{a.working_days}d</span>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.user_name}</span>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{typeLabels(t)[a.type]?.replace(/^\S+\s/, '') || a.type}</span>
+                  <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.start_date)}</span>
+                  <span style={{ fontSize: "var(--text-sm)" }}>{fmtDate(a.end_date)}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{a.working_days}d</span>
                   <StatusBadge status={a.status} />
                 </div>
               ))}
@@ -533,6 +533,6 @@ export default function AbsencesPage() {
         />
       )}
       {reviewing && <ReviewModal absence={reviewing} onClose={() => setReviewing(null)} />}
-    </div>
+    </PageShell>
   )
 }

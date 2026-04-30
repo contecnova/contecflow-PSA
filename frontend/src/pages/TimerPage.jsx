@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Timer } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -13,11 +14,11 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus'
 
 const FS = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 const LS = {
-  fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase',
+  fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase',
   letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
@@ -49,7 +50,7 @@ function computeElapsed(timer) {
   return Math.max(0, Math.floor((Date.now() - startedAt) / 1000) - totalPausedSecs)
 }
 
-function onKeyboardActivate(event, action) {
+function _onKeyboardActivate(event, action) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
@@ -80,26 +81,31 @@ function StartModal({ onClose, onStart, isPending, user }) {
   })
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 500,
-      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => onKeyboardActivate(e, onClose)}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <>
+      <div role="presentation" onMouseDown={onClose} style={{
+        position: 'fixed', inset: 0, zIndex: 499,
+        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+      }} />
       <div style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="start-timer-title"
+        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+        tabIndex={-1}
+        style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 14, padding: 28, width: 440, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        pointerEvents: 'all',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>⏱ Iniciar cronómetro</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>Selecciona proyecto y tarea</div>
+            <div id="start-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>⏱ Iniciar cronómetro</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>Selecciona proyecto y tarea</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={LS}>Proyecto *</label>
@@ -116,16 +122,16 @@ function StartModal({ onClose, onStart, isPending, user }) {
             {tasks.map(t => <option key={t.id} value={t.id}>{t.title || t.name}</option>)}
           </select>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: 13, color: 'var(--text-1)' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
           <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Tiempo facturable
         </label>
         {!hasRate && (
           <div style={{
-            background: 'rgba(252,129,129,0.12)', border: '1px solid #fc8181',
+            background: 'rgba(252,129,129,0.12)', border: '1px solid var(--danger)',
             borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            fontSize: 12, color: '#fc8181', lineHeight: 1.5,
+            fontSize: "var(--text-sm)", color: 'var(--danger)', lineHeight: 1.5,
           }}>
             ⚠ No tienes tarifa horaria asignada. No puedes iniciar el cronómetro hasta que Recursos Humanos la configure.
           </div>
@@ -135,7 +141,7 @@ function StartModal({ onClose, onStart, isPending, user }) {
             onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}
             style={{
               flex: 1, padding: '11px', background: 'var(--accent)', border: 'none',
-              borderRadius: 9, color: '#fff', fontSize: 13, fontWeight: 700,
+              borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
               cursor: (projectId && hasRate) ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
               opacity: (!projectId || isPending || !hasRate) ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -144,11 +150,12 @@ function StartModal({ onClose, onStart, isPending, user }) {
           </button>
           <button onClick={onClose} style={{
             padding: '11px 18px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 9, color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: 9, color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
           }}>Cancelar</button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -156,28 +163,32 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 500,
-      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={e => onKeyboardActivate(e, onClose)}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <>
+      <div role="presentation" onMouseDown={onClose} style={{
+        position: 'fixed', inset: 0, zIndex: 499,
+        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+      }} />
       <div style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="stop-timer-title"
+        onKeyDown={e => { if (e.key === 'Escape') onClose() }}
+        tabIndex={-1}
+        style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 14, padding: 28, width: 420, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>⏹ Detener sesión</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
-              Tiempo: <strong style={{ color: 'var(--accent)', fontFamily: 'monospace' }}>{formatTime(elapsed)}</strong>
+            <div id="stop-timer-title" style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>⏹ Detener sesión</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
+              Tiempo: <strong style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{formatTime(elapsed)}</strong>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 20 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-xl)" }}>✕</button>
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={LS}>Descripción del trabajo</label>
@@ -185,7 +196,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
             style={{ ...FS, resize: 'vertical' }} rows={3}
             placeholder="Describe el trabajo realizado" aria-label="Descripcion del trabajo" autoFocus />
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: 13, color: 'var(--text-1)' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
           <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Marcar como facturable
@@ -195,7 +206,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
             onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable })}
             style={{
               flex: 1, padding: '11px', background: '#c0392b', border: 'none',
-              borderRadius: 9, color: '#fff', fontSize: 13, fontWeight: 700,
+              borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit', opacity: isPending ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
@@ -203,11 +214,12 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
           </button>
           <button onClick={onClose} style={{
             padding: '11px 18px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-            borderRadius: 9, color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: 9, color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
           }}>Cancelar</button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -277,17 +289,17 @@ export default function TimerPage() {
   const isPaused  = !!currentTimer?.paused_at
   const isRunning = !!currentTimer && !isPaused
   const isLoading = pauseMutation.isPending || resumeMutation.isPending || stopMutation.isPending
-  const stateColor = isRunning ? '#68d391' : isPaused ? '#f6ad55' : 'var(--text-3)'
+  const stateColor = isRunning ? 'var(--success)' : isPaused ? '#fb923c' : 'var(--text-3)'
   const stateLabel = isRunning ? 'Corriendo' : isPaused ? 'Pausado' : 'Sin sesión'
   const isOnline = useOnlineStatus()
 
   return (
-    <div style={{ padding: 32, maxWidth: 860, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 860, margin: '0 auto' }}>
       {!isOnline && (
         <div style={{
           background: '#744210', border: '1px solid #d69e2e', borderRadius: 10,
           padding: '10px 16px', marginBottom: 16, color: '#fefcbf',
-          fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: "var(--text-base)", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
         }}>
           ⚠️ Sin conexión — los registros de tiempo se guardarán automáticamente cuando recuperes internet.
         </div>
@@ -299,7 +311,7 @@ export default function TimerPage() {
         actions={!currentTimer && (
           <button onClick={() => setShowStart(true)} style={{
             padding: '9px 20px', background: 'var(--accent)', border: 'none',
-            borderRadius: 9, color: '#fff', fontSize: 13, fontWeight: 700,
+            borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>▶ Nueva sesión</button>
         )}
@@ -318,22 +330,22 @@ export default function TimerPage() {
               boxShadow: isRunning ? `0 0 10px ${stateColor}` : 'none',
               animation: isRunning ? 'timerPulse 1.5s ease-in-out infinite' : 'none',
             }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: stateColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: stateColor, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               {stateLabel}
             </span>
           </div>
 
-          <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 600 }}>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', fontWeight: 600 }}>
             📁 {currentTimer.project_name || `Proyecto #${currentTimer.project_id}`}
             {currentTimer.task_id && (
-              <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-3)' }}>
+              <span style={{ marginLeft: 12, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
                 · Tarea #{currentTimer.task_id}
               </span>
             )}
           </div>
 
           <div style={{
-            fontSize: 80, fontWeight: 800,
+            fontSize: "var(--text-80)", fontWeight: 800,
             fontFamily: '"Roboto Mono","Courier New",monospace',
             color: 'var(--text-1)', letterSpacing: 4, lineHeight: 1,
             textShadow: isRunning ? `0 0 40px ${stateColor}55` : 'none',
@@ -341,7 +353,7 @@ export default function TimerPage() {
             {formatTime(elapsed)}
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             Inicio: {new Date(currentTimer.started_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             {(currentTimer.paused_duration_secs || 0) > 0 && (
               <span style={{ marginLeft: 14 }}>· Pausado acumulado: {formatTime(currentTimer.paused_duration_secs)}</span>
@@ -352,21 +364,21 @@ export default function TimerPage() {
             {isPaused ? (
               <button onClick={() => resumeMutation.mutate()} disabled={isLoading} style={{
                 padding: '12px 28px', background: 'var(--accent)', border: 'none',
-                borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700,
+                borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>▶ Reanudar</button>
             ) : (
               <button onClick={() => pauseMutation.mutate()} disabled={isLoading} style={{
-                padding: '12px 28px', background: '#d97706', border: 'none',
-                borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700,
+                padding: '12px 28px', background: '#f59e0b', border: 'none',
+                borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>⏸ Pausar</button>
             )}
             <button onClick={() => setShowStop(true)} disabled={isLoading} style={{
               padding: '12px 28px', background: '#c0392b', border: 'none',
-              borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700,
+              borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
               opacity: isLoading ? 0.6 : 1,
             }}>⏹ Detener y guardar</button>
@@ -378,14 +390,14 @@ export default function TimerPage() {
           borderRadius: 16, padding: 52, marginBottom: 24,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center',
         }}>
-          <div style={{ fontSize: 56, opacity: 0.3 }}>⏱</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)' }}>Sin sesión activa</div>
-          <div style={{ fontSize: 13, color: 'var(--text-3)', maxWidth: 360, lineHeight: 1.7 }}>
+          <div style={{ fontSize: "var(--text-56)", opacity: 0.3 }}>⏱</div>
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)' }}>Sin sesión activa</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', maxWidth: 360, lineHeight: 1.7 }}>
             Inicia el cronómetro para registrar tiempo automáticamente. Al detenerlo se creará una imputación.
           </div>
           <button onClick={() => setShowStart(true)} style={{
             marginTop: 8, padding: '12px 32px', background: 'var(--accent)', border: 'none',
-            borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700,
+            borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>▶ Iniciar cronómetro</button>
         </div>
@@ -399,23 +411,23 @@ export default function TimerPage() {
           padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>Historial de sesiones</div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>Historial de sesiones</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             {timerHistory.length} sesión{timerHistory.length !== 1 ? 'es' : ''}
           </div>
         </div>
         {timerHistory.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
             No hay sesiones registradas todavía
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
               <tr style={{ background: 'var(--surface-3)' }}>
                 {['Proyecto', 'Descripción', 'Horas', 'Tipo', 'Fecha'].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', textAlign: 'left',
-                    fontSize: 11, fontWeight: 700, color: 'var(--text-3)',
+                    fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)',
                     textTransform: 'uppercase', letterSpacing: '0.06em',
                   }}>{h}</th>
                 ))}
@@ -430,20 +442,20 @@ export default function TimerPage() {
                   <td style={{ padding: '12px 16px', color: 'var(--text-2)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {s.description || '—'}
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-1)', fontWeight: 600, fontFamily: 'monospace' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-1)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
                     {typeof s.hours === 'number' ? s.hours.toFixed(2) : (s.hours_imputed?.toFixed(2) || '—')}h
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       display: 'inline-flex', alignItems: 'center',
-                      padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      padding: '3px 10px', borderRadius: 20, fontSize: "var(--text-xs)", fontWeight: 700,
                       background: s.is_billable ? 'rgba(104,211,145,0.15)' : 'rgba(113,128,150,0.15)',
-                      color: s.is_billable ? '#68d391' : 'var(--text-3)',
+                      color: s.is_billable ? 'var(--success)' : 'var(--text-3)',
                     }}>
                       {s.is_billable ? '💰 Facturable' : '🔧 Interno'}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-3)', fontSize: 12 }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>
                     {s.created_at ? new Date(s.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                   </td>
                 </tr>
@@ -462,6 +474,6 @@ export default function TimerPage() {
           50% { opacity: 0.3; transform: scale(0.8); }
         }
       `}</style>
-    </div>
+    </PageShell>
   )
 }

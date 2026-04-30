@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Spinner } from '../components/ui'
 import { PieChart as PieChartIcon } from 'lucide-react'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
@@ -41,14 +42,14 @@ function PeriodButton({ active, label, onClick }) {
       type="button"
       onClick={onClick}
       style={{
-        border: active ? '1px solid #0ea5e9' : '1px solid var(--surface-4)',
-        background: active ? '#0ea5e920' : 'transparent',
-        color: active ? '#0ea5e9' : 'var(--text-2)',
+        border: active ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
+        background: active ? 'var(--accent-border-soft)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text-2)',
         borderRadius: 8,
         minHeight: 48,
         minWidth: 48,
         padding: '6px 10px',
-        fontSize: 12,
+        fontSize: "var(--text-sm)",
         fontWeight: 700,
         cursor: 'pointer',
       }}
@@ -61,9 +62,9 @@ function PeriodButton({ active, label, onClick }) {
 function KpiCard({ label, value, note }) {
   return (
     <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 14 }}>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.1 }}>{value}</div>
-      {note ? <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>{note}</div> : null}
+      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: 'var(--text-1)', lineHeight: 1.1 }}>{value}</div>
+      {note ? <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>{note}</div> : null}
     </div>
   )
 }
@@ -132,7 +133,7 @@ export default function BIPage() {
   const activeProjects = Number(kpis?.projects_active || 0)
 
   return (
-    <div style={{ padding: isMobile ? 12 : 24 }}>
+    <PageShell dense style={{ paddingLeft: isMobile ? 12 : undefined, paddingRight: isMobile ? 12 : undefined }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
         <PageHeader icon={<PieChartIcon size={18} />} title={t('bi.title')} subtitle="Dashboard ejecutivo de KPIs" />
         <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
@@ -174,18 +175,18 @@ export default function BIPage() {
                       background: 'var(--surface-2)',
                     }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
                       {p.name || p.project_name || p.code || '—'}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>Cliente: {p.client_name || '—'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 3 }}>Estado: {p.status || '—'}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 700 }}>Budget: {fmtCur(p.budget_amount, lang)}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>Cliente: {p.client_name || '—'}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 3 }}>Estado: {p.status || '—'}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 700 }}>Budget: {fmtCur(p.budget_amount, lang)}</div>
                   </div>
                 ))}
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
                   <thead>
                     <tr style={{ background: 'var(--surface-2)' }}>
                       <th style={{ textAlign: 'left', padding: '10px 12px' }}>Proyecto</th>
@@ -210,6 +211,6 @@ export default function BIPage() {
           </div>
         </>
       )}
-    </div>
+    </PageShell>
   )
 }

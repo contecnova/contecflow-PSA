@@ -13,17 +13,17 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
 
 const RISK_CFG = {
-  low:      { color: 'var(--success)',  bg: 'rgba(29,158,117,0.12)',  label: 'Bajo riesgo',     dot: '#1D9E75' },
+  low:      { color: 'var(--success)',  bg: 'var(--success-bg)',  label: 'Bajo riesgo',     dot: '#34d399' },
   medium:   { color: 'var(--warning)',  bg: 'rgba(250,199,117,0.15)', label: 'Riesgo moderado', dot: '#FAC775' },
   high:     { color: '#F87171',         bg: 'rgba(248,113,113,0.12)', label: 'Alto riesgo',     dot: '#F87171' },
-  critical: { color: '#EF4444',         bg: 'rgba(239,68,68,0.15)',   label: 'Riesgo crítico',  dot: '#EF4444' },
+  critical: { color: 'var(--danger)',         bg: 'rgba(239,68,68,0.15)',   label: 'Riesgo crítico',  dot: 'var(--danger)' },
 }
 
 export default function ProjectRiskBadge({ projectId, hasData = true }) {
   const [showTooltip, setShowTooltip] = useState(false)
 
   // Skip prediction if project has insufficient data
-  const { data, isLoading, isError } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ['ml-risk', projectId],
     queryFn: () => api.post('/predictions/overrun-risk', { project_id: projectId }).then(r => r.data),
     staleTime: 5 * 60 * 1000,   // 5 min — don't hammer the endpoint
@@ -40,21 +40,30 @@ export default function ProjectRiskBadge({ projectId, hasData = true }) {
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}
+      role="button"
+      tabIndex={0}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
+      onFocus={() => setShowTooltip(true)}
+      onBlur={() => setShowTooltip(false)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          setShowTooltip(false)
+        }
+      }}
     >
       {/* Badge pill */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 5,
         padding: '2px 8px', borderRadius: 20,
-        background: cfg.bg, fontSize: 11, fontWeight: 500,
+        background: cfg.bg, fontSize: "var(--text-xs)", fontWeight: 500,
         color: cfg.color, cursor: 'default', userSelect: 'none',
         border: `1px solid ${cfg.color}33`,
       }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
         {cfg.label}
         {data.used_heuristic && (
-          <span style={{ fontSize: 9, opacity: 0.7, fontWeight: 400 }}>~</span>
+          <span style={{ fontSize: "var(--text-3xs)", opacity: 0.7, fontWeight: 400 }}>~</span>
         )}
       </div>
 
@@ -66,7 +75,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }) {
           background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
           borderRadius: 10, padding: '10px 14px', width: 240,
           boxShadow: '0 8px 24px rgba(0,0,0,0.3)', zIndex: 1000,
-          fontSize: 11, lineHeight: 1.5,
+          fontSize: "var(--text-xs)", lineHeight: 1.5,
         }}>
           {/* Arrow */}
           <div style={{
@@ -110,7 +119,7 @@ export default function ProjectRiskBadge({ projectId, hasData = true }) {
           )}
 
           {data.used_heuristic && (
-            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-3)' }}>
+            <div style={{ marginTop: 6, fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
               ~ Basado en heurística (sin modelo ML entrenado)
             </div>
           )}

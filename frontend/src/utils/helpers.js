@@ -40,9 +40,9 @@ export function riskColor(risk) {
 
 export function statusColor(status) {
   const map = {
-    active: '#00d4ff', planning: '#7a8aaa', paused: '#ffb800',
+    active: '#4f8ef7', planning: '#7a8aaa', paused: '#ffb800',
     closed: '#00e5a0', cancelled: '#ff4757',
-    todo: '#7a8aaa', in_progress: '#00d4ff', done: '#00e5a0',
+    todo: '#7a8aaa', in_progress: '#4f8ef7', done: '#00e5a0',
     blocked: '#ff4757', review: '#ffb800', backlog: '#3d4f6e',
   }
   return map[status] ?? '#7a8aaa'

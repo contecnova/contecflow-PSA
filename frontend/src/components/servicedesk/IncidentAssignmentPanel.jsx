@@ -1,6 +1,6 @@
 /**
  * IncidentAssignmentPanel.jsx — ML-powered incident assignment recommendations.
- * Connects to /api/v1/sd/incidents/{id}/assign/recommend and /sd/incidents/assign/stats
+ * Connects to /api/v1/sd/tickets/{id}/recommend-assignment and /sd/assignment/stats
  */
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -18,11 +18,27 @@ export default function IncidentAssignmentPanel() {
 
   const { data: stats } = useQuery({
     queryKey: ['incident-assign-stats'],
-    queryFn: () => api.get('/sd/incidents/assign/stats').then(r => r.data),
+    queryFn: () => api.get('/sd/assignment/stats').then(r => r.data),
   })
 
   const recommendMutation = useMutation({
-    mutationFn: (id) => api.post(`/sd/incidents/${id}/assign/recommend`).then(r => r.data),
+    mutationFn: (id) => {
+      const candidateAgents = (stats?.agent_loads ?? []).map((a, idx) => ({
+        user_id: String(a.agent_id ?? a.user_id ?? `candidate-${idx}`),
+        name: a.agent_name ?? a.name ?? `Agent ${idx + 1}`,
+        active_tickets: Number(a.open_tickets ?? a.active_tickets ?? 0),
+        capacity: Number(a.capacity ?? 10),
+        specializations: Array.isArray(a.specializations) ? a.specializations : [],
+        is_on_call: Boolean(a.is_on_call ?? false),
+      }))
+      return api.post(`/sd/tickets/${id}/recommend-assignment`, {
+        title: `Incident ${id}`,
+        description: '',
+        priority: 'p3_medium',
+        ticket_type: 'incident',
+        candidate_agents: candidateAgents,
+      }).then(r => r.data)
+    },
     onSuccess: (data) => setRecommendations(data),
   })
 
@@ -49,12 +65,15 @@ export default function IncidentAssignmentPanel() {
             />
             <button
               onClick={() => ticketId && recommendMutation.mutate(ticketId)}
-              disabled={!ticketId || recommendMutation.isPending}
+              disabled={!ticketId || recommendMutation.isPending || !(stats?.agent_loads ?? []).length}
               className="px-4 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
             >
               {recommendMutation.isPending ? '...' : t('sd.assign.recommend', 'Recomendar')}
             </button>
           </div>
+          {!(stats?.agent_loads ?? []).length && (
+            <p className="text-xs text-gray-400 mb-2">No hay agentes candidatos disponibles.</p>
+          )}
 
           {recommendations && (
             <div className="space-y-2">
@@ -89,8 +108,8 @@ export default function IncidentAssignmentPanel() {
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.agent_loads ?? []}>
-                <XAxis dataKey="agent_name" tick={{ fontSize: 10, fill: tokens.textColor }} />
-                <YAxis tick={{ fontSize: 10, fill: tokens.textColor }} />
+                <XAxis dataKey="agent_name" tick={{ fontSize: "var(--text-2xs)", fill: tokens.textColor }} />
+                <YAxis tick={{ fontSize: "var(--text-2xs)", fill: tokens.textColor }} />
                 <Tooltip
                   contentStyle={{ background: tokens.tooltipBg, border: 'none', borderRadius: 8 }}
                   labelStyle={{ color: tokens.textColor }}

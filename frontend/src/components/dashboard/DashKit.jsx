@@ -4,6 +4,8 @@
  */
 import { Link } from 'react-router-dom'
 import { COLOR } from '../../constants/theme'
+import PageShell from '../layout/PageShell'
+import PageHeader from '../layout/PageHeader'
 
 export { COLOR }
 
@@ -17,7 +19,7 @@ export const S = {
   },
   cardPad: { padding: '20px 24px' },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: "var(--text-xs)",
     fontWeight: 700,
     color: 'var(--text-3)',
     textTransform: 'uppercase',
@@ -34,7 +36,7 @@ export function PeriodButton({ active, label, onClick }) {
       border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`,
       background: active ? COLOR.accentMuted : 'transparent',
       color: active ? COLOR.accent : 'var(--text-2)',
-      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+      fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer',
       fontFamily: 'inherit', transition: 'all 0.15s',
     }}>{label}</button>
   )
@@ -50,26 +52,26 @@ export function KpiCard({ label, value, sub, color, icon, accentBar, action }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {icon && (
             <span style={{
-              fontSize: 18, background: `${bar}18`,
+              fontSize: "var(--text-lg-em)", background: `${bar}18`,
               borderRadius: 8, padding: '5px 7px', lineHeight: 1,
             }}>{icon}</span>
           )}
           <span style={{
-            fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+            fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
             textTransform: 'uppercase', letterSpacing: '0.09em',
           }}>{label}</span>
         </div>
         <div style={{
-          fontSize: 34, fontWeight: 700,
+          fontSize: "var(--text-34)", fontWeight: 700,
           color: color || 'var(--text-1)',
           lineHeight: 1.1, letterSpacing: '-0.5px',
         }}>{value ?? '—'}</div>
         {sub && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
         )}
         {action?.to && (
           <Link to={action.to} style={{
-            marginTop: 4, fontSize: 11, fontWeight: 600,
+            marginTop: 4, fontSize: "var(--text-xs)", fontWeight: 600,
             color: COLOR.accent, textDecoration: 'none',
             display: 'inline-flex', alignItems: 'center', gap: 3,
             opacity: 0.85,
@@ -107,22 +109,22 @@ export function GaugeCard({ label, value, color, suffix = '%', sub }) {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 700, color,
+          fontSize: "var(--text-sm)", fontWeight: 700, color,
         }}>
           {value != null ? `${value}` : '—'}
         </div>
       </div>
       <div>
         <div style={{
-          fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+          fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
           textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4,
         }}>{label}</div>
         <div style={{
-          fontSize: 26, fontWeight: 700, color,
+          fontSize: "var(--text-2xl-em)", fontWeight: 700, color,
           lineHeight: 1, letterSpacing: '-0.5px',
         }}>{value != null ? `${value}${suffix}` : '—'}</div>
         {sub && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>
         )}
       </div>
     </div>
@@ -135,15 +137,15 @@ export function BarRow({ label, count, total, color, displayValue }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-2)', textTransform: 'capitalize' }}>
+        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {String(label).replace(/_/g, ' ')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
-            fontSize: 11, fontWeight: 700, color: 'var(--text-1)',
+            fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)',
             background: 'var(--surface-4)', borderRadius: 6, padding: '2px 7px',
           }}>{displayValue ?? count}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
+          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
             {pct}%
           </span>
         </div>
@@ -167,7 +169,7 @@ export function SectionCard({ title, children, badge }) {
         <span style={S.sectionTitle}>{title}</span>
         {badge != null && (
           <span style={{
-            fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+            fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
             background: 'var(--surface-4)', borderRadius: 12,
             padding: '2px 8px', marginLeft: 4,
           }}>{badge}</span>
@@ -178,42 +180,28 @@ export function SectionCard({ title, children, badge }) {
   )
 }
 
-/* ── Page shell (header + period selector) ─────────────────────────────────── */
+/* ── Page shell (header + period selector) ───────────────────────────────────
+   Wrapper sobre <PageShell> + <PageHeader>. Mantiene API legacy con icon/title/
+   subtitle/days/setDays/periods para los Dashboards. */
 export function DashPageShell({ icon, title, subtitle, days, setDays, periods = [7, 30, 90], children }) {
   return (
-    <div style={{ padding: 32 }}>
-      <div style={{
-        display: 'flex', alignItems: 'flex-start',
-        justifyContent: 'space-between', flexWrap: 'wrap',
-        gap: 16, marginBottom: 28,
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'var(--accent-muted)', border: '1px solid rgba(79,142,247,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--accent)', flexShrink: 0,
-            }}>{icon}</div>
-            <h1 style={{
-              fontSize: 22, fontWeight: 700, color: 'var(--text-1)',
-              letterSpacing: '-0.01em', lineHeight: 1.2, margin: 0,
-            }}>{title}</h1>
+    <PageShell>
+      <PageHeader
+        icon={icon}
+        title={title}
+        subtitle={`${subtitle} · últimos ${days} días`}
+        actions={
+          <div style={{ display: 'flex', gap: 6 }}>
+            {periods.map(d => (
+              <PeriodButton key={d} active={days === d}
+                label={d >= 365 ? '1a' : d >= 90 ? '90d' : `${d}d`}
+                onClick={() => setDays(d)} />
+            ))}
           </div>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-2)', paddingLeft: 46 }}>
-            {subtitle} · últimos {days} días
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {periods.map(d => (
-            <PeriodButton key={d} active={days === d}
-              label={d >= 365 ? '1a' : d >= 90 ? '90d' : `${d}d`}
-              onClick={() => setDays(d)} />
-          ))}
-        </div>
-      </div>
+        }
+      />
       {children}
-    </div>
+    </PageShell>
   )
 }
 
@@ -270,10 +258,10 @@ export function GaugeCardSkeleton() {
 export function DashEmpty({ icon = '📊', title = 'Sin datos', description }) {
   return (
     <div style={{ textAlign: 'center', padding: '80px 24px', color: 'var(--text-3)' }}>
-      <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>{title}</div>
+      <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>{icon}</div>
+      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>{title}</div>
       {description && (
-        <div style={{ fontSize: 13, maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>{description}</div>
+        <div style={{ fontSize: "var(--text-base)", maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>{description}</div>
       )}
     </div>
   )
@@ -293,4 +281,4 @@ export function fmtCur(v, lang = 'es') {
   }).format(v)
 }
 
-export const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', '#fb923c']
+export const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']

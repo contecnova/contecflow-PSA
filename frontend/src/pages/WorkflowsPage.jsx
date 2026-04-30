@@ -3,18 +3,20 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, projectWorkflowsApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Workflow } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
+import { CHART_COLORS_EXTENDED } from '../constants/theme'
 
 const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const ROLES = ['admin', 'pm', 'team_lead', 'employee', 'hr']
-const COLORS = ['#6b7280', '#4f8ef7', '#22c55e', '#f59e0b', '#ef4444', '#7c3aed', '#f97316', '#0ea5e9']
+const COLORS = CHART_COLORS_EXTENDED
 
 function StateForm({ projectId, state, onClose }) {
   const qc = useQueryClient()
@@ -23,7 +25,7 @@ function StateForm({ projectId, state, onClose }) {
   const [form, setForm] = useState({
     name:       state?.name      || '',
     value:      state?.value     || '',
-    color:      state?.color     || '#6b7280',
+    color:      state?.color     || '#7a8aaa',
     icon:       state?.icon      || '',
     is_initial: state?.is_initial || false,
     is_final:   state?.is_final  || false,
@@ -33,8 +35,8 @@ function StateForm({ projectId, state, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/project-workflows/${projectId}/states/${state.id}`, d).then(r => r.data)
-      : api.post(`/project-workflows/${projectId}/states`, d).then(r => r.data),
+      ? projectWorkflowsApi.updateState(projectId, state.id, d).then(r => r.data)
+      : projectWorkflowsApi.createState(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -52,14 +54,14 @@ function StateForm({ projectId, state, onClose }) {
         </div>
         <div>
           <label style={labelStyle}>Valor interno</label>
-          <input style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
+          <input style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }}
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder="valor_interno" aria-label="Valor interno" />
         </div>
         <div>
           <label style={labelStyle}>Icono (emoji)</label>
-          <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: 20 }}
+          <input style={{ ...inputStyle, width: 80, textAlign: 'center', fontSize: "var(--text-xl)" }}
             value={form.icon} onChange={e => set('icon')(e.target.value)} placeholder="📝" aria-label="Icono del estado" />
         </div>
         <div>
@@ -69,16 +71,16 @@ function StateForm({ projectId, state, onClose }) {
               <button key={c} onClick={() => set('color')(c)}
                 style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: form.color === c ? '3px solid #fff' : '2px solid transparent', cursor: 'pointer' }} />
             ))}
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#6b7280'} onChange={e => set('color')(e.target.value)}
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => set('color')(e.target.value)}
               style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0 }} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
             Estado inicial (punto de entrada)
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
             <input type="checkbox" checked={form.is_final} onChange={e => set('is_final')(e.target.checked)} />
             Estado final (cuenta como completado)
           </label>
@@ -107,7 +109,7 @@ function TransitionForm({ projectId, states, onClose }) {
   const set = k => v => setForm(f => ({ ...f, [k]: v }))
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post(`/project-workflows/${projectId}/transitions`, d).then(r => r.data),
+    mutationFn: d => projectWorkflowsApi.createTransition(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['workflow', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -144,7 +146,7 @@ function TransitionForm({ projectId, states, onClose }) {
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
           <input type="checkbox" checked={form.requires_comment} onChange={e => set('requires_comment')(e.target.checked)} />
           Requiere comentario obligatorio al ejecutar
         </label>
@@ -170,31 +172,31 @@ export default function WorkflowsPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
   const { data: workflow, isLoading } = useQuery({
     queryKey: ['workflow', selectedProject],
-    queryFn: () => api.get(`/project-workflows/${selectedProject}`).then(r => r.data).catch(() => null),
+    queryFn: () => projectWorkflowsApi.get(selectedProject).then(r => r.data).catch(() => null),
     enabled: !!selectedProject,
   })
 
   const states = workflow?.states || []
 
   const { mutate: initWorkflow, isPending: isIniting } = useMutation({
-    mutationFn: () => api.post(`/project-workflows/${selectedProject}/init`).then(r => r.data),
+    mutationFn: () => projectWorkflowsApi.init(selectedProject).then(r => r.data),
     onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate: deleteState } = useMutation({
-    mutationFn: sid => api.delete(`/project-workflows/${selectedProject}/states/${sid}`),
+    mutationFn: sid => projectWorkflowsApi.deleteState(selectedProject, sid),
     onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   const { mutate: deleteTransition } = useMutation({
-    mutationFn: tid => api.delete(`/project-workflows/${selectedProject}/transitions/${tid}`),
+    mutationFn: tid => projectWorkflowsApi.deleteTransition(selectedProject, tid),
     onSuccess: () => qc.invalidateQueries(['workflow', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -203,7 +205,7 @@ export default function WorkflowsPage() {
   const totalTransitions = states.reduce((sum, s) => sum + (s.transitions_from?.length || 0), 0)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Workflow size={18} />}
         title={t('workflows.title')}
@@ -234,9 +236,9 @@ export default function WorkflowsPage() {
 
       {selectedProject && !isLoading && states.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⚙️</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Sin workflow definido</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 24 }}>
+          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>⚙️</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin workflow definido</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 24 }}>
             Puedes inicializar un workflow Scrum estándar o crear los estados manualmente.
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -247,7 +249,7 @@ export default function WorkflowsPage() {
               + Crear estado manualmente
             </Button>
           </div>
-          <div style={{ marginTop: 20, fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ marginTop: 20, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             El workflow Scrum incluye: Pendiente → En progreso → En revisión → Completado (+ Bloqueado)
           </div>
         </div>
@@ -258,30 +260,30 @@ export default function WorkflowsPage() {
           {/* Panel de estados */}
           <div style={panelStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Estados ({states.length})</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>Estados ({states.length})</div>
               <button onClick={() => { setEditingState(null); setShowStateForm(true) }}
-                style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 6, padding: '5px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '5px 12px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 + Estado
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {states.map(s => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1a2640' }}>
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1e2d45' }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 16 }}>{s.icon}</span>
+                  <span style={{ fontSize: "var(--text-lg)" }}>{s.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500, fontSize: 13 }}>{s.name}</div>
-                    <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-3)' }}>{s.value}</div>
+                    <div style={{ fontWeight: 500, fontSize: "var(--text-base)" }}>{s.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>{s.value}</div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {s.is_initial && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Inicial</span>}
-                    {s.is_final  && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--success-bg)', color: 'var(--success)' }}>Final</span>}
+                    {s.is_initial && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)' }}>Inicial</span>}
+                    {s.is_final  && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--success-bg)', color: 'var(--success)' }}>Final</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => { setEditingState(s); setShowStateForm(true) }}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el estado "${s.name}"?`, onConfirm: () => deleteState(s.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 5, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✕</button>
                   </div>
                 </div>
               ))}
@@ -291,14 +293,14 @@ export default function WorkflowsPage() {
           {/* Panel de transiciones */}
           <div style={panelStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Transiciones ({totalTransitions})</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>Transiciones ({totalTransitions})</div>
               <button onClick={() => setShowTransitionForm(true)}
-                style={{ background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 6, padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                style={{ background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 6, padding: '5px 12px', color: 'var(--purple)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                 + Transición
               </button>
             </div>
             {totalTransitions === 0 && (
-              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-3)', fontSize: 13 }}>
+              <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
                 Sin transiciones. Define qué estados pueden pasar a cuáles.
               </div>
             )}
@@ -307,7 +309,7 @@ export default function WorkflowsPage() {
                 (s.transitions_from || []).map(t => {
                   const toState = states.find(ss => ss.id === t.to_state_id)
                   return (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1a2640', fontSize: 12 }}>
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1e2d45', fontSize: "var(--text-sm)" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
                         <span style={{ color: 'var(--text-1)' }}>{s.icon} {s.name}</span>
@@ -318,14 +320,14 @@ export default function WorkflowsPage() {
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
                         {t.required_role && (
-                          <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'var(--warning-bg)', color: 'var(--warning)' }}>{t.required_role}</span>
+                          <span style={{ fontSize: "var(--text-2xs)", padding: '1px 5px', borderRadius: 4, background: 'var(--warning-bg)', color: 'var(--warning)' }}>{t.required_role}</span>
                         )}
                         {t.requires_comment && (
-                          <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>💬</span>
+                          <span style={{ fontSize: "var(--text-2xs)", padding: '1px 5px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>💬</span>
                         )}
                       </div>
                       <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta transición?', onConfirm: () => deleteTransition(t.id), danger: true }) }}
-                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 13, padding: '2px 4px' }}>✕</button>
+                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-base)", padding: '2px 4px' }}>✕</button>
                     </div>
                   )
                 })
@@ -335,19 +337,19 @@ export default function WorkflowsPage() {
 
           {/* Diagrama visual */}
           <div style={{ ...panelStyle, gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Diagrama del workflow</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>Diagrama del workflow</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
               {states.sort((a, b) => a.sort_order - b.sort_order).map((s, i) => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ textAlign: 'center', minWidth: 100 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: s.color + '25', border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: 20 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: s.color + '25', border: `2px solid ${s.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px', fontSize: "var(--text-xl)" }}>
                       {s.icon || s.name.charAt(0)}
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: s.color }}>{s.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.is_initial ? 'Inicio' : s.is_final ? 'Fin' : ''}</div>
+                    <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: s.color }}>{s.name}</div>
+                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{s.is_initial ? 'Inicio' : s.is_final ? 'Fin' : ''}</div>
                   </div>
                   {i < states.length - 1 && (
-                    <div style={{ color: 'var(--surface-4)', fontSize: 20 }}>→</div>
+                    <div style={{ color: 'var(--surface-4)', fontSize: "var(--text-xl)" }}>→</div>
                   )}
                 </div>
               ))}
@@ -370,6 +372,6 @@ export default function WorkflowsPage() {
           onClose={() => setShowTransitionForm(false)}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

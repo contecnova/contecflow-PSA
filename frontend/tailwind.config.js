@@ -1,4 +1,8 @@
 /** @type {import('tailwindcss').Config} */
+// Source of truth for color/spacing/typography tokens lives in src/index.css
+// (CSS custom properties). Tailwind here only contributes a few breakpoints
+// and font families — colors are intentionally NOT defined here to avoid
+// drifting from the CSS token system.
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
@@ -7,23 +11,9 @@ export default {
         xs: '320px',
         sm: '480px',
       },
-      colors: {
-        brand: {
-          50:  '#e6fcff',
-          100: '#b3f5ff',
-          500: '#00d4ff',
-          600: '#00aad4',
-          900: '#003d4d',
-        },
-        surface: {
-          DEFAULT: '#111827',
-          alt: '#1a2235',
-          border: '#1e2d45',
-        },
-      },
       fontFamily: {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
-        mono: ['Space Mono', 'monospace'],
+        mono: ['Geist Mono', 'Space Mono', 'monospace'],
       },
     },
   },

@@ -5,7 +5,7 @@ import { useToast } from '../../context/ToastContext'
 import { Spinner } from '../../components/ui'
 import api from '../../services/api'
 
-const PRIO_COLOR = { p1_critical: '#E24B4A', p2_high: '#BA7517', p3_medium: '#378ADD', p4_low: '#1D9E75' }
+const PRIO_COLOR = { p1_critical: '#f87171', p2_high: '#fb923c', p3_medium: '#4f8ef7', p4_low: '#34d399' }
 const PRIO_LABEL = { p1_critical: 'P1', p2_high: 'P2', p3_medium: 'P3', p4_low: 'P4' }
 
 export default function KanbanTicketsTab({ onSelect }) {
@@ -16,11 +16,11 @@ export default function KanbanTicketsTab({ onSelect }) {
   const [dragOverCol, setDragOverCol] = useState(null)
 
   const KANBAN_COLS = [
-    { id: 'open',           label: t('service_desk.status_open'),           color: '#378ADD' },
+    { id: 'open',           label: t('service_desk.status_open'),           color: '#4f8ef7' },
     { id: 'in_progress',    label: t('service_desk.status_in_progress'),    color: '#7F77DD' },
-    { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: '#BA7517' },
-    { id: 'pending_third',  label: t('service_desk.status_pending_change'), color: '#D85A30' },
-    { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#1D9E75' },
+    { id: 'pending_client', label: t('service_desk.status_waiting_client'), color: '#fb923c' },
+    { id: 'pending_third',  label: t('service_desk.status_pending_change'), color: '#fb923c' },
+    { id: 'resolved',       label: t('service_desk.status_resolved'),       color: '#34d399' },
   ]
 
   const { data: raw = {}, isLoading } = useQuery({
@@ -87,8 +87,8 @@ export default function KanbanTicketsTab({ onSelect }) {
               borderRadius: 8, border: `1px solid ${col.color}35`,
             }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)', flex: 1 }}>{col.label}</div>
-              <div style={{ fontSize: 11, color: col.color, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{tickets.length}</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', flex: 1 }}>{col.label}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: col.color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{tickets.length}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 60 }}>
               {tickets.map(ticket => (
@@ -116,10 +116,10 @@ export default function KanbanTicketsTab({ onSelect }) {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.boxShadow = 'none' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: "'Space Mono', monospace" }}>#{ticket.number}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>#{ticket.number}</span>
                     {ticket.priority && (
                       <span style={{
-                        fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
+                        fontSize: "var(--text-3xs)", fontWeight: 700, padding: '1px 6px', borderRadius: 4,
                         background: `${PRIO_COLOR[ticket.priority] || '#888'}20`,
                         color: PRIO_COLOR[ticket.priority] || 'var(--text-2)',
                       }}>
@@ -128,7 +128,7 @@ export default function KanbanTicketsTab({ onSelect }) {
                     )}
                   </div>
                   <div style={{
-                    fontSize: 12, fontWeight: 600, color: 'var(--text-1)',
+                    fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
                     lineHeight: 1.35, marginBottom: 6,
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
@@ -136,18 +136,18 @@ export default function KanbanTicketsTab({ onSelect }) {
                     {ticket.title}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
+                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
                       {ticket.requester_name || ticket.assigned_name || '—'}
                     </span>
                     {ticket.sla_resolution_status === 'breached' && (
-                      <span style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 700 }}>SLA ✗</span>
+                      <span style={{ fontSize: "var(--text-3xs)", color: 'var(--danger)', fontWeight: 700 }}>SLA ✗</span>
                     )}
                   </div>
                 </div>
               ))}
               {tickets.length === 0 && (
                 <div style={{
-                  padding: '20px 0', textAlign: 'center', fontSize: 11,
+                  padding: '20px 0', textAlign: 'center', fontSize: "var(--text-xs)",
                   color: 'var(--text-3)', border: '1px dashed var(--surface-4)', borderRadius: 8,
                 }}>
                   {t('service_desk.kanban_no_tickets')}

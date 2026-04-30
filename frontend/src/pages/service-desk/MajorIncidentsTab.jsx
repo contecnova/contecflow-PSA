@@ -21,11 +21,11 @@ function DeclareMIModal({ onClose, onSaved }) {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const IS = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13,
+    borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
   }
   const LS = {
-    fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block',
+    fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block',
     marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em',
   }
   return (
@@ -85,7 +85,7 @@ export default function MajorIncidentsTab() {
           background: `${COLOR.danger}15`, border: `1px solid ${COLOR.danger}40`,
           borderRadius: 12, padding: '16px 20px', marginBottom: 20,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: COLOR.danger, marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: COLOR.danger, marginBottom: 10 }}>
             🚨 {activeMis.length} {t('service_desk.mi_declared_at').toLowerCase()}{activeMis.length > 1 ? 's' : ''}
           </div>
           {activeMis.map(m => (
@@ -94,17 +94,17 @@ export default function MajorIncidentsTab() {
               padding: '8px 0', borderTop: `1px solid ${COLOR.danger}20`,
             }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 12, color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
-                <span style={{ fontSize: 13, color: 'var(--text-1)' }}>{m.title}</span>
+                <span style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: COLOR.danger, marginRight: 10 }}>{m.number}</span>
+                <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('service_desk.mi_declared_at')} {fmtDate(m.declared_at)}</div>
             </div>
           ))}
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{mis.length} incidentes mayores registrados</div>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{mis.length} incidentes mayores registrados</div>
         <Button
           onClick={() => setShowDeclare(true)}
           style={{ background: `${COLOR.danger}20`, color: COLOR.danger, border: `1px solid ${COLOR.danger}40` }}
@@ -129,22 +129,22 @@ export default function MajorIncidentsTab() {
           <tbody>
             {sortedMis.map(m => (
               <tr key={m.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                <td style={{ padding: '10px 8px', fontSize: 12, color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
-                <td style={{ padding: '10px 8px', fontSize: 13, color: 'var(--text-1)' }}>{m.title}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: COLOR.danger, fontWeight: 700 }}>{m.number}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{m.title}</td>
                 <td style={{ padding: '10px 8px' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: m.severity === 'P1' ? COLOR.danger : '#fb923c' }}>{m.severity}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: m.severity === 'P1' ? COLOR.danger : 'var(--orange)' }}>{m.severity}</span>
                 </td>
                 <td style={{ padding: '10px 8px' }}>
                   <span style={{
-                    fontSize: 11, fontWeight: 600,
+                    fontSize: "var(--text-xs)", fontWeight: 600,
                     color: m.status === 'active' ? COLOR.danger : COLOR.success,
                     background: m.status === 'active' ? `${COLOR.danger}15` : `${COLOR.success}15`,
                     padding: '2px 8px', borderRadius: 4,
                   }}>{m.status}</span>
                 </td>
-                <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--text-2)' }}>{m.commander || '—'}</td>
-                <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
-                <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.commander || '—'}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(m.declared_at)}</td>
+                <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{m.resolved_at ? fmtDate(m.resolved_at) : '—'}</td>
               </tr>
             ))}
           </tbody>

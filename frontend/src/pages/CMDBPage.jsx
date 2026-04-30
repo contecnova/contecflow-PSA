@@ -6,14 +6,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { cmdbApi } from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Database } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import CMDBTopologyGraph from '../components/cmdb/CMDBTopologyGraph'
 import Cmdb3dGraph from '../components/servicedesk/Cmdb3dGraph'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const CI_TYPES = ['server','application','database','network','service','container','cloud','endpoint','storage','other']
 const CI_TYPE_ICONS = {server:'🖥️',application:'📱',database:'🗄️',network:'🌐',service:'⚙️',container:'📦',cloud:'☁️',endpoint:'💻',storage:'💾',other:'📌'}
@@ -104,7 +105,7 @@ function CMDBItemForm({ item, categories, onClose }) {
         {/* Campos específicos por tipo */}
         {(CI_TYPE_FIELDS[form.ci_type] || CI_TYPE_FIELDS.other).length > 0 && (
           <div>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
+            <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>
               {CI_TYPE_ICONS[form.ci_type]} Campos específicos — {form.ci_type}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -169,9 +170,9 @@ function RelationsModal({ item, allItems, onClose }) {
           <div>
             {(rels?.outgoing||[]).length > 0 && (
               <div style={{marginBottom:16}}>
-                <div style={{fontSize:11,color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Sale de este activo</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Sale de este activo</div>
                 {rels.outgoing.map(r => (
-                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize:12}}>
+                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
                     <span style={{color:'var(--accent)'}}>{CI_TYPE_ICONS[r.to_item?.ci_type]||'📌'} {r.to_item?.name}</span>
                     <span style={{color:'var(--text-3)',margin:'0 6px'}}>←</span>
                     <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
@@ -182,9 +183,9 @@ function RelationsModal({ item, allItems, onClose }) {
             )}
             {(rels?.incoming||[]).length > 0 && (
               <div style={{marginBottom:16}}>
-                <div style={{fontSize:11,color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Apunta a este activo</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>Apunta a este activo</div>
                 {rels.incoming.map(r => (
-                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize:12}}>
+                  <div key={r.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',background:'var(--surface-1)',borderRadius:6,marginBottom:4,fontSize: "var(--text-sm)"}}>
                     <span style={{color:'var(--warning)'}}>{CI_TYPE_ICONS[r.from_item?.ci_type]||'📌'} {r.from_item?.name}</span>
                     <span style={{color:'var(--text-3)',margin:'0 6px'}}>→</span>
                     <span style={{color:'var(--text-2)'}}>{r.rel_type}</span>
@@ -193,12 +194,12 @@ function RelationsModal({ item, allItems, onClose }) {
               </div>
             )}
             {(rels?.outgoing||[]).length === 0 && (rels?.incoming||[]).length === 0 && (
-              <div style={{textAlign:'center',padding:'20px',color:'var(--text-3)',fontSize:13}}>Sin relaciones definidas</div>
+              <div style={{textAlign:'center',padding:'20px',color:'var(--text-3)',fontSize: "var(--text-base)"}}>Sin relaciones definidas</div>
             )}
           </div>
         )}
         <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:14}}>
-          <div style={{fontSize:12,fontWeight:600,color:'var(--text-2)',marginBottom:10}}>AÑADIR RELACIÓN</div>
+          <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-2)',marginBottom:10}}>AÑADIR RELACIÓN</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:8,alignItems:'center'}}>
             <select style={is} value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">Activo destino...</option>
@@ -236,7 +237,7 @@ function ChangelogModal({ item, onClose }) {
   return (
     <Modal open onClose={onClose} title={`Historial — ${item.name}`} width={580}>
       {isLoading ? <Spinner /> : entries.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-3)', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
           Sin cambios registrados
         </div>
       ) : (
@@ -251,17 +252,17 @@ function ChangelogModal({ item, onClose }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20,
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '1px 7px', borderRadius: 20,
                     background: `${ACTION_COLOR[e.action] || 'var(--text-3)'}20`,
                     color: ACTION_COLOR[e.action] || 'var(--text-3)' }}>
                     {ACTION_LABEL[e.action] || e.action}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>por {e.user_name}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>por {e.user_name}</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-1)' }}>{e.summary}</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{e.summary}</div>
                 {e.field && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-2)' }}>
+                  <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                     Campo: <code style={{ background: 'var(--surface-3)', padding: '1px 5px', borderRadius: 4 }}>{e.field}</code>
                     {e.old_value && <span> · <span style={{ color: 'var(--danger)' }}>−{e.old_value}</span></span>}
                     {e.new_value && <span> → <span style={{ color: 'var(--success)' }}>+{e.new_value}</span></span>}
@@ -287,24 +288,24 @@ function CILinkedAssets({ ciId }) {
   if (isLoading) return null
   if (!assets?.length) return (
     <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Activos vinculados</div>
-      <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Ningún activo vinculado a este CI.</div>
+      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Activos vinculados</div>
+      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Ningún activo vinculado a este CI.</div>
     </div>
   )
   return (
     <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12, marginBottom: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
         Activos vinculados ({assets.length})
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {assets.map(a => (
           <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-4)', borderRadius: 6, padding: '6px 10px' }}>
-            <span style={{ fontSize: 13 }}>{CI_TYPE_ICONS[a.asset_type] || '📦'}</span>
+            <span style={{ fontSize: "var(--text-base)" }}>{CI_TYPE_ICONS[a.asset_type] || '📦'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-              {a.serial_number && <div style={{ fontSize: 10, color: 'var(--text-3)' }}>S/N: {a.serial_number}</div>}
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+              {a.serial_number && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>S/N: {a.serial_number}</div>}
             </div>
-            <span style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{a.status || 'activo'}</span>
+            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-3)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{a.status || 'activo'}</span>
           </div>
         ))}
       </div>
@@ -322,12 +323,12 @@ function CMDBAgentsTab() {
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['cmdb-agents'],
-    queryFn: () => api.get('/cmdb/agents').then(r => r.data).catch(() => []),
+    queryFn: () => api.get('/sd/cmdb/agents').then(r => r.data).catch(() => []),
     refetchInterval: 15000,
   })
 
   const { mutate: registerAgent, isPending } = useMutation({
-    mutationFn: () => api.post('/cmdb/agents/register', { name: agentName.trim(), platform }),
+    mutationFn: () => api.post('/sd/cmdb/agents/register', { name: agentName.trim(), platform }),
     onSuccess: (res) => {
       toast.success('Agente registrado')
       setNewToken(res.data?.token ?? res.data?.registration_token ?? null)
@@ -338,19 +339,19 @@ function CMDBAgentsTab() {
   })
 
   const { mutate: deleteAgent } = useMutation({
-    mutationFn: (id) => api.delete(`/cmdb/agents/${id}`),
+    mutationFn: (id) => api.delete(`/sd/cmdb/agents/${id}`),
     onSuccess: () => { toast.success('Agente eliminado'); qc.invalidateQueries({ queryKey: ['cmdb-agents'] }) },
     onError: () => toast.error('Error al eliminar agente'),
   })
 
-  const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
+  const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', display: 'block', marginBottom: 5 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Registration form */}
       <div style={{ ...ps }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           🤖 Registrar nuevo agente on-prem
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'flex-end' }}>
@@ -374,16 +375,16 @@ function CMDBAgentsTab() {
         {/* Show token after registration */}
         {newToken && (
           <div style={{ marginTop: 16, background: 'rgba(99,179,237,0.08)', border: '1px solid rgba(99,179,237,0.3)', borderRadius: 10, padding: '14px 18px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#63b3ed', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--info)', textTransform: 'uppercase', marginBottom: 8 }}>
               🔑 Token de registro (úsalo una sola vez)
             </div>
-            <code style={{ display: 'block', fontSize: 12, color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'monospace', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
+            <code style={{ display: 'block', fontSize: "var(--text-sm)", color: 'var(--text-1)', wordBreak: 'break-all', fontFamily: 'var(--font-mono)', background: 'var(--surface-4)', padding: '8px 12px', borderRadius: 6 }}>
               {newToken}
             </code>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>
-              Ejecuta el agente con: <code style={{ fontFamily: 'monospace' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 8 }}>
+              Ejecuta el agente con: <code style={{ fontFamily: 'var(--font-mono)' }}>CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
-            <button onClick={() => setNewToken(null)} style={{ marginTop: 10, background: 'none', border: 'none', color: '#718096', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={() => setNewToken(null)} style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               Ocultar token
             </button>
           </div>
@@ -392,20 +393,20 @@ function CMDBAgentsTab() {
 
       {/* Registered agents list */}
       <div style={{ ...ps }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           📋 Agentes registrados ({agents.length})
         </div>
         {isLoading ? <Spinner /> :
          agents.length === 0 ? (
-           <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: 13 }}>
+           <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
              No hay agentes registrados. Registra el primero arriba.
            </div>
          ) : (
-           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
              <thead>
                <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                  {['Nombre', 'Plataforma', 'Estado', 'Último ping', 'CIs descubiertos', ''].map(h => (
-                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
+                   <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase' }}>{h}</th>
                  ))}
                </tr>
              </thead>
@@ -417,18 +418,18 @@ function CMDBAgentsTab() {
                      {ag.platform === 'linux' ? '🐧' : ag.platform === 'windows' ? '🪟' : '🍎'} {ag.platform}
                    </td>
                    <td style={{ padding: '10px 10px' }}>
-                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: ag.status === 'active' ? 'rgba(72,187,120,0.15)' : 'rgba(160,174,192,0.15)', color: ag.status === 'active' ? '#48bb78' : '#718096' }}>
+                     <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: ag.status === 'active' ? 'rgba(72,187,120,0.15)' : 'rgba(160,174,192,0.15)', color: ag.status === 'active' ? '#48bb78' : 'var(--text-2)' }}>
                        {ag.status || 'pendiente'}
                      </span>
                    </td>
-                   <td style={{ padding: '10px 10px', color: 'var(--text-3)', fontSize: 12 }}>
+                   <td style={{ padding: '10px 10px', color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>
                      {ag.last_ping ? new Date(ag.last_ping).toLocaleString() : '—'}
                    </td>
                    <td style={{ padding: '10px 10px', color: 'var(--text-2)', textAlign: 'center' }}>
                      {ag.discovered_count ?? '—'}
                    </td>
                    <td style={{ padding: '10px 10px' }}>
-                     <button onClick={() => openConfirmGlobal({ message: `¿Eliminar agente "${ag.name}"?`, onConfirm: () => deleteAgent(ag.id), danger: true })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                     <button onClick={() => openConfirmGlobal({ message: `¿Eliminar agente "${ag.name}"?`, onConfirm: () => deleteAgent(ag.id), danger: true })} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                    </td>
                  </tr>
                ))}
@@ -518,7 +519,7 @@ export default function CMDBPage() {
   })
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
 
@@ -526,7 +527,7 @@ export default function CMDBPage() {
       <div style={{display:'flex',gap:4,marginBottom:20,borderBottom:'1px solid var(--surface-4)',paddingBottom:0}}>
         {[['list','📋 Inventario'],['topology','🔗 Topología'],['3d','🌐 3D / Blast Radius'],['agents','🤖 Agentes on-prem']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{padding:'8px 18px',fontSize:13,fontWeight:tab===id?700:400,
+            style={{padding:'8px 18px',fontSize: "var(--text-base)",fontWeight:tab===id?700:400,
               color:tab===id?'var(--accent)':'var(--text-2)',background:'transparent',
               border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',
               cursor:'pointer',fontFamily:'inherit',transition:'color .15s'}}>
@@ -562,7 +563,7 @@ export default function CMDBPage() {
               {topoCI && (
                 <button onClick={() => { setTopoCI(null); setDrillCI(null) }}
                   style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',
-                    background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                    background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
                   ✕ Limpiar
                 </button>
               )}
@@ -592,15 +593,15 @@ export default function CMDBPage() {
               {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 22 }}>{CI_TYPE_ICONS[drillCI.ci_type] || '📌'}</span>
+                  <span style={{ fontSize: "var(--text-xl-em)" }}>{CI_TYPE_ICONS[drillCI.ci_type] || '📌'}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-1)' }}>{drillCI.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{drillCI.ci_type}</div>
+                    <div style={{ fontWeight: 700, fontSize: "var(--text-md)", color: 'var(--text-1)' }}>{drillCI.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{drillCI.ci_type}</div>
                   </div>
                 </div>
                 <button
                   onClick={() => setDrillCI(null)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: 0 }}
                   aria-label="Cerrar panel de detalle"
                 >✕</button>
               </div>
@@ -609,7 +610,7 @@ export default function CMDBPage() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {drillCI.status && (
                   <span style={{
-                    fontSize: 11, padding: '2px 9px', borderRadius: 20,
+                    fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
                     background: (STATUS_CFG[drillCI.status]?.color || 'var(--text-3)') + '20',
                     color: STATUS_CFG[drillCI.status]?.color || 'var(--text-3)',
                   }}>
@@ -618,7 +619,7 @@ export default function CMDBPage() {
                 )}
                 {drillCI.environment && (
                   <span style={{
-                    fontSize: 11, padding: '2px 9px', borderRadius: 20,
+                    fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20,
                     background: (ENV_CFG[drillCI.environment]?.color || 'var(--text-3)') + '20',
                     color: ENV_CFG[drillCI.environment]?.color || 'var(--text-3)',
                   }}>
@@ -629,14 +630,14 @@ export default function CMDBPage() {
 
               {/* Description */}
               {drillCI.description && (
-                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
                   {drillCI.description}
                 </div>
               )}
 
               {/* Key attributes */}
               <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
                   Atributos
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -654,9 +655,9 @@ export default function CMDBPage() {
                     ['RAM (GB)', drillCI.attributes?.ram_gb],
                     ['CPU cores', drillCI.attributes?.cpu_cores],
                   ].filter(([, v]) => v).map(([label, value]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: "var(--text-sm)" }}>
                       <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{label}</span>
-                      <span style={{ color: 'var(--text-1)', fontFamily: 'monospace', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{value}</span>
+                      <span style={{ color: 'var(--text-1)', fontFamily: 'var(--font-mono)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }} title={String(value)}>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -665,11 +666,11 @@ export default function CMDBPage() {
               {/* Relations */}
               {drillRels && ((drillRels.outgoing?.length > 0) || (drillRels.incoming?.length > 0)) && (
                 <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
                     Relaciones
                   </div>
                   {(drillRels.outgoing || []).map(r => (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 4 }}>
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
                       <span style={{ color: 'var(--accent)' }}>↗</span>
                       <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.rel_type} → {r.to_item?.name}
@@ -677,7 +678,7 @@ export default function CMDBPage() {
                     </div>
                   ))}
                   {(drillRels.incoming || []).map(r => (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 4 }}>
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-xs)", marginBottom: 4 }}>
                       <span style={{ color: 'var(--warning)' }}>↙</span>
                       <span style={{ color: 'var(--text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.from_item?.name} → {r.rel_type}
@@ -724,8 +725,8 @@ export default function CMDBPage() {
           ['Retirados', items.filter(i=>i.status==='decommissioned').length, 'var(--danger)'],
         ].map(([label,val,color]) => (
           <div key={label} style={{...ps,padding:'14px 16px'}}>
-            <div style={{fontSize:24,fontWeight:700,color}}>{val}</div>
-            <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
+            <div style={{fontSize: "var(--text-2xl)",fontWeight:700,color}}>{val}</div>
+            <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{label}</div>
           </div>
         ))}
       </div>
@@ -754,7 +755,7 @@ export default function CMDBPage() {
           </div>
           {(filterType||filterStatus||searchQ) && (
             <button onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}
-              style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+              style={{alignSelf:'flex-end',padding:'8px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
               ✕ Limpiar
             </button>
           )}
@@ -763,19 +764,19 @@ export default function CMDBPage() {
 
       {isLoading ? <Spinner /> : items.length === 0 ? (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:48,marginBottom:16}}>🖥️</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>Sin activos IT</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>Registra servidores, aplicaciones, bases de datos y otros activos de tu infraestructura.</div>
+          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🖥️</div>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>Sin activos IT</div>
+          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>Registra servidores, aplicaciones, bases de datos y otros activos de tu infraestructura.</div>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Añadir primer activo</Button>
         </div>
       ) : (
         <div style={ps}>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-base)"}}>
             <thead>
               <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
               {[['name','Activo'],['ci_type','Tipo'],['status','Estado'],['environment','Entorno'],['hostname','Hostname / IP'],['version','Versión']].map(([key, label]) => (
                 <th key={key} onClick={() => toggleSort(key)}
-                  style={{textAlign:'left',padding:'8px 12px',fontSize:11,cursor:'pointer',userSelect:'none',whiteSpace:'nowrap',
+                  style={{textAlign:'left',padding:'8px 12px',fontSize: "var(--text-xs)",cursor:'pointer',userSelect:'none',whiteSpace:'nowrap',
                     color: sortKey === key ? 'var(--accent)' : 'var(--text-2)',
                     textTransform:'uppercase',letterSpacing:'.06em'}}>
                   {label}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
@@ -789,82 +790,82 @@ export default function CMDBPage() {
                 const sc = STATUS_CFG[item.status] || STATUS_CFG.active
                 const ec = ENV_CFG[item.environment] || ENV_CFG.production
                 return (
-                  <tr key={item.id} style={{borderBottom:'1px solid #1a2640',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                  <tr key={item.id} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <span style={{fontSize:16}}>{CI_TYPE_ICONS[item.ci_type]||'📌'}</span>
+                        <span style={{fontSize: "var(--text-lg)"}}>{CI_TYPE_ICONS[item.ci_type]||'📌'}</span>
                         <div>
                           <div style={{fontWeight:600}}>{item.name}</div>
-                          {item.description && <div style={{fontSize:11,color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{item.description}</div>}
+                          {item.description && <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:200}}>{item.description}</div>}
                         </div>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize:12}}>{item.ci_type}</td>
+                    <td style={{padding:'10px 12px',color:'var(--text-2)',fontSize: "var(--text-sm)"}}>{item.ci_type}</td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,
+                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
                         background:sc.color+'20',color:sc.color}}>{sc.label}</span>
                     </td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,
+                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
                         background:ec.color+'20',color:ec.color}}>{ec.label}</span>
                     </td>
-                    <td style={{padding:'10px 12px',fontSize:12,color:'var(--text-2)'}}>
+                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
                       {/* Mostrar info relevante según el tipo de CI */}
                       {(item.ci_type === 'server' || item.ci_type === 'network' || item.ci_type === 'endpoint' || item.ci_type === 'storage') && (
                         <>
-                          {item.hostname && <div style={{fontFamily:'monospace',fontSize:12}}>{item.hostname}</div>}
+                          {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{item.hostname}</div>}
                           {(item.ip_address || (item.attributes||{}).ip_address) && (
-                            <div style={{fontFamily:'monospace',fontSize:11,color:'var(--text-3)'}}>
+                            <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>
                               {item.ip_address || (item.attributes||{}).ip_address}
                             </div>
                           )}
-                          {(item.attributes||{}).os && <div style={{fontSize:11,color:'var(--text-3)'}}>{(item.attributes||{}).os}</div>}
+                          {(item.attributes||{}).os && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).os}</div>}
                         </>
                       )}
                       {item.ci_type === 'application' && (
                         <>
-                          {(item.attributes||{}).url && <div style={{fontSize:11,color:'var(--accent)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{(item.attributes||{}).url}</div>}
-                          {(item.attributes||{}).tech_stack && <div style={{fontSize:11,color:'var(--text-3)'}}>{(item.attributes||{}).tech_stack}</div>}
-                          {(item.attributes||{}).sla_tier && <span style={{fontSize:10,background:'var(--accent-muted)',color:'var(--accent)',padding:'1px 6px',borderRadius:4}}>{(item.attributes||{}).sla_tier}</span>}
+                          {(item.attributes||{}).url && <div style={{fontSize: "var(--text-xs)",color:'var(--accent)',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{(item.attributes||{}).url}</div>}
+                          {(item.attributes||{}).tech_stack && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).tech_stack}</div>}
+                          {(item.attributes||{}).sla_tier && <span style={{fontSize: "var(--text-2xs)",background:'var(--accent-muted)',color:'var(--accent)',padding:'1px 6px',borderRadius:4}}>{(item.attributes||{}).sla_tier}</span>}
                         </>
                       )}
                       {item.ci_type === 'database' && (
                         <>
-                          {(item.attributes||{}).db_engine && <div style={{fontFamily:'monospace',fontSize:12}}>{(item.attributes||{}).db_engine}</div>}
-                          {item.hostname && <div style={{fontFamily:'monospace',fontSize:11,color:'var(--text-3)'}}>{item.hostname}{(item.attributes||{}).port ? ':' + (item.attributes||{}).port : ''}</div>}
+                          {(item.attributes||{}).db_engine && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}}>{(item.attributes||{}).db_engine}</div>}
+                          {item.hostname && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{item.hostname}{(item.attributes||{}).port ? ':' + (item.attributes||{}).port : ''}</div>}
                         </>
                       )}
                       {item.ci_type === 'cloud' && (
                         <>
-                          {(item.attributes||{}).cloud_provider && <div style={{fontSize:12}}>{(item.attributes||{}).cloud_provider}</div>}
-                          {(item.attributes||{}).region && <div style={{fontSize:11,color:'var(--text-3)'}}>{(item.attributes||{}).region}</div>}
-                          {(item.attributes||{}).instance_type && <div style={{fontSize:11,fontFamily:'monospace'}}>{(item.attributes||{}).instance_type}</div>}
+                          {(item.attributes||{}).cloud_provider && <div style={{fontSize: "var(--text-sm)"}}>{(item.attributes||{}).cloud_provider}</div>}
+                          {(item.attributes||{}).region && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).region}</div>}
+                          {(item.attributes||{}).instance_type && <div style={{fontSize: "var(--text-xs)",fontFamily:'var(--font-mono)'}}>{(item.attributes||{}).instance_type}</div>}
                         </>
                       )}
                       {item.ci_type === 'container' && (
                         <>
-                          {(item.attributes||{}).image && <div style={{fontFamily:'monospace',fontSize:11}}>{(item.attributes||{}).image}</div>}
-                          {(item.attributes||{}).cluster && <div style={{fontSize:11,color:'var(--text-3)'}}>{(item.attributes||{}).cluster}{(item.attributes||{}).namespace ? ' / ' + (item.attributes||{}).namespace : ''}</div>}
+                          {(item.attributes||{}).image && <div style={{fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)"}}>{(item.attributes||{}).image}</div>}
+                          {(item.attributes||{}).cluster && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).cluster}{(item.attributes||{}).namespace ? ' / ' + (item.attributes||{}).namespace : ''}</div>}
                         </>
                       )}
                       {item.ci_type === 'service' && (
                         <>
-                          {(item.attributes||{}).url && <div style={{fontSize:11,color:'var(--accent)'}}>{(item.attributes||{}).url}</div>}
-                          {(item.attributes||{}).owner_team && <div style={{fontSize:11,color:'var(--text-3)'}}>{(item.attributes||{}).owner_team}</div>}
+                          {(item.attributes||{}).url && <div style={{fontSize: "var(--text-xs)",color:'var(--accent)'}}>{(item.attributes||{}).url}</div>}
+                          {(item.attributes||{}).owner_team && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{(item.attributes||{}).owner_team}</div>}
                         </>
                       )}
                     </td>
-                    <td style={{padding:'10px 12px',fontSize:12,color:'var(--text-2)',fontFamily:'monospace'}}>{item.version||'—'}</td>
+                    <td style={{padding:'10px 12px',fontSize: "var(--text-sm)",color:'var(--text-2)',fontFamily:'var(--font-mono)'}}>{item.version||'—'}</td>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex',gap:6}}>
                         <button onClick={() => setHistoryItem(item)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}} title="Ver historial de cambios">📋</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}} title="Ver historial de cambios">📋</button>
                         <button onClick={() => setRelItem(item)}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>🔗</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🔗</button>
                         <button onClick={() => { setEditing(item); setShowForm(true) }}
-                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                          style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✏</button>
                         <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${item.name}"?`, onConfirm: () => deleteItem(item.id), danger: true }) }}
-                          style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
+                          style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -885,6 +886,6 @@ export default function CMDBPage() {
 
       {/* ─── AGENTES ON-PREM ─────────────────────────────────────────────── */}
       {tab === 'agents' && <CMDBAgentsTab />}
-    </div>
+    </PageShell>
   )
 }

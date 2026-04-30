@@ -22,7 +22,7 @@ from app.services.service_desk.incident_assignment_service import (
     get_assignment_stats,
 )
 
-router = APIRouter(prefix="/sd", tags=["Service Desk - ML Assignment"])
+router = APIRouter(tags=["Service Desk - ML Assignment"])
 
 
 class CandidateAgentIn(BaseModel):
@@ -47,6 +47,10 @@ class AssignmentRequestIn(BaseModel):
     "/tickets/{ticket_id}/recommend-assignment",
     summary="Recomendación ML de asignación de ticket",
 )
+@router.post(
+    "/incidents/{ticket_id}/assign/recommend",
+    summary="Recomendación ML de asignación de ticket (compat)",
+)
 @limiter.limit("30/minute")
 def recommend_ticket_assignment(
     request: Request,
@@ -69,6 +73,7 @@ def recommend_ticket_assignment(
 
 
 @router.get("/assignment/stats", summary="Estadísticas del motor de asignación ML")
+@router.get("/incidents/assign/stats", summary="Estadísticas del motor de asignación ML (compat)")
 @limiter.limit("60/minute")
 def assignment_stats(
     request: Request,

@@ -8,12 +8,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const BLOCK_TYPES = [
   {type:'paragraph',icon:'¶',label:'Texto'},
@@ -75,13 +76,13 @@ function BlockEditor({ blocks, onChange }) {
 
   const styleForType = (type) => {
     const base = {width:'100%',background:'transparent',border:'none',outline:'none',color:'var(--text-1)',fontFamily:'inherit',resize:'none',lineHeight:1.7,padding:'2px 0'}
-    if(type==='heading1') return {...base,fontSize:24,fontWeight:800}
-    if(type==='heading2') return {...base,fontSize:18,fontWeight:700}
-    if(type==='heading3') return {...base,fontSize:15,fontWeight:700}
-    if(type==='code')     return {...base,fontFamily:'monospace',fontSize:13,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,color:'var(--success)'}
-    if(type==='quote')    return {...base,borderLeft:'3px solid #00d4ff',paddingLeft:12,color:'var(--text-2)',fontStyle:'italic'}
-    if(type==='callout')  return {...base,background:'var(--accent-muted)',padding:'8px 12px',borderRadius:8,border:'1px solid #00d4ff20'}
-    return {...base,fontSize:14}
+    if(type==='heading1') return {...base,fontSize: "var(--text-2xl)",fontWeight:800}
+    if(type==='heading2') return {...base,fontSize: "var(--text-lg-em)",fontWeight:700}
+    if(type==='heading3') return {...base,fontSize: "var(--text-md-em)",fontWeight:700}
+    if(type==='code')     return {...base,fontFamily:'var(--font-mono)',fontSize: "var(--text-base)",background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,color:'var(--success)'}
+    if(type==='quote')    return {...base,borderLeft:'3px solid var(--accent)',paddingLeft:12,color:'var(--text-2)',fontStyle:'italic'}
+    if(type==='callout')  return {...base,background:'var(--accent-muted)',padding:'8px 12px',borderRadius:8,border:'1px solid var(--accent-border-soft)'}
+    return {...base,fontSize: "var(--text-md)"}
   }
 
   return (
@@ -91,16 +92,16 @@ function BlockEditor({ blocks, onChange }) {
           onPointerEnter={e=>e.currentTarget.querySelector('.bc').style.opacity='1'}
           onPointerLeave={e=>e.currentTarget.querySelector('.bc').style.opacity='0'}>
           <div className="bc" style={{display:'flex',flexDirection:'column',gap:2,opacity:0,transition:'opacity .15s',flexShrink:0,paddingTop:4}}>
-            <button onClick={()=>move(i,-1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:10,padding:'1px 4px'}}>▲</button>
-            <button onClick={()=>move(i, 1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:10,padding:'1px 4px'}}>▼</button>
-            <button onClick={()=>remove(i)}  style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:10,padding:'1px 4px'}}>✕</button>
+            <button onClick={()=>move(i,-1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-2xs)",padding:'1px 4px'}}>▲</button>
+            <button onClick={()=>move(i, 1)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-2xs)",padding:'1px 4px'}}>▼</button>
+            <button onClick={()=>remove(i)}  style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-2xs)",padding:'1px 4px'}}>✕</button>
           </div>
           <div style={{flex:1}}>
             {block.type==='divider'
               ? <hr style={{border:'none',borderTop:'1px solid var(--surface-4)',margin:'8px 0'}}/>
               : <div style={{display:'flex',alignItems:'flex-start',gap:6}}>
                   {block.type==='bullet'    && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0}}>•</span>}
-                  {block.type==='numbered'  && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0,fontSize:12}}>{i+1}.</span>}
+                  {block.type==='numbered'  && <span style={{color:'var(--purple)',marginTop:4,flexShrink:0,fontSize: "var(--text-sm)"}}>{i+1}.</span>}
                   {block.type==='task_list' && <input type="checkbox" style={{marginTop:6,flexShrink:0}}/>}
                   <div style={{flex:1,display:'flex',flexDirection:'column',gap:3}}>
                     {['paragraph','heading1','heading2','heading3','quote','callout'].includes(block.type) && (
@@ -108,7 +109,7 @@ function BlockEditor({ blocks, onChange }) {
                         {[
                           {label:'B',style:{fontWeight:700},title:'Negrita',wrap:['**','**']},
                           {label:'I',style:{fontStyle:'italic'},title:'Cursiva',wrap:['*','*']},
-                          {label:'`',style:{fontFamily:'monospace'},title:'Código',wrap:['`','`']},
+                          {label:'`',style:{fontFamily:'var(--font-mono)'},title:'Código',wrap:['`','`']},
                           {label:'',style:{},title:'Enlace',wrap:['[','](url)']},
                         ].map(({label,style,title,wrap}) => (
                           <button key={label}
@@ -125,7 +126,7 @@ function BlockEditor({ blocks, onChange }) {
                             title={title}
                             style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',
                               borderRadius:4,padding:'1px 7px',color:'var(--text-2)',
-                              cursor:'pointer',fontSize:11,lineHeight:'18px',...style}}>
+                              cursor:'pointer',fontSize: "var(--text-xs)",lineHeight:'18px',...style}}>
                             {label}
                           </button>
                         ))}
@@ -139,9 +140,9 @@ function BlockEditor({ blocks, onChange }) {
                               .then(r=>{ const t=r.data?.response||r.data?.message||''; if(t) update(i,'content',t) })
                               .catch(()=>{})
                           }}
-                          style={{background:'var(--surface-3)',border:'1px solid #4a5568',
-                            borderRadius:4,padding:'1px 7px',color:'#90cdf4',
-                            cursor:'pointer',fontSize:11,lineHeight:'18px'}}>
+                          style={{background:'var(--surface-3)',border:'1px solid var(--surface-5)',
+                            borderRadius:4,padding:'1px 7px',color:'var(--info)',
+                            cursor:'pointer',fontSize: "var(--text-xs)",lineHeight:'18px'}}>
                           ✨
                         </button>
                       </div>
@@ -160,13 +161,13 @@ function BlockEditor({ blocks, onChange }) {
             }
           </div>
           <select value={block.type} onChange={e=>update(i,'type',e.target.value)}
-            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 6px',color:'var(--text-2)',fontSize:11,cursor:'pointer',flexShrink:0}}>
+            style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'3px 6px',color:'var(--text-2)',fontSize: "var(--text-xs)",cursor:'pointer',flexShrink:0}}>
             {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{bt.icon} {bt.label}</option>)}
           </select>
         </div>
       ))}
       <button onClick={()=>add(blocks.length-1)}
-        style={{alignSelf:'flex-start',background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:6,padding:'5px 12px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit',marginTop:8}}>
+        style={{alignSelf:'flex-start',background: 'transparent',border: '1px solid var(--accent-border)',borderRadius:6,padding:'5px 12px',color: 'var(--accent)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit',marginTop:8}}>
         + Añadir bloque
       </button>
     </div>
@@ -178,16 +179,16 @@ function renderBlocks(blocks) {
     const text = b.content||''
     const st = {margin:'4px 0',lineHeight:1.7}
     switch(b.type){
-      case 'heading1':  return <h1  key={i} style={{...st,fontSize:26,fontWeight:800,marginTop:20}}>{text}</h1>
-      case 'heading2':  return <h2  key={i} style={{...st,fontSize:18,fontWeight:700,marginTop:16}}>{text}</h2>
-      case 'heading3':  return <h3  key={i} style={{...st,fontSize:15,fontWeight:700,marginTop:12,color:'var(--text-2)'}}>{text}</h3>
-      case 'code':      return <pre key={i} style={{...st,background:'var(--surface-1)',padding:'12px 16px',borderRadius:8,fontFamily:'monospace',fontSize:13,color:'var(--success)',overflow:'auto'}}>{text}</pre>
-      case 'quote':     return <blockquote key={i} style={{...st,borderLeft:'3px solid #00d4ff',paddingLeft:14,color:'var(--text-2)',fontStyle:'italic'}}>{text}</blockquote>
+      case 'heading1':  return <h1  key={i} style={{...st,fontSize: "var(--text-2xl-em)",fontWeight:800,marginTop:20}}>{text}</h1>
+      case 'heading2':  return <h2  key={i} style={{...st,fontSize: "var(--text-lg-em)",fontWeight:700,marginTop:16}}>{text}</h2>
+      case 'heading3':  return <h3  key={i} style={{...st,fontSize: "var(--text-md-em)",fontWeight:700,marginTop:12,color:'var(--text-2)'}}>{text}</h3>
+      case 'code':      return <pre key={i} style={{...st,background:'var(--surface-1)',padding:'12px 16px',borderRadius:8,fontFamily:'var(--font-mono)',fontSize: "var(--text-base)",color:'var(--success)',overflow:'auto'}}>{text}</pre>
+      case 'quote':     return <blockquote key={i} style={{...st,borderLeft:'3px solid var(--accent)',paddingLeft:14,color:'var(--text-2)',fontStyle:'italic'}}>{text}</blockquote>
       case 'bullet':    return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)'}}>•</span><span>{text}</span></div>
-      case 'numbered':  return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)',minWidth:20,fontSize:12}}>{i+1}.</span><span>{text}</span></div>
+      case 'numbered':  return <div key={i} style={{...st,display:'flex',gap:10}}><span style={{color:'var(--purple)',minWidth:20,fontSize: "var(--text-sm)"}}>{i+1}.</span><span>{text}</span></div>
       case 'task_list': return <div key={i} style={{...st,display:'flex',gap:10,alignItems:'center'}}><input type="checkbox" readOnly/><span>{text}</span></div>
       case 'divider':   return <hr  key={i} style={{border:'none',borderTop:'1px solid var(--surface-4)',margin:'16px 0'}}/>
-      case 'callout':   return <div key={i} style={{...st,background:'var(--accent-muted)',border:'1px solid #00d4ff20',borderRadius:8,padding:'12px 16px'}}>💡 {text}</div>
+      case 'callout':   return <div key={i} style={{...st,background:'var(--accent-muted)',border:'1px solid var(--accent-border-soft)',borderRadius:8,padding:'12px 16px'}}>💡 {text}</div>
       default:          return <p   key={i} style={{...st,color:text?'var(--text-1)':'var(--text-3)'}}>{text||<em>Párrafo vacío</em>}</p>
     }
   })
@@ -244,18 +245,18 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
               {TEMPLATES.map(t=>(
                 <button key={t.id} onClick={()=>{setBlocks(t.blocks);if(!title)setTitle(t.name.replace(/^.\s/,''));setTplStep(false)}}
-                  style={{padding:'10px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'var(--surface-3)',color:'var(--text-1)',cursor:'pointer',fontFamily:'inherit',fontSize:13,textAlign:'left'}}>
+                  style={{padding:'10px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:'var(--surface-3)',color:'var(--text-1)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)",textAlign:'left'}}>
                   {t.name}
                 </button>
               ))}
             </div>
-            <button onClick={()=>setTplStep(false)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:12}}>Continuar sin plantilla →</button>
+            <button onClick={()=>setTplStep(false)} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-sm)"}}>Continuar sin plantilla →</button>
           </div>
         )}
         {!tplStep && <>
           {isEdit && (
-            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:collabConnected?'var(--success-bg)':'var(--surface-3)',border:`1px solid ${collabConnected?'#00e5a050':'var(--surface-4)'}`}}>
-              <span style={{fontSize:11,color:collabConnected?'var(--success)':'var(--text-2)',fontWeight:700}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',borderRadius:8,background:collabConnected?'var(--success-bg)':'var(--surface-3)',border:`1px solid ${collabConnected?'var(--success-border)':'var(--surface-4)'}`}}>
+              <span style={{fontSize: "var(--text-xs)",color:collabConnected?'var(--success)':'var(--text-2)',fontWeight:700}}>
                 {collabConnected ? `● Colaboración activa (${collabPeers} en vivo)` : '○ Reconectando colaboración...'}
               </span>
             </div>
@@ -266,7 +267,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
           </div>
           <div>
             <label style={ls}>Slug</label>
-            <input style={{...is,fontFamily:'monospace',fontSize:12}} value={slug} onChange={e=>setSlug(e.target.value)}/>
+            <input style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={slug} onChange={e=>setSlug(e.target.value)}/>
           </div>
           <div>
             <label style={ls}>Contenido</label>
@@ -281,7 +282,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }) {
             <div style={{display:'flex',gap:8}}>
               {VIS_OPTS.map(o=>(
                 <button key={o.value} onClick={()=>setVisibility(o.value)}
-                  style={{flex:1,padding:'8px 10px',borderRadius:8,border:`1px solid ${visibility===o.value?'var(--accent-glow)':'var(--surface-4)'}`,background:visibility===o.value?'var(--accent-muted)':'transparent',color:visibility===o.value?'var(--accent)':'var(--text-2)',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+                  style={{flex:1,padding:'8px 10px',borderRadius:8,border:`1px solid ${visibility===o.value?'var(--accent-glow)':'var(--surface-4)'}`,background:visibility===o.value?'var(--accent-muted)':'transparent',color:visibility===o.value?'var(--accent)':'var(--text-2)',fontSize: "var(--text-sm)",cursor:'pointer',fontFamily:'inherit'}}>
                   {o.label}
                 </button>
               ))}
@@ -306,12 +307,12 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }) {
             role="button"
             tabIndex={0}
             onKeyDown={e => onKeyboardActivate(e, () => onSelect(p))}
-            style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:6,cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize:13}}>
-            <span style={{fontSize:11,color:'var(--text-3)'}}>📄</span>
+            style={{display:'flex',alignItems:'center',gap:8,padding:`6px 10px 6px ${10+level*14}px`,borderRadius:6,cursor:'pointer',background:selectedId===p.id?'var(--accent-muted)':'transparent',color:selectedId===p.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
+            <span style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>📄</span>
             <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</span>
-            {p.visibility === 'portal' && <span title="Visible en portal cliente" style={{fontSize:10,color:'var(--accent)'}}>🌐</span>}
-            {p.visibility === 'public' && <span title="Visible publicamente" style={{fontSize:10,color:'var(--success)'}}>🌍</span>}
-            <button onClick={e=>{e.stopPropagation();onNew(p.id)}} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize:14,padding:'0 2px'}}>+</button>
+            {p.visibility === 'portal' && <span title="Visible en portal cliente" style={{fontSize: "var(--text-2xs)",color:'var(--accent)'}}>🌐</span>}
+            {p.visibility === 'public' && <span title="Visible publicamente" style={{fontSize: "var(--text-2xs)",color:'var(--success)'}}>🌍</span>}
+            <button onClick={e=>{e.stopPropagation();onNew(p.id)}} style={{background:'none',border:'none',color:'var(--text-3)',cursor:'pointer',fontSize: "var(--text-md)",padding:'0 2px'}}>+</button>
           </div>
           {p.children?.length>0 && <PageTree pages={p.children} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
         </div>
@@ -326,10 +327,10 @@ function CollabIndicator({ docId }) {
   if (!connected) return null
   return (
     <div title={`${peers} editor${peers !== 1 ? 'es' : ''} activo${peers !== 1 ? 's' : ''}`}
-      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#68d391',
+      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--success)',
         background: '#1a3a2a', border: '1px solid #2d6a4f', borderRadius: 20, padding: '4px 10px' }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#68d391', display: 'inline-block',
-        boxShadow: '0 0 6px #68d391' }} />
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--success)', display: 'inline-block',
+        boxShadow: '0 0 6px var(--success)' }} />
       {peers} en vivo
     </div>
   )
@@ -376,7 +377,7 @@ function WikiTagsInline() {
     <div>
       <div style={{display:'flex',gap:12,marginBottom:20,alignItems:'center'}}>
         <select value={space} onChange={e=>setSpace(e.target.value)}
-          style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',minWidth:220}}>
+          style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',minWidth:220}}>
           <option value="">Seleccionar espacio wiki...</option>
           {spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -385,16 +386,16 @@ function WikiTagsInline() {
 
       {showForm && (
         <div style={{background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:12,padding:'20px 24px',marginBottom:20}}>
-          <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>{editing?'Editar':'Nueva'} etiqueta</div>
+          <div style={{fontSize: "var(--text-base)",fontWeight:700,marginBottom:14}}>{editing?'Editar':'Nueva'} etiqueta</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:12,marginBottom:14}}>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
+              <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Nombre</label>
               <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-                style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding:'8px 12px',color:'var(--text-1)',fontSize:13,outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
+                style={{background:'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,padding: '9px 13px',color:'var(--text-1)',fontSize: "var(--text-base)",outline:'none',fontFamily:'inherit',width:'100%',boxSizing:'border-box'}}
                 placeholder="Nombre de la etiqueta" aria-label="Nombre de la etiqueta" autoFocus />
             </div>
             <div>
-              <label style={{fontSize:11,fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</label>
+              <label style={{fontSize: "var(--text-xs)",fontWeight:600,color:'var(--text-2)',textTransform:'uppercase',display:'block',marginBottom:5}}>Color</label>
               <div style={{display:'flex',gap:6}}>
                 {COLORS.map(c=>(
                   <button key={c} onClick={()=>setForm(f=>({...f,color:c}))}
@@ -405,7 +406,7 @@ function WikiTagsInline() {
           </div>
           <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
             <button onClick={()=>{setShowForm(false);setEditing(null)}}
-              style={{background:'transparent',border:'1px solid var(--surface-4)',borderRadius:8,padding:'7px 16px',color:'var(--text-2)',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>Cancelar</button>
+              style={{background:'transparent',border:'1px solid var(--surface-4)',borderRadius:8,padding:'7px 16px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>Cancelar</button>
             <Button onClick={()=>save(form)} loading={isPending} disabled={!form.name.trim()}>
               {editing?'Actualizar':'Crear'}
             </Button>
@@ -414,13 +415,13 @@ function WikiTagsInline() {
       )}
 
       {!space ? (
-        <div style={{textAlign:'center',padding:'40px 0',color:'var(--text-2)',fontSize:13}}>
+        <div style={{textAlign:'center',padding:'40px 0',color:'var(--text-2)',fontSize: "var(--text-base)"}}>
           Selecciona un espacio wiki para ver sus etiquetas
         </div>
       ) : isLoading ? <div style={{textAlign:'center',padding:40}}><Spinner /></div>
       : tags.length === 0 ? (
-        <div style={{textAlign:'center',padding:'40px 0',color:'var(--text-2)',fontSize:13}}>
-          <div style={{fontSize:32,marginBottom:8}}>🏷</div>
+        <div style={{textAlign:'center',padding:'40px 0',color:'var(--text-2)',fontSize: "var(--text-base)"}}>
+          <div style={{fontSize: "var(--text-3xl-em)",marginBottom:8}}>🏷</div>
           Sin etiquetas en este espacio
         </div>
       ) : (
@@ -428,12 +429,12 @@ function WikiTagsInline() {
           {tags.map(tag=>(
             <div key={tag.id} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:10,padding:'10px 14px'}}>
               <div style={{width:10,height:10,borderRadius:'50%',background:tag.color||'var(--text-2)',flexShrink:0}}/>
-              <span style={{fontSize:13,fontWeight:600,color:'var(--text-1)'}}>{tag.name}</span>
-              <span style={{fontSize:11,color:'var(--text-2)'}}>{tag.pages_count||0} páginas</span>
+              <span style={{fontSize: "var(--text-base)",fontWeight:600,color:'var(--text-1)'}}>{tag.name}</span>
+              <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{tag.pages_count||0} páginas</span>
               <button onClick={()=>{setEditing(tag);setForm({name:tag.name,color:tag.color||'var(--accent)'});setShowForm(true)}}
-                style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize:12,padding:'0 2px'}}>✎</button>
+                style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>✎</button>
               <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar etiqueta?', onConfirm: () => del(tag.id), danger: true }) }}
-                style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:12,padding:'0 2px'}}>🗑</button>
+                style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)",padding:'0 2px'}}>🗑</button>
             </div>
           ))}
         </div>
@@ -509,7 +510,7 @@ export default function WikiPage() {
   const autoSlug = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<BookOpen size={18} />} title={t('wiki.title')} subtitle={t('wiki.subtitle')}
         actions={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -519,7 +520,7 @@ export default function WikiPage() {
                   style={{padding:'6px 14px',borderRadius:7,border:'none',
                     background:wikiMode===id?'var(--accent)':'transparent',
                     color:wikiMode===id?'var(--surface-0)':'var(--text-2)',
-                    fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                    fontSize: "var(--text-sm)",fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
                   {label}
                 </button>
               ))}
@@ -539,7 +540,7 @@ export default function WikiPage() {
 
       {searchRes&&(
         <div style={{...ps,marginBottom:20}}>
-          <div style={{fontSize:14,fontWeight:600,marginBottom:12}}>{searchRes.length} resultados para &quot;{searchQ}&quot;</div>
+          <div style={{fontSize: "var(--text-md)",fontWeight:600,marginBottom:12}}>{searchRes.length} resultados para &quot;{searchQ}&quot;</div>
           {searchRes.length===0
             ? <EmptyState icon="🔍" title="Sin resultados" description="No se encontraron paginas para la busqueda actual"/>
             : searchRes.map(p=>(
@@ -549,7 +550,7 @@ export default function WikiPage() {
                 onKeyDown={e => onKeyboardActivate(e, () => openPage(p))}
                 style={{padding:'10px 0',borderBottom:'1px solid var(--surface-4)',cursor:'pointer',color:'var(--accent)'}}>
                 <div style={{fontWeight:500}}>{p.title}</div>
-                <div style={{fontSize:11,color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString('es-ES'):''}</div>
+                <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{p.updated_at?new Date(p.updated_at).toLocaleDateString('es-ES'):''}</div>
               </div>
             ))
           }
@@ -559,17 +560,17 @@ export default function WikiPage() {
       <div style={{display:'grid',gridTemplateColumns:'240px 1fr',gap:20}}>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <div style={{...ps,padding:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:10}}>Espacios</div>
+            <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:10}}>Espacios</div>
             {lSpaces?<Spinner/>:spaces.length===0
-              ?<div style={{color:'var(--text-3)',fontSize:12}}>Sin espacios aún</div>
+              ?<div style={{color:'var(--text-3)',fontSize: "var(--text-sm)"}}>Sin espacios aún</div>
               :spaces.map(s=>(
                 <div key={s.id} onClick={()=>{setSpace(s);setPage(null)}}
                   role="button"
                   tabIndex={0}
                   onKeyDown={e => onKeyboardActivate(e, () => { setSpace(s); setPage(null) })}
-                  style={{padding:'8px 10px',borderRadius:6,cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize:13}}>
+                  style={{padding:'8px 10px',borderRadius:6,cursor:'pointer',marginBottom:2,background:space?.id===s.id?'var(--accent-muted)':'transparent',color:space?.id===s.id?'var(--accent)':'var(--text-1)',fontSize: "var(--text-base)"}}>
                   <div style={{fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>📁 {s.name}</div>
-                  <div style={{fontSize:11,color:'var(--text-3)'}}>{s.page_count||0} páginas</div>
+                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{s.page_count||0} páginas</div>
                 </div>
               ))
             }
@@ -577,11 +578,11 @@ export default function WikiPage() {
           {space&&(
             <div style={{...ps,padding:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em'}}>Páginas</div>
-                <button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}} style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',fontSize:18,padding:0}}>+</button>
+                <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em'}}>Páginas</div>
+                <button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}} style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-lg-em)",padding:0}}>+</button>
               </div>
               {lPages?<Spinner/>:pages.length===0
-                ?<div style={{color:'var(--text-3)',fontSize:12}}>Sin páginas</div>
+                ?<div style={{color:'var(--text-3)',fontSize: "var(--text-sm)"}}>Sin páginas</div>
                 :<PageTree pages={pages} selectedId={page?.id} onSelect={openPage}
                     onNew={pid=>{setParentId(pid);setEditPage(null);setPageModal(true)}}/>
               }
@@ -594,21 +595,21 @@ export default function WikiPage() {
             ? <EmptyState icon="📚" title="Selecciona un espacio" description="Elige un espacio wiki para ver o crear paginas"/>
             : !page
               ? <div style={{textAlign:'center',padding:'48px 24px'}}>
-                  <div style={{fontSize:48,marginBottom:16}}>📄</div>
-                  <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{space.name}</div>
-                  <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{space.description||'Sin descripción'}</div>
+                  <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📄</div>
+                  <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{space.name}</div>
+                  <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{space.description||'Sin descripción'}</div>
                   <Button onClick={()=>{setParentId(null);setEditPage(null);setPageModal(true)}}>+ Primera página</Button>
                 </div>
               : <div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
-                    <h1 style={{fontSize:26,fontWeight:800}}>{page.title}</h1>
+                    <h1 style={{fontSize: "var(--text-2xl-em)",fontWeight:800}}>{page.title}</h1>
                     <div style={{display:'flex',gap:8,flexShrink:0}}>
                       <Button variant="secondary" onClick={()=>{setEditPage(page);setPageModal(true)}}>✏ Editar</Button>
                       <Button variant="secondary" onClick={()=>setPresentMode(true)}>▶ Presentar</Button>
                       <Button variant="secondary" onClick={()=>setShowHistory(true)}>🕐 Historial</Button>
                       <CollabIndicator docId={page.id} />
                       <button onClick={()=>{ openConfirmGlobal({ message: `¿Eliminar "${page.title}"?`, onConfirm: () => deletePage(page.id), danger: true }) }}
-                        style={{background:'none',border:'1px solid #ff475730',borderRadius:8,padding:'6px 12px',color:'var(--danger)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:8,padding:'6px 12px',color:'var(--danger)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
                         🗑
                       </button>
                     </div>
@@ -619,7 +620,7 @@ export default function WikiPage() {
                       :renderBlocks(Array.isArray(page.content)?page.content:[])
                     }
                   </div>
-                  <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid var(--surface-4)',fontSize:11,color:'var(--text-3)'}}>
+                  <div style={{marginTop:32,paddingTop:12,borderTop:'1px solid var(--surface-4)',fontSize: "var(--text-xs)",color:'var(--text-3)'}}>
                     Última actualización: {page.updated_at?new Date(page.updated_at).toLocaleString('es-ES'):'—'}
                   </div>
                 </div>
@@ -631,7 +632,7 @@ export default function WikiPage() {
         <Modal open onClose={()=>setSpaceModal(false)} title="Nuevo espacio wiki">
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             <div><label style={ls}>Nombre</label><input style={is} value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
-            <div><label style={ls}>Slug</label><input style={{...is,fontFamily:'monospace',fontSize:12}} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
+            <div><label style={ls}>Slug</label><input style={{...is,fontFamily:'var(--font-mono)',fontSize: "var(--text-sm)"}} value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
             <div><label style={ls}>Descripción</label><input style={is} value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder="Describe el objetivo del espacio" aria-label="Descripcion del espacio"/></div>
             <div><label style={ls}>Proyecto (opcional)</label>
               <select style={is} value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
@@ -652,29 +653,29 @@ export default function WikiPage() {
       {showHistory && page && (
         <Modal open onClose={()=>setShowHistory(false)} title={`Historial — ${page.title}`}>
           <div style={{display:'flex',flexDirection:'column',gap:0}}>
-            <div style={{fontSize:12,color:'var(--text-2)',marginBottom:14,lineHeight:1.6}}>
+            <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:14,lineHeight:1.6}}>
               Cada vez que guardas una página se crea una versión. Puedes restaurar cualquier versión anterior.
             </div>
             {lVer && <div style={{textAlign:'center',padding:20,color:'var(--text-2)'}}>Cargando versiones...</div>}
             {!lVer && versions.length===0 && (
-              <div style={{textAlign:'center',padding:20,color:'var(--text-3)',fontSize: 12}}>Sin versiones registradas</div>
+              <div style={{textAlign:'center',padding:20,color:'var(--text-3)',fontSize: "var(--text-sm)"}}>Sin versiones registradas</div>
             )}
             {!lVer && versions.map((v,i)=>(
-              <div key={v.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid #1a2640'}}>
-                <div style={{flexShrink:0,width:36,height:36,borderRadius:'50%',background:i===0?'var(--accent-muted)':'var(--surface-3)',border:`1px solid ${i===0?'var(--accent-glow)':'var(--surface-4)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight: 600,color:i===0?'var(--accent)':'var(--text-2)'}}>
+              <div key={v.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid var(--surface-4)'}}>
+                <div style={{flexShrink:0,width:36,height:36,borderRadius:'50%',background:i===0?'var(--accent-muted)':'var(--surface-3)',border:`1px solid ${i===0?'var(--accent-glow)':'var(--surface-4)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize: "var(--text-sm)",fontWeight: 600,color:i===0?'var(--accent)':'var(--text-2)'}}>
                   v{v.version_num}
                 </div>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:500,fontSize: 12}}>{v.title}</div>
-                  <div style={{fontSize:11,color:'var(--text-2)',marginTop:2}}>
+                  <div style={{fontWeight:500,fontSize: "var(--text-sm)"}}>{v.title}</div>
+                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',marginTop:2}}>
                     {v.change_note||'Actualización'} · {v.created_at?new Date(v.created_at).toLocaleString('es-ES'):'—'}
                   </div>
                 </div>
                 {i===0
-                  ? <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
+                  ? <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:'var(--accent-muted)',color:'var(--accent)'}}>Actual</span>
                   : <button onClick={()=>{ openConfirmGlobal({ message: `¿Restaurar a versión ${v.version_num}? Esto creará una nueva versión con el contenido anterior.`, onConfirm: () => restoreVersion(v.version_num), danger: true }) }}
                       disabled={restoring}
-                      style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
+                      style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                       {restoring?'...':'Restaurar'}
                     </button>
                 }
@@ -682,7 +683,7 @@ export default function WikiPage() {
             ))}
             <div style={{display:'flex',justifyContent:'flex-end',marginTop:16}}>
               <button onClick={()=>setShowHistory(false)}
-                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:8,padding:'6px 16px',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:8,padding:'6px 16px',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
                 Cerrar
               </button>
             </div>
@@ -702,27 +703,27 @@ export default function WikiPage() {
           <div style={{ position:'sticky', top:0, background:'var(--surface-2)',
             borderBottom:'1px solid var(--surface-4)', padding:'10px 24px',
             display:'flex', alignItems:'center', justifyContent:'space-between', zIndex:10 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:'var(--text-1)' }}>
+            <div style={{ fontSize: "var(--text-md)", fontWeight:700, color:'var(--text-1)' }}>
               ▶ {page.title}
             </div>
             <button onClick={() => setPresentMode(false)}
               style={{ background:'var(--danger)', border:'none', borderRadius:8,
                 padding:'7px 18px', color:'#fff', cursor:'pointer',
-                fontSize:13, fontFamily:'inherit', fontWeight:600 }}>
+                fontSize: "var(--text-base)", fontFamily:'inherit', fontWeight:600 }}>
               ✕ Salir presentación
             </button>
           </div>
           <div style={{ maxWidth:860, margin:'0 auto', padding:'48px 32px', width:'100%' }}>
-            <h1 style={{ fontSize:38, fontWeight:900, marginBottom:32, color:'var(--text-1)',
+            <h1 style={{ fontSize: "var(--text-38)", fontWeight:900, marginBottom:32, color:'var(--text-1)',
               lineHeight:1.2, borderBottom:'2px solid var(--accent)', paddingBottom:16 }}>
               {page.title}
             </h1>
-            <div style={{ fontSize:17, lineHeight:1.9, color:'var(--text-1)' }}>
+            <div style={{ fontSize: "var(--text-17)", lineHeight:1.9, color:'var(--text-1)' }}>
               {renderBlocks(Array.isArray(page.content) ? page.content : [])}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

@@ -2,17 +2,18 @@ import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import api, { projectsApi, contractsApi } from '../services/api'
+import { projectsApi, contractsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ScrollText } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const CONTRACT_TYPES = [
@@ -114,8 +115,8 @@ function ContractFormModal({ contract, onClose }) {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit ? contractsApi.update(contract.id, data) : contractsApi.create(data),
@@ -135,7 +136,7 @@ function ContractFormModal({ contract, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={validation.inputStyle(fs, 'name')} placeholder="Nombre del contrato" aria-label="Nombre del contrato" />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div>
           <label style={ls}>Proyecto *</label>
@@ -143,7 +144,7 @@ function ContractFormModal({ contract, onClose }) {
             <option value="">Seleccionar...</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
-          {validation.errors.project_id && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.project_id}</p>}
+          {validation.errors.project_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.project_id}</p>}
         </div>
         <div>
           <label style={ls}>Cliente *</label>
@@ -155,14 +156,14 @@ function ContractFormModal({ contract, onClose }) {
             }}
             style={validation.inputStyle(fs, 'client_id')}
           />
-          {validation.errors.client_id && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.client_id}</p>}
+          {validation.errors.client_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.client_id}</p>}
         </div>
         <div>
           <label style={ls}>Tipo de contrato *</label>
           <select value={form.contract_type} onChange={set('contract_type')} style={validation.inputStyle(fs, 'contract_type')}>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          {validation.errors.contract_type && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.contract_type}</p>}
+          {validation.errors.contract_type && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.contract_type}</p>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -174,14 +175,14 @@ function ContractFormModal({ contract, onClose }) {
           <div>
             <label style={ls}>Importe total (€)</label>
             <input type="number" value={form.total_amount} onChange={set('total_amount')} style={validation.inputStyle(fs, 'total_amount')} placeholder="Importe total" aria-label="Importe total" />
-            {validation.errors.total_amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_amount}</p>}
+            {validation.errors.total_amount && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_amount}</p>}
           </div>
         )}
         {form.contract_type === 'time_material' && (
           <div>
             <label style={ls}>Tarifa €/hora</label>
             <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
-            {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
+            {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
           </div>
         )}
         {form.contract_type === 'hourly_bag' && (
@@ -189,12 +190,12 @@ function ContractFormModal({ contract, onClose }) {
             <div>
               <label style={ls}>Bolsa de horas</label>
               <input type="number" value={form.hours_bag} onChange={set('hours_bag')} style={validation.inputStyle(fs, 'hours_bag')} placeholder="Horas incluidas" aria-label="Horas incluidas" />
-              {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
+              {validation.errors.hours_bag && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hours_bag}</p>}
             </div>
             <div>
               <label style={ls}>Tarifa €/hora</label>
               <input type="number" value={form.hourly_rate} onChange={set('hourly_rate')} style={validation.inputStyle(fs, 'hourly_rate')} placeholder="Tarifa por hora" aria-label="Tarifa por hora" />
-              {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
+              {validation.errors.hourly_rate && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.hourly_rate}</p>}
             </div>
           </>
         )}
@@ -202,7 +203,7 @@ function ContractFormModal({ contract, onClose }) {
           <div>
             <label style={ls}>Retainer mensual (€)</label>
             <input type="number" value={form.monthly_retainer} onChange={set('monthly_retainer')} style={validation.inputStyle(fs, 'monthly_retainer')} placeholder="Importe mensual" aria-label="Importe mensual" />
-            {validation.errors.monthly_retainer && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.monthly_retainer}</p>}
+            {validation.errors.monthly_retainer && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.monthly_retainer}</p>}
           </div>
         )}
         <div>
@@ -212,7 +213,7 @@ function ContractFormModal({ contract, onClose }) {
         <div>
           <label style={ls}>Fecha fin</label>
           <input type="date" value={form.end_date} onChange={set('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
+          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
         </div>
         <div>
           <label style={ls}>Fecha firma</label>
@@ -243,7 +244,7 @@ function ContractDetail({ contract, onClose, onEdit }) {
   const [showWO, setShowWO] = useState(false)
   const [woForm, setWoForm] = useState({ name: '', amount: '', hours: '', start_date: '', end_date: '' })
   const woValidation = useFormValidation(workOrderSchema)
-  const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+  const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   const { mutate: createWO } = useMutation({
     mutationFn: (data) => contractsApi.createWorkOrder(contract.id, data),
@@ -267,8 +268,8 @@ function ContractDetail({ contract, onClose, onEdit }) {
   return (
     <Modal open title={`${contract.code} — ${contract.name}`} onClose={onClose} width={680}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
+        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase' }}>{cfg.label}</span>
+        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{contract.contract_type_label}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
@@ -282,8 +283,8 @@ function ContractDetail({ contract, onClose, onEdit }) {
           ...(contract.payment_terms ? [{ label: 'Pago', value: contract.payment_terms }] : []),
         ].map(({ label, value }) => (
           <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
           </div>
         ))}
       </div>
@@ -291,11 +292,11 @@ function ContractDetail({ contract, onClose, onEdit }) {
       {/* Work Orders */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Órdenes de trabajo ({contract.work_orders?.length || 0})</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Órdenes de trabajo ({contract.work_orders?.length || 0})</h4>
           <Button size="sm" onClick={() => setShowWO(true)} icon="＋">Nueva OT</Button>
         </div>
         {contract.work_orders?.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Sin órdenes de trabajo</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: '16px 0' }}>Sin órdenes de trabajo</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {contract.work_orders.map(wo => {
@@ -303,14 +304,14 @@ function ContractDetail({ contract, onClose, onEdit }) {
               return (
                 <div key={wo.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{wo.code} — {wo.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{wo.code} — {wo.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {wo.amount ? fmtCurrency(wo.amount) : ''} {wo.hours ? `· ${wo.hours}h` : ''}
                       {wo.start_date ? ` · ${fmtDate(wo.start_date)}` : ''}
                     </div>
                   </div>
                   <select value={wo.status} onChange={e => updateWOStatus({ woId: wo.id, status: e.target.value })}
-                    style={{ ...fs, fontSize: 11, color: wocfg.color, background: wocfg.color + '15', border: `1px solid ${wocfg.color}40`, cursor: 'pointer', padding: '4px 10px' }}>
+                    style={{ ...fs, fontSize: "var(--text-xs)", color: wocfg.color, background: wocfg.color + '15', border: `1px solid ${wocfg.color}40`, cursor: 'pointer', padding: '4px 10px' }}>
                     {Object.entries(WO_STATUS).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
                   </select>
                 </div>
@@ -320,24 +321,24 @@ function ContractDetail({ contract, onClose, onEdit }) {
         )}
 
         {showWO && (
-          <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
+          <div style={{ marginTop: 12, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <input value={woForm.name} onChange={e => { setWoForm(f => ({ ...f, name: e.target.value })); woValidation.clearFieldError('name') }} style={woValidation.inputStyle(fs, 'name')} placeholder="Nombre de la orden" aria-label="Nombre de la orden" />
-                {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
+                {woValidation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.name}</p>}
               </div>
               <div>
                 <input type="number" value={woForm.amount} onChange={e => { setWoForm(f => ({ ...f, amount: e.target.value })); woValidation.clearFieldError('amount') }} style={woValidation.inputStyle(fs, 'amount')} placeholder="Importe" aria-label="Importe" />
-                {woValidation.errors.amount && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.amount}</p>}
+                {woValidation.errors.amount && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.amount}</p>}
               </div>
               <div>
                 <input type="number" value={woForm.hours} onChange={e => { setWoForm(f => ({ ...f, hours: e.target.value })); woValidation.clearFieldError('hours') }} style={woValidation.inputStyle(fs, 'hours')} placeholder="Horas" aria-label="Horas" />
-                {woValidation.errors.hours && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.hours}</p>}
+                {woValidation.errors.hours && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.hours}</p>}
               </div>
               <div><input type="date" value={woForm.start_date} onChange={e => { setWoForm(f => ({ ...f, start_date: e.target.value })); woValidation.clearFieldError('start_date') }} style={woValidation.inputStyle(fs, 'start_date')} /></div>
               <div>
                 <input type="date" value={woForm.end_date} onChange={e => { setWoForm(f => ({ ...f, end_date: e.target.value })); woValidation.clearFieldError('end_date') }} style={woValidation.inputStyle(fs, 'end_date')} />
-                {woValidation.errors.end_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{woValidation.errors.end_date}</p>}
+                {woValidation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{woValidation.errors.end_date}</p>}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -386,7 +387,7 @@ export default function ContractsPage() {
   const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort(contracts, 'name')
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<ScrollText size={18} />}
         title={t('contracts.title')}
@@ -394,7 +395,7 @@ export default function ContractsPage() {
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Todos los estados</option>
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
@@ -410,23 +411,23 @@ export default function ContractsPage() {
           {expiring.map(c => {
             const color = c.daysLeft <= 14 ? 'var(--danger)' : c.daysLeft <= 30 ? 'var(--warning)' : 'var(--accent)'
             const bg    = c.daysLeft <= 14 ? 'var(--danger-bg)' : c.daysLeft <= 30 ? 'var(--warning-bg)' : 'var(--accent-muted)'
-            const bdr   = c.daysLeft <= 14 ? '#ff475730' : c.daysLeft <= 30 ? '#ffb80030' : '#00d4ff30'
+            const bdr   = c.daysLeft <= 14 ? 'var(--danger-border)' : c.daysLeft <= 30 ? 'var(--warning-border)' : 'var(--accent-border)'
             const icon  = c.daysLeft <= 14 ? '🔴' : c.daysLeft <= 30 ? '🟡' : '🔵'
             return (
               <button key={c.id} type="button" style={{ display: 'flex', alignItems: 'center', gap: 12,
                 padding: '10px 16px', background: bg, border: `1px solid ${bdr}`,
                 borderRadius: 10, marginBottom: 6, cursor: 'pointer', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}
                 onClick={() => setDetail(c)}>
-                <span style={{ fontSize: 16 }}>{icon}</span>
+                <span style={{ fontSize: "var(--text-lg)" }}>{icon}</span>
                 <div style={{ flex: 1 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
                     {c.code} — {c.name}
                   </span>
-                  <span style={{ fontSize: 12, color: 'var(--text-2)', marginLeft: 10 }}>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginLeft: 10 }}>
                     {c.client_name}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color, whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color, whiteSpace: 'nowrap' }}>
                   {c.daysLeft === 0 ? 'Vence hoy' : `Vence en ${c.daysLeft} día${c.daysLeft > 1 ? 's' : ''}`}
                 </div>
               </button>
@@ -444,8 +445,8 @@ export default function ContractsPage() {
           { label: 'OTs abiertas', value: contracts.reduce((s, c) => s + (c.work_orders?.filter(w => w.status === 'open').length || 0), 0), color: 'var(--warning)' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -454,7 +455,7 @@ export default function ContractsPage() {
         <EmptyState icon="📄" title="Sin contratos" description="Crea el primer contrato para este entorno" />
       ) : view === 'list' ? (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={contractSort} onSort={setContractSort}>Contrato</SortableTH>
             <SortableTH col="contract_type_label" sort={contractSort} onSort={setContractSort}>Tipo</SortableTH>
             <SortableTH col="total_amount" sort={contractSort} onSort={setContractSort}>Importe</SortableTH>
@@ -470,17 +471,17 @@ export default function ContractsPage() {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setDetail(c)}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.code} · {c.client_name}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{c.name}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.code} · {c.client_name}</div>
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.contract_type_label}</span>
-                <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.contract_type_label}</span>
+                <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>
                   {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
                 </span>
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.start_date ? fmtDate(c.start_date) : '—'}</span>
-                <span style={{ fontSize: 12, color: c.end_date && new Date(c.end_date) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.work_orders?.length || 0}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.start_date ? fmtDate(c.start_date) : '—'}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: c.end_date && new Date(c.end_date) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: cfg.color }}>{cfg.label}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.work_orders?.length || 0}</span>
               </button>
             )
           })}
@@ -496,22 +497,22 @@ export default function ContractsPage() {
                 onMouseLeave={e => e.currentTarget.style.borderColor = `${cfg.color}30`}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
-                    <div style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{c.name}</div>
-                    {c.client_name && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
+                    <div style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)', marginBottom: 2 }}>{c.code}</div>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.name}</div>
+                    {c.client_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>🏢 {c.client_name}</div>}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>{cfg.label}</span>
                 </div>
                 <div style={{ marginBottom: 10 }}>
-                  <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: 'var(--accent)' }}>
+                  <span style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>
                     {c.total_amount ? fmtCurrency(c.total_amount) : c.monthly_retainer ? `${fmtCurrency(c.monthly_retainer)}/m` : c.hours_bag ? `${c.hours_bag}h` : '—'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 8 }}>
                   {c.contract_type_label && <span>📋 {c.contract_type_label}</span>}
                   {c.work_orders?.length > 0 && <span>🔧 {c.work_orders.length} OT{c.work_orders.length !== 1 ? 's' : ''}</span>}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 8 }}>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 8 }}>
                   {c.start_date ? fmtDate(c.start_date) : '—'} → {c.end_date ? <span style={{ color: new Date(c.end_date) < new Date() ? 'var(--danger)' : 'inherit' }}>{fmtDate(c.end_date)}</span> : '—'}
                 </div>
               </button>
@@ -523,6 +524,6 @@ export default function ContractsPage() {
       {showCreate && <ContractFormModal onClose={() => setShowCreate(false)} />}
       {editing && <ContractFormModal contract={editing} onClose={() => setEditing(null)} />}
       {detail && !editing && <ContractDetail contract={detail} onClose={() => setDetail(null)} onEdit={(c) => { setDetail(null); setEditing(c) }} />}
-    </div>
+    </PageShell>
   )
 }

@@ -248,6 +248,13 @@ const es = {
     how_to_use_title: 'Cómo usar @menciones',
     how_to_use_desc: 'En cualquier comentario escribe @uuid-del-usuario para mencionarle. Recibirá una notificación en la pestaña "Mis menciones" y en el panel de alertas del sistema. Los comentarios admiten respuestas anidadas (un nivel de profundidad) y pueden marcarse como resueltos.',
   },
+  inbox: {
+    title: 'Bandeja de entrada',
+    subtitle: 'Notificaciones, menciones y aprobaciones pendientes en un solo sitio.',
+    tab_notifications: 'Notificaciones',
+    tab_mentions: 'Menciones',
+    tab_approvals: 'Aprobaciones',
+  },
   absences: {
     title: 'Ausencias',
     subtitle: 'Gestiona tus ausencias y solicitudes de vacaciones',
@@ -1227,6 +1234,7 @@ const es = {
     webhook_log: 'Registro de webhooks',
     jira_integration: 'Integración con Jira',
     notifications: 'Notificaciones',
+    inbox: 'Bandeja de entrada',
     executive: 'Panel ejecutivo',
     bi_workspace: 'Workspace BI',
     log_hours: 'Registrar horas',
@@ -2315,6 +2323,8 @@ const es = {
     offline: 'Sin conexión',
     pending_label: '{count} pendiente{s}',
     sync_now: '⚡ Sincronizar',
+    banner_offline: 'Sin conexión — trabajando en modo offline',
+    banner_pending: '({count} operaciones pendientes)',
   },
 
   toast: {

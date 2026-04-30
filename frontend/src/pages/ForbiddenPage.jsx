@@ -23,8 +23,8 @@ export default function ForbiddenPage() {
         padding: 28,
         boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
       }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>403</div>
-        <h1 style={{ margin: '0 0 10px', fontSize: 22, color: 'var(--danger)' }}>
+        <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>403</div>
+        <h1 style={{ margin: '0 0 10px', fontSize: "var(--text-xl-em)", color: 'var(--danger)' }}>
           Acceso denegado
         </h1>
         <p style={{ margin: '0 0 8px', color: 'var(--text-2)', lineHeight: 1.6 }}>
@@ -33,7 +33,7 @@ export default function ForbiddenPage() {
         <p style={{ margin: '0 0 18px', color: 'var(--text-2)', lineHeight: 1.6 }}>
           Ruta solicitada: <strong style={{ color: 'var(--text-1)' }}>{from}</strong>
         </p>
-        <p style={{ margin: '0 0 22px', color: 'var(--text-3)', fontSize: 13 }}>
+        <p style={{ margin: '0 0 22px', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>
           Si crees que esto es un error, contacta con tu administrador.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

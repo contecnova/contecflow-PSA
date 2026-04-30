@@ -4,8 +4,9 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { timesheetsApi, imputationsApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtHours, fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
@@ -28,7 +29,7 @@ function onKeyboardActivate(event, action) {
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
   return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
       {cfg.label}
     </span>
   )
@@ -59,7 +60,7 @@ function WeekLines({ weekStart, onClose }) {
 
   const byDay = lines.reduce((a, l) => { const d = l.date; if (!a[d]) a[d] = []; a[d].push(l); return a }, {})
   const IS = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 6,
-    padding: '5px 9px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }
+    padding: '5px 9px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   return (
     <Modal open title={`Semana ${weekStart}`} onClose={onClose} width={660}>
@@ -69,7 +70,7 @@ function WeekLines({ weekStart, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {Object.entries(byDay).sort().map(([day, dayLines]) => (
             <div key={day}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
                 letterSpacing: '0.06em', marginBottom: 6, paddingBottom: 4,
                 borderBottom: '1px solid var(--surface-4)' }}>{fmtDate(day)}</div>
               {dayLines.map(l => (
@@ -83,7 +84,7 @@ function WeekLines({ weekStart, onClose }) {
                         value={editForm.hours}
                         onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
                         style={{ ...IS, width: 65 }} />
-                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>h</span>
+                      <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>h</span>
                       <input value={editForm.description}
                         onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                         placeholder="Descripcion del trabajo"
@@ -92,12 +93,12 @@ function WeekLines({ weekStart, onClose }) {
                       <button onClick={() => updateLine({ id: l.id, data: { hours: editForm.hours, description: editForm.description } })}
                         disabled={updating || editForm.hours <= 0}
                         style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '5px 12px',
-                          color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                          color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {updating ? '...' : '✓ Guardar'}
                       </button>
                       <button onClick={() => setEditingId(null)}
                         style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6,
-                          padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>
+                          padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                         Cancelar
                       </button>
                     </div>
@@ -105,28 +106,28 @@ function WeekLines({ weekStart, onClose }) {
                     /* ── Vista normal ── */
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 12px',
                       background: 'var(--surface-3)', borderRadius: 8 }}>
-                      <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--accent)',
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)',
                         fontWeight: 700, width: 38, flexShrink: 0 }}>{l.hours}h</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{l.project_name}</div>
-                        {l.description && <div style={{ fontSize: 11, color: 'var(--text-2)',
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{l.project_name}</div>
+                        {l.description && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description}</div>}
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                        {l.is_billable && <span style={{ fontSize: 10, background: 'var(--success-bg)', color: 'var(--success)',
-                          border: '1px solid #00e5a030', borderRadius: 20, padding: '1px 7px' }}>Facturable</span>}
-                        {l.is_approved && <span style={{ fontSize: 10, background: 'var(--accent-muted)', color: 'var(--accent)',
-                          border: '1px solid #00d4ff30', borderRadius: 20, padding: '1px 7px' }}>✓ Aprobado</span>}
+                        {l.is_billable && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--success-bg)', color: 'var(--success)',
+                          border: '1px solid var(--success-border)', borderRadius: 20, padding: '1px 7px' }}>Facturable</span>}
+                        {l.is_approved && <span style={{ fontSize: "var(--text-2xs)", background: 'var(--accent-muted)', color: 'var(--accent)',
+                          border: '1px solid var(--accent-border)', borderRadius: 20, padding: '1px 7px' }}>✓ Aprobado</span>}
                         {!l.is_approved && (
                           <>
                             <button onClick={() => { setEditingId(l.id); setEditForm({ hours: l.hours, description: l.description || '' }) }}
                               style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5,
-                                padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                                padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                               ✏
                             </button>
                             <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta imputación?', onConfirm: () => deleteLine(l.id), danger: true }) }}
-                              style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 5,
-                                padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
+                              style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5,
+                                padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                               🗑
                             </button>
                           </>
@@ -139,8 +140,8 @@ function WeekLines({ weekStart, onClose }) {
             </div>
           ))}
           <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 12,
-            display: 'flex', justifyContent: 'flex-end', fontSize: 14, fontWeight: 700 }}>
-            Total: <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--accent)', marginLeft: 8 }}>
+            display: 'flex', justifyContent: 'flex-end', fontSize: "var(--text-md)", fontWeight: 700 }}>
+            Total: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginLeft: 8 }}>
               {lines.reduce((s, l) => s + l.hours, 0).toFixed(1)}h</span>
           </div>
         </div>
@@ -169,14 +170,14 @@ function ReviewModal({ timesheet, onClose }) {
             { label: 'Coste', value: fmtCurrency(timesheet.total_cost) },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{value}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{value}</div>
             </div>
           ))}
         </div>
-        <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
+        <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas (opcional)</label>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Notas de revision" aria-label="Notas de revision"
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -236,17 +237,15 @@ export default function TimesheetsPage() {
   ]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Clock size={18} />} title={t('timesheets.title')} subtitle={t('timesheets.subtitle')} />
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={tabs}
+        active={tab}
+        onChange={setTab}
+        style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+      />
 
       {tab === 'mine' && (
         <div>
@@ -257,23 +256,23 @@ export default function TimesheetsPage() {
               {mySheets.map(ts => (
                 <div key={ts.week_start} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${ts.status === 'rejected' ? 'var(--danger-border)' : ts.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
                       Semana del {fmtDate(ts.week_start)} al {fmtDate(ts.week_end)}
                     </div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-2)' }}>
+                    <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       <span>Total: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtHours(ts.total_hours)}</span></span>
                       <span>Facturables: <span style={{ color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span></span>
                       {ts.total_cost > 0 && <span>Coste: <span style={{ color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span></span>}
                     </div>
                     {ts.review_notes && ts.status === 'rejected' && (
-                      <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>
+                      <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 6, padding: '4px 10px' }}>
                         💬 {ts.review_notes}
                       </div>
                     )}
                   </div>
                   <StatusBadge status={ts.status} />
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Ver líneas</button>
+                    <button onClick={() => setViewLines(ts.week_start)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Ver líneas</button>
                     {(ts.status === 'draft' || ts.status === 'rejected') && ts.total_hours > 0 && (
                       <Button size="sm" onClick={() => submit(ts.week_start)} loading={submitting}>Enviar</Button>
                     )}
@@ -292,10 +291,10 @@ export default function TimesheetsPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {pending.map(ts => (
-                <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid #ffb80030', borderRadius: 12 }}>
+                <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{ts.user_name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{ts.user_name}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                       Semana del {fmtDate(ts.week_start)} · {fmtHours(ts.total_hours)} · {fmtHours(ts.billable_hours)} facturables
                     </div>
                   </div>
@@ -314,7 +313,7 @@ export default function TimesheetsPage() {
             <EmptyState icon="👥" title="Sin timesheets de equipo" description="Todavia no hay partes semanales del equipo" />
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {[['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']].map(([key, label]) => (
                   <button key={key} type="button" onClick={() => toggleTeamSort(key)}
                     onKeyDown={e => onKeyboardActivate(e, () => toggleTeamSort(key))}
@@ -333,11 +332,11 @@ export default function TimesheetsPage() {
                 return teamSortDir === 'asc' ? cmp : -cmp
               }).map(ts => (
                 <div key={ts.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{ts.user_name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtDate(ts.week_start)}</span>
-                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{fmtHours(ts.total_hours)}</span>
-                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span>
-                  <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{ts.user_name}</span>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{fmtDate(ts.week_start)}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{fmtHours(ts.total_hours)}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{fmtHours(ts.billable_hours)}</span>
+                  <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(ts.total_cost)}</span>
                   <StatusBadge status={ts.status} />
                   {ts.status === 'submitted' && <Button size="sm" onClick={() => setReviewing(ts)}>Revisar</Button>}
                 </div>
@@ -349,6 +348,6 @@ export default function TimesheetsPage() {
 
       {viewLines && <WeekLines weekStart={viewLines} onClose={() => setViewLines(null)} />}
       {reviewing && <ReviewModal timesheet={reviewing} onClose={() => setReviewing(null)} />}
-    </div>
+    </PageShell>
   )
 }

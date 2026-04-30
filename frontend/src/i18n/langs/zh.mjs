@@ -39,7 +39,7 @@ const zh = {
     organizations: '组织', enterprise: '企业',
     cmdb: 'CMDB', automations: '自动化', search: '搜索',
     okrs: 'OKRs', performance_reviews: '绩效评估', training: '培训与证书',
-    bi: 'BI与高管', webhook_log: 'Webhook日志', jira_integration: 'Jira集成', notifications: '通知',
+    bi: 'BI与高管', webhook_log: 'Webhook日志', jira_integration: 'Jira集成', notifications: '通知', inbox: '收件箱',
     executive: '高管仪表盘',
     bi_workspace: 'BI工作区',
     log_hours: '登记工时', timer: '计时器', calendar: '日历',

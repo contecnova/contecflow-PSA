@@ -60,7 +60,7 @@ export function useColVisibility(allCols, storageKey) {
             border: `1px solid ${open ? 'var(--surface-5)' : 'transparent'}`,
             borderRadius: 6, padding: '4px 7px', cursor: 'pointer',
             color: open ? 'var(--text-1)' : 'var(--text-3)',
-            fontSize: 12, transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: "var(--text-sm)", transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 4,
           }}
           onMouseEnter={e => { if (!open) { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text-2)' } }}
           onMouseLeave={e => { if (!open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-3)' } }}
@@ -76,9 +76,9 @@ export function useColVisibility(allCols, storageKey) {
             style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 200 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--surface-4)' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                 textTransform: 'uppercase', letterSpacing: '0.07em' }}>Columnas</span>
-              <button onClick={reset} style={{ fontSize: 10, color: 'var(--text-3)', background: 'none',
+              <button onClick={reset} style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'none',
                 border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0, transition: 'color 0.1s' }}
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
@@ -99,8 +99,8 @@ export function useColVisibility(allCols, storageKey) {
                     onChange={() => toggle(col.id)}
                     style={{ accentColor: 'var(--accent)', cursor: isFirst ? 'not-allowed' : 'pointer' }}
                   />
-                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{col.label}</span>
-                  {isFirst && <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 'auto' }}>fijo</span>}
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{col.label}</span>
+                  {isFirst && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>fijo</span>}
                 </label>
               )
             })}

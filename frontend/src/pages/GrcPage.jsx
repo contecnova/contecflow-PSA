@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
@@ -43,20 +44,20 @@ const ACTION_LABEL = { ver: 'Ver', crear: 'Crear', editar: 'Editar', eliminar: '
 
 const ROLES = [
   { id: 'admin',     label: 'Admin',      color: 'var(--accent)' },
-  { id: 'pm',        label: 'PM',         color: '#7c3aed' },
+  { id: 'pm',        label: 'PM',         color: '#a78bfa' },
   { id: 'team_lead', label: 'Team Lead',  color: '#0891b2' },
-  { id: 'employee',  label: 'Employee',   color: '#059669' },
-  { id: 'hr',        label: 'HR',         color: '#d97706' },
-  { id: 'client',    label: 'Cliente',    color: '#6b7280' },
+  { id: 'employee',  label: 'Employee',   color: '#34d399' },
+  { id: 'hr',        label: 'HR',         color: '#f59e0b' },
+  { id: 'client',    label: 'Cliente',    color: '#7a8aaa' },
 ]
 
-const RISK_COLOR = { critical: '#ff4757', high: '#fb923c', medium: '#ffb800', low: '#00e5a0' }
-const SEV_COLOR  = { critical: '#ff4757', warning: '#ffb800', info: '#00d4ff' }
+const RISK_COLOR = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399' }
+const SEV_COLOR  = { critical: '#f87171', warning: '#f59e0b', info: '#60a5fa' }
 
 // ── Shared style atoms ────────────────────────────────────────────────────────
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. MATRIZ DE PERMISOS (wired to API)
@@ -75,7 +76,7 @@ function MatrixTab() {
   const matrix = data || {}
 
   const { mutate: resetMatrix, isPending: resetting } = useMutation({
-    mutationFn: () => api.post('/grc/permissions/seed'),
+    mutationFn: () => grcApi.seedPermissions(),
     onSuccess: () => { qc.invalidateQueries(['grc-permissions']); toast.success(t('grc.matrix_reset_success')) },
     onError: e => toast.error(extractErr(e, t('grc.error'))),
   })
@@ -84,7 +85,7 @@ function MatrixTab() {
     const key = `${role}/${module}/${action}`
     setSaving(key)
     try {
-      await api.patch(`/grc/permissions/${role}/${module}/${action}`, { allowed: !current })
+      await grcApi.updatePermission(role, module, action, { allowed: !current })
       qc.invalidateQueries(['grc-permissions'])
     } catch (e) {
       toast.error(extractErr(e, t('grc.error_save_permission')))
@@ -101,22 +102,22 @@ function MatrixTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-2)', marginRight: 4 }}>{t('grc.role')}:</span>
+          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginRight: 4 }}>{t('grc.role')}:</span>
           <button onClick={() => setSelRole('all')}
-            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`, background: selRole === 'all' ? 'var(--accent-muted)' : 'transparent', color: selRole === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('grc.all')}
           </button>
           {ROLES.map(r => (
             <button key={r.id} onClick={() => setSelRole(r.id)}
-              style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? `${r.color}15` : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${selRole === r.id ? r.color : 'var(--surface-4)'}`, background: selRole === r.id ? `${r.color}15` : 'transparent', color: selRole === r.id ? r.color : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
               {r.label}
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
+          <button onClick={() => refetch()} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻ {t('grc.refresh')}</button>
           <button onClick={() => { openConfirmGlobal({ message: t('grc.reset_confirm'), onConfirm: () => resetMatrix(), danger: true }) }}
-            style={{ background: 'transparent', border: '1px solid #ff475730', borderRadius: 6, padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}
+            style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '6px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}
             disabled={resetting}>
             {resetting ? t('grc.resetting') : '⟳ ' + t('grc.reset_to_default')}
           </button>
@@ -127,10 +128,10 @@ function MatrixTab() {
         <table style={{ borderCollapse: 'collapse', minWidth: 600, width: '100%' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-              <th style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface-2)', textTransform: 'uppercase' }}>{t('grc.module')}</th>
+              <th style={{ padding: '8px 12px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textAlign: 'left', minWidth: 140, position: 'sticky', left: 0, background: 'var(--surface-2)', textTransform: 'uppercase' }}>{t('grc.module')}</th>
               {displayRoles.map(r => (
                 <th key={r.id} colSpan={ACTIONS.length}
-                  style={{ padding: '8px 6px', fontSize: 11, fontWeight: 700, color: r.color, textAlign: 'center', borderLeft: '2px solid var(--surface-4)' }}>
+                  style={{ padding: '8px 6px', fontSize: "var(--text-xs)", fontWeight: 700, color: r.color, textAlign: 'center', borderLeft: '2px solid var(--surface-4)' }}>
                   {r.label}
                 </th>
               ))}
@@ -138,7 +139,7 @@ function MatrixTab() {
             <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
               <th style={{ position: 'sticky', left: 0, background: 'var(--surface-2)' }} />
               {displayRoles.map(r => ACTIONS.map(a => (
-                <th key={r.id + a} style={{ padding: '5px 3px', fontSize: 9, color: 'var(--text-3)', textAlign: 'center', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 42 }}>
+                <th key={r.id + a} style={{ padding: '5px 3px', fontSize: "var(--text-3xs)", color: 'var(--text-3)', textAlign: 'center', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 42 }}>
                   {t(`grc.action_${a}`)}
                 </th>
               )))}
@@ -147,7 +148,7 @@ function MatrixTab() {
           <tbody>
             {MODULES.map((mod, mIdx) => (
               <tr key={mod.id} style={{ borderBottom: '1px solid var(--surface-4)', background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)' }}>
-                <td style={{ padding: '9px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text-1)', position: 'sticky', left: 0, background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '9px 12px', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', position: 'sticky', left: 0, background: mIdx % 2 === 0 ? 'var(--surface-2)' : 'var(--surface-1)', whiteSpace: 'nowrap' }}>
                   {mod.icon} {mod.label}
                 </td>
                 {displayRoles.map(role =>
@@ -162,7 +163,7 @@ function MatrixTab() {
                         onClick={() => togglePerm(role.id, mod.id, action, allowed)}
                         title={`${role.label} · ${mod.label} · ${t(`grc.action_${action}`)}: ${allowed ? t('grc.allowed') : t('grc.denied')} — ${t('grc.click_to_change')}`}
                       >
-                        <span style={{ fontSize: 15, opacity: isSaving ? 0.4 : 1, transition: 'opacity .15s' }}>
+                        <span style={{ fontSize: "var(--text-md-em)", opacity: isSaving ? 0.4 : 1, transition: 'opacity .15s' }}>
                           {isSaving ? '⟳' : allowed ? '✅' : '❌'}
                         </span>
                       </td>
@@ -176,12 +177,12 @@ function MatrixTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
-        {[['✅', t('grc.allowed'), '#00e5a0'], ['❌', t('grc.denied'), '#ff4757']].map(([sym, label, color]) => (
-          <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            <span style={{ fontSize: 15 }}>{sym}</span><span style={{ color }}>{label}</span>
+        {[['✅', t('grc.allowed'), '#34d399'], ['❌', t('grc.denied'), '#f87171']].map(([sym, label, color]) => (
+          <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-sm)" }}>
+            <span style={{ fontSize: "var(--text-md-em)" }}>{sym}</span><span style={{ color }}>{label}</span>
           </div>
         ))}
-        <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 8 }}>{t('grc.changes_auto_saved')}</span>
+        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 8 }}>{t('grc.changes_auto_saved')}</span>
       </div>
     </div>
   )
@@ -207,7 +208,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
   })
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/grc/sod-rules/${rule.id}`, d) : api.post('/grc/sod-rules', d),
+    mutationFn: d => isEdit ? grcApi.updateSodRule(rule.id, d) : grcApi.createSodRule(d),
     onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -220,11 +221,11 @@ function SodRuleModal({ rule, workflows, onClose }) {
   return (
     <Modal open title={isEdit ? t('grc.edit_sod_rule') : t('grc.new_sod_rule')} onClose={onClose} width={580}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
           {t('grc.sod_rule_desc1')} <strong style={{ color: 'var(--text-1)' }}>{t('grc.sod_rule_desc2')}</strong>. {t('grc.sod_rule_desc3')}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--purple-bg)', border: '1px solid #7c3aed30', borderRadius: 8, padding: '12px 14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--purple-bg)', border: '1px solid var(--purple-border)', borderRadius: 8, padding: '12px 14px' }}>
           <div>
             <label style={ls}>{t('grc.module_a')}</label>
             <select value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} style={fs}>
@@ -238,8 +239,8 @@ function SodRuleModal({ rule, workflows, onClose }) {
             </select>
           </div>
         </div>
-        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>↕ en conflicto con ↕</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 8, padding: '12px 14px' }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-base)" }}>↕ en conflicto con ↕</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 8, padding: '12px 14px' }}>
           <div>
             <label style={ls}>{t('grc.module_b')}</label>
             <select value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} style={fs}>
@@ -280,7 +281,7 @@ function SodRuleModal({ rule, workflows, onClose }) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
             {ROLES.map(r => (
               <button key={r.id} onClick={() => toggleRole(r.id)}
-                style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? `${r.color}20` : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${form.roles_conflict.includes(r.id) ? r.color : 'var(--surface-4)'}`, background: form.roles_conflict.includes(r.id) ? `${r.color}20` : 'transparent', color: form.roles_conflict.includes(r.id) ? r.color : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {r.label}
               </button>
             ))}
@@ -307,25 +308,25 @@ function SodTab() {
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ['grc-sod-rules'],
-    queryFn: () => api.get('/grc/sod-rules').then(r => r.data),
+    queryFn: () => grcApi.sodRules().then(r => r.data),
   })
   const { data: checkData } = useQuery({
     queryKey: ['grc-sod-check'],
-    queryFn: () => api.get('/grc/sod-check').then(r => r.data),
+    queryFn: () => grcApi.sodCheck().then(r => r.data),
     staleTime: 30000,
   })
   const { data: workflows = [] } = useQuery({
     queryKey: ['approval-workflows-grc'],
-    queryFn: () => api.get('/approvals/workflows').then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
   })
 
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/grc/sod-rules/${id}`),
+    mutationFn: id => grcApi.deleteSodRule(id),
     onSuccess: () => { qc.invalidateQueries(['grc-sod-rules']); qc.invalidateQueries(['grc-sod-check']) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, active }) => api.patch(`/grc/sod-rules/${id}`, { is_active: active }),
+    mutationFn: ({ id, active }) => grcApi.updateSodRule(id, { is_active: active }),
     onSuccess: () => qc.invalidateQueries(['grc-sod-rules']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -342,22 +343,22 @@ function SodTab() {
           { label: t('grc.critical_conflicts'), value: criticalCount, color: criticalCount > 0 ? 'var(--danger)' : 'var(--success)', icon: '🚨' },
         ].map(({ label, value, color, icon }) => (
           <div key={label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color }}>{value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+            <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
+            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color }}>{value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
           </div>
         ))}
       </div>
 
       {violations.length > 0 && (
-        <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid #ff475730', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
+        <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid var(--danger-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 8 }}>🚨 {t('grc.sod_conflicts_detected')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {violations.map((v, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk]}20`, color: RISK_COLOR[v.risk], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-sm)" }}>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${RISK_COLOR[v.risk]}20`, color: RISK_COLOR[v.risk], textTransform: 'uppercase', minWidth: 48, textAlign: 'center' }}>{v.risk}</span>
                 <span style={{ color: 'var(--text-1)' }}><strong>{v.conflicting_role}</strong> {t('grc.can')} {v.action_a} <em>{v.module_a}</em> {t('grc.and')} {v.action_b} <em>{v.module_b}</em></span>
-                {v.mitigated && <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
+                {v.mitigated && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--success)', background: 'rgba(0,229,160,0.1)', padding: '1px 6px', borderRadius: 4 }}>✓ {t('grc.mitigated')}</span>}
               </div>
             ))}
           </div>
@@ -373,38 +374,38 @@ function SodTab() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rules.map(rule => {
-            const rc = RISK_COLOR[rule.risk] || '#6b7280'
+            const rc = RISK_COLOR[rule.risk] || '#7a8aaa'
             const modA = MODULES.find(m => m.id === rule.module_a)
             const modB = MODULES.find(m => m.id === rule.module_b)
             return (
               <div key={rule.id} style={{ ...card, borderLeft: `4px solid ${rc}`, padding: '14px 18px', opacity: rule.is_active ? 1 : 0.55 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, background: `${rc}20`, color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a] || rule.action_a}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-3)' }}>↔ conflicto con</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b] || rule.action_b}</span>
-                    {rule.mitigated_by_workflow_id && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
-                    {!rule.is_active && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, background: `${rc}20`, color: rc, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' }}>{rule.risk}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modA?.icon} {modA?.label} · {ACTION_LABEL[rule.action_a] || rule.action_a}</span>
+                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>↔ conflicto con</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{modB?.icon} {modB?.label} · {ACTION_LABEL[rule.action_b] || rule.action_b}</span>
+                    {rule.mitigated_by_workflow_id && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'rgba(0,229,160,0.12)', color: 'var(--success)' }}>✓ Mitigado</span>}
+                    {!rule.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-3)' }}>Inactiva</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => toggle({ id: rule.id, active: !rule.is_active })}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                       {rule.is_active ? '⏸' : '▶'}
                     </button>
                     <button onClick={() => setEditingRule(rule)}
-                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                      style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 9px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta regla SoD?', onConfirm: () => del(rule.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 9px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: rule.roles_conflict?.length > 0 ? 8 : 0 }}>{rule.description}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: rule.roles_conflict?.length > 0 ? 8 : 0 }}>{rule.description}</div>
                 {rule.roles_conflict?.length > 0 && (
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Roles con conflicto:</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>Roles con conflicto:</span>
                     {rule.roles_conflict.map(r => {
                       const role = ROLES.find(x => x.id === r)
-                      return role ? <span key={r} style={{ fontSize: 11, background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : null
+                      return role ? <span key={r} style={{ fontSize: "var(--text-xs)", background: `${role.color}20`, color: role.color, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{role.label}</span> : null
                     })}
                   </div>
                 )}
@@ -431,30 +432,30 @@ function ViolationsTab() {
 
   const { data: violations = [], isLoading, refetch } = useQuery({
     queryKey: ['grc-violations', filter],
-    queryFn: () => api.get('/grc/violations', { params: filter === null ? {} : { resolved: filter } }).then(r => r.data),
+    queryFn: () => grcApi.violations(filter === null ? {} : { resolved: filter }).then(r => r.data),
     refetchInterval: 60000,
   })
 
   const { mutate: resolve } = useMutation({
-    mutationFn: ({ id, note }) => api.patch(`/grc/violations/${id}/resolve`, { resolution_note: note }),
+    mutationFn: ({ id, note }) => grcApi.resolveViolation(id, { resolution_note: note }),
     onSuccess: () => { qc.invalidateQueries(['grc-violations']); toast.success('Violación marcada como resuelta') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   return (
     <div>
-      <div style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid #ff475720', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
+      <div style={{ background: 'rgba(255,71,87,0.06)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
         <strong style={{ color: 'var(--danger)' }}>Violaciones SoD en tiempo real</strong> — Registradas cuando el mismo usuario intenta realizar las dos acciones de un par conflictivo (ej: crear y aprobar su propia solicitud). Cada violación debe revisarse y resolverse explícitamente.
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[[false, 'Pendientes'], [null, 'Todas'], [true, 'Resueltas']].map(([val, label]) => (
           <button key={String(val)} onClick={() => setFilter(val)}
-            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${filter === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${filter === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: filter === val ? 'var(--accent-muted)' : 'transparent', color: filter === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : violations.length === 0 ? (
@@ -466,21 +467,21 @@ function ViolationsTab() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: v.resolved ? 'var(--success)' : 'var(--danger)' }}>{v.resolved ? '✓ Resuelta' : '✗ Pendiente'}</span>
-                    {v.role && <span style={{ fontSize: 11, padding: '2px 8px', background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 4 }}>{v.role}</span>}
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: v.resolved ? 'var(--success)' : 'var(--danger)' }}>{v.resolved ? '✓ Resuelta' : '✗ Pendiente'}</span>
+                    {v.role && <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 4 }}>{v.role}</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-1)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
                     Usuario: <strong>{v.user_name || v.user_id || '—'}</strong> · Contexto: {v.context_type} ({v.context_id})
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Detectada: {v.detected_at}</div>
-                  {v.resolution_note && <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>Resolución: {v.resolution_note}</div>}
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>Detectada: {v.detected_at}</div>
+                  {v.resolution_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--success)', marginTop: 2 }}>Resolución: {v.resolution_note}</div>}
                 </div>
                 {!v.resolved && (
                   <button onClick={() => {
                     const note = window.prompt('Nota de resolución (opcional):') ?? ''
                     resolve({ id: v.id, note })
                   }}
-                    style={{ background: 'var(--success-bg)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 6, padding: '5px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    style={{ background: 'var(--success-bg)', border: '1px solid rgba(0,229,160,0.3)', borderRadius: 6, padding: '5px 12px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap' }}>
                     ✓ Resolver
                   </button>
                 )}
@@ -501,7 +502,7 @@ function AuditLogTab() {
 
   const { data: log = [], isLoading, refetch } = useQuery({
     queryKey: ['grc-audit-log', severity],
-    queryFn: () => api.get('/grc/audit-log', { params: severity ? { severity } : {} }).then(r => r.data),
+    queryFn: () => grcApi.auditLog(severity ? { severity } : {}).then(r => r.data),
   })
 
   const ACTION_ICONS = {
@@ -512,19 +513,19 @@ function AuditLogTab() {
 
   return (
     <div>
-      <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
+      <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', marginBottom: 18, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
         <strong style={{ color: 'var(--text-1)' }}>Audit Log inmutable GRC</strong> — Todos los eventos de seguridad: cambios de permisos, violaciones SoD, resets y aprobaciones críticas. Útil para auditorías SOC-2, ISO 27001 y cumplimiento regulatorio.
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Severidad:</span>
+        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Severidad:</span>
         {[['', 'Todas'], ['info', 'Info'], ['warning', 'Aviso'], ['critical', 'Crítico']].map(([val, label]) => (
           <button key={val} onClick={() => setSeverity(val)}
-            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${severity === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 6, border: `1px solid ${severity === val ? 'var(--accent)' : 'var(--surface-4)'}`, background: severity === val ? 'var(--accent-muted)' : 'transparent', color: severity === val ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
-        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>↻</button>
+        <button onClick={() => refetch()} style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>↻</button>
       </div>
 
       {isLoading ? <Spinner /> : log.length === 0 ? (
@@ -537,17 +538,17 @@ function AuditLogTab() {
               <div key={e.id} style={{ ...card, padding: '10px 14px', borderLeft: `3px solid ${sc}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 15 }}>{ACTION_ICONS[e.action_type] || '📋'}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{(e.action_type || '').replace(/_/g, ' ')}</span>
-                    {e.resource_type && <span style={{ fontSize: 10, padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
-                    <span style={{ fontSize: 10, fontWeight: 700, color: sc, background: `${sc}15`, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
+                    <span style={{ fontSize: "var(--text-md-em)" }}>{ACTION_ICONS[e.action_type] || '📋'}</span>
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{(e.action_type || '').replace(/_/g, ' ')}</span>
+                    {e.resource_type && <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', background: 'var(--surface-4)', color: 'var(--text-3)', borderRadius: 4 }}>{e.resource_type}</span>}
+                    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sc, background: `${sc}15`, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{e.severity}</span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{e.timestamp}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 12 }}>{e.timestamp}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                   {e.user_name && <span>Actor: <strong>{e.user_name}</strong>{e.ip_address ? ` · IP: ${e.ip_address}` : ''}</span>}
                   {e.detail && typeof e.detail === 'object' && (
-                    <span style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 10, color: 'var(--text-3)' }}>
+                    <span style={{ marginLeft: 8, fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
                       {JSON.stringify(e.detail).slice(0, 120)}
                     </span>
                   )}
@@ -564,13 +565,13 @@ function AuditLogTab() {
 function ApprovalsTab() {
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['approval-workflows-grc'],
-    queryFn: () => api.get('/approvals/workflows').then(r => r.data),
+    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
   })
 
   return (
     <div>
       <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--surface-2)',
-        borderRadius: 8, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>
+        borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.7 }}>
         Los <strong style={{ color: 'var(--text-1)' }}>flujos de aprobación</strong> mitigan los riesgos
         SoD añadiendo revisión obligatoria de un segundo nivel. Configúralos en la sección{' '}
         <a href="/approvals" style={{ color: 'var(--accent)' }}>Aprobaciones</a>.
@@ -586,22 +587,22 @@ function ApprovalsTab() {
               borderRadius: 10, padding: '14px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginRight: 10 }}>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginRight: 10 }}>
                     {wf.name}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-4)',
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'var(--surface-4)',
                     padding: '2px 8px', borderRadius: 4 }}>{wf.entity_type?.replace(/_/g,' ')}</span>
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600,
-                  color: wf.is_active ? '#00e5a0' : 'var(--text-4)' }}>
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 600,
+                  color: wf.is_active ? '#34d399' : 'var(--text-4)' }}>
                   {wf.is_active ? '● Activo' : '○ Inactivo'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {(wf.steps || []).map((step, i) => (
                   <div key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: 14 }}>→</span>}
-                    <span style={{ fontSize: 11, background: 'var(--surface-1)',
+                    {i > 0 && <span style={{ color: 'var(--text-4)', fontSize: "var(--text-md)" }}>→</span>}
+                    <span style={{ fontSize: "var(--text-xs)", background: 'var(--surface-1)',
                       border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px',
                       color: 'var(--text-2)' }}>
                       {step.name || step.approver_role || step.approver_user_name || 'Paso ' + (i+1)}
@@ -609,7 +610,7 @@ function ApprovalsTab() {
                   </div>
                 ))}
                 {(!wf.steps || wf.steps.length === 0) && (
-                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Sin pasos configurados</span>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>Sin pasos configurados</span>
                 )}
               </div>
             </div>
@@ -633,7 +634,7 @@ export default function GrcPage() {
   ]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<ShieldCheck size={18} />}
         title={_t('grc.title')}
@@ -645,10 +646,10 @@ export default function GrcPage() {
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '7px 16px', borderRadius: 8,
-            border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+            border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`,
             background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
             color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
           }}>{t.label}</button>
         ))}
       </div>
@@ -661,6 +662,6 @@ export default function GrcPage() {
         {tab === 'approvals'  && <ApprovalsTab />}
         {tab === 'auditlog'   && <AuditLogTab />}
       </div>
-    </div>
+    </PageShell>
   )
 }

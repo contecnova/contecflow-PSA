@@ -11,14 +11,15 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, capacityApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const assignPlanSchema = z.object({
   user_id: z.string().trim().min(1, 'La persona es obligatoria'),
@@ -107,7 +108,7 @@ function AssignModal({ prefill, onClose }) {
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </select>
-          {validation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.user_id}</div>}
+          {validation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.user_id}</div>}
         </div>
         <div>
           <label style={ls}>Proyecto</label>
@@ -124,13 +125,13 @@ function AssignModal({ prefill, onClose }) {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
               }} style={validation.inputStyle(fs, 'week_start')} />
-            {validation.errors.week_start && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.week_start}</div>}
+            {validation.errors.week_start && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.week_start}</div>}
           </div>
           <div>
             <label style={ls}>Horas planificadas</label>
             <input type="number" value={form.planned_hours} min="1" max="80" step="0.5"
               onChange={setField('planned_hours')} style={validation.inputStyle(fs, 'planned_hours')} />
-            {validation.errors.planned_hours && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.planned_hours}</div>}
+            {validation.errors.planned_hours && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
@@ -139,7 +140,7 @@ function AssignModal({ prefill, onClose }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
         <Button onClick={submit} loading={isPending} disabled={isPending}>
           Asignar
         </Button>
@@ -201,7 +202,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
       {/* Contenido */}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {committed > 0 && (
-          <div style={{ fontSize: 11, fontWeight: 800, color, textAlign: 'center', fontFamily: "'Space Mono', monospace" }}>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 800, color, textAlign: 'center', fontFamily: 'var(--font-mono)' }}>
             {loadPct}%
           </div>
         )}
@@ -217,7 +218,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
             }}
             title={`${plan.project_name || 'Sin proyecto'} · ${plan.planned_hours}h`}
             style={{
-              fontSize: 9, color: 'var(--text-1)', background: 'var(--surface-4)',
+              fontSize: "var(--text-3xs)", color: 'var(--text-1)', background: 'var(--surface-4)',
               borderRadius: 4, padding: '2px 4px', marginTop: 2,
               cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               border: '1px solid #2a3a55',
@@ -227,18 +228,18 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 44 }}>
               {(plan.project_name || 'Libre').slice(0, 7)}
             </span>
-            <span style={{ fontFamily: "'Space Mono', monospace", marginLeft: 2, flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 2, flexShrink: 0 }}>
               {plan.planned_hours}h
             </span>
             <button
               onClick={e => { e.stopPropagation(); deletePlan(plan.id) }}
-              style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 9, padding: '0 1px', lineHeight: 1, flexShrink: 0 }}>
+              style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-3xs)", padding: '0 1px', lineHeight: 1, flexShrink: 0 }}>
               ×
             </button>
           </div>
         ))}
         {committed === 0 && (
-          <div style={{ textAlign: 'center', fontSize: 16, color: 'var(--surface-4)' }}>+</div>
+          <div style={{ textAlign: 'center', fontSize: "var(--text-lg)", color: 'var(--surface-4)' }}>+</div>
         )}
       </div>
     </div>
@@ -303,7 +304,7 @@ export default function CapacityPage() {
   const uniqueWeeksWithLoad = new Set(board.map(p => p.week_start)).size
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<TrendingUp size={18} />}
         title={_t('capacity.title')}
@@ -319,8 +320,8 @@ export default function CapacityPage() {
           { label: 'Semanas con carga',      value: uniqueWeeksWithLoad, color: 'var(--warning)' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: k.color, lineHeight: 1.1 }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: k.color, lineHeight: 1.1 }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -328,19 +329,19 @@ export default function CapacityPage() {
       {/* Controles */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', maxWidth: 160 }}>
+          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', maxWidth: 160 }}>
           <option value={4}>4 semanas</option>
           <option value={8}>8 semanas</option>
           <option value={13}>13 semanas</option>
           <option value={26}>26 semanas</option>
         </select>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', maxWidth: 180 }}>
+          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', maxWidth: 180 }}>
           <option value="">Todos los departamentos</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <Button onClick={() => { setAssignPrefill(null); setShowAssign(true) }}>+ Nueva asignación</Button>
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 'auto' }}>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>
           💡 Arrastra para mover · clic en + para añadir
         </div>
       </div>
@@ -353,7 +354,7 @@ export default function CapacityPage() {
           { label: 'Alto (85-100%)',    color: 'var(--warning)' },
           { label: 'Sobrecargado',      color: 'var(--danger)' },
         ].map(l => (
-          <div key={l.label} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: 'var(--text-2)' }}>
+          <div key={l.label} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
             <div style={{ width: 10, height: 10, borderRadius: 2, background: l.color }} />
             {l.label}
           </div>
@@ -370,16 +371,16 @@ export default function CapacityPage() {
           <table style={{ borderCollapse: 'separate', borderSpacing: '4px 4px', minWidth: '100%' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '6px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: 'var(--surface-1)', zIndex: 2, minWidth: 150 }}>
+                <th style={{ textAlign: 'left', padding: '6px 12px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: 'var(--surface-1)', zIndex: 2, minWidth: 150 }}>
                   Persona
                 </th>
-                <th style={{ textAlign: 'center', padding: '6px 8px', fontSize: 11, color: 'var(--text-3)', minWidth: 44 }}>Cap.</th>
+                <th style={{ textAlign: 'center', padding: '6px 8px', fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 44 }}>Cap.</th>
                 {weekStarts.map(w => {
                   const isToday = w === monday(new Date())
                   return (
-                    <th key={w} style={{ textAlign: 'center', padding: '6px 4px', fontSize: 10, color: isToday ? 'var(--accent)' : 'var(--text-3)', minWidth: 76, borderBottom: isToday ? '2px solid var(--accent)' : 'none' }}>
+                    <th key={w} style={{ textAlign: 'center', padding: '6px 4px', fontSize: "var(--text-2xs)", color: isToday ? 'var(--accent)' : 'var(--text-3)', minWidth: 76, borderBottom: isToday ? '2px solid var(--accent)' : 'none' }}>
                       {weekLabel(w)}
-                      {isToday && <div style={{ fontSize: 8, color: 'var(--accent)' }}>HOY</div>}
+                      {isToday && <div style={{ fontSize: "var(--text-8)", color: 'var(--accent)' }}>HOY</div>}
                     </th>
                   )
                 })}
@@ -389,14 +390,14 @@ export default function CapacityPage() {
               {displayUsers.map(u => (
                 <tr key={u.id}>
                   <td style={{ padding: '4px 12px', position: 'sticky', left: 0, background: 'var(--surface-1)', zIndex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>
                       {u.full_name.split(' ').slice(0, 2).join(' ')}
                     </div>
                     {u.department && (
-                      <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{u.department}</div>
+                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{u.department}</div>
                     )}
                   </td>
-                  <td style={{ textAlign: 'center', padding: '4px 8px', fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
+                  <td style={{ textAlign: 'center', padding: '4px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
                     {u.weekly_capacity_hours || 40}h
                   </td>
                   {weekStarts.map(w => (
@@ -421,6 +422,6 @@ export default function CapacityPage() {
       {showAssign && (
         <AssignModal prefill={assignPrefill} onClose={() => setShowAssign(false)} />
       )}
-    </div>
+    </PageShell>
   )
 }

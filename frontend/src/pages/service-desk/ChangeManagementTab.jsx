@@ -12,7 +12,7 @@ const CHANGE_STATUS_COLOR = {
   submitted: COLOR.accent,
   cab_review: COLOR.warning,
   approved: COLOR.success,
-  scheduled: '#38bdf8',
+  scheduled: 'var(--sky-blue)',
   in_progress: COLOR.accent,
   implemented: COLOR.success,
   post_review: COLOR.warning,
@@ -34,12 +34,12 @@ function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions })
 
   const c = detail || change
   const sc = CHANGE_STATUS_COLOR[c.status] || COLOR.text2
-  const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? '#fb923c' : c.risk === 'medium' ? COLOR.warning : COLOR.success
+  const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
 
   const Section = ({ title, content: text }) => text ? (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>{text}</div>
+      <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>{text}</div>
     </div>
   ) : null
 
@@ -51,19 +51,19 @@ function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions })
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, marginRight: 12 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{c.number}</span>
-              <span style={{ fontSize: 11, background: `${sc}15`, color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{c.status?.replace(/_/g, ' ')}</span>
-              <span style={{ fontSize: 11, color: rc, fontWeight: 600 }}>⚠ {c.risk}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{c.change_type?.replace(/_/g, ' ')}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{c.number}</span>
+              <span style={{ fontSize: "var(--text-xs)", background: `${sc}15`, color: sc, padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{c.status?.replace(/_/g, ' ')}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: rc, fontWeight: 600 }}>⚠ {c.risk}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{c.change_type?.replace(/_/g, ' ')}</span>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{c.title}</div>
+            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{c.title}</div>
           </div>
-          <button onClick={onClose} aria-label="Cerrar detalle" style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
+          <button onClick={onClose} aria-label="Cerrar detalle" style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xl)", cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <button onClick={onEdit} style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
+          <button onClick={onEdit} style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>✏ Editar</button>
           {actions.map(a => (
-            <button key={a.label} onClick={() => { onAction(c, a); onClose() }} style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>{a.label}</button>
+            <button key={a.label} onClick={() => { onAction(c, a); onClose() }} style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>{a.label}</button>
           ))}
         </div>
       </div>
@@ -82,8 +82,8 @@ function ChangeDetailPanel({ change, onClose, onEdit, onAction, statusActions })
               ['Aprobado', c.approved_at ? fmtDate(c.approved_at) : '—'],
             ].map(([label, val]) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 500 }}>{val}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 500 }}>{val}</div>
               </div>
             ))}
           </div>
@@ -123,8 +123,8 @@ function ChangeEditModal({ change, onClose, onSaved }) {
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title={`Editar ${change.number}`} onClose={onClose} size="lg">
@@ -159,8 +159,8 @@ function NewChangeModal({ onClose, onSaved }) {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   return (
     <Modal open title="Nuevo Change Request" onClose={onClose} size="lg">
@@ -201,7 +201,7 @@ export default function ChangeManagementTab() {
 
   const { sort: changeSort, setSort: setChangeSort, sortedData: sortedChanges } = useSort(changes, 'number')
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }
+  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }
 
   const STATUS_ACTIONS = {
     draft: [{ label: 'Enviar a revisión', next: 'submitted', color: COLOR.accent }],
@@ -231,22 +231,22 @@ export default function ChangeManagementTab() {
       {isLoading ? <Spinner /> : changes.length === 0 ? <EmptyState icon="🔄" title="Sin cambios registrados" description="Crea el primer change request para iniciar el flujo de gestión de cambios." /> :
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>Título</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
+            <thead><tr style={{ borderBottom: '2px solid var(--surface-4)' }}><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>Nº</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>Título</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>Tipo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>Riesgo</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>Estado</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>Inicio planif.</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>Owner</SortableTH></th><th style={{ padding: '10px 8px', whiteSpace: 'nowrap', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Acciones</th></tr></thead>
             <tbody>
               {sortedChanges.map(c => {
                 const sc = CHANGE_STATUS_COLOR[c.status] || COLOR.text2
-                const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? '#fb923c' : c.risk === 'medium' ? COLOR.warning : COLOR.success
+                const rc = c.risk === 'critical' ? COLOR.danger : c.risk === 'high' ? 'var(--orange)' : c.risk === 'medium' ? COLOR.warning : COLOR.success
                 const actions = STATUS_ACTIONS[c.status] || []
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
-                    <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>{c.number}</td>
-                    <td style={{ padding: '10px 8px', fontSize: 13, color: 'var(--text-1)', maxWidth: 220 }}><button onClick={() => setDetail(c)} style={{ background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: 13, padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{c.title}</button></td>
-                    <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{c.change_type?.replace(/_/g, ' ')}</td>
-                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: 11, fontWeight: 600, color: rc }}>{c.risk}</span></td>
-                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: 11, fontWeight: 600, color: sc, background: `${sc}15`, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{c.status?.replace(/_/g, ' ')}</span></td>
-                    <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDate(c.planned_start)}</td>
-                    <td style={{ padding: '10px 8px', fontSize: 12, color: 'var(--text-2)' }}>{c.owner || '—'}</td>
-                    <td style={{ padding: '10px 8px' }}><div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}><button onClick={() => setEditing(c)} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>✏ Editar</button>{actions.map(a => <button key={a.label} onClick={() => handleAction(c, a)} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{a.label}</button>)}</div></td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600 }}>{c.number}</td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-base)", color: 'var(--text-1)', maxWidth: 220 }}><button onClick={() => setDetail(c)} style={{ background: 'none', border: 'none', color: 'var(--text-1)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', fontSize: "var(--text-base)", padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{c.title}</button></td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{c.change_type?.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: rc }}>{c.risk}</span></td>
+                    <td style={{ padding: '10px 8px' }}><span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: sc, background: `${sc}15`, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>{c.status?.replace(/_/g, ' ')}</span></td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{fmtDate(c.planned_start)}</td>
+                    <td style={{ padding: '10px 8px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.owner || '—'}</td>
+                    <td style={{ padding: '10px 8px' }}><div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap' }}><button onClick={() => setEditing(c)} style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>✏ Editar</button>{actions.map(a => <button key={a.label} onClick={() => handleAction(c, a)} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${a.color}40`, background: `${a.color}10`, color: a.color, fontSize: "var(--text-2xs)", cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{a.label}</button>)}</div></td>
                   </tr>
                 )
               })}

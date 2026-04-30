@@ -24,11 +24,11 @@ import {
 const SELECT_STYLE = {
   width: '100%',
   background: 'var(--surface-3)',
-  border: '1px solid #1e2d45',
+  border: '1px solid var(--surface-4)',
   borderRadius: 8,
   padding: '8px 12px',
   color: 'var(--text-1)',
-  fontSize: 13,
+  fontSize: "var(--text-base)",
   outline: 'none',
   fontFamily: 'inherit',
   boxSizing: 'border-box',

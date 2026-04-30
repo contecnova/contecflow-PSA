@@ -68,15 +68,52 @@ def create_rollout_plan(
 ) -> dict:
     plans = _get(db, org_id)
     plan_id = str(uuid.uuid4())
+    normalized_phases = []
+    for idx, phase in enumerate(rollout_phases or []):
+        normalized_phases.append({
+            "id": phase.get("id") or f"phase-{idx + 1}",
+            "name": phase.get("name") or f"Phase {idx + 1}",
+            "description": phase.get("description", ""),
+            "target_pct": int(phase.get("target_pct", phase.get("target_percentage", 100))),
+            "gate_criteria": list(phase.get("gate_criteria") or []),
+            "steps": list(phase.get("steps") or []),
+            "duration_minutes": int(phase.get("duration_minutes", max(5, round(float(phase.get("duration_hours", 0.5)) * 60)))),
+            "status": "pending",
+            "started_at": None,
+            "completed_at": None,
+            "notes": None,
+        })
+
+    normalized_testing = []
+    for item in testing_checklist or []:
+        normalized_testing.append({
+            "test_name": item.get("test_name") or item.get("name") or "Unnamed test",
+            "required": bool(item.get("required", True)),
+            "automated": bool(item.get("automated", False)),
+            "status": item.get("status", "pending"),
+        })
+
+    normalized_communications = []
+    for item in communication_plan or []:
+        normalized_communications.append({
+            "stakeholder_group": item.get("stakeholder_group") or item.get("target") or "stakeholders",
+            "channel": item.get("channel", "email"),
+            "message_template": item.get("message_template") or item.get("message", ""),
+            "send_at": item.get("send_at"),
+            "status": item.get("status", "pending"),
+        })
+
     entry = {
         "id": plan_id,
         "change_request_id": change_request_id,
         "title": title,
+        "name": title,
         "status": "draft",
-        "rollout_phases": rollout_phases,
+        "rollout_phases": normalized_phases,
         "rollback_steps": rollback_steps,
-        "testing_checklist": testing_checklist,
-        "communication_plan": communication_plan,
+        "rollback_plan": "\n".join(step for step in rollback_steps if step),
+        "testing_checklist": normalized_testing,
+        "communication_plan": normalized_communications,
         "maintenance_window_start": maintenance_window_start,
         "maintenance_window_end": maintenance_window_end,
         "created_by": created_by,
@@ -87,6 +124,8 @@ def create_rollout_plan(
         "executed_at": None,
         "completed_at": None,
         "current_phase_index": 0,
+        "gates_passed": [],
+        "simulation": None,
     }
     plans[plan_id] = entry
     _set(db, org_id, plans)
@@ -112,6 +151,8 @@ def approve_plan(db: Session, *, org_id: Optional[str], plan_id: str, approver_u
     if plan_id not in plans:
         raise ValueError(f"Plan '{plan_id}' not found")
     plans[plan_id]["status"] = "approved"
+    if plans[plan_id].get("rollout_phases"):
+        plans[plan_id]["rollout_phases"][0]["status"] = "ready"
     plans[plan_id]["approved_by"] = approver_user_id
     plans[plan_id]["approved_at"] = _iso_now()
     _set(db, org_id, plans)
@@ -130,10 +171,13 @@ def advance_phase(db: Session, *, org_id: Optional[str], plan_id: str, phase_not
         raise ValueError(f"Plan must be approved to advance phases. Status: {plan['status']}")
 
     if current < len(phases):
+        if phases[current].get("status") in ("pending", "ready"):
+            phases[current]["started_at"] = phases[current].get("started_at") or _iso_now()
         phases[current]["status"] = "completed"
         phases[current]["completed_at"] = _iso_now()
         if phase_notes:
             phases[current]["notes"] = phase_notes
+        plan["gates_passed"].append(phases[current].get("id") or f"phase-{current + 1}")
 
     next_index = current + 1
     plan["current_phase_index"] = next_index
@@ -143,6 +187,8 @@ def advance_phase(db: Session, *, org_id: Optional[str], plan_id: str, phase_not
     if next_index >= len(phases):
         plan["status"] = "completed"
         plan["completed_at"] = _iso_now()
+    else:
+        phases[next_index]["status"] = "ready"
 
     _set(db, org_id, plans)
     return plan
@@ -176,6 +222,17 @@ def simulate_impact(
 
     estimated_duration_minutes = 30 + len(rollout_phases) * 15 + len(affected_services) * 5
 
+    recommendations = [
+        recommendation
+        for recommendation in [
+            "Prepare rollback script before starting" if risk_score >= 0.4 else None,
+            "Notify all affected users 48h in advance" if affected_users_count > 100 else None,
+            "Consider phased rollout over multiple days" if len(affected_services) > 5 else None,
+            "Add a canary phase before general rollout" if len(rollout_phases) <= 1 and risk_score >= 0.3 else None,
+        ]
+        if recommendation
+    ]
+
     return {
         "risk_score": round(risk_score, 3),
         "risk_label": risk_label,
@@ -184,9 +241,7 @@ def simulate_impact(
         "estimated_duration_minutes": estimated_duration_minutes,
         "phases_count": len(rollout_phases),
         "recommended_window": "22:00-06:00" if risk_score >= 0.4 else "business_hours",
-        "recommendations": [
-            "Prepare rollback script before starting" if risk_score >= 0.4 else None,
-            "Notify all affected users 48h in advance" if affected_users_count > 100 else None,
-            "Consider phased rollout over multiple days" if len(affected_services) > 5 else None,
-        ],
+        "recommendations": recommendations,
+        "canary_recommended": risk_score >= 0.3,
+        "rollback_readiness": "required" if risk_score >= 0.4 else "recommended",
     }

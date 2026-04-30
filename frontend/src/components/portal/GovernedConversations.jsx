@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import api from '../../services/api'
@@ -20,14 +20,14 @@ const inputStyle = {
   borderRadius: 8,
   padding: '9px 12px',
   color: 'var(--text-1)',
-  fontSize: 13,
+  fontSize: "var(--text-base)",
   outline: 'none',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
 }
 
 const labelStyle = {
-  fontSize: 11,
+  fontSize: "var(--text-xs)",
   fontWeight: 700,
   color: 'var(--text-2)',
   textTransform: 'uppercase',
@@ -60,7 +60,7 @@ const EMPTY_LIST = []
 
 function Badge({ children, color = 'var(--text-2)' }) {
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${color}22`, color, border: `1px solid ${color}33`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: `${color}22`, color, border: `1px solid ${color}33`, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
       {children}
     </span>
   )
@@ -75,7 +75,7 @@ function ConversationListItem({ conversation, selected, onSelect, mode }) {
       style={{
         width: '100%',
         textAlign: 'left',
-        border: `1px solid ${selected ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+        border: `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}`,
         background: selected ? 'var(--accent-muted)' : 'var(--surface-1)',
         borderRadius: 12,
         padding: '12px 14px',
@@ -85,8 +85,8 @@ function ConversationListItem({ conversation, selected, onSelect, mode }) {
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{conversation.title || 'Conversación sin título'}</div>
-        <div style={{ fontSize: 10, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{(conversation.last_message_at || conversation.created_at || '').slice(0, 16)}</div>
+        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{conversation.title || 'Conversación sin título'}</div>
+        <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{(conversation.last_message_at || conversation.created_at || '').slice(0, 16)}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <Badge color={conversation.source === 'legacy_client_message' ? 'var(--warning)' : 'var(--accent)'}>{SOURCE_LABEL[conversation.source] || conversation.source}</Badge>
@@ -94,7 +94,7 @@ function ConversationListItem({ conversation, selected, onSelect, mode }) {
         {conversation.is_sla_breached && <Badge color="var(--danger)">SLA vencido</Badge>}
         {unread > 0 && <Badge color="var(--danger)">{unread} sin leer</Badge>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.45 }}>{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
+      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.45 }}>{lastPreview ? String(lastPreview).slice(0, 120) : 'Sin mensajes aún'}</div>
     </button>
   )
 }
@@ -108,8 +108,8 @@ function MessageBubble({ message, mode, onReview }) {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: alignSelf }}>
       <div style={{ maxWidth: '88%', width: 'fit-content', background: bubbleBg, border: `1px solid ${borderColor}`, borderRadius: 14, padding: '12px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-          <div style={{ fontSize: 12, fontWeight: 700 }}>{message.sender_name}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{(message.created_at || '').slice(0, 16)}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>{message.sender_name}</div>
+          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{(message.created_at || '').slice(0, 16)}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           <Badge color={message.sender_type === 'client' ? 'var(--warning)' : 'var(--accent)'}>{message.sender_type}</Badge>
@@ -118,14 +118,14 @@ function MessageBubble({ message, mode, onReview }) {
           {message.is_redacted && <Badge color="var(--accent)">Redactada</Badge>}
           {message.source === 'legacy_client_message' && <Badge color="var(--warning)">Legacy</Badge>}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{message.body}</div>
-        {message.moderation_notes && <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-2)' }}>Moderación: {message.moderation_notes}</div>}
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{message.body}</div>
+        {message.moderation_notes && <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Moderación: {message.moderation_notes}</div>}
         {mode === 'team' && message.grc_status === 'pending_review' && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button onClick={() => onReview(message, 'approved')} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 700 }}>
+            <button onClick={() => onReview(message, 'approved')} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 700 }}>
               Aprobar
             </button>
-            <button onClick={() => onReview(message, 'rejected')} style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 700 }}>
+            <button onClick={() => onReview(message, 'rejected')} style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 700 }}>
               Rechazar
             </button>
           </div>
@@ -147,7 +147,7 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
         style={{ ...inputStyle, resize: 'vertical', marginBottom: 10 }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <label style={{ display: canInternalNotes ? 'flex' : 'none', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+        <label style={{ display: canInternalNotes ? 'flex' : 'none', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
           <input type="checkbox" checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
           Enviar como nota interna
         </label>
@@ -191,7 +191,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
       <div role="dialog" aria-modal="true" style={{ ...cardStyle, width: 620, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '18px 20px' }}>
-        <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 16 }}>{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
+        <div style={{ fontSize: "var(--text-17)", fontWeight: 800, marginBottom: 16 }}>{mode === 'team' ? 'Nueva conversación gobernada' : 'Nueva conversación con el equipo'}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={labelStyle}>Título</label>
@@ -422,8 +422,8 @@ export function GovernedConversationInbox({
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{conversations.length} conversación(es) · {headerKpi} sin leer</div>
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{conversations.length} conversación(es) · {headerKpi} sin leer</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {projectOptions.length > 1 && (
@@ -437,12 +437,12 @@ export function GovernedConversationInbox({
       </div>
 
       {loadingConversations ? (
-        <div style={{ fontSize: 13, color: 'var(--text-2)', padding: '30px 0' }}>Cargando conversaciones…</div>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', padding: '30px 0' }}>Cargando conversaciones…</div>
       ) : conversations.length === 0 ? (
         <div style={{ ...cardStyle, padding: '32px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 38, marginBottom: 12 }}>💬</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{emptyTitle}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{emptyDescription}</div>
+          <div style={{ fontSize: "var(--text-38)", marginBottom: 12 }}>💬</div>
+          <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 6 }}>{emptyTitle}</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{emptyDescription}</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 18 }}>
@@ -457,8 +457,8 @@ export function GovernedConversationInbox({
               <div style={{ ...cardStyle, padding: '16px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 800 }}>{selectedConversation.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>
+                    <div style={{ fontSize: "var(--text-17)", fontWeight: 800 }}>{selectedConversation.title}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>
                       Tipo: {selectedConversation.topic_type || 'general'}
                       {selectedConversation.assigned_group_name ? ` · Cola: ${selectedConversation.assigned_group_name}` : ''}
                       {selectedConversation.assigned_role_key ? ` · Rol: ${selectedConversation.assigned_role_key}` : ''}
@@ -472,7 +472,7 @@ export function GovernedConversationInbox({
                   </div>
                 </div>
                 {Array.isArray(selectedConversation.participants) && selectedConversation.participants.length > 0 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                     Participantes: {selectedConversation.participants.map((participant) => participant.display_name).join(', ')}
                   </div>
                 )}
@@ -481,7 +481,7 @@ export function GovernedConversationInbox({
 
             <div style={{ ...cardStyle, padding: '16px 18px', minHeight: 320 }}>
               {loadingMessages ? (
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Cargando mensajes…</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Cargando mensajes…</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {messages.map((message) => (
@@ -571,7 +571,7 @@ export function ConversationPoliciesPanel() {
     onError: (error) => toast.error(extractErr(error, 'No se pudo guardar la política')),
   })
 
-  if (isLoading) return <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Cargando políticas…</div>
+  if (isLoading) return <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Cargando políticas…</div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -581,8 +581,8 @@ export function ConversationPoliciesPanel() {
           <div key={policy.id} style={{ ...cardStyle, padding: '16px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 800, textTransform: 'capitalize' }}>{policy.topic_type}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Política GRC y de enrutado para conversaciones de tipo {policy.topic_type}.</div>
+                <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, textTransform: 'capitalize' }}>{policy.topic_type}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Política GRC y de enrutado para conversaciones de tipo {policy.topic_type}.</div>
               </div>
               <Badge color={policy.is_active ? 'var(--success)' : 'var(--text-2)'}>{policy.is_active ? 'Activa' : 'Inactiva'}</Badge>
             </div>
@@ -632,7 +632,7 @@ export function ConversationPoliciesPanel() {
                 ['redact_sensitive_content', 'Redactar contenido sensible'],
                 ['allow_legacy_federation', 'Federar chat legacy'],
               ].map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                <label key={key} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: "var(--text-sm)", color: 'var(--text-2)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
                   {label}
                 </label>

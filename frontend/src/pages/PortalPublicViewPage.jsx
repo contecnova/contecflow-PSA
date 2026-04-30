@@ -39,35 +39,35 @@ export default function PortalPublicViewPage() {
     <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, #14233e, #0b1220)', color: '#e5edf8', fontFamily: "'Inter', system-ui, sans-serif", padding: '32px 20px' }}>
       <div style={{ maxWidth: 980, margin: '0 auto' }}>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase', color: '#7dd3fc', fontWeight: 700 }}>Estado publico</div>
-          <h1 style={{ margin: '8px 0 6px', fontSize: 34 }}>{project.name || 'Proyecto'}</h1>
-          <div style={{ color: '#9eb0c8', fontSize: 14 }}>Codigo: {project.code || '—'} · Estado: {project.status || '—'}</div>
+          <div style={{ fontSize: "var(--text-sm)", letterSpacing: '.08em', textTransform: 'uppercase', color: '#7dd3fc', fontWeight: 700 }}>Estado publico</div>
+          <h1 style={{ margin: '8px 0 6px', fontSize: "var(--text-34)" }}>{project.name || 'Proyecto'}</h1>
+          <div style={{ color: '#9eb0c8', fontSize: "var(--text-md)" }}>Codigo: {project.code || '—'} · Estado: {project.status || '—'}</div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
           <div style={{ border: '1px solid #22324f', borderRadius: 12, padding: 16, background: '#101b2f' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Hitos</div>
+            <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 12 }}>Hitos</div>
             {milestones.length === 0 ? (
-              <div style={{ color: '#9eb0c8', fontSize: 13 }}>Sin hitos publicados.</div>
+              <div style={{ color: '#9eb0c8', fontSize: "var(--text-base)" }}>Sin hitos publicados.</div>
             ) : (
               milestones.map(m => (
-                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderBottom: '1px solid #1b2a46' }}>
+                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", padding: '8px 0', borderBottom: '1px solid #1b2a46' }}>
                   <span>{m.name}</span>
-                  <span style={{ color: m.is_completed ? '#22c55e' : '#f59e0b' }}>{m.is_completed ? 'Completado' : (m.due_date || 'Pendiente')}</span>
+                  <span style={{ color: m.is_completed ? 'var(--success)' : '#f59e0b' }}>{m.is_completed ? 'Completado' : (m.due_date || 'Pendiente')}</span>
                 </div>
               ))
             )}
           </div>
 
           <div style={{ border: '1px solid #22324f', borderRadius: 12, padding: 16, background: '#101b2f' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Entregables</div>
+            <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 12 }}>Entregables</div>
             {deliverables.length === 0 ? (
-              <div style={{ color: '#9eb0c8', fontSize: 13 }}>Sin entregables publicados.</div>
+              <div style={{ color: '#9eb0c8', fontSize: "var(--text-base)" }}>Sin entregables publicados.</div>
             ) : (
               deliverables.map(d => (
-                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderBottom: '1px solid #1b2a46' }}>
+                <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", padding: '8px 0', borderBottom: '1px solid #1b2a46' }}>
                   <span>{d.name}</span>
-                  <span style={{ color: d.status === 'approved' ? '#22c55e' : '#93c5fd' }}>{d.status || 'pending'}</span>
+                  <span style={{ color: d.status === 'approved' ? 'var(--success)' : '#93c5fd' }}>{d.status || 'pending'}</span>
                 </div>
               ))
             )}

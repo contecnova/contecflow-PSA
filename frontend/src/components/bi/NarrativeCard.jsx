@@ -4,12 +4,28 @@ import { analyticsApi } from '../../services/api'
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import { COLOR } from '../../constants/theme'
 
-function parseMarkdown(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>')
+function MarkdownText({ text, style }) {
+  const paragraphs = text.split(/\n\n+/)
+  return (
+    <div style={style}>
+      {paragraphs.map((para, pi) => (
+        <p key={pi} style={{ margin: pi > 0 ? '10px 0 0' : 0 }}>
+          {para.split(/\n/).map((line, li) => (
+            <span key={li}>
+              {li > 0 && <br />}
+              {line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/).map((chunk, ci) => {
+                if (/^\*\*[^*]+\*\*$/.test(chunk))
+                  return <strong key={ci}>{chunk.slice(2, -2)}</strong>
+                if (/^\*[^*]+\*$/.test(chunk))
+                  return <em key={ci}>{chunk.slice(1, -1)}</em>
+                return chunk
+              })}
+            </span>
+          ))}
+        </p>
+      ))}
+    </div>
+  )
 }
 
 export default function NarrativeCard({ lang = 'es', style = {} }) {
@@ -37,12 +53,25 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
       ...style,
     }}>
       {/* Header bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 20px',
-        borderBottom: expanded ? '1px solid var(--surface-4)' : 'none',
-        cursor: 'pointer',
-      }} onClick={() => setExpanded(e => !e)}>
+      <div
+        role="button"
+        tabIndex={0}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%',
+          padding: '14px 20px',
+          borderBottom: expanded ? '1px solid var(--surface-4)' : 'none',
+          cursor: 'pointer',
+          background: 'transparent',
+        }}
+        onClick={() => setExpanded(e => !e)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setExpanded((prev) => !prev)
+          }
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{
             background: `${COLOR.accent}18`, borderRadius: 8, padding: '5px 7px',
@@ -51,11 +80,11 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
             <Sparkles size={14} color={COLOR.accent} />
           </span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>
               Resumen ejecutivo IA
             </div>
             {data?.cached && (
-              <div style={{ fontSize: 10, color: 'var(--text-3)' }}>desde caché · 1h TTL</div>
+              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>desde caché · 1h TTL</div>
             )}
           </div>
         </div>
@@ -90,17 +119,15 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
               ))}
             </div>
           ) : isError ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLOR.danger, fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLOR.danger, fontSize: "var(--text-sm)" }}>
               <AlertCircle size={14} />
               Error al generar la narrativa. Verifica la conexión con el proveedor IA.
             </div>
           ) : data?.narrative ? (
             <>
-              <div
-                style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}
-                dangerouslySetInnerHTML={{
-                  __html: `<p>${parseMarkdown(data.narrative)}</p>`,
-                }}
+              <MarkdownText
+                text={data.narrative}
+                style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.7 }}
               />
               <div style={{
                 marginTop: 14,
@@ -108,21 +135,21 @@ export default function NarrativeCard({ lang = 'es', style = {} }) {
               }}>
                 {data.source && (
                   <span style={{
-                    fontSize: 10, color: 'var(--text-3)',
+                    fontSize: "var(--text-2xs)", color: 'var(--text-3)',
                     background: 'var(--surface-4)', borderRadius: 5, padding: '2px 7px',
                   }}>
                     fuente: {data.source}
                   </span>
                 )}
                 {data.kpis?.hours_mtd != null && (
-                  <span style={{ fontSize: 10, color: 'var(--text-3)' }}>
+                  <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
                     {data.kpis.hours_mtd}h imputadas este mes
                   </span>
                 )}
               </div>
             </>
           ) : (
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
               Sin datos suficientes para generar narrativa. Ejecuta el ETL OLAP primero.
             </div>
           )}

@@ -28,7 +28,7 @@ from app.services.service_desk.cmdb_3d_service import (
     list_asset_links,
 )
 
-router = APIRouter(prefix="/sd", tags=["Service Desk - CMDB 3D"])
+router = APIRouter(tags=["Service Desk - CMDB 3D"])
 
 
 class AssetLinkIn(BaseModel):

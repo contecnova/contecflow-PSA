@@ -115,18 +115,18 @@ export default function LoginPage() {
                 <path d="M16 12V20M12 16H20" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-1)', fontFamily: 'Montserrat, Inter, sans-serif' }}>
+            <span style={{ fontSize: "var(--text-2xl-em)", fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--text-1)', fontFamily: 'Montserrat, Inter, sans-serif' }}>
               Contecflow
             </span>
           </div>
 
-          <h2 style={{ fontSize: 30, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15,
+          <h2 style={{ fontSize: "var(--text-30)", fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15,
             color: 'var(--text-1)', marginBottom: 14, fontFamily: 'Montserrat, Inter, sans-serif' }}>
             {t('login.brand_title')}
             <br />
             <span style={{ color: 'var(--accent)' }}>{t('login.brand_subtitle')}</span>
           </h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 15, lineHeight: 1.7, marginBottom: 36, maxWidth: 340, fontWeight: 500 }}>
+          <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md-em)", lineHeight: 1.7, marginBottom: 36, maxWidth: 340, fontWeight: 500 }}>
             {t('login.brand_description')}
           </p>
 
@@ -142,9 +142,9 @@ export default function LoginPage() {
                 display: 'flex', alignItems: 'center', gap: 12,
                 padding: '12px 16px', background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(0,180,255,0.09)', borderRadius: 12,
-                fontWeight: 600, fontSize: 14,
+                fontWeight: 600, fontSize: "var(--text-md)",
               }}>
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{f.icon}</span>
+                <span style={{ fontSize: "var(--text-lg-em)", flexShrink: 0 }}>{f.icon}</span>
                 <span style={{ color: 'var(--text-2)' }}>{f.label}</span>
               </div>
             ))}
@@ -153,11 +153,11 @@ export default function LoginPage() {
           {/* Version badge */}
           <div style={{ marginTop: 44, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{
-              fontSize: 11, fontWeight: 800, background: 'rgba(0,180,255,0.13)',
+              fontSize: "var(--text-xs)", fontWeight: 800, background: 'rgba(0,180,255,0.13)',
               color: 'var(--accent)', borderRadius: 7, padding: '4px 10px',
               border: '1px solid rgba(0,180,255,0.18)', letterSpacing: '0.06em',
             }}>v26</span>
-            <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>Enterprise · SOC2 · ISO27001</span>
+            <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', fontWeight: 500 }}>Enterprise · SOC2 · ISO27001</span>
           </div>
         </div>
       </div>
@@ -165,10 +165,10 @@ export default function LoginPage() {
       {/* ── Form panel (right) ───────────────────────────────── */}
       <div className="login-form-panel">
         <div style={{ width: '100%', maxWidth: 380, animation: 'fadeIn 0.35s ease' }}>
-          <h3 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 6 }}>
+          <h3 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 6 }}>
             {t('login.welcome_title')}
           </h3>
-          <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 32 }}>
+          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-3)', marginBottom: 32 }}>
             {t('login.welcome_subtitle')}
           </p>
 
@@ -189,7 +189,7 @@ export default function LoginPage() {
                     autoComplete="username"
                     style={{
                       width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                       transition: 'border-color 0.15s',
                     }}
@@ -208,7 +208,7 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     style={{
                       width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                      borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
                       outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                       transition: 'border-color 0.15s',
                     }}
@@ -230,7 +230,7 @@ export default function LoginPage() {
                   autoFocus
                   style={{
                     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
                     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                   }}
                 />
@@ -249,7 +249,7 @@ export default function LoginPage() {
                   autoFocus
                   style={{
                     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14,
+                    borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)",
                     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
                   }}
                 />
@@ -259,7 +259,7 @@ export default function LoginPage() {
             {sessionExpired && (
               <div role="alert" style={{
                 background: 'rgba(255,165,0,0.08)', border: '1px solid rgba(255,165,0,0.3)',
-                borderRadius: 8, padding: '10px 14px', color: '#e08000', fontSize: 13,
+                borderRadius: 8, padding: '10px 14px', color: '#e08000', fontSize: "var(--text-base)",
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <span style={{ flexShrink: 0 }}>🔒</span>
@@ -270,7 +270,7 @@ export default function LoginPage() {
             {error && (
               <div role="alert" style={{
                 background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.25)',
-                borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: 13,
+                borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)",
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <span style={{ flexShrink: 0 }}>⚠</span>
@@ -281,7 +281,7 @@ export default function LoginPage() {
             {message && (
               <div role="status" style={{
                 background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)',
-                borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: 13,
+                borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: "var(--text-base)",
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <span style={{ flexShrink: 0 }}>✓</span>
@@ -293,7 +293,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: 14, fontWeight: 700 }}
+              style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: "var(--text-md)", fontWeight: 700 }}
             >
               {loading ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -310,7 +310,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => { setMode('forgot'); setError(''); setMessage('') }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", padding: 0 }}
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
@@ -319,7 +319,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => { setMode('login'); setError(''); setMessage(''); setSearchParams({}) }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", padding: 0 }}
                 >
                   Volver al login
                 </button>
@@ -327,7 +327,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 11, marginTop: 28, lineHeight: 1.5 }}>
+          <p style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-xs)", marginTop: 28, lineHeight: 1.5 }}>
             {t('login.ad_note')}
             <br />
             <span style={{ color: 'var(--text-4)' }}>{t('login.help_text')}</span>

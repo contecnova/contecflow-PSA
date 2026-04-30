@@ -94,30 +94,45 @@ export default function GlobalSearchModal({ open, onClose }) {
 
   if (!open) return null
 
-  const QUICK_ACTIONS = [
+  // Acciones rápidas de navegación
+  const QUICK_NAV = [
     { icon: '⬡', label: t('global_search.quick_projects'), path: '/projects' },
     { icon: '▦', label: t('global_search.quick_my_tasks'), path: '/tasks' },
     { icon: '🏢', label: t('global_search.quick_clients'), path: '/clients' },
     { icon: '🎫', label: t('global_search.quick_service_desk'), path: '/service-desk' },
     { icon: '📊', label: t('global_search.quick_reports'), path: '/reports' },
     { icon: '📚', label: t('global_search.quick_wiki'), path: '/wiki' },
+    { icon: '📥', label: 'Bandeja de entrada', path: '/inbox' },
+    { icon: '⚙️', label: 'Configuración', path: '/settings' },
   ]
+  // Comandos: acciones que se ejecutan (no solo navegación)
+  const COMMANDS = [
+    { icon: '＋', label: 'Crear tarea', path: '/tasks?create=1', kbd: 'N' },
+    { icon: '＋', label: 'Crear proyecto', path: '/projects?create=1' },
+    { icon: '＋', label: 'Imputar horas', path: '/imputar' },
+    { icon: '＋', label: 'Crear factura', path: '/invoices?create=1' },
+    { icon: '＋', label: 'Crear cliente', path: '/clients?create=1' },
+    { icon: '＋', label: 'Nuevo ticket', path: '/service-desk?create=1' },
+    { icon: '＋', label: 'Nuevo contrato', path: '/contracts?create=1' },
+    { icon: '＋', label: 'Reportar gasto', path: '/expenses?create=1' },
+  ]
+
 
   return (
     <div role="presentation" onMouseDown={onClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      paddingTop: '12vh', zIndex: 99998, backdropFilter: 'blur(4px)',
+      paddingTop: '12vh', zIndex: 'var(--z-search)', backdropFilter: 'blur(4px)',
     }}>
-      <div role="presentation" onMouseDown={e => e.stopPropagation()} style={{
-        background: 'var(--surface-1)', border: '1px solid #1e2d45',
+      <div role="dialog" aria-modal="true" aria-label="Búsqueda global" onMouseDown={e => e.stopPropagation()} style={{
+        background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 16, width: '100%', maxWidth: 600,
         boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
         overflow: 'hidden',
       }}>
         {/* Input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #1e2d45' }}>
-          <span style={{ fontSize: 18, color: 'var(--text-2)' }}>{isFetching ? '⟳' : '🔍'}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--surface-4)' }}>
+          <span style={{ fontSize: "var(--text-lg-em)", color: 'var(--text-2)' }}>{isFetching ? '⟳' : '🔍'}</span>
           <input
             ref={inputRef}
             value={q}
@@ -125,38 +140,60 @@ export default function GlobalSearchModal({ open, onClose }) {
             placeholder={t('global_search.placeholder_modal')}
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
-              fontSize: 16, color: 'var(--text-1)', fontFamily: 'inherit',
+              fontSize: "var(--text-lg)", color: 'var(--text-1)', fontFamily: 'inherit',
             }}
           />
-          <kbd style={{ fontSize: 11, color: 'var(--text-2)', background: 'var(--surface-4)', borderRadius: 4, padding: '2px 6px' }}>ESC</kbd>
+          <kbd style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'var(--surface-4)', borderRadius: 4, padding: '2px 6px' }}>ESC</kbd>
         </div>
 
         {/* Results */}
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           {q.trim().length < 2 ? (
             <div style={{ padding: '12px 8px' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '4px 12px', marginBottom: 6 }}>
-                {t('global_search.quick_access')}
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '4px 12px', marginBottom: 6 }}>
+                Comandos
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '0 8px' }}>
-                {QUICK_ACTIONS.map(a => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '0 8px', marginBottom: 12 }}>
+                {COMMANDS.map(a => (
                   <button key={a.path} onClick={() => { navigate(a.path); onClose() }}
                     style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', borderRadius: 8,
                       border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer',
-                      fontSize: 13, fontFamily: 'inherit', textAlign: 'left',
+                      fontSize: "var(--text-base)", fontFamily: 'inherit', textAlign: 'left',
                       transition: 'background 0.1s',
                     }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <span style={{ fontSize: 16 }}>{a.icon}</span>
+                    <span style={{ fontSize: "var(--text-lg)", color: 'var(--accent)', flexShrink: 0 }}>{a.icon}</span>
+                    <span style={{ flex: 1 }}>{a.label}</span>
+                    {a.kbd && (
+                      <kbd style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-3)', borderRadius: 4, padding: '1px 6px' }}>{a.kbd}</kbd>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '4px 12px', marginBottom: 6 }}>
+                {t('global_search.quick_access')}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, padding: '0 8px' }}>
+                {QUICK_NAV.map(a => (
+                  <button key={a.path} onClick={() => { navigate(a.path); onClose() }}
+                    style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', borderRadius: 8,
+                      border: 'none', background: 'transparent', color: 'var(--text-1)', cursor: 'pointer',
+                      fontSize: "var(--text-base)", fontFamily: 'inherit', textAlign: 'left',
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: "var(--text-lg)", flexShrink: 0 }}>{a.icon}</span>
                     {a.label}
                   </button>
                 ))}
               </div>
             </div>
           ) : results.length === 0 && !isFetching ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
               {t('global_search.no_results_for')} &quot;{q}&quot;
             </div>
           ) : (
@@ -179,24 +216,24 @@ export default function GlobalSearchModal({ open, onClose }) {
                       width: 34, height: 34, borderRadius: 8, flexShrink: 0,
                       background: (cfg.color || 'var(--text-2)') + '15',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 16,
+                      fontSize: "var(--text-lg)",
                     }}>{cfg.icon}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)',
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.title}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                         {cfg.label}{r.subtitle ? ` · ${r.subtitle}` : ''}
                       </div>
                     </div>
                     {r.status && (
-                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20,
+                      <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 20,
                         background: 'var(--surface-4)', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
                         {r.status}
                       </span>
                     )}
-                    <kbd style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-4)',
+                    <kbd style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)',
                       borderRadius: 4, padding: '2px 6px', opacity: isSelected ? 1 : 0 }}>↵</kbd>
                   </button>
                 )
@@ -206,10 +243,10 @@ export default function GlobalSearchModal({ open, onClose }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '10px 20px', borderTop: '1px solid #1e2d45', display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div style={{ padding: '10px 20px', borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 16, alignItems: 'center' }}>
           {[['↑↓', 'navegar'], ['↵', 'abrir'], ['esc', 'cerrar']].map(([key]) => (
-            <span key={key} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
-              <kbd style={{ background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>{key}</kbd>
+            <span key={key} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'flex', gap: 4, alignItems: 'center' }}>
+              <kbd style={{ background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px', fontSize: "var(--text-2xs)" }}>{key}</kbd>
               {key === '↑↓' ? t('common.navigate') : key === '↵' ? t('common.open') : t('common.close').toLowerCase()}
             </span>
           ))}

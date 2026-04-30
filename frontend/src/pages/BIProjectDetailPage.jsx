@@ -13,8 +13,9 @@ import {
   Tooltip,
   Legend,
 } from 'recharts'
-import api from '../services/api'
+import { analyticsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -127,27 +128,27 @@ export default function BIProjectDetailPage() {
 
   const { data: hoursRows = [], isLoading: hoursLoading } = useQuery({
     queryKey: ['bi-project-hours-week', projectId, apiFilters],
-    queryFn: () => api.get('/analytics/query/hours_by_week', { params: apiFilters }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const { data: costRows = [], isLoading: costLoading } = useQuery({
     queryKey: ['bi-project-cost-month', projectId, apiFilters],
-    queryFn: () => api.get('/analytics/query/cost_by_month', { params: apiFilters }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('cost_by_month', apiFilters).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const { data: marginRows = [], isLoading: marginLoading } = useQuery({
     queryKey: ['bi-project-margin', projectId, apiFilters],
-    queryFn: () => api.get('/analytics/query/margin_by_project', { params: apiFilters }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('margin_by_project', apiFilters).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const { data: membersRows = [], isLoading: membersLoading } = useQuery({
     queryKey: ['bi-project-members', projectId, apiFilters],
-    queryFn: () => api.get('/analytics/query/hours_by_person', { params: apiFilters }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_person', apiFilters).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const { data: filterOptions = {} } = useQuery({
     queryKey: ['bi-filter-options-detail'],
-    queryFn: () => api.get('/analytics/filters/options').then(r => r.data).catch(() => ({})),
+    queryFn: () => analyticsApi.filterOptions().then(r => r.data).catch(() => ({})),
   })
 
   const marginCard = marginRows?.[0]
@@ -182,12 +183,12 @@ export default function BIProjectDetailPage() {
   const { data: weeklyByPersonRows = [], isLoading: weeklyByPersonLoading } = useQuery({
     enabled: Boolean(selectedUserId),
     queryKey: ['bi-project-hours-week-person', projectId, weeklyByPersonParams],
-    queryFn: () => api.get('/analytics/query/hours_by_week', { params: weeklyByPersonParams }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', weeklyByPersonParams).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const { data: weeklyTeamRows = [], isLoading: weeklyTeamLoading } = useQuery({
     queryKey: ['bi-project-hours-week-team', projectId, apiFilters],
-    queryFn: () => api.get('/analytics/query/hours_by_week', { params: apiFilters }).then(r => r.data?.rows || []).catch(() => []),
+    queryFn: () => analyticsApi.query('hours_by_week', apiFilters).then(r => r.data?.rows || []).catch(() => []),
   })
 
   const hoursChart = (hoursRows || []).map(r => ({
@@ -252,7 +253,8 @@ export default function BIProjectDetailPage() {
   }, [weeksWindow])
 
   return (
-    <div id="bi-project-detail-root" style={{ padding: 32 }}>
+    <PageShell>
+      <div id="bi-project-detail-root">
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('bi.detail_title')}
@@ -302,7 +304,7 @@ export default function BIProjectDetailPage() {
               PDF
             </button>
             <button
-              onClick={() => navigate('/bi')}
+              onClick={() => navigate('/bi/dashboard')}
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,
@@ -320,7 +322,7 @@ export default function BIProjectDetailPage() {
       />
 
       <div style={{ ...panelStyle, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('bi.analysis_window')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('bi.analysis_window')}</div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[4, 8, 12].map((w) => (
             <button
@@ -334,7 +336,7 @@ export default function BIProjectDetailPage() {
                 color: weeksWindow === w ? 'var(--accent)' : 'var(--text-2)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
-                fontSize: 12,
+                fontSize: "var(--text-sm)",
                 fontWeight: 600,
               }}
             >
@@ -346,20 +348,20 @@ export default function BIProjectDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
         <div style={panelStyle}>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t('bi.current_margin')}</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: marginPct >= 20 ? 'var(--success)' : marginPct >= 0 ? 'var(--warning)' : 'var(--danger)' }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.current_margin')}</div>
+          <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color: marginPct >= 20 ? 'var(--success)' : marginPct >= 0 ? 'var(--warning)' : 'var(--danger)' }}>
             {marginPct.toFixed(1)}%
           </div>
         </div>
         <div style={panelStyle}>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t('bi.revenues')}</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent)' }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.revenues')}</div>
+          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--accent)' }}>
             {Math.round(Number(marginCard?.revenue || 0)).toLocaleString('es-ES')} €
           </div>
         </div>
         <div style={panelStyle}>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t('bi.cost')}</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)' }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('bi.cost')}</div>
+          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>
             {Math.round(Number(marginCard?.cost || 0)).toLocaleString('es-ES')} €
           </div>
         </div>
@@ -367,16 +369,16 @@ export default function BIProjectDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={panelStyle}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('bi.hours_by_week')}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.hours_by_week')}</div>
           <div style={{ height: 260 }}>
             {hoursLoading ? (
-              <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.loading')}</div>
+              <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={hoursChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+                  <XAxis dataKey="label" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+                  <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
                   <Tooltip />
                   <Area type="monotone" dataKey="value" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.2} strokeWidth={2} />
                 </AreaChart>
@@ -386,16 +388,16 @@ export default function BIProjectDetailPage() {
         </div>
 
         <div style={panelStyle}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('bi.cost_by_month')}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.cost_by_month')}</div>
           <div style={{ height: 260 }}>
             {costLoading ? (
-              <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.loading')}</div>
+              <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={costChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+                  <XAxis dataKey="label" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+                  <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
                   <Tooltip />
                   <Bar dataKey="value" fill="var(--danger)" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -406,16 +408,16 @@ export default function BIProjectDetailPage() {
       </div>
 
       <div style={{ ...panelStyle, marginTop: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('bi.revenue_vs_cost')}</div>
+        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.revenue_vs_cost')}</div>
         <div style={{ height: 280 }}>
           {marginLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.loading')}</div>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={detailBars} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+                <XAxis dataKey="label" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+                <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="revenue" name={t('bi.revenues')} fill="var(--accent)" radius={[4, 4, 0, 0]} />
@@ -428,14 +430,14 @@ export default function BIProjectDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
         <div style={panelStyle}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('bi.project_members')}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.project_members')}</div>
           {membersLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.loading')}</div>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
           ) : !membersWithUserId.length ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.no_member_data')}</div>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.no_member_data')}</div>
           ) : (
             <div style={{ overflow: 'auto', maxHeight: 280 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-sm)" }}>
                 <thead>
                   <tr>
                     <th style={{ textAlign: 'left', color: 'var(--text-3)', borderBottom: '1px solid var(--surface-4)', padding: '6px 4px' }}>{t('bi.person')}</th>
@@ -466,21 +468,21 @@ export default function BIProjectDetailPage() {
         </div>
 
         <div style={panelStyle}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{t('bi.weekly_trend')}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10 }}>{t('bi.weekly_trend')}</div>
           {!selectedUserId ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.select_person')}</div>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.select_person')}</div>
           ) : weeklyByPersonLoading || weeklyTeamLoading ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 12 }}>{t('bi.loading')}</div>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>{t('bi.loading')}</div>
           ) : (
             <div style={{ height: 280 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
                 {selectedMember?.label || t('bi.person')} {t('bi.vs_team_avg')}
               </div>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={compareChart} margin={{ top: 6, right: 4, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+                  <XAxis dataKey="label" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+                  <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
                   <Tooltip />
                   <Legend />
                   <Area type="monotone" dataKey="persona" name={t('bi.person')} stroke="var(--success)" fill="var(--success)" fillOpacity={0.18} strokeWidth={2} />
@@ -491,6 +493,7 @@ export default function BIProjectDetailPage() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </PageShell>
   )
 }

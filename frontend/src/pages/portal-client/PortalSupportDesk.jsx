@@ -68,21 +68,21 @@ export function PortalSupportDesk() {
     <div>
       {/* Active announcements */}
       {announcements.filter(a => a.show_to_clients).map(a => (
-        <div key={a.id} style={{ background: a.type === 'outage' ? 'var(--danger-bg)' : 'var(--accent-muted)', border: `1px solid ${a.type === 'outage' ? 'var(--danger-border)' : 'var(--accent-glow)'}`, borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', fontSize: 13 }}>
-          <span style={{ fontSize: 18 }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : 'ℹ️'}</span>
+        <div key={a.id} style={{ background: a.type === 'outage' ? 'var(--danger-bg)' : 'var(--accent-muted)', border: `1px solid ${a.type === 'outage' ? 'var(--danger-border)' : 'var(--accent-glow)'}`, borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center', fontSize: "var(--text-base)" }}>
+          <span style={{ fontSize: "var(--text-lg-em)" }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : 'ℹ️'}</span>
           <div>
             <div style={{ fontWeight: 700 }}>{a.title}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{a.body}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{a.body}</div>
           </div>
         </div>
       ))}
 
       {pendingClientTickets > 0 && (
-        <div role="button" tabIndex={0} aria-label={t('support_pending_hint')} style={{ background: 'var(--warning-bg)', border: '2px solid #ffb80050', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }} onClick={() => setTab('tickets')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab('tickets') } }}>
-          <span style={{ fontSize: 20 }}>⏳</span>
+        <div role="button" tabIndex={0} aria-label={t('support_pending_hint')} style={{ background: 'var(--warning-bg)', border: '2px solid var(--warning-border)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }} onClick={() => setTab('tickets')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTab('tickets') } }}>
+          <span style={{ fontSize: "var(--text-xl)" }}>⏳</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--warning)' }}>{pendingClientTickets} {t('support_pending_count')}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('support_pending_hint')}</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--warning)' }}>{pendingClientTickets} {t('support_pending_count')}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('support_pending_hint')}</div>
           </div>
         </div>
       )}
@@ -91,13 +91,13 @@ export function PortalSupportDesk() {
         <div role="tablist" aria-label={t('nav_support')} style={{ display: 'flex', gap: 8 }}>
           {[[`tickets`, `${t('support_tab_tickets')} (${tickets.length})`], ['kb', t('support_tab_kb')], ['announcements', `${t('support_tab_ann')} (${announcements.length})`]].map(([tabId, l]) => (
             <button key={tabId} role="tab" aria-selected={tab === tabId} aria-controls={`portal-support-panel-${tabId}`} id={`portal-support-tab-${tabId}`} onClick={() => setTab(tabId)}
-              style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '7px 14px', borderRadius: 8, border: `1px solid ${tab === tabId ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === tabId ? 'var(--accent-muted)' : 'transparent', color: tab === tabId ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {l}
             </button>
           ))}
         </div>
         {tab === 'tickets' && !selectedId && (
-          <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', border: 'none', borderRadius: 8, padding: '10px 18px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, var(--accent), var(--purple))', border: 'none', borderRadius: 8, padding: '10px 18px', color: '#fff', fontSize: "var(--text-base)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('support_open_ticket_btn')}
           </button>
         )}
@@ -108,10 +108,10 @@ export function PortalSupportDesk() {
         <div id="portal-support-panel-tickets" role="tabpanel" aria-labelledby="portal-support-tab-tickets">
           {tickets.length === 0 ? (
             <div style={{ ...S.card, textAlign: 'center', padding: '40px 20px', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🎫</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>{t('support_empty')}</div>
+              <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🎫</div>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: 600 }}>{t('support_empty')}</div>
               <p style={{ margin: '8px 0 16px' }}>¿Tienes algún problema o necesitas ayuda? Abre un ticket y el equipo te atenderá.</p>
-              <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
+              <button onClick={() => setShowCreate(true)} style={{ background: 'linear-gradient(135deg, var(--accent), var(--purple))', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontSize: "var(--text-base)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{t('ticket_submit')}</button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -126,27 +126,27 @@ export function PortalSupportDesk() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{tk.number}</span>
-                          <span style={{ fontSize: 12 }}>{TYPE_ICONS[tk.ticket_type]}</span>
-                          <span style={{ fontSize: 14, fontWeight: 700 }}>{tk.title}</span>
+                          <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{tk.number}</span>
+                          <span style={{ fontSize: "var(--text-sm)" }}>{TYPE_ICONS[tk.ticket_type]}</span>
+                          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{tk.title}</span>
                         </div>
-                        <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-2)' }}>
+                        <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                           <span>{t('created')}: {tk.created_at}</span>
                           {tk.assigned_to_name && <span>{t('assigned_to')}: {tk.assigned_to_name}</span>}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: prColor, background: prColor + '15', border: `1px solid ${prColor}30`, borderRadius: 20, padding: '2px 8px' }}>{tk.priority_label}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: stColor, background: stColor + '15', border: `1px solid ${stColor}30`, borderRadius: 20, padding: '2px 8px' }}>{STATUS_LABELS[tk.status] || tk.status_label || tk.status}</span>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: prColor, background: prColor + '15', border: `1px solid ${prColor}30`, borderRadius: 20, padding: '2px 8px' }}>{tk.priority_label}</span>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: stColor, background: stColor + '15', border: `1px solid ${stColor}30`, borderRadius: 20, padding: '2px 8px' }}>{STATUS_LABELS[tk.status] || tk.status_label || tk.status}</span>
                       </div>
                     </div>
                     {tk.status === 'pending_client' && (
-                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--warning-bg)', borderRadius: 6, fontSize: 12, color: 'var(--warning)', fontWeight: 600 }}>
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--warning-bg)', borderRadius: 6, fontSize: "var(--text-sm)", color: 'var(--warning)', fontWeight: 600 }}>
                         ⏳ {t('ticket_status_pending_client')} — haz clic para responder
                       </div>
                     )}
                     {tk.csat_requested_at && !tk.csat_score && (
-                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--success-bg)', borderRadius: 6, fontSize: 12, color: 'var(--success)', fontWeight: 600 }}>
+                      <div style={{ marginTop: 8, padding: '6px 10px', background: 'var(--success-bg)', borderRadius: 6, fontSize: "var(--text-sm)", color: 'var(--success)', fontWeight: 600 }}>
                         ⭐ {t('ticket_rate_prompt')}
                       </div>
                     )}
@@ -162,7 +162,7 @@ export function PortalSupportDesk() {
       {tab === 'tickets' && selectedId && (
         !ticketDetail ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-2)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12, animation: 'spin 1s linear infinite' }}>⟳</div>
+            <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 12, animation: 'spin 1s linear infinite' }}>⟳</div>
             <div>{t('loading')}</div>
           </div>
         ) : (
@@ -170,38 +170,38 @@ export function PortalSupportDesk() {
             <button onClick={() => setSelectedId(null)} style={{ ...S.btnSec, marginBottom: 20 }}>← Volver a mis tickets</button>
           <div style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{ticketDetail.number}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLORS[ticketDetail.status] || 'var(--text-2)', background: (STATUS_COLORS[ticketDetail.status] || 'var(--text-2)') + '15', border: `1px solid ${(STATUS_COLORS[ticketDetail.status] || 'var(--text-2)')}30`, borderRadius: 20, padding: '2px 8px' }}>
+              <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{ticketDetail.number}</span>
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: STATUS_COLORS[ticketDetail.status] || 'var(--text-2)', background: (STATUS_COLORS[ticketDetail.status] || 'var(--text-2)') + '15', border: `1px solid ${(STATUS_COLORS[ticketDetail.status] || 'var(--text-2)')}30`, borderRadius: 20, padding: '2px 8px' }}>
                 {STATUS_LABELS[ticketDetail.status] || ticketDetail.status}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: PRIORITY_COLORS[ticketDetail.priority] || 'var(--text-2)' }}>{ticketDetail.priority_label}</span>
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: PRIORITY_COLORS[ticketDetail.priority] || 'var(--text-2)' }}>{ticketDetail.priority_label}</span>
             </div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 6px' }}>{ticketDetail.title}</h3>
-            {ticketDetail.assigned_to_name && <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Agente asignado: <span style={{ color: 'var(--text-1)' }}>{ticketDetail.assigned_to_name}</span></div>}
+            <h3 style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, margin: '0 0 6px' }}>{ticketDetail.title}</h3>
+            {ticketDetail.assigned_to_name && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Agente asignado: <span style={{ color: 'var(--text-1)' }}>{ticketDetail.assigned_to_name}</span></div>}
             {ticketDetail.sla_resolution_due && (
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>Resolución estimada antes de: {ticketDetail.sla_resolution_due}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>Resolución estimada antes de: {ticketDetail.sla_resolution_due}</div>
             )}
           </div>
 
           <div style={{ ...S.card, marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Descripción original</div>
-            <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Descripción original</div>
+            <p style={{ fontSize: "var(--text-md)", lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{ticketDetail.description}</p>
           </div>
 
           {ticketDetail.resolution && (
-            <div style={{ background: 'var(--success-bg)', border: '1px solid #00e5a040', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', marginBottom: 8, textTransform: 'uppercase' }}>✓ Resolución del equipo</div>
-              <p style={{ fontSize: 14, lineHeight: 1.7, margin: 0 }}>{ticketDetail.resolution}</p>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--success)', marginBottom: 8, textTransform: 'uppercase' }}>✓ Resolución del equipo</div>
+              <p style={{ fontSize: "var(--text-md)", lineHeight: 1.7, margin: 0 }}>{ticketDetail.resolution}</p>
             </div>
           )}
 
           {ticketDetail.csat_requested_at && !ticketDetail.csat_score && (
-            <div style={{ ...S.card, border: '1px solid #00e5a040', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>⭐ ¿Cómo valorarías la atención recibida?</div>
+            <div style={{ ...S.card, border: '1px solid var(--success-border)', marginBottom: 16 }}>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 12 }}>⭐ ¿Cómo valorarías la atención recibida?</div>
               <div style={{ display: 'flex', gap: 10 }}>
                 {[1,2,3,4,5].map(n => (
                   <button key={n} onClick={() => submitCSAT({ score: n })}
-                    style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #1a2640', background: 'var(--surface-1)', color: 'var(--text-1)', cursor: 'pointer', fontSize: 22, fontFamily: 'inherit', transition: 'all 0.15s' }}
+                    style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid var(--surface-4)', background: 'var(--surface-1)', color: 'var(--text-1)', cursor: 'pointer', fontSize: "var(--text-xl-em)", fontFamily: 'inherit', transition: 'all 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--success-bg)'; e.currentTarget.style.borderColor = 'var(--success-border)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface-1)'; e.currentTarget.style.borderColor = 'var(--surface-4)' }}>
                     {'⭐'.repeat(n)}
@@ -211,24 +211,24 @@ export function PortalSupportDesk() {
             </div>
           )}
           {ticketDetail.csat_score && (
-            <div style={{ background: 'var(--success-bg)', border: '1px solid #00e5a030', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: 'var(--success)' }}>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: "var(--text-base)", color: 'var(--success)' }}>
               ✓ Valoraste este ticket con {'⭐'.repeat(ticketDetail.csat_score)} — ¡gracias por tu feedback!
             </div>
           )}
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Conversación</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>Conversación</div>
             {ticketDetail.comments?.filter(c => c.is_public).map(c => (
               <div key={c.id} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 34, height: 34, borderRadius: '50%', background: c.author_type === 'agent' ? 'linear-gradient(135deg, #00d4ff, #7c3aed)' : 'linear-gradient(135deg, #00e5a0, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', background: c.author_type === 'agent' ? 'linear-gradient(135deg, var(--accent), var(--purple))' : 'linear-gradient(135deg, var(--success), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-sm)", fontWeight: 700, flexShrink: 0 }}>
                   {c.author_name?.split(' ').map(w => w[0]).join('').slice(0,2)}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{c.author_name}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.created_at}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{c.author_name}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.created_at}</span>
                   </div>
-                  <div style={{ background: c.author_type === 'agent' ? 'var(--portal-bg)' : 'var(--portal-surface)', borderRadius: 10, padding: '12px 16px', fontSize: 13, lineHeight: 1.6 }}>{c.body}</div>
+                  <div style={{ background: c.author_type === 'agent' ? 'var(--portal-bg)' : 'var(--portal-surface)', borderRadius: 10, padding: '12px 16px', fontSize: "var(--text-base)", lineHeight: 1.6 }}>{c.body}</div>
                 </div>
               </div>
             ))}
@@ -236,7 +236,7 @@ export function PortalSupportDesk() {
 
           {!['closed', 'cancelled'].includes(ticketDetail.status) && (
             <div style={{ ...S.card }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Tu respuesta</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8, textTransform: 'uppercase' }}>Tu respuesta</div>
               <textarea value={newComment} onChange={e => setNewComment(e.target.value)} rows={4}
                 placeholder="Escribe tu respuesta"
                 style={{ ...S.input, resize: 'vertical', marginBottom: 12 }} />
@@ -256,11 +256,11 @@ export function PortalSupportDesk() {
         <div id="portal-support-panel-kb" role="tabpanel" aria-labelledby="portal-support-tab-kb">
           <div style={{ marginBottom: 20 }}>
             <input aria-label="Buscar en la base de conocimiento" value={searchKB} onChange={e => setSearchKB(e.target.value)} placeholder="Buscar en la base de conocimiento"
-              style={{ ...S.input, fontSize: 15, padding: '13px 16px' }} />
+              style={{ ...S.input, fontSize: "var(--text-md-em)", padding: '13px 16px' }} />
           </div>
           {kbArticles.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📚</div>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📚</div>
               <p>{searchKB ? `Sin resultados para "${searchKB}"` : 'La base de conocimiento está vacía de momento'}</p>
             </div>
           ) : (
@@ -268,11 +268,11 @@ export function PortalSupportDesk() {
               {kbArticles.map(a => (
                 <div key={a.id} style={{ ...S.card }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 15, fontWeight: 700 }}>{a.title}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</span>
+                    <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{a.title}</span>
+                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>👁 {a.view_count} · ✓ {a.helpful_count}</span>
                   </div>
-                  {a.summary && <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 10px' }}>{a.summary}</p>}
-                  {a.tags && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>🏷 {a.tags}</div>}
+                  {a.summary && <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 10px' }}>{a.summary}</p>}
+                  {a.tags && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>🏷 {a.tags}</div>}
                 </div>
               ))}
             </div>
@@ -285,7 +285,7 @@ export function PortalSupportDesk() {
         <div id="portal-support-panel-announcements" role="tabpanel" aria-labelledby="portal-support-tab-announcements">
           {announcements.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📢</div>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📢</div>
               <p>No hay comunicados activos</p>
             </div>
           ) : (
@@ -293,11 +293,11 @@ export function PortalSupportDesk() {
               {announcements.map(a => (
                 <div key={a.id} style={{ ...S.card, border: `1px solid ${a.type === 'outage' ? 'rgba(248,113,113,0.25)' : 'var(--surface-4)'}` }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 24 }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : a.type === 'resolved' ? '✅' : 'ℹ️'}</span>
+                    <span style={{ fontSize: "var(--text-2xl)" }}>{a.type === 'outage' ? '🚨' : a.type === 'maintenance' ? '🔧' : a.type === 'resolved' ? '✅' : 'ℹ️'}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
-                      <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
-                      {a.starts_at && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 6 }}>{a.starts_at} {a.ends_at && `→ ${a.ends_at}`}</div>}
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{a.title}</div>
+                      <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: 0 }}>{a.body}</p>
+                      {a.starts_at && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>{a.starts_at} {a.ends_at && `→ ${a.ends_at}`}</div>}
                     </div>
                   </div>
                 </div>
@@ -311,15 +311,15 @@ export function PortalSupportDesk() {
       {showCreate && (
         <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div role="dialog" aria-modal="true" aria-labelledby="portal-support-create-title" style={{ ...S.card, width: 580, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 id="portal-support-create-title" style={{ fontSize: 18, fontWeight: 800, margin: '0 0 20px' }}>{t('support_modal_title')}</h3>
+            <h3 id="portal-support-create-title" style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, margin: '0 0 20px' }}>{t('support_modal_title')}</h3>
 
             <div style={{ background: 'var(--portal-bg)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>{t('support_kb_hint')}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{t('support_kb_hint')}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input placeholder="Buscar artículo relacionado" aria-label="Buscar artículo relacionado" style={{ ...S.input, flex: 1, fontSize: 12, padding: '8px 12px' }}
+                <input placeholder="Buscar artículo relacionado" aria-label="Buscar artículo relacionado" style={{ ...S.input, flex: 1, fontSize: "var(--text-sm)", padding: '8px 12px' }}
                   onChange={e => setSearchKB(e.target.value)} />
                 <button onClick={() => { setShowCreate(false); setTab('kb') }}
-                  style={{ ...S.btnSec, padding: '7px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>Ver KB</button>
+                  style={{ ...S.btnSec, padding: '7px 12px', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>Ver KB</button>
               </div>
             </div>
 
@@ -343,7 +343,7 @@ export function PortalSupportDesk() {
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[['incident','🔥 Incidencia'],['service_request','📋 Solicitud'],['question','❓ Consulta']].map(([v,l]) => (
                     <button key={v} onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))}
-                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${createForm.ticket_type === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'transparent', color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600 }}>
+                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${createForm.ticket_type === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: createForm.ticket_type === v ? 'var(--accent-muted)' : 'transparent', color: createForm.ticket_type === v ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600 }}>
                       {l}
                     </button>
                   ))}

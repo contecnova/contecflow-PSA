@@ -49,6 +49,48 @@ def test_execute_query(client, admin_token):
     assert r.status_code == 200
     data = r.json()
     assert "rows" in data
+    assert "columns" in data
+    assert "row_count" in data
+
+
+def test_preview_query_ad_hoc(client, admin_token):
+    r = client.post(
+        "/api/v1/bi/query-builder/preview",
+        json={
+            "dataset": "projects",
+            "fields": ["name", "status"],
+            "filters": [{"field": "status", "operator": "contains", "value": "active"}],
+            "sort_by": "name",
+            "sort_dir": "asc",
+            "limit": 25,
+        },
+        headers=auth(admin_token),
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["dataset"] == "projects"
+    assert data["columns"] == ["name", "status"]
+    assert "rows" in data
+
+
+def test_preview_query_group_by_and_aggregation(client, admin_token):
+    r = client.post(
+        "/api/v1/bi/query-builder/preview",
+        json={
+            "dataset": "projects",
+            "fields": ["status", "budget_amount"],
+            "group_by": ["status"],
+            "aggregations": [{"field": "budget_amount", "func": "sum", "alias": "total_budget"}],
+            "sort_by": "total_budget",
+            "sort_dir": "desc",
+            "limit": 50,
+        },
+        headers=auth(admin_token),
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["columns"] == ["status", "total_budget"]
+    assert "rows" in data
 
 
 def test_delete_query(client, admin_token):

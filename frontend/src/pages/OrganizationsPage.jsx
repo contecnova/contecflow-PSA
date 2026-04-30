@@ -5,15 +5,16 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { organizationsApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Building2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const PLAN_COLORS = { starter:'var(--text-2)', pro:'var(--accent)', enterprise:'var(--success)' }
@@ -23,7 +24,7 @@ export default function OrganizationsPage() {
   const [removingUserId, setRemovingUserId] = useState(null)
     // Mutación para eliminar usuario de la organización
     const { mutate: removeUser, isPending: isRemoving } = useMutation({
-      mutationFn: ({ orgId, userId }) => api.delete(`/organizations/${orgId}/remove-user/${userId}`),
+      mutationFn: ({ orgId, userId }) => organizationsApi.removeUser(orgId, userId),
       onSuccess: () => {
         qc.invalidateQueries(['org-detail', selected]);
         setRemovingUserId(null)
@@ -43,13 +44,13 @@ export default function OrganizationsPage() {
   const [form, setForm] = useState({ name:'', slug:'', plan:'starter', max_users:25, max_projects:100, admin_email:'', timezone:'Europe/Madrid' })
   const [editForm, setEditForm] = useState(null)
 
-  const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => api.get('/organizations').then(r=>r.data) })
-  const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => api.get(`/organizations/${selected}`).then(r=>r.data), enabled:!!selected })
+  const { data: orgs = [], isLoading } = useQuery({ queryKey:['orgs'], queryFn:() => organizationsApi.list().then(r=>r.data) })
+  const { data: detail } = useQuery({ queryKey:['org-detail', selected], queryFn:() => organizationsApi.get(selected).then(r=>r.data), enabled:!!selected })
   // Todos los usuarios activos
-  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => api.get('/users').then(r=>r.data) })
+  const { data: allUsers = [] } = useQuery({ queryKey:['users'], queryFn:() => usersApi.list().then(r=>r.data) })
   // Mutación para asignar usuario
   const { mutate: assignUser, isPending: isAssigning } = useMutation({
-    mutationFn: ({ orgId, userId }) => api.post(`/organizations/${orgId}/assign-user`, { user_id: userId }),
+    mutationFn: ({ orgId, userId }) => organizationsApi.assignUser(orgId, { user_id: userId }),
     onSuccess: () => {
       qc.invalidateQueries(['org-detail', selected]);
       setShowAssignUser(false)
@@ -60,17 +61,17 @@ export default function OrganizationsPage() {
   })
 
   const { mutate: create, isPending } = useMutation({
-    mutationFn: d => api.post('/organizations', d),
+    mutationFn: d => organizationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['orgs']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: toggle } = useMutation({
-    mutationFn: ({ id, is_active }) => api.patch(`/organizations/${id}`, { is_active }),
+    mutationFn: ({ id, is_active }) => organizationsApi.update(id, { is_active }),
     onSuccess: () => qc.invalidateQueries(['orgs']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const { mutate: update, isPending: isUpdating } = useMutation({
-    mutationFn: ({ id, data }) => api.patch(`/organizations/${id}`, data),
+    mutationFn: ({ id, data }) => organizationsApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries(['orgs']); qc.invalidateQueries(['org-detail', selected]); setShowEdit(false) },
     onError: e => toast.error(extractErr(e, 'Error al actualizar')),
   })
@@ -93,9 +94,9 @@ export default function OrganizationsPage() {
   }
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader icon={<Building2 size={18} />} title={t('organizations.title')} subtitle={t('organizations.subtitle')} />
-      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize:13, color:'var(--accent)' }}>
+      <div style={{ background:'var(--accent-muted)', border:'.5px solid rgba(0,212,255,0.25)', borderRadius:10, padding:'12px 16px', marginBottom:24, fontSize: "var(--text-base)", color:'var(--accent)' }}>
         Cada organización tiene sus propios usuarios, proyectos y datos aislados. Esta arquitectura permite ofrecer Contecflow como SaaS multi-empresa.
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:16 }}>
@@ -116,18 +117,18 @@ export default function OrganizationsPage() {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
-                        <span style={{ fontSize:14, fontWeight:500 }}>{o.name}</span>
-                        <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: PLAN_COLORS[o.plan] || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
-                        {!o.is_active && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Inactiva</span>}
+                        <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{o.name}</span>
+                        <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color: PLAN_COLORS[o.plan] || 'var(--text-2)', fontWeight:500 }}>{o.plan}</span>
+                        {!o.is_active && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--danger-bg)', color:'var(--danger)' }}>Inactiva</span>}
                       </div>
-                      <div style={{ fontSize:12, color:'var(--text-2)' }}>
+                      <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
                         {o.slug} · {o.user_count} usuarios · {o.project_count} proyectos · {o.admin_email || '—'}
                       </div>
                     </div>
                     <div style={{ display:'flex', gap:8 }}>
-                      <span style={{ fontSize:12, color:'var(--text-2)' }}>{o.created_at}</span>
+                      <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{o.created_at}</span>
                       <button onClick={e => { e.stopPropagation(); toggle({ id:o.id, is_active:!o.is_active }) }}
-                        style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+                        style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
                         {o.is_active ? 'Suspender' : 'Activar'}
                       </button>
                     </div>
@@ -141,26 +142,26 @@ export default function OrganizationsPage() {
         {selected && detail && (
           <div style={{ ...card, padding:'20px 22px', position:'sticky', top:80, alignSelf:'start' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontSize:14, fontWeight:500 }}>{detail.name}</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{detail.name}</div>
               <Button size="sm" onClick={openEdit}>Editar</Button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
               {[['Plan', detail.plan], ['Usuarios', `${detail.users?.length}/${detail.max_users}`], ['Zona horaria', detail.timezone], ['Idioma', detail.locale]].map(([k,v]) => (
                 <div key={k} style={{ background:'var(--surface-2)', borderRadius:8, padding:'10px 12px' }}>
-                  <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2 }}>{k}</div>
-                  <div style={{ fontSize:12, fontWeight:500 }}>{v}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginBottom:2 }}>{k}</div>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{v}</div>
                 </div>
               ))}
             </div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-              <span style={{ fontSize:13, fontWeight:500 }}>Usuarios ({detail.users?.length})</span>
+              <span style={{ fontSize: "var(--text-base)", fontWeight:500 }}>Usuarios ({detail.users?.length})</span>
               <Button size="sm" onClick={() => setShowAssignUser(true)}>Asignar usuario</Button>
             </div>
-            {(detail.users || []).length === 0 && <div style={{ color:'var(--text-3)', fontSize:12, marginBottom:8 }}>No hay usuarios asignados.</div>}
+            {(detail.users || []).length === 0 && <div style={{ color:'var(--text-3)', fontSize: "var(--text-sm)", marginBottom:8 }}>No hay usuarios asignados.</div>}
             {(detail.users || []).map((u, idx, arr) => {
               const isLast = arr.length === 1
               return (
-                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize:12 }}>
+                <div key={u.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'.5px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                   <span>{u.full_name}</span>
                   <span style={{ color:'var(--text-2)' }}>{u.role}</span>
                   <Button
@@ -197,7 +198,7 @@ export default function OrganizationsPage() {
                           filterFn={u => u.is_active !== false && !(detail.users || []).some(du => du.id === u.id)}
                         />
                       </div>
-                      <div style={{ color:'var(--danger)', fontSize:12, minHeight:18 }}>
+                      <div style={{ color:'var(--danger)', fontSize: "var(--text-sm)", minHeight:18 }}>
                         {assignUserId === '' ? '' : (() => {
                           const user = allUsers.find(u => u.id === assignUserId)
                           if (user && user.is_active === false) return 'No puedes asignar usuarios inactivos.'
@@ -269,6 +270,6 @@ export default function OrganizationsPage() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

@@ -1,20 +1,21 @@
-import { CHART } from '../constants/theme'
+import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
 import { extractErr } from '../utils/helpers'
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, epicsApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Layers } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const COLORS = ['#7c3aed','#4f8ef7','#22c55e','#f59e0b','#ef4444','#f97316','#0ea5e9',CHART.pink]
+const COLORS = CHART_COLORS_EXTENDED
 
 const daysBetween = (a, b) => {
   if(!a||!b) return 0
@@ -29,7 +30,7 @@ function EpicForm({ projectId, epic, onClose }) {
   const [form, setForm] = useState({
     title:       epic?.title       || '',
     description: epic?.description || '',
-    color:       epic?.color       || '#7c3aed',
+    color:       epic?.color       || COLOR.purple,
     status:      epic?.status      || 'open',
     priority:    epic?.priority    || 'medium',
     start_date:  epic?.start_date  || '',
@@ -53,8 +54,8 @@ function EpicForm({ projectId, epic, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`epics/${epic.id}`, d).then(r=>r.data)
-      : api.post(`epics?project_id=${projectId}`, d).then(r=>r.data),
+      ? epicsApi.update(epic.id, d).then(r=>r.data)
+      : epicsApi.createForProject(projectId, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries(['epics',projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -86,7 +87,7 @@ function EpicForm({ projectId, epic, onClose }) {
               <button key={c} onClick={()=>set('color')(c)}
                 style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}}/>
             ))}
-            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7c3aed'} onChange={e=>set('color')(e.target.value)}
+            <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
               style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}}/>
           </div>
         </div>
@@ -105,7 +106,7 @@ function RoadmapView({ epics, t }) {
   if(!epics.length) return <EmptyState icon="🗺" title={t('epics.no_epics')} description={t('epics.no_epics_desc')}/>
 
   const datesWithValues = epics.flatMap(e=>[e.start_date,e.end_date].filter(Boolean))
-  if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize:13}}>{t('epics.no_epics_desc')}</div>
+  if(!datesWithValues.length) return <div style={{textAlign:'center',padding:40,color:'var(--text-2)',fontSize: "var(--text-base)"}}>{t('epics.no_epics_desc')}</div>
 
   const minDate = new Date(Math.min(...datesWithValues.map(d=>new Date(d))))
   const maxDate = new Date(Math.max(...datesWithValues.map(d=>new Date(d))))
@@ -135,7 +136,7 @@ function RoadmapView({ epics, t }) {
         {/* Cabecera meses */}
         <div style={{display:'flex',marginLeft:160,marginBottom:8,gap:0}}>
           {months.map((m,i)=>(
-            <div key={i} style={{flex:1,fontSize:11,color:'var(--text-3)',textAlign:'center',borderLeft:'1px solid #1a2640',padding:'4px 0'}}>{m}</div>
+            <div key={i} style={{flex:1,fontSize: "var(--text-xs)",color:'var(--text-3)',textAlign:'center',borderLeft:'1px solid #1e2d45',padding:'4px 0'}}>{m}</div>
           ))}
         </div>
         {/* Épicas */}
@@ -145,18 +146,18 @@ function RoadmapView({ epics, t }) {
           const _st    = STATUS_CFG[epic.status]||STATUS_CFG.open
           return (
             <div key={epic.id} style={{display:'flex',alignItems:'center',marginBottom:8,gap:0}}>
-              <div style={{width:160,flexShrink:0,fontSize:12,fontWeight:500,paddingRight:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-1)'}}>
+              <div style={{width:160,flexShrink:0,fontSize: "var(--text-sm)",fontWeight:500,paddingRight:10,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',color:'var(--text-1)'}}>
                 {epic.title}
               </div>
-              <div style={{flex:1,height:28,position:'relative',background:'var(--surface-1)',borderRadius:4,border:'1px solid #1a2640'}}>
+              <div style={{flex:1,height:28,position:'relative',background:'var(--surface-1)',borderRadius:4,border:'1px solid #1e2d45'}}>
                 <div style={{position:'absolute',left:`${left}%`,width:`${w}%`,height:'100%',background:epic.color||'var(--purple)',borderRadius:4,opacity:0.85,display:'flex',alignItems:'center',paddingLeft:8,overflow:'hidden',minWidth:4}}>
-                  {w>8&&<span style={{fontSize:11,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
+                  {w>8&&<span style={{fontSize: "var(--text-xs)",fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{epic.title}</span>}
                 </div>
                 {epic.progress>0&&(
                   <div style={{position:'absolute',left:`${left}%`,width:`${w*epic.progress/100}%`,height:'100%',background:'#fff',opacity:0.15,borderRadius:4}}/>
                 )}
               </div>
-              <div style={{width:50,flexShrink:0,textAlign:'right',fontSize:11,color:'var(--text-2)',paddingLeft:8}}>{epic.progress||0}%</div>
+              <div style={{width:50,flexShrink:0,textAlign:'right',fontSize: "var(--text-xs)",color:'var(--text-2)',paddingLeft:8}}>{epic.progress||0}%</div>
             </div>
           )
         })}
@@ -188,20 +189,20 @@ export default function EpicsPage() {
     critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
   }
 
-  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>api.get('/projects').then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
+  const { data:projects=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list().then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const { data:epics=[],isLoading } = useQuery({
     queryKey:['epics',project],
-    queryFn:()=>api.get(`epics?project_id=${project}`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>epicsApi.list(project).then(r=>r.data).catch(()=>[]),
     enabled:!!project,
   })
   const { data:roadmap } = useQuery({
     queryKey:['roadmap',project],
-    queryFn:()=>api.get(`roadmap?project_id=${project}`).then(r=>r.data).catch(()=>null),
+    queryFn:()=>epicsApi.roadmap(project).then(r=>r.data).catch(()=>null),
     enabled:!!project&&view==='roadmap',
   })
 
   const { mutate:deleteEpic } = useMutation({
-    mutationFn: id=>api.delete(`epics/${id}`),
+    mutationFn: id=>epicsApi.delete(id),
     onSuccess:()=>qc.invalidateQueries(['epics',project]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -209,12 +210,12 @@ export default function EpicsPage() {
   const roadmapEpics = roadmap?.epics || epics
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<Layers size={18} />} title={t('epics.title')} subtitle={t('epics.subtitle')}
         actions={project&&(
           <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>{t('epics.list_view')}</button>
-            <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>🗺 {t('epics.roadmap')}</button>
+            <button onClick={()=>setView('list')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='list'?'var(--accent-muted)':'transparent',color:view==='list'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>{t('epics.list_view')}</button>
+            <button onClick={()=>setView('roadmap')} style={{padding:'6px 14px',borderRadius:8,border:'1px solid var(--surface-4)',background:view==='roadmap'?'var(--accent-muted)':'transparent',color:view==='roadmap'?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>🗺 {t('epics.roadmap')}</button>
             <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.new_epic')}</Button>
           </div>
         )}/>
@@ -233,16 +234,16 @@ export default function EpicsPage() {
 
       {project&&!isLoading&&epics.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:48,marginBottom:16}}>🎯</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('epics.no_epics_desc')}</div>
+          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>🎯</div>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('epics.no_epics')}</div>
+          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('epics.no_epics_desc')}</div>
           <Button onClick={()=>{setEditEpic(null);setShowForm(true)}}>+ {t('epics.create_first')}</Button>
         </div>
       )}
 
       {project&&epics.length>0&&view==='roadmap'&&(
         <div style={ps}>
-          <div style={{fontSize:14,fontWeight:600,marginBottom:20}}>{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
+          <div style={{fontSize: "var(--text-md)",fontWeight:600,marginBottom:20}}>{t('epics.roadmap_title')} — {projects.find(p=>p.id===project)?.name}</div>
           <RoadmapView epics={roadmapEpics} t={t}/>
         </div>
       )}
@@ -255,8 +256,8 @@ export default function EpicsPage() {
               const cnt = epics.filter(e=>e.status===s).length
               return (
                 <div key={s} style={{...ps,padding:'14px 16px'}}>
-                  <div style={{fontSize:22,fontWeight:700,color:c.color}}>{cnt}</div>
-                  <div style={{fontSize:11,color:'var(--text-2)'}}>{c.label}</div>
+                  <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:c.color}}>{cnt}</div>
+                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{c.label}</div>
                 </div>
               )
             })}
@@ -275,12 +276,12 @@ export default function EpicsPage() {
                     <div style={{width:4,height:48,borderRadius:2,background:epic.color,flexShrink:0,marginTop:2}}/>
                     <div style={{flex:1}}>
                       <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
-                        <span style={{fontWeight:600,fontSize:14}}>{epic.title}</span>
-                        <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>
-                        <span style={{fontSize:11,color:pri.color}}>⬆ {pri.label}</span>
+                        <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{epic.title}</span>
+                        <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,background:st.bg,color:st.color}}>{st.label}</span>
+                        <span style={{fontSize: "var(--text-xs)",color:pri.color}}>⬆ {pri.label}</span>
                       </div>
-                      {epic.description&&<div style={{fontSize:13,color:'var(--text-2)',marginBottom:8}}>{epic.description}</div>}
-                      <div style={{display:'flex',alignItems:'center',gap:20,fontSize:12,color:'var(--text-2)'}}>
+                      {epic.description&&<div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:8}}>{epic.description}</div>}
+                      <div style={{display:'flex',alignItems:'center',gap:20,fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
                         {epic.start_date&&<span>📅 {epic.start_date} → {epic.end_date||t('epics.no_end_date')}</span>}
                         <span>📌 {epic.task_count||0} {t('epics.tasks_count')}</span>
                         {epic.task_count>0&&<span style={{color:'var(--success)'}}>{progress}% {t('epics.completed_label')}</span>}
@@ -293,9 +294,9 @@ export default function EpicsPage() {
                     </div>
                     <div style={{display:'flex',gap:6,flexShrink:0}}>
                       <button onClick={e=>{e.stopPropagation();setEditEpic(epic);setShowForm(true)}}
-                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>{t('common.edit')}</button>
+                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.edit')}</button>
                       <button onClick={e=>{e.stopPropagation();openConfirmGlobal({message:`${t('common.are_you_sure')} "${epic.title}"?`,onConfirm:()=>deleteEpic(epic.id),danger:true})}}
-                        style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>{t('common.delete')}</button>
+                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('common.delete')}</button>
                     </div>
                   </div>
                 </button>
@@ -309,6 +310,6 @@ export default function EpicsPage() {
         <EpicForm projectId={project} epic={editEpic}
           onClose={()=>{setShowForm(false);setEditEpic(null)}}/>
       )}
-    </div>
+    </PageShell>
   )
 }

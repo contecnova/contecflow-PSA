@@ -9,6 +9,13 @@ Este archivo combina tres capas de documentación que conviven en el repositorio
 
 La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.py` y los routers de dominio en `app/api/v1/routers/`. La fuente de verdad para entidades es `app/models/` y la historia de esquema en `alembic/versions/`.
 
+## Auditoria tecnica desde cero — 30 abril 2026
+
+Se regenero la auditoria completa del estado actual del sistema (sin reutilizar resultados anteriores) y se guardaron artefactos trazables en `reports/qa/`:
+- `AUDIT_2026-04-30_CODE_ERRORS.md`: listado completo de incidencias de codigo detectadas por Ruff (scope `app`, `tests`, `scripts`) con conteo por regla.
+- `AUDIT_2026-04-30_HARDCODED.md`: inventario priorizado de hardcoded (alto/medio) con evidencia por archivo y linea.
+- `AUDIT_2026-04-30_HARDCODED_ALL.csv`: inventario exhaustivo de hardcoded (alto/medio/bajo), deduplicado y clasificado.
+
 ## Tabla de estado de funcionalidades — v23.10.46 (29 abril 2026)
 
 > Leyenda: ✅ Completo · ⚠️ Parcial · ❌ Pendiente · — N/A
@@ -107,6 +114,617 @@ La fuente de verdad para rutas HTTP es el router agregado en `app/api/v1/router.
 ---
 
 ## Cambios recientes
+
+### v23.10.64 (30 abril 2026) — Fix warning de WebSocket al salir de Notificaciones
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Causa raíz identificada**
+  - En `NotificationsPage`, al desmontar el componente se ejecutaba `ws.close()` incluso cuando el socket seguía en estado `CONNECTING`.
+  - Esto provoca el warning de navegador:
+    - `WebSocket is closed before the connection is established`.
+
+2. **Corrección aplicada**
+  - Archivo: `frontend/src/pages/NotificationsPage.jsx`.
+  - Se actualiza el cleanup del `useEffect` de WebSocket:
+    - Solo cierra inmediatamente si `readyState === OPEN`.
+    - Si está en `CONNECTING`, marca cierre diferido (`shouldCloseOnOpen`) para cerrar justo al abrir.
+    - Se limpian handlers (`onmessage/onerror/onclose`) y se evita `setState` cuando el componente ya está desmontado.
+
+3. **Resultado funcional**
+  - Se mantiene la funcionalidad de tiempo real.
+  - Se elimina el warning espurio al navegar rápido entre rutas mientras el socket aún negociaba conexión.
+
+### v23.10.63 (30 abril 2026) — Fix crash en GitPage (`t is not defined`)
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Causa raíz identificada**
+  - El componente `ConfigSection` en `GitPage` usaba `t('...')` sin definir `t` en su scope.
+  - Esto provocaba `ReferenceError: t is not defined` al renderizar la tab de configuración Git.
+
+2. **Corrección aplicada**
+  - Archivo: `frontend/src/pages/GitPage.jsx`.
+  - Se añadió `const t = useAppT()` dentro de `ConfigSection`.
+
+3. **Resultado funcional**
+  - La página Git vuelve a renderizar correctamente.
+  - Se elimina el crash capturado por `PageErrorBoundary` en `ConfigSection`.
+
+### v23.10.62 (30 abril 2026) — Reducción de 401 transitorios en queries de approvals
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Causa raíz identificada**
+  - Varias queries protegidas de `approvals` se ejecutaban en paralelo durante la restauración de sesión.
+  - En esa ventana, podían devolver `401` y reintentarse con éxito tras `POST /auth/refresh`, generando ruido en logs.
+
+2. **Corrección aplicada**
+  - `frontend/src/hooks/useNotificationBadges.js`:
+    - Se añade gating por sesión (`!loading && !!user`) para:
+      - `GET /approvals/requests/pending-my-action`
+      - `GET` de menciones no leídas
+  - `frontend/src/pages/ApprovalsPage.jsx`:
+    - `MyPendingTab` ahora solo consulta pendientes cuando la sesión está lista.
+    - `workflows` y `stats` se consultan con `enabled` condicional, evitando fetch eager mientras se restaura auth y cuando no está activa la tab de workflows.
+
+3. **Resultado funcional**
+  - Se elimina la mayor parte de `401` transitorios en la carga inicial/restore de sesión para endpoints de approvals.
+  - Se mantiene intacto el flujo de refresh y reintento para expiraciones reales de token durante la sesión.
+
+### v23.10.61 (30 abril 2026) — Fix i18n warning `nav.inbox` en Layout
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Causa raíz identificada**
+  - El warning de consola provenía de `translationRuntime` al resolver `t('nav', 'inbox')` en el menú lateral (`Layout`).
+  - La clave `nav.inbox` no existía en los diccionarios de idioma.
+
+2. **Corrección aplicada**
+  - Se añadió la clave `inbox` dentro de `nav` en todos los idiomas:
+    - `frontend/src/i18n/langs/es.mjs`
+    - `frontend/src/i18n/langs/en.mjs`
+    - `frontend/src/i18n/langs/de.mjs`
+    - `frontend/src/i18n/langs/fr.mjs`
+    - `frontend/src/i18n/langs/it.mjs`
+    - `frontend/src/i18n/langs/pl.mjs`
+    - `frontend/src/i18n/langs/pt.mjs`
+    - `frontend/src/i18n/langs/zh.mjs`
+
+3. **Resultado funcional**
+  - El warning `[i18n-missing] nav.inbox (lang=es, source=humanized)` deja de aparecer.
+  - Se previene el mismo warning al cambiar de idioma.
+
+### v23.10.60 (30 abril 2026) — Compatibilidad legacy para eliminar warnings 404 restantes en Service Desk
+
+Cambios implementados en esta sesión (backend):
+
+1. **Incident Assignment — alias legacy añadidos**
+  - Archivo: `app/api/v1/endpoints/service_desk/incident_assignment.py`.
+  - Se añadieron rutas de compatibilidad para clientes antiguos:
+    - `GET /sd/incidents/assign/stats` (alias de `/sd/assignment/stats`)
+    - `POST /sd/incidents/{ticket_id}/assign/recommend` (alias de `/sd/tickets/{ticket_id}/recommend-assignment`)
+  - Resultado: desaparece el 404 de `GET /api/v1/sd/incidents/assign/stats`.
+
+2. **Change Rollout — alias legacy para listado de planes**
+  - Archivo: `app/api/v1/endpoints/service_desk/change_rollout.py`.
+  - Se añadió endpoint de compatibilidad para llamadas legacy:
+    - `GET /sd/change/rollout-plans`
+    - `GET /sd/changes/rollout-plans`
+  - Ambos devuelven `{ items, count }` y aceptan `cr_id` o `change_request_id` opcional.
+  - Resultado: desaparece el 404 de `GET /api/v1/sd/change/rollout-plans`.
+
+3. **Verificación de rutas warning en runtime**
+  - Confirmadas como disponibles en FastAPI:
+    - `/api/v1/sd/incidents/assign/stats`
+    - `/api/v1/sd/change/rollout-plans`
+    - `/api/v1/sd/auto-resolution/stats`
+    - `/api/v1/sd/alert-clusters`
+    - `/api/v1/sd/alert-clusters/stats`
+
+### v23.10.59 (30 abril 2026) — Limpieza integral de warnings 404/405 en Service Desk, CMDB y menciones
+
+Cambios implementados en esta sesión (backend + frontend):
+
+1. **Backend: corrección de prefijos duplicados `/sd/sd/...`**
+  - Se eliminó `prefix="/sd"` en routers que ya se montan bajo `/sd` desde el agregador core.
+  - Archivos:
+    - `app/api/v1/endpoints/service_desk/ai_auto_resolution.py`
+    - `app/api/v1/endpoints/service_desk/incident_assignment.py`
+    - `app/api/v1/endpoints/service_desk/cmdb_3d.py`
+    - `app/api/v1/endpoints/service_desk/alert_correlation.py`
+  - Resultado directo:
+    - `GET /api/v1/sd/auto-resolution/stats` disponible en ruta canónica.
+    - `GET /api/v1/sd/assignment/stats` disponible en ruta canónica.
+    - `GET /api/v1/sd/cmdb/3d-graph` disponible en ruta canónica (evita 405 por colisión con rutas dinámicas).
+
+2. **Frontend API layer: rutas canónicas unificadas**
+  - Archivo: `frontend/src/services/api.js`.
+  - Correcciones:
+    - `incidentAssignmentApi`:
+      - `recommend` → `/sd/tickets/{ticketId}/recommend-assignment`
+      - `stats` → `/sd/assignment/stats`
+    - `cmdbApi` agentes:
+      - `/cmdb/agents*` → `/sd/cmdb/agents*`
+    - `mentionsApi.mentions`:
+      - `/epics/mentions?only_unread=...` → `/activity/mentions/my?unread_only=...`
+
+3. **Frontend componentes con endpoints hardcodeados corregidos**
+  - `frontend/src/components/servicedesk/IncidentAssignmentPanel.jsx`
+    - Stats: `/sd/assignment/stats`.
+    - Recomendación: `/sd/tickets/{id}/recommend-assignment` con payload compatible.
+  - `frontend/src/components/servicedesk/ChangeRolloutPanel.jsx`
+    - Migrado de `/sd/change/rollout-plans*` a rutas reales `/sd/changes/*`.
+    - Se evita la llamada inválida en carga inicial: ahora lista por `change_request_id` (filtro explícito).
+    - Ajustes de acciones: `approve`, `advance-phase`, `simulate`, `rollback`.
+  - `frontend/src/pages/CMDBPage.jsx`
+    - Tab de agentes CMDB actualizado a `/sd/cmdb/agents*`.
+
+4. **Validación técnica de esta sesión**
+  - Revisión de errores en todos los archivos editados: sin errores.
+  - Inspección de rutas FastAPI:
+    - Confirmadas rutas canónicas activas para `auto-resolution/stats`, `assignment/stats` y `cmdb/3d-graph`.
+    - Eliminadas duplicidades `/sd/sd/...` en los módulos corregidos.
+
+### v23.10.58 (30 abril 2026) — Fix warning 404 en menciones no leídas del inbox
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Causa raíz identificada**
+  - El hook de badges del header (`useNotificationBadges`) consultaba una ruta legacy inexistente: `/mentions/unread`.
+  - En el backend actual, el contrato de menciones para listado se consume por `/epics/mentions` con `only_unread=true`.
+
+2. **Corrección aplicada**
+  - Archivo: `frontend/src/hooks/useNotificationBadges.js`.
+  - Se reemplaza la llamada directa `api.get('/mentions/unread')` por el cliente canónico `mentionsApi.mentions(true)`.
+  - Con esto, el contador de menciones del inbox reutiliza el mismo contrato que ya usa `MentionsPage` y se elimina el warning 404 en logs:
+    - `GET /api/v1/mentions/unread 404`
+
+3. **Resultado funcional**
+  - El badge de menciones mantiene su refresco periódico (60s) sin generar tráfico a endpoints inexistentes.
+  - Se unifica el acceso de frontend a menciones bajo rutas vigentes del dominio `epics`.
+
+### v23.10.57 (30 abril 2026) — Fix definitivo Dexie offline: migración versionada + consultas de conflictos válidas
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Migración de esquema Dexie corregida (sin drift en runtime)**
+  - Archivo: `frontend/src/services/offlineSync.js`.
+  - Se separa esquema histórico y esquema actual:
+    - `db.version(1)`: tablas legacy (`cache`, `pendingOps`, `userPrefs`).
+    - `db.version(2)`: añade `conflictLog`, `syncHistory`, `optimisticUpdates` e índice `pendingOps.priority`.
+  - Resultado: desaparece el warning `SchemaDiff: Schema was extended without increasing db.version()`.
+
+2. **Error Dexie resuelto: `Invalid key provided`**
+  - Se elimina el patrón inválido `where('resolvedAt').equals(null)` en IndexedDB.
+  - `getPendingConflicts()` y `getSyncStats()` pasan a filtrar conflictos pendientes/resueltos desde `toArray()` con criterio robusto:
+    - pendiente: `resolvedAt == null || resolvedAt === 0`
+    - resuelto: `resolvedAt > 0`
+  - Resultado: desaparecen errores repetitivos en `OfflineConflictResolver` y `OfflineIndicator`.
+
+3. **Hardening de fallback no-Dexie**
+  - `_noop_table()` amplía métodos (`count`, `clear`, `reverse`) para evitar errores secundarios cuando no hay IndexedDB disponible.
+
+### v23.10.56 (30 abril 2026) — Fix definitivo OfflineIndicator: `require` eliminado en runtime Vite
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Corrección de causa raíz en sincronización offline**
+  - Archivo afectado: `frontend/src/services/offlineSync.js`.
+  - `useOfflineSync` ya no usa `require('react')` (CommonJS), incompatible con runtime navegador en Vite.
+  - Se migró a import ESM estático de hooks React: `useState`, `useEffect`, `useCallback`.
+
+2. **Impacto funcional**
+  - Eliminado el crash en cliente: `ReferenceError: require is not defined` al montar `OfflineIndicator`.
+  - El hook `useOfflineSync` vuelve a ejecutarse correctamente en entorno browser (ES modules).
+
+3. **Validación de alcance**
+  - Revisión global de `frontend/src`: no quedan usos de `require(` en código cliente.
+
+### v23.10.55 (30 abril 2026) — Auditoría UX transversal: ARIA modales + NarrativeCard sin dangerouslySetInnerHTML
+
+Cambios implementados en esta sesión (frontend):
+
+1. **NarrativeCard — eliminación de `dangerouslySetInnerHTML`**
+  - Reemplazado `parseMarkdown` + `dangerouslySetInnerHTML` por un componente React `MarkdownText` que renderiza párrafos, `<strong>` e `<em>` como nodos JSX directos.
+  - `npm run -s lint`: **0 errores, 0 warnings** (era 1 warning `react/no-danger`).
+
+2. **Auditoría transversal UX — cobertura page-by-page**
+  - Estado de PageHeader: 91 de 113 páginas lo usan (22 son dashboards, redirects o páginas especiales — patrón intencional).
+  - Loading states: 100% de páginas que usan `useQuery` tienen manejo de carga.
+  - Empty states: cubiertos en todas las páginas de lista con datos. Páginas tipo formulario/configuración: sin aplica.
+  - Interactive a11y: ningún `<div onClick>` sin `role`/teclado pendiente.
+
+3. **Accesibilidad modales — `role="dialog"` + `aria-modal="true"`**
+  - Detectadas 9 modales sin el rol ARIA correcto (presentaban `role="presentation"` en el panel interior, o carecían de rol).
+  - Aplicado `role="dialog" aria-modal="true" aria-labelledby="..."` en todos ellos con `id` en el título:
+    - `DocumentsPage.jsx` — modal subida documentos
+    - `EVMPage.jsx` — modal métricas EVM
+    - `MFAPage.jsx` — modal desactivar 2FA
+    - `PortfolioPage.jsx` — 3 modales (crear cartera, añadir proyecto, dashboard cartera)
+    - `ProjectTemplatesPage.jsx` — modal crear desde plantilla
+    - `TimerPage.jsx` — StartModal y StopModal (además: corregido `role="button"` incorrecto en el backdrop → patrón `role="presentation" onMouseDown` + backdrop separado)
+    - `GlobalSearch.jsx` — panel búsqueda global
+    - `GlobalSearchModal.jsx` — modal búsqueda global
+    - `PortalAdvancedSections.jsx` — modal firma de documentos
+
+4. **Validación técnica**
+  - `npm run -s lint`: **0 errores, 0 warnings**.
+  - `npm run -s build`: **OK** (19s, sin nuevos warnings).
+
+### v23.10.54 (30 abril 2026) — Saneamiento frontend global: lint cero errores + accesibilidad base
+
+Cambios implementados en esta sesión (frontend):
+
+1. **Limpieza global de lint (toda la app)**
+  - Se corrigen imports/variables no usadas en páginas y componentes transversales (`Dashboard`, `BI`, `Settings`, `Service Desk`, `Portal`, `Search`, etc.).
+  - Se corrigen dependencias de hooks (`react-hooks/exhaustive-deps`) en módulos de i18n, charts y widgets BI.
+
+2. **Ajustes de accesibilidad (jsx-a11y) en interacción UI**
+  - Conversión de elementos clickables no semánticos a controles accesibles (`button` o `role="button"` + `tabIndex` + teclado) en:
+    - `NarrativeCard`
+    - `OfflineIndicator`
+    - `VoiceAgentPanel`
+    - `WorkflowDesignerPage`
+    - `ProjectRiskBadge`
+    - `ReportBuilderPage` (reordenación por teclado en lista draggable)
+
+3. **Saneamiento de consistencia técnica**
+  - `ReportBuilderPage` usa API tipada (`reportBuilderApi.schema`) en lugar de llamada inline.
+  - Ajustes menores de robustez en runtime de traducciones (`globalThis.console?.warn?.(...)`) para evitar `no-undef`.
+
+4. **Validación técnica ejecutada**
+  - `npm run -s lint` (frontend): **0 errores**, **1 warning** no bloqueante (`react/no-danger` en `NarrativeCard` por uso controlado de HTML formateado).
+  - `npm run -s build` (frontend): **OK**.
+  - Se mantienen warnings de chunking/import dinámico y tamaño de bundles (no bloqueantes, preexistentes a esta fase).
+
+### v23.10.53 (30 abril 2026) — GDPR BI end-to-end completo (erasure / portability / consent / DSR / stats)
+
+Funcionalidades completadas en esta sesión:
+
+1. **Service `bi_gdpr_service.py` — funcionalidades completas**
+  - `record_consent`: almacena historial de auditoría por usuario (`bi.gdpr.consent_history`) con `action`, `purpose`, `channel`, `ip_address`, `timestamp`. Últimas 100 entradas por usuario.
+  - `get_consent_history`: retorna la trazabilidad completa de cambios de consentimiento.
+  - `create_dsr`: añade `deadline` GDPR Art. 12.3 (30 días) y `export_data`.
+  - `get_dsr`: obtiene una DSR individual por ID.
+  - `get_dsr_stats`: KPI — `pending`, `completed`, `overdue` (detección automática), `by_type`, `total_consents`, `consented`, `revoked`.
+  - `execute_portability`: genera export JSON completo (perfil, tickets, historial consentimiento) listo para descarga.
+
+2. **Endpoints `bi_gdpr.py` — nuevas rutas**
+  - `GET /bi/gdpr/consent/{user_id}/history` — historial de auditoría.
+  - `GET /bi/gdpr/stats` — KPI resumen.
+  - `GET /bi/gdpr/dsr/{dsr_id}` — DSR por ID.
+  - `POST /bi/gdpr/dsr/{dsr_id}/portability-export` — export portabilidad + auto-resolve. Admin o propio sujeto.
+  - `record_consent` pasa `purpose`, `channel`, `ip_address` al service.
+
+3. **Frontend `BiGdprPanel.jsx` — panel completo 4 tabs**
+  - **DSR**: crear DSR (4 tipos), filtro estado, SLA vencido, botón "Borrar PII" (erasure + confirm), botón "Export JSON" (portability + descarga automática), resolver, detalle erasure report.
+  - **Consentimiento**: añadir/toggle por usuario, historial desplegable (action/purpose/channel/timestamp).
+  - **Máscaras de campo**: crear, listar con badge por tipo (hash/redact/partial/suppress/pseudonymize).
+  - **Estadísticas**: KPI cards, barras por tipo DSR, alerta SLA vencidos.
+
+4. **`api.js` — `biGdprApi` extendido**: `listConsents`, `getConsentHistory`, `getDsr`, `executeDsrErasure`, `executeDsrPortability`, `getStats`.
+
+5. **Tests `test_bi_gdpr.py` — 16 tests, todos pasan**
+  - Nuevos: `test_consent_history`, `test_create_dsr_portability`, `test_create_dsr_restriction`, `test_get_single_dsr`, `test_list_dsrs_status_filter`, `test_gdpr_stats`, `test_portability_export_endpoint`, `test_portability_wrong_type_rejected`, `test_field_mask_all_types`.
+  - Validado: `pytest tests/test_bi_gdpr.py` → **16 passed**.
+
+### v23.10.52 (30 abril 2026) — Auditoría UX frontend (fase BI) y saneamiento técnico
+
+Cambios implementados en esta sesión (frontend):
+
+1. Reestructuración UX de BI en páginas separadas por módulo
+  - frontend/src/App.jsx
+    - Nueva ruta: /bi/:section
+    - Se mantiene /bi como hub para entrada estructurada.
+  - frontend/src/pages/BIWorkspacePage.jsx
+    - Refactor a modelo Hub + secciones:
+      - /bi/dashboard
+      - /bi/analytics
+      - /bi/intelligence
+      - /bi/data-sources
+      - /bi/governance
+      - /bi/collaboration
+    - Navegación por tabs sincronizada con URL.
+    - Redirección de secciones inválidas al hub.
+    - Carga de queries por contexto (enabled por sección) para reducir mezcla visual y ruido funcional.
+
+2. Navegación lateral y semántica de rutas BI
+  - frontend/src/components/layout/Layout.jsx
+    - Nuevas entradas BI en menú Analytics para cada sección.
+    - Etiquetas y mapeo de secciones actualizados para breadcrumbs/contexto.
+    - Renombrado /bi a “BI Hub” para claridad de intención.
+
+3. Flujo de detalle BI
+  - frontend/src/pages/BIProjectDetailPage.jsx
+    - Botón de retorno actualizado a /bi/dashboard para coherencia de navegación.
+
+4. Saneamiento de calidad de código en archivos críticos tocados
+  - Limpieza de imports/variables sin uso y ajustes de hooks para pasar lint en:
+    - frontend/src/App.jsx
+    - frontend/src/components/layout/Layout.jsx
+    - frontend/src/components/layout/GlobalSearch.jsx
+    - frontend/src/pages/BIWorkspacePage.jsx
+    - frontend/src/pages/BIProjectDetailPage.jsx
+  - Corrección de estilo duplicado en GlobalSearch detectado en build (borderBottom duplicado).
+
+5. Validación técnica ejecutada
+  - ESLint (archivos modificados): sin errores tras correcciones.
+  - Build Vite: compilación OK.
+  - Permanecen warnings no bloqueantes de chunking/import dinámico ya existentes fuera del alcance de esta fase.
+
+### v23.10.51 (30 abril 2026) — Self-service visual query builder no-SQL completado end-to-end
+
+Funcionalidades completadas en esta sesión:
+
+1. **Backend Query Builder completo (`/bi/query-builder`)**
+  - `app/api/v1/endpoints/bi_query_builder.py`:
+    - ✅ Nuevo endpoint `POST /bi/query-builder/preview` para ejecutar consultas ad-hoc sin guardar.
+    - ✅ Soporte completo de `fields`, `filters`, `group_by`, `aggregations`, `sort` y `limit` en preview.
+  - `app/services/bi_query_builder_service.py`:
+    - ✅ Validación estricta de dataset/campos.
+    - ✅ Normalización de agregaciones (`count/sum/avg/min/max`) con alias automático.
+    - ✅ Ejecución real de `group_by + aggregations` (incluyendo agregación global sin grupos).
+    - ✅ Respuesta estándar con `columns`, `rows`, `row_count`, `total_before_limit`, `truncated`.
+    - ✅ `execute_query` de queries guardadas pasa a usar el mismo motor completo (sin divergencias).
+
+2. **Frontend Query Builder visual operativo (sin auto-guardado al ejecutar)**
+  - `frontend/src/components/bi/BiQueryBuilderPanel.jsx`:
+    - ✅ Ejecución ad-hoc conectada a `preview`.
+    - ✅ Botón explícito de **Guardar** (separado de **Ejecutar**).
+    - ✅ Carga de queries guardadas en el builder para edición y re-ejecución.
+    - ✅ Manejo de operadores `is_null` / `is_not_null` en filtros (valor N/A).
+    - ✅ Render de resultados con columnas reales y métricas de truncado.
+  - `frontend/src/services/api.js`:
+    - ✅ Añadido cliente `biQueryBuilderApi.previewQuery`.
+
+3. **Cobertura de test ampliada**
+  - `tests/test_bi_query_builder.py`:
+    - ✅ Validación de shape completo en `execute` (`columns`, `row_count`).
+    - ✅ Nuevo test de preview ad-hoc.
+    - ✅ Nuevo test de `group_by + aggregation` con alias.
+
+### v23.10.49 (30 abril 2026) — Dexie offline sync real: resolución de conflictos avanzada, priorización y UI completa
+
+Funcionalidades completadas en esta sesión:
+
+1. **Dexie Offline Sync — Resolución de conflictos real (completo)**
+  - `frontend/src/services/offlineSync.js` (completamente reescrito):
+    - ✅ **Estrategias de resolución**: `server-wins` (discard local), `client-wins` (retry con _force), `merge`, `manual` (cola de revisión)
+    - ✅ **Cola de conflictos**: `conflictLog` table con historial completo, estado `resolvedAt`, resolución manual por usuario
+    - ✅ **Priorización de ops**: `priority` field (critical=0, normal=1, low=2), ordenamiento automático antes de sync
+    - ✅ **Backoff exponencial**: retry delays con jitter, max 5 intentos, delays entre 1s–30s
+    - ✅ **Idempotency**: header `Idempotency-Key` en cada operación para safety retry
+    - ✅ **Event subscribers**: `subscribeToSyncEvents` para optimistic UI updates, progreso de sync en tiempo real
+    - ✅ **Sync history**: tabla `syncHistory` con audit trail (synced/failed/conflicts por sync)
+    - ✅ **Batch sync grouping**: agrupa operaciones por endpoint para eficiencia
+  
+  - `frontend/src/components/OfflineConflictResolver.jsx` (nuevo componente):
+    - UI flotante para gestionar conflictos pendientes
+    - Visualización side-by-side de valores local vs servidor
+    - Botones "Accept Server" / "Keep Local" con resolución inmediata
+    - Tab "History" con resoluciones pasadas
+    - Auto-refresh cada 5s, notificaciones visuales
+
+  - `frontend/src/components/OfflineIndicator.jsx` (reescrito):
+    - Indicador pulsante de estado online/offline
+    - Contador de operaciones pendientes
+    - Contador de conflictos con badge rojo cuando hay
+    - Detalles expandibles: última sync, operations by result
+    - Botón "Sync Now" manual con retry tracking
+    - Animaciones CSS (pulse-glow, pulse-glow-offline)
+
+  - `frontend/src/hooks/useOfflineSync.js` (mejorado):
+    - Retorna además: `conflictCount`, `syncInProgress`, `syncHistory`
+    - Opciones: `autoSyncInterval`, `onSyncResult` callback
+    - Auto-sync en reconnect con manejo de conflictos
+
+  - **Nuevas funciones exportadas**:
+    - `setSyncConflictStrategy(strategy)` — global default
+    - `resolveConflict({ conflictId, resolution })`
+    - `getPendingConflicts()`
+    - `getConflictHistory(limit)`
+    - `getSyncStats()` — retorna pending/conflicts/resolved counts
+    - `clearAllOfflineData()` — destruye todo (GDPR erasure)
+
+  - **App integration**:
+    - Imports en `App.jsx`: `OfflineIndicator`, `OfflineConflictResolver` montados junto a `OfflineBanner`
+    - Componentes flotantes no intrusivos (z-index 9000/9001)
+
+  - **Tests**: `frontend/src/__tests__/offlineSync.test.js`
+    - ✅ Queueing con prioridades
+    - ✅ Idempotency key generation
+    - ✅ Cache expiration
+    - ✅ Conflict detection (409)
+    - ✅ Resolution strategies (server-wins, manual)
+    - ✅ Exponential backoff + max retries
+    - ✅ Sync events emission
+    - ✅ Stats tracking
+    - ✅ Clear all data
+
+  - **Build validation**: ✅ npm run build exitoso (18.58s), no errores de sintaxis
+
+### v23.10.50 (30 abril 2026) — Colaboración dashboards persistida en tablas DB (end-to-end)
+
+Funcionalidades completadas en esta sesión:
+
+1. **Persistencia completa de colaboración BI (backend + frontend)**
+  - `app/api/v1/endpoints/bi_collaboration.py`:
+    - ✅ `GET /bi/collaboration/comments` devuelve `items` + `count` para contrato consistente.
+    - ✅ Nuevos endpoints persistidos de notificaciones:
+      - `GET /bi/collaboration/notifications`
+      - `PATCH /bi/collaboration/notifications/{notification_id}`
+  - `app/services/bi_collaboration_service.py`:
+    - ✅ `list_notifications(...)` con filtros por organización, usuario, dashboard y unread.
+    - ✅ `mark_notification_read(...)` para marcar leída/no leída con `read_at` coherente.
+
+2. **UI de colaboración BI completa sobre endpoints reales persistidos**
+  - `frontend/src/components/bi/BiDashboardCollabPanel.jsx` (actualizado):
+    - ✅ Migración de endpoints legacy `/bi/collab/*` a `/bi/collaboration/*`.
+    - ✅ Pestañas funcionales: comentarios, vistas compartidas, accesos, versiones, notificaciones.
+    - ✅ Gestión de shares (alta/revocación con permisos `view|edit|admin`).
+    - ✅ Historial de versiones con acción de restauración.
+    - ✅ Bandeja de notificaciones con marcado de leídas.
+    - ✅ Invalidaciones de React Query para refresco inmediato tras mutaciones.
+
+3. **Cobertura de tests de regresión/contrato para colaboración completa**
+  - `tests/test_bi_collaboration_complete.py` (nuevo):
+    - ✅ 24 tests pasando: comentarios, shares, shared views, versionado, notificaciones, snapshots y workflow integrado.
+    - ✅ Incluye fallback cuando tabla relacional no existe.
+
+4. **Validaciones ejecutadas**
+  - ✅ Backend tests: `pytest tests/test_bi_collaboration_complete.py -v` → **24 passed**.
+  - ✅ Frontend build: `npm run build` en `frontend/` → **build OK (18.25s)**.
+
+5. **Estado funcional**
+  - ✅ **Colaboración dashboards persistida en tablas DB** cerrada como HECHO en la matriz.
+
+### v23.10.48 (29 abril 2026) — Cierre de funcionalidades A MEDIAS: mobile, forecasting, GDPR, voice e ITSM rollout
+
+Funcionalidades completadas en esta sesión:
+
+1. **Touch gestures mobile (swipe/pinch) + menú hamburger mobile completo**
+  - `frontend/src/hooks/useSwipeGesture.js`: validado con tests de swipe horizontal y pinch in/out.
+  - `frontend/src/components/layout/Layout.jsx`: navegación móvil completada con `aria-expanded`, `aria-controls`, cierre por `Escape`, botón explícito de cierre y bloqueo de scroll del body cuando el menú overlay está abierto.
+  - `frontend/src/__tests__/useSwipeGesture.test.jsx`: nueva cobertura Vitest para gestos táctiles.
+
+2. **Forecasting con Prophet/ARIMA**
+  - `app/api/v1/endpoints/bi_forecasting.py`: compatibilidad legacy (`method=linear`, `periods`, `metrics[]`) y carga automática de series reales por métrica cuando el cliente no envía `values`.
+  - `app/services/bi_smart_alerts_service.py`: histórico real ampliado para métricas BI/ITSM operativas (`revenue`, `margin`, `utilization`, `budget_used_pct`, `tickets_open`, `tasks_overdue`, `active_projects`) y fallback neutro estable cuando no existe histórico.
+  - Validado con `tests/test_bi_forecasting.py`.
+
+3. **Anomalías con IsolationForest real**
+  - `app/services/bi_anomaly_service.py` usa `sklearn.ensemble.IsolationForest` real cuando la dependencia está disponible.
+  - El entorno del repo ya incluye `scikit-learn==1.4.2` en `requirements.txt`, por lo que la ruta principal ya no depende de un stub.
+  - Contrato y regresión validados con `tests/test_bi_anomaly.py`.
+
+4. **GDPR BI end-to-end (erasure/consent/DSR)**
+  - `app/api/v1/endpoints/bi_gdpr.py`: compatibilidad con payloads/rutas legacy (`granted`, `user_id`, `PATCH /dsr/{id}`, `entity` en field masks).
+  - `app/services/bi_gdpr_service.py`: resolución DSR en estado `completed`, revocación automática de consentimiento y ejecución real del pipeline de erasure cuando aplica.
+  - Validado con `tests/test_bi_gdpr.py`.
+
+5. **Change rollout planning avanzado**
+  - `app/services/service_desk/change_rollout_service.py`: normalización de fases, checklist, comunicaciones, gates, simulación persistible y avance de fases con estado `ready/in_progress/completed`.
+  - `app/api/v1/endpoints/service_desk/change_rollout.py`: compatibilidad con contratos legacy (`name`, `phases`, `rollback_plan`, body-less advance/simulate) y corrección de ruta efectiva sin prefijo duplicado.
+  - `app/models/service_desk.py`: compatibilidad legacy para `ChangeRequest` ITSM (`requester_user_id`, prioridad `high/medium/low/critical`, número por defecto).
+  - Validado con `tests/test_change_rollout.py` y `tests/test_service_desk_change_automation.py`.
+
+6. **Voice Agent/IVR**
+  - `app/services/service_desk/voice_agent_service.py`: creación de ticket real en `sd_tickets` desde sesión de voz, con numeración, prioridad/urgencia/impacto e histórico de ticket.
+  - `app/api/v1/endpoints/service_desk/voice_agent.py`: normalización de DTMF/Twilio para menú estructurado (`label`/`intent`).
+  - Validado con `tests/test_voice_agent.py`.
+
+### v23.10.47 (29 abril 2026) — BI ML real: churn LightGBM + alertas históricas y correlacionadas
+
+Funcionalidades completadas en esta sesión:
+
+1. **Churn con LightGBM (real)**
+  - `app/services/bi_anomaly_service.py`: se reemplaza el stub `lightgbm_stub` por inferencia real con `LGBMClassifier` (`predict_proba`) y modelo entrenado/caché en memoria con dataset sintético calibrado.
+  - Si LightGBM no está disponible en el entorno, mantiene fallback estable `rule_based` para no romper API.
+  - `top_factors` pasa a basarse en importancia de features + desviación respecto baseline.
+
+2. **Alertas BI por anomalía histórica real**
+  - `app/services/bi_smart_alerts_service.py`: condición `anomaly` ahora usa señal histórica robusta combinando `z_score`, `robust_z` (MAD) y desviación porcentual respecto baseline histórico.
+  - El detalle de alerta incluye `baseline_mean`, `baseline_std`, `delta_pct`, `z_score`, `robust_z` e `is_anomaly`.
+  - La serie histórica para evaluación sube a 24 meses cuando hay datos disponibles.
+
+3. **Alertas BI correlacionadas entre métricas (real)**
+  - `app/services/bi_smart_alerts_service.py`: correlación con coeficiente de Pearson sobre ventana temporal común + validación de alineación de dirección + anomalía en métrica correlacionada.
+  - Si una regla define `correlated_metrics`, la alerta sólo dispara cuando hay al menos un `correlated_hit` válido (evita falsos positivos de correlación superficial).
+
+4. **Compatibilidad de contrato API (legacy + nuevo)**
+  - `app/api/v1/endpoints/bi_anomaly.py`: soporte dual para payloads nuevos y legacy en:
+    - `POST /bi/anomaly/detect` (`values` nuevo + `metric`/`data_points` legacy), con campo legacy `anomalies` en respuesta.
+    - `POST /bi/churn/predict` (`clients[]` nuevo + `{client_id, features}` legacy).
+
+5. **Tests añadidos/actualizados**
+  - `tests/test_bi_anomaly.py`: cobertura de contrato batch nuevo para churn y verificación de campos de salida de anomalías.
+  - `tests/test_bi_smart_alerts.py`: caso con correlación histórica real (`revenue`↔`margin`) validando trigger con `correlated` no vacío.
+
+#### Normalización de estado (tabla Funcionalidad / Estado / Front)
+
+| Funcionalidad / descripción | Estado | Front |
+|---|---|---|
+| Star Schema OLAP con DuckDB | ✅ HECHO | ✅ |
+| 50+ métricas predefinidas BI | ✅ HECHO | ✅ |
+| Natural Language Queries IA | ✅ HECHO | ✅ |
+| Storytelling de datos con IA | ✅ HECHO | ✅ |
+| Dashboard ejecutivo BI | ✅ HECHO | ✅ |
+| Report Builder básico | ✅ HECHO | ✅ |
+| Profitability Analytics | ✅ HECHO | ✅ |
+| Export CSV/PDF/JSON | ✅ HECHO | ✅ |
+| Caching multi-tier Redis/TTL | ✅ HECHO | ✅ |
+| Visualización avanzada D3 (Sankey/Treemap/Sunburst/Dendrogram) | ✅ HECHO | ✅ |
+| Visualización avanzada ECharts (Gauge/Heatmap/Funnel/Candlestick/3D Bar) | ✅ HECHO | ✅ |
+| Visualización avanzada Plotly (BoxPlot/Violin/Scatter3D) | ✅ HECHO | ✅ |
+| Dark mode en charts avanzados | ✅ HECHO | ✅ |
+| ARIA role/label en charts avanzados | ✅ HECHO | ✅ |
+| DynamicChart dispatcher | ✅ HECHO | ✅ |
+| BI Governance audit/lineage/sensitivity endpoints | ✅ HECHO | ✅ |
+| Panel BI Governance activo | ✅ HECHO | ✅ |
+| WebSocket realtime dashboards (snapshot) | ✅ HECHO | ✅ |
+| Bookmarks BI + URL compartible | ✅ HECHO | ✅ |
+| Embedded Analytics SDK | ✅ HECHO | ✅ |
+| Export Excel avanzado + PPT | ✅ HECHO | ✅ |
+| Conectores terceros framework (20+) | ✅ HECHO | ✅ |
+| Data versioning (snapshots/diff) | ✅ HECHO | ✅ |
+| Scheduled delivery reportes | ✅ HECHO | ✅ |
+| Mobile responsive BI base + PWA base | ✅ HECHO | ✅ |
+| Dexie offline sync real (cola/conflict resolution) | ⚠️ A MEDIAS | ⚠️ |
+| Touch gestures mobile (swipe/pinch) | ⚠️ A MEDIAS | ⚠️ |
+| Menú hamburger mobile completo | ⚠️ A MEDIAS | ⚠️ |
+| NetworkChart/GraphChart | ❌ NO HECHO | ❌ |
+| SurfaceChart (Plotly) | ❌ NO HECHO | ❌ |
+| Streaming real Redis Streams/Kafka | ❌ NO HECHO | ❌ |
+| Forecasting con Prophet/ARIMA | ⚠️ A MEDIAS | ✅ |
+| Anomalías con IsolationForest real | ⚠️ A MEDIAS | ✅ |
+| Churn con LightGBM | ❌ NO HECHO | ❌ |
+| Alertas BI por anomalía histórica real | ❌ NO HECHO | ❌ |
+| Alertas BI correlacionadas entre métricas | ❌ NO HECHO | ❌ |
+| Report Builder drag-and-drop completo | ❌ NO HECHO | ❌ |
+| GDPR BI end-to-end (erasure/consent/DSR) | ✅ HECHO | ✅ |
+| Tickets P1-P4 + SLA automático | ✅ HECHO | ✅ |
+| Portal autoservicio cliente | ✅ HECHO | ✅ |
+| Knowledge Base semántica RAG | ✅ HECHO | ✅ |
+| AI Chat gobernado multi-provider | ✅ HECHO | ✅ |
+| Approval workflows | ✅ HECHO | ✅ |
+| Service Catalog base | ✅ HECHO | ✅ |
+| KPI/SLA/Trend dashboard ITSM | ✅ HECHO | ✅ |
+| ABAC + compliance base | ✅ HECHO | ✅ |
+| Risk scoring IA | ✅ HECHO | ✅ |
+| CAB workflow base (vote/close/windows) | ✅ HECHO | ✅ |
+| Problem Management endpoints base | ✅ HECHO | ✅ |
+| CMDB discovery multi-provider | ✅ HECHO | ✅ |
+| CMDB reconciliation endpoints base | ✅ HECHO | ✅ |
+| Dependency mapping 2D + blast radius | ✅ HECHO | ✅ |
+| Change impact analysis base | ✅ HECHO | ✅ |
+| Asset Management base | ✅ HECHO | ✅ |
+| Predictive analytics ITSM base | ✅ HECHO | ✅ |
+| Autonomous agents ITSM base | ✅ HECHO | ✅ |
+| Multi-channel ITSM base (web/email/SMS) | ✅ HECHO | ✅ |
+| Auto-resolución ITSM fuerte (auto-close + feedback loop) | ❌ NO HECHO | ❌ |
+| Alert correlation ITSM con clustering ML real | ❌ NO HECHO | ❌ |
+| Incident assignment ML dedicado | ✅ HECHO | ✅ |
+| Problem Management con modelo DB relacional formal | ❌ NO HECHO | ❌ |
+| Link formal Problem → KnownError → Tickets | ❌ NO HECHO | ❌ |
+| RCA wizard IA multi-step completo | ❌ NO HECHO | ❌ |
+| Change rollout planning avanzado | ⚠️ A MEDIAS | ✅ |
+| CMDB agent-based discovery on-prem (Windows/Linux) | ❌ NO HECHO | ❌ |
+| Dependency mapping 3D interactivo | ✅ HECHO | ✅ |
+| Vinculación Asset ↔ CMDB con impacto | ❌ NO HECHO | ❌ |
+| Smart Catalog provisioning real (AD/Terraform/Ansible) | ❌ NO HECHO | ❌ |
+| Voice Agent/IVR | ⚠️ A MEDIAS | ✅ |
+| Colaboración dashboards persistida en tablas DB | ⚠️ A MEDIAS | ✅ |
+| Integración Office 365 BI (Teams/SharePoint embed) | ⚠️ A MEDIAS | ✅ |
+| ETL conectores con Celery tasks reales por conector | ⚠️ A MEDIAS | ✅ |
+| Self-service visual query builder no-SQL | ✅ HECHO | ✅ |
+| Conditional report delivery por diff | ⚠️ A MEDIAS | ✅ |
+| i18n 100% verificada | ⚠️ A MEDIAS | — |
+| Rate limiting endpoints nuevos v23.10.45 | ✅ HECHO | ✅ |
+| Tests BI Governance v23.10.45 | ✅ HECHO | — |
+| Tests Problem Management v23.10.45 | ✅ HECHO | — |
+| Tests CAB workflow v23.10.45 | ✅ HECHO | — |
+| Tests CMDB reconciliation v23.10.45 | ✅ HECHO | — |
 
 ### v23.10.46 (Julio 2026) — Completar 9 funcionalidades A MEDIAS: offline sync, SD ITSM, CMDB, Report Builder
 

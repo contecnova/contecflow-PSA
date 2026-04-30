@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, risksApi } from '../services/api'
-import { Spinner, LoadBar, Badge } from '../components/ui'
+import { Spinner, LoadBar } from '../components/ui'
 import { fmtDate, fmtCurrency, TYPE_LABELS } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { ChevronLeft, FolderOpen, Users, CheckSquare, AlertTriangle, BarChart2, ExternalLink, Edit2, X, Check } from 'lucide-react'
@@ -31,8 +31,8 @@ function MetaItem({ label, value }) {
   if (!value) return null
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{value}</div>
+      <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', fontWeight: 500 }}>{value}</div>
     </div>
   )
 }
@@ -45,9 +45,9 @@ function OverviewTab({ project }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Progress */}
       <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
           <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>Progreso del proyecto</span>
-          <span style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'monospace' }}>{(project.progress_pct ?? 0).toFixed(0)}%</span>
+          <span style={{ color: 'var(--accent)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{(project.progress_pct ?? 0).toFixed(0)}%</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
       </div>
@@ -69,12 +69,12 @@ function OverviewTab({ project }) {
       {/* Budget bar */}
       {project.budget_amount && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: "var(--text-base)" }}>
             <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>Ejecución de presupuesto</span>
-            <span style={{ color: budgetColor, fontWeight: 700, fontFamily: 'monospace' }}>{budgetPct.toFixed(0)}%</span>
+            <span style={{ color: budgetColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{budgetPct.toFixed(0)}%</span>
           </div>
           <LoadBar value={Math.min(budgetPct, 100)} color={budgetColor} />
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)' }}>
+          <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
             Total: {fmtCurrency(project.budget_amount)}
           </div>
         </div>
@@ -83,8 +83,8 @@ function OverviewTab({ project }) {
       {/* Description */}
       {project.description && (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Descripción</div>
-          <p style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.7, margin: 0 }}>{project.description}</p>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Descripción</div>
+          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.7, margin: 0 }}>{project.description}</p>
         </div>
       )}
 
@@ -98,7 +98,7 @@ function OverviewTab({ project }) {
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 14px', background: 'var(--surface-3)',
             border: '1px solid var(--surface-4)', borderRadius: 8,
-            color: 'var(--text-2)', textDecoration: 'none', fontSize: 12, fontWeight: 600,
+            color: 'var(--text-2)', textDecoration: 'none', fontSize: "var(--text-sm)", fontWeight: 600,
             transition: 'all 0.1s',
           }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
@@ -128,9 +128,9 @@ function TasksTab({ projectId }) {
 
   if (tasks.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin tareas en este proyecto</div>
-      <Link to={`/tasks?project_id=${projectId}`} style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📋</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin tareas en este proyecto</div>
+      <Link to={`/tasks?project_id=${projectId}`} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
         + Crear primera tarea →
       </Link>
     </div>
@@ -141,7 +141,7 @@ function TasksTab({ projectId }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-3)', paddingBottom: 4 }}>
+      <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', paddingBottom: 4 }}>
         <span>Total: <b style={{ color: 'var(--text-1)' }}>{tasks.length}</b></span>
         <span>Abiertas: <b style={{ color: 'var(--accent)' }}>{open.length}</b></span>
         <span>Completadas: <b style={{ color: 'var(--success)' }}>{done.length}</b></span>
@@ -157,18 +157,18 @@ function TasksTab({ projectId }) {
             background: STATUS_COLOR[task.status] || 'var(--text-3)',
           }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {task.title}
             </div>
             {task.assignee_name && (
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>→ {task.assignee_name}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>→ {task.assignee_name}</div>
             )}
           </div>
           {task.due_date && (
-            <span style={{ fontSize: 11, color: 'var(--text-3)', flexShrink: 0 }}>{fmtDate(task.due_date)}</span>
+            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', flexShrink: 0 }}>{fmtDate(task.due_date)}</span>
           )}
           <span style={{
-            fontSize: 10, padding: '2px 7px', borderRadius: 4, flexShrink: 0,
+            fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, flexShrink: 0,
             background: `${STATUS_COLOR[task.status] || 'var(--text-3)'}18`,
             color: STATUS_COLOR[task.status] || 'var(--text-3)', fontWeight: 700,
             textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -194,9 +194,9 @@ function TeamTab({ projectId }) {
 
   if (members.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>👥</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin miembros asignados</div>
-      <Link to="/resources" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>👥</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin miembros asignados</div>
+      <Link to="/resources" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
         Gestionar recursos →
       </Link>
     </div>
@@ -214,18 +214,18 @@ function TeamTab({ projectId }) {
             width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
             background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, color: 'var(--accent)',
+            fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)',
           }}>
             {(m.full_name || m.name || '?').charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{m.full_name || m.name || '—'}</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{m.full_name || m.name || '—'}</div>
             {(m.role || m.project_role) && (
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>{m.role || m.project_role}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{m.role || m.project_role}</div>
             )}
           </div>
           {m.allocation_pct != null && (
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', fontFamily: 'monospace' }}>
+            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
               {m.allocation_pct}%
             </span>
           )}
@@ -248,9 +248,9 @@ function RisksTab({ projectId }) {
 
   if (risks.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin riesgos registrados</div>
-      <Link to="/risks" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
+      <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>✅</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Sin riesgos registrados</div>
+      <Link to="/risks" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}>
         Ver gestión de riesgos →
       </Link>
     </div>
@@ -270,21 +270,21 @@ function RisksTab({ projectId }) {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
                   {risk.title || risk.description}
                 </div>
                 {risk.description && risk.title && (
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{risk.description}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{risk.description}</div>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 {(risk.impact || risk.severity) && (
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: `${impColor}18`, color: impColor, fontWeight: 700, textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: `${impColor}18`, color: impColor, fontWeight: 700, textTransform: 'uppercase' }}>
                     {risk.impact || risk.severity}
                   </span>
                 )}
                 {risk.status && (
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase' }}>
                     {risk.status}
                   </span>
                 )}
@@ -310,9 +310,9 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
     width: '100%', boxSizing: 'border-box',
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)',
-    fontSize: 13, outline: 'none', fontFamily: 'inherit',
+    fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
   }
-  const labelStyle = { fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
+  const labelStyle = { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
@@ -351,10 +351,10 @@ function EditProjectForm({ project, onSave, onCancel, isPending }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 18px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: isPending || !form.name.trim() ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit', opacity: !form.name.trim() ? 0.5 : 1 }}>
           <Check size={13} />{isPending ? 'Guardando…' : 'Guardar cambios'}
         </button>
-        <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={onCancel} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 8, background: 'transparent', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           <X size={13} /> Cancelar
         </button>
       </div>
@@ -395,7 +395,7 @@ export default function ProjectDetailPage() {
 
   if (!project) return (
     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+      <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🔍</div>
       <div>Proyecto no encontrado</div>
     </div>
   )
@@ -405,18 +405,22 @@ export default function ProjectDetailPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {/* Header */}
+      {/* Header — sticky para mantener contexto al scroll */}
       <div style={{
         padding: '16px 28px 0',
         background: 'var(--surface-1)',
         borderBottom: '1px solid var(--surface-4)',
         flexShrink: 0,
+        position: 'sticky',
+        top: 0,
+        zIndex: 'var(--z-sticky)',
+        boxShadow: '0 1px 0 var(--surface-4), 0 8px 16px -8px rgba(0,0,0,0.5)',
       }}>
         {/* Back + code */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <button onClick={() => navigate('/projects')} style={{
             background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
-            display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontFamily: 'inherit', padding: 0,
+            display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", fontFamily: 'inherit', padding: 0,
           }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
@@ -426,7 +430,7 @@ export default function ProjectDetailPage() {
           {project.code && (
             <>
               <span style={{ color: 'var(--text-4)' }}>/</span>
-              <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{project.code}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{project.code}</span>
             </>
           )}
         </div>
@@ -434,10 +438,10 @@ export default function ProjectDetailPage() {
         {/* Title row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-1)', margin: '0 0 6px' }}>{project.name}</h1>
+            <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--text-1)', margin: '0 0 6px' }}>{project.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{
-                fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                 background: `${statusCfg.color}18`, border: `1px solid ${statusCfg.color}40`,
                 color: statusCfg.color, textTransform: 'uppercase', letterSpacing: '0.06em',
               }}>
@@ -445,7 +449,7 @@ export default function ProjectDetailPage() {
               </span>
               {project.risk_level && (
                 <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                  fontSize: "var(--text-xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                   background: `${riskColor}15`, border: `1px solid ${riskColor}35`,
                   color: riskColor, textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>
@@ -453,10 +457,10 @@ export default function ProjectDetailPage() {
                 </span>
               )}
               {project.pm_name && (
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>PM: {project.pm_name}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>PM: {project.pm_name}</span>
               )}
               {project.client_name && (
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>· {project.client_name}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>· {project.client_name}</span>
               )}
             </div>
           </div>
@@ -466,7 +470,7 @@ export default function ProjectDetailPage() {
                 display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
                 background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                 borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer',
-                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.1s',
+                fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.1s',
               }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
@@ -478,7 +482,7 @@ export default function ProjectDetailPage() {
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
               borderRadius: 8, color: 'var(--text-2)', textDecoration: 'none',
-              fontSize: 12, fontWeight: 600, transition: 'all 0.1s',
+              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
             }}>
               <CheckSquare size={12} /> Tareas
             </Link>
@@ -486,7 +490,7 @@ export default function ProjectDetailPage() {
               display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
               background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
               borderRadius: 8, color: 'var(--accent)', textDecoration: 'none',
-              fontSize: 12, fontWeight: 600, transition: 'all 0.1s',
+              fontSize: "var(--text-sm)", fontWeight: 600, transition: 'all 0.1s',
             }}>
               <BarChart2 size={12} /> Gantt
             </Link>
@@ -506,7 +510,7 @@ export default function ProjectDetailPage() {
                 marginBottom: -1,
                 background: 'transparent',
                 color: tab === tid ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: 13, fontWeight: tab === tid ? 700 : 500,
+                fontSize: "var(--text-base)", fontWeight: tab === tid ? 700 : 500,
                 fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'color 0.1s',
               }}
               onMouseEnter={e => { if (tab !== tid) e.currentTarget.style.color = 'var(--text-1)' }}

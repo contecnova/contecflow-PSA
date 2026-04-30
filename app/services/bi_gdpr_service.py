@@ -2,10 +2,15 @@
 bi_gdpr_service.py — GDPR compliance for BI data.
 
 Handles:
-  - Data erasure requests (DSR delete) — anonymises personal data in DB + analytics snapshots
+  - Data erasure requests (DSR) — anonymises personal data in DB + analytics snapshots
+  - Portability requests (DSR) — exports all data for a subject as JSON
+  - Rectification requests (DSR) — marks for manual data correction
+  - Restriction requests (DSR) — marks processing restriction
   - Consent management — track which users have consented to BI analytics collection
+    with full audit history per user
   - DSR (Data Subject Request) status tracking
   - Field-level data masking metadata
+  - Dashboard stats (pending DSRs, total consents, SLA breach detection)
 
 State persisted in AppSetting JSON, scoped by organization.
 Erasure operations act on real DB rows (Ticket.requester_*, User fields).
@@ -23,8 +28,12 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 
 _KEY_CONSENT = "bi.gdpr.consent"
+_KEY_CONSENT_HISTORY = "bi.gdpr.consent_history"
 _KEY_DSR = "bi.gdpr.dsr"
 _KEY_MASKS = "bi.gdpr.field_masks"
+
+# GDPR SLA: 30 days (in seconds) per GDPR Art. 12.3
+_DSR_SLA_DAYS = 30
 
 
 def _iso_now() -> str:
@@ -58,16 +67,45 @@ def _set_setting(db: Session, key: str, org_id: Optional[str], value: Any) -> No
 
 # ── Consent management ────────────────────────────────────────────────────────
 
-def record_consent(db: Session, *, user_id: str, consented: bool, org_id: Optional[str]) -> dict:
-    """Record or revoke BI analytics consent for a user."""
-    consents: dict = _get_setting(db, _KEY_CONSENT, org_id, {})
-    consents[user_id] = {
+def record_consent(
+    db: Session,
+    *,
+    user_id: str,
+    consented: bool,
+    org_id: Optional[str],
+    purpose: str = "analytics",
+    channel: str = "web",
+    ip_address: Optional[str] = None,
+) -> dict:
+    """Record or revoke BI analytics consent for a user. Appends to audit history."""
+    now = _iso_now()
+    entry = {
         "user_id": user_id,
         "consented": consented,
-        "updated_at": _iso_now(),
+        "granted": consented,
+        "purpose": purpose,
+        "channel": channel,
+        "updated_at": now,
     }
+    consents: dict = _get_setting(db, _KEY_CONSENT, org_id, {})
+    consents[user_id] = entry
     _set_setting(db, _KEY_CONSENT, org_id, consents)
-    return consents[user_id]
+
+    # Append to per-user audit history
+    history: dict = _get_setting(db, _KEY_CONSENT_HISTORY, org_id, {})
+    user_hist: list = history.get(user_id, [])
+    user_hist.append({
+        "action": "granted" if consented else "revoked",
+        "purpose": purpose,
+        "channel": channel,
+        "ip_address": ip_address,
+        "timestamp": now,
+    })
+    # Keep last 100 history entries per user
+    history[user_id] = user_hist[-100:]
+    _set_setting(db, _KEY_CONSENT_HISTORY, org_id, history)
+
+    return entry
 
 
 def get_consent(db: Session, *, user_id: str, org_id: Optional[str]) -> Optional[dict]:
@@ -77,6 +115,12 @@ def get_consent(db: Session, *, user_id: str, org_id: Optional[str]) -> Optional
 
 def list_consents(db: Session, *, org_id: Optional[str]) -> list[dict]:
     return list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
+
+
+def get_consent_history(db: Session, *, user_id: str, org_id: Optional[str]) -> list[dict]:
+    """Return the full audit trail of consent changes for a user."""
+    history = _get_setting(db, _KEY_CONSENT_HISTORY, org_id, {})
+    return list(reversed(history.get(user_id, [])))
 
 
 # ── DSR (Data Subject Requests) ───────────────────────────────────────────────
@@ -91,9 +135,12 @@ def create_dsr(
     notes: Optional[str] = None,
 ) -> dict:
     """
-    Create a new DSR (erasure, portability, rectification).
-    request_type: erasure | portability | rectification | restriction
+    Create a new DSR (erasure, portability, rectification, restriction).
+    Adds SLA deadline (30 days) per GDPR Art. 12.3.
     """
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    deadline = (now + timedelta(days=_DSR_SLA_DAYS)).isoformat()
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     dsr_id = str(uuid.uuid4())
     entry = {
@@ -103,9 +150,11 @@ def create_dsr(
         "status": "pending",
         "requester_user_id": requester_user_id,
         "notes": notes,
-        "created_at": _iso_now(),
+        "created_at": now.isoformat(),
+        "deadline": deadline,
         "resolved_at": None,
         "resolution_notes": None,
+        "export_data": None,
     }
     dsrs[dsr_id] = entry
     _set_setting(db, _KEY_DSR, org_id, dsrs)
@@ -118,18 +167,23 @@ def resolve_dsr(
     dsr_id: str,
     org_id: Optional[str],
     resolution_notes: Optional[str] = None,
+    execute_erasure_pipeline: bool = False,
 ) -> dict:
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     if dsr_id not in dsrs:
         raise ValueError(f"DSR '{dsr_id}' not found")
-    dsrs[dsr_id]["status"] = "resolved"
+    dsrs[dsr_id]["status"] = "completed"
     dsrs[dsr_id]["resolved_at"] = _iso_now()
     dsrs[dsr_id]["resolution_notes"] = resolution_notes
     _set_setting(db, _KEY_DSR, org_id, dsrs)
 
-    # If erasure: revoke consent automatically
+    # If erasure: revoke consent automatically and optionally execute anonymization.
     if dsrs[dsr_id]["request_type"] == "erasure":
         record_consent(db, user_id=dsrs[dsr_id]["subject_id"], consented=False, org_id=org_id)
+        if execute_erasure_pipeline:
+            report = execute_erasure(db, subject_id=dsrs[dsr_id]["subject_id"], org_id=org_id)
+            dsrs[dsr_id]["erasure_report"] = report
+            _set_setting(db, _KEY_DSR, org_id, dsrs)
 
     return dsrs[dsr_id]
 
@@ -139,6 +193,120 @@ def list_dsrs(db: Session, *, org_id: Optional[str], status: Optional[str] = Non
     if status:
         dsrs = [d for d in dsrs if d["status"] == status]
     return sorted(dsrs, key=lambda d: d["created_at"], reverse=True)
+
+
+def get_dsr_stats(db: Session, *, org_id: Optional[str]) -> dict:
+    """Return dashboard summary: pending count, overdue DSRs, consent totals."""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    dsrs = list(_get_setting(db, _KEY_DSR, org_id, {}).values())
+    pending = [d for d in dsrs if d["status"] == "pending"]
+    completed = [d for d in dsrs if d["status"] == "completed"]
+    # SLA breach: pending DSRs past deadline (30 days)
+    overdue = []
+    for d in pending:
+        deadline_str = d.get("deadline")
+        created_str = d.get("created_at", "")
+        try:
+            if deadline_str:
+                dl = datetime.fromisoformat(deadline_str)
+            else:
+                dl = datetime.fromisoformat(created_str) + timedelta(days=_DSR_SLA_DAYS)
+            if dl.tzinfo is None:
+                dl = dl.replace(tzinfo=timezone.utc)
+            if now > dl:
+                overdue.append(d)
+        except Exception:
+            pass
+    consents = list(_get_setting(db, _KEY_CONSENT, org_id, {}).values())
+    consented_count = sum(1 for c in consents if c.get("consented"))
+    by_type: dict[str, int] = {}
+    for d in dsrs:
+        by_type[d["request_type"]] = by_type.get(d["request_type"], 0) + 1
+    return {
+        "total_dsrs": len(dsrs),
+        "pending": len(pending),
+        "completed": len(completed),
+        "overdue": len(overdue),
+        "overdue_ids": [d["id"] for d in overdue],
+        "by_type": by_type,
+        "total_consents": len(consents),
+        "consented": consented_count,
+        "revoked": len(consents) - consented_count,
+    }
+
+
+def get_dsr(db: Session, *, dsr_id: str, org_id: Optional[str]) -> Optional[dict]:
+    dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
+    return dsrs.get(dsr_id)
+
+
+def execute_portability(db: Session, *, subject_id: str, org_id: Optional[str]) -> dict:
+    """
+    Generate a portable data export (JSON) for *subject_id* covering:
+      - User profile fields
+      - Tickets as requester
+      - Consent history
+
+    Returns an export package dict suitable for download.
+    Does NOT delete any data.
+    """
+    from app.models.user import User
+    from app.models.service_desk import Ticket
+
+    export: dict[str, Any] = {
+        "export_type": "portability",
+        "subject_id": subject_id,
+        "generated_at": _iso_now(),
+        "data": {},
+    }
+
+    # ── User profile ──────────────────────────────────────────────────────────
+    user_q = db.query(User)
+    if "@" in subject_id:
+        user = user_q.filter(User.email == subject_id).first()
+    else:
+        user = user_q.filter(User.id == subject_id).first()
+
+    if user:
+        export["data"]["profile"] = {
+            "id": user.id,
+            "email": user.email,
+            "username": getattr(user, "username", None),
+            "full_name": getattr(user, "full_name", None),
+            "first_name": getattr(user, "first_name", None),
+            "last_name": getattr(user, "last_name", None),
+            "role": getattr(user, "role", None),
+            "created_at": str(getattr(user, "created_at", "")),
+        }
+        user_id_for_query = user.id
+    else:
+        export["data"]["profile"] = None
+        user_id_for_query = subject_id
+
+    # ── Tickets ───────────────────────────────────────────────────────────────
+    tickets = db.query(Ticket).filter(
+        (Ticket.requester_user_id == user_id_for_query) |
+        (Ticket.requester_email == subject_id)
+    ).all()
+    export["data"]["tickets"] = [
+        {
+            "id": t.id,
+            "number": getattr(t, "number", None),
+            "title": getattr(t, "title", None),
+            "status": str(getattr(t, "status", "")),
+            "created_at": str(getattr(t, "created_at", "")),
+        }
+        for t in tickets
+    ]
+
+    # ── Consent history ───────────────────────────────────────────────────────
+    export["data"]["consent_history"] = get_consent_history(db, user_id=subject_id, org_id=org_id)
+
+    # ── Current consent ───────────────────────────────────────────────────────
+    export["data"]["current_consent"] = get_consent(db, user_id=subject_id, org_id=org_id)
+
+    return export
 
 
 # ── Field masking metadata ────────────────────────────────────────────────────

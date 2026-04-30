@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Shield } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
@@ -66,7 +67,7 @@ export default function GovernancePage() {
   const defaultProv = providers.find(p => p.is_default)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Shield size={18} />} title={t('governance.title')} subtitle={t('governance.subtitle')} />
 
       {/* KPIs */}
@@ -78,9 +79,9 @@ export default function GovernancePage() {
           { icon: '⚙️',  label: t('governance.kpi_active_provider'), value: defaultProv?.name || t('governance.kpi_not_configured'), color: defaultProv ? 'var(--success)' : 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: k.color, marginBottom: 2 }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
+            <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, marginBottom: 2 }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -93,7 +94,7 @@ export default function GovernancePage() {
           ['audit', `📋 ${t('governance.tab_audit')}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -110,14 +111,14 @@ export default function GovernancePage() {
               <div key={key} style={{ ...card, padding: '16px 18px', opacity: isEnabled ? 1 : 0.6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                    <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{t(meta.labelKey)}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{t(meta.labelKey)}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, lineHeight: 1.4 }}>{t(meta.descKey)}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, marginLeft: 10 }}>
-                    {usage && <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{usage.calls || 0} calls</span>}
+                    {usage && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{usage.calls || 0} calls</span>}
                     <button onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
                       style={{ width: 44, height: 24, borderRadius: 12, background: isEnabled ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${isEnabled ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                       <div style={{ width: 18, height: 18, borderRadius: 9, background: isEnabled ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: isEnabled ? 22 : 2, transition: 'all 0.2s' }} />
@@ -135,30 +136,30 @@ export default function GovernancePage() {
         <div>
           {chartData.length === 0 ? (
             <div style={{ ...card, padding: 48, textAlign: 'center', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📊</div>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📊</div>
               <div>{t('governance.no_usage_data')}</div>
             </div>
           ) : (
             <>
               <div style={{ ...card, padding: '20px 24px', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>{t('governance.calls_by_module')}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>{t('governance.calls_by_module')}</div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={chartData} margin={{ left: -10 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
-                    <Bar dataKey="calls" name="Llamadas" fill="#00d4ff" radius={[4, 4, 0, 0]}>
+                    <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
+                    <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
+                    <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
+                    <Bar dataKey="calls" name="Llamadas" fill="#4f8ef7" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => <Cell key={i} fill={['var(--accent)','var(--success)','var(--warning)','var(--purple)','var(--warning)','var(--danger)'][i % 6]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div style={{ ...card, overflow: 'hidden' }}>
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
                   <span>{t('governance.col_module')}</span><span>{t('governance.col_calls')}</span><span>{t('governance.col_tokens')}</span>
                 </div>
                 {chartData.map((r, i) => (
-                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: 13 }}>
+                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 16, fontSize: "var(--text-base)" }}>
                     <span>{r.name}</span>
                     <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{r.calls}</span>
                     <span style={{ color: 'var(--warning)' }}>{r.tokens}K</span>
@@ -173,14 +174,14 @@ export default function GovernancePage() {
       {/* AUDIT TAB */}
       {tab === 'audit' && (
         <div style={{ ...card, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             <span>{t('governance.col_date')}</span><span>{t('governance.col_module')}</span><span>{t('governance.col_prompt')}</span><span>{t('governance.col_tokens')}</span>
           </div>
           {logs.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>{t('governance.no_audit_logs')}</div>
+            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>{t('governance.no_audit_logs')}</div>
           ) : logs.map(l => (
-            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)20', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: 12, alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-2)', fontFamily: 'monospace', fontSize: 11 }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
+            <div key={l.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--surface-4)20', display: 'grid', gridTemplateColumns: '160px 120px 1fr 80px', gap: 16, fontSize: "var(--text-sm)", alignItems: 'center' }}>
+              <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)" }}>{l.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{MODULE_CFG[l.module]?.icon} {MODULE_CFG[l.module] ? t(MODULE_CFG[l.module].labelKey) : l.module}</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-2)' }}>{l.input_summary || l.action_type || t('governance.dash')}</span>
               <span style={{ color: 'var(--warning)' }}>{(l.tokens_used || 0).toLocaleString()}</span>
@@ -188,6 +189,6 @@ export default function GovernancePage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

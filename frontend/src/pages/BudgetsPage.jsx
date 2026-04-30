@@ -8,14 +8,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { PieChart } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
 
-const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 const fmtEur = n => n == null ? '—' : new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n)
@@ -99,7 +100,7 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader icon={<PieChart size={18} />} title={t('budgets.title')} subtitle={t('budgets.subtitle')} />
 
       {/* Year selector + summary */}
@@ -107,7 +108,7 @@ export default function BudgetsPage() {
         <div style={{ display:'flex', gap:6 }}>
           {[year-1, year, year+1].map(y => (
             <button key={y} onClick={()=>setYear(y)}
-              style={{ padding:'6px 14px', borderRadius:8, border:`.5px solid ${year===y?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:year===y?'var(--accent-muted)':'transparent', color:year===y?'var(--accent)':'var(--text-2)', fontSize:12, cursor:'pointer', fontFamily:'inherit', fontWeight:year===y?500:400 }}>
+              style={{ padding:'6px 14px', borderRadius:8, border:`.5px solid ${year===y?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:year===y?'var(--accent-muted)':'transparent', color:year===y?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit', fontWeight:year===y?500:400 }}>
               {y}
             </button>
           ))}
@@ -115,7 +116,7 @@ export default function BudgetsPage() {
         {summary && (
           <div style={{ display:'flex', gap:16, marginLeft:12 }}>
             {[['planned', fmtEur(summary.total_planned)], ['actual', fmtEur(summary.total_actual)], ['deviation', `${summary.deviation_pct > 0 ? '+' : ''}${summary.deviation_pct}%`]].map(([k,v]) => (
-              <div key={k} style={{ fontSize:12 }}><span style={{ color:'var(--text-2)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
+              <div key={k} style={{ fontSize: "var(--text-sm)" }}><span style={{ color:'var(--text-2)', marginRight:6 }}>{t(`budgets.${k}`)}:</span><strong>{v}</strong></div>
             ))}
           </div>
         )}
@@ -125,14 +126,14 @@ export default function BudgetsPage() {
       {/* Monthly chart */}
       {chartData.length > 0 && (
         <div style={{ ...card, padding:'16px 20px', marginBottom:24 }}>
-          <div style={{ fontSize:13, fontWeight:500, marginBottom:12 }}>{t('budgets.chart_title', {year})}</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:12 }}>{t('budgets.chart_title', {year})}</div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={chartData}>
-              <XAxis dataKey="mes" tick={{fontSize:11}} />
-              <YAxis tickFormatter={v=>`${Math.round(v/1000)}k€`} tick={{fontSize:10}} />
+              <XAxis dataKey="mes" tick={{fontSize: "var(--text-xs)"}} />
+              <YAxis tickFormatter={v=>`${Math.round(v/1000)}k€`} tick={{fontSize: "var(--text-2xs)"}} />
               <Tooltip formatter={v=>[fmtEur(v)]} />
               <Bar dataKey="Planificado" fill="#85B7EB" radius={[3,3,0,0]} />
-              <Bar dataKey="Real" fill="#1D9E75" radius={[3,3,0,0]} />
+              <Bar dataKey="Real" fill="#34d399" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -148,19 +149,19 @@ export default function BudgetsPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
                 <div>
                   <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:4 }}>
-                    <span style={{ fontSize:14, fontWeight:500 }}>{b.name}</span>
-                    {b.department && <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)' }}>{b.department}</span>}
+                    <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{b.name}</span>
+                    {b.department && <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)' }}>{b.department}</span>}
                     {b.is_approved
-                      ? <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--success-bg)', color:'var(--success)' }}>✓ {t('budgets.approved')}</span>
-                      : <button onClick={()=>approve(b.id)} style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'var(--warning-bg)', color:'var(--warning)', border:'.5px solid rgba(251,191,36,0.25)', cursor:'pointer', fontFamily:'inherit' }}>{t('budgets.approve')}</button>
+                      ? <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--success-bg)', color:'var(--success)' }}>✓ {t('budgets.approved')}</span>
+                      : <button onClick={()=>approve(b.id)} style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:4, background:'var(--warning-bg)', color:'var(--warning)', border:'.5px solid rgba(251,191,36,0.25)', cursor:'pointer', fontFamily:'inherit' }}>{t('budgets.approve')}</button>
                     }
                   </div>
-                  <div style={{ fontSize:12, color:'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
                     {t('budgets.planned')}: {fmtEur(b.planned_total)} · {t('budgets.actual')}: {fmtEur(b.actual_total)} · {t('budgets.deviation')}: <span style={{ color: b.deviation > 0 ? 'var(--danger)' : 'var(--success)', fontWeight:500 }}>{b.deviation > 0 ? '+' : ''}{fmtEur(b.deviation)}</span>
                   </div>
                 </div>
                 <button onClick={()=>setSelected(selected===b.id?null:b.id)}
-                  style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                  style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'5px 12px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
                   {selected===b.id ? t('budgets.hide_detail') : t('budgets.show_detail')}
                 </button>
               </div>
@@ -168,7 +169,7 @@ export default function BudgetsPage() {
               {/* Monthly grid */}
               {selected === b.id && (
                 <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-xs)" }}>
                     <thead>
                       <tr style={{ background:'var(--surface-2)' }}>
                         <th style={{ padding:'6px 10px', textAlign:'left', fontWeight:500, color:'var(--text-2)' }}>Mes</th>
@@ -191,7 +192,7 @@ export default function BudgetsPage() {
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ fontSize:11, color:'var(--text-3)', marginTop:6 }}>{t('budgets.edit_actual_hint')}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:6 }}>{t('budgets.edit_actual_hint')}</div>
                 </div>
               )}
             </div>
@@ -205,22 +206,22 @@ export default function BudgetsPage() {
             <div>
               <label style={ls}>{t('budgets.name')}</label>
               <input value={form.name} onChange={setCreateField('name')} style={createValidation.inputStyle(fs, 'name')} />
-              {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.name}</div>}
+              {createValidation.errors.name && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.name}</div>}
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
               <div>
                 <label style={ls}>{t('budgets.year')}</label>
                 <input type="number" value={form.year} onChange={setCreateField('year')} style={createValidation.inputStyle(fs, 'year')} />
-                {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.year}</div>}
+                {createValidation.errors.year && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.year}</div>}
               </div>
               <div><label style={ls}>{t('budgets.department')}</label><input value={form.department} onChange={setCreateField('department')} style={fs} /></div>
             </div>
             <div>
               <label style={ls}>{t('budgets.total_amount')}</label>
               <input type="number" value={form.total_amount} onChange={setCreateField('total_amount')} style={createValidation.inputStyle(fs, 'total_amount')} />
-              {createValidation.errors.total_amount && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{createValidation.errors.total_amount}</div>}
+              {createValidation.errors.total_amount && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{createValidation.errors.total_amount}</div>}
             </div>
-            <div style={{ fontSize:12, color:'var(--text-2)' }}>{t('budgets.monthly_distribution', {amount: fmtEur((form.total_amount||0)/12)})}</div>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{t('budgets.monthly_distribution', {amount: fmtEur((form.total_amount||0)/12)})}</div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
               <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('budgets.cancel')}</Button>
               <Button onClick={submitCreate} disabled={isPending}>{isPending?t('budgets.creating'):t('budgets.create')}</Button>
@@ -235,12 +236,12 @@ export default function BudgetsPage() {
             <div>
               <label style={ls}>{t('budgets.actual_amount')}</label>
               <input type="number" value={entryForm.actual} onChange={setEntryField('actual')} style={entryValidation.inputStyle(fs, 'actual')} />
-              {entryValidation.errors.actual && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{entryValidation.errors.actual}</div>}
+              {entryValidation.errors.actual && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{entryValidation.errors.actual}</div>}
             </div>
             <div>
               <label style={ls}>{t('budgets.committed_amount')}</label>
               <input type="number" value={entryForm.committed} onChange={setEntryField('committed')} style={entryValidation.inputStyle(fs, 'committed')} />
-              {entryValidation.errors.committed && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{entryValidation.errors.committed}</div>}
+              {entryValidation.errors.committed && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{entryValidation.errors.committed}</div>}
             </div>
             <div><label style={ls}>{t('budgets.notes')}</label><input value={entryForm.notes} onChange={setEntryField('notes')} style={fs} /></div>
             <div style={{ display:'flex', justifyContent:'flex-end', gap:10 }}>
@@ -250,6 +251,6 @@ export default function BudgetsPage() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

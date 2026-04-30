@@ -186,10 +186,10 @@ export default function OnboardingWizard() {
         {/* Header */}
         <div style={{ padding: '20px 24px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3 }}>
+            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3 }}>
               Configuración inicial
             </div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
+            <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.01em' }}>
               Bienvenido a Contecflow 👋
             </div>
           </div>
@@ -200,7 +200,7 @@ export default function OnboardingWizard() {
 
         {/* Progress bar */}
         <div style={{ padding: '14px 24px 0', flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>
             <span>{completed.length} de {steps.length} completados</span>
             <span style={{ fontWeight: 700, color: progress >= 100 ? 'var(--success)' : 'var(--text-2)' }}>{progress}%</span>
           </div>
@@ -221,13 +221,13 @@ export default function OnboardingWizard() {
                     ? 'var(--accent-muted)'
                     : done ? 'rgba(0,229,160,.08)' : 'var(--surface-3)',
                   color: i === activeStep ? 'var(--accent)' : done ? 'var(--success)' : 'var(--text-3)',
-                  cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
+                  cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, fontFamily: 'inherit',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                   outline: i === activeStep ? '2px solid var(--accent)' : 'none',
                   outlineOffset: -1, transition: 'all .15s',
                 }}>
-                <span style={{ fontSize: 20, lineHeight: 1 }}>{done ? '✓' : step.icon}</span>
-                <span style={{ fontSize: 9.5, whiteSpace: 'nowrap' }}>{step.title.split(' ').slice(0, 3).join(' ')}</span>
+                <span style={{ fontSize: "var(--text-xl)", lineHeight: 1 }}>{done ? '✓' : step.icon}</span>
+                <span style={{ fontSize: "var(--text-3xs-h)", whiteSpace: 'nowrap' }}>{step.title.split(' ').slice(0, 3).join(' ')}</span>
               </button>
             )
           })}
@@ -242,25 +242,25 @@ export default function OnboardingWizard() {
             transition: 'border-color .3s',
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 36, lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{current.icon}</div>
+              <div style={{ fontSize: "var(--text-4xl)", lineHeight: 1, flexShrink: 0, marginTop: 2 }}>{current.icon}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.01em' }}>{current.title}</div>
+                  <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.01em' }}>{current.title}</div>
                   {isCompleted && <CheckCircle size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />}
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.65 }}>{current.description}</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.65 }}>{current.description}</div>
               </div>
             </div>
 
             {/* Checklist tips */}
             {meta.tips && (
               <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Cómo hacerlo</div>
+                <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Cómo hacerlo</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {meta.tips.map((tip, idx) => (
                     <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>{idx + 1}</div>
-                      <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>{tip}</span>
+                      <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-3xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>{idx + 1}</div>
+                      <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>{tip}</span>
                     </div>
                   ))}
                 </div>
@@ -274,7 +274,7 @@ export default function OnboardingWizard() {
                   display: 'flex', alignItems: 'center', gap: 6,
                   background: isCompleted ? 'rgba(0,229,160,.1)' : 'var(--accent-muted)',
                   border: `1px solid ${isCompleted ? 'rgba(0,229,160,.35)' : 'rgba(79,142,247,.4)'}`,
-                  borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700,
+                  borderRadius: 9, padding: '9px 18px', fontSize: "var(--text-base)", fontWeight: 700,
                   color: isCompleted ? 'var(--success)' : 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
                 }}>
                   <ExternalLink size={13} />
@@ -285,7 +285,7 @@ export default function OnboardingWizard() {
                 <button onClick={handleVerify} disabled={verifying} style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   background: 'var(--surface-3)', border: '1px solid var(--surface-5)',
-                  borderRadius: 9, padding: '9px 14px', fontSize: 12, fontWeight: 600,
+                  borderRadius: 9, padding: '9px 14px', fontSize: "var(--text-sm)", fontWeight: 600,
                   color: 'var(--text-2)', cursor: verifying ? 'wait' : 'pointer', fontFamily: 'inherit',
                 }}>
                   <RefreshCw size={12} style={{ animation: verifying ? 'spin 1s linear infinite' : 'none' }} />
@@ -298,21 +298,21 @@ export default function OnboardingWizard() {
           {/* Navigation */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button onClick={() => setActiveStep(i => Math.max(0, i - 1))} disabled={activeStep === 0}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: activeStep === 0 ? 'var(--text-4)' : 'var(--text-2)', cursor: activeStep === 0 ? 'default' : 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: activeStep === 0 ? 'var(--text-4)' : 'var(--text-2)', cursor: activeStep === 0 ? 'default' : 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
               <ChevronLeft size={14} /> Anterior
             </button>
             <button onClick={() => dismiss()}
-              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
               Saltar configuración
             </button>
             {activeStep < steps.length - 1 ? (
               <button onClick={() => setActiveStep(i => Math.min(steps.length - 1, i + 1))}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--accent-muted)', border: '1px solid rgba(79,142,247,.4)', borderRadius: 9, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--accent-muted)', border: '1px solid rgba(79,142,247,.4)', borderRadius: 9, padding: '7px 16px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
                 Siguiente <ChevronRight size={14} />
               </button>
             ) : (
               <button onClick={() => dismiss()}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,229,160,.1)', border: '1px solid rgba(0,229,160,.35)', borderRadius: 9, padding: '7px 16px', color: 'var(--success)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(0,229,160,.1)', border: '1px solid rgba(0,229,160,.35)', borderRadius: 9, padding: '7px 16px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit' }}>
                 <CheckCircle size={13} /> Finalizar
               </button>
             )}

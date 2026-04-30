@@ -8,7 +8,7 @@ import { COLOR } from '../../constants/theme'
 // ── Priority / Status maps ─────────────────────────────────────────────────────
 export const PRIORITY_COLOR = {
   p1_critical: COLOR.danger,
-  p2_high:     '#fb923c',
+  p2_high:     'var(--orange)',
   p3_medium:   COLOR.warning,
   p4_low:      COLOR.text2,
 }
@@ -17,7 +17,7 @@ export const PRIORITY_LABEL = {
   p3_medium: 'P3 Medio', p4_low: 'P4 Bajo',
 }
 export const STATUS_COLOR = {
-  new: COLOR.accent, assigned: COLOR.accent, in_progress: '#38bdf8',
+  new: COLOR.accent, assigned: COLOR.accent, in_progress: 'var(--sky-blue)',
   pending_client: COLOR.warning, pending_third: COLOR.warning,
   resolved: COLOR.success, closed: COLOR.text2, cancelled: COLOR.text3,
 }
@@ -30,13 +30,13 @@ export const INPUT_STYLE = {
   borderRadius: 8,
   padding: '9px 13px',
   color: 'var(--text-1)',
-  fontSize: 13,
+  fontSize: "var(--text-base)",
   outline: 'none',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
 }
 export const LABEL_STYLE = {
-  fontSize: 11,
+  fontSize: "var(--text-xs)",
   fontWeight: 600,
   color: 'var(--text-2)',
   display: 'block',
@@ -64,7 +64,7 @@ export function PBadge({ v }) {
   const color = PRIORITY_COLOR[v] || COLOR.text2
   return (
     <span style={{
-      fontSize: 10, fontWeight: 700, color,
+      fontSize: "var(--text-2xs)", fontWeight: 700, color,
       padding: '2px 7px', borderRadius: 4,
       border: `1px solid ${color}30`, background: `${color}12`,
       whiteSpace: 'nowrap',
@@ -77,7 +77,7 @@ export function SBadge({ v }) {
   const color = STATUS_COLOR[v] || COLOR.text2
   return (
     <span style={{
-      fontSize: 10, fontWeight: 600, color,
+      fontSize: "var(--text-2xs)", fontWeight: 600, color,
       padding: '2px 8px', borderRadius: 4,
       background: `${color}15`, whiteSpace: 'nowrap',
     }}>

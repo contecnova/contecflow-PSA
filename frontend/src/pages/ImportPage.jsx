@@ -6,11 +6,12 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Upload } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Import Tab ────────────────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ function ImportTab() {
         {/* Import panel */}
         <div>
           <div style={{...card,padding:'20px 24px',marginBottom:20}}>
-            <div style={{fontSize:14,fontWeight:700,marginBottom:16}}>{t('import_data.title_panel')}</div>
+            <div style={{fontSize: "var(--text-md)",fontWeight:700,marginBottom:16}}>{t('import_data.title_panel')}</div>
 
             <div style={{marginBottom:16}}>
               <label style={ls}>{t('import_data.type_label')}</label>
@@ -116,13 +117,13 @@ function ImportTab() {
             </div>
 
             {template && (
-              <div style={{background:'var(--surface-3)',borderRadius:8,padding:'12px 16px',marginBottom:16,fontSize:12}}>
-                <div style={{fontWeight:700,color:'var(--text-2)',marginBottom:6,textTransform:'uppercase',fontSize:10,letterSpacing:'0.06em'}}>{t('import_data.csv_columns')}</div>
-                <div style={{color:'var(--text-2)',fontFamily:'monospace',fontSize:11,lineHeight:1.8}}>
+              <div style={{background:'var(--surface-3)',borderRadius:8,padding:'12px 16px',marginBottom:16,fontSize: "var(--text-sm)"}}>
+                <div style={{fontWeight:700,color:'var(--text-2)',marginBottom:6,textTransform:'uppercase',fontSize: "var(--text-2xs)",letterSpacing:'0.06em'}}>{t('import_data.csv_columns')}</div>
+                <div style={{color:'var(--text-2)',fontFamily:'var(--font-mono)',fontSize: "var(--text-xs)",lineHeight:1.8}}>
                   {template.columns.join(' | ')}
                 </div>
                 <button onClick={downloadTemplate}
-                  style={{marginTop:10,background:'transparent',border:'1px solid #00d4ff40',borderRadius:6,padding:'5px 12px',color:'var(--accent)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>
+                  style={{marginTop:10,background:'transparent',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'5px 12px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>
                   ⬇ {t('import_data.download_template')}
                 </button>
               </div>
@@ -142,7 +143,7 @@ function ImportTab() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  fontSize: 12,
+                  fontSize: "var(--text-sm)",
                   color: validating || importing ? 'var(--warning)' : opStage === 'failed' ? 'var(--danger)' : 'var(--success)'
                 }}>
                   <span>
@@ -165,17 +166,17 @@ function ImportTab() {
           {/* Validation results */}
           {validation && step === 'validate' && (
             <div style={{...card,padding:'16px 20px'}}>
-              <div style={{fontSize:13,fontWeight:700,color:validation.valid?'var(--success)':'var(--danger)',marginBottom:12}}>
+              <div style={{fontSize: "var(--text-base)",fontWeight:700,color:validation.valid?'var(--success)':'var(--danger)',marginBottom:12}}>
                 {validation.valid ? t('import_data.file_valid') : t('import_data.validation_errors')}
               </div>
-              <div style={{fontSize:12,color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
-              {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid #ffb80030',borderRadius:6,padding:'6px 10px',color:'var(--warning)',fontSize:12,marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
-              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid #ff475730',borderRadius:6,padding:'6px 10px',color:'var(--danger)',fontSize:12,marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
+              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:10}}>{validation.total_rows} {t('import_data.rows_detected')}</div>
+              {validation.warnings?.map((w,i) => <div key={i} style={{background:'var(--warning-bg)',border:'1px solid var(--warning-border)',borderRadius:6,padding:'6px 10px',color:'var(--warning)',fontSize: "var(--text-sm)",marginBottom:6}}>⚠ {t('import_data.warning')} {w}</div>)}
+              {validation.errors?.map((e,i) => <div key={i} style={{background:'var(--danger-bg)',border:'1px solid var(--danger-border)',borderRadius:6,padding:'6px 10px',color:'var(--danger)',fontSize: "var(--text-sm)",marginBottom:6}}>✗ {t('import_data.row')} {e.row}: {e.error}</div>)}
               {validation.preview?.length > 0 && (
-                <div style={{marginTop:12,fontSize:11,color:'var(--text-2)'}}>
+                <div style={{marginTop:12,fontSize: "var(--text-xs)",color:'var(--text-2)'}}>
                   <div style={{fontWeight:700,marginBottom:6}}>{t('import_data.preview')}</div>
                   <div style={{overflowX:'auto'}}>
-                    <table style={{borderCollapse:'collapse',fontSize:11}}>
+                    <table style={{borderCollapse:'collapse',fontSize: "var(--text-xs)"}}>
                       <thead><tr>{Object.keys(validation.preview[0]).map(k => <th key={k} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)',textAlign:'left',color:'var(--text-3)',whiteSpace:'nowrap'}}>{k}</th>)}</tr></thead>
                       <tbody>
                         {validation.preview.map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} style={{padding:'4px 8px',borderBottom:'1px solid var(--surface-4)20',color:'var(--text-1)',whiteSpace:'nowrap'}}>{String(v).slice(0,30)}</td>)}</tr>)}
@@ -190,7 +191,7 @@ function ImportTab() {
           {/* Import result */}
           {result && step === 'result' && (
             <div style={{...card,padding:'16px 20px',border:`1px solid ${result.succeeded>0?'rgba(52,211,153,0.25)':'rgba(248,113,113,0.25)'}`}}>
-              <div style={{fontSize:14,fontWeight:700,color:result.succeeded>0?'var(--success)':'var(--danger)',marginBottom:12}}>
+              <div style={{fontSize: "var(--text-md)",fontWeight:700,color:result.succeeded>0?'var(--success)':'var(--danger)',marginBottom:12}}>
                 {result.succeeded > 0 ? t('import_data.import_completed') : t('import_data.import_failed')}
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
@@ -200,31 +201,31 @@ function ImportTab() {
                   [t('import_data.errors'), result.failed, 'var(--danger)']
                 ].map(([l,v,c]) => (
                   <div key={l} style={{textAlign:'center',background:'var(--surface-3)',borderRadius:8,padding:'12px'}}>
-                    <div style={{fontSize:24,fontWeight:800,color:c}}>{v}</div>
-                    <div style={{fontSize:11,color:'var(--text-2)'}}>{l}</div>
+                    <div style={{fontSize: "var(--text-2xl)",fontWeight:800,color:c}}>{v}</div>
+                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{l}</div>
                   </div>
                 ))}
               </div>
-              {result.errors?.map((e,i) => <div key={i} style={{fontSize:12,color:'var(--danger)',padding:'3px 0'}}>{t('import_data.row')} {e.row}: {e.error}</div>)}
+              {result.errors?.map((e,i) => <div key={i} style={{fontSize: "var(--text-sm)",color:'var(--danger)',padding:'3px 0'}}>{t('import_data.row')} {e.row}: {e.error}</div>)}
             </div>
           )}
         </div>
 
         {/* Import history */}
         <div style={{...card,overflow:'hidden',alignSelf:'start'}}>
-          <div style={{padding:'14px 18px',borderBottom:'1px solid var(--surface-4)',fontSize:13,fontWeight:700}}>{t('import_data.import_history')}</div>
-          {jobs.length === 0 ? <div style={{padding:'24px',textAlign:'center',color:'var(--text-3)',fontSize:13}}>{t('import_data.no_imports')}</div> : (
+          <div style={{padding:'14px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-base)",fontWeight:700}}>{t('import_data.import_history')}</div>
+          {jobs.length === 0 ? <div style={{padding:'24px',textAlign:'center',color:'var(--text-3)',fontSize: "var(--text-base)"}}>{t('import_data.no_imports')}</div> : (
             jobs.slice(0,10).map(j => (
               <div key={j.id} style={{display:'grid',gridTemplateColumns:'80px 1fr 80px 60px',gap:10,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
-                <span style={{fontSize:11,fontWeight:700,padding:'2px 6px',borderRadius:4,background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)',color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)'}}>
+                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 6px',borderRadius:4,background:j.status==='completed'?'var(--success-bg)':j.status==='partial'?'var(--warning-bg)':'var(--danger-bg)',color:j.status==='completed'?'var(--success)':j.status==='partial'?'var(--warning)':'var(--danger)'}}>
                   {j.status}
                 </span>
                 <div>
-                  <div style={{fontSize:12,fontWeight:600}}>{ENTITY_LABELS[j.entity_type]||j.entity_type}</div>
-                  <div style={{fontSize:11,color:'var(--text-3)'}}>{j.filename} · {j.started_at}</div>
+                  <div style={{fontSize: "var(--text-sm)",fontWeight:600}}>{ENTITY_LABELS[j.entity_type]||j.entity_type}</div>
+                  <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{j.filename} · {j.started_at}</div>
                 </div>
-                <span style={{fontSize:12,color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>
-                <span style={{fontSize:11,color:'var(--danger)'}}>{j.failed_rows>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
+                <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)',textAlign:'right'}}>{j.succeeded}/{j.total_rows}</span>
+                <span style={{fontSize: "var(--text-xs)",color:'var(--danger)'}}>{j.failed_rows>0?`${j.failed_rows} ${t('import_data.err')}`:''}</span>
               </div>
             ))
           )}
@@ -237,9 +238,9 @@ function ImportTab() {
 export default function ImportPage() {
   const t = useAppT()
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Upload size={18} />} title={t('import_data.title')} subtitle={t('import_data.subtitle')} />
       <ImportTab />
-    </div>
+    </PageShell>
   )
 }

@@ -120,29 +120,29 @@ export default function OnboardingTour({ route }) {
     <>
       {/* Overlay semitransparente */}
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 99990,
+        position: 'fixed', inset: 0, zIndex: 'var(--z-tour)',
         background: 'rgba(0,0,0,0.55)', pointerEvents: 'none',
       }} />
 
       {/* Highlight del elemento objetivo */}
       {highlight && (
         <div style={{
-          position: 'fixed', zIndex: 99991, pointerEvents: 'none',
+          position: 'fixed', zIndex: 'var(--z-tour-spotlight)', pointerEvents: 'none',
           top:    highlight.top    - 6,
           left:   highlight.left   - 6,
           width:  highlight.width  + 12,
           height: highlight.height + 12,
           borderRadius: 10,
-          boxShadow: '0 0 0 4px #00d4ff, 0 0 0 9999px rgba(0,0,0,0.55)',
-          border: '2px solid #00d4ff',
+          boxShadow: '0 0 0 4px var(--accent), 0 0 0 9999px rgba(0,0,0,0.55)',
+          border: '2px solid var(--accent)',
         }} />
       )}
 
       {/* Tooltip */}
       <div ref={tourRef} style={{
-        ...pos, zIndex: 99992, position: 'fixed',
+        ...pos, zIndex: 'var(--z-tour-tooltip)', position: 'fixed',
         width: 320, background: 'var(--surface-1)',
-        border: '1px solid #00d4ff40', borderRadius: 14,
+        border: '1px solid var(--accent-border-strong)', borderRadius: 14,
         boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
         padding: '20px 22px',
         animation: 'tour-in 0.2s ease',
@@ -158,34 +158,34 @@ export default function OnboardingTour({ route }) {
           ))}
         </div>
 
-        <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: 'var(--text-1)' }}>
+        <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, marginBottom: 8, color: 'var(--text-1)' }}>
           {current.title}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 18 }}>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 18 }}>
           {current.text}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button onClick={skip} style={{
             background: 'none', border: 'none', color: 'var(--text-2)',
-            cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+            cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
           }}>
             Saltar tour
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
             {step > 0 && (
               <button onClick={() => setStep(s => s - 1)} style={{
-                background: 'transparent', border: '1px solid #1e2d45',
+                background: 'transparent', border: '1px solid var(--surface-4)',
                 borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)',
-                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
               }}>‹ Atrás</button>
             )}
             <button onClick={next} style={{
               background: step === steps.length - 1
-                ? 'linear-gradient(135deg, #00e5a0, #00b87a)'
-                : 'linear-gradient(135deg, #00d4ff, #0099cc)',
+                ? 'linear-gradient(135deg, var(--success), var(--success))'
+                : 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
               border: 'none', borderRadius: 8, padding: '7px 18px',
-              color: 'var(--surface-0)', cursor: 'pointer', fontSize: 13,
+              color: 'var(--surface-0)', cursor: 'pointer', fontSize: "var(--text-base)",
               fontWeight: 700, fontFamily: 'inherit',
             }}>
               {step === steps.length - 1 ? '✓ Entendido' : 'Siguiente ›'}
@@ -225,8 +225,8 @@ export function TourHelpButton({ route }) {
       style={{
         position: 'fixed', bottom: 80, right: 24,
         width: 38, height: 38, borderRadius: '50%',
-        background: 'var(--surface-2)', border: '1px solid #1e2d45',
-        color: 'var(--text-2)', cursor: 'pointer', fontSize: 16,
+        background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+        color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg)",
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9990, boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
         transition: 'all 0.15s',

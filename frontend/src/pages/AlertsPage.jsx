@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { alertsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative, extractErr} from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -73,7 +74,7 @@ export default function AlertsPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Bell size={18} />}
         title={t('alerts.title')}
@@ -96,10 +97,10 @@ export default function AlertsPage() {
           }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.dot }} />
             <div>
-              <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: cfg.dot }}>
+              <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: cfg.dot }}>
                 {bySeverity[sev].length}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t(cfg.label)}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t(cfg.label)}</div>
             </div>
           </div>
         ))}
@@ -129,10 +130,10 @@ export default function AlertsPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 18 }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
+                      <span style={{ fontSize: "var(--text-lg-em)" }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700 }}>{alert.title}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{alert.title}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {alert.alert_type} · {fmtRelative(alert.created_at)}
                           {alert.project?.name && <span style={{ marginLeft: 6, color: cfg.dot }}>· {alert.project.name}</span>}
                           {alert.user?.display_name && <span style={{ marginLeft: 6 }}>· {alert.user.display_name}</span>}
@@ -142,30 +143,30 @@ export default function AlertsPage() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       {sourceUrl && (
                         <button onClick={() => navigate(sourceUrl)}
-                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          style={{ background: 'transparent', border: `1px solid ${cfg.border}`, borderRadius: 6, padding: '4px 10px', color: cfg.dot, cursor: 'pointer', fontSize: "var(--text-xs)", display: 'flex', alignItems: 'center', gap: 4 }}>
                           <ExternalLink size={10} /> Ver origen
                         </button>
                       )}
                       {!alert.is_read && (
                         <button onClick={() => markRead(alert.id)}
-                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                          style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           {t('alerts.mark_as_read')}
                         </button>
                       )}
                       {hasRole('admin', 'pm', 'hr') && (
                         <button onClick={() => resolve(alert.id)}
-                          style={{ background: 'var(--success-bg)', border: '1px solid #00e5a030', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                          style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600 }}>
                           Resolver
                         </button>
                       )}
                     </div>
                   </div>
                   {alert.description && (
-                    <p style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6, marginLeft: 26 }}>{alert.description}</p>
+                    <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginTop: 6, marginLeft: 26 }}>{alert.description}</p>
                   )}
                   {alert.value !== null && alert.threshold !== null && (
-                    <div style={{ marginLeft: 26, marginTop: 8, fontSize: 12 }}>
-                      <span style={{ color: cfg.dot, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>
+                    <div style={{ marginLeft: 26, marginTop: 8, fontSize: "var(--text-sm)" }}>
+                      <span style={{ color: cfg.dot, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                         {alert.value?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}
                       </span>
                       <span style={{ color: 'var(--text-3)' }}> / {t('alerts.threshold_label')} {alert.threshold?.toFixed(0)}{alert.alert_type.includes('budget') ? '€' : '%'}</span>
@@ -177,6 +178,6 @@ export default function AlertsPage() {
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

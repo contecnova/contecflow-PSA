@@ -4,7 +4,7 @@ import api from '../services/api'
 import { Spinner } from '../components/ui'
 import { FolderOpen } from 'lucide-react'
 import {
-  COLOR, S, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -169,18 +169,18 @@ export default function ProjectsDashboardPage() {
                     border: `1px solid ${color}30`,
                     borderRadius: 10,
                   }}>
-                    <span style={{ fontSize: 14 }}>{budPct > 100 ? '🔴' : '🟡'}</span>
+                    <span style={{ fontSize: "var(--text-md)" }}>{budPct > 100 ? '🔴' : '🟡'}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.project_code && <span style={{ color: 'var(--text-3)', marginRight: 6, fontSize: 11 }}>{p.project_code}</span>}
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.project_code && <span style={{ color: 'var(--text-3)', marginRight: 6, fontSize: "var(--text-xs)" }}>{p.project_code}</span>}
                         {p.project_name}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>
                         Presupuesto: {budPct}% · Desviación: {p.schedule_deviation_days > 0 ? `+${p.schedule_deviation_days}d` : 'OK'}
                       </div>
                     </div>
                     <span style={{
-                      fontSize: 11, fontWeight: 700, color,
+                      fontSize: "var(--text-xs)", fontWeight: 700, color,
                       background: `${color}18`, border: `1px solid ${color}30`,
                       borderRadius: 6, padding: '3px 9px',
                     }}>{budPct}%</span>

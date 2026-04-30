@@ -30,17 +30,21 @@
   --surface-4:    #1e2d45;   /* borders, dividers */
   --surface-5:    #253550;   /* borders hover */
 
-  /* Texto — jerarquía clara */
+  /* Texto — jerarquía clara. Ratios contra --surface-1 (#0d1220) verificados WCAG AA.
+     text-1 (15.5:1 AAA), text-2 (8.0:1 AAA), text-3 (5.0:1 AA), text-4 (decorativo, no para texto). */
   --text-1:       #f0f4ff;   /* headings, valores clave */
-  --text-2:       #8899bb;   /* labels, descripciones */
-  --text-3:       #4a5a78;   /* placeholders, disabled */
-  --text-4:       #2a3a54;   /* muy sutil */
+  --text-2:       #a8b8d4;   /* labels, descripciones (era #8899bb, +brillo para AAA) */
+  --text-3:       #7689a8;   /* secundario, hints (era #4a5a78, ahora pasa AA 5:1) */
+  --text-4:       #4a5a78;   /* DECORATIVO solo (líneas, separators, estados disabled) */
 
   /* Accent — azul índigo refinado (no cyan agresivo) */
-  --accent:       #4f8ef7;   /* primary CTA, links activos */
-  --accent-dim:   #2d5fd4;
-  --accent-glow:  rgba(79, 142, 247, 0.15);
-  --accent-muted: rgba(79, 142, 247, 0.08);
+  --accent:               #4f8ef7;   /* primary CTA, links activos */
+  --accent-dim:           #2d5fd4;
+  --accent-glow:          rgba(79, 142, 247, 0.15);
+  --accent-muted:         rgba(79, 142, 247, 0.08);
+  --accent-border-soft:   rgba(79, 142, 247, 0.20);
+  --accent-border:        rgba(79, 142, 247, 0.30);
+  --accent-border-strong: rgba(79, 142, 247, 0.40);
 
   /* Semánticos */
   --success:      #34d399;
@@ -57,12 +61,74 @@
   --info-border:  rgba(96, 165, 250, 0.2);
 
   /* Purple accent — para AI / premium features */
-  --purple:       #a78bfa;
-  --purple-bg:    rgba(167, 139, 250, 0.08);
+  --purple:               #a78bfa;
+  --purple-bg:            rgba(167, 139, 250, 0.08);
+  --purple-border-soft:   rgba(167, 139, 250, 0.20);
+  --purple-border:        rgba(167, 139, 250, 0.30);
+  --purple-border-strong: rgba(167, 139, 250, 0.40);
 
-  /* Tipografía */
+  /* Orange — para severidad P2/HIGH (distinto de warning para diferenciar) */
+  --orange:               #fb923c;
+  --orange-bg:            rgba(251, 146, 60, 0.08);
+  --orange-border:        rgba(251, 146, 60, 0.30);
+  --orange-border-strong: rgba(251, 146, 60, 0.40);
+
+  /* Coral / Rose — para color picker custom */
+  --coral:                #f43f5e;
+  --coral-bg:             rgba(244, 63, 94, 0.08);
+
+  /* Tipografía — familia */
   --font-sans:    'DM Sans', 'Geist', system-ui, sans-serif;
   --font-mono:    'Geist Mono', 'Space Mono', monospace;
+
+  /* Tipografía — escala completa. Tokens nombrados (semánticos) y por número
+     (granularidad) — ambos válidos. Usar en lugar de fontSize literales. */
+  --text-3xs:     9px;
+  --text-3xs-h:   9.5px;    /* sub-pixel, eyebrow labels */
+  --text-2xs:     10px;     /* tiny helpers, badges micro */
+  --text-2xs-h:   10.5px;
+  --text-xs:      11px;     /* labels uppercase, captions */
+  --text-xs-h:    11.5px;
+  --text-sm:      12px;     /* body secundario */
+  --text-sm-h:    12.5px;
+  --text-base:    13px;     /* body primario (default) */
+  --text-base-h:  13.5px;
+  --text-md:      14px;     /* heading nivel 3, énfasis */
+  --text-md-h:    14.5px;
+  --text-md-em:   15px;     /* labels enfatizados, KPI sub */
+  --text-md-em-h: 15.5px;
+  --text-lg:      16px;     /* heading nivel 2 */
+  --text-lg-h:    16.5px;
+  --text-17:      17px;
+  --text-lg-em:   18px;     /* heading nivel 2 prominente */
+  --text-lg-em-h: 18.5px;
+  --text-xl:      20px;     /* heading nivel 1 */
+  --text-xl-h:    20.5px;
+  --text-xl-em:   22px;     /* KPI value pequeño */
+  --text-xl-em-h: 22.5px;
+  --text-2xl:     24px;     /* KPI value */
+  --text-2xl-h:   24.5px;
+  --text-2xl-em:  26px;
+  --text-2xl-em-h:26.5px;
+  --text-3xl:     28px;     /* hero number */
+  --text-3xl-h:   28.5px;
+  --text-30:      30px;
+  --text-3xl-em:  32px;
+  --text-34:      34px;
+  --text-4xl:     36px;
+  --text-38:      38px;
+  --text-5xl:     40px;
+  --text-42:      42px;
+  --text-6xl:     48px;
+  --text-56:      56px;
+  --text-8:       8px;
+  --text-80:      80px;
+
+  /* Pesos comunes */
+  --font-medium:    500;
+  --font-semibold:  600;
+  --font-bold:      700;
+  --font-extrabold: 800;
 
   /* Espaciado — escala 4pt */
   --space-1:  4px;
@@ -87,6 +153,28 @@
   --shadow-md:  0 4px 16px rgba(0,0,0,0.5);
   --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
   --shadow-accent: 0 0 20px rgba(79, 142, 247, 0.12);
+
+  /* Page layout — padding raíz por página */
+  --page-pad-x:    var(--space-8);   /* 32px */
+  --page-pad-y:    var(--space-8);
+  --page-max-w:    1400px;
+
+  /* Z-index scale — orden estricto de capas, alineado con valores legacy. */
+  --z-content:        1;
+  --z-sticky:         50;       /* sticky table headers, sticky bars */
+  --z-sidebar:        90;       /* sidebar móvil overlay */
+  --z-mobile-nav:     100;      /* hamburger / botones flotantes layout */
+  --z-dropdown:       200;      /* select / autocomplete */
+  --z-popover:        400;      /* popover / context menu */
+  --z-drawer:         800;      /* drawer / off-canvas panel */
+  --z-modal:          1000;     /* modal dialog (Modal component) */
+  --z-drag:           9999;     /* drag ghost / sortable preview (over modal) */
+  --z-tour:           99990;    /* onboarding overlay base */
+  --z-tour-spotlight: 99991;    /* onboarding highlight ring */
+  --z-tour-tooltip:   99992;    /* onboarding tooltip card */
+  --z-search:         99998;    /* global search modal (Cmd+K) */
+  --z-banner:         99999;    /* system banners (offline, maintenance) */
+  --z-toast:          99999;    /* toast / snackbar — top-most messaging */
 
   /* Alias compatibilidad con código existente */
   --bg:          var(--surface-0);
@@ -151,12 +239,48 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--surface-5); }
 
-/* ── Focus ────────────────────────────────────────────────────── */
+/* ── Focus ──────────────────────────────────────────────────────
+   Estrategia:
+   1. Por defecto NO hay outline (evita doble borde con focus state propio).
+   2. SOLO inputs/textareas/selects mantienen outline (a11y de form fields).
+   3. Buttons/links/tabs reciben box-shadow ring sutil al recibir focus por
+      teclado (a11y para keyboard users).
+   4. Active tab respeta su propio halo box-shadow (definido inline por
+      el componente Tabs). */
+:focus,
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: none;
+}
+
+/* Inputs/Selects/Textarea: outline ring estándar (no tienen box-shadow propio) */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent) !important;
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
+
+/* Buttons / Links / Tabs / role-button — outline siempre suprimido,
+   incluso encima de cualquier inline style. */
+button:focus,
+button:focus-visible,
+a:focus,
+a:focus-visible,
+[role="tab"]:focus,
+[role="tab"]:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible,
+[role="menuitem"]:focus,
+[role="menuitem"]:focus-visible,
+[role="tablist"] *:focus,
+[role="tablist"] *:focus-visible {
+  outline: none !important;
+}
+
+/* Sin focus rings añadidos por CSS — los botones/tabs/links no reciben
+   box-shadow al focus. El estado activo se identifica por el border y
+   background propios del componente. Esto evita el "halo blanco" al cargar. */
 
 /* ── Selección ────────────────────────────────────────────────── */
 ::selection {
@@ -223,9 +347,25 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 
 /* ── Page content ─────────────────────────────────────────────── */
 .page-content {
-  padding: var(--space-8);
-  max-width: 1400px;
+  padding: var(--page-pad-y) var(--page-pad-x);
+  max-width: var(--page-max-w);
   animation: fadeUp 0.25s ease forwards;
+}
+
+/* Sticky toolbar/header utility — usado por PageHeader sticky y filter rows */
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--bg);
+  /* fade hint al hacer scroll bajo */
+  margin-left: calc(var(--page-pad-x) * -1);
+  margin-right: calc(var(--page-pad-x) * -1);
+  padding-left: var(--page-pad-x);
+  padding-right: var(--page-pad-x);
+}
+.sticky-top--shadow {
+  box-shadow: 0 1px 0 var(--surface-4), 0 8px 16px -8px rgba(0,0,0,0.6);
 }
 
 .app-main-shell {
@@ -1333,6 +1473,68 @@ textarea:focus-visible {
   .mobile-hamburger {
     top: calc(12px + var(--safe-top)) !important;
     left: calc(12px + var(--safe-left)) !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Responsive — table → card en mobile, modal → fullscreen
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Modales full-screen en mobiles muy pequeños */
+  [role="dialog"][aria-modal="true"] {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Stack vertical de cualquier grid 2-col genérica */
+  [style*="gridTemplateColumns"][style*="1fr 1fr"],
+  [style*="gridTemplateColumns: '1fr 1fr'"] {
+    /* (CSS no puede sobrescribir estilo inline así, pero documento intención) */
+  }
+
+  /* Tablas: scroll horizontal con hint visual de overflow */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  table.responsive-stack thead { display: none; }
+  table.responsive-stack,
+  table.responsive-stack tbody,
+  table.responsive-stack tr,
+  table.responsive-stack td { display: block; width: 100%; white-space: normal; }
+  table.responsive-stack tr {
+    border: 1px solid var(--surface-4);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+  }
+  table.responsive-stack td {
+    padding: 4px 0 !important;
+    border-bottom: none !important;
+  }
+  table.responsive-stack td::before {
+    content: attr(data-label) ": ";
+    font-weight: 700;
+    color: var(--text-2);
+    text-transform: uppercase;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.06em;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* Toolbar: stack vertical */
+  [role="toolbar"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  [role="toolbar"] > * {
+    width: 100%;
   }
 }
 

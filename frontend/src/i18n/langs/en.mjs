@@ -1178,6 +1178,7 @@ const en = {
     webhook_log: 'Webhook Log',
     jira_integration: 'Jira Integration',
     notifications: 'Notifications',
+    inbox: 'Inbox',
     executive: 'Executive Dashboard',
     bi_workspace: 'BI Workspace',
     log_hours: 'Log hours',
@@ -1952,6 +1953,8 @@ const en = {
     offline: 'Offline',
     pending: 'Pending sync',
     syncing: 'Syncing...',
+    banner_offline: 'No connection — working in offline mode',
+    banner_pending: '({count} pending operations)',
   },
   toast: {
     unexpected_error: 'Unexpected error',

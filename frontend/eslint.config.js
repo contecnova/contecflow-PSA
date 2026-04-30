@@ -159,6 +159,21 @@ export default [
       'jsx-a11y/label-has-associated-control': 'off',
       'jsx-a11y/click-events-have-key-events': 'error',
       'jsx-a11y/no-static-element-interactions': 'error',
+
+      // ── Design system enforcement ──
+      // Restringir colores hex literales en código nuevo. Los tokens viven en
+      // index.css (--accent, --surface-*) y en constants/theme.js (CHART_COLORS,
+      // COLOR.*). Si necesitas un color para chart, usa CHART_COLORS_EXTENDED.
+      'no-restricted-syntax': ['warn',
+        {
+          selector: "Literal[value=/^#(00d4ff|0ea5e9|7c3aed)/i]",
+          message: 'Hex literales de marca obsoletos (#00d4ff/#0ea5e9/#7c3aed). Usa var(--accent), var(--purple), o COLOR.* desde constants/theme.js.',
+        },
+        {
+          selector: "Property[key.name='fontSize'][value.type='Literal'][value.raw=/^[0-9]+$/]",
+          message: 'fontSize literal numérico. Usa var(--text-xs|sm|base|md|lg|xl|2xl|3xl) — escala definida en index.css.',
+        },
+      ],
     },
   },
   {

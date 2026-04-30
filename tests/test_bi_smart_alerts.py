@@ -1,4 +1,5 @@
 """Tests BI Smart Alerts service and endpoints."""
+from app.services import bi_smart_alerts_service as smart_alerts_svc
 from tests.conftest import auth
 
 
@@ -105,3 +106,41 @@ def test_seed_defaults(client, admin_token, db):
     res = client.post("/api/v1/bi/alerts/seed-defaults", headers=auth(admin_token))
     assert res.status_code == 200
     assert res.json()["ok"] is True
+
+
+def test_evaluate_alerts_with_historical_correlation(client, admin_token, db, monkeypatch):
+    """Una regla anomaly + correlated_metrics dispara sólo con correlación real."""
+
+    def _fake_series(_db, metric_key, _org_id):
+        if metric_key == "revenue":
+            return [100, 102, 101, 103, 100, 105, 190]
+        if metric_key == "margin":
+            return [50, 51, 50, 52, 49, 53, 110]
+        return []
+
+    monkeypatch.setattr(smart_alerts_svc, "_fetch_metric_series", _fake_series)
+
+    create_res = client.post(
+        "/api/v1/bi/alerts/rules",
+        json={
+            "name": "Revenue anomaly correlated with margin",
+            "metric_key": "revenue",
+            "condition": "anomaly",
+            "severity": "critical",
+            "correlated_metrics": ["margin"],
+            "cooldown_minutes": 30,
+            "enabled": True,
+        },
+        headers=auth(admin_token),
+    )
+    assert create_res.status_code == 201
+
+    eval_res = client.post("/api/v1/bi/alerts/evaluate", headers=auth(admin_token))
+    assert eval_res.status_code == 200
+    data = eval_res.json()
+    assert data["triggered_count"] >= 1
+    entry = data["triggered"][0]
+    assert entry["metric_key"] == "revenue"
+    assert entry["detail"]["is_anomaly"] is True
+    assert entry["correlated"]
+    assert entry["correlated"][0]["metric_key"] == "margin"

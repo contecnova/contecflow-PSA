@@ -1,6 +1,6 @@
 /**
  * ChangeRolloutPanel.jsx — Advanced change rollout management UI.
- * Connects to /api/v1/sd/change/rollout-plans/* endpoints.
+ * Connects to /api/v1/sd/changes/* rollout endpoints.
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -23,43 +23,49 @@ export default function ChangeRolloutPanel() {
   const qc = useQueryClient()
   const [selectedId, setSelectedId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [changeRequestFilter, setChangeRequestFilter] = useState('')
   const [form, setForm] = useState({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
   const [simulate, setSimulate] = useState(null)
 
   const { data: plansData, isLoading } = useQuery({
-    queryKey: ['change-rollout-plans'],
-    queryFn: () => api.get('/sd/change/rollout-plans').then(r => r.data),
+    queryKey: ['change-rollout-plans', changeRequestFilter],
+    queryFn: () => api.get(`/sd/changes/${changeRequestFilter}/rollout-plans`).then(r => r.data),
+    enabled: Boolean(changeRequestFilter),
   })
 
-  const selectedPlan = (plansData?.plans ?? []).find(p => p.id === selectedId)
+  const selectedPlan = (plansData?.items ?? []).find(p => p.id === selectedId)
 
   const createMutation = useMutation({
-    mutationFn: (data) => api.post('/sd/change/rollout-plans', data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }); setShowCreate(false) },
+    mutationFn: (data) => api.post(`/sd/changes/${data.change_request_id}/rollout-plans`, data).then(r => r.data),
+    onSuccess: (_res, data) => {
+      qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
+      setChangeRequestFilter(data.change_request_id)
+      setShowCreate(false)
+    },
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id) => api.post(`/sd/change/rollout-plans/${id}/approve`, { approved_by: 'admin' }).then(r => r.data),
+    mutationFn: (id) => api.post(`/sd/changes/rollout-plans/${id}/approve`, { approved_by: 'admin' }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
   })
 
   const advanceMutation = useMutation({
-    mutationFn: ({ id, notes }) => api.post(`/sd/change/rollout-plans/${id}/advance`, { notes }).then(r => r.data),
+    mutationFn: ({ id, notes }) => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, { phase_notes: notes }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
   })
 
   const rollbackMutation = useMutation({
-    mutationFn: ({ id, reason }) => api.post(`/sd/change/rollout-plans/${id}/rollback`, { reason }).then(r => r.data),
+    mutationFn: ({ changeId, reason }) => api.post(`/sd/changes/${changeId}/rollback`, { reason }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
   })
 
   const handleSimulate = async (id) => {
-    const res = await api.get(`/sd/change/rollout-plans/${id}/simulate`)
-    setSimulate(res.data)
+    const res = await api.post(`/sd/changes/rollout-plans/${id}/simulate`, {})
+    setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
   }
 
   const cardCls = `rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`
-  const plans = plansData?.plans ?? []
+  const plans = plansData?.items ?? []
 
   return (
     <div className={cardCls}>
@@ -75,6 +81,16 @@ export default function ChangeRolloutPanel() {
           <Plus className="w-4 h-4" />
           {t('sd.rollout.create', 'Nuevo plan')}
         </button>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Filtrar por Change Request ID"
+          value={changeRequestFilter}
+          onChange={e => setChangeRequestFilter(e.target.value)}
+          className={`w-full rounded border px-3 py-2 text-sm ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+        />
       </div>
 
       {showCreate && (
@@ -205,7 +221,7 @@ export default function ChangeRolloutPanel() {
               ) : null}
               {['approved', 'in_progress'].includes(selectedPlan.status) && (
                 <button
-                  onClick={() => rollbackMutation.mutate({ id: selectedPlan.id, reason: 'Manual rollback' })}
+                  onClick={() => rollbackMutation.mutate({ changeId: selectedPlan.change_request_id, reason: 'Manual rollback' })}
                   disabled={rollbackMutation.isPending}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                 >

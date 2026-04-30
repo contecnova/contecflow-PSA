@@ -1,20 +1,21 @@
-import { CHART } from '../constants/theme'
+import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, issueTypesApi, customFieldsApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
-const COLORS = ['#6b7280','#4f8ef7','#22c55e','#f59e0b','#ef4444','#7c3aed','#f97316','#0ea5e9',CHART.pink,CHART.lime]
+const COLORS = CHART_COLORS_EXTENDED
 
 const _DEP_TYPE_LABELS = {
   blocks:'Bloquea',blocked_by:'Bloqueada por',relates_to:'Relacionada',duplicates:'Duplica',cloned_from:'Clonada de'
@@ -28,7 +29,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
     name:       type?.name        || '',
     value:      type?.value       || '',
     icon:       type?.icon        || '',
-    color:      type?.color       || '#6b7280',
+    color:      type?.color       || '#7a8aaa',
     description:type?.description || '',
     is_subtask: type?.is_subtask  || false,
     sort_order: type?.sort_order  || 0,
@@ -39,8 +40,8 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/issue-types/${projectId}/${type.id}`, d).then(r => r.data)
-      : api.post(`/issue-types/${projectId}`, d).then(r => r.data),
+      ? issueTypesApi.update(projectId, type.id, d).then(r => r.data)
+      : issueTypesApi.create(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['issue-types', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -65,7 +66,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
           </div>
           <div>
             <label style={ls}>{t('issue_types.value_internal')}</label>
-            <input style={{...is, fontFamily:'monospace', fontSize:12}} value={form.value}
+            <input style={{...is, fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)"}} value={form.value}
               onChange={e => set('value')(e.target.value)} disabled={isEdit}
             />
           </div>
@@ -73,7 +74,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
         <div style={{display:'grid',gridTemplateColumns:'80px 1fr',gap:12}}>
           <div>
             <label style={ls}>{t('issue_types.icon')}</label>
-            <input style={{...is, textAlign:'center', fontSize:20}} value={form.icon}
+            <input style={{...is, textAlign:'center', fontSize: "var(--text-xl)"}} value={form.icon}
               onChange={e => set('icon')(e.target.value)} />
           </div>
           <div>
@@ -83,7 +84,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
                 <button key={c} onClick={() => set('color')(c)}
                   style={{width:28,height:28,borderRadius:'50%',background:c,border:form.color===c?'3px solid #fff':'2px solid transparent',cursor:'pointer'}} />
               ))}
-              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#6b7280'} onChange={e => set('color')(e.target.value)}
+              <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : '#7a8aaa'} onChange={e => set('color')(e.target.value)}
                 style={{width:28,height:28,borderRadius:'50%',border:'none',cursor:'pointer',padding:0}} />
             </div>
           </div>
@@ -92,7 +93,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
           <label style={ls}>{t('issue_types.description')}</label>
           <input style={is} value={form.description} onChange={e => set('description')(e.target.value)} />
         </div>
-        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:13}}>
+        <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize: "var(--text-base)"}}>
           <input type="checkbox" checked={form.is_subtask} onChange={e => set('is_subtask')(e.target.checked)} />
           {t('issue_types.subtask_checkbox')}
         </label>
@@ -103,7 +104,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
               {customFields.map(f => (
                 <label key={f.field_key} style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',
                   padding:'4px 10px',borderRadius:6,border:`1px solid ${form.field_keys.includes(f.field_key)?'var(--accent-glow)':'var(--surface-4)'}`,
-                  background:form.field_keys.includes(f.field_key)?'var(--accent-muted)':'transparent',fontSize:12}}>
+                  background:form.field_keys.includes(f.field_key)?'var(--accent-muted)':'transparent',fontSize: "var(--text-sm)"}}>
                   <input type="checkbox" checked={form.field_keys.includes(f.field_key)}
                     onChange={() => toggleField(f.field_key)} style={{margin:0}} />
                   {f.name}
@@ -133,32 +134,32 @@ export default function IssueTypesPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
   const { data: types = [], isLoading } = useQuery({
     queryKey: ['issue-types', project],
-    queryFn: () => api.get(`/issue-types/${project}`).then(r => r.data).catch(() => []),
+    queryFn: () => issueTypesApi.list(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', project],
-    queryFn: () => api.get(`/custom-fields/${project}`).then(r => r.data).catch(() => []),
+    queryFn: () => customFieldsApi.list(project).then(r => r.data).catch(() => []),
     enabled: !!project,
   })
 
   const { mutate: initTypes, isPending: initing } = useMutation({
-    mutationFn: () => api.post(`/issue-types/${project}/init`).then(r => r.data),
+    mutationFn: () => issueTypesApi.init(project).then(r => r.data),
     onSuccess: () => qc.invalidateQueries(['issue-types', project]),
     onError: e => toast.error(extractErr(e, 'Error al inicializar')),
   })
   const { mutate: deleteType } = useMutation({
-    mutationFn: id => api.delete(`/issue-types/${project}/${id}`),
+    mutationFn: id => issueTypesApi.delete(project, id),
     onSuccess: () => qc.invalidateQueries(['issue-types', project]),
     onError: e => toast.error(extractErr(e, 'Error al eliminar')),
   })
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<Tag size={18} />} title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
         actions={project && types.length > 0 && (
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo tipo</Button>
@@ -177,9 +178,9 @@ export default function IssueTypesPage() {
 
       {project && !isLoading && types.length === 0 && (
         <div style={{...ps, textAlign:'center', padding:'48px 24px'}}>
-          <div style={{fontSize:48, marginBottom:16}}>🏷</div>
-          <div style={{fontSize:15, fontWeight:600, marginBottom:8}}>{t('issue_types.no_types')}</div>
-          <div style={{fontSize:13, color:'var(--text-2)', marginBottom:24}}>{t('issue_types.no_types_desc')}</div>
+          <div style={{fontSize: "var(--text-6xl)", marginBottom:16}}>🏷</div>
+          <div style={{fontSize: "var(--text-md-em)", fontWeight:600, marginBottom:8}}>{t('issue_types.no_types')}</div>
+          <div style={{fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:24}}>{t('issue_types.no_types_desc')}</div>
           <div style={{display:'flex', gap:12, justifyContent:'center'}}>
             <Button onClick={() => initTypes()} disabled={initing}>
               {initing ? t('issue_types.initializing') : t('issue_types.init_standard')}
@@ -198,62 +199,62 @@ export default function IssueTypesPage() {
             {types.map(t => (
               <div key={t.id} style={{background:'var(--surface-2)', border:`1px solid ${t.color}40`,
                 borderRadius:10, padding:'12px 16px', minWidth:120, textAlign:'center'}}>
-                <div style={{fontSize:28, marginBottom:4}}>{t.icon || '📌'}</div>
-                <div style={{fontWeight:600, fontSize:13, color:t.color}}>{t.name}</div>
-                <div style={{fontSize:11, color:'var(--text-3)', fontFamily:'monospace'}}>{t.value}</div>
-                {t.is_subtask && <div style={{fontSize:10, color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
+                <div style={{fontSize: "var(--text-3xl)", marginBottom:4}}>{t.icon || '📌'}</div>
+                <div style={{fontWeight:600, fontSize: "var(--text-base)", color:t.color}}>{t.name}</div>
+                <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', fontFamily:'var(--font-mono)'}}>{t.value}</div>
+                {t.is_subtask && <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
               </div>
             ))}
           </div>
           {/* Tabla detallada */}
           <div style={ps}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-              <div style={{fontSize:14, fontWeight:600}}>{t('issue_types.types_count').replace('{n}', types.length)}</div>
+              <div style={{fontSize: "var(--text-md)", fontWeight:600}}>{t('issue_types.types_count').replace('{n}', types.length)}</div>
               <Button onClick={() => { setEditing(null); setShowForm(true) }}>{t('issue_types.new_type')}</Button>
             </div>
-            <table style={{width:'100%', borderCollapse:'collapse', fontSize:13}}>
+            <table style={{width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)"}}>
               <thead>
                 <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
                   {[t('issue_types.type'), t('issue_types.value'), t('issue_types.description'), t('issue_types.subtask'), t('issue_types.required_fields'), t('issue_types.actions')].map(h => (
-                    <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize:11, color:'var(--text-2)',
+                    <th key={h} style={{textAlign:'left', padding:'8px 12px', fontSize: "var(--text-xs)", color:'var(--text-2)',
                       textTransform:'uppercase', letterSpacing:'.06em'}}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {types.map((t, i) => (
-                  <tr key={t.id} style={{borderBottom:'1px solid #1a2640', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                  <tr key={t.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', alignItems:'center', gap:10}}>
                         <div style={{width:32, height:32, borderRadius:8, background:t.color+'20',
-                          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16}}>
+                          display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
                           {t.icon || '📌'}
                         </div>
                         <span style={{fontWeight:600, color:t.color}}>{t.name}</span>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px', fontFamily:'monospace', fontSize:11, color:'var(--text-2)'}}>{t.value}</td>
-                    <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize:12, maxWidth:220}}>
+                    <td style={{padding:'10px 12px', fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{t.value}</td>
+                    <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)", maxWidth:220}}>
                       {t.description || '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{color: t.is_subtask ? 'var(--success)' : 'var(--text-3)', fontSize:13}}>
+                      <span style={{color: t.is_subtask ? 'var(--success)' : 'var(--text-3)', fontSize: "var(--text-base)"}}>
                         {t.is_subtask ? '✓' : '—'}
                       </span>
                     </td>
-                    <td style={{padding:'10px 12px', fontSize:12, color:'var(--text-2)'}}>
+                    <td style={{padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)'}}>
                       {t.field_keys?.length > 0 ? t.field_keys.join(', ') : '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', gap:8}}>
                         <button onClick={() => { setEditing(t); setShowForm(true) }}
                           style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
-                            padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:11}}>
+                            padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
                           {t('issue_types.edit')}
                         </button>
                         <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', t.name), onConfirm: () => deleteType(t.id), danger: true }) }}
-                          style={{background:'none', border:'1px solid #ff475730', borderRadius:6,
-                            padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize:11}}>
+                          style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:6,
+                            padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
                           {t('issue_types.delete')}
                         </button>
                       </div>
@@ -263,7 +264,7 @@ export default function IssueTypesPage() {
               </tbody>
             </table>
             <div style={{marginTop:20, padding:'12px 16px', background:'var(--surface-1)', borderRadius:8,
-              border:'1px solid #1a2640', fontSize:12, color:'var(--text-3)', lineHeight:1.7}}>
+              border:'1px solid #1e2d45', fontSize: "var(--text-sm)", color:'var(--text-3)', lineHeight:1.7}}>
               <strong style={{color:'var(--text-2)'}}>{t('issue_types.how_to_use')}</strong> {t('issue_types.how_to_use_desc')}
             </div>
           </div>
@@ -274,6 +275,6 @@ export default function IssueTypesPage() {
         <IssueTypeForm projectId={project} type={editing} customFields={customFields}
           onClose={() => { setShowForm(false); setEditing(null) }} />
       )}
-    </div>
+    </PageShell>
   )
 }

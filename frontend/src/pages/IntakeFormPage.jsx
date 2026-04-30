@@ -11,11 +11,11 @@ import { useAppT } from '../i18n/AppLangContext'
 const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/api\/v1\/?$/, '')
 
 const FS = {
-  width: '100%', background: '#fff', border: '1px solid #d1d5db',
-  borderRadius: 8, padding: '10px 14px', color: '#111827', fontSize: 14,
+  width: '100%', background: '#fff', border: '1px solid var(--text-2)',
+  borderRadius: 8, padding: '10px 14px', color: '#111827', fontSize: "var(--text-md)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }
+const LS = { fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--surface-5)', display: 'block', marginBottom: 6 }
 
 export default function IntakeFormPage() {
   const { token } = useParams()
@@ -41,7 +41,7 @@ export default function IntakeFormPage() {
   if (isLoading) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <p style={{ color: '#6b7280', textAlign: 'center' }}>{t('intake_form.loading_message')}</p>
+        <p style={{ color: 'var(--text-3)', textAlign: 'center' }}>{t('intake_form.loading_message')}</p>
       </div>
     </div>
   )
@@ -49,8 +49,8 @@ export default function IntakeFormPage() {
   if (error || !form) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h2 style={{ color: '#dc2626', fontSize: 20, marginBottom: 8 }}>{t('intake_form.error_not_found_title')}</h2>
-        <p style={{ color: '#6b7280' }}>{t('intake_form.error_not_found_message')}</p>
+        <h2 style={{ color: 'var(--danger)', fontSize: "var(--text-xl)", marginBottom: 8 }}>{t('intake_form.error_not_found_title')}</h2>
+        <p style={{ color: 'var(--text-3)' }}>{t('intake_form.error_not_found_message')}</p>
       </div>
     </div>
   )
@@ -58,11 +58,11 @@ export default function IntakeFormPage() {
   if (submitted) return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 16 }}>✅</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center', color: '#111827', marginBottom: 10 }}>
+        <div style={{ fontSize: "var(--text-6xl)", textAlign: 'center', marginBottom: 16 }}>✅</div>
+        <h2 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, textAlign: 'center', color: '#111827', marginBottom: 10 }}>
           {t('intake_form.success_title')}
         </h2>
-        <p style={{ color: '#6b7280', textAlign: 'center', lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--text-3)', textAlign: 'center', lineHeight: 1.6 }}>
           {form.success_message || t('intake_form.success_default_message')}
         </p>
       </div>
@@ -73,8 +73,8 @@ export default function IntakeFormPage() {
     <div style={pageStyle}>
       <div style={cardStyle}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', marginBottom: 6 }}>{form.name}</h1>
-          {form.description && <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.5 }}>{form.description}</p>}
+          <h1 style={{ fontSize: "var(--text-xl-em)", fontWeight: 700, color: '#111827', marginBottom: 6 }}>{form.name}</h1>
+          {form.description && <p style={{ color: 'var(--text-3)', fontSize: "var(--text-md)", lineHeight: 1.5 }}>{form.description}</p>}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -111,7 +111,7 @@ export default function IntakeFormPage() {
           </div>
 
           {isError && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', color: '#dc2626', fontSize: 13 }}>
+            <div style={{ background: '#fee2e2', border: '1px solid var(--danger)', borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
               {t('intake_form.error_send_label')} {submitError?.response?.data?.detail || t('intake_form.error_retry_label')}
             </div>
           )}
@@ -120,9 +120,9 @@ export default function IntakeFormPage() {
             onClick={() => mutate(fields)}
             disabled={isPending || !fields.subject}
             style={{
-              background: isPending ? '#9ca3af' : '#2563eb',
+              background: isPending ? '#7a8aaa' : '#4f8ef7',
               color: '#fff', border: 'none', borderRadius: 10,
-              padding: '12px 24px', fontSize: 14, fontWeight: 700,
+              padding: '12px 24px', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isPending || !fields.subject ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'background 0.2s',
             }}

@@ -31,11 +31,11 @@ function CannedResponsePicker({ onSelect, onClose }) {
         <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
           aria-label={t('service_desk.canned_search')}
           placeholder={t('service_desk.canned_search')}
-          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {responses.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ padding: '20px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             {search ? t('service_desk.canned_no_results') : t('service_desk.canned_empty')}
           </div>
         ) : cats.map(cat => {
@@ -43,18 +43,18 @@ function CannedResponsePicker({ onSelect, onClose }) {
           if (!catItems.length) return null
           return (
             <div key={cat}>
-              <div style={{ padding: '6px 12px 2px', fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
+              <div style={{ padding: '6px 12px 2px', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cat}</div>
               {catItems.map(r => (
                 <button key={r.id} onClick={() => { onSelect(r.body); onClose() }}
                   aria-label={r.title || t('service_desk.detail_send_comment')}
                   style={{ width: '100%', textAlign: 'left', padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)', borderTop: 'none', borderLeft: 'none', borderRight: 'none', background: 'transparent' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
-                    {r.shortcut && <span style={{ fontSize: 11, color: 'var(--accent)', marginRight: 6, fontFamily: 'monospace' }}>{r.shortcut}</span>}
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
+                    {r.shortcut && <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginRight: 6, fontFamily: 'var(--font-mono)' }}>{r.shortcut}</span>}
                     {r.title}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body?.slice(0, 80)}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body?.slice(0, 80)}</div>
                 </button>
               ))}
             </div>
@@ -62,7 +62,7 @@ function CannedResponsePicker({ onSelect, onClose }) {
         })}
       </div>
       <div style={{ padding: '6px 12px', borderTop: '1px solid var(--surface-4)', textAlign: 'right' }}>
-        <button onClick={onClose} style={{ fontSize: 11, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('service_desk.canned_cancel_esc')}</button>
+        <button onClick={onClose} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('service_desk.canned_cancel_esc')}</button>
       </div>
     </div>
   )
@@ -99,7 +99,7 @@ function SplitTicketModal({ ticket, onClose, onCreated }) {
   return (
     <Modal open title={`✂ Dividir ticket ${ticket?.number}`} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: 12, color: 'var(--text-2)' }}>
+        <div style={{ padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           {t('service_desk.split_desc_original')} <strong style={{ color: 'var(--text-1)' }}>{ticket?.number}</strong>.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -217,10 +217,13 @@ function TicketEditModal({ ticket, onClose, onSaved }) {
 }
 
 // ── TicketDetail (main) ────────────────────────────────────────────────────────
+// Estilo "ghost" alineado con el resto de la app (mismo que ImportPage "Descargar plantilla")
 const qaBtnStyle = {
-  padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)',
-  background: 'var(--surface-3)', color: 'var(--text-2)',
-  fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  padding: '5px 12px', borderRadius: 6,
+  border: '1px solid var(--accent-border)',
+  background: 'transparent', color: 'var(--accent)',
+  fontSize: "var(--text-xs)", fontWeight: 600,
+  cursor: 'pointer', fontFamily: 'inherit',
 }
 
 export default function TicketDetail({ ticketId, onClose, embedded = false }) {
@@ -318,22 +321,22 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
           <div>
             {isLoading ? <Spinner /> : <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{ticket?.number}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{ticket?.type_label}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 700 }}>{ticket?.number}</span>
+                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{ticket?.type_label}</span>
                 <PBadge v={ticket?.priority} />
                 <SBadge v={ticket?.status} />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{ticket?.title}</div>
+              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.3 }}>{ticket?.title}</div>
             </>}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
             {ticket && (
               <button onClick={() => setShowEdit(true)}
-                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                 ✏ Editar
               </button>
             )}
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: 20, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>×</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xl)", cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>×</button>
           </div>
         </div>
         {ticket && (
@@ -360,14 +363,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
           {/* SLA status */}
           <div style={{ background: 'var(--surface-2)', border: `1px solid ${slaColor}40`, borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: ticket.sla_response_status === 'breached' ? COLOR.danger : COLOR.success }}>
+              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_response')}</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: ticket.sla_response_status === 'breached' ? COLOR.danger : COLOR.success }}>
                 {ticket.sla_response_status?.replace(/_/g, ' ')} · {fmtDate(ticket.sla_response_due)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_resolution')}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: slaColor }}>
+              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{t('service_desk.detail_sla_resolution')}</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: slaColor }}>
                 {ticket.sla_resolution_status?.replace(/_/g, ' ')} · {fmtDate(ticket.sla_resolution_due)}
               </div>
             </div>
@@ -386,15 +389,15 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
               [t('service_desk.detail_updated'), fmtDate(ticket.updated_at)],
             ].map(([label, val]) => (
               <div key={label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 500 }}>{val}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontWeight: 500 }}>{val}</div>
               </div>
             ))}
           </div>
 
           {/* Reasignar */}
           <div style={{ marginBottom: 16 }}>
-            <button onClick={() => setEditAssign(e => !e)} style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <button onClick={() => setEditAssign(e => !e)} style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
               {editAssign ? '▼' : '▶'} Reasignar ticket
             </button>
             {editAssign && (
@@ -409,16 +412,16 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {/* Descripción */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('common.description')}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('common.description')}</div>
+            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.6, whiteSpace: 'pre-wrap', background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px' }}>
               {ticket.description}
             </div>
           </div>
 
           {ticket.resolution && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-1)', background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: COLOR.success, marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.edit_resolution')}</div>
+              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', background: `${COLOR.success}08`, border: `1px solid ${COLOR.success}20`, borderRadius: 8, padding: '12px 14px', lineHeight: 1.5 }}>
                 {ticket.resolution}
               </div>
             </div>
@@ -426,12 +429,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {links.length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>
                 {t('service_desk.detail_linked')} ({links.length})
               </div>
               {links.map(lk => (
-                <div key={lk.link_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)', fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-3)', fontSize: 10, textTransform: 'uppercase', minWidth: 70 }}>{lk.link_type}</span>
+                <div key={lk.link_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+                  <span style={{ color: 'var(--text-3)', fontSize: "var(--text-2xs)", textTransform: 'uppercase', minWidth: 70 }}>{lk.link_type}</span>
                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{lk.ticket_number}</span>
                   <span style={{ color: 'var(--text-1)', flex: 1 }}>{lk.ticket_title}</span>
                   <SBadge v={lk.ticket_status} />
@@ -442,7 +445,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {/* Time logging */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase' }}>{t('service_desk.detail_log_time')}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} style={{ ...IS, flex: 1 }} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
@@ -451,17 +454,17 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {/* Comments */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 12, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 12, textTransform: 'uppercase' }}>
               {t('common.description')} ({(ticket.comments || []).length})
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
               {(ticket.comments || []).map(c => (
                 <div key={c.id} style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{c.author_name}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{fmtDate(c.created_at)}</span>
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{c.author_name}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{fmtDate(c.created_at)}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.body}</div>
+                  <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{c.body}</div>
                 </div>
               ))}
             </div>
@@ -477,11 +480,11 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <button onClick={() => setShowCanned(s => !s)}
-                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? '#00d4ff40' : 'var(--surface-4)'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: showCanned ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${showCanned ? 'var(--accent-border-strong)' : 'var(--surface-4)'}`, color: showCanned ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ⚡ Respuestas rápidas
               </button>
               <button onClick={() => suggestReply()} disabled={suggestingReply}
-                style={{ fontSize: 11, padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                style={{ fontSize: "var(--text-xs)", padding: '5px 10px', borderRadius: 7, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', color: 'var(--text-2)', cursor: suggestingReply ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
                 {suggestingReply ? t('service_desk.detail_ai_generating') : `✨ ${t('service_desk.detail_send_comment')}`}
               </button>
             </div>
@@ -494,10 +497,10 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
 
           {(ticket.history || []).length > 0 && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>{t('service_desk.detail_history')}</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', marginBottom: 10, textTransform: 'uppercase' }}>{t('service_desk.detail_history')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {ticket.history.slice(-8).reverse().map((h, i) => (
-                  <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
+                  <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '5px 0', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>{h.change_description || `${h.field_name}: ${h.old_value} → ${h.new_value}`}</span>
                     <span style={{ color: 'var(--text-3)', whiteSpace: 'nowrap', marginLeft: 10 }}>{fmtDate(h.changed_at)}</span>
                   </div>

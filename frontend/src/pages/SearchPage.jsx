@@ -5,9 +5,10 @@
 import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi } from '../services/api'
 import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Search } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -23,7 +24,7 @@ const ENTITY_TYPES = [
 ]
 
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const inp   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const inp   = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 
 // ── Full-text search ──────────────────────────────────────────────────────────
 function FTSMode() {
@@ -42,11 +43,11 @@ function FTSMode() {
       const _params = { q: q.trim(), limit: 8 }
       const ents = entity === 'all' ? ENTITY_TYPES.map(e => e.id) : [entity]
       const calls = await Promise.allSettled([
-        ents.includes('project')  ? api.get('/projects', { params: { search: q, limit: 8 } }).then(r => ({ type: 'project', items: r.data?.items || r.data || [] })) : null,
-        ents.includes('task')     ? api.get('/tasks',    { params: { search: q, limit: 8 } }).then(r => ({ type: 'task',    items: r.data?.items || r.data || [] })) : null,
-        ents.includes('client')   ? api.get('/clients',  { params: { q, limit: 8 } }).then(r => ({ type: 'client',  items: r.data || [] })) : null,
-        ents.includes('ticket')   ? api.get('/sd/tickets',{ params: { search: q, page_size: 8 } }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
-        ents.includes('contract') ? api.get('/contracts',{ params: { q, limit: 8 } }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
+        ents.includes('project')  ? projectsApi.list({ search: q, limit: 8 }).then(r => ({ type: 'project', items: r.data?.items || r.data || [] })) : null,
+        ents.includes('task')     ? tasksApi.list({ search: q, limit: 8 }).then(r => ({ type: 'task',    items: r.data?.items || r.data || [] })) : null,
+        ents.includes('client')   ? clientsApi.list({ q, limit: 8 }).then(r => ({ type: 'client',  items: r.data || [] })) : null,
+        ents.includes('ticket')   ? ticketsApi.list({ search: q, page_size: 8 }).then(r => ({ type: 'ticket',  items: r.data?.tickets || r.data?.items || (Array.isArray(r.data) ? r.data : []) })) : null,
+        ents.includes('contract') ? contractsApi.list({ q, limit: 8 }).then(r => ({ type: 'contract', items: r.data?.items || r.data || [] })) : null,
       ].filter(Boolean))
       const grouped = {}
       calls.forEach(c => { if (c.status === 'fulfilled' && c.value) grouped[c.value.type] = c.value.items })
@@ -64,7 +65,7 @@ function FTSMode() {
       <div style={{ ...panel, padding: '20px 24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--text-2)' }}>
+            <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: "var(--text-lg)", color: 'var(--text-2)' }}>
               {isFetching ? '⟳' : '🔍'}
             </span>
             <input
@@ -72,7 +73,7 @@ function FTSMode() {
               onChange={e => setQ(e.target.value)}
               placeholder="Buscar proyectos, tareas, clientes o tickets"
               aria-label="Busqueda rapida"
-              style={{ ...inp, paddingLeft: 42, fontSize: 15 }}
+              style={{ ...inp, paddingLeft: 42, fontSize: "var(--text-md-em)" }}
               autoFocus
             />
           </div>
@@ -82,14 +83,14 @@ function FTSMode() {
           <button onClick={() => setEntity('all')}
             style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === 'all' ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: entity === 'all' ? 'var(--accent-muted)' : 'transparent', color: entity === 'all' ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 12, fontWeight: entity === 'all' ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
+              fontSize: "var(--text-sm)", fontWeight: entity === 'all' ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
             Todo
           </button>
           {ENTITY_TYPES.map(e => (
             <button key={e.id} onClick={() => setEntity(e.id)}
               style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${entity === e.id ? e.color : 'var(--surface-4)'}`,
                 background: entity === e.id ? e.color + '15' : 'transparent', color: entity === e.id ? e.color : 'var(--text-2)',
-                fontSize: 12, fontWeight: entity === e.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
+                fontSize: "var(--text-sm)", fontWeight: entity === e.id ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
               {e.icon} {e.label}
             </button>
           ))}
@@ -105,15 +106,15 @@ function FTSMode() {
         <EmptyState icon="🔭" title={`Sin resultados para "${q}"`} description="Prueba con otro termino o cambia el tipo de entidad" />
       ) : (
         <div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16 }}>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
             {totalResults} resultado(s) para &quot;{q}&quot;
           </div>
           {ENTITY_TYPES.filter(e => results[e.id]?.length > 0).map(etype => (
             <div key={etype.id} style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 16 }}>{etype.icon}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: etype.color }}>{etype.label}</span>
-                <span style={{ fontSize: 11, background: etype.color + '20', color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
+                <span style={{ fontSize: "var(--text-lg)" }}>{etype.icon}</span>
+                <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: etype.color }}>{etype.label}</span>
+                <span style={{ fontSize: "var(--text-xs)", background: etype.color + '20', color: etype.color, borderRadius: 10, padding: '1px 7px' }}>
                   {results[etype.id].length}
                 </span>
               </div>
@@ -126,10 +127,10 @@ function FTSMode() {
                     const paths = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }
                     nav(paths[etype.id] || '/')
                   }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 2 }}>
                     {item.name || item.title || item.code || item.number || '—'}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                     {item.code && item.code !== (item.name || item.title) && `${item.code} · `}
                     {item.status && `${item.status} · `}
                     {item.client_name || item.project_name || ''}
@@ -165,19 +166,19 @@ function NQLMode() {
   return (
     <div>
       <div style={{ ...panel, padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Consulta NQL</div>
+        <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12 }}>Consulta NQL</div>
         <textarea
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Ejemplo: tasks where priority = 'critical'"
           aria-label="Consulta NQL"
-          style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: 13, fontFamily: "'Space Mono', monospace" }}
+          style={{ ...inp, minHeight: 80, resize: 'vertical', fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => setQuery(ex)}
-                style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
+                style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
                   background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Ejemplo {i+1}
               </button>
@@ -191,10 +192,10 @@ function NQLMode() {
 
       {results && (
         <div style={{ ...panel, padding: '20px 24px' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>
             Resultados <span style={{ fontWeight: 400, color: 'var(--text-2)' }}>({results.total || results.results?.length || 0})</span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 16 }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 16 }}>
             Entidad: {results.entity} · {results.execution_time_ms}ms
           </div>
           {results.results?.length > 0 ? (
@@ -221,7 +222,7 @@ export default function SearchPage() {
   const [mode, setMode] = useState('fts')
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Search size={18} />}
         title={_t('search.title')}
@@ -233,7 +234,7 @@ export default function SearchPage() {
                 style={{ padding: '7px 16px', borderRadius: 7, border: 'none',
                   background: mode === id ? 'var(--accent)' : 'transparent',
                   color: mode === id ? 'var(--surface-0)' : 'var(--text-2)',
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {label}
               </button>
             ))}
@@ -241,6 +242,6 @@ export default function SearchPage() {
         }
       />
       {mode === 'fts' ? <FTSMode /> : <NQLMode />}
-    </div>
+    </PageShell>
   )
 }

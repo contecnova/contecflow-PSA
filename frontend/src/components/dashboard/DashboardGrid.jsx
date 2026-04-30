@@ -158,7 +158,7 @@ function DateRangePicker({ value, onChange }) {
       {PRESETS.map(p => (
         <button key={p.label} onClick={() => { onChange(p.fn()); setCustom(false) }} style={{
           padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
-          background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 10, fontWeight: 700,
+          background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: "var(--text-2xs)", fontWeight: 700,
           cursor: 'pointer', fontFamily: 'inherit',
         }}>{p.label}</button>
       ))}
@@ -166,22 +166,22 @@ function DateRangePicker({ value, onChange }) {
         padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)',
         background: custom ? 'var(--accent-muted)' : 'var(--surface-2)',
         color: custom ? 'var(--accent)' : 'var(--text-2)',
-        fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        fontSize: "var(--text-2xs)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
       }}>✏</button>
       {custom && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input type="date" value={value?.from || ''} onChange={e => onChange({ ...value, from: e.target.value })}
-            style={{ padding: '3px 6px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 10 }} />
-          <span style={{ color: 'var(--text-3)', fontSize: 10 }}>→</span>
+            style={{ padding: '3px 6px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: "var(--text-2xs)" }} />
+          <span style={{ color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>→</span>
           <input type="date" value={value?.to || ''} onChange={e => onChange({ ...value, to: e.target.value })}
-            style={{ padding: '3px 6px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 10 }} />
+            style={{ padding: '3px 6px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: "var(--text-2xs)" }} />
         </div>
       )}
       {value && !custom && (
-        <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{value.from} → {value.to}</span>
+        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{value.from} → {value.to}</span>
       )}
       {value && (
-        <button onClick={() => onChange(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 12, padding: '2px' }}>×</button>
+        <button onClick={() => onChange(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '2px' }}>×</button>
       )}
     </div>
   )
@@ -269,15 +269,15 @@ function WidgetCell({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          {!locked && <span style={{ color: 'var(--text-4, var(--text-3))', fontSize: 9, letterSpacing: 2, flexShrink: 0 }}>⠿⠿</span>}
-          <span style={{ fontSize: 12, flexShrink: 0 }}>{w?.icon}</span>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w?.title}</span>
+          {!locked && <span style={{ color: 'var(--text-4, var(--text-3))', fontSize: "var(--text-3xs)", letterSpacing: 2, flexShrink: 0 }}>⠿⠿</span>}
+          <span style={{ fontSize: "var(--text-sm)", flexShrink: 0 }}>{w?.icon}</span>
+          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w?.title}</span>
         </div>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={() => onFullScreen(id)}
           title="Pantalla completa · Esc para cerrar"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 11, padding: '2px 4px', flexShrink: 0 }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: "var(--text-xs)", padding: '2px 4px', flexShrink: 0 }}
         >⛶</button>
       </div>
       {/* Widget content with measured height */}
@@ -372,13 +372,13 @@ export default function DashboardGrid({
               justifyContent: 'space-between', padding: '0 20px',
               background: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)',
             }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>
+              <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>
                 {allWidgets.find(w => w.id === fullScreenId)?.icon}{' '}
                 {allWidgets.find(w => w.id === fullScreenId)?.title}
               </span>
               <button onClick={() => setFullScreenId(null)} style={{
                 background: 'none', border: '1px solid var(--surface-4)', borderRadius: 7,
-                cursor: 'pointer', color: 'var(--text-2)', fontSize: 13, padding: '4px 10px', fontFamily: 'inherit',
+                cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-base)", padding: '4px 10px', fontFamily: 'inherit',
               }}>✕ Esc</button>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 24 }}>
@@ -398,7 +398,7 @@ export default function DashboardGrid({
                   onChange={e => setRenameValue(e.target.value)}
                   onBlur={() => { renameDashboard(d.id, renameValue || d.name); setRenamingId(null) }}
                   onKeyDown={e => { if (e.key === 'Enter') { renameDashboard(d.id, renameValue || d.name); setRenamingId(null) } if (e.key === 'Escape') setRenamingId(null) }}
-                  style={{ padding: '4px 8px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: 12, fontFamily: 'inherit', width: 120 }}
+                  style={{ padding: '4px 8px', borderRadius: 7, border: '1px solid var(--accent)', background: 'var(--surface-2)', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'inherit', width: 120 }}
                 />
               ) : (
                 <button
@@ -410,14 +410,14 @@ export default function DashboardGrid({
                     border: `1px solid ${activeId === d.id ? 'rgba(79,142,247,0.45)' : 'var(--surface-4)'}`,
                     background: activeId === d.id ? 'var(--accent-muted)' : 'var(--surface-2)',
                     color: activeId === d.id ? 'var(--accent)' : 'var(--text-2)',
-                    cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                    cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
                   }}
                 >{d.name}</button>
               )}
               {boards.length > 1 && (
                 <button onClick={() => deleteDashboard(d.id)} style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-3)', fontSize: 13, padding: '3px 5px',
+                  color: 'var(--text-3)', fontSize: "var(--text-base)", padding: '3px 5px',
                 }} title="Eliminar">×</button>
               )}
             </div>
@@ -425,15 +425,15 @@ export default function DashboardGrid({
           <button onClick={createDashboard} style={{
             padding: '5px 10px', borderRadius: 7, border: '1px dashed var(--surface-4)',
             background: 'transparent', color: 'var(--text-3)', cursor: 'pointer',
-            fontSize: 12, fontFamily: 'inherit',
+            fontSize: "var(--text-sm)", fontFamily: 'inherit',
           }} title="Nuevo dashboard">＋</button>
         </div>
 
         {/* ── Cabecera ────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 2 }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{typeof subtitle === 'function' ? subtitle() : subtitle}</div>}
+            <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, marginBottom: 2 }}>{title}</div>
+            {subtitle && <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{typeof subtitle === 'function' ? subtitle() : subtitle}</div>}
           </div>
           <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
             {/* Filtro fecha (Level 3) */}
@@ -445,14 +445,14 @@ export default function DashboardGrid({
               border: `1px solid ${locked ? 'rgba(79,142,247,0.45)' : 'var(--surface-4)'}`,
               background: locked ? 'var(--accent-muted)' : 'var(--surface-2)',
               color: locked ? 'var(--accent)' : 'var(--text-2)',
-              cursor: 'pointer', fontSize: 13, lineHeight: 1,
+              cursor: 'pointer', fontSize: "var(--text-base)", lineHeight: 1,
             }}>{locked ? '🔒' : '🔓'}</button>
 
             {/* Exportar (Level 3) */}
             <button onClick={handleExport} title="Exportar dashboard como imagen/PDF" style={{
               padding: '6px 11px', borderRadius: 7, border: '1px solid var(--surface-4)',
               background: 'var(--surface-2)', color: 'var(--text-2)', cursor: 'pointer',
-              fontSize: 12, fontFamily: 'inherit',
+              fontSize: "var(--text-sm)", fontFamily: 'inherit',
             }}>⬇ Exportar</button>
 
             {/* Personalizar */}
@@ -461,7 +461,7 @@ export default function DashboardGrid({
               border: `1px solid ${configOpen ? 'rgba(79,142,247,0.45)' : 'var(--surface-4)'}`,
               background: configOpen ? 'var(--accent-muted)' : 'var(--surface-2)',
               color: configOpen ? 'var(--accent)' : 'var(--text-2)',
-              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+              cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
             }}>⊞ Personalizar</button>
             {headerExtra}
           </div>
@@ -472,12 +472,12 @@ export default function DashboardGrid({
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '18px 22px', marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>Widgets disponibles</div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Arrastra ⠿⠿ para mover · esquina inferior derecha para redimensionar</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>Widgets disponibles</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>Arrastra ⠿⠿ para mover · esquina inferior derecha para redimensionar</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={resetConfig} style={{ fontSize: 11, color: 'var(--text-2)', background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>Restablecer</button>
-                <button onClick={() => setConfigOpen(false)} style={{ fontSize: 17, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
+                <button onClick={resetConfig} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>Restablecer</button>
+                <button onClick={() => setConfigOpen(false)} style={{ fontSize: "var(--text-17)", color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>×</button>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 7 }}>
@@ -490,11 +490,11 @@ export default function DashboardGrid({
                     border: `1px solid ${visible ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
                     opacity: visible ? 1 : 0.55, transition: 'all 0.15s',
                   }}>
-                    <span style={{ fontSize: 13 }}>{w.icon}</span>
-                    <span style={{ flex: 1, fontSize: 11, color: visible ? 'var(--text-1)' : 'var(--text-3)', fontWeight: 500 }}>{w.title}</span>
+                    <span style={{ fontSize: "var(--text-base)" }}>{w.icon}</span>
+                    <span style={{ flex: 1, fontSize: "var(--text-xs)", color: visible ? 'var(--text-1)' : 'var(--text-3)', fontWeight: 500 }}>{w.title}</span>
                     <button onClick={() => toggleWidget(w.id)} style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      color: visible ? 'var(--accent)' : 'var(--text-3)', fontSize: 13, padding: '1px',
+                      color: visible ? 'var(--accent)' : 'var(--text-3)', fontSize: "var(--text-base)", padding: '1px',
                     }}>{visible ? '👁' : '○'}</button>
                   </div>
                 )
@@ -543,9 +543,9 @@ export default function DashboardGrid({
           )}
           {config.visible.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-3)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>⊞</div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Dashboard vacío</div>
-              <div style={{ fontSize: 13 }}>Abre «Personalizar» para añadir widgets</div>
+              <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>⊞</div>
+              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 6 }}>Dashboard vacío</div>
+              <div style={{ fontSize: "var(--text-base)" }}>Abre «Personalizar» para añadir widgets</div>
             </div>
           )}
         </div>

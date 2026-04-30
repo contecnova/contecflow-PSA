@@ -1,15 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import api, { alertsApi } from '../services/api'
+import api, { alertsApi, mentionsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 /**
- * Centralises the two badge queries (alert count + pending approvals)
- * that were previously living as local state inside Layout.
- * Any component can call this hook to read the same cached values
- * without triggering an extra network request.
+ * Centralises badge queries (alerts + approvals + mentions) y
+ * los unifica en un total para el inbox bell del header.
  */
 export default function useNotificationBadges() {
-  const { hasRole } = useAuth()
+  const { hasRole, user, loading } = useAuth()
+  const canQueryProtected = !loading && !!user
 
   const { data: alerts } = useQuery({
     queryKey: ['alerts-count'],
@@ -23,10 +22,21 @@ export default function useNotificationBadges() {
     queryFn: () =>
       api.get('/approvals/requests/pending-my-action').then(r => r.data || []).catch(() => []),
     refetchInterval: 60_000,
+    enabled: canQueryProtected,
+  })
+
+  const { data: mentions = [] } = useQuery({
+    queryKey: ['mentions-unread'],
+    queryFn: () =>
+      mentionsApi.mentions(true).then(r => r.data || []).catch(() => []),
+    refetchInterval: 60_000,
+    enabled: canQueryProtected,
   })
 
   const alertCount = alerts ? alerts.filter(a => !a.is_read).length : 0
   const approvalCount = pendingApprovals.length
+  const mentionCount = Array.isArray(mentions) ? mentions.length : 0
+  const inboxTotal = alertCount + approvalCount + mentionCount
 
-  return { alertCount, approvalCount }
+  return { alertCount, approvalCount, mentionCount, inboxTotal }
 }

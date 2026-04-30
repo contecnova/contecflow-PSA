@@ -171,7 +171,7 @@ export function AppLangProvider({ children }) {
     }
 
     return trans
-  }, [translations, baseTranslations])
+  }, [translations, baseTranslations, lang])
 
   if (loading) return null // O un spinner global
   return (

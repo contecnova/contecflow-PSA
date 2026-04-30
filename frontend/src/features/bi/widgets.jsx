@@ -36,7 +36,7 @@ const buildFilterParams = (filters = {}) => ({
 function CustomTooltip({ active, payload, label, fmt = v => v }) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
       {label && <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-1)' }}>{label}</div>}
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
@@ -86,10 +86,10 @@ function KpiGridWidget({ filters }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
       {items.map(k => (
         <div key={k.label} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 14px', border: `1px solid ${k.color}20` }}>
-          <div style={{ fontSize: 20, marginBottom: 6 }}>{k.icon}</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{k.value}</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginTop: 3 }}>{k.label}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{k.sub}</div>
+          <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{k.icon}</div>
+          <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{k.value}</div>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', marginTop: 3 }}>{k.label}</div>
+          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 1 }}>{k.sub}</div>
         </div>
       ))}
     </div>
@@ -137,9 +137,9 @@ function HealthWidget({ filters }) {
           return r(a) - r(b)
         }).slice(0, 8).map(p => (
           <div key={p.project_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', background: 'var(--surface-3)', borderRadius: 7, border: `1px solid ${getColor(p)}20` }}>
-            <span style={{ fontSize: 11 }}>{getIcon(p)}</span>
+            <span style={{ fontSize: "var(--text-xs)" }}>{getIcon(p)}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {p.project_code} — {p.project_name}
               </div>
             </div>
@@ -195,7 +195,7 @@ function RevenueVsCostWidget({ filters }) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
         {[['ytd', 'YTD'], ['q', t('bi.quarter')], ['m', t('common.month')]].map(([p, l]) => (
-          <button key={p} onClick={() => setPeriod(p)} style={{ padding: '3px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', background: period === p ? 'var(--accent)' : 'var(--surface-3)', color: period === p ? '#fff' : 'var(--text-2)', fontSize: 11, fontFamily: 'inherit' }}>
+          <button key={p} onClick={() => setPeriod(p)} style={{ padding: '3px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', background: period === p ? 'var(--accent)' : 'var(--surface-3)', color: period === p ? '#fff' : 'var(--text-2)', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             {l}
           </button>
         ))}
@@ -204,8 +204,8 @@ function RevenueVsCostWidget({ filters }) {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-            <XAxis dataKey="mes" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+            <XAxis dataKey="mes" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+            <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip content={<CustomTooltip fmt={(value) => fmtCur(value, lang)} />} />
             <Area type="monotone" dataKey={t('bi.revenue_label')} stroke={BLUE} fillOpacity={0.25} fill={BLUE} strokeWidth={2} />
             <Area type="monotone" dataKey={t('bi.costs_label')} stroke={RED} fillOpacity={0.2} fill={RED} strokeWidth={2} />
@@ -242,8 +242,8 @@ function ProfitByProjectWidget({ onDrill, onFilterProject, filters }) {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={raw} layout="vertical" margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickFormatter={v => `${v}%`} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-3)' }} width={130} />
+        <XAxis type="number" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} tickFormatter={v => `${v}%`} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} width={130} />
         <Tooltip content={<CustomTooltip fmt={fmtPct} />} />
         <Bar dataKey="margen" radius={[0, 4, 4, 0]} onClick={(entry) => { onDrill?.(entry); onFilterProject?.(filters?.projectId === entry?.id ? '' : entry?.id) }} cursor="pointer">
           {(raw || []).map((p, i) => (
@@ -273,11 +273,11 @@ function UtilizationWidget({ filters }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', overflow: 'auto' }}>
       {data.map((u, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 80, fontSize: 12, color: 'var(--text-2)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+          <div style={{ width: 80, fontSize: "var(--text-sm)", color: 'var(--text-2)', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
           <div style={{ flex: 1, height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
             <div style={{ width: `${Math.min(100, u.util)}%`, height: '100%', borderRadius: 3, background: u.util > 90 ? RED : u.util > 75 ? AMBER : GREEN, transition: 'width .3s' }} />
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, width: 48, textAlign: 'right', flexShrink: 0, color: u.util > 90 ? RED : u.util > 75 ? AMBER : GREEN, fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, width: 48, textAlign: 'right', flexShrink: 0, color: u.util > 90 ? RED : u.util > 75 ? AMBER : GREEN, fontFamily: 'var(--font-mono)' }}>
             {u.util}%
           </div>
         </div>
@@ -317,9 +317,9 @@ function TopClientsWidget({ filters, onFilterClient }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, height: '100%', overflow: 'auto' }}>
       {data.map((c, i) => (
         <button key={i} onClick={() => onFilterClient?.(filters?.clientId === c.id ? '' : c.id)} type="button" style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: onFilterClient ? 'pointer' : 'default', borderRadius: 6, padding: '2px 4px', background: filters?.clientId === c.id ? 'var(--accent-muted)' : 'transparent', outline: filters?.clientId === c.id ? '1px solid var(--accent-glow)' : 'none', width: '100%', border: 'none', textAlign: 'left', fontFamily: 'inherit' }}>
-          <div style={{ width: 20, fontSize: 10, color: 'var(--text-3)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
+          <div style={{ width: 20, fontSize: "var(--text-2xs)", color: 'var(--text-3)', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: "var(--text-sm)" }}>
               <span style={{ color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130 }}>{c.name}</span>
               <span style={{ color: 'var(--text-2)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 4 }}>{fmtCur(c.revenue, lang)}</span>
             </div>
@@ -353,8 +353,8 @@ function PipelineWidget() {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={byStage} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-        <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+        <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+        <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
         <Tooltip formatter={(v, n) => n === 'revenue' ? [fmtCur(v, lang), t('bi.revenue_label')] : [v, t('bi.deals_label')]} contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8 }} />
         <Bar dataKey="deals" fill={AMBER} radius={[4, 4, 0, 0]} name={t('bi.deals_label')} />
       </BarChart>
@@ -374,8 +374,8 @@ function HoursWidget({ filters }) {
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={Array.isArray(hoursData) ? hoursData.slice(-10) : []} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-        <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
-        <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} />
+        <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
+        <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-3)' }} />
         <Tooltip formatter={v => [`${v}h`, t('common.hours')]} />
         <Area type="monotone" dataKey="hours" stroke={BLUE} fill={BLUE} fillOpacity={0.25} strokeWidth={2} />
       </AreaChart>
@@ -399,12 +399,12 @@ function TopProjectsMarginWidget({ filters, onFilterProject }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%', overflow: 'auto' }}>
       {top.map((p, i) => (
         <button key={p.project_id || i} onClick={() => onFilterProject?.(filters?.projectId === (p.project_id || p.id) ? '' : (p.project_id || p.id))} type="button" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', background: filters?.projectId && filters.projectId === (p.project_id || p.id) ? 'var(--accent-muted)' : 'var(--surface-3)', borderRadius: 8, cursor: onFilterProject ? 'pointer' : 'default', width: '100%', border: 'none', textAlign: 'left', fontFamily: 'inherit' }}>
-          <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', minWidth: 20 }}>#{i + 1}</span>
+          <span style={{ fontSize: "var(--text-lg)", fontWeight: 900, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', minWidth: 20 }}>#{i + 1}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name || p.name || p.code}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{fmtCur(p.revenue || p.billed || 0, lang)} {t('bi.billed_label')}</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.project_name || p.name || p.code}</div>
+            <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{fmtCur(p.revenue || p.billed || 0, lang)} {t('bi.billed_label')}</div>
           </div>
-          <div style={{ fontSize: 15, fontWeight: 800, fontFamily: 'var(--font-mono)', color: (p.margin_pct || 0) >= 30 ? GREEN : (p.margin_pct || 0) >= 15 ? AMBER : RED }}>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color: (p.margin_pct || 0) >= 30 ? GREEN : (p.margin_pct || 0) >= 15 ? AMBER : RED }}>
             {p.margin_pct ? `${p.margin_pct.toFixed(1)}%` : '—'}
           </div>
         </button>
@@ -427,10 +427,10 @@ function MetricAlertsWidget() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{t('bi.margin_threshold')}</div>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{t('bi.margin_threshold')}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="range" min={-20} max={40} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} style={{ width: 120 }} />
-          <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-1)', minWidth: 40, textAlign: 'right' }}>{threshold}%</span>
+          <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)', minWidth: 40, textAlign: 'right' }}>{threshold}%</span>
         </div>
       </div>
       {alerts.length === 0 ? (
@@ -440,10 +440,10 @@ function MetricAlertsWidget() {
           {alerts.slice(0, 10).map((a, i) => (
             <div key={`${a.project_code || i}-${i}`} style={{ background: 'var(--surface-3)', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{a.project_code || t('bi.project_fallback')}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: RED }}>{fmtPct(a.margin_pct || 0)}</div>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{a.project_code || t('bi.project_fallback')}</div>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: RED }}>{fmtPct(a.margin_pct || 0)}</div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{a.description || t('bi.margin_below_threshold')}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{a.description || t('bi.margin_below_threshold')}</div>
             </div>
           ))}
         </div>
@@ -494,32 +494,32 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
     <div id={`widget-${wid}`} style={{ gridColumn: SIZE_COLS[cfg.size] || 'span 1', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10, transition: 'all .2s', opacity: cfg.visible ? 1 : 0.4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>{reg?.icon}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{reg?.labelKey ? t(reg.labelKey) : reg?.label}</span>
+          <span style={{ fontSize: "var(--text-lg)" }}>{reg?.icon}</span>
+          <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{reg?.labelKey ? t(reg.labelKey) : reg?.label}</span>
         </div>
         {configMode ? (
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {['S', 'M', 'L'].map(s => (
-              <button key={s} onClick={() => onSizeChange(wid, s)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: cfg.size === s ? 'var(--accent)' : 'var(--surface-4)', color: cfg.size === s ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'inherit', fontWeight: 600 }}>
+              <button key={s} onClick={() => onSizeChange(wid, s)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: cfg.size === s ? 'var(--accent)' : 'var(--surface-4)', color: cfg.size === s ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit', fontWeight: 600 }}>
                 {s}
               </button>
             ))}
-            <button onClick={() => onMoveUp(wid)} disabled={isFirst} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isFirst ? 'var(--text-4)' : 'var(--text-2)', cursor: isFirst ? 'default' : 'pointer', fontSize: 12 }}>↑</button>
-            <button onClick={() => onMoveDown(wid)} disabled={isLast} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isLast ? 'var(--text-4)' : 'var(--text-2)', cursor: isLast ? 'default' : 'pointer', fontSize: 12 }}>↓</button>
-            <button onClick={() => onToggle(wid)} style={{ background: cfg.visible ? 'var(--success)' : 'var(--surface-4)', border: 'none', borderRadius: 4, padding: '2px 8px', color: cfg.visible ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: 10, fontFamily: 'inherit' }}>
+            <button onClick={() => onMoveUp(wid)} disabled={isFirst} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isFirst ? 'var(--text-4)' : 'var(--text-2)', cursor: isFirst ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↑</button>
+            <button onClick={() => onMoveDown(wid)} disabled={isLast} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 4, padding: '2px 6px', color: isLast ? 'var(--text-4)' : 'var(--text-2)', cursor: isLast ? 'default' : 'pointer', fontSize: "var(--text-sm)" }}>↓</button>
+            <button onClick={() => onToggle(wid)} style={{ background: cfg.visible ? 'var(--success)' : 'var(--surface-4)', border: 'none', borderRadius: 4, padding: '2px 8px', color: cfg.visible ? '#fff' : 'var(--text-3)', cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit' }}>
               {cfg.visible ? `✓ ${t('bi.visible')}` : `○ ${t('bi.hidden')}`}
             </button>
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button onClick={() => onExportData?.(wid)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>{t('bi.xls_csv')}</button>
-            <button onClick={() => onExportPdf?.(wid)} style={{ fontSize: 10, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>PDF</button>
+            <button onClick={() => onExportData?.(wid)} style={{ fontSize: "var(--text-2xs)", padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>{t('bi.xls_csv')}</button>
+            <button onClick={() => onExportPdf?.(wid)} style={{ fontSize: "var(--text-2xs)", padding: '4px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-2)', cursor: 'pointer' }}>PDF</button>
           </div>
         )}
       </div>
       <div style={{ flex: 1, minHeight: height, overflow: 'hidden' }}>
         {cfg.visible ? children : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             {t('bi.hidden_widget_message')}
           </div>
         )}
@@ -530,9 +530,9 @@ export function WidgetPanel({ wid, layout, onSizeChange, onToggle, onMoveUp, onM
 
 const ACCENT_PRESETS = [
   { labelKey: 'bi.classic_blue', color: '#4f8ef7' },
-  { label: 'Índigo', color: '#7c3aed' },
+  { label: 'Violeta', color: '#a78bfa' },
   { label: 'Teal', color: '#1d9e75' },
-  { label: 'Cyan', color: '#0ea5e9' },
+  { label: 'Azul', color: '#60a5fa' },
   { label: 'Coral', color: '#f43f5e' },
   { labelKey: 'bi.amber', color: '#f59e0b' },
   { label: 'Lime', color: '#84cc16' },
@@ -563,12 +563,12 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
   return (
     <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 340, zIndex: 200, background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>⚙ {t('bi.customize_dashboard')}</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 20, padding: '0 4px' }}>✕</button>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>⚙ {t('bi.customize_dashboard')}</div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('bi.accent_color')}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{t('bi.accent_color')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 12 }}>
             {ACCENT_PRESETS.map(p => (
               <button key={p.color} onClick={() => applyAccent(p.color)} title={p.labelKey ? t(p.labelKey) : p.label} style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: p.color, border: `2px solid ${localAccent === p.color ? '#fff' : 'transparent'}`, cursor: 'pointer' }} />
@@ -577,14 +577,14 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="color" value={localAccent} onChange={e => applyAccent(e.target.value)} style={{ width: 40, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer', background: 'none', padding: 0 }} />
             <div>
-              <div style={{ fontSize: 12, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{localAccent}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{t('bi.custom_color')}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{localAccent}</div>
+              <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{t('bi.custom_color')}</div>
             </div>
           </div>
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{t('bi.interface_density')}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{t('bi.interface_density')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
               ['compact', t('bi.density_compact'), t('bi.density_compact_desc')],
@@ -592,16 +592,16 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
               ['comfortable', t('bi.density_comfortable'), t('bi.density_comfortable_desc')],
             ].map(([val, label, desc]) => (
               <button key={val} onClick={() => setLocalDensity(val)} style={{ padding: '10px 14px', borderRadius: 9, textAlign: 'left', background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)', border: `1px solid ${localDensity === val ? 'var(--accent-glow)' : 'var(--surface-4)'}`, cursor: 'pointer', fontFamily: 'inherit' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: localDensity === val ? 'var(--accent)' : 'var(--text-1)' }}>{label}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{desc}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: localDensity === val ? 'var(--accent)' : 'var(--text-1)' }}>{label}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 2 }}>{desc}</div>
               </button>
             ))}
           </div>
         </div>
       </div>
       <div style={{ padding: '16px 20px', borderTop: '1px solid var(--surface-4)', display: 'flex', gap: 10, flexShrink: 0 }}>
-        <button onClick={handleSave} style={{ flex: 1, padding: '10px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', fontWeight: 600 }}>{t('bi.save_prefs')}</button>
-        <button onClick={onClose} style={{ padding: '10px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>{t('common.cancel')}</button>
+        <button onClick={handleSave} style={{ flex: 1, padding: '10px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600 }}>{t('bi.save_prefs')}</button>
+        <button onClick={onClose} style={{ padding: '10px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>
       </div>
     </div>
   )

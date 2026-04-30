@@ -5,11 +5,12 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { enterpriseSubsApi, projectsApi, skillsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
 import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const STATUS_COLOR = { received: 'var(--warning)', approved: 'var(--accent)', paid: 'var(--success)', rejected: 'var(--danger)' }
@@ -19,7 +20,7 @@ const STATUS_LABEL = {
   paid: 'Pagada',
   rejected: 'Rechazada'
 }
-const LEVEL_COLOR = { basic: '#6b7280', intermediate: 'var(--accent)', advanced: '#fb923c', expert: 'var(--success)' }
+const LEVEL_COLOR = { basic: 'var(--text-3)', intermediate: 'var(--accent)', advanced: 'var(--orange)', expert: 'var(--success)' }
 
 function onKeyboardActivate(event, action) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -99,20 +100,20 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
     return (
       <Modal open title={t('subcontractors.person_added')} onClose={onClose} width={480}>
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{t('subcontractors.person_added')}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>{t('subcontractors.person_created_user')}</div>
+          <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>🎉</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 4 }}>{t('subcontractors.person_added')}</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>{t('subcontractors.person_created_user')}</div>
           <div style={{ background: 'var(--surface-1)', border: '1px solid var(--accent-glow)', borderRadius: 12, padding: '16px 20px', textAlign: 'left', marginBottom: 16 }}>
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.username')}</div>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, color: 'var(--accent)', userSelect: 'all' }}>{credsInfo.username}</div>
+              <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.username')}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-md)", color: 'var(--accent)', userSelect: 'all' }}>{credsInfo.username}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.temp_password')}</div>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, color: 'var(--warning)', userSelect: 'all' }}>{credsInfo.password}</div>
+              <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('subcontractors.temp_password')}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: "var(--text-md)", color: 'var(--warning)', userSelect: 'all' }}>{credsInfo.password}</div>
             </div>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 20 }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 20 }}>
             {t('subcontractors.creds_warning')}
           </div>
           <Button onClick={onClose} style={{ width: '100%' }}>{t('subcontractors.understood')}</Button>
@@ -162,9 +163,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       {isEdit && (
         <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{t('subcontractors.skills')}</div>
             <button onClick={() => setShowSkillForm(s => !s)}
-              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 6, border: '1px solid var(--accent-glow)', background: 'var(--accent-muted)', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
               {showSkillForm ? t('subcontractors.cancel_skill') : t('subcontractors.add_skill')}
             </button>
           </div>
@@ -172,17 +173,17 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
           {/* Existing skills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showSkillForm ? 12 : 0 }}>
             {(worker.skills || []).map(s => (
-              <span key={s.skill_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 20,
-                background: (LEVEL_COLOR[s.level] || '#6b7280') + '18', color: LEVEL_COLOR[s.level] || '#6b7280', border: `1px solid ${(LEVEL_COLOR[s.level] || '#6b7280')}40` }}>
+              <span key={s.skill_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 20,
+                background: (LEVEL_COLOR[s.level] || 'var(--text-3)') + '18', color: LEVEL_COLOR[s.level] || 'var(--text-3)', border: `1px solid ${(LEVEL_COLOR[s.level] || 'var(--text-3)')}40` }}>
                 {s.skill_name}
-                <span style={{ opacity: 0.65, fontSize: 10 }}>({s.level})</span>
+                <span style={{ opacity: 0.65, fontSize: "var(--text-2xs)" }}>({s.level})</span>
                 {s.certified && <span title={t('subcontractors.certified')}>🏆</span>}
                 <button onClick={() => removeSkill(s.skill_id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1, opacity: 0.7, fontSize: 11 }}>✕</button>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, lineHeight: 1, opacity: 0.7, fontSize: "var(--text-xs)" }}>✕</button>
               </span>
             ))}
             {(worker.skills || []).length === 0 && !showSkillForm && (
-              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('subcontractors.no_skills')}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('subcontractors.no_skills')}</span>
             )}
           </div>
 
@@ -212,7 +213,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1/-1', paddingTop: 4 }}>
                 <input type="checkbox" id="wsCert" checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
-                <label htmlFor="wsCert" style={{ fontSize: 12, color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
+                <label htmlFor="wsCert" style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', cursor: 'pointer' }}>{t('subcontractors.certified')}</label>
                 {skillForm.certified && (
                   <input value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} style={{ ...inp, flex: 1 }} placeholder={t('subcontractors.placeholder_cert')} />
                 )}
@@ -226,7 +227,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }) {
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           {isEdit ? t('subcontractors.close') : t('subcontractors.cancel')}
         </button>
         <Button onClick={() => save(form)} loading={saving} disabled={!form.name || saving}>{isEdit ? t('subcontractors.save_changes') : t('subcontractors.add_person')}</Button>
@@ -275,13 +276,13 @@ function WorkersPanel({ subId }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{w.name}</div>
-                    {w.role && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{w.role}</span>}
-                    {!w.is_active && <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, #ff475720)', color: 'var(--danger)' }}>{t('subcontractors.inactivo')}</span>}
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{w.name}</div>
+                    {w.role && <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--accent-muted)', color: 'var(--accent)' }}>{w.role}</span>}
+                    {!w.is_active && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--danger-bg, var(--danger-border))', color: 'var(--danger)' }}>{t('subcontractors.inactivo')}</span>}
                   </div>
-                  {w.email && <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>📧 {w.email}</div>}
+                  {w.email && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>📧 {w.email}</div>}
                   {(w.cost_rate || w.sell_rate) && (
-                    <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 8 }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 8 }}>
                       {w.cost_rate && t('subcontractors.cost', { rate: w.cost_rate })}
                       {w.cost_rate && w.sell_rate && ' · '}
                       {w.sell_rate && t('subcontractors.sell', { rate: w.sell_rate })}
@@ -290,31 +291,31 @@ function WorkersPanel({ subId }) {
                   {/* Skills */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                     {(w.skills || []).map(s => (
-                      <span key={s.skill_id} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20,
-                        background: (LEVEL_COLOR[s.level] || '#6b7280') + '18',
-                        color: LEVEL_COLOR[s.level] || '#6b7280',
-                        border: `1px solid ${(LEVEL_COLOR[s.level] || '#6b7280')}35` }}>
+                      <span key={s.skill_id} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 20,
+                        background: (LEVEL_COLOR[s.level] || 'var(--text-3)') + '18',
+                        color: LEVEL_COLOR[s.level] || 'var(--text-3)',
+                        border: `1px solid ${(LEVEL_COLOR[s.level] || 'var(--text-3)')}35` }}>
                         {s.skill_name}
                         {s.certified && ' 🏆'}
                       </span>
                     ))}
-                    {(w.skills || []).length === 0 && <span style={{ fontSize: 11, color: 'var(--text-4)' }}>{t('subcontractors.no_skills_short')}</span>}
+                    {(w.skills || []).length === 0 && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-4)' }}>{t('subcontractors.no_skills_short')}</span>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   {(w.available_from || w.available_until) && (
-                    <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'right', marginRight: 6, alignSelf: 'center' }}>
+                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textAlign: 'right', marginRight: 6, alignSelf: 'center' }}>
                       {w.available_from && <div>Desde: {w.available_from}</div>}
                       {w.available_until && <div>Hasta: {w.available_until}</div>}
                     </div>
                   )}
                     <button onClick={() => setEditWorker(w)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                       {t('subcontractors.edit')}
                     </button>
                   {w.is_active && (
                     <button onClick={() => setDeactivateTarget(w)}
-                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                      style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                       🗑
                     </button>
                   )}
@@ -329,7 +330,7 @@ function WorkersPanel({ subId }) {
       {editWorker && <WorkerModal subId={subId} worker={editWorker} onClose={() => setEditWorker(null)} onSaved={() => qc.invalidateQueries(['subcontractors'])} />}
       {deactivateTarget && (
         <Modal open title="Desactivar trabajador" onClose={() => setDeactivateTarget(null)} width={380}>
-          <p style={{ fontSize: 14, color: 'var(--text-1)', marginBottom: 20 }}>
+          <p style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', marginBottom: 20 }}>
             Se desactivará a <strong>{deactivateTarget.name}</strong> y no podrá iniciar sesión ni ser asignado a tareas.
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -401,31 +402,31 @@ function SubDetail({ sub, onBack }) {
     padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
     background: active ? 'var(--accent-glow)' : 'transparent',
     color: active ? 'var(--accent)' : 'var(--text-2)',
-    fontSize: 12, fontFamily: 'inherit', fontWeight: active ? 700 : 400,
+    fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: active ? 700 : 400,
   })
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Volver</button>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>← Volver</button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{sub.name} <span style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 400 }}>{sub.code}</span></div>
-          {sub.company && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{sub.company} · {sub.email}</div>}
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{sub.name} <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontWeight: 400 }}>{sub.code}</span></div>
+          {sub.company && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{sub.company} · {sub.email}</div>}
         </div>
       </div>
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Personas', value: sub.worker_count ?? '—', color: 'var(--purple, #a855f7)' },
+          { label: 'Personas', value: sub.worker_count ?? '—', color: 'var(--purple, var(--purple))' },
           { label: 'Asignaciones', value: assignments.length, color: 'var(--accent)' },
           { label: 'Horas registradas', value: `${totalHours.toFixed(1)}h`, color: 'var(--success)' },
           { label: 'Coste acumulado', value: `${totalCost.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: 'var(--warning)' },
           { label: 'Facturas pendientes', value: `${pendingAmount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`, color: pendingAmount > 0 ? 'var(--danger)' : 'var(--text-2)' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -457,8 +458,8 @@ function SubDetail({ sub, onBack }) {
             <div key={a.id} style={{ ...panel, padding: '14px 18px', marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{a.project_code} — {a.project_name}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                     {a.po_number && `PO: ${a.po_number}`}
                     {a.po_amount && ` · Techo: ${a.po_amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}`}
                     {a.hours_contracted && ` · ${a.hours_contracted}h contratadas`}
@@ -468,7 +469,7 @@ function SubDetail({ sub, onBack }) {
                       <div style={{ height: 6, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden', width: 200 }}>
                         <div style={{ height: '100%', width: `${Math.min(a.budget_used_pct || 0, 100)}%`, background: (a.budget_used_pct || 0) > 90 ? 'var(--danger)' : 'var(--success)', borderRadius: 3 }} />
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>{a.hours_logged}h / {a.hours_contracted}h ({a.budget_used_pct || 0}%)</div>
+                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginTop: 2 }}>{a.hours_logged}h / {a.hours_contracted}h ({a.budget_used_pct || 0}%)</div>
                     </div>
                   )}
                 </div>
@@ -493,21 +494,21 @@ function SubDetail({ sub, onBack }) {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     {['Fecha', 'Horas', 'Descripción', 'Ref. tarea', 'Coste', 'Proyecto'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {timelogs.map(l => (
-                    <tr key={l.id} style={{ borderBottom: '1px solid #0d1626' }}>
-                      <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--text-2)' }}>{l.log_date}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono', monospace" }}>{l.hours}h</td>
-                      <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 11, color: 'var(--text-2)' }}>{l.task_reference || '—'}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--warning)', fontFamily: "'Space Mono', monospace" }}>
+                    <tr key={l.id} style={{ borderBottom: '1px solid var(--surface-1)' }}>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{l.log_date}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{l.hours}h</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-1)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.description || '—'}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.task_reference || '—'}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
                         {l.cost_amount ? l.cost_amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'}) : '—'}
                       </td>
-                      <td style={{ padding: '9px 14px', fontSize: 11, color: 'var(--text-2)' }}>{l.project_name || '—'}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.project_name || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -531,29 +532,29 @@ function SubDetail({ sub, onBack }) {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                     {['Nº Factura', 'Fecha', 'Importe', 'Total c/IVA', 'Estado', 'Acciones'].map(h => (
-                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {invoices.map(inv => (
-                    <tr key={inv.id} style={{ borderBottom: '1px solid #0d1626' }}>
-                      <td style={{ padding: '9px 14px', fontSize: 12, fontWeight: 600 }}>{inv.invoice_number}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--text-2)' }}>{inv.issue_date}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
-                      <td style={{ padding: '9px 14px', fontSize: 13, fontWeight: 700, fontFamily: "'Space Mono', monospace", color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
+                    <tr key={inv.id} style={{ borderBottom: '1px solid var(--surface-1)' }}>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontWeight: 600 }}>{inv.invoice_number}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{inv.issue_date}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)' }}>{inv.amount.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
+                      <td style={{ padding: '9px 14px', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{inv.total.toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</td>
                       <td style={{ padding: '9px 14px' }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status] || 'var(--text-2)', fontWeight: 700 }}>
+                        <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 20, background: (STATUS_COLOR[inv.status] || 'var(--text-2)') + '20', color: STATUS_COLOR[inv.status] || 'var(--text-2)', fontWeight: 700 }}>
                           {STATUS_LABEL[inv.status] || inv.status}
                         </span>
                       </td>
                       <td style={{ padding: '9px 14px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
                           {inv.status === 'received' && (
-                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })} style={{ background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 6, padding: '3px 8px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>Aprobar</button>
+                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'approved' })} style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Aprobar</button>
                           )}
                           {inv.status === 'approved' && (
-                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })} style={{ background: 'var(--success-bg)', border: '1px solid #00e5a030', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>Marcar pagada</button>
+                            <button onClick={() => updateInvStatus({ id: inv.id, status: 'paid' })} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>Marcar pagada</button>
                           )}
                         </div>
                       </td>
@@ -595,7 +596,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowTimelog(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => logHours(tlForm)} loading={logging} disabled={!tlForm.hours || logging}>Registrar horas</Button>
           </div>
         </Modal>
@@ -622,7 +623,7 @@ function SubDetail({ sub, onBack }) {
               <input type="number" value={invForm.tax_pct} onChange={e => setInvForm(f=>({...f,tax_pct:+e.target.value}))} style={inp} min="0" max="30" />
             </div>
             {invForm.amount && (
-              <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid #00d4ff20', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: 'var(--accent)' }}>
+              <div style={{ gridColumn: '1/-1', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
                 Total con IVA: <strong>{(+invForm.amount * (1 + invForm.tax_pct/100)).toLocaleString('es-ES', {style:'currency',currency:'EUR'})}</strong>
               </div>
             )}
@@ -632,7 +633,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowInvoice(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => createInv(invForm)} loading={invoicing} disabled={!invForm.invoice_number || !invForm.amount || invoicing}>Registrar factura</Button>
           </div>
         </Modal>
@@ -667,7 +668,7 @@ function SubDetail({ sub, onBack }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowAssign(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => createAssign(asgForm)} loading={assigning} disabled={!asgForm.project_id || assigning}>Crear asignación</Button>
           </div>
         </Modal>
@@ -734,7 +735,7 @@ export default function SubcontractorsPage() {
   if (selected) return <SubDetail sub={selected} onBack={() => setSelected(null)} />
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Users size={18} />} title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')} />
 
       {/* KPIs */}
@@ -746,8 +747,8 @@ export default function SubcontractorsPage() {
             { label: 'Facturas pendientes', value: dashboard.pending_invoices,       color: dashboard.pending_invoices > 0 ? 'var(--warning)' : 'var(--text-2)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
+              <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 3 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -775,24 +776,24 @@ export default function SubcontractorsPage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{s.name}</div>
-                  {s.company && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{s.company}</div>}
+                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{s.name}</div>
+                  {s.company && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.company}</div>}
                 </div>
-                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
+                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
                   {s.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
-              {s.email && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>📧 {s.email}</div>}
-              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-2)' }}>
+              {s.email && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>📧 {s.email}</div>}
+              <div style={{ marginTop: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                 👥 {s.worker_count || 0} persona{(s.worker_count || 0) !== 1 ? 's' : ''} · {s.assignment_count} asignación{s.assignment_count !== 1 ? 'es' : ''}
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 6 }}>
                 <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
-                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   ✏ Editar
                 </button>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
-                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--danger-border, #ff475720)', background: 'transparent', color: 'var(--danger)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex:1, padding: '4px 0', borderRadius: 6, border: '1px solid var(--danger-border, var(--danger-border))', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   🗑 Eliminar
                 </button>
               </div>
@@ -801,7 +802,7 @@ export default function SubcontractorsPage() {
         </div>
       ) : (
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 80px 100px', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             <SortableTH col="name" sort={subSort} onSort={setSubSort}>Empresa / Nombre</SortableTH>
             <SortableTH col="code" sort={subSort} onSort={setSubSort}>Código</SortableTH>
             <SortableTH col="email" sort={subSort} onSort={setSubSort}>Email</SortableTH>
@@ -819,21 +820,21 @@ export default function SubcontractorsPage() {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               onClick={() => setSelected(s)}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
-                {s.company && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{s.company}</div>}
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{s.name}</div>
+                {s.company && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.company}</div>}
               </div>
-              <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: 'var(--text-2)' }}>{s.code || '—'}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{s.email || '—'}</span>
-              <span style={{ fontSize: 12 }}>{s.worker_count || 0}</span>
-              <span style={{ fontSize: 12 }}>{s.assignment_count || 0}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
+              <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{s.code || '—'}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{s.email || '—'}</span>
+              <span style={{ fontSize: "var(--text-sm)" }}>{s.worker_count || 0}</span>
+              <span style={{ fontSize: "var(--text-sm)" }}>{s.assignment_count || 0}</span>
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: s.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: s.is_active ? 'var(--success)' : 'var(--danger)' }}>
                 {s.is_active ? 'Activo' : 'Inactivo'}
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={e => { e.stopPropagation(); setEditTarget(s); setEditForm({ name: s.name, company: s.company||'', email: s.email||'', phone: s.phone||'', country: s.country||'España', currency: s.currency||'EUR', vat_number: s.vat_number||'', notes: s.notes||'' }); setShowEdit(true) }}
-                  style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>✏</button>
+                  style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>✏</button>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar a "${s.name}"?`,onConfirm:()=>remove(s.id),danger:true}) }}
-                  style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid #ff475720', background: 'transparent', color: 'var(--danger)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
+                  style={{ padding: '3px 8px', borderRadius: 5, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>🗑</button>
               </div>
             </div>
           ))}
@@ -875,7 +876,7 @@ export default function SubcontractorsPage() {
             <textarea value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear subcontratista</Button>
           </div>
         </Modal>
@@ -916,11 +917,11 @@ export default function SubcontractorsPage() {
             <textarea value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => { setShowEdit(false); setEditTarget(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => update({id: editTarget.id, ...editForm})} loading={updating} disabled={!editForm.name || updating}>Guardar cambios</Button>
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

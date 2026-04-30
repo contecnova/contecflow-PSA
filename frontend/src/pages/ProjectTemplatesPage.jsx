@@ -8,17 +8,18 @@ import api from '../services/api'
 import { Spinner } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { LayoutTemplate } from 'lucide-react'
 
-const PHASE_COLOR = '#6366F1'
-const TASK_COLOR  = '#10B981'
+const PHASE_COLOR = 'var(--accent)'
+const TASK_COLOR  = 'var(--success)'
 const RISK_COLOR  = '#F59E0B'
-const DELIV_COLOR = '#3B82F6'
+const DELIV_COLOR = 'var(--accent)'
 
 function Badge({ color, label }) {
   return (
     <span style={{
-      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+      fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 4,
       background: `${color}20`, color,
     }}>{label}</span>
   )
@@ -37,19 +38,19 @@ function TemplateCard({ tpl, onInstantiate, t }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>{tpl.name}</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>{tpl.name}</div>
           {tpl.description && (
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 3, maxWidth: 380 }}>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 3, maxWidth: 380 }}>
               {tpl.description}
             </div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           {tpl.estimated_weeks && (
-            <Badge color="#6B7280" label={`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`} />
+            <Badge color="var(--text-3)" label={`${tpl.estimated_weeks}${t('project_templates.weeks_abbr')}`} />
           )}
           {tpl.estimated_hours && (
-            <Badge color="#6B7280" label={`${tpl.estimated_hours}h`} />
+            <Badge color="var(--text-3)" label={`${tpl.estimated_hours}h`} />
           )}
         </div>
       </div>
@@ -67,7 +68,7 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           onClick={() => setExpanded(v => !v)}
           style={{
             padding: '6px 14px', borderRadius: 7, border: '1px solid var(--surface-4)',
-            background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12,
+            background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)",
           }}
         >
           {expanded ? t('project_templates.hide_detail') : t('project_templates.view_detail')}
@@ -76,7 +77,7 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           onClick={() => onInstantiate(tpl)}
           style={{
             padding: '6px 14px', borderRadius: 7, border: 'none',
-            background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+            background: 'var(--accent)', color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 700,
           }}
         >
           {t('project_templates.create_from_template')}
@@ -88,12 +89,12 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           {/* Phases */}
           {tpl.phases?.map((phase, i) => (
             <div key={i} style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: PHASE_COLOR, marginBottom: 4 }}>
                 {t('project_templates.phase')} {phase.phase_order}: {phase.name}
               </div>
               {phase.tasks?.map((task, j) => (
                 <div key={j} style={{
-                  fontSize: 11, color: 'var(--text-2)', paddingLeft: 14,
+                  fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14,
                   display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2,
                 }}>
                   <span style={{ color: TASK_COLOR }}>●</span>
@@ -106,9 +107,9 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           {/* Risks */}
           {tpl.risks?.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: RISK_COLOR, marginBottom: 4 }}>{t('project_templates.predefined_risks')}</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: RISK_COLOR, marginBottom: 4 }}>{t('project_templates.predefined_risks')}</div>
               {tpl.risks.map((risk, i) => (
-                <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
+                <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: RISK_COLOR }}>▲</span>{risk.title}
                 </div>
               ))}
@@ -117,9 +118,9 @@ function TemplateCard({ tpl, onInstantiate, t }) {
           {/* Deliverables */}
           {tpl.deliverables?.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: DELIV_COLOR, marginBottom: 4 }}>{t('project_templates.deliverables')}</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: DELIV_COLOR, marginBottom: 4 }}>{t('project_templates.deliverables')}</div>
               {tpl.deliverables.map((d, i) => (
-                <div key={i} style={{ fontSize: 11, color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
+                <div key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', paddingLeft: 14, marginBottom: 2, display: 'flex', gap: 8 }}>
                   <span style={{ color: DELIV_COLOR }}>◆</span>{d.title}
                 </div>
               ))}
@@ -163,16 +164,16 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby="template-apply-title" style={{
         background: 'var(--surface-1)', borderRadius: 14, padding: 32, width: 480,
         maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,.3)',
       }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', marginBottom: 20 }}>
+        <div id="template-apply-title" style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 20 }}>
           {t('project_templates.create_project_from')} «{tpl?.name}»
         </div>
 
         <label style={{ display: 'block', marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
             {t('project_templates.project_name_label')}
           </div>
           <input
@@ -182,13 +183,13 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
             style={{
               width: '100%', padding: '8px 12px', borderRadius: 8,
               border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: 13, boxSizing: 'border-box',
+              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
             }}
           />
         </label>
 
         <label style={{ display: 'block', marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
             {t('project_templates.client_label')}
           </div>
           <input
@@ -198,13 +199,13 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
             style={{
               width: '100%', padding: '8px 12px', borderRadius: 8,
               border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: 13, boxSizing: 'border-box',
+              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
             }}
           />
         </label>
 
         <label style={{ display: 'block', marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', marginBottom: 5 }}>
             {t('project_templates.start_date_label')}
           </div>
           <input
@@ -214,7 +215,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
             style={{
               width: '100%', padding: '8px 12px', borderRadius: 8,
               border: '1px solid var(--surface-4)', background: 'var(--surface-2)',
-              color: 'var(--text-1)', fontSize: 13, boxSizing: 'border-box',
+              color: 'var(--text-1)', fontSize: "var(--text-base)", boxSizing: 'border-box',
             }}
           />
         </label>
@@ -222,7 +223,7 @@ function InstantiateModal({ tpl, onClose, onDone, t }) {
         {error && (
           <div style={{
             padding: '8px 12px', borderRadius: 8, background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
-            color: 'var(--danger)', fontSize: 13, marginBottom: 14,
+            color: 'var(--danger)', fontSize: "var(--text-base)", marginBottom: 14,
           }}>
             {error}
           </div>
@@ -279,7 +280,7 @@ export default function ProjectTemplatesPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<LayoutTemplate size={18} />}
         title={t('project_templates.title')}
@@ -290,11 +291,11 @@ export default function ProjectTemplatesPage() {
       {successMsg && (
         <div style={{
           padding: '12px 18px', borderRadius: 10, background: 'color-mix(in srgb, var(--success) 10%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', fontSize: 14,
+          border: '1px solid color-mix(in srgb, var(--success) 25%, transparent)', color: 'var(--success)', fontSize: "var(--text-md)",
           marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           {successMsg}
-          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', fontSize: 18 }}>×</button>
+          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', fontSize: "var(--text-lg-em)" }}>×</button>
         </div>
       )}
 
@@ -304,9 +305,9 @@ export default function ProjectTemplatesPage() {
         <div style={{
           textAlign: 'center', paddingTop: 60, color: 'var(--text-3)',
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{t('project_templates.empty_title')}</div>
-          <div style={{ fontSize: 13 }}>
+          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>📋</div>
+          <div style={{ fontSize: "var(--text-lg)", fontWeight: 600, marginBottom: 8 }}>{t('project_templates.empty_title')}</div>
+          <div style={{ fontSize: "var(--text-base)" }}>
             {t('project_templates.empty_subtitle')}
           </div>
         </div>
@@ -331,6 +332,6 @@ export default function ProjectTemplatesPage() {
           t={t}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

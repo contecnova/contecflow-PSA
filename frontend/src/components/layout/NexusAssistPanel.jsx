@@ -123,14 +123,14 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
       <div style={{ padding:'16px 20px', borderBottom:'.5px solid var(--surface-4)',
         background:'var(--surface-2)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <span style={{ fontSize:22 }}>🤖</span>
+          <span style={{ fontSize: "var(--text-xl-em)" }}>🤖</span>
           <div>
-            <div style={{ fontSize:14, fontWeight:600 }}>NexusAssist</div>
-            <div style={{ fontSize:11, color:'var(--text-2)' }}>Asistente IA</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>NexusAssist</div>
+            <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>Asistente IA</div>
           </div>
         </div>
         {pageLabel && (
-          <div style={{ fontSize:10, padding:'2px 8px', borderRadius:10,
+          <div style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:10,
             background:'rgba(79,142,247,0.12)', color:'var(--accent)',
             border:'.5px solid rgba(79,142,247,0.25)', whiteSpace:'nowrap', flexShrink:0 }}>
             📍 {pageLabel}
@@ -139,7 +139,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
         <div style={{ display:'flex', gap:8 }}>
           <button onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
             style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
-              padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+              padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
             + Nueva
           </button>
           <button
@@ -152,20 +152,20 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
               onConfirm: () => clearHistory(),
             })}
             style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6,
-              padding:'4px 10px', color:'var(--text-2)', cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', fontSize:12, fontFamily:'inherit', opacity: conversations.length === 0 || isClearingHistory ? 0.5 : 1 }}>
+              padding:'4px 10px', color:'var(--text-2)', cursor: conversations.length === 0 || isClearingHistory ? 'not-allowed' : 'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', opacity: conversations.length === 0 || isClearingHistory ? 0.5 : 1 }}>
             {isClearingHistory ? 'Borrando...' : 'Borrar historial'}
           </button>
-          <button onClick={onClose} style={{ background:'transparent', border:'none', fontSize:18, cursor:'pointer', color:'var(--text-2)', padding:'2px 6px' }}>✕</button>
+          <button onClick={onClose} style={{ background:'transparent', border:'none', fontSize: "var(--text-lg-em)", cursor:'pointer', color:'var(--text-2)', padding:'2px 6px' }}>✕</button>
         </div>
       </div>
       {!convId && messages.length === 0 && conversations.length > 0 && (
         <div style={{ padding:'12px 16px', borderBottom:'.5px solid var(--surface-4)', maxHeight:180, overflowY:'auto' }}>
-          <div style={{ fontSize:11, fontWeight:500, color:'var(--text-2)', marginBottom:8 }}>Recientes</div>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', marginBottom:8 }}>Recientes</div>
           {conversations.slice(0,5).map(c => (
             <button key={c.id} onClick={() => loadConv(c.id)}
               type="button"
               style={{ padding:'7px 10px', borderRadius:7, cursor:'pointer', marginBottom:4,
-                background:'var(--surface-2)', fontSize:12,
+                background:'var(--surface-2)', fontSize: "var(--text-sm)",
                 border:'.5px solid var(--surface-4)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
                 width:'100%', textAlign:'left', color:'var(--text-2)', fontFamily:'inherit' }}>
               {c.title}
@@ -176,12 +176,12 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
       <div style={{ flex:1, overflowY:'auto', padding:'16px 18px', display:'flex', flexDirection:'column', gap:12 }}>
         {messages.length === 0 && (
           <div>
-            <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:16, textAlign:'center', paddingTop:20 }}>¿En qué puedo ayudarte hoy?</div>
+            <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16, textAlign:'center', paddingTop:20 }}>¿En qué puedo ayudarte hoy?</div>
             {SUGGESTIONS.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
                 type="button"
                 style={{ padding:'10px 14px', borderRadius:10, border:'.5px solid var(--surface-4)',
-                  cursor:'pointer', marginBottom:8, fontSize:12, color:'var(--text-2)',
+                  cursor:'pointer', marginBottom:8, fontSize: "var(--text-sm)", color:'var(--text-2)',
                   background:'var(--surface-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
                 {s}
               </button>
@@ -194,7 +194,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
               borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
               background: m.role === 'user' ? 'var(--accent-muted)' : 'var(--surface-2)',
               border: `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}`,
-              fontSize:13, lineHeight:1.55, whiteSpace:'pre-wrap' }}>
+              fontSize: "var(--text-base)", lineHeight:1.55, whiteSpace:'pre-wrap' }}>
               {m.content}
             </div>
           </div>
@@ -217,13 +217,13 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder="Escribe aquí..." rows={2}
             style={{ flex:1, background:'var(--surface-1)', border:'.5px solid var(--surface-4)',
-              borderRadius:10, padding:'10px 14px', fontSize:13, outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
+              borderRadius:10, padding:'10px 14px', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', resize:'none', lineHeight:1.4 }} />
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading}
             style={{ padding:'10px 16px', borderRadius:10, background:'var(--accent)',
-              border:'none', color:'white', cursor:'pointer', fontSize:18,
+              border:'none', color:'white', cursor:'pointer', fontSize: "var(--text-lg-em)",
               opacity: !input.trim() || loading ? 0.5 : 1 }}>↑</button>
         </div>
-        <div style={{ fontSize:10, color:'var(--text-3)', marginTop:5, textAlign:'center' }}>Enter enviar · Shift+Enter nueva línea</div>
+        <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:5, textAlign:'center' }}>Enter enviar · Shift+Enter nueva línea</div>
       </div>
       <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}`}</style>
     </div>

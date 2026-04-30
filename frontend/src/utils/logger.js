@@ -25,7 +25,7 @@ const COLORS = {
   debug: '#7c8db5',
   info:  '#4f8ef7',
   warn:  '#f59e0b',
-  error: '#ef4444',
+  error: '#f87171',
 }
 
 function _safeLocalStorageGet(key) {

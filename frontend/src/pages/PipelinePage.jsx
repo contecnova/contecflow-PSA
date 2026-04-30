@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Megaphone, Plus, Trash2, ExternalLink, FileText, Send, Briefcase, ChevronRight } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Badge, Button, Card, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
 import {
   useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity,
@@ -46,8 +47,8 @@ const STAGE_TRANSITIONS = {
 
 const PROPOSAL_STATUS_COLORS = {
   none:      { bg: 'var(--surface-3)', color: 'var(--text-3)', label: 'Sin propuesta' },
-  generated: { bg: 'var(--warning-bg,#2d2200)', color: 'var(--warning)', label: 'Propuesta generada' },
-  sent:      { bg: 'var(--success-bg,#00220f)', color: 'var(--success)', label: 'Propuesta enviada' },
+  generated: { bg: 'var(--warning-bg)', color: 'var(--warning)', label: 'Propuesta generada' },
+  sent:      { bg: 'var(--success-bg)', color: 'var(--success)', label: 'Propuesta enviada' },
 }
 
 const panelStyle = {
@@ -57,7 +58,7 @@ const panelStyle = {
 }
 
 const fieldLabelStyle = {
-  fontSize: 11,
+  fontSize: "var(--text-xs)",
   fontWeight: 700,
   color: 'var(--text-2)',
   textTransform: 'uppercase',
@@ -74,7 +75,7 @@ const fieldStyle = {
   borderRadius: 10,
   padding: '10px 12px',
   color: 'var(--text-1)',
-  fontSize: 13,
+  fontSize: "var(--text-base)",
   fontFamily: 'inherit',
   outline: 'none',
 }
@@ -94,7 +95,7 @@ function emptyForm() {
 function ProposalStatusBadge({ status }) {
   const cfg = PROPOSAL_STATUS_COLORS[status] || PROPOSAL_STATUS_COLORS.none
   return (
-    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
+    <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 6, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>
       {cfg.label}
     </span>
   )
@@ -103,13 +104,13 @@ function ProposalStatusBadge({ status }) {
 function SummaryCard({ label, value, tone = 'var(--text-1)', subvalue }) {
   return (
     <Card style={{ minWidth: 180, padding: 18 }}>
-      <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
         {label}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: tone, lineHeight: 1, marginBottom: subvalue ? 6 : 0 }}>
+      <div style={{ fontSize: "var(--text-3xl)", fontWeight: 800, color: tone, lineHeight: 1, marginBottom: subvalue ? 6 : 0 }}>
         {value}
       </div>
-      {subvalue ? <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{subvalue}</div> : null}
+      {subvalue ? <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{subvalue}</div> : null}
     </Card>
   )
 }
@@ -191,14 +192,14 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
               { label: 'Tipo contrato', value: opp.contract_type || '—' },
             ].map(({ label, value }) => (
               <div key={label}>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>{label}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
               </div>
             ))}
           </div>
 
           {opp.description ? (
-            <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.5, background: 'var(--surface-2)', borderRadius: 10, padding: '12px 14px' }}>
               {opp.description}
             </div>
           ) : null}
@@ -208,13 +209,13 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <FileText size={16} style={{ color: 'var(--accent)' }} />
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Propuesta SOW</span>
+                <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>Propuesta SOW</span>
               </div>
               <ProposalStatusBadge status={proposalStatus} />
             </div>
 
             {opp.proposal_generated_at ? (
-              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
                 Generada: {opp.proposal_generated_at}
                 {opp.proposal_sent_at ? ` · Enviada: ${opp.proposal_sent_at}` : ''}
               </div>
@@ -257,25 +258,25 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
           <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, padding: 16, display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Briefcase size={16} style={{ color: 'var(--success)' }} />
-              <span style={{ fontWeight: 700, fontSize: 14 }}>Conversión a proyecto</span>
+              <span style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>Conversión a proyecto</span>
             </div>
 
             {alreadyConverted ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--success)', background: 'var(--success-bg,#00220f)', borderRadius: 8, padding: '8px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '8px 12px' }}>
                 <Briefcase size={14} />
                 Vinculada al proyecto <strong style={{ marginLeft: 4 }}>{opp.project_id}</strong>
               </div>
             ) : convertResult ? (
-              <div style={{ fontSize: 13, color: 'var(--success)', background: 'var(--success-bg,#00220f)', borderRadius: 8, padding: '10px 14px' }}>
+              <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', background: 'var(--success-bg)', borderRadius: 8, padding: '10px 14px' }}>
                 <div style={{ fontWeight: 700, marginBottom: 4 }}>Proyecto creado: {convertResult.project_code}</div>
                 <div style={{ color: 'var(--text-2)' }}>{convertResult.message}</div>
                 {convertResult.rev_contract_id && (
-                  <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 4 }}>Contrato ASC 606 creado automáticamente</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', marginTop: 4 }}>Contrato ASC 606 creado automáticamente</div>
                 )}
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
                   Convierte esta oportunidad en un proyecto activo. Se creará automáticamente un contrato ASC 606 con el método de reconocimiento correspondiente al tipo de contrato.
                 </div>
                 <div>
@@ -300,8 +301,8 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }) {
             <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner size={28} /></div>
           ) : (
             <pre style={{
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace',
-              fontSize: 12, lineHeight: 1.7, color: 'var(--text-1)',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'var(--font-mono)',
+              fontSize: "var(--text-sm)", lineHeight: 1.7, color: 'var(--text-1)',
               background: 'var(--surface-2)', borderRadius: 8, padding: '16px 18px',
               maxHeight: '60vh', overflowY: 'auto', margin: 0,
             }}>
@@ -435,7 +436,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <div style={{ padding: 32, display: 'grid', gap: 18 }}>
+    <PageShell style={{ display: 'grid', gap: 18 }}>
       <PageHeader icon={<Megaphone size={18} />} title={t('pipeline.title')} subtitle={t('pipeline.subtitle')} />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -477,7 +478,7 @@ export default function PipelinePage() {
       {isError ? (
         <div style={{ ...panelStyle, padding: 20, color: 'var(--danger)' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>No se pudo cargar el pipeline</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>{extractErr(error, 'Error inesperado')}</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 14 }}>{extractErr(error, 'Error inesperado')}</div>
           <Button onClick={() => refetch()} loading={isFetching}>Reintentar</Button>
         </div>
       ) : null}
@@ -503,10 +504,10 @@ export default function PipelinePage() {
               <section key={stage} style={{ ...panelStyle, padding: 14, minHeight: 180 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 12, color: STAGE_COLORS[stage], fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: "var(--text-sm)", color: STAGE_COLORS[stage], fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                       {stageLabels[stage] || stage}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
                       {opportunities.length} oportunidad(es) · {fmtCurrency(totalStageRevenue)}
                     </div>
                   </div>
@@ -515,7 +516,7 @@ export default function PipelinePage() {
 
                 <div style={{ display: 'grid', gap: 10 }}>
                   {opportunities.length === 0 ? (
-                    <div style={{ border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 16, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
+                    <div style={{ border: '1px dashed var(--surface-4)', borderRadius: 12, padding: 16, fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center' }}>
                       Sin oportunidades en esta etapa
                     </div>
                   ) : opportunities.map((opportunity) => {
@@ -526,9 +527,9 @@ export default function PipelinePage() {
                       <Card key={opportunity.id} style={{ padding: 14, display: 'grid', gap: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opportunity.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{opportunity.client_name || 'Sin cliente'}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{opportunity.code || 'Sin código'}</div>
+                            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opportunity.name}</div>
+                            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{opportunity.client_name || 'Sin cliente'}</div>
+                            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{opportunity.code || 'Sin código'}</div>
                           </div>
                           <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                             <button
@@ -550,7 +551,7 @@ export default function PipelinePage() {
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gap: 6, fontSize: 12, color: 'var(--text-2)' }}>
+                        <div style={{ display: 'grid', gap: 6, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                             <span>Valor</span>
                             <strong style={{ color: 'var(--text-1)' }}>{fmtCurrency(opportunity.expected_revenue)}</strong>
@@ -571,17 +572,17 @@ export default function PipelinePage() {
 
                         {/* Proposal status indicator */}
                         {proposalStatus !== 'none' && (
-                          <div style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
+                          <div style={{ fontSize: "var(--text-xs)", padding: '3px 8px', borderRadius: 6, background: psCfg.bg, color: psCfg.color, fontWeight: 600, width: 'fit-content' }}>
                             {psCfg.label}
                           </div>
                         )}
 
                         <div style={{ display: 'grid', gap: 8 }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                             Responsable: {opportunity.owner_name || 'Sin asignar'}
                           </div>
                           <label style={{ display: 'grid', gap: 6 }}>
-                            <span style={{ fontSize: 11, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mover a etapa</span>
+                            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mover a etapa</span>
                             <select
                               key={`${opportunity.id}:${opportunity.stage}`}
                               defaultValue={opportunity.stage}
@@ -599,7 +600,7 @@ export default function PipelinePage() {
                         </div>
 
                         {opportunity.description ? (
-                          <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.45, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', lineHeight: 1.45, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
                             {opportunity.description}
                           </div>
                         ) : null}
@@ -685,6 +686,6 @@ export default function PipelinePage() {
           onUpdate={() => {}}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

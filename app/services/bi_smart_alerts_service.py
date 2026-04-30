@@ -176,6 +176,56 @@ def _z_score(values: list[float], v: float) -> float:
     return (v - mean) / math.sqrt(var)
 
 
+def _pearson_corr(xs: list[float], ys: list[float]) -> float:
+    if len(xs) != len(ys) or len(xs) < 3:
+        return 0.0
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    den_x = sum((x - mean_x) ** 2 for x in xs)
+    den_y = sum((y - mean_y) ** 2 for y in ys)
+    den = (den_x * den_y) ** 0.5
+    if den == 0:
+        return 0.0
+    return num / den
+
+
+def _historical_anomaly(values: list[float]) -> dict[str, Any]:
+    if len(values) < 5:
+        return {
+            "is_anomaly": False,
+            "z_score": 0.0,
+            "robust_z": 0.0,
+            "delta_pct": 0.0,
+            "baseline_mean": 0.0,
+            "baseline_std": 0.0,
+        }
+
+    current = float(values[-1])
+    baseline = [float(v) for v in values[:-1]]
+    z = _z_score(baseline, current)
+
+    median = sorted(baseline)[len(baseline) // 2]
+    mad = sorted(abs(v - median) for v in baseline)[len(baseline) // 2] or 1.0
+    robust_z = 0.6745 * (current - median) / mad
+
+    mean = sum(baseline) / len(baseline)
+    var = sum((v - mean) ** 2 for v in baseline) / len(baseline)
+    std = var ** 0.5
+    denom = abs(mean) if abs(mean) > 1e-9 else 1.0
+    delta_pct = ((current - mean) / denom) * 100.0
+
+    is_anomaly = abs(z) >= 2.0 or abs(robust_z) >= 3.5 or abs(delta_pct) >= 35.0
+    return {
+        "is_anomaly": bool(is_anomaly),
+        "z_score": round(z, 3),
+        "robust_z": round(robust_z, 3),
+        "delta_pct": round(delta_pct, 2),
+        "baseline_mean": round(mean, 3),
+        "baseline_std": round(std, 3),
+    }
+
+
 def _is_cooldown_active(rule: dict[str, Any]) -> bool:
     last = rule.get("last_triggered_at")
     if not last:
@@ -191,18 +241,67 @@ def _is_cooldown_active(rule: dict[str, Any]) -> bool:
 
 def _fetch_metric_series(db: Session, metric_key: str, organization_id: Optional[str]) -> list[float]:
     """Pull last 12 months of the requested metric from real DB data."""
+    from collections import defaultdict
+    from datetime import date
+
     from app.services.bi_intelligence_service import _month_series
     try:
-        series = _month_series(db, organization_id, months_history=12)
+        series = _month_series(db, organization_id, months_history=24)
     except Exception:
-        return []
+        series = []
+
+    if not series:
+        series = [{"month": f"2025-{month:02d}", "revenue": 0.0, "cost": 0.0, "hours": 0.0} for month in range(1, 13)]
+
+    def _empty_like() -> list[float]:
+        return [0.0 for _ in series]
+
     if metric_key == "revenue":
         return [float(m.get("revenue", 0)) for m in series]
     if metric_key == "margin":
         return [float(m.get("revenue", 0)) - float(m.get("cost", 0)) for m in series]
-    # For other metrics (utilization, tickets, tasks) we return an empty series —
-    # the evaluation degrades gracefully to no trigger.
-    return []
+    if metric_key == "utilization":
+        out = []
+        for m in series:
+            hours = float(m.get("hours", 0) or 0)
+            out.append(min(100.0, round((hours / 160.0) * 100.0, 2)))
+        return out
+    if metric_key == "budget_used_pct":
+        out = []
+        for m in series:
+            revenue = float(m.get("revenue", 0) or 0)
+            cost = float(m.get("cost", 0) or 0)
+            out.append(round((cost / revenue) * 100.0, 2) if revenue > 0 else 0.0)
+        return out
+    if metric_key == "tickets_open":
+        from app.models.service_desk import Ticket, TicketStatus
+
+        start = date.fromisoformat(series[0]["month"] + "-01")
+        rows = db.query(Ticket.created_at, Ticket.status).filter(Ticket.created_at >= start).all()
+        buckets = defaultdict(float)
+        for created_at, status in rows:
+            if not created_at:
+                continue
+            month_key = f"{created_at.year:04d}-{created_at.month:02d}"
+            if str(getattr(status, "value", status)) not in ("closed", "resolved", "cancelled"):
+                buckets[month_key] += 1.0
+        return [float(buckets.get(m["month"], 0.0)) for m in series]
+    if metric_key == "tasks_overdue":
+        from app.models.task import Task, TaskStatus
+
+        start = date.fromisoformat(series[0]["month"] + "-01")
+        rows = db.query(Task.due_date, Task.status).filter(Task.due_date != None, Task.due_date >= start).all()  # noqa: E711
+        buckets = defaultdict(float)
+        for due_date, status in rows:
+            if not due_date:
+                continue
+            month_key = f"{due_date.year:04d}-{due_date.month:02d}"
+            if str(getattr(status, "value", status)) not in ("done", "cancelled"):
+                buckets[month_key] += 1.0
+        return [float(buckets.get(m["month"], 0.0)) for m in series]
+    if metric_key == "active_projects":
+        return [1.0 if float(m.get("hours", 0) or 0) > 0 else 0.0 for m in series]
+    return _empty_like()
 
 
 def evaluate_alerts(
@@ -254,9 +353,9 @@ def evaluate_alerts(
                 detail["trend_window"] = window
 
         elif condition == "anomaly":
-            z = _z_score(values[:-1], current) if len(values) > 1 else 0.0
-            fired = abs(z) >= 2.0
-            detail["z_score"] = round(z, 3)
+            anomaly_eval = _historical_anomaly(values)
+            fired = bool(anomaly_eval["is_anomaly"])
+            detail.update(anomaly_eval)
 
         if not fired:
             continue
@@ -265,14 +364,26 @@ def evaluate_alerts(
         correlated_hits = []
         for corr_metric in (rule.get("correlated_metrics") or []):
             corr_values = _fetch_metric_series(db, corr_metric, organization_id)
-            if corr_values:
-                corr_current = corr_values[-1]
-                corr_z = _z_score(corr_values[:-1], corr_current) if len(corr_values) > 1 else 0.0
+            if not corr_values:
+                continue
+            size = min(len(values), len(corr_values), 12)
+            corr_coeff = _pearson_corr(values[-size:], corr_values[-size:])
+            corr_anomaly = _historical_anomaly(corr_values)
+            current_diff = current - values[-2] if len(values) >= 2 else 0.0
+            corr_diff = corr_values[-1] - corr_values[-2] if len(corr_values) >= 2 else 0.0
+            aligned = (current_diff >= 0 and corr_diff >= 0) or (current_diff <= 0 and corr_diff <= 0)
+            is_correlated_alert = abs(corr_coeff) >= 0.55 and bool(corr_anomaly["is_anomaly"]) and aligned
+            if is_correlated_alert:
                 correlated_hits.append({
                     "metric_key": corr_metric,
-                    "current_value": corr_current,
-                    "z_score": round(corr_z, 3),
+                    "current_value": round(float(corr_values[-1]), 3),
+                    "corr_coef": round(float(corr_coeff), 3),
+                    "z_score": corr_anomaly["z_score"],
+                    "robust_z": corr_anomaly["robust_z"],
                 })
+
+        if rule.get("correlated_metrics") and not correlated_hits:
+            continue
 
         entry: dict[str, Any] = {
             "id": str(uuid.uuid4()),

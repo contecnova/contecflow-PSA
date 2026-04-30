@@ -21,18 +21,18 @@ function TRow({ t: ticket, onClick }) {
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-muted)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
+      <td style={{ padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap' }}>{ticket.number}</td>
       <td style={{ padding: '10px 8px', maxWidth: 320 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
-        {ticket.requester_name && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{ticket.requester_name}</div>}
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ticket.title}</div>
+        {ticket.requester_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{ticket.requester_name}</div>}
       </td>
       <td style={{ padding: '10px 8px' }}><PBadge v={ticket.priority} /></td>
       <td style={{ padding: '10px 8px' }}><SBadge v={ticket.status} /></td>
-      <td style={{ padding: '10px 8px', fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.ticket_type?.replace(/_/g, ' ')}</td>
-      <td style={{ padding: '10px 8px', fontSize: 11, color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
+      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{ticket.ticket_type?.replace(/_/g, ' ')}</td>
+      <td style={{ padding: '10px 8px', fontSize: "var(--text-xs)", color: overdue ? COLOR.danger : 'var(--text-2)', whiteSpace: 'nowrap' }}>
         {due ? `${overdue ? '⚠ ' : ''}${fmtDate(due)}` : '—'}
       </td>
-      <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text-2)' }}>
+      <td style={{ padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
         {ticket.assigned_to?.full_name || <span style={{ color: 'var(--text-4)' }}>{tr('service_desk.unassigned')}</span>}
       </td>
     </tr>
@@ -81,7 +81,7 @@ export default function TicketListTab({ queueOnly, onSelect }) {
 
   const IS = {
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 12,
+    borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
     outline: 'none', fontFamily: 'inherit',
   }
 
@@ -118,7 +118,7 @@ export default function TicketListTab({ queueOnly, onSelect }) {
           ? <EmptyState icon="🎫" title={t('service_desk.no_tickets')} description={t('service_desk.no_matching')} />
           : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
                     <th style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
@@ -134,7 +134,7 @@ export default function TicketListTab({ queueOnly, onSelect }) {
                   {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
                 </tbody>
               </table>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', padding: '10px 4px' }}>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '10px 4px' }}>
                 {filtered.length} ticket{filtered.length !== 1 ? 's' : ''}
               </div>
             </div>

@@ -176,10 +176,11 @@ export default function VoiceAgentPanel() {
           {/* Session history */}
           <div className="space-y-1.5">
             {sessions.filter(s => s.id !== activeSessionId).slice(0, 10).map(s => (
-              <div
+              <button
                 key={s.id}
+                type="button"
                 onClick={() => s.status === 'active' && setActiveSessionId(s.id)}
-                className={`flex items-center justify-between px-4 py-2 rounded-lg text-sm cursor-pointer ${dark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                className={`flex w-full items-center justify-between px-4 py-2 rounded-lg text-sm cursor-pointer ${dark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-50 hover:bg-gray-100'}`}
               >
                 <span className="font-medium">{s.caller_id}</span>
                 <div className="flex items-center gap-2">
@@ -189,7 +190,7 @@ export default function VoiceAgentPanel() {
                   </span>
                   {s.ticket_id && <span className="text-xs text-blue-500">ticket ✓</span>}
                 </div>
-              </div>
+              </button>
             ))}
             {!isLoading && !sessions.length && (
               <p className="text-sm text-gray-400">{t('sd.voice.no_sessions')}</p>

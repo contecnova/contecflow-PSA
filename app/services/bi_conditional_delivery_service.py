@@ -116,6 +116,19 @@ def update_rule(db: Session, *, org_id: Optional[str], rule_id: str, updates: di
     return rules[rule_id]
 
 
+def delete_rule(db: Session, *, org_id: Optional[str], rule_id: str) -> None:
+    rules: dict = _get(db, _KEY_RULES, org_id, {})
+    if rule_id not in rules:
+        raise ValueError(f"Rule '{rule_id}' not found")
+    del rules[rule_id]
+    _set(db, _KEY_RULES, org_id, rules)
+
+    snapshots: dict = _get(db, _KEY_SNAPSHOTS, org_id, {})
+    if rule_id in snapshots:
+        del snapshots[rule_id]
+        _set(db, _KEY_SNAPSHOTS, org_id, snapshots)
+
+
 def evaluate_rule(
     db: Session,
     *,

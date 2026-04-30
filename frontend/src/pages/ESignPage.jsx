@@ -6,8 +6,9 @@
 import { useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { documentsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { PenLine } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
@@ -76,7 +77,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
 
   const { data: documents = [] } = useQuery({
     queryKey: ['documents-list'],
-    queryFn: () => api.get('/documents').then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
+    queryFn: () => documentsApi.list().then(r => Array.isArray(r.data) ? r.data : r.data?.items || []),
   })
 
   const submit = async () => {
@@ -134,7 +135,7 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={ls}>{t('esign.signers')}</label>
-            <button onClick={addSigner} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>+ {t('esign.add_signer')}</button>
+            <button onClick={addSigner} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>+ {t('esign.add_signer')}</button>
           </div>
           {signers.map((s, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -145,13 +146,13 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
               <input value={s.routing_order} onChange={e => setSigner(i, 'routing_order', Number(e.target.value))}
                 type="number" min={1} style={{ ...fs, width: 56 }} title={t('esign.signer_order_ph')} />
               {signers.length > 1 && (
-                <button onClick={() => removeSigner(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+                <button onClick={() => removeSigner(i)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>✕</button>
               )}
             </div>
           ))}
         </div>
 
-        {error && <div style={{ color: 'var(--danger)', fontSize: 12 }}>⚠ {error}</div>}
+        {error && <div style={{ color: 'var(--danger)', fontSize: "var(--text-sm)" }}>⚠ {error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button variant="secondary" onClick={onClose}>{t('esign.cancel')}</Button>
@@ -162,8 +163,8 @@ function CreateEnvelopeModal({ onClose, onCreated }) {
   )
 }
 
-const cell = { padding: '10px 14px', fontSize: 13, color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
-const th   = { ...cell, fontWeight: 700, fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
+const cell = { padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
+const th   = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
 export default function ESignPage() {
   const t = useAppT()
@@ -197,7 +198,7 @@ export default function ESignPage() {
   const adobeOk    = stats?.providers?.adobe_configured
 
   return (
-    <div style={{ padding: 32, maxWidth: 1080, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 1080, margin: '0 auto' }}>
       <PageHeader
         icon={<PenLine size={18} />}
         title={t('esign.title')}
@@ -210,7 +211,7 @@ export default function ESignPage() {
         <ProviderBadge label="DocuSign" ok={docusignOk} />
         <ProviderBadge label="Adobe Sign" ok={adobeOk} />
         {!docusignOk && !adobeOk && (
-          <span style={{ fontSize: 12, color: 'var(--text-2)', alignSelf: 'center' }}>
+          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', alignSelf: 'center' }}>
             Configura las credenciales en Settings → E-firma para habilitar las integraciones.
           </span>
         )}
@@ -226,8 +227,8 @@ export default function ESignPage() {
             { label: 'Rechazadas',  value: stats.declined,  color: 'var(--danger)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '13px 16px' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -253,30 +254,30 @@ export default function ESignPage() {
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td style={cell}>
                     <button onClick={() => setDetail(env)}
-                      style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, textAlign: 'left', padding: 0 }}>
+                      style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", textAlign: 'left', padding: 0 }}>
                       {env.subject || 'Sin asunto'}
                     </button>
                   </td>
                   <td style={cell}>
-                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                    <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                       {env.provider === 'docusign' ? '🖊 DocuSign' : env.provider === 'adobe_sign' ? '📝 Adobe' : '✋ Manual'}
                     </span>
                   </td>
                   <td style={cell}>
-                    <span style={{ fontSize: 12 }}>
+                    <span style={{ fontSize: "var(--text-sm)" }}>
                       {env.signers?.filter(s => s.signed).length || 0}/{env.signers?.length || 0} firmados
                     </span>
                   </td>
                   <td style={cell}><StatusPill status={env.status} /></td>
-                  <td style={{ ...cell, fontSize: 11, color: 'var(--text-2)' }}>{fmtDate(env.sent_at)}</td>
-                  <td style={{ ...cell, fontSize: 11, color: env.expires_at && new Date(env.expires_at) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>
+                  <td style={{ ...cell, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(env.sent_at)}</td>
+                  <td style={{ ...cell, fontSize: "var(--text-xs)", color: env.expires_at && new Date(env.expires_at) < new Date() ? 'var(--danger)' : 'var(--text-2)' }}>
                     {fmtDate(env.expires_at)}
                   </td>
                   <td style={cell}>
                     {['draft','sent','delivered'].includes(env.status) && (
                       <button
                         onClick={() => { openConfirmGlobal({ message: '¿Anular esta solicitud?', onConfirm: () => voidEnv(env.id), danger: true }) }}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>
+                        style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                         Anular
                       </button>
                     )}
@@ -302,14 +303,14 @@ export default function ESignPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <StatusPill status={detail.status} />
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 {detail.provider === 'docusign' ? '🖊 DocuSign' : detail.provider === 'adobe_sign' ? '📝 Adobe Sign' : '✋ Manual'}
               </span>
             </div>
-            {detail.message && <p style={{ fontSize: 13, color: 'var(--text-2)', margin: 0 }}>{detail.message}</p>}
+            {detail.message && <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: 0 }}>{detail.message}</p>}
 
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>FIRMANTES</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>FIRMANTES</div>
               {(detail.signers || []).map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--surface-4)' }}>
                   <span style={{
@@ -317,19 +318,19 @@ export default function ESignPage() {
                     background: s.signed ? 'var(--success)' : 'var(--surface-5)', flexShrink: 0,
                   }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: 'var(--text-1)' }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{s.email} · Orden {s.routing_order}</div>
+                    <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{s.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{s.email} · Orden {s.routing_order}</div>
                   </div>
                   {s.signed ? (
-                    <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ Firmado {fmtDate(s.signed_at)}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Firmado {fmtDate(s.signed_at)}</span>
                   ) : detail.provider === 'manual' ? (
                     <button
                       onClick={() => markSigned({ envelopeId: detail.id, signerId: s.id })}
-                      style={{ background: 'var(--success-bg)', border: 'none', borderRadius: 6, color: 'var(--success)', padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>
+                      style={{ background: 'var(--success-bg)', border: 'none', borderRadius: 6, color: 'var(--success)', padding: '4px 10px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                       Marcar firmado
                     </button>
                   ) : (
-                    <span style={{ fontSize: 11, color: 'var(--text-2)' }}>Pendiente</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Pendiente</span>
                   )}
                 </div>
               ))}
@@ -337,14 +338,14 @@ export default function ESignPage() {
 
             {detail.signing_url && (
               <a href={detail.signing_url} target="_blank" rel="noreferrer"
-                style={{ display: 'block', background: 'var(--accent-muted)', color: 'var(--accent)', padding: '10px 14px', borderRadius: 8, fontSize: 13, textAlign: 'center', textDecoration: 'none' }}>
+                style={{ display: 'block', background: 'var(--accent-muted)', color: 'var(--accent)', padding: '10px 14px', borderRadius: 8, fontSize: "var(--text-base)", textAlign: 'center', textDecoration: 'none' }}>
                 🔗 Abrir portal de firma
               </a>
             )}
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }
 
@@ -354,7 +355,7 @@ function ProviderBadge({ label, ok }) {
       display: 'inline-flex', alignItems: 'center', gap: 6,
       background: ok ? 'var(--success-bg)' : 'var(--surface-3)',
       border: `1px solid ${ok ? 'var(--success-border)' : 'var(--surface-5)'}`,
-      borderRadius: 8, padding: '4px 10px', fontSize: 12,
+      borderRadius: 8, padding: '4px 10px', fontSize: "var(--text-sm)",
       color: ok ? 'var(--success)' : 'var(--text-3)',
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? 'var(--success)' : 'var(--surface-5)' }} />

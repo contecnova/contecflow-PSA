@@ -68,17 +68,17 @@ const TimerWidget = () => {
   }
 
   const isPaused = !!timer?.paused_at
-  const stateColor = timer && !isPaused ? '#68d391' : isPaused ? '#f6ad55' : 'var(--text-3)'
+  const stateColor = timer && !isPaused ? 'var(--success)' : isPaused ? '#fb923c' : 'var(--text-3)'
 
   const btnStyle = (bg) => ({
     padding: '7px 14px', background: bg, border: 'none', borderRadius: 7,
-    color: '#fff', fontSize: 12, fontWeight: 700,
+    color: '#fff', fontSize: "var(--text-sm)", fontWeight: 700,
     cursor: loading ? 'not-allowed' : 'pointer',
     fontFamily: 'inherit', opacity: loading ? 0.6 : 1,
   })
   const selectStyle = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: 12,
+    borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
     outline: 'none', fontFamily: 'inherit', marginBottom: 8,
   }
 
@@ -89,7 +89,7 @@ const TimerWidget = () => {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: stateColor }} />
-        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)' }}>
+        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)' }}>
           {'\u23f1'} Cronómetro
         </span>
       </div>
@@ -97,12 +97,12 @@ const TimerWidget = () => {
       {timer ? (
         <>
           <div style={{
-            fontSize: 28, fontWeight: 800, fontFamily: 'monospace',
+            fontSize: "var(--text-3xl)", fontWeight: 800, fontFamily: 'var(--font-mono)',
             color: 'var(--text-1)', textAlign: 'center', marginBottom: 10, letterSpacing: 2,
           }}>
             {fmt(elapsed)}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 10, textAlign: 'center' }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 10, textAlign: 'center' }}>
             Proyecto #{timer.project_id}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -111,7 +111,7 @@ const TimerWidget = () => {
                   onClick={() => call(() => api.post('/imputations/timer/resume'))}>
                   {'\u25b6'} Reanudar
                 </button>
-              : <button style={btnStyle('#d97706')} disabled={loading}
+              : <button style={btnStyle('#f59e0b')} disabled={loading}
                   onClick={() => call(() => api.post('/imputations/timer/pause'))}>
                   {'\u23f8'} Pausar
                 </button>
@@ -128,7 +128,7 @@ const TimerWidget = () => {
       ) : (
         <>
           {!hasRate ? (
-            <div style={{ fontSize: 11, color: '#fc8181', lineHeight: 1.5 }}>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', lineHeight: 1.5 }}>
               ⚠ Sin tarifa horaria asignada. Contacta con RRHH para activar el cronómetro.
             </div>
           ) : (
@@ -147,7 +147,7 @@ const TimerWidget = () => {
           )}
         </>
       )}
-      {error && <div style={{ fontSize: 11, color: '#fc8181', marginTop: 6 }}>{'⚠'} {error}</div>}
+      {error && <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', marginTop: 6 }}>{'⚠'} {error}</div>}
     </div>
   )
 }

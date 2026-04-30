@@ -51,8 +51,8 @@ export default function GlobalSearch({ onClose }) {
     enabled: debouncedQ.length >= 2,
   })
 
-  const results = data?.flat || []
-  const grouped = data?.grouped || {}
+  const results = useMemo(() => data?.flat ?? [], [data])
+  const grouped = useMemo(() => data?.grouped ?? {}, [data])
 
   // Flat list of navigable items for keyboard nav
   const flatItems = useMemo(() => {
@@ -91,26 +91,26 @@ export default function GlobalSearch({ onClose }) {
   return (
     <div role="presentation" style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'15vh' }}
       onMouseDown={onClose}>
-      <div role="presentation" style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
+      <div role="dialog" aria-modal="true" aria-label="Búsqueda global" style={{ width:'100%', maxWidth:620, background:'var(--surface-1)', borderRadius:16, border:'.5px solid var(--surface-4)', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.3)' }}
         onMouseDown={e => e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', padding:'14px 18px', borderBottom:'.5px solid var(--surface-4)', gap:10 }}>
-          <span style={{ fontSize:16, color:'var(--text-2)' }}>⌕</span>
+          <span style={{ fontSize: "var(--text-lg)", color:'var(--text-2)' }}>⌕</span>
           <input
             ref={inputRef}
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder={t('global_search.placeholder')}
-            style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize:15, color:'var(--text-1)', fontFamily:'inherit' }}
+            style={{ flex:1, background:'transparent', border:'none', outline:'none', fontSize: "var(--text-md-em)", color:'var(--text-1)', fontFamily:'inherit' }}
             onKeyDown={handleKeyDown}
           />
-          {isLoading && <span style={{ fontSize:12, color:'var(--text-3)' }}>{t('common.searching')}</span>}
-          <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', fontSize:11, color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
+          {isLoading && <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('common.searching')}</span>}
+          <button onClick={onClose} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>Esc</button>
         </div>
 
         <div ref={listRef} style={{ maxHeight:450, overflowY:'auto' }}>
           {debouncedQ.length < 2 ? (
             <div>
-              <div style={{ padding: '10px 18px 6px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              <div style={{ padding: '10px 18px 6px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
                 Acciones rápidas
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, padding: '0 10px 10px' }}>
@@ -133,10 +133,10 @@ export default function GlobalSearch({ onClose }) {
                       onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
                       onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
-                      <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{action.icon}</span>
+                      <span style={{ fontSize: "var(--text-lg-em)", lineHeight: 1, flexShrink: 0 }}>{action.icon}</span>
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{action.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>{action.hint}</div>
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{action.label}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>{action.hint}</div>
                       </div>
                     </button>
                   )
@@ -144,13 +144,13 @@ export default function GlobalSearch({ onClose }) {
               </div>
             </div>
           ) : results.length === 0 && !isLoading ? (
-            <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize:13 }}>
+            <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
               {t('global_search.no_results_for')} &quot;{debouncedQ}&quot;
             </div>
           ) : (
             Object.entries(grouped).filter(([, items]) => items?.length > 0).map(([type, items]) => (
               <div key={type}>
-                <div style={{ padding:'8px 18px 4px', fontSize:11, fontWeight:500, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
+                <div style={{ padding:'8px 18px 4px', fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em' }}>
                   {TYPE_LABELS[type] || type}s
                 </div>
                 {(items || []).map(item => {
@@ -161,7 +161,6 @@ export default function GlobalSearch({ onClose }) {
                       data-nav-item
                       style={{
                         display:'flex', gap:12, padding:'10px 18px', cursor:'pointer', alignItems:'center',
-                        borderBottom:'.5px solid var(--surface-4)',
                         background: isSelected ? 'var(--accent-muted)' : 'transparent',
                         outline: 'none', width: '100%', textAlign: 'left', fontFamily: 'inherit',
                         border: 'none', borderBottom: '.5px solid var(--surface-4)',
@@ -171,13 +170,13 @@ export default function GlobalSearch({ onClose }) {
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
                       type="button"
                     >
-                      <span style={{ fontSize:16, flexShrink:0 }}>{ICON_MAP[item.type] || '•'}</span>
+                      <span style={{ fontSize: "var(--text-lg)", flexShrink:0 }}>{ICON_MAP[item.type] || '•'}</span>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight: isSelected ? 600 : 500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
-                        {item.subtitle && <div style={{ fontSize:11, color:'var(--text-2)', marginTop:1 }}>{item.subtitle}</div>}
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: isSelected ? 600 : 500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: isSelected ? 'var(--accent)' : 'var(--text-1)' }}>{item.title}</div>
+                        {item.subtitle && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:1 }}>{item.subtitle}</div>}
                       </div>
                       {item.status && (
-                        <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', whiteSpace:'nowrap' }}>{item.status}</span>
+                        <span style={{ fontSize: "var(--text-2xs)", padding:'2px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', whiteSpace:'nowrap' }}>{item.status}</span>
                       )}
                     </button>
                   )
@@ -187,7 +186,7 @@ export default function GlobalSearch({ onClose }) {
           )}
         </div>
 
-        <div style={{ padding:'8px 18px', borderTop:'.5px solid var(--surface-4)', fontSize:11, color:'var(--text-3)', display:'flex', gap:16 }}>
+        <div style={{ padding:'8px 18px', borderTop:'.5px solid var(--surface-4)', fontSize: "var(--text-xs)", color:'var(--text-3)', display:'flex', gap:16 }}>
           <span>{`↑↓ ${t('common.navigate')}`}</span><span>{`↵ ${t('common.open')}`}</span><span>{`Esc ${t('common.close').toLowerCase()}`}</span>
         </div>
       </div>

@@ -86,6 +86,53 @@ class ProvisionIn(BaseModel):
     service_item_id: str
 
 
+def _render_context(ticket, current_user, service_item_id: str) -> dict:
+    return {
+        "ticket_id": ticket.id,
+        "ticket_number": ticket.number,
+        "ticket_title": ticket.title,
+        "ticket_description": ticket.description,
+        "service_item_id": service_item_id,
+        "requester_name": ticket.requester_name or "",
+        "requester_email": ticket.requester_email or "",
+        "requester_user_id": ticket.requester_user_id or "",
+        "assignee_user_id": ticket.assigned_to_user_id or "",
+        "current_user_id": current_user.id,
+        "project_id": ticket.project_id,
+    }
+
+
+def _execute_step(step: dict, context: dict) -> dict:
+    from app.services import bookings_service as _provision_exec
+
+    step_type = str(step.get("type", "")).lower()
+    if step_type in {
+        "provision_identity",
+        "create_ad_user",
+        "disable_ad_user",
+        "assign_license",
+        "revoke_license",
+    }:
+        cfg = dict(step)
+        if step_type != "provision_identity":
+            cfg["operation"] = step_type
+        out = _provision_exec._execute_provision_action(cfg, context)
+        return {"type": step_type, "provider": "ad", **out}
+
+    if step_type in {"terraform", "terraform_apply", "terraform_destroy", "terraform_plan"}:
+        cfg = dict(step)
+        if step_type != "terraform":
+            cfg["command"] = step_type.replace("terraform_", "")
+        out = _provision_exec._execute_terraform_action(cfg, context)
+        return {"type": step_type, "provider": "terraform", **out}
+
+    if step_type in {"ansible", "ansible_playbook"}:
+        out = _provision_exec._execute_ansible_action(step, context)
+        return {"type": step_type, "provider": "ansible", **out}
+
+    return {"type": step_type, "status": "unknown"}
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.get("/popular", summary="Servicios más solicitados por volumen de tickets")
@@ -159,8 +206,8 @@ def trigger_provisioning(
 ):
     """Execute automated provisioning steps for a service request ticket.
 
-    Retrieves the provisioning config for the service and processes each step
-    synchronously (webhook calls, comment additions, status transitions).
+    Supports real external provisioning providers (AD/identity, Terraform,
+    Ansible) plus local ticket mutations.
     """
     import uuid as _uuid
     from datetime import datetime, timezone
@@ -179,6 +226,7 @@ def trigger_provisioning(
         raise HTTPException(404, "Ticket not found")
 
     steps_done = []
+    context = _render_context(ticket, current_user, service_item_id)
     for step in config.get("steps", []):
         step_type = step.get("type", "")
         step_content = step.get("content", "")
@@ -212,7 +260,32 @@ def trigger_provisioning(
                 ticket.assigned_group = step.get("group", ticket.assigned_group)
                 steps_done.append({"type": step_type, "status": "ok"})
             else:
-                steps_done.append({"type": step_type, "status": "unknown"})
+                provider_result = _execute_step(step, context)
+                step_ok = bool(provider_result.get("ok", False))
+                steps_done.append({
+                    "type": step_type,
+                    "status": "ok" if step_ok else "error",
+                    "provider": provider_result.get("provider"),
+                    "result": provider_result,
+                })
+
+                db.add(TicketHistory(
+                    id=str(_uuid.uuid4()),
+                    ticket_id=ticket.id,
+                    field_name="provisioning_step",
+                    old_value=None,
+                    new_value=json.dumps(
+                        {
+                            "type": step_type,
+                            "ok": step_ok,
+                            "provider": provider_result.get("provider"),
+                            "status_code": provider_result.get("status_code"),
+                            "exit_code": provider_result.get("exit_code"),
+                        },
+                        ensure_ascii=False,
+                    )[:1000],
+                    changed_by_user_id=current_user.id,
+                ))
         except Exception as exc:
             steps_done.append({"type": step_type, "status": "error", "error": str(exc)})
 

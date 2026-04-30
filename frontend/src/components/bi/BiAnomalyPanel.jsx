@@ -6,19 +6,30 @@ import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { useChartTheme } from '../../charts/useChartTheme'
+import { AlertTriangle, TrendingDown } from 'lucide-react'
 
-const RISK_COLORS = { low: 'text-green-500', medium: 'text-yellow-500', high: 'text-red-500', critical: 'text-red-700' }
+const RISK_COLORS = {
+  low:      'var(--success)',
+  medium:   'var(--warning)',
+  high:     'var(--danger)',
+  critical: 'var(--danger)',
+}
+
+const S = {
+  card:   { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '20px 24px' },
+  input:  { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
+  select: { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none' },
+  label:  { fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 },
+  btnOrange: { padding: '7px 16px', borderRadius: 8, background: 'var(--orange)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
+  btnRed:    { padding: '7px 16px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
+}
 
 export default function BiAnomalyPanel() {
   const t = useAppT()
-  const { dark } = useChartTheme()
 
-  // Anomaly detection state
   const [anomalyMetric, setAnomalyMetric] = useState('revenue')
   const [anomalyResult, setAnomalyResult] = useState(null)
 
-  // Churn prediction state
   const [churnClientId, setChurnClientId] = useState('')
   const [churnFeatures, setChurnFeatures] = useState({
     monthly_revenue: 5000,
@@ -46,24 +57,28 @@ export default function BiAnomalyPanel() {
   })
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Info banner */}
       {infoData && (
-        <div className={`text-xs px-3 py-2 rounded ${dark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+        <div style={{ fontSize: "var(--text-xs)", padding: '8px 12px', borderRadius: 8, background: 'var(--surface-3)', color: 'var(--text-3)', border: '1px solid var(--surface-4)' }}>
           IsolationForest: {infoData.sklearn_available ? '✅' : '⚠️ fallback'} &nbsp;|&nbsp;
           LightGBM: {infoData.lgbm_available ? '✅' : '⚠️ fallback'}
         </div>
       )}
 
       {/* Anomaly Detection */}
-      <div className={`rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-        <h3 className="font-bold text-base mb-4">{t('bi.anomaly.title', 'Detección de Anomalías')}</h3>
-        <div className="flex flex-wrap gap-3 mb-4">
-          <select
-            value={anomalyMetric}
-            onChange={e => setAnomalyMetric(e.target.value)}
-            className={`rounded border px-3 py-1.5 text-sm ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
-          >
+      <div style={S.card}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(234,88,12,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--orange)' }}>
+            <AlertTriangle size={16} />
+          </div>
+          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+            {t('bi.anomaly.title', 'Detección de Anomalías')}
+          </h3>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+          <select value={anomalyMetric} onChange={e => setAnomalyMetric(e.target.value)} style={S.select}>
             {['revenue', 'tickets', 'utilization', 'hours', 'response_time'].map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -71,7 +86,7 @@ export default function BiAnomalyPanel() {
           <button
             onClick={() => anomalyMutation.mutate({ metric: anomalyMetric })}
             disabled={anomalyMutation.isPending}
-            className="px-4 py-1.5 rounded bg-orange-600 text-white text-sm hover:bg-orange-700 disabled:opacity-50"
+            style={{ ...S.btnOrange, opacity: anomalyMutation.isPending ? 0.5 : 1 }}
           >
             {anomalyMutation.isPending ? '...' : t('bi.anomaly.detect', 'Detectar')}
           </button>
@@ -79,15 +94,16 @@ export default function BiAnomalyPanel() {
 
         {anomalyResult && (
           <div>
-            <p className="text-sm mb-2">
-              {t('bi.anomaly.found', 'Anomalías encontradas')}: <strong className="text-orange-500">{anomalyResult.anomaly_count ?? anomalyResult.anomalies?.length ?? 0}</strong>
+            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
+              {t('bi.anomaly.found', 'Anomalías encontradas')}:{' '}
+              <strong style={{ color: 'var(--orange)' }}>{anomalyResult.anomaly_count ?? anomalyResult.anomalies?.length ?? 0}</strong>
               {' '}/ {anomalyResult.total_points} {t('bi.anomaly.points', 'puntos')}
             </p>
             {anomalyResult.anomalies?.slice(0, 5).map((a, i) => (
-              <div key={i} className={`flex items-center gap-2 py-1 text-xs ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
-                <span className="text-orange-400">⚠</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                <span style={{ color: 'var(--orange)' }}>⚠</span>
                 <span>{a.period ?? `punto ${a.index ?? i}`}: {a.value?.toFixed?.(2) ?? a.value}</span>
-                {a.score != null && <span className="text-gray-400">score: {a.score.toFixed(3)}</span>}
+                {a.score != null && <span style={{ color: 'var(--text-3)' }}>score: {a.score.toFixed(3)}</span>}
               </div>
             ))}
           </div>
@@ -95,53 +111,62 @@ export default function BiAnomalyPanel() {
       </div>
 
       {/* Churn Prediction */}
-      <div className={`rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-        <h3 className="font-bold text-base mb-4">{t('bi.churn.title', 'Predicción de Churn')}</h3>
-        <div className="flex flex-wrap gap-3 mb-4">
+      <div style={S.card}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}>
+            <TrendingDown size={16} />
+          </div>
+          <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>
+            {t('bi.churn.title', 'Predicción de Churn')}
+          </h3>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           <input
             type="text"
             placeholder="client-id"
             value={churnClientId}
             onChange={e => setChurnClientId(e.target.value)}
-            className={`rounded border px-3 py-1.5 text-sm w-36 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+            style={{ ...S.input, width: 144 }}
           />
           <button
             onClick={() => churnMutation.mutate({ client_id: churnClientId || 'demo-client', features: churnFeatures })}
             disabled={churnMutation.isPending}
-            className="px-4 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50"
+            style={{ ...S.btnRed, opacity: churnMutation.isPending ? 0.5 : 1 }}
           >
             {churnMutation.isPending ? '...' : t('bi.churn.predict', 'Predecir churn')}
           </button>
         </div>
 
-        {/* Feature inputs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
           {Object.entries(churnFeatures).map(([k, v]) => (
             <div key={k}>
-              <label className="block text-xs mb-0.5">{k.replace(/_/g, ' ')}</label>
+              <label style={S.label}>{k.replace(/_/g, ' ')}</label>
               <input
                 type="number"
                 value={v}
                 onChange={e => setChurnFeatures(f => ({ ...f, [k]: Number(e.target.value) }))}
-                className={`rounded border px-2 py-1 text-xs w-full ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+                style={S.input}
               />
             </div>
           ))}
         </div>
 
         {churnResult && (
-          <div className={`rounded-lg px-4 py-3 ${dark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-            <p className="font-medium mb-1">
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+            <p style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 6 }}>
               {t('bi.churn.probability', 'Probabilidad de churn')}:{' '}
               <strong>{(churnResult.churn_probability * 100).toFixed(1)}%</strong>
             </p>
-            <p className={`text-sm font-semibold ${RISK_COLORS[churnResult.risk_level] ?? 'text-gray-500'}`}>
+            <p style={{ fontSize: "var(--text-base)", fontWeight: 700, color: RISK_COLORS[churnResult.risk_level] ?? 'var(--text-3)', marginBottom: churnResult.top_factors?.length ? 8 : 0 }}>
               {t('bi.churn.risk', 'Riesgo')}: {churnResult.risk_level?.toUpperCase()}
             </p>
             {churnResult.top_factors?.length > 0 && (
-              <ul className="mt-2 text-xs space-y-0.5">
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {churnResult.top_factors.slice(0, 3).map((f, i) => (
-                  <li key={i} className="text-gray-500">→ {typeof f === 'string' ? f : `${f.feature}: ${f.importance?.toFixed(2)}`}</li>
+                  <li key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', padding: '2px 0' }}>
+                    → {typeof f === 'string' ? f : `${f.feature}: ${f.importance?.toFixed(2)}`}
+                  </li>
                 ))}
               </ul>
             )}

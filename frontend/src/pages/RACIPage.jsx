@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi } from '../services/api'
 import { Avatar, Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Shield } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -31,7 +32,7 @@ function RoleCell({ role, onClick, editable }) {
   const meta = ROLES_META[role] || null
   const sharedStyle = {
     width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: 800, fontSize: 13, cursor: editable ? 'pointer' : 'default',
+    fontWeight: 800, fontSize: "var(--text-base)", cursor: editable ? 'pointer' : 'default',
     background: meta ? meta.bg : 'var(--surface-3)',
     color: meta ? meta.color : 'var(--text-4)',
     border: `1px solid ${meta ? meta.color + '40' : 'var(--surface-4)'}`,
@@ -76,10 +77,10 @@ function AddEntryModal({ projectId, users, onClose, onSaved }) {
 
   const inputStyle = {
     width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-    borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13,
+    borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
   }
-  const lbStyle = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }
+  const lbStyle = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', display: 'block', marginBottom: 5 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -158,7 +159,7 @@ export default function RACIPage() {
   const uniqueUsers = [...new Map(allAssignments.map(a => [a.user_id, a.user])).values()].filter(Boolean)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader title={t('raci.title')} subtitle={t('raci.subtitle')} icon={<Shield size={18} />} />
 
       {/* Legend */}
@@ -166,9 +167,9 @@ export default function RACIPage() {
         {Object.entries(ROLES_META).map(([k, v]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 12px',
             background: v.bg, border: `1px solid ${v.color}40`, borderRadius: 20 }}>
-            <span style={{ fontWeight: 800, fontSize: 13, color: v.color }}>{k}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v.label}</span>
-            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>— {v.desc}</span>
+            <span style={{ fontWeight: 800, fontSize: "var(--text-base)", color: v.color }}>{k}</span>
+            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{v.label}</span>
+            <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>— {v.desc}</span>
           </div>
         ))}
       </div>
@@ -176,7 +177,7 @@ export default function RACIPage() {
       {/* Project selector + action */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          style={{ flex: 1, maxWidth: 380, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ flex: 1, maxWidth: 380, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">Selecciona un proyecto...</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
@@ -190,19 +191,19 @@ export default function RACIPage() {
       ) : isLoading ? (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '40px 0' }}><Spinner /><span style={{ color: 'var(--text-2)' }}>Cargando RACI...</span></div>
       ) : items.length === 0 ? (
-        <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
+        <EmptyState icon="📊" title="Matriz RACI vacia" description="Anade la primera entrada para empezar a asignar responsabilidades" action={<button className="btn-primary" onClick={() => setShowAdd(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>+ Añadir primera entrada</button>} />
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: 600 }}>
             <thead>
               <tr>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', borderRadius: '8px 0 0 0', whiteSpace: 'nowrap', minWidth: 180 }}>Elemento</th>
-                <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', minWidth: 80 }}>Tipo</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', borderRadius: '8px 0 0 0', whiteSpace: 'nowrap', minWidth: 180 }}>Elemento</th>
+                <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', minWidth: 80 }}>Tipo</th>
                 {uniqueUsers.map(u => (
-                  <th key={u.id} style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', minWidth: 70 }}>
+                  <th key={u.id} style={{ padding: '10px 8px', textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-2)', minWidth: 70 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                       <Avatar name={u.full_name} size={22} />
-                      <span style={{ fontSize: 10, whiteSpace: 'nowrap', maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.full_name.split(' ')[0]}</span>
+                      <span style={{ fontSize: "var(--text-2xs)", whiteSpace: 'nowrap', maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.full_name.split(' ')[0]}</span>
                     </div>
                   </th>
                 ))}
@@ -217,9 +218,9 @@ export default function RACIPage() {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? 'var(--surface-1)' : 'var(--surface-2)'}
                   >
-                    <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }}>{item.item_label}</td>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }}>{item.item_label}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: '1px solid var(--surface-4)' }}>
-                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)', textTransform: 'uppercase' }}>
                         {ITEM_TYPES.find(t => t.value === item.item_type)?.label || item.item_type}
                       </span>
                     </td>
@@ -233,7 +234,7 @@ export default function RACIPage() {
                                 <RoleCell role={a.role} editable={false} />
                                 <button onClick={() => deleteEntry(a.entry_id)}
                                   title="Quitar asignacion"
-                                  style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                                  style={{ position: 'absolute', top: -6, right: -6, width: 14, height: 14, borderRadius: '50%', background: 'var(--danger)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-3xs)", display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                                   ×
                                 </button>
                               </div>
@@ -263,6 +264,6 @@ export default function RACIPage() {
           />
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

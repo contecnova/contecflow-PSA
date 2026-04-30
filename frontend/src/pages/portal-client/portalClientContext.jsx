@@ -112,11 +112,11 @@ export function ClientAuthProvider({ children }) {
 export const S = {
   page: { minHeight: '100vh', background: 'var(--surface-0)', color: 'var(--text-1)', fontFamily: "'Inter', system-ui, sans-serif" },
   card: { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: 'var(--space-4) var(--space-5)' },
-  badge: (color) => ({ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: color + '20', color, border: `1px solid ${color}40`, textTransform: 'uppercase' }),
-  btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
-  btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' },
-  input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
-  label: { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 },
+  badge: (color) => ({ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: color + '20', color, border: `1px solid ${color}40`, textTransform: 'uppercase' }),
+  btn: { background: 'var(--accent)', border: 'none', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--portal-bg)', fontSize: "var(--text-md)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  btnSec: { background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' },
+  input: { background: 'var(--surface-4)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  label: { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 },
 }
 
 // ── Shared components ─────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ export function LangSelector({ onChange, current, dark = false }) {
             background: current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent',
             border: `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}`,
             borderRadius: 8, padding: '5px 9px', cursor: 'pointer',
-            fontSize: 16, lineHeight: 1, fontFamily: 'inherit',
+            fontSize: "var(--text-lg)", lineHeight: 1, fontFamily: 'inherit',
             transition: 'all 0.15s',
           }}>
           {l.flag}
@@ -165,15 +165,15 @@ export function LoginScreen({ _changeLang, _currentLang }) {
     <div style={{ ...S.page, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, margin: '0 auto 16px', fontWeight: 800 }}>◈</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 6px' }}>{t('login_title')}</h1>
+          <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, var(--accent), var(--purple))', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-2xl-em)", margin: '0 auto 16px', fontWeight: 800 }}>◈</div>
+          <h1 style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, margin: '0 0 6px' }}>{t('login_title')}</h1>
           <p style={{ color: 'var(--text-2)', margin: 0 }}>{t('login_subtitle')}</p>
         </div>
         <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div><label htmlFor={`${idPrefix}-email`} style={S.label}>{t('login_email')}</label><input id={`${idPrefix}-email`} type="email" value={email} onChange={e => setEmail(e.target.value)} style={S.input} placeholder={t('login_email')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
           <div><label htmlFor={`${idPrefix}-password`} style={S.label}>{t('login_password')}</label><input id={`${idPrefix}-password`} type="password" value={password} onChange={e => setPassword(e.target.value)} style={S.input} placeholder={t('login_password')} onKeyDown={e => e.key === 'Enter' && handleLogin()} /></div>
-          {error && <div style={{ fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{error}</div>}
-          <button onClick={handleLogin} disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: 15, opacity: loading ? 0.6 : 1 }}>
+          {error && <div style={{ fontSize: "var(--text-base)", color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 8, padding: '8px 12px' }}>{error}</div>}
+          <button onClick={handleLogin} disabled={loading || !email || !password} style={{ ...S.btn, width: '100%', padding: '13px', fontSize: "var(--text-md-em)", opacity: loading ? 0.6 : 1 }}>
             {loading ? t('login_loading') : t('login_btn')}
           </button>
         </div>

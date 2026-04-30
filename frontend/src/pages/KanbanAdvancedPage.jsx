@@ -20,15 +20,15 @@ import { useAppT } from '../i18n/AppLangContext'
 
 function getDefaultColumns(t) {
   return [
-    { id: 'backlog',     label: t('kanban.col_backlog'),       color: '#4a5a78' },
-    { id: 'todo',        label: t('kanban.col_todo'),          color: '#6366f1' },
+    { id: 'backlog',     label: t('kanban.col_backlog'),       color: 'var(--text-3)' },
+    { id: 'todo',        label: t('kanban.col_todo'),          color: 'var(--accent)' },
     { id: 'in_progress', label: t('kanban.col_in_progress'),   color: '#4f8ef7' },
     { id: 'in_review',   label: t('kanban.col_in_review'),     color: '#f59e0b' },
     { id: 'done',        label: t('kanban.col_done'),          color: '#34d399' },
   ]
 }
 
-const PRIORITY_COLORS = { critical: '#f87171', high: '#fb923c', medium: '#f59e0b', low: '#34d399', none: '#4a5a78' }
+const PRIORITY_COLORS = { critical: '#f87171', high: 'var(--orange)', medium: '#f59e0b', low: '#34d399', none: 'var(--text-3)' }
 function getPriorityLabels(t) {
   return {
     critical: t('kanban.priority_critical'),
@@ -67,7 +67,7 @@ function WipGauge({ count, limit }) {
       <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
         <div style={{ width: `${ratio * 100}%`, height: '100%', borderRadius: 2, background: color, transition: 'width 0.3s' }} />
       </div>
-      <span style={{ fontSize: 10, color, fontWeight: 600 }}>{count}/{limit}</span>
+      <span style={{ fontSize: "var(--text-2xs)", color, fontWeight: 600 }}>{count}/{limit}</span>
     </div>
   )
 }
@@ -107,7 +107,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
       onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
     >
       {/* Title row */}
-      <div style={{ fontSize: 13, color: overdue ? '#fca5a5' : 'var(--text-1)', lineHeight: 1.4, marginBottom: 6 }}>
+      <div style={{ fontSize: "var(--text-base)", color: overdue ? 'var(--danger)' : 'var(--text-1)', lineHeight: 1.4, marginBottom: 6 }}>
         {task.title}
       </div>
 
@@ -115,7 +115,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         {/* Priority badge */}
         <span style={{
-          fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
+          fontSize: "var(--text-3xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em',
           color: priColor, background: priColor + '22', borderRadius: 4, padding: '2px 5px',
         }}>
           {priorityLabels[getPriority(task)]}
@@ -123,21 +123,21 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
 
         {/* Story points */}
         {task.story_points > 0 && (
-          <span style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px' }}>
+          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', borderRadius: 4, padding: '1px 5px' }}>
             {task.story_points}p
           </span>
         )}
 
         {/* Subtask badge */}
         {subtasks > 0 && (
-          <span style={{ fontSize: 10, color: done_sub === subtasks ? '#34d399' : 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ fontSize: "var(--text-2xs)", color: done_sub === subtasks ? '#34d399' : 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 2 }}>
             ⊞ {done_sub}/{subtasks}
           </span>
         )}
 
         {/* Due date */}
         {task.due_date && (
-          <span style={{ fontSize: 10, color: overdue ? '#f87171' : 'var(--text-3)', marginLeft: 'auto' }}>
+          <span style={{ fontSize: "var(--text-2xs)", color: overdue ? '#f87171' : 'var(--text-3)', marginLeft: 'auto' }}>
             {overdue ? '⚠ ' : ''}{fmtDate(task.due_date)}
           </span>
         )}
@@ -148,7 +148,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
             width: 20, height: 20, borderRadius: '50%',
             background: 'var(--accent-glow)', border: '1px solid var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+            fontSize: "var(--text-3xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
             marginLeft: task.due_date ? 4 : 'auto',
           }}>
             {task.assignee_name.slice(0, 1).toUpperCase()}
@@ -158,7 +158,7 @@ function KanbanCard({ task, onDragStart, onClick, priorityLabels }) {
 
       {/* Code label */}
       {task.code && (
-        <div style={{ fontSize: 9, color: 'var(--text-4)', marginTop: 5 }}>{task.code}</div>
+        <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginTop: 5 }}>{task.code}</div>
       )}
     </div>
   )
@@ -192,7 +192,7 @@ function QuickAdd({ status, projectId, onCreated }) {
       <button onClick={() => setOpen(true)} style={{
         width: '100%', textAlign: 'left', padding: '7px 10px',
         background: 'transparent', border: '1px dashed var(--surface-4)',
-        borderRadius: 8, color: 'var(--text-3)', fontSize: 12,
+        borderRadius: 8, color: 'var(--text-3)', fontSize: "var(--text-sm)",
         cursor: 'pointer', fontFamily: 'var(--font-sans)',
       }}>
         + {t('kanban.add_task')}
@@ -211,11 +211,11 @@ function QuickAdd({ status, projectId, onCreated }) {
         style={{
           flex: 1, background: 'var(--surface-3)', border: '1px solid var(--accent)',
           borderRadius: 6, padding: '6px 8px', color: 'var(--text-1)',
-          fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
+          fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
         }}
       />
-      <button onClick={submit} style={{ padding: '0 10px', background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: 13 }}>✓</button>
-      <button onClick={() => { setOpen(false); setTitle('') }} style={{ padding: '0 8px', background: 'var(--surface-4)', border: 'none', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', fontSize: 13 }}>✕</button>
+      <button onClick={submit} style={{ padding: '0 10px', background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', fontSize: "var(--text-base)" }}>✓</button>
+      <button onClick={() => { setOpen(false); setTitle('') }} style={{ padding: '0 8px', background: 'var(--surface-4)', border: 'none', borderRadius: 6, color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-base)" }}>✕</button>
     </div>
   )
 }
@@ -243,9 +243,9 @@ function KanbanColumn({ col, tasks, dragOver, wipLimit, projectId, onTaskDragSta
       <div style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <div style={{ width: 9, height: 9, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '.03em', flex: 1 }}>{col.label}</span>
+          <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', letterSpacing: '.03em', flex: 1 }}>{col.label}</span>
           <span style={{
-            fontSize: 11, fontWeight: 600, color: wipLimit && count >= wipLimit ? '#f87171' : 'var(--text-3)',
+            fontSize: "var(--text-xs)", fontWeight: 600, color: wipLimit && count >= wipLimit ? '#f87171' : 'var(--text-3)',
             background: 'var(--surface-3)', borderRadius: 10, padding: '1px 7px',
           }}>{count}</span>
         </div>
@@ -274,7 +274,7 @@ function SwimlaneRow({ label, tasks, columns, dragOverCol, wipLimits, projectId,
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{
-        fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
+        fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase',
         letterSpacing: '.07em', padding: '6px 0 8px', borderBottom: '1px solid var(--surface-4)', marginBottom: 12,
       }}>
         {label}
@@ -449,8 +449,8 @@ export default function KanbanAdvancedPage() {
         const ghost = document.createElement('div')
         ghost.textContent = task.title
         Object.assign(ghost.style, {
-          position: 'fixed', zIndex: 9999, pointerEvents: 'none',
-          background: '#0d1424', border: '1px solid #4f8ef7',
+          position: 'fixed', zIndex: 'var(--z-drag)', pointerEvents: 'none',
+          background: 'var(--surface-1)', border: '1px solid var(--accent)',
           borderRadius: '8px', padding: '8px 12px',
           color: '#e8f0fe', fontSize: '12px', fontFamily: 'var(--font-sans)',
           maxWidth: '220px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
@@ -526,7 +526,7 @@ export default function KanbanAdvancedPage() {
           style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)',
-            fontSize: 12, outline: 'none', width: 160, fontFamily: 'var(--font-sans)',
+            fontSize: "var(--text-sm)", outline: 'none', width: 160, fontFamily: 'var(--font-sans)',
           }}
         />
 
@@ -540,14 +540,14 @@ export default function KanbanAdvancedPage() {
                 border: `1px solid ${active ? PRIORITY_COLORS[p] : 'var(--surface-4)'}`,
                 background: active ? PRIORITY_COLORS[p] + '22' : 'transparent',
                 color: active ? PRIORITY_COLORS[p] : 'var(--text-3)',
-                fontSize: 11, fontFamily: 'var(--font-sans)', fontWeight: active ? 600 : 400,
+                fontSize: "var(--text-xs)", fontFamily: 'var(--font-sans)', fontWeight: active ? 600 : 400,
               }}>
                 {priorityLabels[p]}
               </button>
             )
           })}
           {filterPriority.length > 0 && (
-            <button onClick={() => setFilterPri([])} style={{ fontSize: 11, color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            <button onClick={() => setFilterPri([])} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
           )}
         </div>
 
@@ -560,7 +560,7 @@ export default function KanbanAdvancedPage() {
               border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: active ? 'var(--accent-muted)' : 'transparent',
               color: active ? 'var(--accent)' : 'var(--text-3)',
-              fontSize: 11, fontFamily: 'var(--font-sans)',
+              fontSize: "var(--text-xs)", fontFamily: 'var(--font-sans)',
             }}>
               {name.split(' ')[0]}
             </button>
@@ -572,7 +572,7 @@ export default function KanbanAdvancedPage() {
           <select value={sprintId} onChange={e => setSprintId(e.target.value)} style={{
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
-            fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
+            fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
           }}>
             <option value="">{t('kanban.all_sprints')}</option>
             {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -583,7 +583,7 @@ export default function KanbanAdvancedPage() {
         <select value={projectId} onChange={e => setProjectId(e.target.value)} style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
-          fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)', marginLeft: 'auto',
+          fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)', marginLeft: 'auto',
         }}>
           <option value="">{t('kanban.all_projects')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
@@ -593,7 +593,7 @@ export default function KanbanAdvancedPage() {
         <select value={swimlaneBy} onChange={e => setSwimlaneBy(e.target.value)} style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '5px 8px', color: 'var(--text-1)',
-          fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
+          fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
         }}>
           <option value="none">{t('kanban.no_swimlanes')}</option>
           <option value="assignee">{t('kanban.swimlane_assignee')}</option>
@@ -605,12 +605,12 @@ export default function KanbanAdvancedPage() {
       {/* Settings panel */}
       {showSettings && (
         <div style={{ padding: '12px 24px', background: 'var(--surface-1)', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>{t('kanban.wip_limits')}</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {defaultColumns.map(col => (
               <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
-                <span style={{ fontSize: 12, color: 'var(--text-2)', width: 90 }}>{col.label}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', width: 90 }}>{col.label}</span>
                 <input
                   type="number" min={0} max={50}
                   value={wipLimits[col.id] || ''}
@@ -619,7 +619,7 @@ export default function KanbanAdvancedPage() {
                   style={{
                     width: 50, background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                     borderRadius: 6, padding: '4px 7px', color: 'var(--text-1)',
-                    fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)', textAlign: 'center',
+                    fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)', textAlign: 'center',
                   }}
                 />
               </div>

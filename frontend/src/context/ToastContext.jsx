@@ -60,7 +60,7 @@ export function ToastProvider({ children }) {
       <div style={{
         position: 'fixed', bottom: 24, right: 24,
         display: 'flex', flexDirection: 'column', gap: 10,
-        zIndex: 99999, pointerEvents: 'none',
+        zIndex: 'var(--z-toast)', pointerEvents: 'none',
       }}>
         {toasts.map(t => {
           const c = COLORS[t.type]
@@ -82,14 +82,14 @@ export function ToastProvider({ children }) {
                 width: 28, height: 28, borderRadius: 8, flexShrink: 0,
                 background: c.bg + '20', border: `1px solid ${c.bg}40`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 800, color: c.bg,
+                fontSize: "var(--text-md)", fontWeight: 800, color: c.bg,
               }}>{ICONS[t.type]}</div>
-              <div style={{ flex: 1, fontSize: 13, color: 'var(--text-1)', lineHeight: 1.4 }}>
+              <div style={{ flex: 1, fontSize: "var(--text-base)", color: 'var(--text-1)', lineHeight: 1.4 }}>
                 {t.message}
               </div>
               <button onClick={() => dismiss(t.id)} style={{
                 background: 'none', border: 'none', color: 'var(--text-2)',
-                cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1,
+                cursor: 'pointer', fontSize: "var(--text-lg)", padding: '0 2px', lineHeight: 1,
                 flexShrink: 0,
               }}>×</button>
             </div>

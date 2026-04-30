@@ -36,8 +36,8 @@ const statBox = (accent) => ({
 function StatCard({ label, value, accent = COLOR.accent }) {
   return (
     <div style={statBox(accent)}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: accent }}>{value ?? '—'}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color: accent }}>{value ?? '—'}</div>
+      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
     </div>
   )
 }
@@ -49,19 +49,19 @@ function ClusterCard({ cluster, onMerge, merging }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)' }}>Cluster #{cluster.id}</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: sizeColor, background: `${sizeColor}15`, padding: '2px 8px', borderRadius: 4 }}>
+            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>Cluster #{cluster.id}</span>
+            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: sizeColor, background: `${sizeColor}15`, padding: '2px 8px', borderRadius: 4 }}>
               {cluster.size} alertas
             </span>
             {cluster.problem_id && (
-              <span style={{ fontSize: 11, color: COLOR.info ?? '#63b3ed', background: `${COLOR.info ?? '#63b3ed'}15`, padding: '2px 8px', borderRadius: 4 }}>
+              <span style={{ fontSize: "var(--text-xs)", color: COLOR.info ?? 'var(--info)', background: `${COLOR.info ?? 'var(--info)'}15`, padding: '2px 8px', borderRadius: 4 }}>
                 → Problema #{cluster.problem_id}
               </span>
             )}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>{cluster.label || cluster.title || `Cluster de alertas #${cluster.id}`}</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', fontWeight: 600 }}>{cluster.label || cluster.title || `Cluster de alertas #${cluster.id}`}</div>
           {cluster.description && (
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{cluster.description}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{cluster.description}</div>
           )}
         </div>
         {!cluster.problem_id && (
@@ -80,12 +80,12 @@ function ClusterCard({ cluster, onMerge, merging }) {
       {cluster.alerts?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
           {cluster.alerts.slice(0, 8).map((a, i) => (
-            <span key={i} style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4 }}>
+            <span key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4 }}>
               {a.title || a.name || `Alerta #${a.id}`}
             </span>
           ))}
           {cluster.alerts.length > 8 && (
-            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>+{cluster.alerts.length - 8} más</span>
+            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>+{cluster.alerts.length - 8} más</span>
           )}
         </div>
       )}
@@ -136,15 +136,15 @@ export default function AlertCorrelationPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Stats */}
       <div style={card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           📊 Estadísticas de correlación
         </div>
         {statsLoading ? <Spinner /> : (
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <StatCard label="Clusters activos" value={stats?.active_clusters} accent={COLOR.warning} />
-            <StatCard label="Alertas correladas" value={stats?.total_correlated_alerts} accent={'#63b3ed'} />
+            <StatCard label="Alertas correladas" value={stats?.total_correlated_alerts} accent={'var(--info)'} />
             <StatCard label="Problemas creados" value={stats?.problems_created} accent={COLOR.success} />
-            <StatCard label="Último escaneo" value={stats?.last_scan_ts ? new Date(stats.last_scan_ts).toLocaleTimeString() : 'Nunca'} accent={COLOR.text2 ?? '#718096'} />
+            <StatCard label="Último escaneo" value={stats?.last_scan_ts ? new Date(stats.last_scan_ts).toLocaleTimeString() : 'Nunca'} accent={COLOR.text2 ?? 'var(--text-2)'} />
           </div>
         )}
       </div>
@@ -158,7 +158,7 @@ export default function AlertCorrelationPanel() {
 
       {/* Cluster list */}
       <div style={card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           🧩 Clusters de alertas
         </div>
         {clustersLoading ? <Spinner /> :

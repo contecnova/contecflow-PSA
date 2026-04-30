@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Trophy } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -42,7 +43,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }) {
         transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="central"
         style={{ fontSize: size > 40 ? 11 : 9, fontWeight:700,
-          fill: color, fontFamily:"'Space Mono',monospace" }}>
+          fill: color, fontFamily: 'var(--font-mono)' }}>
         {Math.round(pct)}%
       </text>
     </svg>
@@ -76,39 +77,39 @@ function KRRow({ kr, _onCheckin, onDelete }) {
         background:'var(--surface-3)', borderRadius:8, border:'1px solid var(--surface-4)' }}>
         <ProgressRing pct={pct} size={36} stroke={3} color={color} />
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, color:'var(--text-1)', fontWeight:500 }}>{kr.title}</div>
-          <div style={{ fontSize:11, color:'var(--text-2)', marginTop:2 }}>
+          <div style={{ fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{kr.title}</div>
+          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
             {typeCfg.icon} {kr.current_value ?? 0} / {kr.target_value} {kr.unit || typeCfg.unit}
             {kr.owner_name && <span style={{ marginLeft:8 }}>· {kr.owner_name}</span>}
           </div>
         </div>
         <button onClick={() => setShowCheckin(s => !s)}
-          style={{ background:'var(--accent-muted)', border:'1px solid #00d4ff30',
+          style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
             borderRadius:6, padding:'4px 10px', color:'var(--accent)',
-            cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+            cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
           ↑ Actualizar
         </button>
         <button onClick={() => onDelete(kr.id)}
           style={{ background:'none', border:'none', color:'var(--text-3)',
-            cursor:'pointer', fontSize:14, padding:'0 4px' }}>×</button>
+            cursor:'pointer', fontSize: "var(--text-md)", padding:'0 4px' }}>×</button>
       </div>
       {showCheckin && (
         <div style={{ display:'flex', gap:8, padding:'8px 12px', marginTop:4,
-          background:'var(--accent-muted)', border:'1px dashed #00d4ff30',
+          background:'var(--accent-muted)', border:'1px dashed var(--accent-border)',
           borderRadius:8, alignItems:'center' }}>
           <div style={{ flex:1 }}>
             <input type="number" value={checkinVal}
               onChange={e => setCheckinVal(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
-                fontSize:13, outline:'none', fontFamily:'inherit' }}
+                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
               placeholder={`Nuevo valor (actual: ${kr.current_value})`} />
           </div>
           <div style={{ flex:2 }}>
             <input value={checkinNote} onChange={e => setCheckinNote(e.target.value)}
               style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
                 borderRadius:6, padding:'6px 10px', color:'var(--text-1)',
-                fontSize:13, outline:'none', fontFamily:'inherit' }}
+                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}
               placeholder="Nota del check-in..." />
           </div>
           <Button onClick={() => submitCheckin()} disabled={isPending} loading={isPending} size="sm">
@@ -133,42 +134,42 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => setExpanded(s => !s)}
           style={{ background:'none', border:'none', color:'var(--text-3)',
-            cursor:'pointer', fontSize:16, padding:0, width:20, flexShrink:0 }}>
+            cursor:'pointer', fontSize: "var(--text-lg)", padding:0, width:20, flexShrink:0 }}>
           {expanded ? '▾' : '▸'}
         </button>
         <ProgressRing pct={pct} size={48} stroke={4} color={color} />
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:15, fontWeight:700, color:'var(--text-1)' }}>{obj.title}</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{obj.title}</div>
           <div style={{ display:'flex', gap:8, marginTop:3, flexWrap:'wrap' }}>
-            <span style={{ fontSize:11, color: statusCfg.color, fontWeight:700 }}>
+            <span style={{ fontSize: "var(--text-xs)", color: statusCfg.color, fontWeight:700 }}>
               {statusCfg.label}
             </span>
-            <span style={{ fontSize:11, color:'var(--text-3)' }}>
+            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
               {obj.period} {obj.year}
             </span>
             {obj.owner_name && (
-              <span style={{ fontSize:11, color:'var(--text-2)' }}>· {obj.owner_name}</span>
+              <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>· {obj.owner_name}</span>
             )}
-            <span style={{ fontSize:11, color:'var(--text-3)' }}>
+            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
               {obj.key_results?.length || 0} KRs
             </span>
           </div>
         </div>
         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
           <button onClick={() => onAddKR(obj)}
-            style={{ background:'var(--accent-muted)', border:'1px solid #00d4ff30',
+            style={{ background:'var(--accent-muted)', border:'1px solid var(--accent-border)',
               borderRadius:6, padding:'4px 10px', color:'var(--accent)',
-              cursor:'pointer', fontSize:11, fontFamily:'inherit' }}>
+              cursor:'pointer', fontSize: "var(--text-xs)", fontFamily:'inherit' }}>
             + KR
           </button>
           <button onClick={() => onEdit(obj)}
             style={{ background:'none', border:'1px solid var(--surface-4)',
               borderRadius:6, padding:'4px 8px', color:'var(--text-2)',
-              cursor:'pointer', fontSize:11 }}>✏</button>
+              cursor:'pointer', fontSize: "var(--text-xs)" }}>✏</button>
           <button onClick={() => onDeleteObj(obj.id)}
-            style={{ background:'none', border:'1px solid #ff475730',
+            style={{ background:'none', border:'1px solid var(--danger-border)',
               borderRadius:6, padding:'4px 8px', color:'var(--danger)',
-              cursor:'pointer', fontSize:11 }}>🗑</button>
+              cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
         </div>
       </div>
 
@@ -180,7 +181,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }) {
         </div>
       )}
       {expanded && (!obj.key_results || obj.key_results.length === 0) && (
-        <div style={{ marginLeft:24, marginTop:8, fontSize:12, color:'var(--text-3)',
+        <div style={{ marginLeft:24, marginTop:8, fontSize: "var(--text-sm)", color:'var(--text-3)',
           fontStyle:'italic' }}>
           Sin Key Results — pulsa &quot;+ KR&quot; para añadir uno
         </div>
@@ -199,7 +200,7 @@ function ObjModal({ obj, onClose }) {
     status: obj?.status || 'active',
   })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
   const { mutate, isPending } = useMutation({
@@ -214,28 +215,28 @@ function ObjModal({ obj, onClose }) {
     <Modal open onClose={onClose} title={isEdit ? 'Editar objetivo' : 'Nuevo objetivo'} width={540}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         <div>
-          <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Título *</label>
+          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Título *</label>
           <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
             style={IS} placeholder="Ej: Incrementar retencion de clientes" autoFocus />
         </div>
         <div>
-          <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción</label>
+          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción</label>
           <textarea value={form.description} onChange={e => setForm(f => ({...f, description:e.target.value}))}
             rows={2} style={{ ...IS, resize:'vertical' }} placeholder="Descripcion del objetivo..." />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Periodo</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Periodo</label>
             <select value={form.period} onChange={e => setForm(f => ({...f, period:e.target.value}))} style={IS}>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Año</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Año</label>
             <input type="number" value={form.year} onChange={e => setForm(f => ({...f, year:parseInt(e.target.value)}))} style={IS} />
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Estado</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Estado</label>
             <select value={form.status} onChange={e => setForm(f => ({...f, status:e.target.value}))} style={IS}>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
@@ -260,7 +261,7 @@ function KRModal({ objective, onClose }) {
     target_value:100, current_value:0, unit:'', notes:''
   })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
   const { mutate, isPending } = useMutation({
@@ -273,24 +274,24 @@ function KRModal({ objective, onClose }) {
     <Modal open onClose={onClose} title={`Nuevo KR — ${objective.title}`} width={480}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         <div>
-          <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción del resultado *</label>
+          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Descripción del resultado *</label>
           <input value={form.title} onChange={e => setForm(f => ({...f, title:e.target.value}))}
             style={IS} placeholder="Ej: Aumentar NPS a 60" autoFocus />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Tipo</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Tipo</label>
             <select value={form.kr_type} onChange={e => setForm(f => ({...f, kr_type:e.target.value}))} style={IS}>
               {Object.entries(KR_TYPE_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Objetivo</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Objetivo</label>
             <input type="number" value={form.target_value}
               onChange={e => setForm(f => ({...f, target_value:parseFloat(e.target.value)}))} style={IS} />
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Unidad</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Unidad</label>
             <input value={form.unit} onChange={e => setForm(f => ({...f, unit:e.target.value}))}
               style={IS} placeholder="%, puntos, unidades..." />
           </div>
@@ -340,7 +341,7 @@ export default function OKRsPage() {
   const onTrack = objectives.filter(o => (o.progress || 0) >= 60).length
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader
         icon={<Trophy size={18} />}
         title={t('okrs.title')}
@@ -350,14 +351,14 @@ export default function OKRsPage() {
             <select value={period} onChange={e => setPeriod(e.target.value)}
               style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
                 borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
-                fontSize:13, outline:'none', fontFamily:'inherit' }}>
+                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}>
               <option value="">Todos los periodos</option>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
             <select value={year} onChange={e => setYear(parseInt(e.target.value))}
               style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
                 borderRadius:8, padding:'7px 12px', color:'var(--text-1)',
-                fontSize:13, outline:'none', fontFamily:'inherit' }}>
+                fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit' }}>
               {[2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
             <Button onClick={() => { setEditingObj(null); setShowObjModal(true) }}>
@@ -376,9 +377,9 @@ export default function OKRsPage() {
         ].map(kpi => (
           <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'16px 20px' }}>
-            <div style={{ fontSize:26, fontWeight:800, color:kpi.color,
-              fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:800, color:kpi.color,
+              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -400,6 +401,6 @@ export default function OKRsPage() {
         <ObjModal obj={editingObj} onClose={() => { setShowObjModal(false); setEditingObj(null) }} />
       )}
       {addKRFor && <KRModal objective={addKRFor} onClose={() => setAddKRFor(null)} />}
-    </div>
+    </PageShell>
   )
 }

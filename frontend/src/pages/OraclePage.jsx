@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
@@ -64,7 +65,7 @@ export default function OraclePage() {
   const typeData = Object.entries(byType).map(([k,v]) => ({ name: TYPE_ICONS[k]?.label || k, count: v }))
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Brain size={18} />}
         title={t('ai.oracle_title')}
@@ -72,7 +73,7 @@ export default function OraclePage() {
         actions={
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {defaultProvider && (
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 {defaultProvider.name}
               </span>
             )}
@@ -88,15 +89,15 @@ export default function OraclePage() {
         <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: 'rgba(52,211,153,0.25)', background: 'var(--success-bg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>✅ Análisis completado</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--success)', marginBottom: 4 }}>✅ Análisis completado</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 {analysis.predictions_generated} predicciones generadas · {analysis.projects_analyzed || 0} proyectos analizados
               </div>
             </div>
-            <button onClick={() => setAnalysis(null)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 18 }}>×</button>
+            <button onClick={() => setAnalysis(null)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-lg-em)" }}>×</button>
           </div>
           {analysis.summary && (
-            <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8 }}>
+            <div style={{ marginTop: 10, fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8 }}>
               {analysis.summary}
             </div>
           )}
@@ -113,8 +114,8 @@ export default function OraclePage() {
           { label: 'Reconocidas', value: preds.filter(p=>p.is_acknowledged).length, color: 'var(--success)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -123,25 +124,25 @@ export default function OraclePage() {
       {preds.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 16, marginBottom: 24 }}>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Predicciones por tipo</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>Predicciones por tipo</div>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={typeData} layout="vertical" margin={{ left: 10 }}>
-                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-2)' }} width={130} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
-                <Bar dataKey="count" fill="#00d4ff" radius={[0, 4, 4, 0]} />
+                <XAxis type="number" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} width={130} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
+                <Bar dataKey="count" fill="#4f8ef7" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <div style={{ ...card, padding: '16px 20px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Por severidad</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14 }}>Por severidad</div>
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie data={bySev} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={false}>
                   {bySev.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-2)' }} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
+                <Legend wrapperStyle={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -152,7 +153,7 @@ export default function OraclePage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['all', 'critical', 'high', 'medium', 'low'].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${filter===s ? SEV[s]?.color+'60' || 'var(--accent-glow)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${filter===s ? SEV[s]?.color+'60' || 'var(--accent)' : 'var(--surface-4)'}`, background: filter===s ? (SEV[s]?.bg || 'var(--accent-muted)') : 'transparent', color: filter===s ? (SEV[s]?.color || 'var(--accent)') : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: filter===s ? 700 : 400, textTransform: 'capitalize' }}>
             {s === 'all' ? `Todos (${preds.length})` : `${SEV[s]?.label} (${preds.filter(p=>p.severity===s).length})`}
           </button>
         ))}
@@ -170,32 +171,32 @@ export default function OraclePage() {
               <div key={p.id} style={{ ...card, padding: '16px 20px', borderLeft: `3px solid ${sv.color}`, opacity: p.is_acknowledged ? 0.6 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 22 }}>{ti.icon}</span>
+                    <span style={{ fontSize: "var(--text-xl-em)" }}>{ti.icon}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{p.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.title}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                         {ti.label} · {p.entity_type} {p.entity_name ? `— ${p.entity_name}` : ''}
                       </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: sv.bg, color: sv.color, fontWeight: 700 }}>{sv.label}</span>
+                    <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 20, background: sv.bg, color: sv.color, fontWeight: 700 }}>{sv.label}</span>
                     {p.probability && (
-                      <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{Math.round(p.probability * 100)}% prob.</span>
+                      <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{Math.round(p.probability * 100)}% prob.</span>
                     )}
                     {!p.is_acknowledged && (
                       <button onClick={() => ack(p.id)}
-                        style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
+                        style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-2)' }}>
                         ✓ Reconocer
                       </button>
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: p.recommended_action ? 10 : 0 }}>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', lineHeight: 1.6, marginBottom: p.recommended_action ? 10 : 0 }}>
                   {p.explanation}
                 </div>
                 {p.recommended_action && (
-                  <div style={{ padding: '8px 12px', background: 'var(--accent-muted)', border: '1px solid #00d4ff20', borderRadius: 8, fontSize: 12, color: 'var(--accent)', lineHeight: 1.5 }}>
+                  <div style={{ padding: '8px 12px', background: 'var(--accent-muted)', border: '1px solid var(--accent-border-soft)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--accent)', lineHeight: 1.5 }}>
                     💡 <strong>Acción recomendada:</strong> {p.recommended_action}
                   </div>
                 )}
@@ -204,6 +205,6 @@ export default function OraclePage() {
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

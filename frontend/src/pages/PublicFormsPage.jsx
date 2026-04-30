@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { FileText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -14,10 +15,10 @@ import { useAppT } from '../i18n/AppLangContext'
 
 const FS = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function FormModal({ form, onClose }) {
   const qc = useQueryClient()
@@ -88,7 +89,7 @@ function FormModal({ form, onClose }) {
           <textarea value={f.success_message} onChange={set('success_message')} style={{ ...FS, resize: 'vertical' }} rows={2}
             placeholder={t('public_forms.success_message_placeholder')} />
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: "var(--text-base)", cursor: 'pointer' }}>
           <input type="checkbox" checked={f.is_active} onChange={setCheck('is_active')} />
           <span>{t('public_forms.active_form_label')}</span>
         </label>
@@ -116,24 +117,24 @@ function SubmissionsModal({ form, onClose }) {
         <EmptyState title={t('public_forms.no_submissions')} subtitle={t('public_forms.no_submissions_subtitle')} />
       ) : (
         <div style={{ maxHeight: 420, overflowY: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                 {[t('public_forms.col_date'), t('public_forms.col_sender'), t('public_forms.col_subject'), t('public_forms.col_priority'), t('public_forms.col_ticket')].map(h => (
-                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: 11 }}>{h}</th>
+                  <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 700, fontSize: "var(--text-xs)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {subs.map(s => (
                 <tr key={s.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                  <td style={{ padding: '8px 10px', color: 'var(--text-2)', fontSize: 12 }}>
+                  <td style={{ padding: '8px 10px', color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>
                     {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString('es') : '—'}
                   </td>
                   <td style={{ padding: '8px 10px' }}>{s.submitter_name || s.submitter_email || '—'}</td>
                   <td style={{ padding: '8px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.subject}</td>
                   <td style={{ padding: '8px 10px', textTransform: 'capitalize', color: 'var(--text-2)' }}>{s.priority}</td>
-                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontSize: 12 }}>{s.created_entity_id ? `#${s.created_entity_id.slice(0, 8)}` : '—'}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{s.created_entity_id ? `#${s.created_entity_id.slice(0, 8)}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -184,7 +185,7 @@ export default function PublicFormsPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 1000, margin: '0 auto' }}>
       <PageHeader
         icon={<FileText size={18} />}
         title={t('public_forms.title')}
@@ -210,35 +211,35 @@ export default function PublicFormsPage() {
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>{form.name}</span>
+                  <span style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{form.name}</span>
                   <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                    fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                     background: form.is_active ? '#2d6a4f' : 'var(--surface-4)',
                     color: form.is_active ? '#b7e4c7' : 'var(--text-3)',
                   }}>{form.is_active ? t('public_forms.status_active') : t('public_forms.status_inactive')}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 4, textTransform: 'capitalize' }}>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 4, textTransform: 'capitalize' }}>
                     {form.form_type === 'ticket' ? `🎫 ${t('public_forms.type_ticket')}` : `✅ ${t('public_forms.type_task')}`}
                   </span>
                 </div>
                 {form.description && (
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>{form.description}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 6 }}>{form.description}</div>
                 )}
                 <div style={{
-                  fontSize: 11, color: 'var(--text-3)', fontFamily: "'Space Mono', monospace",
+                  fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
                   background: 'var(--surface-3)', padding: '4px 10px', borderRadius: 6,
                   display: 'inline-block', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {getPublicUrl(form.token)}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>
                   {t('public_forms.submissions_received').replace('{n}', form.submission_count || 0)}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                <Button variant="secondary" onClick={() => copyLink(form.token)} style={{ fontSize: 12 }}>{t('public_forms.copy_link')}</Button>
-                <Button variant="secondary" onClick={() => setViewSubs(form)} style={{ fontSize: 12 }}>{t('public_forms.submissions')}</Button>
-                <Button variant="secondary" onClick={() => setEditing(form)} style={{ fontSize: 12 }}>{t('public_forms.edit_form')}</Button>
-                <Button variant="danger" style={{ fontSize: 12 }} onClick={() =>
+                <Button variant="secondary" onClick={() => copyLink(form.token)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.copy_link')}</Button>
+                <Button variant="secondary" onClick={() => setViewSubs(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.submissions')}</Button>
+                <Button variant="secondary" onClick={() => setEditing(form)} style={{ fontSize: "var(--text-sm)" }}>{t('public_forms.edit_form')}</Button>
+                <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>
                   openConfirmGlobal({
                     title: t('public_forms.delete_form'),
                     message: t('public_forms.delete_confirm').replace('{name}', form.name),
@@ -254,6 +255,6 @@ export default function PublicFormsPage() {
       {showCreate && <FormModal onClose={() => setShowCreate(false)} />}
       {editing && <FormModal form={editing} onClose={() => setEditing(null)} />}
       {viewSubs && <SubmissionsModal form={viewSubs} onClose={() => setViewSubs(null)} />}
-    </div>
+    </PageShell>
   )
 }

@@ -72,14 +72,16 @@ def list_bi_comments(
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_comments(
+        db,
+        organization_id=org_id,
+        dashboard_key=dashboard_key,
+        widget_id=widget_id,
+        include_resolved=include_resolved,
+    )
     return {
-        "items": svc.list_comments(
-            db,
-            organization_id=org_id,
-            dashboard_key=dashboard_key,
-            widget_id=widget_id,
-            include_resolved=include_resolved,
-        )
+        "items": items,
+        "count": len(items),
     }
 
 
@@ -270,6 +272,48 @@ def restore_dashboard_version(
     except ValueError:
         raise HTTPException(status_code=404, detail="Versión no encontrada")
     return {"ok": True, "version": item}
+
+
+# ── Dashboard Notifications ────────────────────────────────────────────────────
+
+@router.get("/bi/collaboration/notifications", summary="Listar notificaciones de colaboración BI")
+def list_notifications(
+    dashboard_key: Optional[str] = Query(None),
+    include_read: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    items = svc.list_notifications(
+        db,
+        organization_id=org_id,
+        recipient_user_id=current_user.id,
+        dashboard_key=dashboard_key,
+        only_unread=not include_read,
+    )
+    return {"items": items, "count": len(items)}
+
+
+@router.patch("/bi/collaboration/notifications/{notification_id}", summary="Marcar notificación como leída")
+def mark_notification_read(
+    notification_id: str,
+    payload: Optional[dict] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = getattr(current_user, "organization_id", None)
+    try:
+        is_read = (payload or {}).get("is_read", True)
+        item = svc.mark_notification_read(
+            db,
+            organization_id=org_id,
+            notification_id=notification_id,
+            recipient_user_id=current_user.id,
+            is_read=is_read,
+        )
+        return {"ok": True, "notification": item}
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Notificación no encontrada")
 
 
 # ── Dashboard sharing ──────────────────────────────────────────────────────────

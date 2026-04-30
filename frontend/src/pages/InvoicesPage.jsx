@@ -6,15 +6,16 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, invoicesApi, accountingApi, clientsApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
+import { projectsApi, invoicesApi, accountingApi, clientsApi } from '../services/api'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { CreditCard, Download } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const _PALETTE = ['var(--accent)','var(--success)','var(--warning)','var(--danger)','var(--purple)','var(--warning)']
-const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const fs = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12 }
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
@@ -112,39 +113,44 @@ function InvoicesTab() {
             {label: t('invoices.overdue_count'), value: summary.overdue_count||0, color: 'var(--danger)', icon: '📋'},
           ].map(({label,value,color,icon}) => (
             <div key={label} style={{...card,padding:'14px 18px'}}>
-              <div style={{fontSize:18,marginBottom:6}}>{icon}</div>
-              <div style={{fontSize:20,fontWeight:800,color}}>{value}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',marginTop:4}}>{label}</div>
+              <div style={{fontSize: "var(--text-lg-em)",marginBottom:6}}>{icon}</div>
+              <div style={{fontSize: "var(--text-xl)",fontWeight:800,color}}>{value}</div>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',marginTop:4}}>{label}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{display:'flex',gap:12,marginBottom:20,alignItems:'center'}}>
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280}}>
-          <option value="">{t('invoices.all_projects')}</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{...fs,width:160,color:statusFilter?'var(--accent)':'var(--text-1)'}}>
-          <option value="">{t('invoices.all_statuses')}</option>
-          {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
-        </select>
-        <div style={{marginLeft:'auto'}}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Toolbar
+        style={{ marginBottom: 20 }}
+        left={
+          <>
+            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} style={{...fs,width:280,flex:'2 1 240px'}}>
+              <option value="">{t('invoices.all_projects')}</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+            </select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{...fs,width:160,flex:'1 1 160px',color:statusFilter?'var(--accent)':'var(--text-1)'}}>
+              <option value="">{t('invoices.all_statuses')}</option>
+              {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
+            </select>
+          </>
+        }
+        right={
+          <>
             <select value={syncProvider} onChange={e => setSyncProvider(e.target.value)}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-                padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, fontFamily: 'var(--font-sans)', outline: 'none' }}>
+                padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)', outline: 'none' }}>
               <option value="xero">{t('invoices.sync_provider_xero')}</option>
               <option value="quickbooks">{t('invoices.sync_provider_quickbooks')}</option>
             </select>
             <button onClick={() => syncBulk()} disabled={syncing}
               style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
                 padding: '7px 14px', color: syncing ? 'var(--text-3)' : 'var(--success)',
-                cursor: syncing ? 'wait' : 'pointer', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
+                cursor: syncing ? 'wait' : 'pointer', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </button>
             {syncStatus && (
-              <span style={{ fontSize: 11, color: syncStatus.last_sync_at ? 'var(--text-3)' : 'var(--warning)' }}>
+              <span style={{ fontSize: "var(--text-xs)", color: syncStatus.last_sync_at ? 'var(--text-3)' : 'var(--warning)' }}>
                 {syncStatus.last_sync_at
                   ? `Última sync: ${new Date(syncStatus.last_sync_at).toLocaleDateString('es-ES')}`
                   : 'Sin sincronizar'}
@@ -154,15 +160,15 @@ function InvoicesTab() {
               </span>
             )}
             <Button onClick={() => setShowCreate(true)}>{t('invoices.new_invoice')}</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {isLoading ? <Spinner /> : invoices.length === 0 ? (
         <EmptyState icon="📄" title={t('invoices.empty_title')} description={t('invoices.empty_description')} />
       ) : (
         <div style={{...card,overflow:'hidden'}}>
-          <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize:10,fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
+          <div style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'10px 18px',borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-2xs)",fontWeight:700,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'0.07em',alignItems:'center'}}>
             <SortableTH col="number" sort={invSort} onSort={setInvSort}>{t('invoices.number')}</SortableTH>
             <SortableTH col="project_code" sort={invSort} onSort={setInvSort}>{t('invoices.project')}</SortableTH>
             <SortableTH col="client_name" sort={invSort} onSort={setInvSort}>{t('invoices.client')}</SortableTH>
@@ -178,19 +184,19 @@ function InvoicesTab() {
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
               <div key={inv.id} style={{display:'grid',gridTemplateColumns:'100px 60px 1fr 120px 120px 100px 120px auto 40px',gap:12,padding:'12px 18px',borderBottom:'1px solid var(--surface-4)20',alignItems:'center'}}>
-                <span style={{fontSize:12,fontFamily:'monospace',color:'var(--accent)'}}>{inv.number}</span>
-                <span style={{fontSize:11,color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
+                <span style={{fontSize: "var(--text-sm)",fontFamily:'var(--font-mono)',color:'var(--accent)'}}>{inv.number}</span>
+                <span style={{fontSize: "var(--text-xs)",color:'var(--text-2)'}}>{inv.project_code||'—'}</span>
                 <div>
-                  <div style={{fontSize:13,fontWeight:600}}>{inv.client_name||'—'}</div>
-                  {inv.po_reference && <div style={{fontSize:11,color:'var(--text-3)'}}>{t('invoices.po', { ref: inv.po_reference })}</div>}
+                  <div style={{fontSize: "var(--text-base)",fontWeight:600}}>{inv.client_name||'—'}</div>
+                  {inv.po_reference && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{t('invoices.po', { ref: inv.po_reference })}</div>}
                 </div>
-                <span style={{fontSize:12,color:'var(--text-2)'}}>{inv.issue_date}</span>
-                <span style={{fontSize:12,color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
-                <span style={{fontSize:13,fontWeight:700,fontFamily:'monospace'}}>{(inv.total||0).toLocaleString('es-ES',{minimumFractionDigits:2})}€</span>
-                <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:20,background:cfg.color+'20',color:cfg.color}}>{cfg.label}</span>
+                <span style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{inv.issue_date}</span>
+                <span style={{fontSize: "var(--text-sm)",color:isOverdue?'var(--danger)':'var(--text-2)'}}>{inv.due_date||'—'}{isOverdue&&' ⚠'}</span>
+                <span style={{fontSize: "var(--text-base)",fontWeight:700,fontFamily:'var(--font-mono)'}}>{(inv.total||0).toLocaleString('es-ES',{minimumFractionDigits:2})}€</span>
+                <span style={{fontSize: "var(--text-xs)",fontWeight:700,padding:'2px 8px',borderRadius:20,background:cfg.color+'20',color:cfg.color}}>{cfg.label}</span>
                 <div style={{display:'flex',gap:6}}>
-                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid #00d4ff40',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>{t('invoices.send')}</button>}
-                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid #00e5a040',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize:11,fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
+                  {inv.status === 'draft' && <button onClick={() => updateStatus({id:inv.id,status:'sent'})} style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border-strong)',borderRadius:6,padding:'3px 10px',color:'var(--accent)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.send')}</button>}
+                  {inv.status === 'sent' && <button onClick={() => updateStatus({id:inv.id,status:'paid'})} style={{background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:6,padding:'3px 10px',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)",fontFamily:'inherit'}}>{t('invoices.paid')}</button>}
                 </div>
                 <button onClick={() => downloadPdf(inv)} title={t('invoices.download_pdf')} disabled={pdfLoadingId === inv.id}
                   style={{display:'flex',alignItems:'center',justifyContent:'center',background:'none',border:'1px solid var(--surface-4)',borderRadius:6,width:30,height:26,cursor:pdfLoadingId === inv.id ? 'wait' : 'pointer',color:pdfLoadingId === inv.id ? 'var(--warning)' : 'var(--text-2)'}}>
@@ -205,8 +211,8 @@ function InvoicesTab() {
       {showCreate && (
         <Modal open title={t('invoices.new_invoice')} onClose={() => setShowCreate(false)} width={680}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div style={{background:'var(--accent-muted)',border:'1px solid #00d4ff30',borderRadius:8,padding:'12px 16px'}}>
-              <div style={{fontSize:12,fontWeight:700,color:'var(--accent)',marginBottom:8}}>{t('invoices.generate_from_timesheets')}</div>
+            <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'12px 16px'}}>
+              <div style={{fontSize: "var(--text-sm)",fontWeight:700,color:'var(--accent)',marginBottom:8}}>{t('invoices.generate_from_timesheets')}</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr auto',gap:10,alignItems:'flex-end'}}>
                 <div><label style={ls}>{t('invoices.project_label')}</label>
                   <select value={form.project_id} onChange={e => {
@@ -227,7 +233,7 @@ function InvoicesTab() {
                   {t('invoices.generate_lines')}
                 </Button>
               </div>
-              {previewData && <div style={{marginTop:8,fontSize:12,color:'var(--success)'}}>{t('invoices.preview_success', { count: previewData.imputation_count, subtotal: previewData.subtotal, total: previewData.total })}</div>}
+              {previewData && <div style={{marginTop:8,fontSize: "var(--text-sm)",color:'var(--success)'}}>{t('invoices.preview_success', { count: previewData.imputation_count, subtotal: previewData.subtotal, total: previewData.total })}</div>}
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -250,9 +256,9 @@ function InvoicesTab() {
             {/* Lines preview */}
             {form.lines.length > 0 && (
               <div style={{background:'var(--surface-3)',borderRadius:8,padding:12}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--text-2)',marginBottom:8,textTransform:'uppercase'}}>{t('invoices.invoice_lines')}</div>
+                <div style={{fontSize: "var(--text-xs)",fontWeight:700,color:'var(--text-2)',marginBottom:8,textTransform:'uppercase'}}>{t('invoices.invoice_lines')}</div>
                 {form.lines.map((l,i) => (
-                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid var(--surface-4)20',fontSize:12}}>
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 60px 80px 80px',gap:10,padding:'6px 0',borderBottom:'1px solid var(--surface-4)20',fontSize: "var(--text-sm)"}}>
                     <span>{l.description}</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.quantity} h</span>
                     <span style={{textAlign:'right',color:'var(--text-2)'}}>{l.unit_price}€/h</span>
@@ -278,9 +284,9 @@ function InvoicesTab() {
 export default function InvoicesPage() {
   const t = useAppT()
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<CreditCard size={18} />} title={t('invoices.title')} subtitle={t('invoices.subtitle')} />
       <InvoicesTab />
-    </div>
+    </PageShell>
   )
 }

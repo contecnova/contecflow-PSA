@@ -4,10 +4,11 @@ import { extractErr } from '../utils/helpers'
 import { useId, useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { predictiveObservabilityApi } from '../services/api'
+import { predictiveObservabilityApi, aiProvidersApi } from '../services/api'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal } from '../components/ui'
+import { Button, Spinner, Modal, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
 import { Cpu } from 'lucide-react'
 
@@ -19,8 +20,8 @@ const getStatusCfg = (t) => ({
 })
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const fs = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 function ProviderModal({ provider, catalog, onClose }) {
   const t = useAppT()
@@ -52,13 +53,13 @@ function ProviderModal({ provider, catalog, onClose }) {
     : catalogModels
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => isEdit ? api.patch(`/ai-providers/${provider.id}`, d) : api.post('/ai-providers', d),
+    mutationFn: d => isEdit ? aiProvidersApi.update(provider.id, d) : aiProvidersApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ai-providers'] }); onClose() },
     onError: e => toast.error(extractErr(e, t('ai.save_error'))),
   })
 
   const { mutate: syncModels, isPending: isSyncingModels } = useMutation({
-    mutationFn: () => api.post(`/ai-providers/${provider.id}/sync-models`).then(r => r.data),
+    mutationFn: () => aiProvidersApi.syncModels(provider.id).then(r => r.data),
     onSuccess: (data) => {
       const synced = Array.isArray(data?.models) ? data.models : []
       setLiveModels(synced)
@@ -94,8 +95,8 @@ function ProviderModal({ provider, catalog, onClose }) {
             {Object.entries(PROVIDER_META).map(([key, meta]) => (
               <button key={key} aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 style={{ padding: '10px 8px', borderRadius: 8, border: `2px solid ${providerType === key ? meta.color + '80' : 'var(--surface-4)'}`, background: providerType === key ? meta.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                <div style={{ fontSize: 18, marginBottom: 4 }}>{meta.icon}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
+                <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{meta.icon}</div>
+                <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: providerType === key ? meta.color : 'var(--text-2)' }}>{meta.name}</div>
               </button>
             ))}
           </div>
@@ -117,7 +118,7 @@ function ProviderModal({ provider, catalog, onClose }) {
               placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} />
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, display: 'block' }}>
+                style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', marginTop: 4, display: 'block' }}>
                 🔗 {t('ai.get_api_key_at')} {catEntry.docs_url}
               </a>
             )}
@@ -197,7 +198,7 @@ function ProviderModal({ provider, catalog, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
           <input type="checkbox" id={`${idPrefix}-is-default`} checked={form.is_default}
             onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
-          <label htmlFor={`${idPrefix}-is-default`} style={{ fontSize: 13, cursor: 'pointer' }}>
+          <label htmlFor={`${idPrefix}-is-default`} style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>
             {t('ai.set_global_default')}
           </label>
         </div>
@@ -205,7 +206,7 @@ function ProviderModal({ provider, catalog, onClose }) {
 
       {/* Info del proveedor seleccionado */}
       {models.length > 0 && (
-        <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: 12, color: 'var(--text-2)' }}>
+        <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--text-1)' }}>{t('ai.available_models')}:</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 6 }}>
             {models.map(m => (
@@ -239,7 +240,7 @@ function TestModal({ provider, onClose }) {
     setTesting(true)
     setResult(null)
     try {
-      const res = await api.post(`/ai-providers/${provider.id}/test`)
+      const res = await aiProvidersApi.test(provider.id)
       setResult(res.data)
     } catch (e) {
       const raw = e?.response?.data?.detail
@@ -251,7 +252,7 @@ function TestModal({ provider, onClose }) {
 
   return (
     <Modal open onClose={onClose} title={`${t('ai.testing_provider')} — ${provider.name}`} width={480}>
-      <p style={{ color: 'var(--text-2)', fontSize: 13, marginBottom: 20 }}>
+      <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 20 }}>
         {t('ai.connection_help')}
       </p>
       <Button onClick={runTest} disabled={testing}>
@@ -263,13 +264,13 @@ function TestModal({ provider, onClose }) {
           {result.ok ? (
             <>
               <div style={{ color: 'var(--success)', fontWeight: 700, marginBottom: 8 }}>✅ {t('ai.test_success')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('ai.test_response')}: &quot;{result.response}&quot;</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{t('ai.test_latency_model')}: {result.latency_ms}ms · {result.model}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('ai.test_response')}: &quot;{result.response}&quot;</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{t('ai.test_latency_model')}: {result.latency_ms}ms · {result.model}</div>
             </>
           ) : (
             <>
               <div style={{ color: 'var(--danger)', fontWeight: 700, marginBottom: 8 }}>❌ {t('ai.test_error')}</div>
-              <pre style={{ fontSize: 12, color: 'var(--warning)', whiteSpace: 'pre-wrap', margin: 0 }}>{result.error}</pre>
+              <pre style={{ fontSize: "var(--text-sm)", color: 'var(--warning)', whiteSpace: 'pre-wrap', margin: 0 }}>{result.error}</pre>
             </>
           )}
         </div>
@@ -294,17 +295,17 @@ export default function AIHubPage() {
 
   const { data: providers = [], isLoading } = useQuery({
     queryKey: ['ai-providers'],
-    queryFn: () => api.get('/ai-providers').then(r => r.data),
+    queryFn: () => aiProvidersApi.list().then(r => r.data),
     select: d => (Array.isArray(d) ? d : []),
   })
   const { data: catalog = {} } = useQuery({
     queryKey: ['ai-providers-catalog'],
-    queryFn: () => api.get('/ai-providers/catalog').then(r => r.data),
+    queryFn: () => aiProvidersApi.catalog().then(r => r.data),
     staleTime: Infinity,
   })
   const { data: stats = {} } = useQuery({
     queryKey: ['ai-stats'],
-    queryFn: () => api.get('/ai-providers/stats').then(r => r.data),
+    queryFn: () => aiProvidersApi.stats().then(r => r.data),
     enabled: tab === 'stats',
   })
   const { data: obsHealth, isLoading: obsLoading } = useQuery({
@@ -315,23 +316,23 @@ export default function AIHubPage() {
   })
   const { mutate: triggerRetrain, isPending: retraining } = useMutation({
     mutationFn: () => predictiveObservabilityApi.triggerRetrain(),
-    onSuccess: (res) => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries(['predictive-obs-health']) },
+    onSuccess: () => { toast.success('Ciclo de reentrenamiento completado'); qc.invalidateQueries(['predictive-obs-health']) },
     onError: e => toast.error(extractErr(e, 'Error al reentrenar')),
   })
 
   const { mutate: setDefault } = useMutation({
-    mutationFn: id => api.post(`/ai-providers/${id}/set-default`),
+    mutationFn: id => aiProvidersApi.setDefault(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.reset_error'))),
   })
   const { mutate: del } = useMutation({
-    mutationFn: id => api.delete(`/ai-providers/${id}`),
+    mutationFn: id => aiProvidersApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-providers'] }),
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
   const { mutate: diagnoseAll, isPending: diagnosing } = useMutation({
-    mutationFn: () => api.get('/ai-providers/diagnostics').then(r => r.data),
+    mutationFn: () => aiProvidersApi.diagnostics().then(r => r.data),
     onSuccess: (data) => {
       setDiagResults(data)
       const healthy = Number(data?.healthy || 0)
@@ -346,7 +347,7 @@ export default function AIHubPage() {
   })
 
   const { mutate: syncAllModels, isPending: syncingAllModels } = useMutation({
-    mutationFn: () => api.post('/ai-providers/sync-models/all').then(r => r.data),
+    mutationFn: () => aiProvidersApi.syncAll().then(r => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['ai-providers'] })
       const failed = Number(data?.failed || 0)
@@ -366,7 +367,7 @@ export default function AIHubPage() {
   const intFmt = new Intl.NumberFormat(lang === 'en' ? 'en-US' : 'es-ES')
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Cpu size={18} />}
         title={t('ai.hub_title')}
@@ -395,14 +396,18 @@ export default function AIHubPage() {
       />
 
       {/* Tabs */}
-      <div role="tablist" aria-label={t('ai.hub_title')} style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {[['providers',t('ai.providers')],['stats',t('ai.usage')],['observability','🔬 Observabilidad'],['guide',t('ai.guide')]].map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} aria-controls={`aihub-panel-${id}`} id={`aihub-tab-${id}`} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'providers',     label: t('ai.providers') },
+          { id: 'stats',         label: t('ai.usage') },
+          { id: 'observability', label: '🔬 Observabilidad' },
+          { id: 'guide',         label: t('ai.guide') },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel={t('ai.hub_title')}
+        style={{ marginBottom: 24, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+      />
 
       {/* PROVIDERS TAB */}
       {tab === 'providers' && (
@@ -412,28 +417,28 @@ export default function AIHubPage() {
           {diagResults && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: diagResults.error > 0 ? 'var(--danger)' : diagResults.warning > 0 ? 'var(--warning)' : 'var(--success)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: "var(--text-md)" }}>
                   Diagnóstico — {diagResults.healthy}/{diagResults.total} operativos
                 </div>
-                <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: 16 }}>✕</button>
+                <button onClick={() => setDiagResults(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', fontSize: "var(--text-lg)" }}>✕</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(diagResults.providers || []).map(pr => {
                   const dot = pr.status === 'ok' ? '🟢' : pr.status === 'warning' ? '🟡' : '🔴'
                   return (
-                    <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13 }}>
-                      <span style={{ fontSize: 16, lineHeight: 1.4 }}>{dot}</span>
+                    <div key={pr.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: "var(--text-base)" }}>
+                      <span style={{ fontSize: "var(--text-lg)", lineHeight: 1.4 }}>{dot}</span>
                       <div style={{ flex: 1 }}>
                         <span style={{ fontWeight: 600 }}>{pr.name}</span>
-                        <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.provider_type}</span>
+                        <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.provider_type}</span>
                         {pr.latency_ms != null && (
-                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.latency_ms} ms</span>
+                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.latency_ms} ms</span>
                         )}
                         {pr.models_found > 0 && (
-                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: 12 }}>{pr.models_found} modelos</span>
+                          <span style={{ color: 'var(--text-2)', marginLeft: 8, fontSize: "var(--text-sm)" }}>{pr.models_found} modelos</span>
                         )}
                         {pr.error && (
-                          <div style={{ color: pr.status === 'warning' ? 'var(--warning)' : 'var(--danger)', fontSize: 12, marginTop: 2 }}>{pr.error}</div>
+                          <div style={{ color: pr.status === 'warning' ? 'var(--warning)' : 'var(--danger)', fontSize: "var(--text-sm)", marginTop: 2 }}>{pr.error}</div>
                         )}
                       </div>
                     </div>
@@ -447,11 +452,11 @@ export default function AIHubPage() {
           {defaultProvider && (
             <div style={{ ...card, padding: '16px 20px', marginBottom: 20, borderColor: PROVIDER_META[defaultProvider.provider]?.color + '50' || 'var(--surface-4)', background: PROVIDER_META[defaultProvider.provider]?.color + '08' || 'var(--surface-2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 28 }}>{PROVIDER_META[defaultProvider.provider]?.icon}</span>
+                <span style={{ fontSize: "var(--text-3xl)" }}>{PROVIDER_META[defaultProvider.provider]?.icon}</span>
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>{defaultProvider.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('ai.provider_active_default')}</div>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: 800 }}>{defaultProvider.name}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{t('ai.model_label')}: {defaultProvider.default_model} · {intFmt.format(defaultProvider.total_requests || 0)} {t('ai.requests').toLowerCase()} · {moneyFmt.format(defaultProvider.total_cost_usd || 0)} {t('ai.spent')}</div>
                 </div>
               </div>
             </div>
@@ -459,9 +464,9 @@ export default function AIHubPage() {
 
           {isLoading ? <Spinner /> : providers.length === 0 ? (
             <div style={{ ...card, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t('ai.no_providers_title')}</div>
-              <div style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
+              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🤖</div>
+              <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700, marginBottom: 8 }}>{t('ai.no_providers_title')}</div>
+              <div style={{ fontSize: "var(--text-md)", color: 'var(--text-2)', marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
                 {t('ai.no_providers_desc')}
               </div>
               <Button onClick={() => setModal({})}>＋ {t('ai.add_first_provider')}</Button>
@@ -475,47 +480,47 @@ export default function AIHubPage() {
                   <div key={p.id} style={{ ...card, padding: '18px 20px', borderColor: p.is_default ? meta.color + '50' : 'var(--surface-4)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: meta.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: meta.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xl)" }}>
                           {meta.icon}
                         </div>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 700 }}>{p.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{meta.name} · {p.default_model || t('ai.model_none')}</div>
+                          <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.name}</div>
+                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{meta.name} · {p.default_model || t('ai.model_none')}</div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: st.color + '20', color: st.color, border: `1px solid ${st.color}40` }}>{st.label}</span>
-                        {p.is_default && <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700 }}>⭐ {t('ai.default_badge')}</span>}
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: st.color + '20', color: st.color, border: `1px solid ${st.color}40` }}>{st.label}</span>
+                        {p.is_default && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--accent)', fontWeight: 700 }}>⭐ {t('ai.default_badge')}</span>}
                       </div>
                     </div>
 
-                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>
                       {p.has_api_key ? `🔑 ${t('ai.api_key_configured')}` : p.provider === 'ollama' ? `🦙 ${t('ai.local_no_key')}` : `⚠️ ${t('ai.no_api_key')}`}
                       {p.last_error && <span style={{ color: 'var(--danger)', marginLeft: 8 }}>· {t('common.error')}: {p.last_error.slice(0, 40)}...</span>}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, padding: '10px 12px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
                       <div><span style={{ color: 'var(--text-2)' }}>{t('ai.requests')}:</span> <strong>{p.total_requests}</strong></div>
                       <div><span style={{ color: 'var(--text-2)' }}>{t('ai.total_cost')}:</span> <strong style={{ color: 'var(--warning)' }}>${p.total_cost_usd.toFixed(4)}</strong></div>
                     </div>
 
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button aria-label={`${t('ai.provider_test_aria')} ${p.name}`} onClick={() => setTestModal(p)}
-                        style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         🔌 {t('ai.provider_test_action')}
                       </button>
                       {!p.is_default && (
                         <button aria-label={`${t('ai.provider_default_aria')} ${p.name}`} onClick={() => setDefault(p.id)}
-                          style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid #00d4ff30', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                          style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid var(--accent-border)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                           ⭐ {t('ai.provider_default_action')}
                         </button>
                       )}
                       <button aria-label={`${t('ai.provider_edit_aria')} ${p.name}`} onClick={() => setModal(p)}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {t('ai.provider_edit_action')}
                       </button>
                       <button aria-label={`${t('ai.provider_delete_action')} ${p.name}`} onClick={() => { openConfirmGlobal({ message: `${t('ai.delete_confirm')} "${p.name}"?`, onConfirm: () => del(p.id), danger: true }) }}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #ff475730', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                        style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                         {t('ai.provider_delete_action')}
                       </button>
                     </div>
@@ -537,18 +542,18 @@ export default function AIHubPage() {
               { icon: '💰', label: t('ai.total_cost'), value: moneyFmt.format(stats.total_cost || 0), color: 'var(--warning)' },
             ].map(k => (
               <div key={k.label} style={{ ...card, padding: '18px 20px' }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>{k.icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{k.label}</div>
+                <div style={{ fontSize: "var(--text-2xl)", marginBottom: 8 }}>{k.icon}</div>
+                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{k.label}</div>
               </div>
             ))}
           </div>
 
           {byModule.length > 0 && (
             <div style={card}>
-              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: 14 }}>{t('ai.module_usage')}</div>
+              <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--surface-4)', fontWeight: 700, fontSize: "var(--text-md)" }}>{t('ai.module_usage')}</div>
               {byModule.map(r => (
-                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <div key={r.module} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
                   <span style={{ fontWeight: 600 }}>{r.module}</span>
                   <div style={{ display: 'flex', gap: 20, color: 'var(--text-2)' }}>
                     <span>{r.calls} {t('ai.calls')}</span>
@@ -566,7 +571,7 @@ export default function AIHubPage() {
       {tab === 'observability' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Estado de salud de los modelos predictivos ITSM y BI (solo admins)</div>
+            <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Estado de salud de los modelos predictivos ITSM y BI (solo admins)</div>
             <Button onClick={() => triggerRetrain()} disabled={retraining}>
               {retraining ? '⏳ Reentrenando...' : '▶ Forzar reentrenamiento'}
             </Button>
@@ -587,14 +592,14 @@ export default function AIHubPage() {
                 return (
                   <div key={key} style={{ ...card, padding: '18px 20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
-                      <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, background: `${statusColor}18`, color: statusColor, fontWeight: 600 }}>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{label}</div>
+                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: `${statusColor}18`, color: statusColor, fontWeight: 600 }}>
                         {data.status || 'unknown'}
                       </span>
                     </div>
                     {data.score != null && (
                       <div style={{ marginBottom: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: "var(--text-sm)" }}>
                           <span style={{ color: 'var(--text-2)' }}>Score de salud</span>
                           <span style={{ fontWeight: 700, color: statusColor }}>{(data.score * 100).toFixed(0)}%</span>
                         </div>
@@ -603,7 +608,7 @@ export default function AIHubPage() {
                         </div>
                       </div>
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: "var(--text-sm)" }}>
                       {data.total_predictions != null && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: 'var(--text-3)' }}>Predicciones</span>
@@ -638,12 +643,12 @@ export default function AIHubPage() {
 
           {obsHealth && (
             <div style={{ ...card, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ fontSize: 28 }}>
+              <div style={{ fontSize: "var(--text-3xl)" }}>
                 {obsHealth.overall_status === 'healthy' ? '✅' : obsHealth.overall_status === 'attention' ? '⚠️' : '❓'}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Estado global: {obsHealth.overall_status}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Estado global: {obsHealth.overall_status}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>
                   Score combinado: {obsHealth.overall_score != null ? `${(obsHealth.overall_score * 100).toFixed(0)}%` : '—'}
                 </div>
               </div>
@@ -667,15 +672,15 @@ export default function AIHubPage() {
           ].map(p => (
             <div key={p.title} style={{ ...card, padding: '18px 20px' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                <span style={{ fontSize: 24 }}>{p.icon}</span>
+                <span style={{ fontSize: "var(--text-2xl)" }}>{p.icon}</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{p.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>
+                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{p.title}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, lineHeight: 1.5 }}>{p.desc}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{p.hint}</span>
-                <a href={p.link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)' }}>{t('ai.get_key')} →</a>
+                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{p.hint}</span>
+                <a href={p.link} target="_blank" rel="noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)' }}>{t('ai.get_key')} →</a>
               </div>
             </div>
           ))}
@@ -690,6 +695,6 @@ export default function AIHubPage() {
         />
       )}
       {testModal && <TestModal provider={testModal} onClose={() => setTestModal(null)} />}
-    </div>
+    </PageShell>
   )
 }

@@ -17,12 +17,13 @@ const TABS = [
 ]
 
 const ps = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20, marginBottom: 16 }
-const ls = { display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4, fontWeight: 500 }
-const is = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }
-const btn = (accent) => ({ padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
+const ls = { display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4, fontWeight: 500 }
+const is = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', boxSizing: 'border-box' }
+const btn = (accent) => ({ padding: '7px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, background: accent ? 'var(--accent)' : 'var(--surface-3)', color: accent ? '#fff' : 'var(--text-1)' })
 
 const OPERATORS = ['=', '!=', '>', '>=', '<', '<=', 'contains', 'starts_with', 'is_null', 'is_not_null']
 const AGG_FUNCS  = ['count', 'sum', 'avg', 'min', 'max']
+const NULL_OPS = new Set(['is_null', 'is_not_null'])
 
 export default function BiQueryBuilderPanel() {
   const qc = useQueryClient()
@@ -37,10 +38,10 @@ export default function BiQueryBuilderPanel() {
     staleTime: 60_000,
   })
 
-  const datasets = schema?.datasets ?? []
+  const datasets = useMemo(() => schema?.datasets ?? [], [schema])
 
   // ── Saved queries ─────────────────────────────────────────────────────────
-  const { data: savedData, refetch: refetchSaved } = useQuery({
+  const { data: savedData } = useQuery({
     queryKey: ['bi-qb-queries'],
     queryFn: biQueryBuilderApi.listQueries,
   })
@@ -66,6 +67,12 @@ export default function BiQueryBuilderPanel() {
     onSuccess: () => { qc.invalidateQueries(['bi-qb-queries']); setQueryName('') },
   })
 
+  const previewMut = useMutation({
+    mutationFn: biQueryBuilderApi.previewQuery,
+    onSuccess: (data) => { setResults(data); setTab('results') },
+    onError: (e) => setExecError(e.message ?? 'Error ejecutando preview'),
+  })
+
   const execSavedMut = useMutation({
     mutationFn: (id) => biQueryBuilderApi.executeQuery(id),
     onSuccess: (data) => { setResults(data); setTab('results') },
@@ -77,25 +84,54 @@ export default function BiQueryBuilderPanel() {
     onSuccess: () => qc.invalidateQueries(['bi-qb-queries']),
   })
 
-  function handleRunBuilder() {
-    if (!dataset) return
-    setExecError(null)
-    const body = {
-      name: queryName || 'ad_hoc_run',
+  function buildPayload() {
+    return {
       dataset,
       fields: selectedFields,
-      filters: filters.filter(f => f.field),
+      filters: filters
+        .filter(f => f.field)
+        .map((f) => ({
+          ...f,
+          value: NULL_OPS.has(f.operator) ? null : f.value,
+        })),
       group_by: groupBy,
       aggregations: aggregations.filter(a => a.field && a.func),
       sort_by: sortBy || null,
       sort_dir: sortDir,
       limit,
     }
-    saveMut.mutate(body, {
-      onSuccess: (saved) => {
-        execSavedMut.mutate(saved.id)
-      },
-    })
+  }
+
+  function handleRunBuilder() {
+    if (!dataset) return
+    setExecError(null)
+    previewMut.mutate(buildPayload())
+  }
+
+  function handleSaveBuilder() {
+    if (!dataset || !queryName.trim()) return
+    const body = {
+      name: queryName.trim(),
+      ...buildPayload(),
+    }
+    saveMut.mutate(body)
+  }
+
+  function loadSavedQuery(q) {
+    setDataset(q.dataset || '')
+    setSelectedFields(q.fields || [])
+    setFilters((q.filters || []).map((f) => ({
+      field: f.field || '',
+      operator: f.operator || '=',
+      value: f.value ?? '',
+    })))
+    setGroupBy(q.group_by || [])
+    setAggregations(q.aggregations || [])
+    setSortBy(q.sort_by || '')
+    setSortDir(q.sort_dir || 'desc')
+    setLimit(Number(q.limit || 100))
+    setQueryName(q.name || '')
+    setTab('builder')
   }
 
   function toggleField(f) {
@@ -131,8 +167,8 @@ export default function BiQueryBuilderPanel() {
       {/* Header */}
       <div style={{ ...ps, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>🔧 Query Builder Visual</div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 2 }}>
+          <div style={{ fontWeight: 700, fontSize: "var(--text-lg)" }}>🔧 Query Builder Visual</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 2 }}>
             Construye consultas BI sin SQL de forma visual
           </div>
         </div>
@@ -142,7 +178,7 @@ export default function BiQueryBuilderPanel() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--surface-4)', paddingBottom: 0 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '7px 16px', fontSize: 13, fontWeight: tab === t.id ? 700 : 400,
+            style={{ padding: '7px 16px', fontSize: "var(--text-base)", fontWeight: tab === t.id ? 700 : 400,
               color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', background: 'transparent',
               border: 'none', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent',
               cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -167,11 +203,11 @@ export default function BiQueryBuilderPanel() {
             <>
               {/* Fields */}
               <div style={ps}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Campos a incluir</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10 }}>Campos a incluir</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleField(f.name)}
-                      style={{ ...btn(selectedFields.includes(f.name)), padding: '5px 12px', fontSize: 12 }}>
+                      style={{ ...btn(selectedFields.includes(f.name)), padding: '5px 12px', fontSize: "var(--text-sm)" }}>
                       {f.label ?? f.name}
                     </button>
                   ))}
@@ -181,7 +217,7 @@ export default function BiQueryBuilderPanel() {
               {/* Filters */}
               <div style={ps}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Filtros</span>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Filtros</span>
                   <button style={btn(false)} onClick={addFilter}>+ Añadir filtro</button>
                 </div>
                 {filters.map((f, i) => (
@@ -193,7 +229,8 @@ export default function BiQueryBuilderPanel() {
                     <select style={{ ...is, flex: '0 0 110px' }} value={f.operator} onChange={e => updateFilter(i, 'operator', e.target.value)}>
                       {OPERATORS.map(op => <option key={op} value={op}>{op}</option>)}
                     </select>
-                    <input style={{ ...is, flex: '1 1 140px' }} placeholder="Valor" value={f.value}
+                    <input style={{ ...is, flex: '1 1 140px' }} placeholder={NULL_OPS.has(f.operator) ? 'N/A' : 'Valor'} value={f.value}
+                      disabled={NULL_OPS.has(f.operator)}
                       onChange={e => updateFilter(i, 'value', e.target.value)} />
                     <button style={{ ...btn(false), padding: '5px 10px', color: 'var(--danger)' }} onClick={() => removeFilter(i)}>✕</button>
                   </div>
@@ -202,17 +239,17 @@ export default function BiQueryBuilderPanel() {
 
               {/* Group by + Aggregations */}
               <div style={ps}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Agrupar por</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 10 }}>Agrupar por</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   {availableFields.map(f => (
                     <button key={f.name} onClick={() => toggleGroupBy(f.name)}
-                      style={{ ...btn(groupBy.includes(f.name)), padding: '4px 10px', fontSize: 12 }}>
+                      style={{ ...btn(groupBy.includes(f.name)), padding: '4px 10px', fontSize: "var(--text-sm)" }}>
                       {f.label ?? f.name}
                     </button>
                   ))}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Agregaciones</span>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>Agregaciones</span>
                   <button style={btn(false)} onClick={addAgg}>+ Añadir</button>
                 </div>
                 {aggregations.map((a, i) => (
@@ -257,16 +294,20 @@ export default function BiQueryBuilderPanel() {
               {/* Save name + Run */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px' }}>
-                  <label style={ls}>Nombre de la query (opcional para guardar)</label>
+                  <label style={ls}>Nombre de la query (requerido para guardar)</label>
                   <input style={is} placeholder="Mi query…" value={queryName}
                     onChange={e => setQueryName(e.target.value)} />
                 </div>
+                <button style={btn(false)} onClick={handleSaveBuilder}
+                  disabled={!dataset || !queryName.trim() || saveMut.isPending}>
+                  {saveMut.isPending ? 'Guardando…' : '💾 Guardar'}
+                </button>
                 <button style={btn(true)} onClick={handleRunBuilder}
-                  disabled={!dataset || saveMut.isPending || execSavedMut.isPending}>
-                  {saveMut.isPending || execSavedMut.isPending ? 'Ejecutando…' : '▶ Ejecutar'}
+                  disabled={!dataset || previewMut.isPending || execSavedMut.isPending}>
+                  {previewMut.isPending || execSavedMut.isPending ? 'Ejecutando…' : '▶ Ejecutar'}
                 </button>
               </div>
-              {execError && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>{execError}</div>}
+              {execError && <div style={{ color: 'var(--danger)', fontSize: "var(--text-sm)", marginTop: 8 }}>{execError}</div>}
             </>
           )}
         </div>
@@ -276,7 +317,7 @@ export default function BiQueryBuilderPanel() {
       {tab === 'saved' && (
         <div>
           {savedQueries.length === 0 ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: 40 }}>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", textAlign: 'center', padding: 40 }}>
               No hay queries guardadas todavía. Crea una en el constructor.
             </div>
           ) : (
@@ -284,12 +325,13 @@ export default function BiQueryBuilderPanel() {
               {savedQueries.map(q => (
                 <div key={q.id} style={{ ...ps, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{q.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--text-md)" }}>{q.name}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
                       Dataset: <b>{q.dataset}</b> · Campos: {(q.fields ?? []).join(', ') || '—'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
+                    <button style={btn(false)} onClick={() => loadSavedQuery(q)}>✎ Cargar</button>
                     <button style={btn(true)} onClick={() => execSavedMut.mutate(q.id)}
                       disabled={execSavedMut.isPending}>▶ Ejecutar</button>
                     <button style={{ ...btn(false), color: 'var(--danger)' }} onClick={() => deleteMut.mutate(q.id)}>🗑</button>
@@ -305,19 +347,20 @@ export default function BiQueryBuilderPanel() {
       {tab === 'results' && (
         <div>
           {!results ? (
-            <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: 40 }}>
+            <div style={{ color: 'var(--text-3)', fontSize: "var(--text-base)", textAlign: 'center', padding: 40 }}>
               Ejecuta una query para ver resultados.
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
-                {results.count ?? results.rows?.length ?? 0} registros · dataset: {results.dataset ?? '—'}
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 12 }}>
+                {results.row_count ?? results.rows?.length ?? 0} registros · dataset: {results.dataset ?? '—'}
+                {results.truncated ? ` · limitados a ${results.row_count}` : ''}
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
-                      {results.columns?.map(col => (
+                      {(results.columns ?? []).map(col => (
                         <th key={col} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {col}
                         </th>
@@ -327,7 +370,7 @@ export default function BiQueryBuilderPanel() {
                   <tbody>
                     {(results.rows ?? []).slice(0, 200).map((row, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--surface-4)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-2)' }}>
-                        {results.columns?.map(col => (
+                        {(results.columns ?? []).map(col => (
                           <td key={col} style={{ padding: '7px 12px', color: 'var(--text-1)' }}>
                             {row[col] == null ? <span style={{ color: 'var(--text-4)' }}>null</span> : String(row[col])}
                           </td>
@@ -337,7 +380,7 @@ export default function BiQueryBuilderPanel() {
                   </tbody>
                 </table>
                 {results.rows?.length > 200 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 8, textAlign: 'center' }}>
                     Mostrando 200 de {results.rows.length} filas
                   </div>
                 )}

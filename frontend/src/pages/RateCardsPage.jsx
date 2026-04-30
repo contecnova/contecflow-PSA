@@ -5,12 +5,13 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { rateCardsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Tag } from 'lucide-react'
 import { Button, Modal, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
-const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 // ── Formulario de entrada ─────────────────────────────────────────────────────
@@ -84,14 +85,14 @@ function EntryForm({ tableId, entry, onClose }) {
       </div>
 
       {form.billing_rate && form.cost_rate && (
-        <div style={{ background: 'var(--success-bg)', border: '1px solid #00e5a020', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: 'var(--success)' }}>
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: "var(--text-sm)", color: 'var(--success)' }}>
           💰 Margen: <strong>{Math.round((1 - form.cost_rate / form.billing_rate) * 100)}%</strong>
           {form.escalation_pct > 0 && ` · Tarifa en 1 año: ${Math.round(form.billing_rate * (1 + form.escalation_pct/100))}€/h`}
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Cancelar</button>
+        <button onClick={onClose} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Cancelar</button>
         <Button onClick={save} loading={isPending} disabled={!form.label || isPending}>
           {isEdit ? '💾 Guardar' : '+ Añadir'}
         </Button>
@@ -140,19 +141,19 @@ function RateTableDetail({ tableId, onBack }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
-        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 12px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           ← Volver
         </button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{table.name}</div>
-          {table.description && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{table.description}</div>}
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800 }}>{table.name}</div>
+          {table.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{table.description}</div>}
         </div>
         {avgMargin !== null && (
-          <div style={{ fontSize: 13, color: 'var(--success)', fontWeight: 700, background: 'var(--success-bg)', padding: '4px 12px', borderRadius: 8 }}>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 700, background: 'var(--success-bg)', padding: '4px 12px', borderRadius: 8 }}>
             Margen medio: {avgMargin}%
           </div>
         )}
-        <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+        <button onClick={() => setShowDupe(true)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '6px 14px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
           📋 Duplicar con escalado
         </button>
         <Button onClick={() => setShowEntry(true)}>+ Nueva tarifa</Button>
@@ -166,7 +167,7 @@ function RateTableDetail({ tableId, onBack }) {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                 {['Rol / Perfil', 'Facturación', 'Coste', 'Margen', 'Escalado', 'Vigencia', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -175,31 +176,31 @@ function RateTableDetail({ tableId, onBack }) {
                 const margin = e.billing_rate && e.cost_rate
                   ? Math.round((1 - e.cost_rate / e.billing_rate) * 100) : null
                 return (
-                  <tr key={e.id} style={{ borderBottom: '1px solid #0d1626', background: i % 2 === 0 ? 'transparent' : 'rgba(8,14,26,0.03)' }}>
-                    <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{e.label}</td>
-                    <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: "'Space Mono', monospace" }}>
+                  <tr key={e.id} style={{ borderBottom: '1px solid var(--surface-1)', background: i % 2 === 0 ? 'transparent' : 'rgba(8,14,26,0.03)' }}>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{e.label}</td>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
                       {e.billing_rate ? `${e.billing_rate}€/h` : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: 13, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-base)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
                       {e.cost_rate ? `${e.cost_rate}€/h` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       {margin !== null && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: margin > 50 ? 'var(--success)' : margin > 30 ? 'var(--warning)' : 'var(--danger)' }}>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: margin > 50 ? 'var(--success)' : margin > 30 ? 'var(--warning)' : 'var(--danger)' }}>
                           {margin}%
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: 11, color: 'var(--text-2)' }}>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {e.escalation_pct > 0 ? `+${e.escalation_pct}%/año` : '—'}
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: 11, color: 'var(--text-2)' }}>
+                    <td style={{ padding: '10px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {e.valid_from || e.valid_to ? `${e.valid_from || '?'} → ${e.valid_to || '∞'}` : '—'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                        <button onClick={() => setEditEntry(e)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>✏️</button>
+                        <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar tarifa "${e.label}"?`, onConfirm: () => deleteEntry(e.id), danger: true }) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </td>
                   </tr>
@@ -219,12 +220,12 @@ function RateTableDetail({ tableId, onBack }) {
           <div style={{ marginBottom: 16 }}>
             <label style={lbl}>Escalado anual (%)</label>
             <input type="number" value={dupeEsc} onChange={e => setDupeEsc(+e.target.value)} style={inp} min="0" max="20" step="0.5" />
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 6 }}>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
               Se creará una copia de &quot;{table.name}&quot; con todas las tarifas incrementadas en este porcentaje.
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowDupe(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => duplicate()} loading={duping}>Duplicar +{dupeEsc}%</Button>
           </div>
         </Modal>
@@ -269,7 +270,7 @@ export default function RateCardsPage() {
   if (selected) return <RateTableDetail tableId={selected} onBack={() => setSelected(null)} />
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Tag size={18} />} title={t('rate_cards.title')} subtitle={t('rate_cards.subtitle')} />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
@@ -284,32 +285,32 @@ export default function RateCardsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {tables.map(t => (
             <button key={t.id} type="button" style={{
-              background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+              background: 'var(--surface-2)', border: `1px solid ${t.is_default ? 'var(--accent)' : 'var(--surface-4)'}`,
               borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
               transition: 'border-color 0.15s', width:'100%', textAlign:'left', fontFamily:'inherit'
             }}
               onClick={() => setSelected(t.id)}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = t.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = t.is_default ? 'var(--accent)' : 'var(--surface-4)'}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-1)' }}>{t.name}</div>
+                <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, color: 'var(--text-1)' }}>{t.name}</div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   {t.is_default && (
-                    <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>DEFAULT</span>
+                    <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--accent-muted)', color: 'var(--accent)', fontWeight: 700 }}>DEFAULT</span>
                   )}
-                  <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                  <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', borderRadius: 4, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
                     {t.applies_to}
                   </span>
                 </div>
               </div>
-              {t.description && <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+              {t.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 💶 {t.entry_count || 0} tarifa{t.entry_count !== 1 ? 's' : ''} definida{t.entry_count !== 1 ? 's' : ''}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                 <button onClick={e => { e.stopPropagation(); openConfirmGlobal({message:`¿Eliminar tabla "${t.name}"?`,onConfirm:()=>del(t.id),danger:true}) }}
-                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
+                  style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                   🗑
                 </button>
               </div>
@@ -337,17 +338,17 @@ export default function RateCardsPage() {
                 <option value="client">Por Cliente</option>
               </select>
             </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 12, color: 'var(--text-1)' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
               <input type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               Tabla por defecto (se usa cuando no hay otra específica)
             </label>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>Crear tabla</Button>
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

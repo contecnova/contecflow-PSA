@@ -16,7 +16,7 @@ import OfflineIndicator from '../OfflineIndicator'
 import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang } from '../../i18n/AppLangContext'
 import {
-  LayoutDashboard, CheckSquare, Columns, Clock, Calendar, Umbrella,
+  LayoutDashboard, CheckSquare, Clock, Calendar, Umbrella,
   FileText, Receipt, CheckCircle, Folder, RefreshCw, Sparkles,
   BarChart2, Target, Package, ArrowLeftRight, AlertTriangle, Link,
   GitBranch, BookOpen, Mic, Users, TrendingUp, Award, Network,
@@ -26,8 +26,8 @@ import {
   Lock, Plug, PenLine, Upload, ShieldCheck, Scale, Building2, Globe,
   Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
-  Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck, ListChecks,
-  CalendarRange, Plus,
+  Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
+  CalendarRange, Plus, Inbox,
 } from 'lucide-react'
 
 const ROUTE_LABELS = {
@@ -249,8 +249,10 @@ const LAYOUT_TEXT = {
 
 const NAV_GROUPS = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr'], items: [
-    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Dashboard',       roles: ['admin','pm','team_lead','employee','hr'] },
+    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día',       roles: ['admin','pm','team_lead','employee','hr'] },
+    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada', roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee'] },
+    { to: '/kanban-advanced', icon: <LayoutGrid size={SZ} />,   label: 'Kanban',          roles: ['admin','pm','team_lead','employee'] },
     { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar',        roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee'] },
@@ -259,7 +261,7 @@ const NAV_GROUPS = [
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approvals',       roles: ['admin','pm','team_lead'] },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
-    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',           roles: ['admin','pm','team_lead'] },
+    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },
     { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects',            roles: ['admin','pm','team_lead'] },
     { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints',             roles: ['admin','pm','team_lead'] },
     { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI',  roles: ['admin','pm'] },
@@ -277,7 +279,7 @@ const NAV_GROUPS = [
     { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant',   roles: ['admin','pm','team_lead'] },
   ]},
   { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, roles: ['admin','pm','hr','team_lead'], items: [
-    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Dashboard',          roles: ['admin','pm','hr','team_lead'] },
+    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo', roles: ['admin','pm','hr','team_lead'] },
     { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources',          roles: ['admin','hr','pm'] },
     { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity',           roles: ['admin','hr','pm'] },
     { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast',  roles: ['admin','pm','team_lead'] },
@@ -289,7 +291,7 @@ const NAV_GROUPS = [
     { to: '/training',            icon: <BookOpen size={SZ} />,   label: 'Training & Certs',   roles: ['admin','pm','hr','employee'] },
   ]},
   { id: 'negocio', label: 'Clients & Finance', groupKey: 'group_business', icon: <DollarSign size={12} />, roles: ['admin','pm'], items: [
-    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',            roles: ['admin','pm'] },
+    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Resumen financiero',  roles: ['admin','pm'] },
     { to: '/clients',           icon: <UserCheck size={SZ} />,   label: 'Clients / CRM',       roles: ['admin','pm'] },
     { to: '/pipeline',          icon: <Megaphone size={SZ} />,   label: 'Sales Pipeline',       roles: ['admin','pm'] },
     { to: '/contracts',         icon: <ScrollText size={SZ} />,  label: 'Contracts',            roles: ['admin','pm'] },
@@ -304,7 +306,7 @@ const NAV_GROUPS = [
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },
   ]},
   { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, roles: ['admin','pm','hr','employee','team_lead'], items: [
-    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Dashboard',        roles: ['admin','pm','employee','hr','team_lead'] },
+    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte',  roles: ['admin','pm','employee','hr','team_lead'] },
     { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead'] },
     { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
     { to: '/sd/workflow-designer', icon: <GitBranch size={SZ} />,  label: 'Workflow Designer', roles: ['admin','pm'] },
@@ -449,14 +451,14 @@ function ShortcutsModal({ onClose, text }) {
         <div className="shortcuts-grid">
           {SHORTCUTS.map((s, i) => (
             <div key={i} className="shortcut-row">
-              <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{text[s.labelKey]}</span>
+              <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{text[s.labelKey]}</span>
               <div style={{ display: 'flex', gap: 4 }}>
                 {s.keys.map((k, j) => <span key={j} className="kbd">{k}</span>)}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
+        <div style={{ marginTop: 16, fontSize: "var(--text-xs)", color: 'var(--text-3)', textAlign: 'center' }}>
           {text.shortcuts_hint} <span className="kbd">?</span> {text.shortcuts_hint_suffix}
         </div>
       </div>
@@ -480,7 +482,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           paddingBottom: collapsed ? 7 : 5,
           paddingLeft: collapsed ? 9 : 14,
           paddingRight: (!collapsed && hover && onPin) ? 28 : (collapsed ? 9 : 8),
-          borderRadius: 6, textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
+          borderRadius: 6, textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
           background: isActive ? 'var(--accent-muted)' : 'transparent',
           color: isActive ? 'var(--accent)' : 'var(--text-2)',
           border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
@@ -497,10 +499,10 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
               background: badgeColor, borderRadius: '50%' }} />
           )}
         </span>
-        {!collapsed && <span style={{ flex: 1, fontSize: 12.5 }}>{displayLabel}</span>}
+        {!collapsed && <span style={{ flex: 1, fontSize: "var(--text-sm-h)" }}>{displayLabel}</span>}
         {!collapsed && badge > 0 && (
           <span style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: badgeColor, borderRadius: 9,
-            padding: '1px 5px', fontSize: 9.5, fontWeight: 700, flexShrink: 0 }}>{badge}</span>
+            padding: '1px 5px', fontSize: "var(--text-3xs-h)", fontWeight: 700, flexShrink: 0 }}>{badge}</span>
         )}
       </NavLink>
       {!collapsed && hover && onPin && (
@@ -511,7 +513,7 @@ function NavItem({ item, collapsed, alertCount, approvalCount, t, pinned, onPin,
           style={{
             position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
             background: 'none', border: 'none', cursor: 'pointer',
-            color: isPinned ? 'var(--warning)' : 'var(--text-3)', padding: '2px 4px', lineHeight: 1, fontSize: 13,
+            color: isPinned ? 'var(--warning)' : 'var(--text-3)', padding: '2px 4px', lineHeight: 1, fontSize: "var(--text-base)",
           }}
         >{isPinned ? '★' : '☆'}</button>
       )}
@@ -576,7 +578,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
               <NavLink key={item.to} to={item.to} onClick={() => setHoverOpen(false)}
                 style={({ isActive }) => ({
                   display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6,
-                  textDecoration: 'none', fontSize: 12.5, fontWeight: 500,
+                  textDecoration: 'none', fontSize: "var(--text-sm-h)", fontWeight: 500,
                   color: isActive ? 'var(--accent)' : 'var(--text-2)',
                   background: isActive ? 'var(--accent-muted)' : 'transparent',
                 })}
@@ -600,7 +602,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         padding: '6px 8px', border: 'none', borderRadius: 5, cursor: 'pointer',
         fontFamily: 'inherit', background: 'transparent',
         color: isAnyChildActive ? 'var(--accent)' : 'var(--text-3)',
-        fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+        fontSize: "var(--text-2xs)", fontWeight: 700, textTransform: 'uppercase',
         letterSpacing: '0.08em', textAlign: 'left', transition: 'color 0.1s',
       }}
         onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)' }}
@@ -609,7 +611,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, pin
         <span style={{ opacity: 0.75, display: 'flex', alignItems: 'center' }}>{group.icon}</span>
         <span style={{ flex: 1 }}>{groupLabel}</span>
         {!open && realVisible.length > 0 && (
-          <span style={{ fontSize: 9, background: 'var(--surface-4)', color: 'var(--text-4)',
+          <span style={{ fontSize: "var(--text-3xs)", background: 'var(--surface-4)', color: 'var(--text-4)',
             borderRadius: 8, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>{realVisible.length}</span>
         )}
         <ChevronRight size={10} style={{ opacity: 0.45, transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }} />
@@ -644,11 +646,11 @@ function FavoritesSection({ pinned, onPin, collapsed, alertCount, approvalCount,
   return (
     <div style={{ marginBottom: 4 }}>
       {!collapsed && (
-        <div style={{ padding: '4px 8px 4px 10px', fontSize: 9.5, fontWeight: 700,
+        <div style={{ padding: '4px 8px 4px 10px', fontSize: "var(--text-3xs-h)", fontWeight: 700,
           letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--text-3)', marginTop: 4,
           display: 'flex', alignItems: 'center', gap: 6 }}>
           {showQuick ? `⚡ ${text.quick_access}` : `★ ${text.favorites}`}
-          {showQuick && <span style={{ fontSize: 9, color: 'var(--text-4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{text.personalize_hint}</span>}
+          {showQuick && <span style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{text.personalize_hint}</span>}
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -741,13 +743,13 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
             display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px',
             background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 20, color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 12, minWidth: 180,
+            fontSize: "var(--text-sm)", minWidth: 180,
           }}
         >
           <Search size={12} />
           <span style={{ flex: 1 }}>{text.search_placeholder}</span>
-          <span style={{ fontSize: 10, background: 'var(--surface-4)', borderRadius: 4,
-            padding: '1px 4px', fontFamily: 'monospace', color: 'var(--text-3)' }}>⌘K</span>
+          <span style={{ fontSize: "var(--text-2xs)", background: 'var(--surface-4)', borderRadius: 4,
+            padding: '1px 4px', fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>⌘K</span>
         </button>
       </div>
       <div className="app-topbar-right">
@@ -759,7 +761,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
             width: 30, height: 30,
             background: 'var(--accent)', border: 'none',
             borderRadius: 8, color: '#fff', cursor: 'pointer',
-            fontWeight: 700, fontSize: 18, lineHeight: 1,
+            fontWeight: 700, fontSize: "var(--text-lg-em)", lineHeight: 1,
           }}
           onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
           onMouseLeave={e => e.currentTarget.style.opacity = '1'}
@@ -773,7 +775,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
             background: aiOpen ? 'var(--accent-muted)' : 'var(--surface-3)',
             border: `1px solid ${aiOpen ? 'rgba(79,142,247,0.35)' : 'var(--surface-4)'}`,
             borderRadius: 8, color: aiOpen ? 'var(--accent)' : 'var(--text-2)',
-            cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+            cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
           }}
         >
           <Brain size={13} />
@@ -786,7 +788,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
               display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
               background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
               borderRadius: 8, color: '#34d399', textDecoration: 'none',
-              fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
+              fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'var(--font-mono)',
               animation: 'timerPulse 2s ease-in-out infinite',
             }}
           >
@@ -794,29 +796,27 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
             <span>{formatTimerDisplay(timerElapsed)}</span>
           </NavLink>
         )}
-        {alertCount > 0 && (
-          <button
-            onClick={onAlertsOpen}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
-              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
-              borderRadius: 8, color: 'var(--danger)', cursor: 'pointer',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
-            title={(text.active_alerts_title || '{count} alertas').replace('{count}', alertCount)}
-          >
-            <Bell size={13} /><span>{alertCount}</span>
-          </button>
-        )}
-        {approvalCount > 0 && (
-          <NavLink to="/approvals"
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
-              background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-              borderRadius: 8, color: 'var(--warning)', textDecoration: 'none',
-              fontSize: 12, fontWeight: 600 }}
-            title={(text.pending_approvals_title || '{count} aprobaciones').replace('{count}', approvalCount)}
-          >
-            <CheckCircle size={13} /><span>{approvalCount}</span>
-          </NavLink>
-        )}
+        {/* Inbox bell unificado: alerts + mentions + approvals */}
+        {(() => {
+          const total = (alertCount || 0) + (approvalCount || 0)
+          if (total === 0) return null
+          const tone = alertCount > 0 ? 'danger' : 'warning'
+          const bg = tone === 'danger' ? 'var(--danger-bg)' : 'var(--warning-bg)'
+          const border = tone === 'danger' ? 'var(--danger-border)' : 'var(--warning-border)'
+          const color = tone === 'danger' ? 'var(--danger)' : 'var(--warning)'
+          return (
+            <NavLink to="/inbox"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 9px',
+                background: bg, border: `1px solid ${border}`,
+                borderRadius: 8, color, textDecoration: 'none',
+                fontSize: "var(--text-sm)", fontWeight: 600 }}
+              title={`${total} pendientes en bandeja`}
+              aria-label={`Bandeja de entrada — ${total} pendientes`}
+            >
+              <Bell size={13} /><span>{total}</span>
+            </NavLink>
+          )
+        })()}
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6,
             padding: '3px 4px 3px 8px', background: 'var(--surface-3)',
@@ -827,7 +827,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
                 display: 'flex', alignItems: 'center', gap: 7 }}
             >
               <Avatar name={user.full_name} size={24} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)',
+              <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)',
                 maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.full_name}
               </span>
@@ -871,7 +871,7 @@ function NavSearch({ value, onChange, text }) {
           width: '100%', boxSizing: 'border-box',
           padding: '5px 8px 5px 24px',
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 6, color: 'var(--text-1)', fontSize: 11.5,
+          borderRadius: 6, color: 'var(--text-1)', fontSize: "var(--text-xs-h)",
           fontFamily: 'inherit', outline: 'none',
         }}
         onFocus={e => e.target.style.borderColor = 'var(--accent)'}
@@ -898,7 +898,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
     return translatedLabel.toLowerCase().includes(q) || fallbackLabel.toLowerCase().includes(q)
   })
   if (matches.length === 0) {
-    return <div style={{ padding: '8px 14px', fontSize: 11.5, color: 'var(--text-4)' }}>{text.no_results}</div>
+    return <div style={{ padding: '8px 14px', fontSize: "var(--text-xs-h)", color: 'var(--text-4)' }}>{text.no_results}</div>
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '3px 4px' }}>
@@ -912,7 +912,7 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '5px 8px 5px 14px', borderRadius: 6, textDecoration: 'none',
-              fontSize: 12.5, fontWeight: 500,
+              fontSize: "var(--text-sm-h)", fontWeight: 500,
               background: isActive ? 'var(--accent-muted)' : 'transparent',
               color: isActive ? 'var(--accent)' : 'var(--text-2)',
               border: `1px solid ${isActive ? 'rgba(79,142,247,0.22)' : 'transparent'}`,
@@ -920,8 +920,8 @@ function NavSearchResults({ query, hasRole, alertCount, approvalCount, onNavigat
             })}
           >
             <span style={{ flexShrink: 0, width: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
-            <span style={{ flex: 1, fontSize: 12.5 }}>{itemLabel}</span>
-            {badge > 0 && <span style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: badgeColor, borderRadius: 9, padding: '1px 5px', fontSize: 9.5, fontWeight: 700 }}>{badge}</span>}
+            <span style={{ flex: 1, fontSize: "var(--text-sm-h)" }}>{itemLabel}</span>
+            {badge > 0 && <span style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: badgeColor, borderRadius: 9, padding: '1px 5px', fontSize: "var(--text-3xs-h)", fontWeight: 700 }}>{badge}</span>}
           </NavLink>
         )
       })}
@@ -1033,13 +1033,22 @@ export default function Layout({ children }) {
   }, [location.pathname])
 
   useEffect(() => {
+    if (!isOverlayNav) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = mobileOpen ? 'hidden' : previousOverflow || ''
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isOverlayNav, mobileOpen])
+
+  useEffect(() => {
     const handler = (e) => {
       const tag = e.target?.tagName
       const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setSearchOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'i') { e.preventDefault(); setAiOpen(o => !o); return }
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') { e.preventDefault(); setCollapsed(c => !c); return }
-      if (e.key === 'Escape') { setSearchOpen(false); setAiOpen(false); setShortcutsOpen(false); setProfileOpen(false); return }
+      if (e.key === 'Escape') { setSearchOpen(false); setAiOpen(false); setShortcutsOpen(false); setProfileOpen(false); setMobileOpen(false); return }
       if (!isInput && e.key === '?') { e.preventDefault(); setShortcutsOpen(o => !o); return }
     }
     window.addEventListener('keydown', handler)
@@ -1054,6 +1063,7 @@ export default function Layout({ children }) {
       <a href="#main-content" className="skip-nav">{text.skip_to_content}</a>
 
       <aside aria-label={text.main_navigation} role="navigation"
+        id="mobile-primary-nav"
         className={mobileOpen ? 'mobile-open' : ''}
         style={{
           width: collapsed && !isOverlayNav ? 46 : 222, flexShrink: 0,
@@ -1089,8 +1099,28 @@ export default function Layout({ children }) {
             </svg>
           </div>
           {!collapsed && (
-            <span style={{ fontWeight: 700, fontSize: 14.5, letterSpacing: '-0.02em',
+            <span style={{ fontWeight: 700, fontSize: "var(--text-md-h)", letterSpacing: '-0.02em',
               color: 'var(--text-1)', whiteSpace: 'nowrap', userSelect: 'none' }}>Contecflow</span>
+          )}
+          {isOverlayNav && mobileOpen && (
+            <IconButton
+              onClick={() => setMobileOpen(false)}
+              ariaLabel={text.close_menu || 'Cerrar menú'}
+              style={{
+                marginLeft: 'auto',
+                background: 'transparent',
+                border: '1px solid var(--surface-4)',
+                borderRadius: 8,
+                width: 32,
+                height: 32,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={16} />
+            </IconButton>
           )}
         </div>
 
@@ -1103,7 +1133,7 @@ export default function Layout({ children }) {
         }}>
           {!collapsed && (
             <div style={{ padding: '4px 6px 3px' }}>
-              <div style={{ fontSize: 9.5, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+              <div style={{ fontSize: "var(--text-3xs-h)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                 {text.workspace}
               </div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -1125,7 +1155,7 @@ export default function Layout({ children }) {
                       border: '1px solid var(--surface-4)',
                       borderRadius: 999,
                       padding: '2px 7px',
-                      fontSize: 10.5,
+                      fontSize: "var(--text-2xs-h)",
                       cursor: 'pointer',
                       color: workspace === key ? 'var(--accent)' : 'var(--text-3)',
                       background: workspace === key ? 'var(--accent-muted)' : 'transparent',
@@ -1202,7 +1232,7 @@ export default function Layout({ children }) {
             <button onClick={() => setShortcutsOpen(true)} title={`${text.keyboard_shortcuts} (?)`}
               style={{
                 background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer',
-                fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: "var(--text-2xs)", display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: 4, padding: '2px', fontFamily: 'inherit', transition: 'color 0.1s',
               }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-2)'}
@@ -1210,7 +1240,7 @@ export default function Layout({ children }) {
             >
               <Keyboard size={11} />
               <span>{text.shortcuts}</span>
-              <span className="kbd" style={{ fontSize: 9 }}>?</span>
+              <span className="kbd" style={{ fontSize: "var(--text-3xs)" }}>?</span>
             </button>
           )}
         </div>
@@ -1227,6 +1257,8 @@ export default function Layout({ children }) {
         {...swipeHandlers}>
         <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
           ariaLabel={text.open_menu}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-primary-nav"
           style={{
             position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)',

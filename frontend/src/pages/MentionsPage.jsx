@@ -3,15 +3,16 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { mentionsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const ENTITY_ICONS = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
 
@@ -28,25 +29,25 @@ function MentionCard({ mention, onRead }) {
   return (
     <div style={{padding:'14px 16px',background: mention.is_read?'transparent':'var(--accent-muted)',border:`1px solid ${mention.is_read?'var(--surface-4)':'var(--accent-glow)'}`,borderRadius: 8,marginBottom:8}}>
       <div style={{display:'flex',alignItems:'flex-start',gap:12}}>
-        <div style={{fontSize:20,flexShrink:0,marginTop:2}}>{icon}</div>
+        <div style={{fontSize: "var(--text-xl)",flexShrink:0,marginTop:2}}>{icon}</div>
         <div style={{flex:1}}>
           <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:6}}>
-            <span style={{fontSize:12,fontWeight:600,color:'var(--accent)'}}>{mention.entity_type.replace(/_/g,' ')}</span>
-            <span style={{fontSize:11,color:'var(--text-3)'}}>{mention.created_at?timeAgo(mention.created_at):''}</span>
-            {!mention.is_read&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
+            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{mention.entity_type.replace(/_/g,' ')}</span>
+            <span style={{fontSize: "var(--text-xs)",color:'var(--text-3)'}}>{mention.created_at?timeAgo(mention.created_at):''}</span>
+            {!mention.is_read&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{t('mentions.new')}</span>}
           </div>
           {mention.context_text&&(
-            <div style={{fontSize:13,color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,borderLeft:'2px solid var(--surface-4)'}}>
+            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',lineHeight:1.5,marginBottom:8,background:'var(--surface-1)',padding:'8px 12px',borderRadius:6,borderLeft:'2px solid var(--surface-4)'}}>
               &quot;...{mention.context_text.slice(0,200)}{mention.context_text.length>200?'...':''}&quot;
             </div>
           )}
-          <div style={{fontSize:11,color:'var(--text-3)',fontFamily:'monospace'}}>
+          <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',fontFamily:'var(--font-mono)'}}>
             {mention.entity_type} #{mention.entity_id?.slice(0,8)}
           </div>
         </div>
         {!mention.is_read&&(
           <button onClick={()=>onRead(mention.id)}
-            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:11,flexShrink:0}}>
+            style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)",flexShrink:0}}>
             {t('mentions.mark_read')}
           </button>
         )}
@@ -64,24 +65,24 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
 
   const { data:comments=[], isLoading } = useQuery({
     queryKey:['comments',entityType,entityId],
-    queryFn:()=>api.get(`/epics/comments?entity_type=${entityType}&entity_id=${entityId}`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>mentionsApi.comments(entityType, entityId).then(r=>r.data).catch(()=>[]),
     enabled:!!entityId,
   })
 
   const { mutate:addComment, isPending:adding } = useMutation({
-    mutationFn: d=>api.post(`/epics/comments?entity_type=${entityType}&entity_id=${entityId}`,d).then(r=>r.data),
+    mutationFn: d=>mentionsApi.createComment(entityType, entityId, d).then(r=>r.data),
     onSuccess: ()=>{ qc.invalidateQueries(['comments',entityType,entityId]); setNewContent(''); setReplyTo(null); setReplyContent('') },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:resolveComment } = useMutation({
-    mutationFn: id=>api.patch(`/epics/comments/${id}/resolve`),
+    mutationFn: id=>mentionsApi.resolveComment(id),
     onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:deleteComment } = useMutation({
-    mutationFn: id=>api.delete(`/epics/comments/${id}`),
+    mutationFn: id=>mentionsApi.deleteComment(id),
     onSuccess: ()=>qc.invalidateQueries(['comments',entityType,entityId]),
     onError: _e=>toast.info(t('mentions.cannot_delete_with_replies')),
   })
@@ -91,16 +92,16 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
       <div style={{padding:'12px 14px',background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)',borderRadius:8,border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`,opacity:comment.is_resolved?0.6:1}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <span style={{fontSize:12,fontWeight:600,color:'var(--accent)'}}>{comment.created_by?.slice(0,8)||'Usuario'}</span>
-            {comment.is_resolved&&<span style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:'var(--success-bg)',color:'var(--success)'}}>{t('mentions.resolved')}</span>}
+            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{comment.created_by?.slice(0,8)||'Usuario'}</span>
+            {comment.is_resolved&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--success-bg)',color:'var(--success)'}}>{t('mentions.resolved')}</span>}
           </div>
           <div style={{display:'flex',gap:6}}>
-            {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>{t('mentions.reply')}</button>}
-            {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} style={{background:'none',border:'none',color:'var(--success)',cursor:'pointer',fontSize:11}}>✓ {t('mentions.resolve')}</button>}
-            <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:11}}>✕</button>
+            {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} style={{background:'none',border:'none',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>{t('mentions.reply')}</button>}
+            {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} style={{background:'none',border:'none',color:'var(--success)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✓ {t('mentions.resolve')}</button>}
+            <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✕</button>
           </div>
         </div>
-        <div style={{fontSize:13,color:'var(--text-1)',lineHeight:1.5}}>{comment.content}</div>
+        <div style={{fontSize: "var(--text-base)",color:'var(--text-1)',lineHeight:1.5}}>{comment.content}</div>
         {replyTo===comment.id&&(
           <div style={{marginTop:10}}>
             <textarea value={replyContent} onChange={e=>setReplyContent(e.target.value)}
@@ -123,10 +124,10 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
 
   return (
     <div>
-      <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>💬 {t('mentions.comments_title', { title })}</div>
+      <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>💬 {t('mentions.comments_title', { title })}</div>
       {isLoading?<Spinner/>:(
         comments.length===0
-          ?<div style={{fontSize:12,color:'var(--text-3)',marginBottom:12}}>{t('mentions.no_comments')}</div>
+          ?<div style={{fontSize: "var(--text-sm)",color:'var(--text-3)',marginBottom:12}}>{t('mentions.no_comments')}</div>
           :comments.map(c=><CommentNode key={c.id} comment={c}/>)
       )}
       <div style={{marginTop:12}}>
@@ -152,17 +153,17 @@ export default function MentionsPage() {
 
   const { data:mentions=[], isLoading } = useQuery({
     queryKey:['mentions',onlyUnread],
-    queryFn:()=>api.get(`/epics/mentions?only_unread=${onlyUnread}`).then(r=>r.data).catch(()=>[]),
+    queryFn:()=>mentionsApi.mentions(onlyUnread).then(r=>r.data).catch(()=>[]),
   })
 
   const { mutate:markRead } = useMutation({
-    mutationFn: id=>api.post(`/activity/mentions/${id}/read`),
+    mutationFn: id=>mentionsApi.markMentionRead(id),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   const { mutate:markAll } = useMutation({
-    mutationFn: ()=>api.post('/epics/mentions/read-all'),
+    mutationFn: ()=>mentionsApi.markAllMentionsRead(),
     onSuccess: ()=>qc.invalidateQueries(['mentions']),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -170,7 +171,7 @@ export default function MentionsPage() {
   const unreadCount = mentions.filter(m=>!m.is_read).length
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<AtSign size={18} />} title={t('mentions.title')} subtitle={t('mentions.subtitle')}/>
 
       {/* Tabs */}
@@ -180,7 +181,7 @@ export default function MentionsPage() {
           ['comments', t('mentions.tab_comments')],
         ].map(([tabKey, label])=>(
           <button key={tabKey} onClick={()=>setTab(tabKey)}
-            style={{padding:'7px 16px',borderRadius:8,border:'1px solid var(--surface-4)',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:13}}>
+            style={{padding:'7px 16px',borderRadius:8,border:'1px solid var(--surface-4)',background:tab===tabKey?'var(--accent-muted)':'transparent',color:tab===tabKey?'var(--accent)':'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-base)"}}>
             {label}
           </button>
         ))}
@@ -191,11 +192,11 @@ export default function MentionsPage() {
         <div>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize:13}}>
+              <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer',fontSize: "var(--text-base)"}}>
                 <input type="checkbox" checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
                 {t('mentions.only_unread')}
               </label>
-              {unreadCount>0&&<span style={{fontSize:12,padding:'2px 8px',borderRadius:20,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{unreadCount} {t('mentions.new_plural')}</span>}
+              {unreadCount>0&&<span style={{fontSize: "var(--text-sm)",padding:'2px 8px',borderRadius:20,background:'var(--accent-glow)',color:'var(--accent)',fontWeight:600}}>{unreadCount} {t('mentions.new_plural')}</span>}
             </div>
             {unreadCount>0&&(
               <Button variant="secondary" onClick={()=>markAll()}>✓ {t('mentions.mark_all_read')}</Button>
@@ -213,7 +214,7 @@ export default function MentionsPage() {
       {tab==='comments'&&(
         <div>
           <div style={{...ps,marginBottom:20}}>
-            <div style={{fontSize:13,color:'var(--text-2)',marginBottom:14,lineHeight:1.6}}>
+            <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:14,lineHeight:1.6}}>
               {t('mentions.threaded_comments_info')}
             </div>
             <div style={{display:'grid',gridTemplateColumns:'auto 1fr',gap:12,alignItems:'flex-end'}}>
@@ -238,19 +239,19 @@ export default function MentionsPage() {
             </div>
           ):(
             <div style={{...ps,textAlign:'center',padding:'40px 24px'}}>
-              <div style={{fontSize:48,marginBottom:16}}>💬</div>
-              <div style={{fontSize:14,color:'var(--text-2)'}}>{t('mentions.enter_entity_id')}</div>
+              <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>💬</div>
+              <div style={{fontSize: "var(--text-md)",color:'var(--text-2)'}}>{t('mentions.enter_entity_id')}</div>
             </div>
           )}
 
           <div style={{...ps,marginTop:16,padding:'14px 18px'}}>
-            <div style={{fontSize:12,fontWeight:600,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:8}}>{t('mentions.how_to_use_title')}</div>
-            <div style={{fontSize:12,color:'var(--text-2)',lineHeight:1.8}}>
+            <div style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:8}}>{t('mentions.how_to_use_title')}</div>
+            <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',lineHeight:1.8}}>
               {t('mentions.how_to_use_desc')}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

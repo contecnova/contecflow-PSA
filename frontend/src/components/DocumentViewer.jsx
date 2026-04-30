@@ -26,14 +26,14 @@ function fmtDate(d) {
 }
 
 const FILE_COLORS = {
-  pdf: { c: '#ef4444', bg: '#ef444418', l: 'PDF' },
-  image: { c: '#3b82f6', bg: '#3b82f618', l: 'IMG' },
-  spreadsheet: { c: '#10b981', bg: '#10b98118', l: 'XLS' },
-  word: { c: '#6366f1', bg: '#6366f118', l: 'DOC' },
+  pdf: { c: 'var(--danger)', bg: '#f8717118', l: 'PDF' },
+  image: { c: 'var(--accent)', bg: '#4f8ef718', l: 'IMG' },
+  spreadsheet: { c: 'var(--success)', bg: '#34d39918', l: 'XLS' },
+  word: { c: 'var(--accent)', bg: '#6366f118', l: 'DOC' },
   presentation: { c: '#f59e0b', bg: '#f59e0b18', l: 'PPT' },
-  archive: { c: '#8b5cf6', bg: '#8b5cf618', l: 'ZIP' },
+  archive: { c: 'var(--purple)', bg: '#8b5cf618', l: 'ZIP' },
   text: { c: '#64748b', bg: '#64748b18', l: 'TXT' },
-  other: { c: '#6b7280', bg: '#6b728018', l: 'FILE' },
+  other: { c: 'var(--text-3)', bg: '#6b728018', l: 'FILE' },
 };
 
 function detectType(mime, name) {
@@ -55,7 +55,7 @@ function FileIcon({ mime, name, size = 36 }) {
       width: size, height: size, borderRadius: Math.round(size * 0.22),
       backgroundColor: ft.bg, display: 'flex', alignItems: 'center',
       justifyContent: 'center', flexShrink: 0,
-      fontFamily: "'Space Mono', monospace", fontSize: Math.round(size * 0.23),
+      fontFamily: 'var(--font-mono)', fontSize: Math.round(size * 0.23),
       fontWeight: 700, color: ft.c, letterSpacing: '-0.03em',
     }}>
       {ft.l}
@@ -64,11 +64,11 @@ function FileIcon({ mime, name, size = 36 }) {
 }
 
 const CAT_STYLE = {
-  contract: { c: '#3b82f6', bg: '#3b82f615' }, deliverable: { c: '#10b981', bg: '#10b98115' },
-  proposal: { c: '#8b5cf6', bg: '#8b5cf615' }, sop: { c: '#f59e0b', bg: '#f59e0b15' },
-  legal: { c: '#ef4444', bg: '#ef444415' }, requirements: { c: '#06b6d4', bg: '#06b6d415' },
-  report: { c: '#f97316', bg: '#f9731615' }, presentation: { c: '#ec4899', bg: '#ec489915' },
-  other: { c: '#6b7280', bg: '#6b728015' },
+  contract: { c: 'var(--accent)', bg: '#4f8ef715' }, deliverable: { c: 'var(--success)', bg: '#34d39915' },
+  proposal: { c: 'var(--purple)', bg: '#8b5cf615' }, sop: { c: '#f59e0b', bg: '#f59e0b15' },
+  legal: { c: 'var(--danger)', bg: '#f8717115' }, requirements: { c: '#2dd4bf', bg: '#06b6d415' },
+  report: { c: 'var(--orange)', bg: '#f9731615' }, presentation: { c: '#ec4899', bg: '#ec489915' },
+  other: { c: 'var(--text-3)', bg: '#6b728015' },
 };
 
 const DocumentViewer = ({ documentId }) => {
@@ -124,18 +124,18 @@ const DocumentViewer = ({ documentId }) => {
   });
 
   if (isLoading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--text-3)', fontSize: 13, gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', color: 'var(--text-3)', fontSize: "var(--text-base)", gap: 8 }}>
       <Loader size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> {t('document_viewer.loading')}
     </div>
   );
   if (!doc) return (
-    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--danger)', fontSize: 13 }}>{t('document_viewer.not_found')}</div>
+    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--danger)', fontSize: "var(--text-base)" }}>{t('document_viewer.not_found')}</div>
   );
 
   const activeVer = previewVer || doc.versions?.[0] || null;
   const versions = doc.versions || [];
   const catS = CAT_STYLE[doc.category] || CAT_STYLE.other;
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 18, color: 'var(--text-1)' }}>
@@ -146,28 +146,28 @@ const DocumentViewer = ({ documentId }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <FileIcon mime={activeVer?.file_mime_type} name={activeVer?.file_name} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-1)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</h2>
-              {doc.description && <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '3px 0 0' }}>{doc.description}</p>}
+              <h2 style={{ fontSize: "var(--text-17)", fontWeight: 800, color: 'var(--text-1)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</h2>
+              {doc.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', margin: '3px 0 0' }}>{doc.description}</p>}
             </div>
           </div>
 
           {/* Badges */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: catS.bg, color: catS.c, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: catS.bg, color: catS.c, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               {doc.category}
             </span>
             {doc.approval_status === 'approved' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#10b98115', color: '#10b981' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#34d39915', color: 'var(--success)' }}>
                 <CheckCircle size={9} /> {t('document_viewer.approved')}
               </span>
             )}
             {doc.requires_approval && doc.approval_status === 'pending' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#f59e0b15', color: '#f59e0b' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#f59e0b15', color: '#f59e0b' }}>
                {t('document_viewer.pending_approval')}
               </span>
             )}
             {doc.tags?.map(t => (
-              <span key={t} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
+              <span key={t} style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 10, backgroundColor: 'var(--surface-3)', color: 'var(--text-3)' }}>#{t}</span>
             ))}
           </div>
         </div>
@@ -177,23 +177,23 @@ const DocumentViewer = ({ documentId }) => {
           {doc.requires_approval && doc.approval_status === 'pending' && (
             <>
               <button onClick={() => approveMutation.mutate('approved')}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: '#10b981', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--success)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 <CheckCircle size={13} /> {t('document_viewer.approve')}
               </button>
               <button onClick={() => approveMutation.mutate('rejected')}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 <XCircle size={13} /> {t('document_viewer.reject')}
               </button>
             </>
           )}
           <button onClick={() => summaryMutation.mutate()} disabled={summaryMutation.isPending}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--purple)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--purple)', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             <Sparkles size={13} />
             {summaryMutation.isPending ? t('document_viewer.generating') : t('document_viewer.ai_summary')}
           </button>
           {activeVer?.download_url && (
             <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, textDecoration: 'none' }}>
               <Download size={13} /> {t('document_viewer.download')}
             </a>
           )}
@@ -204,11 +204,11 @@ const DocumentViewer = ({ documentId }) => {
       {activeVer?.download_url && (
         <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--surface-4)' }}>
           <div style={{ padding: '8px 14px', backgroundColor: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 5 }}>
               <Eye size={11} /> {activeVer.file_name}  {fmtBytes(activeVer.file_size)}
             </span>
             <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
+              style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>
                <ExternalLink size={11} /> {t('document_viewer.open_new_tab')}
             </a>
           </div>
@@ -219,9 +219,9 @@ const DocumentViewer = ({ documentId }) => {
             return (
               <div style={{ padding: 36, textAlign: 'center' }}>
                 <FileIcon mime={activeVer.file_mime_type} name={activeVer.file_name} size={52} />
-                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-3)' }}>{t('document_viewer.preview_unavailable')}</div>
+                <div style={{ marginTop: 12, fontSize: "var(--text-base)", color: 'var(--text-3)' }}>{t('document_viewer.preview_unavailable')}</div>
                 <a href={activeVer.download_url} target="_blank" rel="noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '8px 16px', borderRadius: 8, backgroundColor: 'var(--accent)', color: 'white', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 700 }}>
                   <Download size={14} /> {t('document_viewer.download_to_view')}
                 </a>
               </div>
@@ -233,7 +233,7 @@ const DocumentViewer = ({ documentId }) => {
       {/* Version history */}
       <div style={{ borderRadius: 10, border: '1px solid var(--surface-4)', overflow: 'hidden' }}>
         <button onClick={() => setShowVersions(s => !s)}
-          style={{ width: '100%', padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--surface-2)', border: 'none', cursor: 'pointer', color: 'var(--text-1)', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+          style={{ width: '100%', padding: '11px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'var(--surface-2)', border: 'none', cursor: 'pointer', color: 'var(--text-1)', fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'inherit' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <History size={14} style={{ color: 'var(--text-2)' }} /> {t('document_viewer.versions_history')} ({versions.length})
           </span>
@@ -254,15 +254,15 @@ const DocumentViewer = ({ documentId }) => {
                   borderRight: 'none',
                   textAlign: 'left',
                 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700, color: activeVer?.id === v.id ? 'white' : 'var(--text-2)', flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: activeVer?.id === v.id ? 'var(--accent)' : 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', fontSize: "var(--text-xs)", fontWeight: 700, color: activeVer?.id === v.id ? 'white' : 'var(--text-2)', flexShrink: 0 }}>
                   v{v.version_num}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.file_name}</div>
-                  {v.change_note && <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
-                  <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{v.uploader_name}  {fmtDate(v.created_at)}  {fmtBytes(v.file_size)}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.file_name}</div>
+                  {v.change_note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.change_note}</div>}
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{v.uploader_name}  {fmtDate(v.created_at)}  {fmtBytes(v.file_size)}</div>
                 </div>
-                {i === 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, backgroundColor: 'var(--accent)20', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>{t('document_viewer.current')}</span>}
+                {i === 0 && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 10, backgroundColor: 'var(--accent)20', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>{t('document_viewer.current')}</span>}
                 {v.download_url && (
                   <a href={v.download_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                     style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--surface-3)', color: 'var(--text-2)', textDecoration: 'none', flexShrink: 0 }}>
@@ -276,25 +276,25 @@ const DocumentViewer = ({ documentId }) => {
             <div style={{ borderTop: '1px solid var(--surface-4)', padding: 14 }}>
               {!showUploadForm ? (
                 <button onClick={() => setShowUploadForm(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--accent)', background: 'none', border: '1px dashed var(--surface-5)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--accent)', background: 'none', border: '1px dashed var(--surface-5)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}>
                    <Upload size={13} /> {t('document_viewer.upload_new_version')}
                 </button>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <button type="button" onClick={() => fileRef.current?.click()}
-                    style={{ border: `2px dashed ${file ? '#10b981' : 'var(--surface-5)'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }}>
-                    {file ? <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
-                      : <span style={{ fontSize: 12, color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('document_viewer.click_select_file')}</span>}
+                    style={{ border: `2px dashed ${file ? 'var(--success)' : 'var(--surface-5)'}`, borderRadius: 8, padding: '10px 14px', textAlign: 'center', cursor: 'pointer' }}>
+                    {file ? <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
+                      : <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}><Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('document_viewer.click_select_file')}</span>}
                     <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0])} />
                   </button>
                   <input placeholder={t('document_viewer.change_note_placeholder')} value={changeNote} onChange={e => setChangeNote(e.target.value)} style={fs} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: 13, fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                      style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-base)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                        {uploadMutation.isPending ? t('common.saving') : t('document_viewer.upload_version')}
                     </button>
                     <button onClick={() => { setShowUploadForm(false); setFile(null); setChangeNote(''); }}
-                      style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit' }}>
                       {t('common.cancel')}
                     </button>
                   </div>
@@ -316,8 +316,8 @@ const DocumentViewer = ({ documentId }) => {
           doc.approved_at && [t('document_viewer.approved_date'), fmtDate(doc.approved_at)],
         ].filter(Boolean).map(([k, v]) => (
           <div key={k} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{v}</div>
+            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{k}</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{v}</div>
           </div>
         ))}
       </div>

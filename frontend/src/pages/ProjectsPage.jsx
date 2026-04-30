@@ -4,12 +4,13 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, usersApi } from '../services/api'
+import { projectsApi, usersApi, portalApi, templatesApi, dependenciesApi } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { FolderOpen } from 'lucide-react'
 import GanttChart from '../components/GanttChart'
 import DocumentsPanel from '../components/DocumentsPanel'
@@ -33,8 +34,8 @@ const PROJ_COLS = [
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROJECT_STATUSES = [
@@ -113,7 +114,7 @@ function StatusDropdown({ project, onUpdate }) {
           display: 'flex', alignItems: 'center', gap: 5,
           background: `${c.color}15`, border: `1px solid ${c.color}40`,
           borderRadius: 20, padding: '3px 10px', cursor: 'pointer',
-          fontSize: 11, fontWeight: 700, color: c.color, fontFamily: 'inherit',
+          fontSize: "var(--text-xs)", fontWeight: 700, color: c.color, fontFamily: 'inherit',
           textTransform: 'uppercase', letterSpacing: '0.06em',
         }}
       >
@@ -135,7 +136,7 @@ function StatusDropdown({ project, onUpdate }) {
                   background: project.status === s.value ? 'var(--accent-muted)' : 'transparent',
                   border: 'none', borderRadius: 6, padding: '8px 12px',
                   color: project.status === s.value ? 'var(--accent)' : 'var(--text-1)',
-                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
                 {s.label}
@@ -159,11 +160,11 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <button type="button" style={{ cursor: 'pointer', flex: 1, background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-          <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, fontFamily: "'Space Mono', monospace" }}>{project.code}</div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{project.name}</div>
-          {project.pm_name && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>PM: {project.pm_name}</div>}
-          {project.department && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Depto: {project.department}</div>}
-          {project.client_name && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 1 }}>Cliente: {project.client_name}</div>}
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>{project.code}</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{project.name}</div>
+          {project.pm_name && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>PM: {project.pm_name}</div>}
+          {project.department && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 1 }}>Depto: {project.department}</div>}
+          {project.client_name && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 1 }}>Cliente: {project.client_name}</div>}
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <StatusDropdown project={project} onUpdate={(status) => onStatusChange(project.id, status)} />
@@ -173,29 +174,29 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }) {
       </div>
 
       <button type="button" style={{ marginBottom: 12, cursor: 'pointer', width: '100%', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--text-2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <span>{TYPE_LABELS[project.project_type] || project.project_type}</span>
           <span>{project.progress_pct?.toFixed(0) ?? 0}% completado</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} />
       </button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: "var(--text-sm)" }}>
         <button type="button" style={{ cursor: 'pointer', display: 'flex', gap: 16, background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }} onClick={() => onClick(project)}>
           <span style={{ color: 'var(--text-2)' }}>Equipo: <span style={{ color: 'var(--text-1)' }}>{project.team_size}</span></span>
           {project.budget_amount && (
-            <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>
+            <span style={{ color: project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
               {project.budget_used_pct?.toFixed(0) ?? 0}% presupuesto
             </span>
           )}
         </button>
         <div style={{ display: 'flex', gap: 6 }}>
           <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: '4px 10px', color: 'var(--accent)', fontSize: "var(--text-xs)", fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             Ver →
           </Link>
           <button onClick={e => { e.stopPropagation(); onEdit(project) }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
             ✏️ Editar
           </button>
         </div>
@@ -312,8 +313,8 @@ function ProjectFormModal({ open, onClose, project = null }) {
     setErrors(nextErrors)
     return false
   }
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }
 
   return (
     <Modal open={open} onClose={onClose} title={isEdit ? `Editar — ${project.name}` : 'Nuevo Proyecto'} width={600}>
@@ -321,7 +322,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Nombre *</label>
           <input value={form.name} onChange={set('name')} style={fs} placeholder="Nombre del proyecto" aria-label="Nombre del proyecto" />
-          {errors.name && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.name}</div>}
+          {errors.name && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.name}</div>}
         </div>
         <div>
           <label style={ls}>Tipo *</label>
@@ -329,7 +330,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
             <option value="">Seleccionar...</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {errors.project_type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.project_type}</div>}
+          {errors.project_type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.project_type}</div>}
         </div>
         <div>
           <label style={ls}>Estado</label>
@@ -369,7 +370,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div>
           <label style={ls}>Presupuesto (€)</label>
           <input type="number" value={form.budget_amount} onChange={set('budget_amount')} style={fs} placeholder="Presupuesto total" aria-label="Presupuesto total" />
-          {errors.budget_amount && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.budget_amount}</div>}
+          {errors.budget_amount && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.budget_amount}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
@@ -380,7 +381,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
             <div>
               <label style={ls}>Día del mes (1-28)</label>
               <input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} style={fs} placeholder="Dia de corte" aria-label="Dia de corte" />
-              {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.retainer_day}</div>}
+              {errors.retainer_day && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.retainer_day}</div>}
             </div>
           </>
         )}
@@ -391,7 +392,7 @@ function ProjectFormModal({ open, onClose, project = null }) {
         <div>
           <label style={ls}>Fecha fin planificada</label>
           <input type="date" value={form.end_date_planned} onChange={set('end_date_planned')} style={fs} />
-          {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{errors.end_date_planned}</div>}
+          {errors.end_date_planned && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{errors.end_date_planned}</div>}
         </div>
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={ls}>Descripción</label>
@@ -427,7 +428,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['project-members', project?.id],
-    queryFn: () => api.get(`/projects/${project.id}/members`).then(r => r.data),
+    queryFn: () => projectsApi.members(project.id).then(r => r.data),
     enabled: !!project?.id && tab === 'team',
   })
   const { data: allUsersRaw = [] } = useQuery({
@@ -442,24 +443,24 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
   const { data: featureRequests = [], isLoading: loadingFRs } = useQuery({
     queryKey: ['project-feature-requests', project?.id],
-    queryFn: () => api.get(`/portal/feature-requests/team?project_id=${project.id}`).then(r => r.data),
+    queryFn: () => portalApi.featureRequests({ project_id: project.id }).then(r => r.data),
     enabled: !!project?.id && tab === 'requests',
   })
 
   const { mutate: respondFR, isPending: respondingFRPending } = useMutation({
-    mutationFn: ({ id, data }) => api.post(`/portal/feature-requests/${id}/respond`, data),
+    mutationFn: ({ id, data }) => portalApi.respondFeatureRequest(id, data),
     onSuccess: () => { qc.invalidateQueries(['project-feature-requests', project?.id]); setRespondingFr(null); setRespondForm({ pm_response: '', estimated_hours: '', estimated_cost: '', estimated_delivery_weeks: '', status: 'estimated' }) },
     onError: e => toast.error(extractErr(e, 'Error al responder')),
   })
   const allUsers = Array.isArray(allUsersRaw) ? allUsersRaw : []
 
   const { mutate: addMember, isPending: adding } = useMutation({
-    mutationFn: d => api.post(`/projects/${project.id}/members`, d),
+    mutationFn: d => projectsApi.addMember(project.id, d),
     onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); setShowAdd(false); setAddForm({ user_id: '', role: 'developer', allocation_pct: 100, notes: '' }); addValidation.setErrors({}) },
     onError: e => toast.error(extractErr(e, 'Error al añadir miembro')),
   })
   const { mutate: removeMember } = useMutation({
-    mutationFn: memberId => api.delete(`/projects/${project.id}/members/${memberId}`),
+    mutationFn: memberId => projectsApi.removeMember(project.id, memberId),
     onSuccess: () => { qc.invalidateQueries(['project-members', project.id]); qc.invalidateQueries(['capacity-board']); qc.invalidateQueries(['forecast-heatmap']); qc.invalidateQueries(['forecast-summary']); },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -502,7 +503,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -511,7 +512,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       {/* INFO TAB */}
       {tab === 'info' && (
         <>
-          {detail.description && <p style={{ color: 'var(--text-2)', fontSize: 14, marginBottom: 20, lineHeight: 1.6 }}>{detail.description}</p>}
+          {detail.description && <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", marginBottom: 20, lineHeight: 1.6 }}>{detail.description}</p>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 8 }}>
             {[
               { label: 'Código',        value: detail.code },
@@ -527,8 +528,8 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
               { label: 'Gastado',       value: detail.total_cost_spent ? fmtCurrency(detail.total_cost_spent) : '—' },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{value}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{value}</div>
               </div>
             ))}
           </div>
@@ -539,7 +540,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
       {tab === 'team' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <p style={{ color: 'var(--text-2)', fontSize: 13, margin: 0 }}>
+            <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", margin: 0 }}>
               Personas asignadas explícitamente a este proyecto.
             </p>
             <Button onClick={() => setShowAdd(s => !s)}>
@@ -552,27 +553,27 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
             <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 80px', gap: 10, marginBottom: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
+                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>PERSONA *</label>
                   <select value={addForm.user_id} onChange={setAddField('user_id')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'user_id')}>
+                    style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'user_id')}>
                     <option value="">Seleccionar persona...</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
                   </select>
-                  {addValidation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{addValidation.errors.user_id}</div>}
+                  {addValidation.errors.user_id && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
+                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>ROL</label>
                   <select value={addForm.role} onChange={setAddField('role')}
-                    style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }}>
+                    style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }}>
                     {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
+                  <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'block', marginBottom: 4 }}>% DEDIC.</label>
                   <input type="number" min="1" max="100" value={addForm.allocation_pct}
                     onChange={setAddField('allocation_pct')}
-                    style={addValidation.inputStyle({ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)', fontSize: 13, width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
-                  {addValidation.errors.allocation_pct && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{addValidation.errors.allocation_pct}</div>}
+                    style={addValidation.inputStyle({ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", width: '100%', fontFamily: 'inherit' }, 'allocation_pct')} />
+                  {addValidation.errors.allocation_pct && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{addValidation.errors.allocation_pct}</div>}
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -589,29 +590,29 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
           {/* Lista de miembros */}
           {loadingMembers ? <Spinner /> : members.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>👥</div>
-              <div style={{ fontSize: 14 }}>Todavía no hay miembros asignados</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Usa el botón &quot;Añadir miembro&quot; para asignar personas al proyecto</div>
+              <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>👥</div>
+              <div style={{ fontSize: "var(--text-md)" }}>Todavía no hay miembros asignados</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>Usa el botón &quot;Añadir miembro&quot; para asignar personas al proyecto</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {members.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid #1a2640', borderRadius: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #00d4ff30, #7c3aed30)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0, color: 'var(--accent)' }}>
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-border), var(--purple-border))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0, color: 'var(--accent)' }}>
                     {m.avatar_initials}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{m.full_name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{m.email}</div>
+                    <div style={{ fontSize: "var(--text-md)", fontWeight: 600 }}>{m.full_name}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{m.email}</div>
                   </div>
-                  <span style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid #00d4ff30', borderRadius: 6, padding: '3px 9px' }}>
+                  <span style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '3px 9px' }}>
                     {MEMBER_ROLES[m.role] || m.role}
                   </span>
-                  <span style={{ fontSize: 12, color: m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)', fontWeight: 700, minWidth: 38, textAlign: 'right' }}>
+                  <span style={{ fontSize: "var(--text-sm)", color: m.allocation_pct >= 100 ? 'var(--success)' : m.allocation_pct >= 50 ? 'var(--warning)' : 'var(--text-2)', fontWeight: 700, minWidth: 38, textAlign: 'right' }}>
                     {m.allocation_pct}%
                   </span>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar a ${m.full_name} del equipo?`, onConfirm: () => removeMember(m.id), danger: true }) }}
-                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1 }}>×</button>
+                    style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)", padding: '0 4px', lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
@@ -624,11 +625,11 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
         detail.phases?.length > 0 ? (
           <div>
             {detail.phases.map(ph => (
-              <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid #1a2640', borderRadius: 10, marginBottom: 8, fontSize: 13 }}>
+              <div key={ph.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, marginBottom: 8, fontSize: "var(--text-base)" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{ph.name}</div>
                   {(ph.start_date || ph.end_date) && (
-                    <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                       {fmtDate(ph.start_date)} → {fmtDate(ph.end_date)}
                     </div>
                   )}
@@ -639,7 +640,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📅</div>
+            <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>📅</div>
             <div>No hay fases definidas en este proyecto</div>
           </div>
         )
@@ -655,56 +656,56 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
         <div>
           {loadingFRs ? <Spinner /> : featureRequests.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-2)' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>💡</div>
-              <div style={{ fontSize: 14 }}>No hay solicitudes de funcionalidad para este proyecto</div>
-              <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-3)' }}>Los clientes pueden crear solicitudes desde el portal</div>
+              <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 10 }}>💡</div>
+              <div style={{ fontSize: "var(--text-md)" }}>No hay solicitudes de funcionalidad para este proyecto</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4, color: 'var(--text-3)' }}>Los clientes pueden crear solicitudes desde el portal</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {featureRequests.map(fr => {
-                const statusColors = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: '#f97316', approved: 'var(--success)', rejected: 'var(--danger)', in_development: '#a855f7', done: 'var(--success)' }
+                const statusColors = { new: 'var(--accent)', reviewing: 'var(--warning)', estimated: 'var(--orange)', approved: 'var(--success)', rejected: 'var(--danger)', in_development: 'var(--purple)', done: 'var(--success)' }
                 const priorityColors = { low: 'var(--text-2)', medium: 'var(--accent)', high: 'var(--warning)', critical: 'var(--danger)' }
                 const statusLabels = { new: 'Nueva', reviewing: 'Revisando', estimated: 'Estimada', approved: 'Aprobada', rejected: 'Rechazada', in_development: 'En desarrollo', done: 'Completada' }
                 const isResponding = respondingFr === fr.id
                 const canRespond = ['new', 'reviewing', 'estimated'].includes(fr.status)
                 return (
-                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                  <div key={fr.id} style={{ background: 'var(--surface-1)', border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 10, padding: '14px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', fontFamily: 'monospace' }}>{fr.code}</span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: `${statusColors[fr.status] || 'var(--text-2)'}18`, border: `1px solid ${statusColors[fr.status] || 'var(--text-2)'}40`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
-                          {fr.client_approved === true && <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ Cliente aprobó</span>}
-                          {fr.client_approved === false && <span style={{ fontSize: 11, color: 'var(--danger)' }}>✗ Cliente rechazó</span>}
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: statusColors[fr.status] || 'var(--text-2)', background: `${statusColors[fr.status] || 'var(--text-2)'}18`, border: `1px solid ${statusColors[fr.status] || 'var(--text-2)'}40`, borderRadius: 5, padding: '2px 7px' }}>{statusLabels[fr.status] || fr.status}</span>
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: priorityColors[fr.priority] || 'var(--text-2)' }}>● {fr.priority}</span>
+                          {fr.client_approved === true && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Cliente aprobó</span>}
+                          {fr.client_approved === false && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>✗ Cliente rechazó</span>}
                         </div>
-                        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{fr.title}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description}</div>
-                        {fr.business_justification && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>Justificación: {fr.business_justification}</div>}
+                        <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 4 }}>{fr.title}</div>
+                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{fr.description}</div>
+                        {fr.business_justification && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>Justificación: {fr.business_justification}</div>}
                         {(fr.estimated_cost != null || fr.estimated_hours != null) && (
                           <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                            {fr.estimated_cost != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
-                            {fr.estimated_hours != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>⏱ {fr.estimated_hours}h</span>}
-                            {fr.estimated_delivery_weeks != null && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>📅 {fr.estimated_delivery_weeks} sem.</span>}
+                            {fr.estimated_cost != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
+                            {fr.estimated_hours != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>⏱ {fr.estimated_hours}h</span>}
+                            {fr.estimated_delivery_weeks != null && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>📅 {fr.estimated_delivery_weeks} sem.</span>}
                           </div>
                         )}
-                        {fr.pm_response && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6, borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
+                        {fr.pm_response && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 6, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6, borderLeft: '3px solid var(--accent-glow)' }}>💬 {fr.pm_response}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                         {canRespond && (
                           <button onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
-                            style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 7, border: `1px solid ${isResponding ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: isResponding ? 'var(--accent-muted)' : 'transparent', color: isResponding ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            style={{ fontSize: "var(--text-xs)", padding: '5px 12px', borderRadius: 7, border: `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, background: isResponding ? 'var(--accent-muted)' : 'transparent', color: isResponding ? 'var(--accent)' : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                             {isResponding ? '× Cancelar' : '✏️ Responder'}
                           </button>
                         )}
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>{fmtDate(fr.submitted_at)}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', textAlign: 'right' }}>{fmtDate(fr.submitted_at)}</div>
                       </div>
                     </div>
 
                     {/* Formulario de respuesta PM */}
                     {isResponding && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--surface-4)' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Respuesta del PM</div>
+                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Respuesta del PM</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
                           <div>
                             <label style={{ ...ls }}>Coste estimado (€)</label>
@@ -724,7 +725,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
                           <textarea rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} style={{ ...fs, resize: 'vertical' }} placeholder="Explica la estimación o razón del rechazo..." />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
+                          <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estado</label>
                           <select value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))} style={{ ...fs, width: 'auto' }}>
                             <option value="estimated">Estimada</option>
                             <option value="approved">Aprobar</option>
@@ -757,7 +758,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }) {
 
 // ── Templates Tab ─────────────────────────────────────────────────────────────
  
-// eslint-disable-next-line no-unused-vars
+ 
 function TemplatesTab() {
   const toast = useToast()
   const qc = useQueryClient()
@@ -767,14 +768,14 @@ function TemplatesTab() {
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['project-templates'],
-    queryFn: () => api.get('/templates').then(r => r.data),
+    queryFn: () => templatesApi.list().then(r => r.data),
   })
   const { data: usersRaw = [] } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list().then(r => r.data) })
   const users = Array.isArray(usersRaw) ? usersRaw : []
   const pms = users.filter(u => ['admin','pm'].includes(u.role))
 
   const { mutate: instantiate, isPending: creating } = useMutation({
-    mutationFn: ({ tplId, data }) => api.post(`/templates/${tplId}/instantiate`, data).then(r => r.data),
+    mutationFn: ({ tplId, data }) => templatesApi.instantiate(tplId, data).then(r => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries(['projects'])
       toast.success(`✓ Proyecto creado: ${data.project_code} — ${data.project_name}\\n${data.phases_created} fases · ${data.tasks_created} tareas`)
@@ -786,7 +787,7 @@ function TemplatesTab() {
   const [newTpl, setNewTpl] = useState({ name:'', description:'', project_type:'consulting', estimated_weeks:12, phases:[{name:'Fase 1',duration_weeks:4,tasks:[{title:'Tarea inicial',estimated_hours:8,priority:'medium'}]}] })
 
   const { mutate: createTpl, isPending: creatingTpl } = useMutation({
-    mutationFn: d => api.post('/templates', d),
+    mutationFn: d => templatesApi.create(d),
     onSuccess: () => { qc.invalidateQueries(['project-templates']); setShowCreate(false) },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -806,29 +807,29 @@ function TemplatesTab() {
           {templates.map(t => (
             <div key={t.id} style={{...card,padding:'18px 22px'}}>
               <div style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:12}}>
-                <span style={{fontSize:24}}>{TPL_ICONS[t.project_type]||'📋'}</span>
+                <span style={{fontSize: "var(--text-2xl)"}}>{TPL_ICONS[t.project_type]||'📋'}</span>
                 <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:700}}>{t.name}</div>
-                  {t.description && <div style={{fontSize:12,color:'var(--text-2)',marginTop:2}}>{t.description}</div>}
+                  <div style={{fontSize: "var(--text-md)",fontWeight:700}}>{t.name}</div>
+                  {t.description && <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:2}}>{t.description}</div>}
                 </div>
               </div>
 
-              <div style={{display:'flex',gap:16,fontSize:12,color:'var(--text-2)',marginBottom:14}}>
+              <div style={{display:'flex',gap:16,fontSize: "var(--text-sm)",color:'var(--text-2)',marginBottom:14}}>
                 <span>📅 {t.estimated_weeks||'?'} semanas</span>
                 <span>⏱ {t.estimated_hours||'?'}h estimadas</span>
                 <span>📁 {t.phases?.length||0} fases</span>
               </div>
 
               {t.phases?.slice(0,3).map((ph,i) => (
-                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid var(--surface-4)15',fontSize:12}}>
+                <div key={ph.id} style={{padding:'4px 0',borderBottom:'1px solid var(--surface-4)15',fontSize: "var(--text-sm)"}}>
                   <span style={{color:'var(--text-2)'}}>{i+1}.</span> <span style={{color:'var(--text-1)'}}>{ph.name}</span>
                   <span style={{color:'var(--text-3)',marginLeft:8}}>{ph.duration_weeks}w · {ph.tasks?.length||0} tareas</span>
                 </div>
               ))}
-              {(t.phases?.length||0) > 3 && <div style={{fontSize:11,color:'var(--text-3)',marginTop:4}}>+{t.phases.length-3} fases más</div>}
+              {(t.phases?.length||0) > 3 && <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',marginTop:4}}>+{t.phases.length-3} fases más</div>}
 
               <button onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}
-                style={{marginTop:14,width:'100%',background:'linear-gradient(135deg,#00d4ff,#7c3aed)',border:'none',borderRadius:8,padding:'9px',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize:13}}>
+                style={{marginTop:14,width:'100%',background:'linear-gradient(135deg, var(--accent), var(--purple))',border:'none',borderRadius:8,padding:'9px',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:700,fontSize: "var(--text-base)"}}>
                 ▶ Crear proyecto desde esta plantilla
               </button>
             </div>
@@ -839,7 +840,7 @@ function TemplatesTab() {
       {instantiating && (
         <Modal open title={`Crear proyecto — ${instantiating.name}`} onClose={() => setInstantiating(null)} width={520}>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div style={{background:'var(--accent-muted)',border:'1px solid #00d4ff30',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--text-2)'}}>
+            <div style={{background:'var(--accent-muted)',border:'1px solid var(--accent-border)',borderRadius:8,padding:'10px 14px',fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
               Esta plantilla creará <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.length||0} fases</strong> y aproximadamente <strong style={{color:'var(--text-1)'}}>{instantiating.phases?.reduce((s,p)=>s+(p.tasks?.length||0),0)||0} tareas</strong> automáticamente.
             </div>
             <div><label style={ls}>Nombre del proyecto *</label><input value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} style={fs} /></div>
@@ -893,7 +894,7 @@ function TemplatesTab() {
 function GanttWithDeps({ projectId, tasks }) {
   const { data: depsRaw = [] } = useQuery({
     queryKey: ['task-deps', projectId],
-    queryFn: () => projectId ? api.get(`/dependencies/${projectId}`).then(r => r.data) : Promise.resolve([]),
+    queryFn: () => projectId ? dependenciesApi.get(projectId).then(r => r.data) : Promise.resolve([]),
     enabled: !!projectId,
   })
   const deps = Array.isArray(depsRaw) ? depsRaw : []
@@ -950,7 +951,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<FolderOpen size={18} />}
         title={t('projects.title')}
@@ -960,7 +961,7 @@ export default function ProjectsPage() {
             <div style={{ display: 'flex', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
               {[['grid', '⊞'], ['list', '☰'], ['gantt', '📅'], ['templates', '📋']].map(([v, icon]) => (
                 <button key={v} onClick={() => setView(v)}
-                  style={{ padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent', border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ padding: '7px 14px', background: view === v ? 'var(--accent-muted)' : 'transparent', border: 'none', color: view === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-md)", cursor: 'pointer', fontFamily: 'inherit' }}>
                   {icon}
                 </button>
               ))}
@@ -981,29 +982,33 @@ export default function ProjectsPage() {
           { label: '>90% presupuesto', value: stats.overBudget, color: 'var(--danger)' },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 16px' }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.label}</div>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar proyecto por nombre o codigo"
-          style={{ minWidth: 0, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
-        />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Todos los estados</option>
-          {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-        </select>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-          <option value="">Todos los tipos</option>
-          {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-      </div>
+      <Toolbar
+        style={{ marginBottom: 24 }}
+        left={
+          <>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar proyecto por nombre o código"
+              style={{ flex: '2 1 240px', minWidth: 0, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
+            />
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              style={{ flex: '1 1 160px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="">Todos los estados</option>
+              {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              style={{ flex: '1 1 160px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="">Todos los tipos</option>
+              {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </>
+        }
+      />
 
       {isLoading ? (
         <SkeletonProjects />
@@ -1019,7 +1024,7 @@ export default function ProjectsPage() {
       ) : view === 'list' ? (
         <div style={{ overflowX: 'auto', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }}>
           <div style={{ minWidth: 920 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
             {visibleCols.map(c => (
               c.id === 'risk'
                 ? <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
@@ -1037,15 +1042,15 @@ export default function ProjectsPage() {
             >
               {visCols.includes('name') && (
                 <button type="button" style={{ cursor: 'pointer', background: 'transparent', border: 'none', textAlign: 'left', padding: 0, fontFamily: 'inherit' }} onClick={() => setSelected(p)}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{p.code}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.name}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{p.code}</div>
                 </button>
               )}
-              {visCols.includes('type') && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
-              {visCols.includes('pm') && <span style={{ fontSize: 12 }}>{p.pm_name || '—'}</span>}
+              {visCols.includes('type') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{TYPE_LABELS[p.project_type] || p.project_type}</span>}
+              {visCols.includes('pm') && <span style={{ fontSize: "var(--text-sm)" }}>{p.pm_name || '—'}</span>}
               {visCols.includes('status') && <StatusDropdown project={p} onUpdate={(status) => updateStatus({ id: p.id, status })} />}
-              {visCols.includes('budget') && <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", color: p.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
-              {visCols.includes('progress') && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{p.progress_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('budget') && <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: p.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' }}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('progress') && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{p.progress_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('risk') && <Badge label={p.risk_level} />}
             </div>
           ))}
@@ -1061,13 +1066,13 @@ export default function ProjectsPage() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'center' , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
             {[['portfolio','📊 Portfolio (todos)'],['project','📁 Por proyecto']].map(([m, label]) => (
               <button key={m} onClick={() => setGanttMode(m)}
-                style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${ganttMode === m ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, background: ganttMode === m ? 'var(--accent-muted)' : 'transparent', color: ganttMode === m ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {label}
               </button>
             ))}
             {ganttMode === 'project' && (
               <select value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}
-                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+                style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}>
                 <option value="">Selecciona un proyecto...</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
               </select>
@@ -1098,8 +1103,8 @@ export default function ProjectsPage() {
           )}
           {ganttMode === 'project' && !selected && (
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-3)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📅</div>
-              <div style={{ fontSize: 14 }}>Selecciona un proyecto para ver su Gantt</div>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>📅</div>
+              <div style={{ fontSize: "var(--text-md)" }}>Selecciona un proyecto para ver su Gantt</div>
             </div>
           )}
         </div>
@@ -1109,6 +1114,6 @@ export default function ProjectsPage() {
       <ProjectDetailModal project={selected} detail={projectDetail} open={!!selected} onClose={() => setSelected(null)} onEdit={setEditTarget} />
       <ProjectFormModal open={showCreate} onClose={() => setShowCreate(false)} />
       {editTarget && <ProjectFormModal key={editTarget.id} open={!!editTarget} onClose={() => setEditTarget(null)} project={editTarget} />}
-    </div>
+    </PageShell>
   )
 }

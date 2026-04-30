@@ -111,7 +111,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.ticket_type && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.ticket_type}</div>}
+          {validation.errors.ticket_type && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.ticket_type}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-service-item`} style={LS}>{t('service_desk.svc_ticket_type')}</label>
@@ -126,7 +126,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
           <label htmlFor={`${idPrefix}-title`} style={LS}>{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')}
             style={validation.inputStyle(IS, 'title')} placeholder={t('service_desk.ticket_title')} />
-          {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.title}</div>}
+          {validation.errors.title && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.title}</div>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-description`} style={LS}>{t('common.description')} *</label>
@@ -138,7 +138,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
             rows={4}
             style={{ ...validation.inputStyle(IS, 'description'), resize: 'vertical' }}
           />
-          {validation.errors.description && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.description}</div>}
+          {validation.errors.description && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.description}</div>}
         </div>
 
         <div>
@@ -148,7 +148,7 @@ export default function CreateTicketModal({ onClose, onCreated }) {
               ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.urgency && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.urgency}</div>}
+          {validation.errors.urgency && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.urgency}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} style={LS}>{t('service_desk.edit_impact')}</label>
@@ -157,14 +157,14 @@ export default function CreateTicketModal({ onClose, onCreated }) {
               ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          {validation.errors.impact && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 4 }}>{validation.errors.impact}</div>}
+          {validation.errors.impact && <div style={{ color: 'var(--danger)', fontSize: "var(--text-xs)", marginTop: 4 }}>{validation.errors.impact}</div>}
         </div>
 
         <div style={{ gridColumn: '1/-1', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-1)', borderRadius: 8, padding: '10px 14px' }}>
-          <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{t('service_desk.ticket_auto_routing')}:</span>
+          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>{t('service_desk.ticket_auto_routing')}:</span>
           <PBadge v={suggestedPrio} />
           <button onClick={() => setForm(f => ({ ...f, priority: suggestedPrio }))}
-            style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}>
             {t('common.save')}
           </button>
           <select aria-label={t('service_desk.ticket_priority')} value={form.priority} onChange={set('priority')}

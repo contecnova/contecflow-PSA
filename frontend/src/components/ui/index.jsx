@@ -4,6 +4,9 @@ import { X } from 'lucide-react'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
+export { default as Tabs, TabPanel } from './Tabs'
+export { default as Toolbar } from './Toolbar'
+export { default as FormField } from './FormField'
 
 export {
   ClientSelect, UserSelect, ProjectSelect,
@@ -110,7 +113,7 @@ export function Badge({ label, display, _color }) {
   return (
     <span
       style={{
-        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-full)',
+        fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--radius-full)',
         background: c.bg, color: c.text, border: `1px solid ${c.border}`,
         textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
         display: 'inline-block',
@@ -228,21 +231,21 @@ export function KpiCard({ icon, label, value, sub, accent, danger, warning, tren
   return (
     <Card accent={accent} style={{ flex: 1, minWidth: 140 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
-        <div style={{ fontSize: 20 }}>{icon}</div>
+        <div style={{ fontSize: "var(--text-xl)" }}>{icon}</div>
         {trend !== undefined && (
-          <span style={{ fontSize: 11, fontWeight: 600, color: trendColor }}>
+          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: trendColor }}>
             {trend > 0 ? '↑' : trend < 0 ? '↓' : '—'} {Math.abs(trend)}%
           </span>
         )}
       </div>
       <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700,
+        fontFamily: 'var(--font-mono)', fontSize: "var(--text-2xl-em)", fontWeight: 700,
         color: valueColor, letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 6,
       }}>
         {value}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-2)', fontWeight: 500 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{sub}</div>}
+      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', fontWeight: 500 }}>{label}</div>
+      {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>{sub}</div>}
     </Card>
   )
 }
@@ -278,10 +281,10 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
     },
   }
   const sizes = {
-    xs: { fontSize: 11, padding: '4px 10px',  borderRadius: 'var(--radius-sm)', gap: 4 },
-    sm: { fontSize: 12, padding: '6px 14px',  borderRadius: 'var(--radius-md)', gap: 5 },
-    md: { fontSize: 13, padding: '8px 18px',  borderRadius: 'var(--radius-md)', gap: 6 },
-    lg: { fontSize: 14, padding: '11px 24px', borderRadius: 'var(--radius-lg)', gap: 7 },
+    xs: { fontSize: "var(--text-xs)", padding: '4px 10px',  borderRadius: 'var(--radius-sm)', gap: 4 },
+    sm: { fontSize: "var(--text-sm)", padding: '6px 14px',  borderRadius: 'var(--radius-md)', gap: 5 },
+    md: { fontSize: "var(--text-base)", padding: '8px 18px',  borderRadius: 'var(--radius-md)', gap: 6 },
+    lg: { fontSize: "var(--text-md)", padding: '11px 24px', borderRadius: 'var(--radius-lg)', gap: 7 },
   }
   const v = variants[variant] || variants.primary
   const s = sizes[size] || sizes.md
@@ -325,7 +328,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {label}{required && <span style={{ color: 'var(--danger)' }}> *</span>}
         </label>
       )}
@@ -334,7 +337,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
         style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 'var(--radius-md)', padding: '9px 13px',
-          color: 'var(--text-1)', fontSize: 13, outline: 'none',
+          color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none',
           fontFamily: 'var(--font-sans)', width: '100%',
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
@@ -347,7 +350,7 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
           e.target.style.boxShadow = 'none'
         }}
       />
-      {hint && <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{hint}</div>}
+      {hint && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{hint}</div>}
     </div>
   )
 }
@@ -357,7 +360,7 @@ export function Select({ label, value, onChange, options = [], style = {} }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
       {label && (
-        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+        <label style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
           {label}
         </label>
       )}
@@ -366,7 +369,7 @@ export function Select({ label, value, onChange, options = [], style = {} }) {
         style={{
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 'var(--radius-md)', padding: '9px 13px',
-          color: value ? 'var(--text-1)' : 'var(--text-3)', fontSize: 13,
+          color: value ? 'var(--text-1)' : 'var(--text-3)', fontSize: "var(--text-base)",
           outline: 'none', fontFamily: 'var(--font-sans)', cursor: 'pointer', width: '100%',
         }}
       >
@@ -439,7 +442,7 @@ export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel
     ? svgIcon
     : (EMPTY_ICONS[icon] || (
         icon
-          ? <span style={{ fontSize: 26 }}>{icon}</span>
+          ? <span style={{ fontSize: "var(--text-2xl-em)" }}>{icon}</span>
           : <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
             </svg>
@@ -454,7 +457,7 @@ export function EmptyState({ icon, svgIcon, title, description, action, ctaLabel
         <div style={{ marginTop: 8 }}>
           {action || (
             <button className="btn-primary" onClick={onCta}
-              style={{ fontSize: 13, padding: '8px 20px' }}>
+              style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>
               {ctaLabel}
             </button>
           )}
@@ -514,7 +517,7 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
         background: 'rgba(8,12,20,0.85)',
         backdropFilter: 'blur(4px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: 24,
+        zIndex: 'var(--z-modal)', padding: 24,
       }}
     >
       <div
@@ -534,8 +537,8 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>{title}</h2>
-            {subtitle && <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 3 }}>{subtitle}</p>}
+            <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{title}</h2>
+            {subtitle && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 3 }}>{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
@@ -577,7 +580,7 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
   const btnBase = {
     background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
     borderRadius: 'var(--radius-sm)', color: 'var(--text-1)',
-    padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontFamily: 'var(--font-sans)',
+    padding: '4px 10px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'var(--font-sans)',
   }
 
   return (
@@ -588,19 +591,19 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
             placeholder="Filtrar..." style={{
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
               borderRadius: 'var(--radius-md)', padding: '7px 12px',
-              color: 'var(--text-1)', fontSize: 12, outline: 'none',
+              color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none',
               fontFamily: 'var(--font-sans)', width: 220,
             }} />
         </div>
       )}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
               {columns.map(col => (
                 <th key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}
                   style={{
-                    textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 600,
+                    textAlign: 'left', padding: '10px 14px', fontSize: "var(--text-xs)", fontWeight: 600,
                     color: sort.col === col.key ? 'var(--accent)' : 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
                     cursor: col.sortable !== false ? 'pointer' : 'default',
@@ -638,9 +641,9 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
       </div>
       {pages > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginTop: 14 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{sorted.length} registros</span>
+          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{sorted.length} registros</span>
           <button onClick={() => setPage(p => Math.max(0, p-1))} disabled={page === 0} style={{ ...btnBase, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}>‹</button>
-          <span style={{ fontSize: 12, color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }}>{page+1} / {pages}</span>
+          <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', minWidth: 60, textAlign: 'center' }}>{page+1} / {pages}</span>
           <button onClick={() => setPage(p => Math.min(pages-1, p+1))} disabled={page === pages-1} style={{ ...btnBase, opacity: page === pages-1 ? 0.4 : 1, cursor: page === pages-1 ? 'not-allowed' : 'pointer' }}>›</button>
         </div>
       )}
@@ -652,12 +655,12 @@ export function DataTable({ columns, data = [], loading, emptyIcon = '○', empt
 export function Table({ columns, data, onRowClick }) {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
             {columns.map(col => (
               <th key={col.key} style={{
-                padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
+                padding: '10px 14px', textAlign: 'left', fontSize: "var(--text-xs)", fontWeight: 600,
                 color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
               }}>{col.label}</th>
             ))}

@@ -33,8 +33,14 @@ class AggregationSpec(BaseModel):
 
 class FilterSpec(BaseModel):
     field: str
-    operator: str
+    operator: str = "eq"
+    op: Optional[str] = None
     value: object = None
+
+
+class OrderBySpec(BaseModel):
+    field: str
+    direction: str = Field("desc", pattern="^(asc|desc)$")
 
 
 class SaveQueryIn(BaseModel):
@@ -44,6 +50,19 @@ class SaveQueryIn(BaseModel):
     filters: list[FilterSpec] = Field(default_factory=list)
     group_by: list[str] = Field(default_factory=list)
     aggregations: list[AggregationSpec] = Field(default_factory=list)
+    order_by: list[OrderBySpec] = Field(default_factory=list)
+    sort_by: Optional[str] = None
+    sort_dir: str = Field("desc", pattern="^(asc|desc)$")
+    limit: int = Field(100, ge=1, le=5000)
+
+
+class PreviewQueryIn(BaseModel):
+    dataset: str
+    fields: list[str] = Field(default_factory=list)
+    filters: list[FilterSpec] = Field(default_factory=list)
+    group_by: list[str] = Field(default_factory=list)
+    aggregations: list[AggregationSpec] = Field(default_factory=list)
+    order_by: list[OrderBySpec] = Field(default_factory=list)
     sort_by: Optional[str] = None
     sort_dir: str = Field("desc", pattern="^(asc|desc)$")
     limit: int = Field(100, ge=1, le=5000)
@@ -86,13 +105,52 @@ def save_query(
             name=body.name,
             dataset=body.dataset,
             fields=body.fields,
-            filters=[f.model_dump() for f in body.filters],
+            filters=[
+                {
+                    "field": f.field,
+                    "operator": f.operator or f.op or "eq",
+                    "value": f.value,
+                }
+                for f in body.filters
+            ],
             group_by=body.group_by,
             aggregations=[a.model_dump() for a in body.aggregations],
-            sort_by=body.sort_by,
-            sort_dir=body.sort_dir,
+            sort_by=body.sort_by or (body.order_by[0].field if body.order_by else None),
+            sort_dir=body.sort_dir if body.sort_by else (body.order_by[0].direction if body.order_by else body.sort_dir),
             limit=body.limit,
             created_by=current_user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+
+@router.post("/bi/query-builder/preview", summary="Preview ad-hoc de query visual sin guardar")
+@limiter.limit("30/minute")
+def preview_query(
+    request: Request,
+    body: PreviewQueryIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return svc.preview_query(
+            db,
+            current_user=current_user,
+            dataset=body.dataset,
+            fields=body.fields,
+            filters=[
+                {
+                    "field": f.field,
+                    "operator": f.operator or f.op or "eq",
+                    "value": f.value,
+                }
+                for f in body.filters
+            ],
+            group_by=body.group_by,
+            aggregations=[a.model_dump() for a in body.aggregations],
+            sort_by=body.sort_by or (body.order_by[0].field if body.order_by else None),
+            sort_dir=body.sort_dir if body.sort_by else (body.order_by[0].direction if body.order_by else body.sort_dir),
+            limit=body.limit,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -123,6 +181,6 @@ def execute_query(
 ):
     org_id = getattr(current_user, "organization_id", None)
     try:
-        return svc.execute_query(db, org_id=org_id, query_id=query_id)
+        return svc.execute_query(db, org_id=org_id, query_id=query_id, current_user=current_user)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

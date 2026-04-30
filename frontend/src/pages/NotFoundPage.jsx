@@ -22,8 +22,8 @@ export default function NotFoundPage() {
         padding: 28,
         boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
       }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>404</div>
-        <h1 style={{ margin: '0 0 10px', fontSize: 22, color: 'var(--warning)' }}>
+        <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>404</div>
+        <h1 style={{ margin: '0 0 10px', fontSize: "var(--text-xl-em)", color: 'var(--warning)' }}>
           Página no encontrada
         </h1>
         <p style={{ margin: '0 0 8px', color: 'var(--text-2)', lineHeight: 1.6 }}>

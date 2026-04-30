@@ -7,12 +7,13 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const STATUS_COLORS = {
   todo:        'var(--text-2)',
@@ -59,7 +60,7 @@ export default function CumulativeFlowPage() {
   const doneLast   = lastDay?.done || 0
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<TrendingUp size={18} />} title={t('cumulative_flow.title')} subtitle={t('cumulative_flow.subtitle')}/>
 
       {/* Controles */}
@@ -86,7 +87,7 @@ export default function CumulativeFlowPage() {
             {snapping ? t('cumulative_flow.saving') : `📸 ${t('cumulative_flow.snapshot_today')}`}
           </Button>
         </div>
-        <div style={{marginTop:10,fontSize:12,color:'var(--text-3)',lineHeight:1.6}}>
+        <div style={{marginTop:10,fontSize: "var(--text-sm)",color:'var(--text-3)',lineHeight:1.6}}>
           {t('cumulative_flow.snapshot_help')} (<code style={{color:'var(--text-2)'}}>POST /epics/cfd/snapshot?project_id=...</code>)
         </div>
       </div>
@@ -96,9 +97,9 @@ export default function CumulativeFlowPage() {
 
       {project&&!isLoading&&data.length===0&&(
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:48,marginBottom:16}}>📸</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('cumulative_flow.no_history')}</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>{t('cumulative_flow.no_history_desc')}</div>
+          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>📸</div>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('cumulative_flow.no_history')}</div>
+          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>{t('cumulative_flow.no_history_desc')}</div>
           <Button onClick={()=>snapshot()} disabled={snapping}>{snapping ? t('cumulative_flow.creating') : t('cumulative_flow.create_first_snapshot')}</Button>
         </div>
       )}
@@ -108,28 +109,28 @@ export default function CumulativeFlowPage() {
           {/* KPIs */}
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
             <div style={ps}>
-              <div style={{fontSize:22,fontWeight:700,color:'var(--success)'}}>{doneLast}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_today')}</div>
+              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:'var(--success)'}}>{doneLast}</div>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_today')}</div>
             </div>
             <div style={ps}>
-              <div style={{fontSize:22,fontWeight:700}}>{totalLast}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_total_tasks')}</div>
+              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700}}>{totalLast}</div>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_total_tasks')}</div>
             </div>
             <div style={ps}>
-              <div style={{fontSize:22,fontWeight:700,color:'var(--accent)'}}>{data.length}</div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_days_with_data')}</div>
+              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:'var(--accent)'}}>{data.length}</div>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_days_with_data')}</div>
             </div>
             <div style={ps}>
-              <div style={{fontSize:22,fontWeight:700,color:totalLast>0?'var(--success)':'var(--text-2)'}}>
+              <div style={{fontSize: "var(--text-xl-em)",fontWeight:700,color:totalLast>0?'var(--success)':'var(--text-2)'}}>
                 {totalLast>0?Math.round(doneLast/totalLast*100):0}%
               </div>
-              <div style={{fontSize:11,color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_pct')}</div>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-2)',textTransform:'uppercase',letterSpacing:'.07em'}}>{t('cumulative_flow.kpi_completed_pct')}</div>
             </div>
           </div>
 
           {/* Gráfico CFD */}
           <div style={ps}>
-            <div style={{fontSize:14,fontWeight:600,marginBottom:20}}>
+            <div style={{fontSize: "var(--text-md)",fontWeight:600,marginBottom:20}}>
               {t('cumulative_flow.chart_title_days')} {days} {t('common.days')}
             </div>
             <ResponsiveContainer width="100%" height={350}>
@@ -143,11 +144,11 @@ export default function CumulativeFlowPage() {
                   ))}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)"/>
-                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize:11}}
+                <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize: "var(--text-xs)"}}
                   tickFormatter={d=>d.slice(5)} interval="preserveStartEnd"/>
-                <YAxis tick={{fill:'var(--text-2)',fontSize:11}}/>
-                <Tooltip contentStyle={{background:'var(--surface-2)',border:'1px solid var(--surface-4)',borderRadius:8,color:'var(--text-1)',fontSize:12}}/>
-                <Legend wrapperStyle={{fontSize:12,color:'var(--text-2)'}}/>
+                <YAxis tick={{fill:'var(--text-2)',fontSize: "var(--text-xs)"}}/>
+                <Tooltip contentStyle={{background: 'var(--surface-3)',border:'1px solid var(--surface-4)',borderRadius:8,color:'var(--text-1)',fontSize: "var(--text-base)"}}/>
+                <Legend wrapperStyle={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}/>
                 {statuses.map((st,i)=>(
                   <Area key={st} type="monotone" dataKey={st}
                     name={st.replace(/_/g,' ')}
@@ -162,9 +163,9 @@ export default function CumulativeFlowPage() {
 
           {/* Tabla de datos */}
           <div style={{...ps,marginTop:16}}>
-            <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
+            <div style={{fontSize: "var(--text-base)",fontWeight:600,marginBottom:12}}>{t('cumulative_flow.table_title')}</div>
             <div style={{overflowX:'auto'}}>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize: "var(--text-sm)"}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid var(--surface-4)'}}>
                     <th style={{textAlign:'left',padding:'8px 12px',color:'var(--text-2)',fontWeight:600}}>{t('cumulative_flow.col_date')}</th>
@@ -178,7 +179,7 @@ export default function CumulativeFlowPage() {
                   {[...data].reverse().slice(0,14).map((row,i)=>{
                     const total = statuses.reduce((s,st)=>s+(row[st]||0),0)
                     return (
-                      <tr key={row.date} style={{borderBottom:'1px solid #1a2640',background:i%2===0?'transparent':'rgba(255,255,255,0.03)'}}>
+                      <tr key={row.date} style={{borderBottom:'1px solid var(--surface-4)',background:i%2===0?'transparent':'rgba(255,255,255,0.03)'}}>
                         <td style={{padding:'7px 12px',color:'var(--text-1)'}}>{row.date}</td>
                         {statuses.map(st=>(
                           <td key={st} style={{padding:'7px 12px',textAlign:'center',color:getColor(st,statuses.indexOf(st))}}>{row[st]||0}</td>
@@ -193,6 +194,6 @@ export default function CumulativeFlowPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

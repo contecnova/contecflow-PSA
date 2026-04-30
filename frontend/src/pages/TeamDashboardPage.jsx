@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import { usersApi, analyticsApi, okrsApi, performanceApi, trainingApi, absencesApi } from '../services/api'
 import { Spinner } from '../components/ui'
 import { Users } from 'lucide-react'
 import {
-  COLOR, S, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -14,7 +14,7 @@ export default function TeamDashboardPage() {
 
   const { data: resources = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
-    queryFn: () => api.get('/users', { params: { page_size: 200 } }).then(r => {
+    queryFn: () => usersApi.list({ page_size: 200 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
@@ -22,13 +22,13 @@ export default function TeamDashboardPage() {
 
   const { data: utilData } = useQuery({
     queryKey: ['team-dash-util', days],
-    queryFn: () => api.get('/analytics/utilization/advanced', { params }).then(r => r.data).catch(() => null),
+    queryFn: () => analyticsApi.utilization(params).then(r => r.data).catch(() => null),
     staleTime: 60_000,
   })
 
   const { data: okrs = [] } = useQuery({
     queryKey: ['team-dash-okrs'],
-    queryFn: () => api.get('/okrs', { params: { page_size: 100 } }).then(r => {
+    queryFn: () => okrsApi.list({ page_size: 100 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
@@ -36,7 +36,7 @@ export default function TeamDashboardPage() {
 
   const { data: perfReviews = [] } = useQuery({
     queryKey: ['team-dash-perf'],
-    queryFn: () => api.get('/performance/my-reviews').then(r => {
+    queryFn: () => performanceApi.myReviews().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
@@ -44,7 +44,7 @@ export default function TeamDashboardPage() {
 
   const { data: trainings = [] } = useQuery({
     queryKey: ['team-dash-training'],
-    queryFn: () => api.get('/training/enrollments').then(r => {
+    queryFn: () => trainingApi.enrollments().then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,
@@ -52,7 +52,7 @@ export default function TeamDashboardPage() {
 
   const { data: absences = [] } = useQuery({
     queryKey: ['team-dash-absences'],
-    queryFn: () => api.get('/absences', { params: { page_size: 100 } }).then(r => {
+    queryFn: () => absencesApi.list({ page_size: 100 }).then(r => {
       const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
     }).catch(() => []),
     staleTime: 60_000,

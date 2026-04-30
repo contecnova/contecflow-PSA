@@ -43,7 +43,7 @@ const it = {
     organizations: 'Organizzazioni', enterprise: 'Enterprise',
     cmdb: 'CMDB', automations: 'Automazioni', search: 'Cerca',
     okrs: 'OKRs', performance_reviews: 'Valutazioni', training: 'Formazione & Certificati',
-    bi: 'BI & Executive', webhook_log: 'Log Webhook', jira_integration: 'Integrazione Jira', notifications: 'Notifiche',
+    bi: 'BI & Executive', webhook_log: 'Log Webhook', jira_integration: 'Integrazione Jira', notifications: 'Notifiche', inbox: 'Posta in arrivo',
     executive: 'Dashboard Executive',
     bi_workspace: 'Area di Lavoro BI',
     log_hours: 'Imputa ore', timer: 'Timer', calendar: 'Calendario',

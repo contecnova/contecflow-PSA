@@ -30,13 +30,13 @@ const UTIL_COLORS = [
   [10,  50,  '#1a3a5c'],
   [50,  80,  '#1e4a7a'],
   [80,  100, '#2d6099'],
-  [100, 120, '#c2410c'],  // overloaded
+  [100, 120, 'var(--orange)'],  // overloaded
   [120, 999, '#991b1b'],
 ]
 
 const PROJECT_PALETTE = [
   '#4f8ef7','#34d399','#f59e0b','#f87171','#a78bfa',
-  '#38bdf8','#fb923c','#6ee7b7','#c084fc','#f472b6',
+  'var(--sky-blue)','var(--orange)','var(--success)','#c084fc','var(--coral)',
 ]
 
 function utilColor(pct) {
@@ -104,7 +104,7 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
         transition: 'box-shadow 0.1s',
       }}
     >
-      <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
       </span>
     </div>
@@ -125,20 +125,20 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       left: Math.min(position.x + 8, window.innerWidth - 260),
       top:  Math.min(position.y + 8, window.innerHeight - 280),
       width: 240,
-      background: '#0d1424', border: '1px solid var(--surface-4)',
+      background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
       borderRadius: 12, padding: 16,
       boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
       fontFamily: 'var(--font-sans)',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
+      <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
         {isNew ? t('resource_scheduler.new_booking') : t('resource_scheduler.edit_booking')}
       </div>
 
-      <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.project')}</label>
+      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.project')}</label>
       <select value={projectId} onChange={e => setProjectId(e.target.value)} style={{
         width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
         borderRadius: 6, padding: '5px 8px', color: 'var(--text-1)',
-        fontSize: 12, outline: 'none', fontFamily: 'inherit', marginBottom: 10,
+        fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10,
       }}>
         <option value="">{t('resource_scheduler.no_project')}</option>
         {projects.map(p => (
@@ -146,21 +146,21 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
         ))}
       </select>
 
-      <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.hours_per_day')}</label>
+      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.hours_per_day')}</label>
       <input type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} style={{
         width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
         borderRadius: 6, padding: '5px 8px', color: 'var(--text-1)',
-        fontSize: 12, outline: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box',
+        fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', marginBottom: 10, boxSizing: 'border-box',
       }} />
 
-      <label style={{ fontSize: 11, color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.type')}</label>
+      <label style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', display: 'block', marginBottom: 4 }}>{t('resource_scheduler.type')}</label>
       <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
         {['soft', 'hard'].map(typeOption => (
           <button key={typeOption} onClick={() => setType(typeOption)} style={{
             flex: 1, padding: '4px 0', border: `1px solid ${bookingType === typeOption ? 'var(--accent)' : 'var(--surface-4)'}`,
             background: bookingType === typeOption ? 'var(--accent-muted)' : 'transparent',
             color: bookingType === typeOption ? 'var(--accent)' : 'var(--text-3)',
-            borderRadius: 6, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', fontWeight: bookingType === typeOption ? 700 : 400,
+            borderRadius: 6, cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit', fontWeight: bookingType === typeOption ? 700 : 400,
           }}>
             {typeOption === 'soft' ? t('resource_scheduler.tentative') : t('resource_scheduler.confirmed')}
           </button>
@@ -170,19 +170,19 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={() => onSave({ project_id: projectId || null, hours_per_day: hoursPerDay, booking_type: bookingType })} style={{
           flex: 1, padding: '7px 0', background: 'var(--accent)', border: 'none',
-          borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+          borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
         }}>
           {isNew ? t('resource_scheduler.create') : t('resource_scheduler.save')}
         </button>
         {!isNew && (
           <button onClick={onDelete} style={{
             padding: '7px 10px', background: 'var(--danger)', border: 'none',
-            borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+            borderRadius: 7, color: '#fff', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
           }}>🗑</button>
         )}
         <button onClick={onClose} style={{
           padding: '7px 10px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-          borderRadius: 7, color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+          borderRadius: 7, color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
         }}>✕</button>
       </div>
     </div>
@@ -339,7 +339,7 @@ export default function ResourceSchedulerPage() {
 
       if (!ghost && Math.abs(dx) > 8) {
         ghost = document.createElement('div')
-        ghost.style.cssText = `position:fixed;z-index:9999;pointer-events:none;background:var(--surface-2);border:1.5px solid var(--accent);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--accent);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;`
+        ghost.style.cssText = `position:fixed;z-index:var(--z-drag);pointer-events:none;background:var(--surface-2);border:1.5px solid var(--accent);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--accent);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;`
         document.body.appendChild(ghost)
       }
       if (ghost) {
@@ -389,8 +389,8 @@ export default function ResourceSchedulerPage() {
         const ghost = document.createElement('div')
         ghost.textContent = user.user_name.split(' ')[0]
         Object.assign(ghost.style, {
-          position: 'fixed', zIndex: 9999, pointerEvents: 'none',
-          background: '#1e3660', border: '1px solid var(--accent)',
+          position: 'fixed', zIndex: 'var(--z-drag)', pointerEvents: 'none',
+          background: 'var(--accent-glow)', border: '1px solid var(--accent)',
           borderRadius: '16px', padding: '4px 12px',
           color: 'var(--accent)', fontSize: '11px', fontWeight: 700,
           fontFamily: 'var(--font-sans)', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
@@ -451,7 +451,7 @@ export default function ResourceSchedulerPage() {
                   border: `1px solid ${viewMode === mode ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
                   background: viewMode === mode ? 'var(--accent-muted)' : 'transparent',
                   color: viewMode === mode ? 'var(--accent)' : 'var(--text-3)',
-                  fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
                 }}>
                   {mode === 'scheduler' ? t('resource_scheduler.scheduler_mode') : t('resource_scheduler.assign_mode')}
                 </button>
@@ -459,7 +459,7 @@ export default function ResourceSchedulerPage() {
               {departments.length > 0 && (
                 <select value={department} onChange={e => setDepartment(e.target.value)} style={{
                   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-                  borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)', fontSize: 12,
+                  borderRadius: 8, padding: '5px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)",
                   outline: 'none', fontFamily: 'var(--font-sans)',
                 }}>
                   <option value="">{t('resource_scheduler.all_departments')}</option>
@@ -472,7 +472,7 @@ export default function ResourceSchedulerPage() {
                   border: `1px solid ${weeks === w ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
                   background: weeks === w ? 'var(--accent-muted)' : 'transparent',
                   color: weeks === w ? 'var(--accent)' : 'var(--text-3)',
-                  fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'var(--font-sans)',
                 }}>
                   {w}s
                 </button>
@@ -484,12 +484,12 @@ export default function ResourceSchedulerPage() {
 
       {/* Legend */}
       <div style={{ padding: '0 24px 8px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'#4f8ef7'],[t('resource_scheduler.legend_overloaded'),'#c2410c']].map(([l,c]) => (
-          <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-3)' }}>
+        {[[t('resource_scheduler.legend_available'),'var(--surface-4)'],[t('resource_scheduler.legend_lt_50'),'#1e4a7a'],[t('resource_scheduler.legend_50_80'),'#2d6099'],[t('resource_scheduler.legend_80_100'),'#4f8ef7'],[t('resource_scheduler.legend_overloaded'),'var(--orange)']].map(([l,c]) => (
+          <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: c }} />{l}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-4)' }}>{t('resource_scheduler.legend_shortcuts')}</span>
+        <span style={{ marginLeft: 'auto', fontSize: "var(--text-2xs)", color: 'var(--text-4)' }}>{t('resource_scheduler.legend_shortcuts')}</span>
       </div>
 
       {isLoading ? (
@@ -505,7 +505,7 @@ export default function ResourceSchedulerPage() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '0 24px 24px', gap: 16 }}>
           {/* People panel */}
           <div style={{ width: 160, flexShrink: 0, overflowY: 'auto', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
+            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>
               {t('resource_scheduler.people')}
             </div>
             {users.map(u => (
@@ -525,15 +525,15 @@ export default function ResourceSchedulerPage() {
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-glow)',
                   border: '1px solid var(--accent)', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 9, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+                  justifyContent: 'center', fontSize: "var(--text-3xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
                 }}>
                   {u.user_name.slice(0, 1).toUpperCase()}
                 </div>
                 <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {u.user_name.split(' ')[0]}
                   </div>
-                  <div style={{ fontSize: 9, color: u.avg_load_pct >= 100 ? '#f87171' : 'var(--text-4)' }}>
+                  <div style={{ fontSize: "var(--text-3xs)", color: u.avg_load_pct >= 100 ? '#f87171' : 'var(--text-4)' }}>
                     {u.avg_load_pct}%
                   </div>
                 </div>
@@ -545,11 +545,11 @@ export default function ResourceSchedulerPage() {
           <div ref={gridRef} style={{ flex: 1, overflowX: 'auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
               {/* Corner */}
-              <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.project')}</span>
+              <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.project')}</span>
               </div>
               {/* Week headers */}
-              <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
+              <div style={{ height: HDR_H, background: 'var(--surface-0)', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
                 {weekDates.map((w, i) => {
                   const isToday = fmtISO(w) === fmtISO(today)
                   return (
@@ -559,11 +559,11 @@ export default function ResourceSchedulerPage() {
                       background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
                     }}>
                       {i === 0 || w.getDate() <= 7 ? (
-                        <div style={{ fontSize: 9, color: 'var(--text-4)', marginBottom: 2 }}>
+                        <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
                           {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
                         </div>
                       ) : null}
-                      <div style={{ fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
+                      <div style={{ fontSize: "var(--text-2xs)", fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
                         {weekLabel(w)}
                       </div>
                     </div>
@@ -583,8 +583,8 @@ export default function ResourceSchedulerPage() {
                     }}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
                       <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{proj.name}</div>
-                        <div style={{ fontSize: 9, color: 'var(--text-4)' }}>{proj.code}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{proj.name}</div>
+                        <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)' }}>{proj.code}</div>
                       </div>
                     </div>
                     <div
@@ -630,12 +630,12 @@ export default function ResourceSchedulerPage() {
           <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)', minWidth: LABEL_W + weekDates.length * CELL_W }}>
 
             {/* Label column header */}
-            <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.people')}</span>
+            <div style={{ height: HDR_H, borderRight: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 8px' }}>
+              <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('resource_scheduler.people')}</span>
             </div>
 
             {/* Week headers */}
-            <div style={{ height: HDR_H, background: '#0a1120', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ height: HDR_H, background: 'var(--surface-0)', borderBottom: '1px solid var(--surface-4)', display: 'flex', alignItems: 'flex-end' }}>
               {weekDates.map((w, i) => {
                 const isToday = fmtISO(w) === fmtISO(today)
                 return (
@@ -645,11 +645,11 @@ export default function ResourceSchedulerPage() {
                     background: isToday ? 'rgba(79,142,247,0.08)' : 'transparent',
                   }}>
                     {i === 0 || w.getDate() <= 7 ? (
-                      <div style={{ fontSize: 9, color: 'var(--text-4)', marginBottom: 2 }}>
+                      <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)', marginBottom: 2 }}>
                         {w.toLocaleString(undefined, { month: 'short' }).toUpperCase()}
                       </div>
                     ) : null}
-                    <div style={{ fontSize: 10, fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
+                    <div style={{ fontSize: "var(--text-2xs)", fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-3)' }}>
                       {weekLabel(w)}
                     </div>
                   </div>
@@ -671,13 +671,13 @@ export default function ResourceSchedulerPage() {
                     <div style={{
                       width: 24, height: 24, borderRadius: '50%', background: 'var(--accent-glow)',
                       border: '1px solid var(--accent)', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
+                      justifyContent: 'center', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
                     }}>
                       {user.user_name.slice(0, 1).toUpperCase()}
                     </div>
                     <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontSize: 12, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.user_name}</div>
-                      <div style={{ fontSize: 9, color: 'var(--text-4)' }}>{user.capacity_hours}h/sem · {user.avg_load_pct}% avg</div>
+                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.user_name}</div>
+                      <div style={{ fontSize: "var(--text-3xs)", color: 'var(--text-4)' }}>{user.capacity_hours}h/sem · {user.avg_load_pct}% avg</div>
                     </div>
                   </div>
 

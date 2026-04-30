@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Bot } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -42,13 +43,13 @@ function StepBadge({ step }) {
   const c = colors[step.tool] || 'var(--text-2)'
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, marginBottom: 6 }}>
-      <div style={{ width: 24, height: 24, borderRadius: 6, background: c + '20', border: `1px solid ${c}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: c, flexShrink: 0 }}>
+      <div style={{ width: 24, height: 24, borderRadius: 6, background: c + '20', border: `1px solid ${c}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: c, flexShrink: 0 }}>
         {step.step}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: c, marginBottom: 2 }}>{step.tool}</div>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: c, marginBottom: 2 }}>{step.tool}</div>
         {step.output && (
-          <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {typeof step.output === 'string' ? step.output.slice(0, 120) : JSON.stringify(step.output).slice(0, 120)}
           </div>
         )}
@@ -164,7 +165,7 @@ export default function ContecflowAgentPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Bot size={18} />}
         title={t('ai.agent_title')}
@@ -173,7 +174,7 @@ export default function ContecflowAgentPage() {
 
       {/* Provider indicator */}
       {defaultProvider && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: 12, color: 'var(--text-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
           Usando <strong style={{ color: 'var(--text-1)' }}>{defaultProvider.name}</strong> — {defaultProvider.default_model}
           <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· Configura proveedores en IA & Conectores</span>
@@ -184,7 +185,7 @@ export default function ContecflowAgentPage() {
         <div>
           {/* Input */}
           <div style={{ ...card, padding: 24, marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Instrucción</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Instrucción</div>
             <textarea
               ref={textareaRef}
               value={instruction}
@@ -192,12 +193,12 @@ export default function ContecflowAgentPage() {
               onKeyDown={handleKey}
               placeholder="Ej: Resume el estado de todos los proyectos activos..."
               rows={4}
-              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
+              style={{ width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 14px', fontSize: "var(--text-md)", fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text-1)', boxSizing: 'border-box', lineHeight: 1.6 }}
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 11, color: 'var(--text-3)' }}>⌘+Enter para ejecutar</span>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}>
+                <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>⌘+Enter para ejecutar</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   <button type="button" onClick={() => setStreaming(s => !s)}
                     style={{ width: 28, height: 16, borderRadius: 8, background: streaming ? 'var(--accent)' : 'var(--surface-4)', position: 'relative', transition: 'background 0.2s', cursor: 'pointer', border: 'none', padding: 0 }}>
                     <div style={{ position: 'absolute', top: 2, left: streaming ? 14 : 2, width: 12, height: 12, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
@@ -216,13 +217,13 @@ export default function ContecflowAgentPage() {
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animation: 'pulse 1s infinite' }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>Agente ejecutando en tiempo real…</span>
+                <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)' }}>Agente ejecutando en tiempo real…</span>
               </div>
               {liveSteps.length === 0 && !liveText && (
-                <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Analizando instrucción…</div>
+                <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>Analizando instrucción…</div>
               )}
               {liveText && (
-                <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
+                <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-1)' }}>
                   {liveText}
                 </div>
               )}
@@ -234,24 +235,24 @@ export default function ContecflowAgentPage() {
           {isPending && !isStreaming && (
             <div style={{ ...card, padding: 24, marginBottom: 20, textAlign: 'center' }}>
               <Spinner />
-              <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-2)' }}>El agente está procesando tu instrucción...</div>
+              <div style={{ marginTop: 12, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>El agente está procesando tu instrucción...</div>
             </div>
           )}
 
           {result && !isPending && (
             <div style={{ ...card, padding: 24, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>Resultado</div>
-                <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status]?.bg, color: STATUS_CFG[result.status]?.color, fontWeight: 600 }}>
+                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>Resultado</div>
+                <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 20, background: STATUS_CFG[result.status]?.bg, color: STATUS_CFG[result.status]?.color, fontWeight: 600 }}>
                   {STATUS_CFG[result.status]?.label || result.status}
                 </span>
               </div>
-              <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
+              <div style={{ background: 'var(--surface-1)', borderRadius: 10, padding: '14px 16px', fontSize: "var(--text-base)", lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: result.steps?.length ? 16 : 0, color: 'var(--text-1)' }}>
                 {result.result}
               </div>
               {result.steps?.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
                     Pasos ejecutados ({result.steps.length})
                   </div>
                   {result.steps.map((s, i) => <StepBadge key={i} step={s} />)}
@@ -262,7 +263,7 @@ export default function ContecflowAgentPage() {
 
           {/* History */}
           <div style={card}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 14, fontWeight: 700 }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-md)", fontWeight: 700 }}>
               Historial de ejecuciones
             </div>
             {history.length === 0 ? (
@@ -278,16 +279,16 @@ export default function ContecflowAgentPage() {
                   onMouseLeave={ev => ev.currentTarget.style.background = 'transparent'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {e.instruction}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {e.result?.slice(0, 100)}
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.color, fontWeight: 600 }}>{sc.label}</span>
-                      <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
+                      <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: sc.bg, color: sc.color, fontWeight: 600 }}>{sc.label}</span>
+                      <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{e.created_at?.slice(0, 16)?.replace('T', ' ')}</span>
                     </div>
                   </div>
                 </button>
@@ -300,14 +301,14 @@ export default function ContecflowAgentPage() {
         <div>
           {/* Examples */}
           <div style={{ ...card, padding: '16px 18px', marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
               Ejemplos
             </div>
             {EXAMPLES.map((ex, i) => (
               <button key={i} onClick={() => { setInstruction(ex.text); textareaRef.current?.focus() }}
                 style={{ width: '100%', display: 'flex', gap: 8, padding: '8px 0', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', borderBottom: i < EXAMPLES.length - 1 ? '1px solid var(--surface-4)30' : 'none', textAlign: 'left' }}>
                 <span style={{ flexShrink: 0 }}>{ex.icon}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>{ex.text}</span>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.4 }}>{ex.text}</span>
               </button>
             ))}
           </div>
@@ -315,27 +316,27 @@ export default function ContecflowAgentPage() {
           {/* Tools */}
           <div style={{ ...card, padding: '16px 18px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Herramientas</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Herramientas</div>
               <button onClick={() => setShowTools(!showTools)}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {showTools ? 'Ocultar' : 'Ver todas'}
               </button>
             </div>
             {(showTools ? TOOLS : TOOLS.slice(0, 5)).map(t => (
               <div key={t.name} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--surface-4)20', alignItems: 'center' }}>
-                <span style={{ fontSize: 14 }}>{t.icon}</span>
+                <span style={{ fontSize: "var(--text-md)" }}>{t.icon}</span>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', fontFamily: 'monospace' }}>{t.name}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{t.desc}</div>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', fontFamily: 'var(--font-mono)' }}>{t.name}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t.desc}</div>
                 </div>
               </div>
             ))}
             {!showTools && TOOLS.length > 5 && (
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>+{TOOLS.length - 5} más...</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>+{TOOLS.length - 5} más...</div>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

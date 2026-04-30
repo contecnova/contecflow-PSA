@@ -4,8 +4,9 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi } from '../services/api'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Layers } from 'lucide-react'
 import { fmtCurrency, fmtDate, extractErr} from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
@@ -85,13 +86,13 @@ const ASSET_STATUS_CFG = {
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const card  = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs    = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls    = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }
+const fs    = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
+const ls    = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }
 
 const StatusBadge = ({ status, cfg }) => {
   const c = cfg[status] || { label: status, color: 'var(--text-2)' }
   return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20,
+    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20,
       background: c.color + '20', color: c.color, border: `1px solid ${c.color}40` }}>
       {c.label}
     </span>
@@ -101,18 +102,18 @@ const StatusBadge = ({ status, cfg }) => {
 const KPI = ({ icon, label, value, sub, color = 'var(--accent)', alert }) => (
   <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center',
     ...(alert ? { borderColor: 'var(--danger-border)', background: 'var(--danger-bg)' } : {}) }}>
-    <div style={{ fontSize: 28, flexShrink: 0 }}>{icon}</div>
+    <div style={{ fontSize: "var(--text-3xl)", flexShrink: 0 }}>{icon}</div>
     <div>
-      <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginTop: 2 }}>{label}</div>
+      {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{sub}</div>}
     </div>
   </div>
 )
 
 const SectionTitle = ({ children, action }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-    <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>{children}</h3>
+    <h3 style={{ fontSize: "var(--text-md-em)", fontWeight: 700, margin: 0 }}>{children}</h3>
     {action}
   </div>
 )
@@ -135,17 +136,17 @@ function ALMDashboard({ onNavigate }) {
     <div>
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="#00d4ff"
+        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="#4f8ef7"
           sub={kpis.expiring_soon ? `${kpis.expiring_soon} ${t('alm.dashboard_expire_60')}` : undefined}
           alert={kpis.expiring_soon > 0} />
-        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="#7c3aed"
+        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="#a78bfa"
           sub={kpis.expired_licenses ? `${kpis.expired_licenses} ${t('alm.dashboard_expired')}` : undefined}
           alert={kpis.expired_licenses > 0} />
-        <KPI icon="🖥️" label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="#00e5a0"
+        <KPI icon="🖥️" label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="var(--success)"
           sub={`${kpis.assets_in_use ?? 0} ${t('alm.dashboard_in_use')}`} />
-        <KPI icon="🏢" label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="#f97316" />
-        <KPI icon="💰" label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="#ffb800" sub={t('alm.dashboard_license_cost_scope')} />
-        <KPI icon="📊" label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="#ff4757" sub={t('alm.dashboard_total_cost_scope')} />
+        <KPI icon="🏢" label={t('alm.dashboard_vendors_active')}     value={kpis.total_vendors ?? 0}      color="var(--orange)" />
+        <KPI icon="💰" label={t('alm.dashboard_license_annual_cost')}   value={fmtCurrency(kpis.annual_license_cost ?? 0)} color="var(--warning)" sub={t('alm.dashboard_license_cost_scope')} />
+        <KPI icon="📊" label={t('alm.dashboard_total_annual_cost')}       value={fmtCurrency(kpis.total_annual_cost ?? 0)}   color="var(--danger)" sub={t('alm.dashboard_total_cost_scope')} />
       </div>
 
       {/* Renovaciones próximas */}
@@ -156,21 +157,21 @@ function ALMDashboard({ onNavigate }) {
               <Button onClick={() => onNavigate('contracts')} variant="secondary">{`${t('alm.dashboard_view_contracts')} →`}</Button>
             </SectionTitle>
             {renewals.length === 0 ? (
-              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-2)', fontSize: 13 }}>
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
                 {`✅ ${t('alm.dashboard_no_urgent_renewals')}`}
               </div>
             ) : (
               renewals.map(c => (
                 <div key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid var(--surface-4)30', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{c.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{c.vendor_name}</div>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{c.title}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{c.vendor_name}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: c.days_to_renewal <= 14 ? 'var(--danger)' : c.days_to_renewal <= 30 ? 'var(--warning)' : 'var(--success)' }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: c.days_to_renewal <= 14 ? 'var(--danger)' : c.days_to_renewal <= 30 ? 'var(--warning)' : 'var(--success)' }}>
                         {c.days_to_renewal === 0 ? t('alm.dashboard_today') : `${c.days_to_renewal}${t('alm.dashboard_days_short')}`}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{fmtDate(c.renewal_date)}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{fmtDate(c.renewal_date)}</div>
                   </div>
                 </div>
               ))
@@ -190,10 +191,10 @@ function ALMDashboard({ onNavigate }) {
               { icon: '📊', label: t('alm.action_compliance_report'),  tab: 'compliance',color: 'var(--danger)' },
             ].map(a => (
               <button key={a.tab} onClick={() => onNavigate(a.tab)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-1)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, textAlign: 'left', transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = a.color + '60'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
-                <span style={{ fontSize: 16 }}>{a.icon}</span>
+                <span style={{ fontSize: "var(--text-lg)" }}>{a.icon}</span>
                 {a.label}
               </button>
             ))}
@@ -300,26 +301,26 @@ function VendorsTab() {
                 onPointerLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-lg-em)" }}>
                       {cat.icon}
                     </div>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700 }}>{v.name}</div>
-                      <div style={{ fontSize: 11, color: cat.color, fontWeight: 600 }}>{cat.label}</div>
+                      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>{v.name}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: cat.color, fontWeight: 600 }}>{cat.label}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`Editar proveedor ${v.name}`} onClick={() => setModal(v)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                     <button aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-2)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   {v.account_manager && <span>👤 {v.account_manager}</span>}
                   {v.support_email   && <span>✉️ {v.support_email}</span>}
-                  {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: 12 }}>🔗 {v.website}</a>}
+                  {v.website         && <a href={sanitizeUrl(v.website)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: "var(--text-sm)" }}>🔗 {v.website}</a>}
                 </div>
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)30', fontSize: 11, color: 'var(--text-3)' }}>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--surface-4)30', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   {v.contracts_count} {t('alm.vendors_contracts_count')}
                 </div>
               </div>
@@ -479,7 +480,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('alm.contracts_label_title')} *</label>
           <input value={form.title} onChange={s('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('alm.contracts_placeholder_title')} />
-          {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
+          {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_vendor')}</label>
@@ -510,19 +511,19 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
         <div>
           <label style={ls}>{t('alm.contracts_label_end_date')}</label>
           <input type="date" value={form.end_date} onChange={s('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
+          {validation.errors.end_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.end_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_renewal_date')}</label>
           <input type="date" value={form.renewal_date} onChange={s('renewal_date')} style={validation.inputStyle(fs, 'renewal_date')} />
-          {validation.errors.renewal_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.renewal_date}</p>}
+          {validation.errors.renewal_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.renewal_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_auto_renew')}</label>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             {[true, false].map(v => (
               <button key={String(v)} onClick={() => setForm(f => ({ ...f, auto_renew: v }))}
-                style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${form.auto_renew === v ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: form.auto_renew === v ? 'var(--accent-muted)' : 'transparent', color: form.auto_renew === v ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1px solid ${form.auto_renew === v ? 'var(--accent)' : 'var(--surface-4)'}`, background: form.auto_renew === v ? 'var(--accent-muted)' : 'transparent', color: form.auto_renew === v ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v ? `✅ ${t('alm.contracts_yes')}` : `❌ ${t('alm.contracts_no')}`}
               </button>
             ))}
@@ -531,17 +532,17 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }) {
         <div>
           <label style={ls}>{t('alm.contracts_label_notice_days')}</label>
           <input type="number" value={form.notice_days} onChange={s('notice_days')} style={validation.inputStyle(fs, 'notice_days')} />
-          {validation.errors.notice_days && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.notice_days}</p>}
+          {validation.errors.notice_days && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.notice_days}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_total_value')}</label>
           <input type="number" value={form.total_value} onChange={s('total_value')} style={validation.inputStyle(fs, 'total_value')} />
-          {validation.errors.total_value && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_value}</p>}
+          {validation.errors.total_value && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_value}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_annual_cost')}</label>
           <input type="number" value={form.annual_value} onChange={s('annual_value')} style={validation.inputStyle(fs, 'annual_value')} />
-          {validation.errors.annual_value && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.annual_value}</p>}
+          {validation.errors.annual_value && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.annual_value}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_owner')}</label>
@@ -610,14 +611,14 @@ function ContractsTab() {
           {Object.entries(CONTRACT_STATUS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
         <button aria-pressed={urgentOnly} aria-label={t('alm.contracts_urgent_only_aria')} onClick={() => setUrgentOnly(u => !u)}
-          style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${urgentOnly ? 'var(--danger-border)' : 'var(--surface-4)'}`, background: urgentOnly ? 'rgba(248,113,113,0.06)' : 'transparent', color: urgentOnly ? 'var(--danger)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+          style={{ padding: '8px 14px', borderRadius: 8, border: `1px solid ${urgentOnly ? 'var(--danger-border)' : 'var(--surface-4)'}`, background: urgentOnly ? 'rgba(248,113,113,0.06)' : 'transparent', color: urgentOnly ? 'var(--danger)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
           {`⚠️ ${t('alm.contracts_urgent_only')}`}
         </button>
         <Button onClick={() => setModal({})} icon="＋">{t('alm.action_new_contract')}</Button>
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
           {filtered.length} contrato(s) · Coste anual total: <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>
         </div>
       )}
@@ -631,14 +632,14 @@ function ContractsTab() {
             const ct = CONTRACT_TYPES[c.type] || { label: c.type, icon: '📄' }
             return (
               <div key={c.id} style={{ ...card, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ fontSize: 24, flexShrink: 0 }}>{ct.icon}</div>
+                <div style={{ fontSize: "var(--text-2xl)", flexShrink: 0 }}>{ct.icon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>{c.title}</span>
+                    <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.title}</span>
                     <StatusBadge status={c.status} cfg={CONTRACT_STATUS} />
-                    {c.renewal_urgent && <span style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 700 }}>⚠️ RENUEVA EN {c.days_to_renewal}d</span>}
+                    {c.renewal_urgent && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠️ RENUEVA EN {c.days_to_renewal}d</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-2)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', flexWrap: 'wrap' }}>
                     {c.vendor_name && <span>🏢 {c.vendor_name}</span>}
                     {c.annual_value && <span>💰 {fmtCurrency(c.annual_value)}/año</span>}
                     {c.renewal_date && <span>🔄 Renovar: {fmtDate(c.renewal_date)}</span>}
@@ -651,9 +652,9 @@ function ContractsTab() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button aria-label={`Editar contrato ${c.title}`} onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar contrato ${c.title}`} onClick={() => setModal(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                   <button aria-label={`Eliminar contrato ${c.title}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el contrato "${c.title}"?`, onConfirm: () => del(c.id), danger: true }) }}
-                    style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </div>
               </div>
             )
@@ -694,7 +695,7 @@ function LicenseAssignModal({ license, onClose }) {
   return (
     <Modal open onClose={onClose} title={`${t('alm.licenses_assign_title')}: ${license.name}`} width={520}>
       {availSeats !== null && (
-        <div style={{ padding: '10px 14px', background: availSeats > 0 ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${availSeats > 0 ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
+        <div style={{ padding: '10px 14px', background: availSeats > 0 ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${availSeats > 0 ? 'var(--success-border)' : 'var(--danger-border)'}`, borderRadius: 8, marginBottom: 16, fontSize: "var(--text-base)" }}>
           {availSeats > 0 ? `✅ ${availSeats} ${t('alm.licenses_seats_available')} ${license.total_seats}` : `❌ ${t('alm.licenses_no_seats_available')} (${license.used_seats}/${license.total_seats})`}
         </div>
       )}
@@ -705,7 +706,7 @@ function LicenseAssignModal({ license, onClose }) {
             <option value="">{t('alm.licenses_none_user')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>)}
           </select>
-          {validation.errors.user_id && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.user_id}</p>}
+          {validation.errors.user_id && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.user_id}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_assign_device')}</label>
@@ -766,7 +767,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('alm.licenses_label_name')} *</label>
           <input value={form.name} onChange={s('name')} style={validation.inputStyle(fs, 'name')} placeholder={t('alm.licenses_placeholder_name')} />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div><label style={ls}>{t('alm.licenses_label_product')}</label><input value={form.product_name} onChange={s('product_name')} style={fs} placeholder={t('alm.licenses_placeholder_product')} /></div>
         <div><label style={ls}>{t('alm.licenses_label_edition')}</label><input value={form.edition} onChange={s('edition')} style={fs} placeholder={t('alm.licenses_placeholder_edition')} /></div>
@@ -800,17 +801,17 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
         <div>
           <label style={ls}>{t('alm.licenses_label_total_seats')}</label>
           <input type="number" value={form.total_seats} onChange={s('total_seats')} style={validation.inputStyle(fs, 'total_seats')} placeholder="Ej: 50" />
-          {validation.errors.total_seats && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.total_seats}</p>}
+          {validation.errors.total_seats && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.total_seats}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.contracts_label_annual_cost')}</label>
           <input type="number" value={form.annual_cost} onChange={s('annual_cost')} style={validation.inputStyle(fs, 'annual_cost')} />
-          {validation.errors.annual_cost && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.annual_cost}</p>}
+          {validation.errors.annual_cost && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.annual_cost}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_purchase_price')}</label>
           <input type="number" value={form.purchase_price} onChange={s('purchase_price')} style={validation.inputStyle(fs, 'purchase_price')} />
-          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
+          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_cost_center')}</label>
@@ -823,7 +824,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
         <div>
           <label style={ls}>{t('alm.licenses_label_expiry_date')}</label>
           <input type="date" value={form.expiry_date} onChange={s('expiry_date')} style={validation.inputStyle(fs, 'expiry_date')} />
-          {validation.errors.expiry_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.expiry_date}</p>}
+          {validation.errors.expiry_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.expiry_date}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.licenses_label_environment')}</label>
@@ -833,9 +834,9 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
           <input type="checkbox" id="compliance" checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
-          <label htmlFor="compliance" style={{ fontSize: 13, cursor: 'pointer' }}>{t('alm.licenses_requires_compliance')}</label>
+          <label htmlFor="compliance" style={{ fontSize: "var(--text-base)", cursor: 'pointer' }}>{t('alm.licenses_requires_compliance')}</label>
         </div>
-        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.licenses_label_key')}</label><input value={form.license_key} onChange={s('license_key')} style={{ ...fs, fontFamily: 'monospace' }} placeholder={t('alm.licenses_placeholder_key')} /></div>
+        <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.licenses_label_key')}</label><input value={form.license_key} onChange={s('license_key')} style={{ ...fs, fontFamily: 'var(--font-mono)' }} placeholder={t('alm.licenses_placeholder_key')} /></div>
         <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.contracts_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
@@ -896,7 +897,7 @@ function LicensesTab() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} licencia(s)</span>
           {totalAnnual > 0 && <span>💰 <strong style={{ color: 'var(--warning)' }}>{fmtCurrency(totalAnnual)}</strong>/año</span>}
           {totalSeats > 0 && <span>🔑 {usedSeats}/{totalSeats} seats usados</span>}
@@ -915,17 +916,17 @@ function LicensesTab() {
             return (
               <div key={lic.id} style={{ ...card, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{lt.icon}</div>
+                  <div style={{ fontSize: "var(--text-xl-em)", flexShrink: 0, marginTop: 2 }}>{lt.icon}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700 }}>{lic.name}</span>
+                      <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{lic.name}</span>
                       <StatusBadge status={lic.status} cfg={LICENSE_STATUS_CFG} />
-                      {lic.is_compliance_req && <span style={{ fontSize: 10, color: 'var(--warning)', border: '1px solid #ffb80040', borderRadius: 4, padding: '1px 5px' }}>COMPLIANCE</span>}
+                      {lic.is_compliance_req && <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', border: '1px solid var(--warning-border)', borderRadius: 4, padding: '1px 5px' }}>COMPLIANCE</span>}
                       {daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && (
-                        <span style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 700 }}>⚠️ Expira en {daysLeft}d</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>⚠️ Expira en {daysLeft}d</span>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-2)', flexWrap: 'wrap', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)', flexWrap: 'wrap', marginBottom: 8 }}>
                       {lic.vendor_name && <span>🏢 {lic.vendor_name}</span>}
                       {lic.annual_cost && <span>💰 {fmtCurrency(lic.annual_cost)}/año</span>}
                       {lic.expiry_date && <span>📅 Expira: {fmtDate(lic.expiry_date)}</span>}
@@ -937,7 +938,7 @@ function LicensesTab() {
                     </div>
                     {lic.total_seats && (
                       <div style={{ marginBottom: 4 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>
                           <span>Seats usados</span>
                           <span style={{ color: pctUsed > 90 ? 'var(--danger)' : pctUsed > 75 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
                             {lic.used_seats}/{lic.total_seats}
@@ -951,12 +952,12 @@ function LicensesTab() {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <button aria-label={`Asignar licencia ${lic.name}`} onClick={() => setAssignModal(lic)}
-                      style={{ background: 'none', border: '1px solid #00d4ff30', borderRadius: 6, padding: '5px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 12 }}>
+                      style={{ background: 'none', border: '1px solid var(--accent-border)', borderRadius: 6, padding: '5px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                       👤 Asignar
                     </button>
-                    <button aria-label={`Editar licencia ${lic.name}`} onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                    <button aria-label={`Editar licencia ${lic.name}`} onClick={() => setModal(lic)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '5px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                     <button aria-label={`Eliminar licencia ${lic.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar la licencia "${lic.name}"?`, onConfirm: () => del(lic.id), danger: true }) }}
-                      style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                      style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '5px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                   </div>
                 </div>
               </div>
@@ -1013,7 +1014,7 @@ function AssetModal({ asset, vendors, users, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('alm.assets_label_name')} *</label>
           <input value={form.name} onChange={s('name')} style={validation.inputStyle(fs, 'name')} placeholder={t('alm.assets_placeholder_name')} />
-          {validation.errors.name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.name}</p>}
+          {validation.errors.name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.name}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_type')}</label>
@@ -1056,17 +1057,17 @@ function AssetModal({ asset, vendors, users, onClose }) {
         <div>
           <label style={ls}>{t('alm.assets_label_purchase_price')}</label>
           <input type="number" value={form.purchase_price} onChange={s('purchase_price')} style={validation.inputStyle(fs, 'purchase_price')} />
-          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
+          {validation.errors.purchase_price && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.purchase_price}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_warranty_end')}</label>
           <input type="date" value={form.warranty_expiry} onChange={s('warranty_expiry')} style={validation.inputStyle(fs, 'warranty_expiry')} />
-          {validation.errors.warranty_expiry && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.warranty_expiry}</p>}
+          {validation.errors.warranty_expiry && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.warranty_expiry}</p>}
         </div>
         <div>
           <label style={ls}>{t('alm.assets_label_depreciation_years')}</label>
           <input type="number" value={form.depreciation_years} onChange={s('depreciation_years')} style={validation.inputStyle(fs, 'depreciation_years')} />
-          {validation.errors.depreciation_years && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.depreciation_years}</p>}
+          {validation.errors.depreciation_years && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.depreciation_years}</p>}
         </div>
         {showNetwork && <>
           <div><label style={ls}>{t('alm.assets_label_ip')}</label><input value={form.ip_address} onChange={s('ip_address')} style={fs} placeholder="Ej: 192.168.1.1" /></div>
@@ -1076,12 +1077,12 @@ function AssetModal({ asset, vendors, users, onClose }) {
           <div>
             <label style={ls}>{t('alm.assets_label_ram')}</label>
             <input type="number" value={form.ram_gb} onChange={s('ram_gb')} style={validation.inputStyle(fs, 'ram_gb')} />
-            {validation.errors.ram_gb && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.ram_gb}</p>}
+            {validation.errors.ram_gb && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.ram_gb}</p>}
           </div>
           <div>
             <label style={ls}>{t('alm.assets_label_storage')}</label>
             <input type="number" value={form.storage_gb} onChange={s('storage_gb')} style={validation.inputStyle(fs, 'storage_gb')} />
-            {validation.errors.storage_gb && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.storage_gb}</p>}
+            {validation.errors.storage_gb && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.storage_gb}</p>}
           </div>
         </>}
         <div style={{ gridColumn: '1/-1' }}><label style={ls}>{t('alm.assets_label_notes')}</label><textarea value={form.notes} onChange={s('notes')} rows={3} style={{ ...fs, resize: 'vertical' }} /></div>
@@ -1141,7 +1142,7 @@ function AssetsTab() {
       </div>
 
       {filtered.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 13, color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 16, padding: '10px 16px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-base)", color: 'var(--text-2)', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <span>{filtered.length} activo(s)</span>
           {totalValue > 0 && <span>💰 Valor compra: <strong style={{ color: 'var(--accent)' }}>{fmtCurrency(totalValue)}</strong></span>}
           {totalBookValue > 0 && <span>📊 Valor libros: <strong style={{ color: 'var(--success)' }}>{fmtCurrency(totalBookValue)}</strong></span>}
@@ -1159,15 +1160,15 @@ function AssetsTab() {
               <div key={a.id} style={{ ...card, padding: '16px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>{at.icon}</span>
+                    <span style={{ fontSize: "var(--text-xl-em)" }}>{at.icon}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{a.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{a.brand} {a.model}</div>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.name}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{a.brand} {a.model}</div>
                     </div>
                   </div>
                   <StatusBadge status={a.status} cfg={ASSET_STATUS_CFG} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
                   {a.assigned_to_name && <span>👤 {a.assigned_to_name}</span>}
                   {a.location         && <span>📍 {a.location}</span>}
                   {a.serial_number    && <span>🔢 S/N: {a.serial_number}</span>}
@@ -1177,9 +1178,9 @@ function AssetsTab() {
                   {a.installed_licenses > 0 && <span>📦 {a.installed_licenses} licencia(s) instalada(s)</span>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                  <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar activo ${a.name}`} onClick={() => setModal(a)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                   <button aria-label={`Eliminar activo ${a.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el activo "${a.name}"?`, onConfirm: () => del(a.id), danger: true }) }}
-                    style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </div>
               </div>
             )
@@ -1223,7 +1224,7 @@ function CostCentersTab() {
       </div>
       {showForm && (
         <div style={{ ...card, padding: 20, marginBottom: 20 }}>
-          <h4 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 700 }}>{editing ? t('alm.cost_centers_edit') : t('alm.cost_centers_new')}</h4>
+          <h4 style={{ margin: '0 0 14px', fontSize: "var(--text-md)", fontWeight: 700 }}>{editing ? t('alm.cost_centers_edit') : t('alm.cost_centers_new')}</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 120px', gap: 12 }}>
             <div><label style={ls}>{t('alm.cost_centers_label_code')} *</label><input value={form.code} onChange={s('code')} style={fs} placeholder={t('alm.cost_centers_placeholder_code')} /></div>
             <div><label style={ls}>{t('alm.cost_centers_label_name')} *</label><input value={form.name} onChange={s('name')} style={fs} placeholder={t('alm.cost_centers_placeholder_name')} /></div>
@@ -1245,17 +1246,17 @@ function CostCentersTab() {
             <div key={c.id} style={{ ...card, padding: '16px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div>
-                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--accent)', fontWeight: 700 }}>{c.code}</span>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>{c.name}</div>
+                  <span style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{c.code}</span>
+                  <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginTop: 2 }}>{c.name}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>✏️</button>
+                  <button aria-label={`Editar centro de coste ${c.name}`} onClick={() => openEdit(c)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
                   <button aria-label={`Eliminar centro de coste ${c.name}`} onClick={() => { openConfirmGlobal({ message: `¿Eliminar el centro de coste "${c.name}"?`, onConfirm: () => del(c.id), danger: true }) }}
-                    style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 12 }}>🗑</button>
+                    style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>🗑</button>
                 </div>
               </div>
-              {c.budget_annual && <div style={{ fontSize: 13, color: 'var(--warning)', fontWeight: 600 }}>{fmtCurrency(c.budget_annual)}/año</div>}
-              {c.description && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{c.description}</div>}
+              {c.budget_annual && <div style={{ fontSize: "var(--text-base)", color: 'var(--warning)', fontWeight: 600 }}>{fmtCurrency(c.budget_annual)}/año</div>}
+              {c.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{c.description}</div>}
             </div>
           ))}
         </div>
@@ -1277,7 +1278,7 @@ function ComplianceTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, margin: 0 }}>
+          <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", margin: 0 }}>
             {t('alm.compliance_intro')}
           </p>
         </div>
@@ -1288,22 +1289,22 @@ function ComplianceTab() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
             <div style={{ ...card, padding: '18px 20px', borderColor: issues.length === 0 ? 'var(--success-border)' : 'var(--danger-border)' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{issues.length === 0 ? '✅' : '❌'}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: issues.length === 0 ? 'var(--success)' : 'var(--danger)' }}>{issues.length}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{t('alm.compliance_issues')}</div>
+              <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>{issues.length === 0 ? '✅' : '❌'}</div>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: issues.length === 0 ? 'var(--success)' : 'var(--danger)' }}>{issues.length}</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t('alm.compliance_issues')}</div>
             </div>
             <div style={{ ...card, padding: '18px 20px' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>🔴</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--danger)' }}>{report.critical || 0}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{t('alm.compliance_critical')}</div>
+              <div style={{ fontSize: "var(--text-3xl)", marginBottom: 8 }}>🔴</div>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: 'var(--danger)' }}>{report.critical || 0}</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{t('alm.compliance_critical')}</div>
             </div>
           </div>
 
           {issues.length === 0 ? (
             <div style={{ ...card, padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>{t('alm.compliance_ok')}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{t('alm.compliance_ok_desc')}</div>
+              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>✅</div>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--success)', marginBottom: 8 }}>{t('alm.compliance_ok')}</div>
+              <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{t('alm.compliance_ok_desc')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1311,14 +1312,14 @@ function ComplianceTab() {
                 <div key={idx} style={{ ...card, padding: '14px 18px', borderColor: iss.severity === 'critical' ? 'var(--danger-border)' : 'rgba(245,158,11,0.31)', background: iss.severity === 'critical' ? 'var(--danger-bg)' : 'rgba(245,158,11,0.04)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{iss.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{iss.detail}</div>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{iss.name}</div>
+                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{iss.detail}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid #ff475740' }}>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
                         {iss.issue}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: iss.severity === 'critical' ? 'var(--danger-bg)' : 'var(--warning-bg)', color: iss.severity === 'critical' ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${iss.severity === 'critical' ? 'rgba(248,113,113,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: iss.severity === 'critical' ? 'var(--danger-bg)' : 'var(--warning-bg)', color: iss.severity === 'critical' ? 'var(--danger)' : 'var(--warning)', border: `1px solid ${iss.severity === 'critical' ? 'rgba(248,113,113,0.25)' : 'rgba(245,158,11,0.25)'}` }}>
                         {iss.severity === 'critical' ? t('alm.compliance_severity_critical') : t('alm.compliance_severity_warning')}
                       </span>
                     </div>
@@ -1349,7 +1350,7 @@ export default function ALMPage() {
   ]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Layers size={18} />}
         title={t('alm.title')}
@@ -1357,21 +1358,13 @@ export default function ALMPage() {
       />
 
       {/* Tab bar */}
-      <div role="tablist" aria-label={t('alm.tablist_aria')} style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
-        {TABS.map(t => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} aria-controls={`alm-panel-${t.id}`} id={`alm-tab-${t.id}`} onClick={() => setTab(t.id)}
-            style={{
-              padding: '7px 16px', borderRadius: 8,
-              border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
-              background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
-              color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              transition: 'all 0.15s',
-            }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={TABS}
+        active={tab}
+        onChange={setTab}
+        ariaLabel={t('alm.tablist_aria')}
+        style={{ marginBottom: 24 }}
+      />
 
       {/* Content */}
       {tab === 'dashboard'  && <div id="alm-panel-dashboard" role="tabpanel" aria-labelledby="alm-tab-dashboard"><ALMDashboard onNavigate={setTab} /></div>}
@@ -1381,6 +1374,6 @@ export default function ALMPage() {
       {tab === 'assets'     && <div id="alm-panel-assets" role="tabpanel" aria-labelledby="alm-tab-assets"><AssetsTab /></div>}
       {tab === 'cost'       && <div id="alm-panel-cost" role="tabpanel" aria-labelledby="alm-tab-cost"><CostCentersTab /></div>}
       {tab === 'compliance' && <div id="alm-panel-compliance" role="tabpanel" aria-labelledby="alm-tab-compliance"><ComplianceTab /></div>}
-    </div>
+    </PageShell>
   )
 }

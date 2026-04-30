@@ -6,15 +6,16 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { projectsApi, revenueRecognitionApi, revenueApi } from '../services/api'
+import { projectsApi, revenueRecognitionApi, revenueApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Lock, LockOpen, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width:'100%', background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
+const fs = { width:'100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.07em', display:'block', marginBottom:5 }
 const card = { background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12 }
 
 // Methods for existing rules (legacy engine)
@@ -77,8 +78,8 @@ function ObligationsPanel({ contractId, onClose }) {
               return (
                 <div key={ob.id} style={{ background:'var(--surface-2)', border:'.5px solid var(--surface-4)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{ob.name}</div>
-                    <div style={{ fontSize:11, color:'var(--text-2)', marginTop:2 }}>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{ob.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2 }}>
                       {mCfg.icon} {mCfg.label}
                       {ob.standalone_price > 0 && <span style={{ marginLeft:8 }}>{fmtEur(ob.standalone_price)}</span>}
                       {ob.is_satisfied && <span style={{ marginLeft:8, color:'var(--success)' }}>✓ Completada</span>}
@@ -86,9 +87,9 @@ function ObligationsPanel({ contractId, onClose }) {
                   </div>
                   <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                     <button onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:ob.standalone_price||'', notes:ob.notes||'' }); setShowForm(true) }}
-                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize:11, color:'var(--text-2)' }}>✏</button>
+                      style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>✏</button>
                     <button onClick={() => del(ob.id)}
-                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize:11, color:'var(--danger)' }}>🗑</button>
+                      style={{ background:'none', border:'1px solid rgba(239,68,68,0.2)', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontSize: "var(--text-xs)", color:'var(--danger)' }}>🗑</button>
                   </div>
                 </div>
               )
@@ -275,7 +276,7 @@ export default function RevenuePage() {
   const closedPeriodKeys = new Set(periodCloses.map(pc => `${pc.period_year}-${pc.period_month}`))
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader icon={<TrendingUp size={18} />} title={t('profitability.revenue')} subtitle={t('profitability.revenue_subtitle')} />
 
       {/* KPIs */}
@@ -287,9 +288,9 @@ export default function RevenuePage() {
           { label:'Entradas registradas', value:summary?.entry_count || 0,      icon:'📋' },
         ].map((k,i) => (
           <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'16px 18px' }}>
-            <div style={{ fontSize:20, marginBottom:6 }}>{k.icon}</div>
-            <div style={{ fontSize:22, fontWeight:500, marginBottom:2 }}>{k.value}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)' }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{k.icon}</div>
+            <div style={{ fontSize: "var(--text-xl-em)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -298,7 +299,7 @@ export default function RevenuePage() {
       <div style={{ display:'flex', gap:8, marginBottom:24 }}>
         {TABS.map(tb => (
           <button key={tb.id} onClick={() => setTab(tb.id)}
-            style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===tb.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===tb.id?'var(--accent-muted)':'transparent', color:tab===tb.id?'var(--accent)':'var(--text-2)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'8px 16px', borderRadius:8, border:`.5px solid ${tab===tb.id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:tab===tb.id?'var(--accent-muted)':'transparent', color:tab===tb.id?'var(--accent)':'var(--text-2)', fontSize: "var(--text-base)", fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
             {tb.label}
           </button>
         ))}
@@ -309,14 +310,14 @@ export default function RevenuePage() {
         <div>
           {chartData.length > 0 ? (
             <div style={{ ...card, padding:'20px 24px' }}>
-              <div style={{ fontSize:13, fontWeight:500, marginBottom:16 }}>Ingresos reconocidos vs diferidos por mes</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:16 }}>Ingresos reconocidos vs diferidos por mes</div>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={chartData}>
-                  <XAxis dataKey="mes" tick={{ fontSize:11 }} />
-                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize:11 }} />
+                  <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
+                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
                   <Legend />
-                  <Bar dataKey="Reconocido" fill="#1D9E75" radius={[3,3,0,0]} />
+                  <Bar dataKey="Reconocido" fill="#34d399" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="#FAC775" radius={[3,3,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -345,22 +346,22 @@ export default function RevenuePage() {
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                       <div style={{ flex:1 }}>
                         <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:6 }}>
-                          <span style={{ fontSize:14, fontWeight:500 }}>{r.project_name}</span>
-                          <span style={{ fontSize:11, color:'var(--text-2)', padding:'1px 6px', borderRadius:4, background:'var(--surface-2)' }}>{r.project_code}</span>
-                          <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{mCfg.icon} {mCfg.label}</span>
+                          <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{r.project_name}</span>
+                          <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', padding:'1px 6px', borderRadius:4, background:'var(--surface-2)' }}>{r.project_code}</span>
+                          <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>{mCfg.icon} {mCfg.label}</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
-                          <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>Valor contrato</div><div style={{ fontSize:14, fontWeight:500 }}>{fmtEur(r.contract_value)}</div></div>
-                          <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>Reconocido</div><div style={{ fontSize:14, fontWeight:500, color:'var(--success)' }}>{fmtEur(r.total_recognised)}</div></div>
-                          <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>Diferido</div><div style={{ fontSize:14, fontWeight:500, color:'var(--warning)' }}>{fmtEur(r.total_deferred)}</div></div>
-                          <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>Entradas</div><div style={{ fontSize:14, fontWeight:500 }}>{r.entry_count}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Valor contrato</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{fmtEur(r.contract_value)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Reconocido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--success)' }}>{fmtEur(r.total_recognised)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Diferido</div><div style={{ fontSize: "var(--text-md)", fontWeight:500, color:'var(--warning)' }}>{fmtEur(r.total_deferred)}</div></div>
+                          <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>Entradas</div><div style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{r.entry_count}</div></div>
                         </div>
                         {r.contract_value > 0 && (
                           <div>
                             <div style={{ height:6, background:'var(--surface-2)', borderRadius:3, overflow:'hidden' }}>
                               <div style={{ height:'100%', background:'var(--success-bg)', width:`${Math.min(pct,100)}%`, borderRadius:3 }} />
                             </div>
-                            <div style={{ fontSize:11, color:'var(--text-2)', marginTop:3 }}>{pct}% reconocido</div>
+                            <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:3 }}>{pct}% reconocido</div>
                           </div>
                         )}
                       </div>
@@ -404,9 +405,9 @@ export default function RevenuePage() {
                 { label:'Entradas contables', value: asc606Dashboard.entry_count || 0, icon:'📋' },
               ].map((k,i) => (
                 <div key={i} style={{ background:'var(--surface-2)', borderRadius:10, padding:'14px 16px' }}>
-                  <div style={{ fontSize:18, marginBottom:4 }}>{k.icon}</div>
-                  <div style={{ fontSize:20, fontWeight:500, marginBottom:2 }}>{k.value}</div>
-                  <div style={{ fontSize:11, color:'var(--text-2)' }}>{k.label}</div>
+                  <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{k.icon}</div>
+                  <div style={{ fontSize: "var(--text-xl)", fontWeight:500, marginBottom:2 }}>{k.value}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{k.label}</div>
                 </div>
               ))}
             </div>
@@ -415,14 +416,14 @@ export default function RevenuePage() {
           {/* Chart */}
           {asc606ChartData.length > 0 && (
             <div style={{ ...card, padding:'20px 24px' }}>
-              <div style={{ fontSize:13, fontWeight:500, marginBottom:16 }}>Reconocimiento ASC 606 — {dashYear}</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:16 }}>Reconocimiento ASC 606 — {dashYear}</div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={asc606ChartData}>
-                  <XAxis dataKey="mes" tick={{ fontSize:11 }} />
-                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize:11 }} />
+                  <XAxis dataKey="mes" tick={{ fontSize: "var(--text-xs)" }} />
+                  <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
                   <Legend />
-                  <Bar dataKey="Reconocido" fill="#1D9E75" radius={[3,3,0,0]} />
+                  <Bar dataKey="Reconocido" fill="#34d399" radius={[3,3,0,0]} />
                   <Bar dataKey="Diferido"   fill="#FAC775" radius={[3,3,0,0]} />
                   <Bar dataKey="Unbilled"   fill="#7C8CF8" radius={[3,3,0,0]} />
                 </BarChart>
@@ -433,10 +434,10 @@ export default function RevenuePage() {
           {/* Period closes */}
           {periodCloses.length > 0 && (
             <div style={{ ...card, padding:'16px 20px' }}>
-              <div style={{ fontSize:12, fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
+              <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Cierres contables</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {periodCloses.map(pc => (
-                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'var(--surface-2)', fontSize:12 }}>
+                  <div key={pc.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:6, background:'var(--surface-2)', fontSize: "var(--text-sm)" }}>
                     <Lock size={11} style={{ color:'var(--accent)' }} />
                     <span>{pc.period_year}-{String(pc.period_month).padStart(2,'0')}</span>
                     <button
@@ -454,7 +455,7 @@ export default function RevenuePage() {
 
           {/* Contracts list */}
           <div>
-            <div style={{ fontSize:12, fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Contratos de reconocimiento</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight:500, marginBottom:10, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.06em' }}>Contratos de reconocimiento</div>
             {contractsLoading ? <Spinner /> : contracts.length === 0 ? (
               <EmptyState icon="📑" title="Sin contratos ASC 606" description="Crea un contrato para configurar el reconocimiento de ingresos por proyecto" />
             ) : (
@@ -466,22 +467,22 @@ export default function RevenuePage() {
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                         <div>
                           <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6 }}>
-                            <span style={{ fontSize:14, fontWeight:500 }}>{c.name}</span>
-                            <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
+                            <span style={{ fontSize: "var(--text-md)", fontWeight:500 }}>{c.name}</span>
+                            <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--accent-muted)', color:'var(--accent)' }}>
                               {mCfg.icon} {mCfg.label}
                             </span>
                             {!c.is_active && (
-                              <span style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
+                              <span style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-3)', color:'var(--text-3)' }}>Inactivo</span>
                             )}
                           </div>
                           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16, marginBottom:10 }}>
-                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize:13, fontWeight:500 }}>{fmtEur(c.contract_value)}</div></div>
-                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize:13 }}>{c.currency}</div></div>
-                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize:13 }}>{c.start_date || '—'}</div></div>
-                            <div><div style={{ fontSize:11, color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize:13 }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
+                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Valor contrato</div><div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>{fmtEur(c.contract_value)}</div></div>
+                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Moneda</div><div style={{ fontSize: "var(--text-base)" }}>{c.currency}</div></div>
+                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Inicio</div><div style={{ fontSize: "var(--text-base)" }}>{c.start_date || '—'}</div></div>
+                            <div><div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:1 }}>Fin</div><div style={{ fontSize: "var(--text-base)" }}>{c.end_date || c.duration_months ? `${c.duration_months}m` : '—'}</div></div>
                           </div>
                           <button onClick={() => setObligationsFor(c.id)}
-                            style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
+                            style={{ fontSize: "var(--text-xs)", padding:'3px 10px', borderRadius:6, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontFamily:'inherit' }}>
                             📋 Obligaciones de desempeño
                           </button>
                         </div>
@@ -523,7 +524,7 @@ export default function RevenuePage() {
             </div>
             {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
               <button onClick={() => setEntryFilter({ contract_id:'', year:'', month:'' })}
-                style={{ alignSelf:'flex-end', padding:'9px 14px', borderRadius:8, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+                style={{ alignSelf:'flex-end', padding:'9px 14px', borderRadius:8, border:'.5px solid var(--surface-4)', background:'transparent', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
                 ✕ Limpiar
               </button>
             )}
@@ -534,11 +535,11 @@ export default function RevenuePage() {
             <EmptyState icon="📋" title="Sin entradas contables" description="Las entradas se generan al ejecutar el reconocimiento mensual" />
           ) : (
             <div style={{ ...card, overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--surface-4)', background:'var(--surface-3)' }}>
                     {['Contrato','Período','Método','Reconocido','Diferido','Estado',''].map((h,i) => (
-                      <th key={h||i} style={{ padding:'10px 14px', textAlign:i<=1?'left':'center', fontSize:10, fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.07em', whiteSpace:'nowrap' }}>{h}</th>
+                      <th key={h||i} style={{ padding:'10px 14px', textAlign:i<=1?'left':'center', fontSize: "var(--text-2xs)", fontWeight:700, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.07em', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -550,13 +551,13 @@ export default function RevenuePage() {
                       <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)', background: idx%2===0?'transparent':'rgba(255,255,255,0.02)', opacity: isReversed ? 0.5 : 1 }}>
                         <td style={{ padding:'10px 14px' }}>
                           <div style={{ fontWeight:500 }}>{e.contract_name || e.contract_id}</div>
-                          {e.obligation_name && <div style={{ fontSize:11, color:'var(--text-3)' }}>{e.obligation_name}</div>}
+                          {e.obligation_name && <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{e.obligation_name}</div>}
                         </td>
-                        <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12 }}>
+                        <td style={{ padding:'10px 14px', fontFamily:'var(--font-mono)', fontSize: "var(--text-sm)" }}>
                           {e.period_year}-{String(e.period_month).padStart(2,'0')}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
-                          <span style={{ fontSize:11 }}>{mCfg.icon} {mCfg.label}</span>
+                          <span style={{ fontSize: "var(--text-xs)" }}>{mCfg.icon} {mCfg.label}</span>
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:600, color:'var(--success)' }}>
                           {fmtEur(e.recognized_amount ?? e.amount)}
@@ -566,13 +567,13 @@ export default function RevenuePage() {
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {isReversed
-                            ? <span style={{ fontSize:11, color:'var(--danger)' }}>Revertida</span>
-                            : <span style={{ fontSize:11, color:'var(--success)' }}>Activa</span>}
+                            ? <span style={{ fontSize: "var(--text-xs)", color:'var(--danger)' }}>Revertida</span>
+                            : <span style={{ fontSize: "var(--text-xs)", color:'var(--success)' }}>Activa</span>}
                         </td>
                         <td style={{ padding:'10px 14px', textAlign:'center' }}>
                           {!isReversed && (
                             <button onClick={() => { if (window.confirm('¿Revertir esta entrada?')) reverseEntry(e.id) }}
-                              style={{ fontSize:11, padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
+                              style={{ fontSize: "var(--text-xs)", padding:'3px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'var(--danger)', cursor:'pointer', fontFamily:'inherit' }}>
                               ↩ Revertir
                             </button>
                           )}
@@ -590,7 +591,7 @@ export default function RevenuePage() {
       {/* ── Info ASC 606 ── */}
       {tab === 'info' && (
         <div style={{ ...card, padding:'24px 28px', maxWidth:700 }}>
-          <div style={{ fontSize:14, fontWeight:500, marginBottom:16 }}>ASC 606 / IFRS 15 — Los 5 pasos</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:16 }}>ASC 606 / IFRS 15 — Los 5 pasos</div>
           {[
             ['1. Identificar el contrato', 'Acuerdo con el cliente con términos comerciales claros y probabilidad de cobro.'],
             ['2. Identificar las obligaciones', 'Cada entregable distinto (módulo, fase, servicio) es una obligación de desempeño separada.'],
@@ -599,21 +600,21 @@ export default function RevenuePage() {
             ['5. Reconocer los ingresos', 'Reconocer al satisfacer cada obligación: a lo largo del tiempo o en un momento puntual.'],
           ].map(([title, desc], i) => (
             <div key={i} style={{ display:'flex', gap:14, padding:'12px 0', borderBottom:'.5px solid var(--surface-4)' }}>
-              <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-muted)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{i+1}</div>
+              <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--accent-muted)', color:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-sm)", fontWeight:700, flexShrink:0 }}>{i+1}</div>
               <div>
-                <div style={{ fontSize:13, fontWeight:500, marginBottom:3 }}>{title}</div>
-                <div style={{ fontSize:12, color:'var(--text-2)' }}>{desc}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:3 }}>{title}</div>
+                <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{desc}</div>
               </div>
             </div>
           ))}
           <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize:13, fontWeight:500 }}>Métodos disponibles</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight:500 }}>Métodos disponibles</div>
             {Object.entries(ASC_METHOD_CFG).map(([k, v]) => (
               <div key={k} style={{ display:'flex', gap:10, padding:'8px 12px', background:'var(--surface-2)', borderRadius:8 }}>
-                <span style={{ fontSize:16 }}>{v.icon}</span>
+                <span style={{ fontSize: "var(--text-lg)" }}>{v.icon}</span>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:500 }}>{v.label}</div>
-                  <div style={{ fontSize:11, color:'var(--text-2)' }}>{v.desc}</div>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight:500 }}>{v.label}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{v.desc}</div>
                 </div>
               </div>
             ))}
@@ -660,7 +661,7 @@ export default function RevenuePage() {
       {showCompute && (
         <Modal open title={`Calcular reconocimiento — ${showCompute.project_name}`} onClose={() => setShowCompute(null)} width={440}>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'12px 14px', fontSize:12, color:'var(--text-2)' }}>
+            <div style={{ background:'var(--surface-2)', borderRadius:8, padding:'12px 14px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
               Método: <strong style={{ color:'var(--text-1)' }}>{METHOD_CFG[showCompute.method]?.label}</strong><br/>
               Contrato: <strong style={{ color:'var(--text-1)' }}>{fmtEur(showCompute.contract_value)}</strong>
             </div>
@@ -738,7 +739,7 @@ export default function RevenuePage() {
       {showCloseModal && (
         <Modal open title="Cerrar período contable" onClose={() => setShowCloseModal(false)} width={420}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize:12, color:'var(--warning)' }}>
+            <div style={{ background:'var(--warning-bg)', borderRadius:8, padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--warning)' }}>
               Una vez cerrado, no se podrán crear ni revertir entradas para este período.
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -752,7 +753,7 @@ export default function RevenuePage() {
               </div>
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
-              <div style={{ fontSize:12, color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:6 }}>
+              <div style={{ fontSize: "var(--text-sm)", color:'var(--danger)', padding:'6px 10px', background:'var(--danger-bg)', borderRadius:6 }}>
                 Este período ya está cerrado.
               </div>
             )}
@@ -774,6 +775,6 @@ export default function RevenuePage() {
 
       {/* ── Modal obligaciones ── */}
       {obligationsFor && <ObligationsPanel contractId={obligationsFor} onClose={() => setObligationsFor(null)} />}
-    </div>
+    </PageShell>
   )
 }

@@ -109,7 +109,7 @@ function BookingModal({ onClose, prefill }) {
             <option value="">Seleccionar...</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
           </select>
-          {validation.errors.user_id && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.user_id}</div>}
+          {validation.errors.user_id && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{validation.errors.user_id}</div>}
         </div>
         <div><label style={ls}>Proyecto</label>
           <select value={form.project_id} onChange={setField('project_id')} style={fs}>
@@ -126,15 +126,15 @@ function BookingModal({ onClose, prefill }) {
           </div>
           <div><label style={ls}>H/día</label>
             <input type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} style={validation.inputStyle(fs, 'hours_per_day')} />
-            {validation.errors.hours_per_day && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.hours_per_day}</div>}
+            {validation.errors.hours_per_day && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{validation.errors.hours_per_day}</div>}
           </div>
           <div><label style={ls}>Fecha inicio *</label>
             <input type="date" value={form.start_date} onChange={setField('start_date')} style={validation.inputStyle(fs, 'start_date')} />
-            {validation.errors.start_date && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.start_date}</div>}
+            {validation.errors.start_date && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{validation.errors.start_date}</div>}
           </div>
           <div><label style={ls}>Fecha fin *</label>
             <input type="date" value={form.end_date} onChange={setField('end_date')} style={validation.inputStyle(fs, 'end_date')} />
-            {validation.errors.end_date && <div style={{ color:'var(--danger)', fontSize:11, marginTop:4 }}>{validation.errors.end_date}</div>}
+            {validation.errors.end_date && <div style={{ color:'var(--danger)', fontSize: "var(--text-xs)", marginTop:4 }}>{validation.errors.end_date}</div>}
           </div>
         </div>
         <div><label style={ls}>Nota</label>
@@ -201,20 +201,20 @@ export default function ResourceHeatmap() {
           { label:'Infrautilizados (<20%)', value:freeCount, color:'var(--text-2)', icon:'⚪' },
           { label:'Personas totales', value:users.length, color:'var(--accent)', icon:'👥' },
         ].map(({ label, value, color, icon }) => (
-          <div key={label} style={{ background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:10, padding:'12px 16px' }}>
-            <div style={{ fontSize:18, marginBottom:4 }}>{icon}</div>
-            <div style={{ fontSize:22, fontWeight:800, color }}>{value}</div>
-            <div style={{ fontSize:11, color:'var(--text-2)' }}>{label}</div>
+          <div key={label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10, padding:'12px 16px' }}>
+            <div style={{ fontSize: "var(--text-lg-em)", marginBottom:4 }}>{icon}</div>
+            <div style={{ fontSize: "var(--text-xl-em)", fontWeight:800, color }}>{value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{label}</div>
           </div>
         ))}
       </div>
 
       {/* Controls */}
       <div style={{ display:'flex', gap:10, marginBottom:16, alignItems:'center', flexWrap:'wrap' }}>
-        <span style={{ fontSize:12, color:'var(--text-2)' }}>Semanas:</span>
+        <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>Semanas:</span>
         {[4,8,12,16].map(w => (
           <button key={w} onClick={() => setWeeks(w)}
-            style={{ padding:'5px 12px', borderRadius:6, border:`1px solid ${weeks===w?'rgba(79,142,247,0.31)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ padding:'5px 12px', borderRadius:6, border:`1px solid ${weeks===w?'rgba(79,142,247,0.31)':'var(--surface-4)'}`, background:weeks===w?'var(--accent-muted)':'transparent', color:weeks===w?'var(--accent)':'var(--text-2)', fontSize: "var(--text-sm)", cursor:'pointer', fontFamily:'inherit' }}>
             {w}w
           </button>
         ))}
@@ -229,7 +229,7 @@ export default function ResourceHeatmap() {
 
         <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
           <button onClick={() => setShowBookingsPanel(p => !p)}
-            style={{ background:'transparent', border:'1px solid #1e2d45', borderRadius:8, padding:'7px 14px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+            style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
             {showBookingsPanel ? '← Heatmap' : '📋 Ver reservas'}
           </button>
           <Button onClick={() => { setBookingPrefill(null); setShowBooking(true) }}>
@@ -241,37 +241,37 @@ export default function ResourceHeatmap() {
       {/* Legend */}
       <div style={{ display:'flex', gap:16, marginBottom:14, flexWrap:'wrap' }}>
         {Object.entries(STATUS_COLORS).map(([status, cfg]) => (
-          <div key={status} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text-2)' }}>
+          <div key={status} style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
             <div style={{ width:16, height:16, borderRadius:4, background:cfg.bg, border:`1px solid ${cfg.border}` }} />
             {cfg.label}
           </div>
         ))}
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text-2)', marginLeft:8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)', marginLeft:8 }}>
           <div style={{ width:12, height:3, background:BOOKING_COLORS.hard, borderRadius:2 }} /> {t('resource_heatmap.hard_booking')}
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--text-2)' }}>
-          <div style={{ width:12, height:3, background:BOOKING_COLORS.soft, borderRadius:2, borderTop:'1px dashed #7c3aed' }} /> {t('resource_heatmap.soft_booking')}
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
+          <div style={{ width:12, height:3, background:BOOKING_COLORS.soft, borderRadius:2, borderTop:'1px dashed var(--purple)' }} /> {t('resource_heatmap.soft_booking')}
         </div>
       </div>
 
       {/* Bookings panel */}
       {showBookingsPanel && (
-        <div style={{ background:'var(--surface-2)', border:'1px solid #1e2d45', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
-          <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>{t('resource_heatmap.active_bookings')}</div>
+        <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'16px 20px', marginBottom:20 }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:12 }}>{t('resource_heatmap.active_bookings')}</div>
           {bookings.length === 0 ? (
             <EmptyState icon="📅" title={t('resource_heatmap.empty_bookings_title')} description={t('resource_heatmap.empty_bookings_desc')} />
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {bookings.map(b => (
-                <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize:12 }}>
+                <div key={b.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 120px 120px 80px 80px auto', gap:10, padding:'8px 12px', background:'var(--surface-3)', borderRadius:8, alignItems:'center', fontSize: "var(--text-sm)" }}>
                   <span style={{ fontWeight:600 }}>{b.user_name}</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:BOOKING_COLORS[b.booking_type], background:BOOKING_COLORS[b.booking_type]+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:BOOKING_COLORS[b.booking_type], background:BOOKING_COLORS[b.booking_type]+'20', padding:'2px 6px', borderRadius:4, textAlign:'center' }}>{b.booking_type}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.project_name || t('resource_heatmap.no_project')}</span>
                   <span style={{ color:'var(--text-2)' }}>{b.start_date} → {b.end_date}</span>
                   <span>{b.hours_per_day}h/día</span>
                   <span style={{ fontWeight:700 }}>{b.total_hours}h total</span>
                   <button onClick={() => { openConfirmGlobal({message:t('resource_heatmap.delete_booking_confirm'),onConfirm:()=>deleteBooking(b.id),danger:true}) }}
-                    style={{ background:'none', border:'1px solid #ff475730', borderRadius:6, padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize:11 }}>🗑</button>
+                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'2px 8px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               ))}
             </div>
@@ -283,13 +283,13 @@ export default function ResourceHeatmap() {
       {isLoading ? <Spinner /> : filteredUsers.length === 0 ? (
         <EmptyState icon="👥" title={t('resource_heatmap.empty_data_title')} description={t('resource_heatmap.empty_data_desc')} />
       ) : (
-        <div style={{ overflowX:'auto', border:'1px solid #1e2d45', borderRadius:12, background:'var(--surface-1)' }}>
+        <div style={{ overflowX:'auto', border:'1px solid var(--surface-4)', borderRadius:12, background:'var(--surface-1)' }}>
           <div style={{ minWidth: 200 + weekLabels.length * 72 }}>
             {/* Header row */}
-            <div style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid #1e2d45' }}>
-              <div style={{ padding:'10px 14px', fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('resource_heatmap.person')}</div>
+            <div style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid var(--surface-4)' }}>
+              <div style={{ padding:'10px 14px', fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('resource_heatmap.person')}</div>
               {weekLabels.map((label, i) => (
-                <div key={i} style={{ padding:'10px 4px', fontSize:11, color:'var(--text-2)', textAlign:'center', fontFamily:'monospace' }}>{label}</div>
+                <div key={i} style={{ padding:'10px 4px', fontSize: "var(--text-xs)", color:'var(--text-2)', textAlign:'center', fontFamily:'var(--font-mono)' }}>{label}</div>
               ))}
             </div>
 
@@ -299,12 +299,12 @@ export default function ResourceHeatmap() {
                 style={{ display:'grid', gridTemplateColumns:`200px repeat(${weekLabels.length}, 1fr)`, borderBottom:'1px solid #1e2d4520' }}>
                 {/* User info */}
                 <div style={{ padding:'10px 14px', display:'flex', alignItems:'center', gap:8 }}>
-                  <div style={{ width:28, height:28, borderRadius:8, background:'var(--surface-4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--text-2)', flexShrink:0 }}>
+                  <div style={{ width:28, height:28, borderRadius:8, background:'var(--surface-4)', display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', flexShrink:0 }}>
                     {user.user_name.split(' ').map(n => n[0]).join('').slice(0,2)}
                   </div>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.user_name}</div>
-                    <div style={{ fontSize:10, color:'var(--text-3)' }}>{user.role} · {Math.round(user.avg_utilization)}% avg</div>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.user_name}</div>
+                    <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)' }}>{user.role} · {Math.round(user.avg_utilization)}% avg</div>
                   </div>
                 </div>
 
@@ -337,12 +337,12 @@ export default function ResourceHeatmap() {
                     >
                       {showHours ? (
                         <>
-                          <div style={{ fontSize:12, fontWeight:700, color:cfg.text }}>{Math.round(week.utilization_pct)}%</div>
-                          {week.hard_hours > 0 && <div style={{ fontSize:9, color:BOOKING_COLORS.hard }}>{week.hard_hours}h</div>}
-                          {week.soft_hours > 0 && <div style={{ fontSize:9, color:BOOKING_COLORS.soft }}>{week.soft_hours}h ~</div>}
+                          <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:cfg.text }}>{Math.round(week.utilization_pct)}%</div>
+                          {week.hard_hours > 0 && <div style={{ fontSize: "var(--text-3xs)", color:BOOKING_COLORS.hard }}>{week.hard_hours}h</div>}
+                          {week.soft_hours > 0 && <div style={{ fontSize: "var(--text-3xs)", color:BOOKING_COLORS.soft }}>{week.soft_hours}h ~</div>}
                         </>
                       ) : (
-                        <div style={{ fontSize:10, color:'var(--text-3)' }}>—</div>
+                        <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)' }}>—</div>
                       )}
                     </button>
                   )

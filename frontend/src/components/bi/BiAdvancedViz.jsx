@@ -33,9 +33,9 @@ export default function BiAdvancedViz({ style }) {
               style={{
                 padding: '4px 12px',
                 borderRadius: 20,
-                border: '1.5px solid var(--border,#e5e7eb)',
-                background: activeChart === key ? 'var(--accent,#6366f1)' : 'transparent',
-                color: activeChart === key ? '#fff' : 'var(--text-secondary,#6b7280)',
+                border: '1.5px solid var(--border)',
+                background: activeChart === key ? 'var(--accent,var(--accent))' : 'transparent',
+                color: activeChart === key ? '#fff' : 'var(--text-secondary,var(--text-3))',
                 fontSize: '0.75rem',
                 minHeight: 36,
                 cursor: 'pointer',

@@ -81,10 +81,10 @@ export function ConfirmProvider({ children }) {
               boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
             }}
           >
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: state.danger ? 'var(--danger)' : 'var(--text-1)', marginBottom: 12 }}>
+            <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: state.danger ? 'var(--danger)' : 'var(--text-1)', marginBottom: 12 }}>
               {state.title}
             </h2>
-            <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+            <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", lineHeight: 1.6, marginBottom: 24 }}>
               {state.message}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

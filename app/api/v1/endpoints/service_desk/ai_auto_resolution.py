@@ -28,7 +28,7 @@ from app.services.service_desk.ai_auto_resolution_service import (
     run_auto_close_job,
 )
 
-router = APIRouter(prefix="/sd", tags=["Service Desk - AI Auto-Resolution"])
+router = APIRouter(tags=["Service Desk - AI Auto-Resolution"])
 
 
 class FeedbackBody(BaseModel):

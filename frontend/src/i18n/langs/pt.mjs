@@ -43,7 +43,7 @@ const pt = {
     organizations: 'Organizações', enterprise: 'Enterprise',
     cmdb: 'CMDB', automations: 'Automatizações', search: 'Pesquisar',
     okrs: 'OKRs', performance_reviews: 'Avaliações', training: 'Treinamento & Certificações',
-    bi: 'BI & Executivo', webhook_log: 'Log Webhook', jira_integration: 'Integração Jira', notifications: 'Notificações',
+    bi: 'BI & Executivo', webhook_log: 'Log Webhook', jira_integration: 'Integração Jira', notifications: 'Notificações', inbox: 'Caixa de entrada',
     executive: 'Painel Executivo',
     bi_workspace: 'Área de Trabalho BI',
     log_hours: 'Lançar horas', timer: 'Timer', calendar: 'Calendário',

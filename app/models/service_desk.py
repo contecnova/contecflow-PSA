@@ -4,7 +4,7 @@ Works standalone OR linked to Contecflow projects/contracts.
 """
 import sqlalchemy as sa
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, Boolean, Integer, Enum, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.sql import func
 import enum
 import uuid
@@ -689,7 +689,7 @@ class ITSMChangeRequest(Base):
     __tablename__ = "sd_change_requests"
 
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    number      = Column(String(20), unique=True, nullable=False, index=True)
+    number      = Column(String(20), unique=True, nullable=False, index=True, default=lambda: f"CHG-{uuid.uuid4().hex[:8].upper()}")
     title       = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
 
@@ -743,6 +743,23 @@ class ITSMChangeRequest(Base):
     owner     = relationship("User", foreign_keys=[owner_id])
     approver  = relationship("User", foreign_keys=[approver_id])
     approver_user = relationship("User", foreign_keys=[approved_by])
+
+    requester_user_id = synonym("requester_id")
+
+    def __init__(self, **kwargs):
+        legacy_priority = kwargs.get("priority")
+        if isinstance(legacy_priority, str):
+            priority_map = {
+                "critical": TicketPriority.p1_critical,
+                "high": TicketPriority.p2_high,
+                "medium": TicketPriority.p3_medium,
+                "low": TicketPriority.p4_low,
+            }
+            kwargs["priority"] = priority_map.get(legacy_priority, legacy_priority)
+        super().__init__(**kwargs)
+
+
+ChangeRequest = ITSMChangeRequest
 
 
 # ── Major Incident ────────────────────────────────────────────────────────────

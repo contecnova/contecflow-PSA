@@ -191,30 +191,70 @@ def close_session(
 def create_ticket_from_session(
     db: Session, org_id: Optional[str], session_id: str, created_by_id: Any
 ) -> Dict[str, Any]:
-    """Create a Service Desk ticket from the voice session summary."""
+    """Create a real Service Desk ticket from the voice session summary."""
     sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
     session = sessions.get(session_id)
     if not session:
         raise ValueError(f"Session {session_id!r} not found")
+
+    from app.models.service_desk import Ticket, TicketHistory, TicketImpact, TicketPriority, TicketType, TicketUrgency
+    from app.services.sla_service import next_ticket_number
+
     intent = session.get("intent", "query")
     transcript_text = " ".join(t["text"] for t in session.get("transcript", []) if t["speaker"] == "user")
-    ticket = {
-        "id": str(uuid.uuid4()),
-        "source": "voice_agent",
-        "caller_id": session.get("caller_id"),
-        "channel": session.get("channel", "phone"),
-        "intent": intent,
-        "priority": _PRIORITY_MAP.get(intent, "medium"),
-        "summary": transcript_text[:200] or f"Llamada de voz: {intent}",
-        "entities": session.get("entities", {}),
-        "session_id": session_id,
-        "created_by": str(created_by_id),
-        "created_at": _now_iso(),
+    priority_map = {
+        "critical": TicketPriority.p1_critical,
+        "high": TicketPriority.p2_high,
+        "medium": TicketPriority.p3_medium,
+        "low": TicketPriority.p4_low,
     }
-    session["ticket_id"] = ticket["id"]
+    urgency = TicketUrgency.high if intent in ("urgent", "agent") else TicketUrgency.medium
+    impact = TicketImpact.department if intent == "urgent" else TicketImpact.user
+    priority = priority_map.get(_PRIORITY_MAP.get(intent, "medium"), TicketPriority.p3_medium)
+
+    ticket = Ticket(
+        id=str(uuid.uuid4()),
+        number=next_ticket_number(TicketType.incident.value, db),
+        ticket_type=TicketType.incident,
+        title=(transcript_text[:120] or f"Voice call: {intent}").strip(),
+        description=transcript_text or f"Voice session from {session.get('caller_id')}",
+        status="new",
+        priority=priority,
+        urgency=urgency,
+        impact=impact,
+        support_level="l1",
+        requester_name=session.get("caller_id"),
+        requester_email=session.get("entities", {}).get("email"),
+        source="voice_agent",
+        created_by_user_id=str(created_by_id),
+    )
+    db.add(ticket)
+    db.flush()
+
+    db.add(TicketHistory(
+        ticket_id=ticket.id,
+        field_name="voice_session",
+        old_value=None,
+        new_value=session_id,
+        changed_by_user_id=str(created_by_id),
+    ))
+
+    session["ticket_id"] = ticket["id"] if isinstance(ticket, dict) else ticket.id
     sessions[session_id] = session
     _set_json(db, _SESSIONS_KEY, org_id, sessions, "Voice Agent session store")
-    return ticket
+    db.commit()
+    return {
+        "id": ticket.id,
+        "number": ticket.number,
+        "source": ticket.source,
+        "channel": session.get("channel", "phone"),
+        "caller_id": session.get("caller_id"),
+        "intent": intent,
+        "priority": ticket.priority.value if hasattr(ticket.priority, "value") else ticket.priority,
+        "summary": ticket.title,
+        "session_id": session_id,
+        "created_at": _now_iso(),
+    }
 
 
 def list_sessions(

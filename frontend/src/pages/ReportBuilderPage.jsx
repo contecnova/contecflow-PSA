@@ -8,13 +8,14 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { reportBuilderApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width: '100%', background: '#2d3748', border: '1px solid #4a5568', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-4)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const EMPTY_FILTER = { column: '', operator: 'eq', value: '' }
 const NULL_OPS = new Set(['is_null', 'is_not_null'])
@@ -22,7 +23,7 @@ const NULL_OPS = new Set(['is_null', 'is_not_null'])
 function useSchema() {
   return useQuery({
     queryKey: ['report-schema'],
-    queryFn: () => api.get('/reports/schema').then(r => r.data),
+    queryFn: () => reportBuilderApi.schema().then(r => r.data),
     staleTime: Infinity,
   })
 }
@@ -105,28 +106,28 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar campos..."
-          style={{ ...fs, paddingLeft: 28, fontSize: 12 }}
+          style={{ ...fs, paddingLeft: 28, fontSize: "var(--text-sm)" }}
         />
-        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#718096', fontSize: 13 }}>🔍</span>
+        <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>🔍</span>
         {search && (
           <button
             onClick={() => setSearch('')}
-            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 13 }}>✕</button>
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-base)" }}>✕</button>
         )}
       </div>
 
       {/* Select all / none */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
         <button onClick={onSelectAll}
-          style={{ background: 'none', border: 'none', color: '#90cdf4', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--info)', fontSize: "var(--text-xs)", cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
           Seleccionar todos
         </button>
-        <span style={{ color: '#4a5568', fontSize: 11 }}>·</span>
+        <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-xs)" }}>·</span>
         <button onClick={onDeselectAll}
-          style={{ background: 'none', border: 'none', color: '#718096', fontSize: 11, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+          style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
           Limpiar
         </button>
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#4a5568' }}>
+        <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>
           {selected.length}/{Object.keys(cols).length}
         </span>
       </div>
@@ -134,7 +135,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       {/* Column list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
         {filtered.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 12, color: '#4a5568', fontSize: 12 }}>Sin resultados</div>
+          <div style={{ textAlign: 'center', padding: 12, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>Sin resultados</div>
         )}
         {filtered.map(([key, col]) => (
           <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: selected.includes(key) ? '#1e3a5a' : 'transparent' }}>
@@ -142,10 +143,10 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
               type="checkbox"
               checked={selected.includes(key)}
               onChange={() => onToggle(key)}
-              style={{ accentColor: '#63b3ed', width: 13, height: 13, flexShrink: 0 }}
+              style={{ accentColor: 'var(--info)', width: 13, height: 13, flexShrink: 0 }}
             />
-            <span style={{ fontSize: 12, color: selected.includes(key) ? '#e2e8f0' : '#a0aec0', flex: 1 }}>{col.label}</span>
-            <span style={{ fontSize: 9, color: '#4a5568', background: '#2d3748', borderRadius: 3, padding: '1px 4px', flexShrink: 0 }}>{col.type}</span>
+            <span style={{ fontSize: "var(--text-sm)", color: selected.includes(key) ? 'var(--text-1)' : 'var(--text-2)', flex: 1 }}>{col.label}</span>
+            <span style={{ fontSize: "var(--text-3xs)", color: 'var(--surface-5)', background: 'var(--surface-4)', borderRadius: 3, padding: '1px 4px', flexShrink: 0 }}>{col.type}</span>
           </label>
         ))}
       </div>
@@ -153,7 +154,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       {/* Drag-to-reorder selected columns */}
       {selected.length > 1 && (
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#4a5568', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+          <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--surface-5)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
             Orden de columnas (arrastra para reordenar)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -161,20 +162,36 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
               <div
                 key={key}
                 draggable
+                role="button"
+                tabIndex={0}
                 onDragStart={e => handleDragStart(e, idx)}
                 onDragOver={e => handleDragOver(e, idx)}
                 onDrop={handleDrop}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowUp' && idx > 0) {
+                    e.preventDefault()
+                    const reordered = [...selected]
+                    ;[reordered[idx - 1], reordered[idx]] = [reordered[idx], reordered[idx - 1]]
+                    onReorder(reordered)
+                  }
+                  if (e.key === 'ArrowDown' && idx < selected.length - 1) {
+                    e.preventDefault()
+                    const reordered = [...selected]
+                    ;[reordered[idx], reordered[idx + 1]] = [reordered[idx + 1], reordered[idx]]
+                    onReorder(reordered)
+                  }
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  background: '#2d3748', border: '1px solid #4a5568',
+                  background: 'var(--surface-4)', border: '1px solid var(--surface-5)',
                   borderRadius: 5, padding: '4px 8px', cursor: 'grab',
-                  fontSize: 11, color: '#e2e8f0',
+                  fontSize: "var(--text-xs)", color: 'var(--text-1)',
                   userSelect: 'none',
                 }}
               >
-                <span style={{ color: '#4a5568', fontSize: 12 }}>⠿</span>
+                <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>⠿</span>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cols[key]?.label || key}</span>
-                <span style={{ fontSize: 10, color: '#4a5568' }}>{idx + 1}</span>
+                <span style={{ fontSize: "var(--text-2xs)", color: 'var(--surface-5)' }}>{idx + 1}</span>
               </div>
             ))}
           </div>
@@ -191,11 +208,11 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }) 
   const needsValue = !NULL_OPS.has(filter.operator)
   return (
     <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 5 }}>
-      <select value={filter.column} onChange={set('column')} style={{ ...fs, flex: '0 0 120px', fontSize: 11 }}>
+      <select value={filter.column} onChange={set('column')} style={{ ...fs, flex: '0 0 120px', fontSize: "var(--text-xs)" }}>
         <option value="">Campo…</option>
         {Object.entries(cols).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
       </select>
-      <select value={filter.operator} onChange={set('operator')} style={{ ...fs, flex: '0 0 110px', fontSize: 11 }}>
+      <select value={filter.operator} onChange={set('operator')} style={{ ...fs, flex: '0 0 110px', fontSize: "var(--text-xs)" }}>
         {Object.entries(operators || {}).map(([k, o]) => <option key={k} value={k}>{o.label}</option>)}
       </select>
       {needsValue ? (
@@ -203,13 +220,13 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }) 
           value={filter.value}
           onChange={set('value')}
           placeholder="Valor del filtro..."
-          style={{ ...fs, flex: 1, fontSize: 11 }}
+          style={{ ...fs, flex: 1, fontSize: "var(--text-xs)" }}
         />
       ) : (
         <div style={{ flex: 1 }} />
       )}
       <button onClick={() => onRemove(index)}
-        style={{ background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>✕</button>
+        style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", flexShrink: 0 }}>✕</button>
     </div>
   )
 }
@@ -219,13 +236,13 @@ function PreviewTable({ rows, columns, entityDef }) {
   const colDef = entityDef?.columns || {}
   if (!rows || rows.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: 48, color: '#4a5568', fontSize: 13 }}>
-        Configura la consulta y pulsa <strong style={{ color: '#90cdf4' }}>Previsualizar</strong>
+      <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-base)" }}>
+        Configura la consulta y pulsa <strong style={{ color: 'var(--info)' }}>Previsualizar</strong>
       </div>
     )
   }
-  const cellBase = { padding: '7px 10px', fontSize: 12, borderBottom: '1px solid var(--surface-4)', color: '#e2e8f0', whiteSpace: 'nowrap' }
-  const thStyle  = { ...cellBase, fontWeight: 700, fontSize: 10, color: '#718096', textTransform: 'uppercase', background: '#1a202c' }
+  const cellBase = { padding: '7px 10px', fontSize: "var(--text-sm)", borderBottom: '1px solid var(--surface-4)', color: 'var(--text-1)', whiteSpace: 'nowrap' }
+  const thStyle  = { ...cellBase, fontWeight: 700, fontSize: "var(--text-2xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -238,11 +255,11 @@ function PreviewTable({ rows, columns, entityDef }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}
-              onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
               onMouseLeave={e => e.currentTarget.style.background = ''}>
               {columns.map(c => (
                 <td key={c} style={cellBase}>
-                  {row[c] === null || row[c] === undefined ? <span style={{ color: '#4a5568' }}>—</span> :
+                  {row[c] === null || row[c] === undefined ? <span style={{ color: 'var(--surface-5)' }}>—</span> :
                    typeof row[c] === 'boolean' ? (row[c] ? '✔' : '✘') :
                    String(row[c])}
                 </td>
@@ -368,7 +385,7 @@ export default function ReportBuilderPage() {
   const resolvedColumns = columns.length > 0 ? columns : Object.keys(entityDef?.columns || {})
 
   return (
-    <div style={{ padding: 32, maxWidth: 1400, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('report_builder.title')}
@@ -379,11 +396,11 @@ export default function ReportBuilderPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {['builder', 'templates'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
-            background: activeTab === t ? '#2b4a7a' : 'none',
-            border: `1px solid ${activeTab === t ? '#63b3ed' : '#4a5568'}`,
+            background: activeTab === t ? 'var(--accent-glow)' : 'none',
+            border: `1px solid ${activeTab === t ? 'var(--info)' : 'var(--surface-5)'}`,
             borderRadius: 8, padding: '6px 16px',
-            color: activeTab === t ? '#90cdf4' : '#718096',
-            cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+            color: activeTab === t ? 'var(--info)' : 'var(--text-2)',
+            cursor: 'pointer', fontSize: "var(--text-base)", fontFamily: 'inherit',
           }}>
             {t === 'builder' ? '🔧 Constructor' : `📁 Plantillas (${templates.length})`}
           </button>
@@ -393,25 +410,25 @@ export default function ReportBuilderPage() {
       {activeTab === 'templates' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {templates.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 48, color: '#4a5568', fontSize: 14 }}>
+            <div style={{ textAlign: 'center', padding: 48, color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
               No hay plantillas guardadas. Crea un informe y guárdalo.
             </div>
           ) : templates.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: '12px 16px' }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600 }}>{t.name}</div>
-                <div style={{ fontSize: 11, color: '#718096', marginTop: 2 }}>
+                <div style={{ fontSize: "var(--text-md)", color: 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>
                   {entities[t.query?.entity]?.label || t.query?.entity}
                   {' · '}{(t.query?.columns || []).length} columnas
                   {' · '}{(t.query?.filters || []).length} filtros
                 </div>
               </div>
               <button onClick={() => loadTemplate(t)}
-                style={{ background: '#2b4a7a', border: 'none', borderRadius: 6, color: '#90cdf4', padding: '6px 14px', cursor: 'pointer', fontSize: 12 }}>
+                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 6, color: 'var(--info)', padding: '6px 14px', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                 Cargar
               </button>
               <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar plantilla?', onConfirm: () => deleteTpl(t.id), danger: true }) }}
-                style={{ background: 'none', border: 'none', color: '#718096', cursor: 'pointer', fontSize: 12 }}>
+                style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                 Eliminar
               </button>
             </div>
@@ -420,14 +437,14 @@ export default function ReportBuilderPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, alignItems: 'start' }}>
           {/* ── Left panel ── */}
-          <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Entity selector */}
             <div>
               <label style={ls}>Entidad de datos</label>
               <EntityPicker entities={entities} groups={groups} value={entity} onChange={changeEntity} />
               {entityDef && (
-                <div style={{ marginTop: 6, fontSize: 11, color: '#4a5568' }}>
+                <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>
                   {Object.keys(entityDef.columns).length} campos disponibles
                 </div>
               )}
@@ -453,12 +470,12 @@ export default function ReportBuilderPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <label style={{ ...ls, marginBottom: 0 }}>Filtros</label>
                     <button onClick={addFilter}
-                      style={{ background: 'none', border: 'none', color: '#90cdf4', cursor: 'pointer', fontSize: 12 }}>
+                      style={{ background: 'none', border: 'none', color: 'var(--info)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
                       + Añadir
                     </button>
                   </div>
                   {filters.length === 0 && (
-                    <div style={{ fontSize: 11, color: '#4a5568', textAlign: 'center', padding: '6px 0' }}>Sin filtros</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', textAlign: 'center', padding: '6px 0' }}>Sin filtros</div>
                   )}
                   {filters.map((f, i) => (
                     <FilterRow key={i} filter={f} index={i} entityDef={entityDef}
@@ -473,7 +490,7 @@ export default function ReportBuilderPage() {
                     <select
                       value={sort.column}
                       onChange={e => setSort(s => ({ ...s, column: e.target.value }))}
-                      style={{ ...fs, flex: 1, fontSize: 12 }}>
+                      style={{ ...fs, flex: 1, fontSize: "var(--text-sm)" }}>
                       <option value="">Sin orden</option>
                       {Object.entries(entityDef.columns).map(([k, c]) =>
                         <option key={k} value={k}>{c.label}</option>
@@ -482,7 +499,7 @@ export default function ReportBuilderPage() {
                     <select
                       value={sort.direction}
                       onChange={e => setSort(s => ({ ...s, direction: e.target.value }))}
-                      style={{ ...fs, width: 72, fontSize: 12 }}>
+                      style={{ ...fs, width: 72, fontSize: "var(--text-sm)" }}>
                       <option value="asc">↑ Asc</option>
                       <option value="desc">↓ Desc</option>
                     </select>
@@ -495,11 +512,11 @@ export default function ReportBuilderPage() {
               onClick={runPreview}
               disabled={!entity || loading}
               style={{
-                background: entity ? '#2b4a7a' : '#2d3748',
+                background: entity ? 'var(--accent)' : 'var(--surface-4)',
                 border: 'none', borderRadius: 8,
-                color: entity ? '#90cdf4' : '#4a5568',
+                color: entity ? 'var(--info)' : 'var(--surface-5)',
                 padding: '10px 0', cursor: entity ? 'pointer' : 'not-allowed',
-                fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+                fontWeight: 700, fontSize: "var(--text-base)", fontFamily: 'inherit',
                 transition: 'opacity 0.15s',
               }}>
               {loading ? 'Consultando…' : '▶ Previsualizar'}
@@ -511,7 +528,7 @@ export default function ReportBuilderPage() {
             {/* Toolbar */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {preview && (
-                <span style={{ fontSize: 12, color: '#718096', flex: 1, minWidth: 120 }}>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', flex: 1, minWidth: 120 }}>
                   {preview.count} fila{preview.count !== 1 ? 's' : ''}
                   {preview.truncated ? ' (máx. 500 en previsualización)' : ''}
                   {preview.error ? ' — error en la consulta' : ''}
@@ -521,10 +538,10 @@ export default function ReportBuilderPage() {
                 onClick={exportCSV}
                 disabled={!entity}
                 style={{
-                  background: entity ? '#276227' : '#2d3748', border: 'none', borderRadius: 8,
-                  color: entity ? '#68d391' : '#4a5568',
+                  background: entity ? '#276227' : 'var(--surface-4)', border: 'none', borderRadius: 8,
+                  color: entity ? 'var(--success)' : 'var(--surface-5)',
                   padding: '8px 16px', cursor: entity ? 'pointer' : 'not-allowed',
-                  fontSize: 12, fontFamily: 'inherit',
+                  fontSize: "var(--text-sm)", fontFamily: 'inherit',
                 }}>
                 ⬇ Exportar CSV
               </button>
@@ -538,24 +555,24 @@ export default function ReportBuilderPage() {
                 onClick={saveTemplate}
                 disabled={!tplName.trim() || !entity || savingTpl}
                 style={{
-                  background: tplName.trim() && entity ? '#2b4a7a' : '#2d3748',
+                  background: tplName.trim() && entity ? 'var(--accent)' : 'var(--surface-4)',
                   border: 'none', borderRadius: 8,
-                  color: tplName.trim() && entity ? '#90cdf4' : '#4a5568',
+                  color: tplName.trim() && entity ? 'var(--info)' : 'var(--surface-5)',
                   padding: '8px 14px', cursor: 'pointer',
-                  fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap',
+                  fontSize: "var(--text-sm)", fontFamily: 'inherit', whiteSpace: 'nowrap',
                 }}>
                 {savingTpl ? 'Guardando…' : '💾 Guardar plantilla'}
               </button>
             </div>
 
             {/* Preview table */}
-            <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden', minHeight: 200 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', minHeight: 200 }}>
               <PreviewTable rows={preview?.rows} columns={resolvedColumns} entityDef={entityDef} />
             </div>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }
 

@@ -128,10 +128,18 @@ def trigger_sync(
     org_str = str(org_id) if org_id else None
     try:
         from app.worker import sync_connector_data  # type: ignore[import]
+        queue_name = f"etl_{connector_id}"
         task = sync_connector_data.apply_async(
             kwargs={"connector_id": connector_id, "org_id": org_str},
+            queue=queue_name,
+            routing_key=queue_name,
         )
-        return {"task_id": task.id, "connector_id": connector_id, "status": "queued"}
+        return {
+            "task_id": task.id,
+            "connector_id": connector_id,
+            "status": "queued",
+            "queue": queue_name,
+        }
     except Exception as exc:
         logger.warning("trigger_sync: could not dispatch Celery task: %s", exc)
         return {"task_id": None, "connector_id": connector_id, "status": "queued_local", "detail": str(exc)}

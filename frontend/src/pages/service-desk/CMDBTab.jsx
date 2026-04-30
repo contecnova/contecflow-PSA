@@ -26,8 +26,8 @@ function CMDBDetail({ ci, onClose }) {
     enabled: tab === 'impact',
   })
 
-  const STATUS_COLOR_CI = { operational: '#00e5a0', degraded: '#fb923c', maintenance: '#facc15', retired: '#6b7280' }
-  const tabStyle = a => ({ padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', background: a ? 'var(--accent-glow)' : 'transparent', color: a ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontFamily: 'inherit', fontWeight: a ? 700 : 400 })
+  const STATUS_COLOR_CI = { operational: 'var(--success)', degraded: 'var(--orange)', maintenance: 'var(--warning)', retired: 'var(--text-3)' }
+  const tabStyle = a => ({ padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer', background: a ? 'var(--accent-glow)' : 'transparent', color: a ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: a ? 700 : 400 })
 
   return (
     <Modal open title={`CI: ${ci.name}`} onClose={onClose} width={600}>
@@ -39,9 +39,9 @@ function CMDBDetail({ ci, onClose }) {
       {tab === 'info' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {[['Codigo', ci.code], ['Tipo', ci.ci_type], ['Estado', ci.status], ['Entorno', ci.environment], ['Criticidad', ci.criticality], ['Vendor', ci.vendor], ['Version', ci.version]].map(([l, v]) => v ? (
-            <div key={l}><div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{l}</div><div style={{ fontSize: 13, fontWeight: 600, marginTop: 2, color: 'var(--text-1)' }}>{v}</div></div>
+            <div key={l}><div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{l}</div><div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginTop: 2, color: 'var(--text-1)' }}>{v}</div></div>
           ) : null)}
-          {ci.description && <div style={{ gridColumn: '1/-1', marginTop: 8, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{ci.description}</div>}
+          {ci.description && <div style={{ gridColumn: '1/-1', marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{ci.description}</div>}
         </div>
       )}
       {tab === 'relations' && (
@@ -50,8 +50,8 @@ function CMDBDetail({ ci, onClose }) {
             ? <EmptyState icon="🔗" title="Sin relaciones" description="Este CI aun no tiene relaciones registradas" />
             : relations.map(r => (
               <div key={r.id} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6, alignItems: 'center' }}>
-                <span style={{ fontSize: 10, padding: '2px 7px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{r.relation_type?.replace(/_/g, ' ')}</span>
-                <div><div style={{ fontSize: 13, fontWeight: 600 }}>{r.target_name || r.source_name}</div><div style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.target_code || r.source_code}</div></div>
+                <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{r.relation_type?.replace(/_/g, ' ')}</span>
+                <div><div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{r.target_name || r.source_name}</div><div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.target_code || r.source_code}</div></div>
               </div>
             ))}
         </div>
@@ -62,11 +62,11 @@ function CMDBDetail({ ci, onClose }) {
             : (impact.affected || []).length === 0
               ? <EmptyState icon="💥" title="Sin impacto registrado" description="No hay otros CIs afectados por este elemento" />
               : <>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>Si <strong>{ci.name}</strong> falla, los siguientes CIs se ven afectados:</div>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 12 }}>Si <strong>{ci.name}</strong> falla, los siguientes CIs se ven afectados:</div>
                   {(impact.affected || []).map(a => (
                     <div key={a.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, marginBottom: 6 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name} <span style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'monospace' }}>{a.code}</span></div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{a.ci_type} · <span style={{ color: STATUS_COLOR_CI[a.status] }}>{a.status}</span></div>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{a.name} <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{a.code}</span></div>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{a.ci_type} · <span style={{ color: STATUS_COLOR_CI[a.status] }}>{a.status}</span></div>
                     </div>
                   ))}
                 </>}
@@ -85,8 +85,8 @@ export default function CMDBTab() {
   const [showDetail, setShowDetail] = useState(null)
   const [form, setForm] = useState({ name: '', ci_type: 'application', status: 'operational', description: '', environment: '', version: '', vendor: '', criticality: 'medium', notes: '' })
 
-  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
-  const LS = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
+  const IS = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 11px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 4 }
 
   const { data: cis = [], isLoading } = useQuery({
     queryKey: ['sd-cmdb', typeFilter],
@@ -112,8 +112,8 @@ export default function CMDBTab() {
 
   const CI_TYPES = ['application', 'server', 'database', 'network', 'service', 'module', 'integration', 'other']
   const CI_STATUSES = ['operational', 'degraded', 'maintenance', 'retired']
-  const STATUS_COLOR_CI = { operational: '#00e5a0', degraded: '#fb923c', maintenance: '#facc15', retired: '#6b7280' }
-  const CRIT_COLOR = { low: '#6b7280', medium: '#facc15', high: '#fb923c', critical: '#ff4757' }
+  const STATUS_COLOR_CI = { operational: 'var(--success)', degraded: 'var(--orange)', maintenance: 'var(--warning)', retired: 'var(--text-3)' }
+  const CRIT_COLOR = { low: 'var(--text-3)', medium: 'var(--warning)', high: 'var(--orange)', critical: 'var(--danger)' }
 
   const filtered = cis.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.code?.toLowerCase().includes(search.toLowerCase()))
 
@@ -142,21 +142,21 @@ export default function CMDBTab() {
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 16px', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{ci.name}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'monospace' }}>{ci.code}</div>
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{ci.name}</div>
+                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{ci.code}</div>
                     </div>
-                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 700, background: (STATUS_COLOR_CI[ci.status] || '#6b7280') + '20', color: STATUS_COLOR_CI[ci.status] || '#6b7280' }}>
+                    <span style={{ fontSize: "var(--text-2xs)", padding: '2px 7px', borderRadius: 20, fontWeight: 700, background: (STATUS_COLOR_CI[ci.status] || 'var(--text-3)') + '20', color: STATUS_COLOR_CI[ci.status] || 'var(--text-3)' }}>
                       {ci.status}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{ci.ci_type}</span>
-                    {ci.environment && <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 4 }}>{ci.environment}</span>}
-                    <span style={{ fontSize: 10, padding: '2px 6px', background: (CRIT_COLOR[ci.criticality] || '#6b7280') + '20', color: CRIT_COLOR[ci.criticality] || '#6b7280', borderRadius: 4 }}>{ci.criticality}</span>
+                    <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: 'var(--accent-muted)', color: 'var(--accent)', borderRadius: 4 }}>{ci.ci_type}</span>
+                    {ci.environment && <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: 'var(--surface-4)', color: 'var(--text-2)', borderRadius: 4 }}>{ci.environment}</span>}
+                    <span style={{ fontSize: "var(--text-2xs)", padding: '2px 6px', background: (CRIT_COLOR[ci.criticality] || 'var(--text-3)') + '20', color: CRIT_COLOR[ci.criticality] || 'var(--text-3)', borderRadius: 4 }}>{ci.criticality}</span>
                   </div>
-                  {ci.vendor && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>🏷 {ci.vendor}{ci.version ? ` v${ci.version}` : ''}</div>}
+                  {ci.vendor && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 6 }}>🏷 {ci.vendor}{ci.version ? ` v${ci.version}` : ''}</div>}
                   <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                    <button onClick={e => { e.stopPropagation(); update({ id: ci.id, status: ci.status === 'operational' ? 'maintenance' : 'operational' }) }} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>
+                    <button onClick={e => { e.stopPropagation(); update({ id: ci.id, status: ci.status === 'operational' ? 'maintenance' : 'operational' }) }} style={{ fontSize: "var(--text-2xs)", padding: '3px 8px', borderRadius: 5, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer' }}>
                       {ci.status === 'operational' ? '🔧 Modo mantenimiento' : '✅ Operativo'}
                     </button>
                   </div>
@@ -178,7 +178,7 @@ export default function CMDBTab() {
             <div style={{ gridColumn: '1/-1' }}><label style={LS}>Descripcion</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ ...IS, resize: 'vertical' }} /></div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
+            <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>Cancelar</button>
             <Button onClick={() => create(form)} loading={creating} disabled={!form.name || creating}>Crear CI</Button>
           </div>
         </Modal>

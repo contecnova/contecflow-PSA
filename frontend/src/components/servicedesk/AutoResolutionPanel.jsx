@@ -37,8 +37,8 @@ const statBox = (accent) => ({
 function StatCard({ label, value, accent = COLOR.accent }) {
   return (
     <div style={statBox(accent)}>
-      <div style={{ fontSize: 26, fontWeight: 700, color: accent }}>{value ?? '—'}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 700, color: accent }}>{value ?? '—'}</div>
+      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
     </div>
   )
 }
@@ -47,8 +47,8 @@ function FeedbackModal({ ticketId, onClose }) {
   const toast = useToast()
   const [helpful, setHelpful] = useState(true)
   const [comment, setComment] = useState('')
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => api.post(`/sd/tickets/${ticketId}/auto-resolution/feedback`, { helpful, comment }),
@@ -62,10 +62,10 @@ function FeedbackModal({ ticketId, onClose }) {
         <div>
           <label style={LS}>¿Fue útil la resolución automática?</label>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button onClick={() => setHelpful(true)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${helpful ? COLOR.success : 'var(--surface-4)'}`, background: helpful ? `${COLOR.success}15` : 'transparent', color: helpful ? COLOR.success : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+            <button onClick={() => setHelpful(true)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${helpful ? COLOR.success : 'var(--surface-4)'}`, background: helpful ? `${COLOR.success}15` : 'transparent', color: helpful ? COLOR.success : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
               👍 Sí, fue útil
             </button>
-            <button onClick={() => setHelpful(false)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${!helpful ? COLOR.danger : 'var(--surface-4)'}`, background: !helpful ? `${COLOR.danger}15` : 'transparent', color: !helpful ? COLOR.danger : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+            <button onClick={() => setHelpful(false)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${!helpful ? COLOR.danger : 'var(--surface-4)'}`, background: !helpful ? `${COLOR.danger}15` : 'transparent', color: !helpful ? COLOR.danger : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
               👎 No, falló
             </button>
           </div>
@@ -116,7 +116,7 @@ export default function AutoResolutionPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Stats */}
       <div style={card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
           📊 Estadísticas de auto-resolución
         </div>
         {statsLoading ? (
@@ -124,7 +124,7 @@ export default function AutoResolutionPanel() {
         ) : (
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <StatCard label="Auto-resueltos" value={stats?.total_auto_resolved} accent={COLOR.success} />
-            <StatCard label="Auto-cerrados" value={stats?.total_auto_closed} accent={COLOR.info ?? '#63b3ed'} />
+            <StatCard label="Auto-cerrados" value={stats?.total_auto_closed} accent={COLOR.info ?? 'var(--info)'} />
             <StatCard label="Feedback positivo" value={stats?.positive_feedback} accent={COLOR.success} />
             <StatCard label="Feedback negativo" value={stats?.negative_feedback} accent={COLOR.danger} />
             <StatCard label="Confianza media" value={stats?.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : '—'} accent={COLOR.warning} />
@@ -134,10 +134,10 @@ export default function AutoResolutionPanel() {
 
       {/* Manual job triggers */}
       <div style={card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
           ⚡ Acciones manuales
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 16 }}>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 16 }}>
           Los jobs también se ejecutan automáticamente de forma programada.
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -152,10 +152,10 @@ export default function AutoResolutionPanel() {
 
       {/* Feedback lookup */}
       <div style={card}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
+        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
           💬 Enviar feedback por ticket
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 14 }}>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 14 }}>
           Indica si la resolución automática fue correcta para un ticket específico.
         </div>
         <FeedbackLookup onOpen={id => setFeedbackTicketId(id)} />
@@ -178,7 +178,7 @@ function FeedbackLookup({ onOpen }) {
         placeholder="ID del ticket…"
         type="number"
         min="1"
-        style={{ width: 140, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+        style={{ width: 140, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
       />
       <Button onClick={() => id && onOpen(Number(id))} disabled={!id}>
         Dar feedback

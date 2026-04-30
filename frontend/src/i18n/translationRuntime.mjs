@@ -51,7 +51,7 @@ export function reportMissingTranslation({ lang, fullKey, source }) {
   missingTranslationCache.add(cacheKey)
 
   // Keep warning concise and deduplicated to avoid console noise.
-  console.warn(`[i18n-missing] ${fullKey} (lang=${lang}, source=${source})`)
+  globalThis.console?.warn?.(`[i18n-missing] ${fullKey} (lang=${lang}, source=${source})`)
 }
 
 export function resolveTranslation({

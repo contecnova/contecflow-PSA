@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { portalApi, projectsApi, deliverablesApi, wikiApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Globe } from 'lucide-react'
 import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
 import { STATUS_CFG, FR_STATUS_CFG } from '../constants/sharedStatus'
@@ -22,8 +23,8 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../components/portal/GovernedConversations'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 const uatSessionSchema = z.object({
   title: z.string().trim().min(1, 'El titulo es obligatorio'),
@@ -77,7 +78,7 @@ const portalClientEditSchema = z.object({
 function StatusBadge({ status, cfg }) {
   const t = useAppT()
   const c = cfg[status] || { label: t('client_portal.unknown_status'), color: 'var(--text-2)' }
-  return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: c.color + '20', color: c.color, border: `1px solid ${c.color}40`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: c.color + '20', color: c.color, border: `1px solid ${c.color}40`, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{c.label}</span>
 }
 
 // ── Client Users Management ───────────────────────────────────────────────────
@@ -106,7 +107,7 @@ function ClientUsersTab({ projectId }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{clients.length} {t('client_portal.contacts_count')}</div>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{clients.length} {t('client_portal.contacts_count')}</div>
         <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.add_contact')}</Button>
       </div>
       {isLoading ? <Spinner /> : clients.length === 0 ? (
@@ -115,29 +116,29 @@ function ClientUsersTab({ projectId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {clients.map(c => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: 'var(--surface-2)', border: `1px solid ${c.is_active ? 'var(--surface-4)' : 'var(--danger-border)'}`, borderRadius: 12, opacity: c.is_active ? 1 : 0.6 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, #00d4ff, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-base)", fontWeight: 700, flexShrink: 0 }}>
                 {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{c.full_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: 11 }}>
+                <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{c.full_name}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{c.job_title || t('client_portal.role_unknown')} · {c.company || c.project_name} · {c.email}</div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: "var(--text-xs)" }}>
                   {c.can_approve_deliverables && <span style={{ color: 'var(--success)' }}>{`✓ ${t('client_portal.perm_approve')}`}</span>}
                   {c.can_request_changes && <span style={{ color: 'var(--accent)' }}>{`✓ ${t('client_portal.perm_request')}`}</span>}
                   {c.can_view_budget && <span style={{ color: 'var(--warning)' }}>{`✓ ${t('client_portal.perm_view_budget')}`}</span>}
                 </div>
               </div>
-              {c.last_login && <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
+              {c.last_login && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{`${t('client_portal.last_access')}: ${fmtDate(c.last_login)}`}</div>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setEditingClient(c)}
-                  style={{ background: 'none', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--accent)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                  style={{ background: 'none', border: '1px solid var(--accent-glow)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                   {`✏ ${t('client_portal.edit')}`}
                 </button>
                 <button onClick={() => toggleActive({ id: c.id, active: !c.is_active })}
-                  style={{ background: 'none', border: `1px solid ${c.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                  style={{ background: 'none', border: `1px solid ${c.is_active ? 'var(--warning-border)' : 'var(--success-border)'}`, borderRadius: 6, padding: '4px 10px', color: c.is_active ? 'var(--warning)' : 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                   {c.is_active ? `⏸ ${t('client_portal.suspend')}` : `▶ ${t('client_portal.activate')}`}
                 </button>
-                <button onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-bg)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                <button onClick={() => { openConfirmGlobal({ message: t('client_portal.delete_contact_confirm'), onConfirm: () => deleteClient(c.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-bg)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
             </div>
           ))}
@@ -156,8 +157,8 @@ function CreateClientModal({ projectId, onClose }) {
   const [form, setForm] = useState({ full_name: '', email: '', job_title: '', company: '', phone: '', password: '', can_approve_deliverables: true, can_request_changes: true, can_view_budget: true, can_view_team: false })
   const [extraProjectIds, setExtraProjectIds] = useState([]) // additional projects beyond projectId
   const validation = useFormValidation(portalClientCreateSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -188,12 +189,12 @@ function CreateClientModal({ projectId, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('client_portal.label_full_name')} *</label>
           <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
-          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
+          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
         </div>
         <div>
           <label style={ls}>{t('client_portal.label_email')} *</label>
           <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
-          {validation.errors.email && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.email}</p>}
+          {validation.errors.email && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.email}</p>}
         </div>
         <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
         <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
@@ -201,18 +202,18 @@ function CreateClientModal({ projectId, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('client_portal.label_password')} *</label>
           <input type="password" value={form.password} onChange={set('password')} style={validation.inputStyle(fs, 'password')} placeholder={t('client_portal.password_placeholder')} />
-          {validation.errors.password && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.password}</p>}
+          {validation.errors.password && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.password}</p>}
         </div>
         {allProjects.length > 1 && (
           <div style={{ gridColumn: '1/-1' }}>
             <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.additional_projects_access')}</label>
             <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-2) var(--space-3)' }}>
               {allProjects.filter(p => p.id !== projectId).map(p => (
-                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                   <input type="checkbox" checked={extraProjectIds.includes(p.id)}
                     onChange={e => setExtraProjectIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
                   <span style={{ color: 'var(--text-1)', fontWeight: 500 }}>{p.code}</span>
-                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>{p.name}</span>
+                  <span style={{ color: 'var(--text-2)', fontSize: "var(--text-sm)" }}>{p.name}</span>
                 </label>
               ))}
             </div>
@@ -222,7 +223,7 @@ function CreateClientModal({ projectId, onClose }) {
           <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.permissions')}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[['can_approve_deliverables', t('client_portal.perm_approve_desc')],['can_request_changes', t('client_portal.perm_request_desc')],['can_view_budget', t('client_portal.perm_budget_desc')],['can_view_team', t('client_portal.perm_team_desc')]].map(([k, label]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
@@ -269,8 +270,8 @@ function EditClientModal({ client, onClose, onSaved }) {
   })
   const validation = useFormValidation(portalClientEditSchema)
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -290,12 +291,12 @@ function EditClientModal({ client, onClose, onSaved }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('client_portal.label_full_name')} *</label>
           <input value={form.full_name} onChange={set('full_name')} style={validation.inputStyle(fs, 'full_name')} />
-          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
+          {validation.errors.full_name && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.full_name}</p>}
         </div>
         <div>
           <label style={ls}>{t('client_portal.label_email')} *</label>
           <input type="email" value={form.email} onChange={set('email')} style={validation.inputStyle(fs, 'email')} />
-          {validation.errors.email && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.email}</p>}
+          {validation.errors.email && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.email}</p>}
         </div>
         <div><label style={ls}>{t('client_portal.label_job_title')}</label><input value={form.job_title} onChange={set('job_title')} style={fs} placeholder={t('client_portal.label_job_title')} /></div>
         <div><label style={ls}>{t('client_portal.label_company')}</label><input value={form.company} onChange={set('company')} style={fs} /></div>
@@ -315,7 +316,7 @@ function EditClientModal({ client, onClose, onSaved }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label style={ls}>{t('client_portal.label_password')}</label>
           <input type="password" value={form.password} onChange={set('password')} style={fs} placeholder={t('client_portal.password_placeholder')} />
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{t('client_portal.password_placeholder')}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{t('client_portal.password_placeholder')}</div>
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label style={{ ...ls, marginBottom: 10 }}>{t('client_portal.permissions')}</label>
@@ -326,7 +327,7 @@ function EditClientModal({ client, onClose, onSaved }) {
               ['can_view_budget', t('client_portal.perm_budget_desc')],
               ['can_view_team', t('client_portal.perm_team_desc')],
             ].map(([k, label]) => (
-              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+              <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
                 {label}
               </label>
@@ -365,7 +366,7 @@ function UATTab({ projectId }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{sessions.length} {t('client_portal.uat_sessions_count')}</div>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{sessions.length} {t('client_portal.uat_sessions_count')}</div>
         {projectId && <Button onClick={() => setShowCreate(true)} icon="＋">{t('client_portal.uat_new_session')}</Button>}
       </div>
       {isLoading ? <Spinner /> : sessions.length === 0 ? (
@@ -380,11 +381,11 @@ function UATTab({ projectId }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 3 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{s.code}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>{s.title}</span>
-                    {s.overdue && <span style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 700 }}>{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{s.code}</span>
+                    <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{s.title}</span>
+                    {s.overdue && <span style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', fontWeight: 700 }}>{`⚠ ${t('client_portal.uat_overdue')}`}</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                     {s.deadline && `${t('client_portal.uat_deadline')}: ${fmtDate(s.deadline)} · `}
                     {s.stats.total} {t('client_portal.uat_cases')} · {s.stats.passed} ✓ · {s.stats.failed} ✗
                   </div>
@@ -397,7 +398,7 @@ function UATTab({ projectId }) {
                 </div>
               )}
               {s.issues.length > 0 && (
-                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--danger)' }}>
+                <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>
                   {`🐛 ${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
@@ -418,8 +419,8 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
   const [form, setForm] = useState({ title: '', description: '', deliverable_id: '', test_environment: '', test_credentials: '', test_guide_url: '', available_from: '', deadline: '' })
   const [testCases, setTestCases] = useState([{ title: '', steps: '', expected_result: '' }])
   const validation = useFormValidation(uatSessionSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = k => e => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -450,7 +451,7 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
           <div>
             <label style={ls}>{t('client_portal.uat_label_title')} *</label>
             <input value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder={t('client_portal.uat_placeholder_title')} />
-            {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
+            {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
           </div>
           <div><label style={ls}>{t('client_portal.uat_label_deliverable')}</label>
             <select value={form.deliverable_id} onChange={set('deliverable_id')} style={fs}>
@@ -467,22 +468,22 @@ function CreateUATModal({ projectId, deliverables, onClose }) {
           <div>
             <label style={ls}>{t('client_portal.uat_label_deadline')}</label>
             <input type="date" value={form.deadline} onChange={set('deadline')} style={validation.inputStyle(fs, 'deadline')} />
-            {validation.errors.deadline && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.deadline}</p>}
+            {validation.errors.deadline && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.deadline}</p>}
           </div>
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>{t('client_portal.uat_test_cases')}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--accent)', marginBottom: 10 }}>{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 2fr 30px', gap: 8, marginBottom: 8, padding: 10, background: 'var(--surface-3)', borderRadius: 8 }}>
               <input value={tc.title} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, title: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_title_placeholder').replace('{index}', String(i + 1))} />
               <input value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, steps: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
               <input value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((t, j) => j === i ? { ...t, expected_result: e.target.value } : t))} style={fs} placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
-              <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
+              <button onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-lg)" }}>×</button>
             </div>
           ))}
           <button onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])}
-            style={{ background: 'none', border: '1px dashed var(--surface-4)', borderRadius: 8, padding: '8px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', width: '100%' }}>
+            style={{ background: 'none', border: '1px dashed var(--surface-4)', borderRadius: 8, padding: '8px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', width: '100%' }}>
             {`＋ ${t('client_portal.uat_add_test_case')}`}
           </button>
         </div>
@@ -514,21 +515,21 @@ function UATDetailModal({ session: initialSession, onClose }) {
     <Modal open title={`${initialSession.code} — ${initialSession.title}`} onClose={onClose} width={700}>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <StatusBadge status={initialSession.status} cfg={STATUS_CFG} />
-        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none' }}>{`🔗 ${t('client_portal.uat_detail_test_env')}`}</a>}
-        {initialSession.deadline && <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{`${t('client_portal.uat_deadline')}: ${fmtDate(initialSession.deadline)}`}</span>}
+        {initialSession.test_environment && <a href={initialSession.test_environment} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--text-sm)", color: 'var(--accent)', textDecoration: 'none' }}>{`🔗 ${t('client_portal.uat_detail_test_env')}`}</a>}
+        {initialSession.deadline && <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{`${t('client_portal.uat_deadline')}: ${fmtDate(initialSession.deadline)}`}</span>}
       </div>
 
       {initialSession.client_notes && (
         <div style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase' }}>{t('client_portal.uat_detail_client_notes')}</div>
-          <p style={{ fontSize: 13, color: 'var(--text-1)' }}>{initialSession.client_notes}</p>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase' }}>{t('client_portal.uat_detail_client_notes')}</div>
+          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-1)' }}>{initialSession.client_notes}</p>
         </div>
       )}
 
       {/* Test cases */}
       {initialSession.test_cases.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             {`${t('client_portal.uat_detail_cases_title')} (${initialSession.stats.passed}/${initialSession.stats.total} ${t('client_portal.uat_detail_approved')})`}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -538,11 +539,11 @@ function UATDetailModal({ session: initialSession, onClose }) {
                 <div key={tc.id} style={{ padding: '10px 14px', background: 'var(--surface-2)', border: `1px solid ${color}30`, borderRadius: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{tc.title}</div>
-                      {tc.expected_result && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{`${t('client_portal.uat_expected')}: ${tc.expected_result}`}</div>}
-                      {tc.actual_result && <div style={{ fontSize: 12, color: color, marginTop: 4 }}>{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
+                      <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{tc.title}</div>
+                      {tc.expected_result && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{`${t('client_portal.uat_expected')}: ${tc.expected_result}`}</div>}
+                      {tc.actual_result && <div style={{ fontSize: "var(--text-sm)", color: color, marginTop: 4 }}>{`${t('client_portal.uat_result')}: ${tc.actual_result}`}</div>}
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color, background: color + '20', border: `1px solid ${color}40`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase', flexShrink: 0 }}>
+                    <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, background: color + '20', border: `1px solid ${color}40`, borderRadius: 20, padding: '2px 8px', textTransform: 'uppercase', flexShrink: 0 }}>
                       {tc.status === 'passed' ? '✓ OK' : tc.status === 'failed' ? '✗ KO' : `— ${t('client_portal.uat_pending')}`}
                     </span>
                   </div>
@@ -556,7 +557,7 @@ function UATDetailModal({ session: initialSession, onClose }) {
       {/* Issues */}
       {initialSession.issues.length > 0 && (
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             {`${t('client_portal.uat_issues_title')} (${initialSession.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open')})`}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -567,21 +568,21 @@ function UATDetailModal({ session: initialSession, onClose }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: sevColor, background: sevColor + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{issue.severity}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{issue.title}</span>
+                        <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: sevColor, background: sevColor + '20', borderRadius: 20, padding: '1px 7px', textTransform: 'uppercase' }}>{issue.severity}</span>
+                        <span style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{issue.title}</span>
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--text-2)', margin: 0 }}>{issue.description}</p>
+                      <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', margin: 0 }}>{issue.description}</p>
                     </div>
                     {issue.status === 'open' && (
                       <select defaultValue={issue.status} onChange={e => updateIssue({ id: issue.id, status: e.target.value })}
-                        style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-2)', color: 'var(--text-1)', fontSize: 11, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                        style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-2)', color: 'var(--text-1)', fontSize: "var(--text-xs)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
                         <option value="open">{t('client_portal.uat_issue_open')}</option>
                         <option value="fixed">{t('client_portal.uat_issue_fixed')}</option>
                         <option value="deferred">{t('client_portal.uat_issue_deferred')}</option>
                         <option value="wontfix">{t('client_portal.uat_issue_wontfix')}</option>
                       </select>
                     )}
-                    {issue.status !== 'open' && <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ {issue.status}</span>}
+                    {issue.status !== 'open' && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ {issue.status}</span>}
                   </div>
                 </div>
               )
@@ -623,8 +624,8 @@ function FeatureRequestsTab({ projectId }) {
     onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
   })
 
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   return (
     <div>
@@ -637,25 +638,25 @@ function FeatureRequestsTab({ projectId }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{fr.code}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>{fr.title}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{fr.code}</span>
+                    <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{fr.title}</span>
                   </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 6px' }}>{fr.description}</p>
-                  <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+                  <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 6px' }}>{fr.description}</p>
+                  <div style={{ display: 'flex', gap: 12, fontSize: "var(--text-sm)" }}>
                     <span style={{ color: fr.priority_color, fontWeight: 700 }}>⚡ {fr.priority_label}</span>
                     {fr.affected_area && <span style={{ color: 'var(--text-2)' }}>📋 {fr.affected_area}</span>}
                     {fr.client_name && <span style={{ color: 'var(--text-2)' }}>👤 {fr.client_name}</span>}
                     <span style={{ color: 'var(--text-2)' }}>{fmtDate(fr.submitted_at)}</span>
                   </div>
                   {fr.pm_response && (
-                    <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: 12 }}>
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--surface-3)', borderRadius: 8, fontSize: "var(--text-sm)" }}>
                       <span style={{ color: 'var(--text-2)' }}>{`${t('client_portal.fr_pm_response')}: `}</span>{fr.pm_response}
                       {fr.estimated_cost && <span style={{ color: 'var(--warning)', marginLeft: 12 }}>💶 {fmtCurrency(fr.estimated_cost)}</span>}
                       {fr.estimated_delivery_weeks && <span style={{ color: 'var(--accent)', marginLeft: 12 }}>📅 {fr.estimated_delivery_weeks} semanas</span>}
                     </div>
                   )}
-                  {fr.client_approved === true && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--success)' }}>{`✓ ${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
-                  {fr.client_approved === false && <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger)' }}>{`✗ ${t('client_portal.fr_client_rejected')}`}</div>}
+                  {fr.client_approved === true && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--success)' }}>{`✓ ${t('client_portal.fr_client_approved')} ${fmtDate(fr.client_approved_at)}`}</div>}
+                  {fr.client_approved === false && <div style={{ marginTop: 6, fontSize: "var(--text-sm)", color: 'var(--danger)' }}>{`✗ ${t('client_portal.fr_client_rejected')}`}</div>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                   <StatusBadge status={fr.status} cfg={FR_STATUS_CFG} />
@@ -731,8 +732,8 @@ function DocumentsTab({ projectId }) {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
   const [docForm, setDocForm] = useState({ title: '', description: '', category: 'deliverable', file_url: '', file_name: '', requires_signature: false })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ['portal-docs', projectId],
@@ -757,7 +758,7 @@ function DocumentsTab({ projectId }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-2)' }}>{docs.length} {t('client_portal.docs_count')}</div>
+        <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>{docs.length} {t('client_portal.docs_count')}</div>
         <Button onClick={() => setShowAdd(true)} icon="＋">{t('client_portal.docs_add')}</Button>
       </div>
       {isLoading ? <Spinner /> : docs.length === 0 ? (
@@ -768,22 +769,22 @@ function DocumentsTab({ projectId }) {
             const color = CAT_COLORS[doc.category] || 'var(--text-2)'
             return (
               <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
-                <span style={{ fontSize: 22, flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
+                <span style={{ fontSize: "var(--text-xl-em)", flexShrink: 0 }}>{CAT_LABELS[doc.category]?.split(' ')[0] || '📄'}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{doc.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700 }}>{doc.title}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                     <span style={{ color, fontWeight: 600 }}>{CAT_LABELS[doc.category]?.replace(/^\S+\s/, '') || doc.category}</span>
                     {doc.file_name && ` · ${doc.file_name}`}
                     {doc.created_at && ` · ${fmtDate(doc.created_at)}`}
                   </div>
                 </div>
                 {doc.requires_signature && (
-                  <span style={{ fontSize: 11, color: doc.signed_by_client ? 'var(--success)' : 'var(--warning)', background: doc.signed_by_client ? 'var(--success-bg)' : 'var(--warning-bg)', border: `1px solid ${doc.signed_by_client ? 'var(--success-border)' : 'var(--warning-border)'}`, borderRadius: 20, padding: '2px 8px' }}>
+                  <span style={{ fontSize: "var(--text-xs)", color: doc.signed_by_client ? 'var(--success)' : 'var(--warning)', background: doc.signed_by_client ? 'var(--success-bg)' : 'var(--warning-bg)', border: `1px solid ${doc.signed_by_client ? 'var(--success-border)' : 'var(--warning-border)'}`, borderRadius: 20, padding: '2px 8px' }}>
                     {doc.signed_by_client ? `✓ ${t('client_portal.docs_signed')}` : `⏳ ${t('client_portal.docs_pending_signature')}`}
                   </span>
                 )}
                 {doc.file_url && (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11, textDecoration: 'none' }}>
+                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer" style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: 'var(--space-2) var(--space-3)', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)", textDecoration: 'none' }}>
                     {`⬇ ${t('client_portal.docs_download')}`}
                   </a>
                 )}
@@ -804,7 +805,7 @@ function DocumentsTab({ projectId }) {
             </div>
             <div><label style={ls}>{t('client_portal.docs_label_file_url')}</label><input value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} style={fs} placeholder="https://..." /></div>
             <div><label style={ls}>{t('client_portal.docs_label_file_name')}</label><input value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} style={fs} placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
               <input type="checkbox" checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
               {t('client_portal.docs_requires_signature')}
             </label>
@@ -849,13 +850,13 @@ function WikiPortalTab({ projectId }) {
 
   return (
     <div>
-      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: 'var(--space-3) var(--space-4)', marginBottom: 20, fontSize: 13, color: 'var(--text-2)' }}>
+      <div style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)', borderRadius: 10, padding: 'var(--space-3) var(--space-4)', marginBottom: 20, fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
         <strong style={{ color: 'var(--accent)' }}>{`ℹ ${t('client_portal.wiki_info_title')}`}</strong>
         {' '}— {t('client_portal.wiki_info_desc')}
       </div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         <select value={selectedSpace} onChange={e => setSelectedSpace(e.target.value)}
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', flex: 1 }}>
+          style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', flex: 1 }}>
           <option value="">{t('client_portal.wiki_select_space')}</option>
           {spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -868,15 +869,15 @@ function WikiPortalTab({ projectId }) {
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
           {pages.map((page, i) => (
             <div key={page.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 18px', borderBottom: i < pages.length - 1 ? '1px solid var(--surface-4)30' : 'none' }}>
-              <span style={{ fontSize: 16 }}>📄</span>
+              <span style={{ fontSize: "var(--text-lg)" }}>📄</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{page.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{page.slug}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{page.title}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{page.slug}</div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {Object.entries(VIS).map(([val, cfg]) => (
                   <button key={val} onClick={() => setVis({ id: page.id, visibility: val })}
-                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${(page.visibility || 'team') === val ? cfg.color + '60' : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? cfg.color + '15' : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${(page.visibility || 'team') === val ? cfg.color + '60' : 'var(--surface-4)'}`, background: (page.visibility || 'team') === val ? cfg.color + '15' : 'transparent', color: (page.visibility || 'team') === val ? cfg.color : 'var(--text-3)', fontSize: "var(--text-xs)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                     {cfg.label}
                   </button>
                 ))}
@@ -910,9 +911,9 @@ function StatsPanel({ projectId }) {
         { label: t('client_portal.stat_avg_nps'), value: stats.avg_nps ?? '—', color: stats.avg_nps >= 8 ? 'var(--success)' : stats.avg_nps >= 6 ? 'var(--warning)' : 'var(--danger)', icon: '📊' },
       ].map(({ label, value, color, icon }) => (
         <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 'var(--space-3) var(--space-4)', flex: 1, minWidth: 120 }}>
-          <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-          <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{label}</div>
+          <div style={{ fontSize: "var(--text-lg-em)", marginBottom: 4 }}>{icon}</div>
+          <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{label}</div>
         </div>
       ))}
     </div>
@@ -940,14 +941,14 @@ export default function ClientPortalPage() {
   ]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Globe size={18} />}
         title={t('client_portal.title')}
         subtitle={t('client_portal.subtitle')}
         actions={
           <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 240 }}>
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 'var(--space-3) var(--space-4)', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 240 }}>
             <option value="">{t('client_portal.select_project')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </select>
@@ -959,7 +960,7 @@ export default function ClientPortalPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === t.id ? 'var(--accent-muted)' : 'transparent', color: tab === t.id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -977,6 +978,6 @@ export default function ClientPortalPage() {
           {tab === 'wiki'      && <WikiPortalTab projectId={selectedProject} />}
         </>
       )}
-    </div>
+    </PageShell>
   )
 }

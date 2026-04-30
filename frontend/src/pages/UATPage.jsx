@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, projectsApi, tasksApi } from '../services/api'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import { ClipboardCheck } from 'lucide-react'
@@ -30,11 +31,11 @@ const PRIORITY_META = {
 
 const fs = {
   background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8,
-  padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none',
+  padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none',
   fontFamily: 'inherit', width: '100%',
 }
 const ls = {
-  fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
+  fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
   letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
@@ -145,12 +146,12 @@ function ExportModal({ open, onClose, report }) {
       </div>
       <pre style={{
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 10,
-        padding: '16px 18px', fontSize: 12, color: 'var(--text-1)', whiteSpace: 'pre-wrap',
-        maxHeight: 480, overflowY: 'auto', fontFamily: "'Space Mono', monospace", lineHeight: 1.6,
+        padding: '16px 18px', fontSize: "var(--text-sm)", color: 'var(--text-1)', whiteSpace: 'pre-wrap',
+        maxHeight: 480, overflowY: 'auto', fontFamily: 'var(--font-mono)', lineHeight: 1.6,
       }}>
         {report?.text || ''}
       </pre>
-      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-2)' }}>
+      <div style={{ marginTop: 12, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
         {report?.cases_count} casos UAT · Copia este texto para enviar al cliente o pégalo en un documento.
       </div>
     </Modal>
@@ -221,7 +222,7 @@ export default function UATPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         title={t('uat.title')}
         subtitle={t('uat.subtitle')}
@@ -271,10 +272,10 @@ export default function UATPage() {
               background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10,
               padding: '12px 16px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>
                 {k.value}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{k.label}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -309,25 +310,25 @@ export default function UATPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 16 }}>{st.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{c.title}</span>
+                      <span style={{ fontSize: "var(--text-lg)" }}>{st.icon}</span>
+                      <span style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{c.title}</span>
                       <span style={{
-                        fontSize: 10, fontWeight: 700, color: pr.color, background: pr.color + '20',
+                        fontSize: "var(--text-2xs)", fontWeight: 700, color: pr.color, background: pr.color + '20',
                         borderRadius: 20, padding: '1px 7px', border: `1px solid ${pr.color}30`,
                       }}>{pr.label}</span>
                       {c.task_title && (
-                        <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-muted)', borderRadius: 20, padding: '1px 8px' }}>
+                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--accent)', background: 'var(--accent-muted)', borderRadius: 20, padding: '1px 8px' }}>
                           📋 {c.task_title}
                         </span>
                       )}
                     </div>
                     {c.expected_result && (
-                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, paddingLeft: 24 }}>
+                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4, paddingLeft: 24 }}>
                         <span style={{ color: 'var(--text-3)' }}>Esperado: </span>{c.expected_result}
                       </div>
                     )}
                     {c.actual_result && (
-                      <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2, paddingLeft: 24 }}>
+                      <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2, paddingLeft: 24 }}>
                         <span style={{ color: 'var(--text-3)' }}>Resultado: </span>{c.actual_result}
                       </div>
                     )}
@@ -337,20 +338,20 @@ export default function UATPage() {
                     {/* Quick status buttons */}
                     {c.status !== 'passed' && (
                       <button onClick={() => quickStatus(c, 'passed')}
-                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(74,222,128,0.3)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(74,222,128,0.3)', background: 'transparent', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                         ✅ Pasar
                       </button>
                     )}
                     {c.status !== 'failed' && (
                       <button onClick={() => quickStatus(c, 'failed')}
-                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>
+                        style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>
                         ❌ Fallar
                       </button>
                     )}
                     <button onClick={() => setEditCase(c)}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏</button>
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏</button>
                     <button onClick={() => setDeleteTarget(c)}
-                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                   </div>
                 </div>
               </div>
@@ -383,7 +384,7 @@ export default function UATPage() {
       {/* Delete confirmation modal (no browser confirm()) */}
       {deleteTarget && (
         <Modal open onClose={() => setDeleteTarget(null)} title="Eliminar caso UAT" width={420}>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+          <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
             ¿Eliminar el caso <strong style={{ color: 'var(--text-1)' }}>&quot;{deleteTarget.title}&quot;</strong>? Esta acción no se puede deshacer.
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -395,6 +396,6 @@ export default function UATPage() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

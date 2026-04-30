@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Network } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import { extractErr } from '../utils/helpers'
@@ -18,8 +19,8 @@ import { useAppT } from '../i18n/AppLangContext'
 
 // ── Colores por rol ───────────────────────────────────────────────────────────
 const ROLE_COLOR = {
-  admin: '#4f8ef7', pm: '#7c3aed', team_lead: '#0891b2',
-  employee: '#059669', hr: '#d97706', client: '#6b7280',
+  admin: '#4f8ef7', pm: '#a78bfa', team_lead: '#0891b2',
+  employee: '#34d399', hr: '#f59e0b', client: '#7a8aaa',
 }
 const ROLE_LABEL = {
   admin: 'Admin', pm: 'PM', team_lead: 'Team Lead',
@@ -35,9 +36,9 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
   const [saving, setSaving]         = useState(false)
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   const eligible = allUsers.filter(u => u.id !== user.id)
@@ -62,8 +63,8 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:8,
           border:'1px solid var(--surface-4)' }}>
-          <div style={{ fontSize:14, fontWeight:600 }}>{user.full_name}</div>
-          <div style={{ fontSize:12, color:'var(--text-3)', marginTop:2 }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight:600 }}>{user.full_name}</div>
+          <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginTop:2 }}>
             {user.email} · <span style={{ color: ROLE_COLOR[user.role] }}>{ROLE_LABEL[user.role]}</span>
           </div>
         </div>
@@ -80,7 +81,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
         </div>
         <div>
           <label style={LS}>Reporta a / Aprobador directo</label>
-          <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:6, lineHeight:1.6 }}>
+          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginBottom:6, lineHeight:1.6 }}>
             Esta persona aprobará los <strong>gastos</strong>, <strong>ausencias</strong> e <strong>imputaciones</strong> de {user.full_name.split(' ')[0]}.
           </div>
           <select value={managerId} onChange={e => setManagerId(e.target.value)} style={IS}>
@@ -96,7 +97,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }) {
         </div>
 
         <div style={{ padding:'10px 14px', background:'var(--accent-muted)',
-          border:'1px solid var(--accent-glow)', borderRadius:8, fontSize:12,
+          border:'1px solid var(--accent-glow)', borderRadius:8, fontSize: "var(--text-sm)",
           color:'var(--text-2)', lineHeight:1.7 }}>
           💡 <strong>Cómo funciona la aprobación:</strong> cuando {user.full_name.split(' ')[0]} envíe
           un gasto, solicite una ausencia o entregue su timesheet,
@@ -129,41 +130,41 @@ function UserNode({ node, depth=0, onEdit, isAdmin }) {
         {hasChildren
           ? <button onClick={() => setExpanded(e=>!e)}
               style={{ background:'none', border:'none', color:'var(--text-3)', cursor:'pointer',
-                fontSize:11, width:18, flexShrink:0, padding:0 }}>
+                fontSize: "var(--text-xs)", width:18, flexShrink:0, padding:0 }}>
               {expanded ? '▼' : '▶'}
             </button>
-          : <span style={{ width:18, flexShrink:0, fontSize:10, color:'var(--text-4)' }}>└─</span>
+          : <span style={{ width:18, flexShrink:0, fontSize: "var(--text-2xs)", color:'var(--text-4)' }}>└─</span>
         }
         <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0,
-          background: ROLE_COLOR[node.role] || '#6b7280',
+          background: ROLE_COLOR[node.role] || '#7a8aaa',
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:12, fontWeight:700, color:'#fff' }}>
+          fontSize: "var(--text-sm)", fontWeight:700, color:'#fff' }}>
           {node.full_name?.charAt(0)?.toUpperCase()}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)',
+          <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)',
             overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {node.full_name}
           </div>
-          <div style={{ fontSize:11, color:'var(--text-3)', display:'flex', gap:6 }}>
+          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', display:'flex', gap:6 }}>
             {node.job_title && <span>{node.job_title}</span>}
             {node.department && <span>· {node.department}</span>}
           </div>
         </div>
-        <span style={{ fontSize:10, padding:'2px 7px', borderRadius:4, fontWeight:600,
-          background:`${ROLE_COLOR[node.role]||'#6b7280'}20`,
-          color: ROLE_COLOR[node.role]||'#6b7280', flexShrink:0, whiteSpace:'nowrap' }}>
+        <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
+          background:`${ROLE_COLOR[node.role]||'#7a8aaa'}20`,
+          color: ROLE_COLOR[node.role]||'#7a8aaa', flexShrink:0, whiteSpace:'nowrap' }}>
           {ROLE_LABEL[node.role]||node.role}
         </span>
         {hasChildren && (
-          <span style={{ fontSize:10, color:'var(--text-4)', flexShrink:0 }}>
+          <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-4)', flexShrink:0 }}>
             {node.children.length} reporte{node.children.length!==1?'s':''}
           </span>
         )}
         {isAdmin && (
           <button onClick={() => onEdit(node)}
             style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:5,
-              padding:'3px 8px', color:'var(--text-2)', cursor:'pointer', fontSize:11,
+              padding:'3px 8px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)",
               fontFamily:'inherit', flexShrink:0 }}>
             ✏ Editar
           </button>
@@ -210,21 +211,21 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
           borderRadius:12, padding:16 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:10,
+          <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
             textTransform:'uppercase', letterSpacing:'0.06em' }}>🔍 Buscar persona</div>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar persona..."
             style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-              borderRadius:7, padding:'8px 11px', color:'var(--text-1)', fontSize:12.5,
+              borderRadius:7, padding:'8px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
               outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
           {searchResults.length > 0 && (
             <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
               {searchResults.map(u => (
                 <button key={u.id} type="button" onClick={() => { setSearch(''); setEditing(u) }}
                   style={{ padding:'6px 10px', background:'var(--surface-1)', borderRadius:6,
-                    cursor:'pointer', fontSize:12, width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
+                    cursor:'pointer', fontSize: "var(--text-sm)", width:'100%', textAlign:'left', fontFamily:'inherit', border:'none' }}>
                   <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-                  <div style={{ fontSize:11, color:'var(--text-3)' }}>{u.job_title||u.role}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{u.job_title||u.role}</div>
                 </button>
               ))}
             </div>
@@ -234,11 +235,11 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
         {deptCounts.length > 0 && (
           <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:16 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:10,
+            <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
               textTransform:'uppercase', letterSpacing:'0.06em' }}>🏢 Departamentos</div>
             {deptCounts.map(([dept, count]) => (
               <div key={dept} style={{ display:'flex', justifyContent:'space-between',
-                padding:'5px 0', borderBottom:'1px solid var(--surface-4)', fontSize:12 }}>
+                padding:'5px 0', borderBottom:'1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                 <span style={{ color:'var(--text-1)' }}>{dept}</span>
                 <span style={{ color:'var(--text-3)', fontWeight:600 }}>{count}</span>
               </div>
@@ -248,11 +249,11 @@ function ArbolTab({ nodes, allUsers, isAdmin, _onRefresh }) {
 
         <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
           borderRadius:12, padding:16 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)', marginBottom:10,
+          <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)', marginBottom:10,
             textTransform:'uppercase', letterSpacing:'0.06em' }}>🎭 Roles</div>
           {Object.entries(ROLE_COLOR).map(([role, color]) => (
             <div key={role} style={{ display:'flex', alignItems:'center', gap:8,
-              padding:'4px 0', fontSize:12 }}>
+              padding:'4px 0', fontSize: "var(--text-sm)" }}>
               <div style={{ width:9, height:9, borderRadius:'50%', background:color }} />
               <span style={{ color:'var(--text-1)' }}>{ROLE_LABEL[role]||role}</span>
             </div>
@@ -314,7 +315,7 @@ function PosicionesTab({ allUsers, isAdmin }) {
   }, [allUsers, filterDept, search])
 
   const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12.5,
+    borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
     outline:'none', fontFamily:'inherit' }
 
   return (
@@ -328,16 +329,16 @@ function PosicionesTab({ allUsers, isAdmin }) {
           <option value="">Todos los departamentos</option>
           {depts.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
-        <span style={{ fontSize:12, color:'var(--text-3)' }}>{filtered.length} persona{filtered.length!==1?'s':''}</span>
+        <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{filtered.length} persona{filtered.length!==1?'s':''}</span>
       </div>
 
       {/* Tabla */}
       <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize: "var(--text-base)" }}>
           <thead>
             <tr style={{ borderBottom:'2px solid var(--surface-4)', background:'var(--surface-1)' }}>
               {['Persona','Cargo','Departamento','Rol','Reporta a / Aprobador',''].map(h => (
-                <th key={h} style={{ padding:'10px 14px', fontSize:10, fontWeight:700,
+                <th key={h} style={{ padding:'10px 14px', fontSize: "var(--text-2xs)", fontWeight:700,
                   color:'var(--text-3)', textAlign:'left', textTransform:'uppercase',
                   letterSpacing:'0.06em' }}>{h}</th>
               ))}
@@ -352,14 +353,14 @@ function PosicionesTab({ allUsers, isAdmin }) {
                   <td style={{ padding:'10px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:9 }}>
                       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
-                        background: ROLE_COLOR[u.role]||'#6b7280',
+                        background: ROLE_COLOR[u.role]||'#7a8aaa',
                         display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:11, fontWeight:700, color:'#fff' }}>
+                        fontSize: "var(--text-xs)", fontWeight:700, color:'#fff' }}>
                         {u.full_name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
                         <div style={{ fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-                        <div style={{ fontSize:11, color:'var(--text-3)' }}>{u.email}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{u.email}</div>
                       </div>
                     </div>
                   </td>
@@ -372,9 +373,9 @@ function PosicionesTab({ allUsers, isAdmin }) {
                     {u.department || '—'}
                   </td>
                   <td style={{ padding:'10px 14px' }}>
-                    <span style={{ fontSize:11, padding:'2px 7px', borderRadius:4, fontWeight:600,
-                      background:`${ROLE_COLOR[u.role]||'#6b7280'}20`,
-                      color: ROLE_COLOR[u.role]||'#6b7280' }}>
+                    <span style={{ fontSize: "var(--text-xs)", padding:'2px 7px', borderRadius:4, fontWeight:600,
+                      background:`${ROLE_COLOR[u.role]||'#7a8aaa'}20`,
+                      color: ROLE_COLOR[u.role]||'#7a8aaa' }}>
                       {ROLE_LABEL[u.role]||u.role}
                     </span>
                   </td>
@@ -382,18 +383,18 @@ function PosicionesTab({ allUsers, isAdmin }) {
                     {managerUser ? (
                       <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                         <div style={{ width:22, height:22, borderRadius:'50%',
-                          background: ROLE_COLOR[managerUser.role]||'#6b7280',
+                          background: ROLE_COLOR[managerUser.role]||'#7a8aaa',
                           display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>
+                          fontSize: "var(--text-2xs)", fontWeight:700, color:'#fff', flexShrink:0 }}>
                           {managerUser.full_name?.charAt(0)}
                         </div>
                         <div>
-                          <div style={{ fontSize:12, fontWeight:600, color:'var(--text-1)' }}>{managerUser.full_name}</div>
-                          <div style={{ fontSize:11, color:'var(--text-3)' }}>{managerUser.job_title||ROLE_LABEL[managerUser.role]}</div>
+                          <div style={{ fontSize: "var(--text-sm)", fontWeight:600, color:'var(--text-1)' }}>{managerUser.full_name}</div>
+                          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{managerUser.job_title||ROLE_LABEL[managerUser.role]}</div>
                         </div>
                       </div>
                     ) : (
-                      <span style={{ fontSize:12, color:'var(--text-4)', fontStyle:'italic' }}>
+                      <span style={{ fontSize: "var(--text-sm)", color:'var(--text-4)', fontStyle:'italic' }}>
                         Sin aprobador asignado
                       </span>
                     )}
@@ -402,7 +403,7 @@ function PosicionesTab({ allUsers, isAdmin }) {
                     {isAdmin && (
                       <button onClick={() => setEditing(u)}
                         style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)',
-                          background:'transparent', color:'var(--accent)', fontSize:11,
+                          background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)",
                           cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                         ✏ Editar
                       </button>
@@ -415,7 +416,7 @@ function PosicionesTab({ allUsers, isAdmin }) {
         </table>
 
         {filtered.length === 0 && (
-          <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize:13 }}>
+          <div style={{ padding:'32px', textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>
             Sin resultados para los filtros seleccionados
           </div>
         )}
@@ -468,14 +469,14 @@ function AprobacionesTab({ allUsers }) {
       {/* Selector de persona */}
       <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
         borderRadius:12, padding:16, height:'fit-content' }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--text-2)', marginBottom:12,
+        <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:12,
           textTransform:'uppercase', letterSpacing:'0.06em' }}>
           👤 Ver cadena de aprobación
         </div>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar persona..."
           style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-            borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12.5,
+            borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm-h)",
             outline:'none', fontFamily:'inherit', boxSizing:'border-box', marginBottom:8 }} />
         <div style={{ display:'flex', flexDirection:'column', gap:3, maxHeight:300, overflowY:'auto' }}>
           <button
@@ -484,7 +485,7 @@ function AprobacionesTab({ allUsers }) {
             style={{ padding:'8px 10px', borderRadius:7, cursor:'pointer',
               background: !selectedUserId ? 'var(--accent-muted)' : 'transparent',
               border: !selectedUserId ? '1px solid var(--accent-glow)' : '1px solid transparent',
-              fontSize:12, fontWeight: !selectedUserId ? 600 : 400,
+              fontSize: "var(--text-sm)", fontWeight: !selectedUserId ? 600 : 400,
               color: !selectedUserId ? 'var(--accent)' : 'var(--text-2)', width:'100%', textAlign:'left', fontFamily:'inherit' }}>
             Mi propia cadena
           </button>
@@ -497,8 +498,8 @@ function AprobacionesTab({ allUsers }) {
                 border: selectedUserId===u.id ? '1px solid var(--accent-glow)' : '1px solid transparent',
                 width:'100%', textAlign:'left', fontFamily:'inherit',
               }}>
-              <div style={{ fontSize:12.5, fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
-              <div style={{ fontSize:11, color:'var(--text-3)' }}>
+              <div style={{ fontSize: "var(--text-sm-h)", fontWeight:600, color:'var(--text-1)' }}>{u.full_name}</div>
+              <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
                 {u.job_title || ROLE_LABEL[u.role]}{u.department ? ` · ${u.department}` : ''}
               </div>
             </button>
@@ -513,19 +514,19 @@ function AprobacionesTab({ allUsers }) {
             {/* Usuario */}
             <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)',
+              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
                 Empleado
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                 <div style={{ width:40, height:40, borderRadius:'50%',
                   background:'var(--accent)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:16, fontWeight:700, color:'#fff' }}>
+                  justifyContent:'center', fontSize: "var(--text-lg)", fontWeight:700, color:'#fff' }}>
                   {chain.user_name?.charAt(0)}
                 </div>
                 <div>
-                  <div style={{ fontSize:15, fontWeight:700, color:'var(--text-1)' }}>{chain.user_name}</div>
-                  <div style={{ fontSize:12, color:'var(--text-3)' }}>
+                  <div style={{ fontSize: "var(--text-md-em)", fontWeight:700, color:'var(--text-1)' }}>{chain.user_name}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
                     {(selectedUser||{}).job_title || ''} {(selectedUser||{}).department ? `· ${(selectedUser||{}).department}` : ''}
                   </div>
                 </div>
@@ -535,7 +536,7 @@ function AprobacionesTab({ allUsers }) {
             {/* Lo que se aprueba */}
             <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)',
+              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
                 Qué necesita aprobación
               </div>
@@ -547,9 +548,9 @@ function AprobacionesTab({ allUsers }) {
                 ].map(item => (
                   <div key={item.label} style={{ padding:'12px 14px', background:'var(--surface-1)',
                     borderRadius:8, border:'1px solid var(--surface-4)' }}>
-                    <div style={{ fontSize:20, marginBottom:6 }}>{item.icon}</div>
-                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{item.label}</div>
-                    <div style={{ fontSize:11, color:'var(--text-3)', lineHeight:1.5 }}>{item.desc}</div>
+                    <div style={{ fontSize: "var(--text-xl)", marginBottom:6 }}>{item.icon}</div>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{item.label}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', lineHeight:1.5 }}>{item.desc}</div>
                   </div>
                 ))}
               </div>
@@ -558,7 +559,7 @@ function AprobacionesTab({ allUsers }) {
             {/* Cadena de aprobación */}
             <div style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:12, padding:'16px 20px' }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--text-3)',
+              <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-3)',
                 textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
                 Cadena de aprobación
               </div>
@@ -566,10 +567,10 @@ function AprobacionesTab({ allUsers }) {
               {chain.chain.length === 0 ? (
                 <div style={{ padding:'16px', background:'rgba(255,71,87,0.06)',
                   border:'1px solid rgba(255,71,87,0.2)', borderRadius:8 }}>
-                  <div style={{ fontSize:13, color:'var(--danger)', fontWeight:600, marginBottom:4 }}>
+                  <div style={{ fontSize: "var(--text-base)", color:'var(--danger)', fontWeight:600, marginBottom:4 }}>
                     ⚠️ Sin aprobador configurado
                   </div>
-                  <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.6 }}>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
                     {chain.user_name} no tiene manager asignado. Sus gastos, ausencias e imputaciones
                     quedarán pendientes sin poder ser aprobados. Ve a la pestaña <strong>Posiciones</strong> para configurarlo.
                   </div>
@@ -586,7 +587,7 @@ function AprobacionesTab({ allUsers }) {
                           <div style={{ display:'flex', alignItems:'center', gap:8,
                             padding:'4px 0 4px 16px' }}>
                             <div style={{ width:2, height:24, background:'var(--surface-4)' }} />
-                            <span style={{ fontSize:11, color:'var(--text-3)' }}>
+                            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>
                               {idx === 0 ? 'aprobación directa' : `escalado nivel ${idx+1}`}
                             </span>
                           </div>
@@ -596,30 +597,30 @@ function AprobacionesTab({ allUsers }) {
                             border: `1px solid ${idx===0 ? 'rgba(0,229,160,0.25)' : 'var(--surface-4)'}`,
                             borderRadius:10, display:'flex', alignItems:'center', gap:12 }}>
                             <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0,
-                              background: ROLE_COLOR[approver.role]||'#6b7280',
+                              background: ROLE_COLOR[approver.role]||'#7a8aaa',
                               display:'flex', alignItems:'center', justifyContent:'center',
-                              fontSize:14, fontWeight:700, color:'#fff' }}>
+                              fontSize: "var(--text-md)", fontWeight:700, color:'#fff' }}>
                               {approver.full_name?.charAt(0)}
                             </div>
                             <div style={{ flex:1 }}>
                               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>
+                                <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>
                                   {approver.full_name}
                                 </span>
                                 {idx === 0 && (
-                                  <span style={{ fontSize:10, padding:'2px 8px', borderRadius:4,
-                                    background:'rgba(0,229,160,0.15)', color:'#00e5a0',
+                                  <span style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:4,
+                                    background:'rgba(0,229,160,0.15)', color:'#34d399',
                                     fontWeight:700 }}>APROBADOR DIRECTO</span>
                                 )}
                               </div>
-                              <div style={{ fontSize:12, color:'var(--text-3)' }}>
+                              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>
                                 {approver.job_title || ROLE_LABEL[approver.role]}
                                 {approver.department ? ` · ${approver.department}` : ''}
                               </div>
                             </div>
                             <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end' }}>
                               {['💸 Gastos','🏖 Ausencias','⏱ Timesheets'].map(lbl => (
-                                <span key={lbl} style={{ fontSize:10, padding:'2px 8px', borderRadius:4,
+                                <span key={lbl} style={{ fontSize: "var(--text-2xs)", padding:'2px 8px', borderRadius:4,
                                   background:'var(--surface-3)', color:'var(--text-2)' }}>{lbl}</span>
                               ))}
                             </div>
@@ -631,7 +632,7 @@ function AprobacionesTab({ allUsers }) {
 
                   <div style={{ marginTop:12, padding:'10px 14px',
                     background:'var(--accent-muted)', border:'1px solid var(--accent-glow)',
-                    borderRadius:8, fontSize:12, color:'var(--text-2)', lineHeight:1.6 }}>
+                    borderRadius:8, fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.6 }}>
                     💡 <strong>{chain.chain[0]?.full_name}</strong> es el aprobador directo.
                     Si no responde en el plazo configurado, la solicitud se escala automáticamente
                     al siguiente nivel de la cadena.
@@ -678,7 +679,7 @@ export default function OrgChartPage() {
   ]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Network size={18} />}
         title="Organigrama"
@@ -691,10 +692,10 @@ export default function OrgChartPage() {
         {TABS.map(tabObj => (
           <button key={tabObj.id} onClick={() => setTab(tabObj.id)} style={{
             padding:'8px 16px', borderRadius:8,
-            border:`1px solid ${tab===tabObj.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+            border:`1px solid ${tab===tabObj.id ? 'var(--accent)' : 'var(--surface-4)'}`,
             background: tab===tabObj.id ? 'var(--accent-muted)' : 'transparent',
             color: tab===tabObj.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
+            fontSize: "var(--text-sm)", fontWeight:600, cursor:'pointer', fontFamily:'inherit',
           }} title={tabObj.desc}>{tabObj.label}</button>
         ))}
       </div>
@@ -708,6 +709,6 @@ export default function OrgChartPage() {
             ? <PosicionesTab allUsers={allUsers} isAdmin={isAdmin} />
             : <AprobacionesTab allUsers={allUsers} />
       }
-    </div>
+    </PageShell>
   )
 }

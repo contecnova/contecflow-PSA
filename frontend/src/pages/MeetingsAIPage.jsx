@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Video } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -96,7 +97,7 @@ function ProcessModal({ onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
             <label style={{ ...ls, marginBottom: 0 }}>{t('meetings_ai.transcript_label')}</label>
             <button onClick={() => setForm(f => ({ ...f, transcript: DEMO_TRANSCRIPT, title: f.title || t('meetings_ai.demo_title'), participants: t('meetings_ai.demo_participants') }))}
-              style={{ background: 'transparent', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: 'transparent', border: 'none', fontSize: "var(--text-xs)", color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit' }}>
               📋 {t('meetings_ai.use_demo')}
             </button>
           </div>
@@ -141,7 +142,7 @@ export default function MeetingsAIPage() {
   const platCfg = p => PLATFORMS.find(x => x.id === p) || PLATFORMS[PLATFORMS.length - 1]
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Video size={18} />}
         title={_t('meetings_ai.title')}
@@ -157,10 +158,10 @@ export default function MeetingsAIPage() {
               { icon: '✅', label: _t('meetings_ai.stats_created'), value: meetings.reduce((a, m) => a + (m.created_actions || 0), 0), color: 'var(--success)' },
             ].map(k => (
             <div key={k.label} style={{ ...card, padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ fontSize: 24 }}>{k.icon}</span>
+              <span style={{ fontSize: "var(--text-2xl)" }}>{k.icon}</span>
               <div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.value}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{k.label}</div>
+                <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color }}>{k.value}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
               </div>
             </div>
           ))}
@@ -172,30 +173,30 @@ export default function MeetingsAIPage() {
         <div>
           {isLoading ? <Spinner /> : meetings.length === 0 ? (
             <div style={{ ...card, padding: 32, textAlign: 'center' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🎙</div>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.empty_title')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16 }}>{_t('meetings_ai.empty_desc')}</div>
+              <div style={{ fontSize: "var(--text-4xl)", marginBottom: 12 }}>🎙</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.empty_title')}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>{_t('meetings_ai.empty_desc')}</div>
               <Button onClick={() => setShowProcess(true)}>{_t('meetings_ai.empty_btn')}</Button>
             </div>
           ) : meetings.map(m => {
             const plat = platCfg(m.platform)
             return (
               <button key={m.id} type="button" onClick={() => setSelected(m.id)}
-                style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent-glow)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
+                style={{ ...card, padding: '14px 16px', marginBottom: 10, cursor: 'pointer', borderColor: selected === m.id ? 'var(--accent)' : 'var(--surface-4)', background: selected === m.id ? 'var(--accent-muted)' : 'var(--surface-2)', width: '100%', textAlign: 'left', fontFamily: 'inherit' }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
-                  <span style={{ fontSize: 18 }}>{plat.icon}</span>
+                  <span style={{ fontSize: "var(--text-lg-em)" }}>{plat.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{m.meeting_date?.slice(0, 10) || m.created_at?.slice(0, 10)}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
+                  <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: m.status === 'done' ? 'var(--success-bg)' : 'var(--warning-bg)', color: m.status === 'done' ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
                     {m.status === 'done' ? _t('meetings_ai.status_done') : _t('meetings_ai.status_processing')}
                   </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{(m.actions_count || 0)} {_t('meetings_ai.actions_label')}</span>
                   {(m.created_actions || 0) > 0 && (
-                    <span style={{ fontSize: 11, color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
+                    <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>{m.created_actions} {_t('meetings_ai.created_label')}</span>
                   )}
                 </div>
               </button>
@@ -207,16 +208,16 @@ export default function MeetingsAIPage() {
         <div>
           {!selected ? (
             <div style={{ ...card, padding: 48, textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🎙</div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{_t('meetings_ai.select_desc')}</div>
+              <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🎙</div>
+              <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{_t('meetings_ai.select_title')}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{_t('meetings_ai.select_desc')}</div>
             </div>
           ) : !detail ? <Spinner /> : (
             <div>
               {/* Header */}
               <div style={{ ...card, padding: '18px 22px', marginBottom: 14 }}>
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{detail.title}</div>
-                <div style={{ display: 'flex', gap: 14, fontSize: 12, color: 'var(--text-2)' }}>
+                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, marginBottom: 6 }}>{detail.title}</div>
+                <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   {detail.platform && <span>{platCfg(detail.platform).icon} {platCfg(detail.platform).label}</span>}
                   {detail.duration_minutes && <span>⏱ {detail.duration_minutes} min</span>}
                   <span>📅 {detail.meeting_date?.slice(0, 10) || detail.created_at?.slice(0, 10)}</span>
@@ -226,19 +227,19 @@ export default function MeetingsAIPage() {
               {/* Summary */}
               {detail.summary && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📝 {_t('meetings_ai.summary_label')}</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-2)' }}>{detail.summary}</div>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>📝 {_t('meetings_ai.summary_label')}</div>
+                  <div style={{ fontSize: "var(--text-base)", lineHeight: 1.7, color: 'var(--text-2)' }}>{detail.summary}</div>
                 </div>
               )}
 
               {/* Decisions */}
               {detail.decisions?.length > 0 && (
                 <div style={{ ...card, padding: '16px 20px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
                     ✅ {_t('meetings_ai.decisions_label', { count: detail.decisions.length })}
                   </div>
                   {detail.decisions.map((d, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: 13 }}>
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < detail.decisions.length - 1 ? '1px solid var(--surface-4)30' : 'none', fontSize: "var(--text-base)" }}>
                       <span style={{ color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>◆</span>
                       <span style={{ lineHeight: 1.5 }}>{d}</span>
                     </div>
@@ -250,7 +251,7 @@ export default function MeetingsAIPage() {
               {detail.actions?.length > 0 && (
                 <div style={{ ...card, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                       📋 {_t('meetings_ai.actions_label_detail', { count: detail.actions.length })}
                     </div>
                     {detail.actions.some(a => !a.is_created) && (
@@ -262,14 +263,14 @@ export default function MeetingsAIPage() {
                   {detail.actions.map(a => (
                     <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--surface-4)30', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>{a.description}</div>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                           {a.assignee_name && `👤 ${a.assignee_name}`}
                           {a.due_date_text && ` · 📅 ${a.due_date_text}`}
                           {a.priority && ` · ${a.priority}`}
                         </div>
                       </div>
-                      <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 12, background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>
+                      <span style={{ fontSize: "var(--text-xs)", padding: '3px 10px', borderRadius: 12, background: a.is_created ? 'var(--success-bg)' : 'var(--surface-3)', color: a.is_created ? 'var(--success)' : 'var(--text-2)', fontWeight: 600, flexShrink: 0 }}>
                         {a.is_created ? _t('meetings_ai.action_created') : _t('meetings_ai.action_pending')}
                       </span>
                     </div>
@@ -282,6 +283,6 @@ export default function MeetingsAIPage() {
       </div>
 
       {showProcess && <ProcessModal onClose={() => setShowProcess(false)} />}
-    </div>
+    </PageShell>
   )
 }

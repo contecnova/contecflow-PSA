@@ -10,10 +10,11 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../services/api'
+import { sdWorkflowDesignerApi } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { Button, Spinner } from '../../components/ui'
 import PageHeader from '../../components/layout/PageHeader'
+import PageShell from '../../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -22,15 +23,15 @@ const NODE_H = 40
 const NODE_TYPES = ['start', 'state', 'decision', 'end']
 
 const NODE_STYLE = {
-  start:    { fill: '#22c55e', stroke: '#16a34a', text: '#fff', shape: 'oval' },
-  end:      { fill: '#ef4444', stroke: '#dc2626', text: '#fff', shape: 'oval' },
+  start:    { fill: 'var(--success)', stroke: 'var(--success)', text: '#fff', shape: 'oval' },
+  end:      { fill: 'var(--danger)', stroke: 'var(--danger)', text: '#fff', shape: 'oval' },
   state:    { fill: 'var(--surface-2)', stroke: 'var(--accent)', text: 'var(--text-1)', shape: 'rect' },
-  decision: { fill: '#f59e0b', stroke: '#d97706', text: '#fff', shape: 'diamond' },
+  decision: { fill: '#f59e0b', stroke: '#f59e0b', text: '#fff', shape: 'diamond' },
 }
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 function newNode(type, x, y) {
@@ -188,7 +189,7 @@ function DesignerCanvas({ nodes, edges, setNodes, setEdges }) {
           display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
           background: 'var(--surface-2)', borderBottom: '1px solid var(--surface-4)',
         }}>
-          <label style={{ fontSize: 12, color: 'var(--text-2)' }}>Nombre del nodo:</label>
+          <label style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>Nombre del nodo:</label>
           <input
             autoFocus
             value={editingNode.label}
@@ -275,11 +276,12 @@ function DesignerCanvas({ nodes, edges, setNodes, setEdges }) {
         ))}
       </svg>
       {selected && (
-        <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-2)' }}>
+        <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
           Nodo seleccionado: <strong>{nodes.find(n=>n.id===selected)?.label}</strong>
           {' · '}
-          <span
-            style={{ color: 'var(--danger)', cursor: 'pointer', textDecoration: 'underline' }}
+          <button
+            type="button"
+            style={{ color: 'var(--danger)', cursor: 'pointer', textDecoration: 'underline', background: 'transparent', border: 'none', padding: 0, fontFamily: 'inherit' }}
             onClick={() => {
               setNodes(prev => prev.filter(n => n.id !== selected))
               setEdges(prev => prev.filter(e2 => e2.source !== selected && e2.target !== selected))
@@ -287,7 +289,7 @@ function DesignerCanvas({ nodes, edges, setNodes, setEdges }) {
             }}
           >
             Eliminar
-          </span>
+          </button>
           {' · Doble clic para renombrar · Arrastra el puerto ● para conectar'}
         </div>
       )}
@@ -311,7 +313,7 @@ export default function WorkflowDesignerPage() {
 
   const { data: blueprints = [], isLoading } = useQuery({
     queryKey: ['wd-blueprints'],
-    queryFn: () => api.get('/sd/workflow-designer/blueprints').then(r => r.data).catch(() => []),
+    queryFn: () => sdWorkflowDesignerApi.blueprints().then(r => r.data).catch(() => []),
   })
 
   const { mutate: createBP, isPending: creating } = useMutation({
@@ -419,7 +421,7 @@ export default function WorkflowDesignerPage() {
 
   // ── LIST VIEW ────────────────────────────────────────────────────────────────
   if (view === 'list') return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<GitBranch size={18} />}
         title="Workflow Designer"
@@ -429,7 +431,7 @@ export default function WorkflowDesignerPage() {
 
       {showCreate && (
         <div style={{ ...ps, marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Nuevo blueprint de proceso</div>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 14 }}>Nuevo blueprint de proceso</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px auto', gap: 12, alignItems: 'flex-end' }}>
             <div>
               <label style={ls}>Nombre</label>
@@ -448,7 +450,7 @@ export default function WorkflowDesignerPage() {
                 {creating ? 'Creando…' : 'Crear'}
               </Button>
               <button onClick={() => setShowCreate(false)}
-                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)" }}>
                 Cancelar
               </button>
             </div>
@@ -458,56 +460,56 @@ export default function WorkflowDesignerPage() {
 
       {isLoading ? <Spinner /> : blueprints.length === 0 ? (
         <div style={{ ...ps, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔀</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Sin blueprints de proceso</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>Crea un blueprint para diseñar visualmente los flujos de trabajo de Service Desk.</div>
+          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🔀</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin blueprints de proceso</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>Crea un blueprint para diseñar visualmente los flujos de trabajo de Service Desk.</div>
           <Button onClick={() => setShowCreate(true)}>+ Crear primer blueprint</Button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
           {blueprints.map(bp => (
-            <div key={bp.id} style={{ ...ps, cursor: 'pointer', transition: 'border-color .15s' }}
+            <button key={bp.id} type="button" style={{ ...ps, cursor: 'pointer', transition: 'border-color .15s', width: '100%', textAlign: 'left' }}
               onClick={() => openExistingBP(bp)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>🔀 {bp.name}</div>
+                <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700 }}>🔀 {bp.name}</div>
                 <div style={{
-                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase',
+                  fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, textTransform: 'uppercase',
                   background: bp.status === 'published' ? 'var(--success)' : 'var(--surface-4)',
                   color: bp.status === 'published' ? '#fff' : 'var(--text-2)',
                 }}>
                   {bp.status}
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>
                 Proceso: <strong>{bp.process_type}</strong>
                 {bp.published_version && ` · v${bp.published_version} publicada`}
               </div>
               {bp.description && (
-                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{bp.description}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{bp.description}</div>
               )}
-              <div style={{ marginTop: 12, fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>
+              <div style={{ marginTop: 12, fontSize: "var(--text-xs)", color: 'var(--accent)', fontWeight: 600 }}>
                 Abrir diseñador →
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 
   // ── EDITOR VIEW ──────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <button onClick={() => setView('list')}
-          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+          style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)" }}>
           ← Blueprints
         </button>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>
+        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 700 }}>
           🔀 {activeBP?.name}
         </div>
         <div style={{
-          fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase',
+          fontSize: "var(--text-2xs)", fontWeight: 700, padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase',
           background: activeBP?.status === 'published' ? 'var(--success)' : 'var(--surface-4)',
           color: activeBP?.status === 'published' ? '#fff' : 'var(--text-2)',
         }}>
@@ -515,11 +517,11 @@ export default function WorkflowDesignerPage() {
         </div>
         <div style={{ flex: 1 }} />
         <button onClick={handleValidate}
-          style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600 }}>
+          style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid var(--accent)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
           ✓ Validar
         </button>
         <button onClick={handleSave} disabled={saving}
-          style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--surface-4)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, opacity: saving ? 0.5 : 1 }}>
+          style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: 'var(--surface-4)', color: 'var(--text-1)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600, opacity: saving ? 0.5 : 1 }}>
           {saving ? 'Guardando…' : '💾 Guardar'}
         </button>
         <Button disabled={publishing} onClick={handlePublish}>
@@ -530,7 +532,7 @@ export default function WorkflowDesignerPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 16 }}>
         {/* Palette */}
         <div style={{ ...ps, padding: '14px 12px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Nodos</div>
+          <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Nodos</div>
           {NODE_TYPES.map(type => {
             const { fill, stroke } = NODE_STYLE[type]
             return (
@@ -538,7 +540,7 @@ export default function WorkflowDesignerPage() {
                 style={{
                   width: '100%', marginBottom: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
                   background: fill, border: `2px solid ${stroke}`, color: '#fff',
-                  fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                  fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
                   transition: 'opacity .15s', opacity: 0.9,
                 }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '1'}
@@ -548,7 +550,7 @@ export default function WorkflowDesignerPage() {
               </button>
             )
           })}
-          <div style={{ marginTop: 14, fontSize: 10, color: 'var(--text-2)', lineHeight: 1.5 }}>
+          <div style={{ marginTop: 14, fontSize: "var(--text-2xs)", color: 'var(--text-2)', lineHeight: 1.5 }}>
             <div><strong>●</strong> Arrastra el puerto derecho para conectar</div>
             <div><strong>⌫</strong> Delete para eliminar nodo</div>
             <div><strong>↑↑</strong> Doble clic para renombrar</div>
@@ -557,9 +559,9 @@ export default function WorkflowDesignerPage() {
           {/* Versions panel */}
           {versions.length > 0 && (
             <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>Versiones</div>
+              <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>Versiones</div>
               {[...versions].reverse().slice(0, 5).map(v => (
-                <div key={v.id} style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                <div key={v.id} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
                   <span>v{v.version_number}</span>
                   <span style={{ color: v.is_published ? 'var(--success)' : 'var(--text-2)' }}>
                     {v.is_published ? '✓ pub' : 'draft'}
@@ -573,6 +575,6 @@ export default function WorkflowDesignerPage() {
         {/* Canvas */}
         <DesignerCanvas nodes={nodes} edges={edges} setNodes={setNodes} setEdges={setEdges} />
       </div>
-    </div>
+    </PageShell>
   )
 }

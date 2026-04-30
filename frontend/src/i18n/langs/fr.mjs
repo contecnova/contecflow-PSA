@@ -39,7 +39,7 @@ const fr = {
     organizations: 'Organisations', enterprise: 'Entreprise',
     cmdb: 'CMDB', automations: 'Automatisations', search: 'Recherche',
     okrs: 'OKRs', performance_reviews: '\u00c9valuations', training: 'Formation & Certifs',
-    bi: 'BI & Ex\u00e9cutif', webhook_log: 'Journal Webhook', jira_integration: 'Int\u00e9gration Jira', notifications: 'Notifications',
+    bi: 'BI & Ex\u00e9cutif', webhook_log: 'Journal Webhook', jira_integration: 'Int\u00e9gration Jira', notifications: 'Notifications', inbox: 'Boîte de réception',
     executive: 'Tableau de bord ex\u00e9cutif',
     bi_workspace: 'Espace de travail BI',
     log_hours: 'Saisir les heures', timer: 'Minuteur', calendar: 'Calendrier',

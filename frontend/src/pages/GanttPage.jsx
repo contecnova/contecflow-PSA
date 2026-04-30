@@ -113,7 +113,7 @@ export default function GanttPage() {
                 style={{
                   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                   borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)',
-                  fontSize: 12, outline: 'none', width: 150, fontFamily: 'var(--font-sans)',
+                  fontSize: "var(--text-sm)", outline: 'none', width: 150, fontFamily: 'var(--font-sans)',
                 }}
               />
               <select
@@ -122,7 +122,7 @@ export default function GanttPage() {
                 style={{
                   background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
                   borderRadius: 8, padding: '6px 12px', color: 'var(--text-1)',
-                  fontSize: 12, outline: 'none', fontFamily: 'var(--font-sans)',
+                  fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'var(--font-sans)',
                 }}
               >
                 <option value="">{t('gantt.all_projects')}</option>

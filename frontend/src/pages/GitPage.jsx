@@ -7,23 +7,24 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { GitBranch } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const STATUS_PR = {
-  open:   { key: 'git_integration.status_open',   color: '#68d391', bg: '#1a3a1a' },
-  draft:  { key: 'git_integration.status_draft',  color: '#a0aec0', bg: '#1a202c' },
-  merged: { key: 'git_integration.status_merged', color: '#9f7aea', bg: '#2d1a4a' },
-  closed: { key: 'git_integration.status_closed', color: '#fc8181', bg: '#2d1a1a' },
+  open:   { key: 'git_integration.status_open',   color: 'var(--success)', bg: 'var(--success-bg)' },
+  draft:  { key: 'git_integration.status_draft',  color: 'var(--text-2)', bg: 'var(--surface-2)' },
+  merged: { key: 'git_integration.status_merged', color: '#a78bfa', bg: 'var(--purple-bg)' },
+  closed: { key: 'git_integration.status_closed', color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
 const STATUS_DEPLOY = {
-  pending:   { key: 'git_integration.status_pending',  color: '#f6e05e', bg: '#3d3000' },
-  running:   { key: 'git_integration.status_running',  color: '#63b3ed', bg: '#1a2844' },
-  success:   { key: 'git_integration.status_success',  color: '#68d391', bg: '#1a3a1a' },
-  failure:   { key: 'git_integration.status_failure',  color: '#fc8181', bg: '#2d1a1a' },
-  cancelled: { key: 'git_integration.status_cancelled',color: '#a0aec0', bg: '#1a202c' },
+  pending:   { key: 'git_integration.status_pending',  color: '#f59e0b', bg: 'var(--warning-bg)' },
+  running:   { key: 'git_integration.status_running',  color: 'var(--info)', bg: 'var(--accent-muted)' },
+  success:   { key: 'git_integration.status_success',  color: 'var(--success)', bg: 'var(--success-bg)' },
+  failure:   { key: 'git_integration.status_failure',  color: 'var(--danger)', bg: 'var(--danger-bg)' },
+  cancelled: { key: 'git_integration.status_cancelled',color: 'var(--text-2)', bg: 'var(--surface-2)' },
 }
 
 function PRStatusPill({ status }) {
@@ -33,7 +34,7 @@ function PRStatusPill({ status }) {
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
-      borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
+      borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
     }}>{t(s.key)}</span>
   )
 }
@@ -45,13 +46,13 @@ function DeployPill({ status }) {
     <span style={{
       background: s.bg, color: s.color,
       border: `1px solid ${s.color}40`,
-      borderRadius: 12, padding: '2px 10px', fontSize: 11, fontWeight: 600,
+      borderRadius: 12, padding: '2px 10px', fontSize: "var(--text-xs)", fontWeight: 600,
     }}>{t(s.key)}</span>
   )
 }
 
-const cell = { padding: '10px 14px', fontSize: 13, color: '#e2e8f0', borderBottom: '1px solid var(--surface-4)' }
-const th   = { ...cell, fontWeight: 700, fontSize: 11, color: '#718096', textTransform: 'uppercase', background: '#1a202c' }
+const cell = { padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--text-1)', borderBottom: '1px solid var(--surface-4)' }
+const th   = { ...cell, fontWeight: 700, fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', background: 'var(--surface-2)' }
 
 export default function GitPage() {
   const t = useAppT()
@@ -75,10 +76,10 @@ export default function GitPage() {
     padding: '8px 18px',
     borderRadius: 8,
     border: 'none',
-    background: active ? '#2b4a7a' : 'transparent',
-    color: active ? '#90cdf4' : '#718096',
+    background: active ? 'var(--accent-glow)' : 'transparent',
+    color: active ? 'var(--info)' : 'var(--text-2)',
     fontWeight: 600,
-    fontSize: 13,
+    fontSize: "var(--text-base)",
     cursor: 'pointer',
     fontFamily: 'inherit',
     transition: 'all 0.15s',
@@ -91,7 +92,7 @@ export default function GitPage() {
   const failDeps  = deploys.filter(d => d.status === 'failure').length
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
         icon={<GitBranch size={18} />}
         title={t('git_integration.title')}
@@ -101,7 +102,7 @@ export default function GitPage() {
             href="/api/v1/git/webhooks/github"
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 12, color: '#90cdf4', textDecoration: 'none' }}
+            style={{ fontSize: "var(--text-sm)", color: 'var(--info)', textDecoration: 'none' }}
           >
             📋 {t('git_integration.webhook_url')}
           </a>
@@ -111,16 +112,16 @@ export default function GitPage() {
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: '#68d391' },
-          { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: '#9f7aea' },
-          { label: t('git_integration.kpi_deploys_ok'),    value: okDeploys,  color: '#68d391' },
-          { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: '#fc8181' },
+          { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: 'var(--success)' },
+          { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: '#a78bfa' },
+          { label: t('git_integration.kpi_deploys_ok'),    value: okDeploys,  color: 'var(--success)' },
+          { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
         ].map(k => (
           <div key={k.label} style={{
-            background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: '14px 18px',
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px',
           }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: 12, color: '#718096', marginTop: 2 }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -143,7 +144,7 @@ export default function GitPage() {
         loadPR ? <Spinner /> : prs.length === 0 ? (
           <EmptyState icon="🔀" title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
         ) : (
-          <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -155,33 +156,33 @@ export default function GitPage() {
               <tbody>
                 {prs.map(pr => (
                   <tr key={pr.id} style={{ transition: 'background 0.1s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <td style={cell}>
-                      <span style={{ fontSize: 11, color: '#718096' }}>{pr.repo_full_name}</span>
-                      <span style={{ marginLeft: 6, color: '#90cdf4', fontWeight: 600 }}>#{pr.pr_number}</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{pr.repo_full_name}</span>
+                      <span style={{ marginLeft: 6, color: 'var(--info)', fontWeight: 600 }}>#{pr.pr_number}</span>
                     </td>
                     <td style={{ ...cell, maxWidth: 260 }}>
                       {pr.pr_url ? (
                         <a href={pr.pr_url} target="_blank" rel="noreferrer"
-                          style={{ color: '#e2e8f0', textDecoration: 'none' }}>
+                          style={{ color: 'var(--text-1)', textDecoration: 'none' }}>
                           {pr.pr_title || t('git_integration.dash')}
                         </a>
                       ) : (pr.pr_title || t('git_integration.dash'))}
                     </td>
-                    <td style={{ ...cell, fontFamily: 'monospace', fontSize: 12, color: '#90cdf4' }}>
+                    <td style={{ ...cell, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)", color: 'var(--info)' }}>
                       {pr.source_branch || t('git_integration.dash')}
                     </td>
                     <td style={cell}>{pr.author_login || t('git_integration.dash')}</td>
                     <td style={cell}><PRStatusPill status={pr.status} /></td>
                     <td style={cell}>
                       {pr.task_id ? (
-                        <a href={`/tasks?id=${pr.task_id}`} style={{ color: '#90cdf4', fontSize: 12 }}>
+                        <a href={`/tasks?id=${pr.task_id}`} style={{ color: 'var(--info)', fontSize: "var(--text-sm)" }}>
                           #{pr.task_id}
                         </a>
-                      ) : <span style={{ color: '#4a5568', fontSize: 12 }}>{t('git_integration.dash')}</span>}
+                      ) : <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('git_integration.dash')}</span>}
                     </td>
-                    <td style={{ ...cell, fontSize: 11, color: '#718096' }}>
+                    <td style={{ ...cell, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {fmtDate(pr.merged_at || pr.created_at)}
                     </td>
                   </tr>
@@ -197,7 +198,7 @@ export default function GitPage() {
         loadDep ? <Spinner /> : deploys.length === 0 ? (
           <EmptyState icon="🚀" title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
         ) : (
-          <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -209,27 +210,27 @@ export default function GitPage() {
               <tbody>
                 {deploys.map(d => (
                   <tr key={d.id}
-                    onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
-                    <td style={{ ...cell, fontSize: 12, color: '#718096' }}>{d.repo_full_name}</td>
-                    <td style={{ ...cell, fontFamily: 'monospace', fontSize: 12, color: '#90cdf4' }}>
+                    <td style={{ ...cell, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{d.repo_full_name}</td>
+                    <td style={{ ...cell, fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)", color: 'var(--info)' }}>
                       {d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}
                     </td>
                     <td style={cell}>
                       <span style={{
-                        background: '#2d3748', color: '#e2e8f0', borderRadius: 6,
-                        padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                        background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 6,
+                        padding: '2px 8px', fontSize: "var(--text-xs)", fontWeight: 600,
                       }}>{d.environment || t('git_integration.env_production')}</span>
                     </td>
                     <td style={cell}><DeployPill status={d.status} /></td>
                     <td style={cell}>
                       {d.task_id ? (
-                        <a href={`/tasks?id=${d.task_id}`} style={{ color: '#90cdf4', fontSize: 12 }}>
+                        <a href={`/tasks?id=${d.task_id}`} style={{ color: 'var(--info)', fontSize: "var(--text-sm)" }}>
                           #{d.task_id}
                         </a>
-                      ) : <span style={{ color: '#4a5568', fontSize: 12 }}>{t('git_integration.dash')}</span>}
+                      ) : <span style={{ color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('git_integration.dash')}</span>}
                     </td>
-                    <td style={{ ...cell, fontSize: 11, color: '#718096' }}>
+                    <td style={{ ...cell, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                       {fmtDate(d.deployed_at || d.created_at)}
                     </td>
                   </tr>
@@ -271,69 +272,70 @@ export default function GitPage() {
             ]}
           />
           <div style={{
-            background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 20,
+            background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20,
           }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#e2e8f0' }}>🔗 {t('git_integration.auto_link_title')}</h3>
-            <p style={{ fontSize: 13, color: '#a0aec0', margin: '0 0 8px' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: "var(--text-md)", color: 'var(--text-1)' }}>🔗 {t('git_integration.auto_link_title')}</h3>
+            <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', margin: '0 0 8px' }}>
               {t('git_integration.auto_link_desc')}
             </p>
-            <ul style={{ fontSize: 13, color: '#a0aec0', paddingLeft: 20, lineHeight: 1.8 }}>
-              <li>{t('git_integration.auto_link_code')}: <code style={{ color: '#90cdf4' }}>PROJ-123</code> {t('git_integration.auto_link_code_desc')}</li>
-              <li>{t('git_integration.auto_link_id')}: <code style={{ color: '#90cdf4' }}>#456</code></li>
+            <ul style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', paddingLeft: 20, lineHeight: 1.8 }}>
+              <li>{t('git_integration.auto_link_code')}: <code style={{ color: 'var(--info)' }}>PROJ-123</code> {t('git_integration.auto_link_code_desc')}</li>
+              <li>{t('git_integration.auto_link_id')}: <code style={{ color: 'var(--info)' }}>#456</code></li>
             </ul>
-            <p style={{ fontSize: 12, color: '#718096', marginTop: 8 }}>
-              {t('git_integration.auto_link_example')}: <code style={{ color: '#68d391' }}>feature/PROJ-42-add-login</code>
+            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 8 }}>
+              {t('git_integration.auto_link_example')}: <code style={{ color: 'var(--success)' }}>feature/PROJ-42-add-login</code>
             </p>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }
 
 function ConfigSection({ title, icon, webhookPath, envVar, events, steps }) {
+  const t = useAppT()
   const [copied, setCopied] = useState(false)
   const url = `${window.location.origin}${webhookPath}`
   const copy = () => {
     navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
   return (
-    <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 20 }}>
-      <h3 style={{ margin: '0 0 14px', fontSize: 15, color: '#e2e8f0' }}>{icon} {title}</h3>
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 20 }}>
+      <h3 style={{ margin: '0 0 14px', fontSize: "var(--text-md-em)", color: 'var(--text-1)' }}>{icon} {title}</h3>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 4 }}>{t('git_integration.webhook_url_label')}</div>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.webhook_url_label')}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <code style={{
-            flex: 1, background: '#0d1117', border: '1px solid #2d3748', borderRadius: 6,
-            padding: '8px 12px', fontSize: 12, color: '#90cdf4', overflowX: 'auto',
+            flex: 1, background: '#0d1117', border: '1px solid var(--surface-4)', borderRadius: 6,
+            padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--info)', overflowX: 'auto',
           }}>{url}</code>
           <button onClick={copy} style={{
-            background: copied ? '#276227' : '#2d3748', border: 'none', borderRadius: 6,
-            color: copied ? '#68d391' : '#a0aec0', padding: '8px 14px', cursor: 'pointer',
-            fontSize: 12, fontFamily: 'inherit', flexShrink: 0,
+            background: copied ? '#276227' : 'var(--surface-4)', border: 'none', borderRadius: 6,
+            color: copied ? 'var(--success)' : 'var(--text-2)', padding: '8px 14px', cursor: 'pointer',
+            fontSize: "var(--text-sm)", fontFamily: 'inherit', flexShrink: 0,
           }}>
             {copied ? t('git_integration.copied') : t('git_integration.copy')}
           </button>
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 4 }}>{t('git_integration.env_var_label')}</div>
-        <code style={{ fontSize: 12, color: '#f6e05e' }}>{envVar}=tu-secreto-largo</code>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.env_var_label')}</div>
+        <code style={{ fontSize: "var(--text-sm)", color: '#f59e0b' }}>{envVar}=tu-secreto-largo</code>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 6 }}>{t('git_integration.events_label')}</div>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {events.map(e => (
             <span key={e} style={{
-              background: '#2d3748', color: '#e2e8f0', borderRadius: 6,
-              padding: '3px 10px', fontSize: 11, fontFamily: 'monospace',
+              background: 'var(--surface-4)', color: 'var(--text-1)', borderRadius: 6,
+              padding: '3px 10px', fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)',
             }}>{e}</span>
           ))}
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 11, color: '#718096', marginBottom: 6 }}>{t('git_integration.steps_label')}</div>
-        <ol style={{ padding: 0, paddingLeft: 18, margin: 0, fontSize: 12, color: '#a0aec0', lineHeight: 2 }}>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.steps_label')}</div>
+        <ol style={{ padding: 0, paddingLeft: 18, margin: 0, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 2 }}>
           {steps.map((s, i) => <li key={i}>{s}</li>)}
         </ol>
       </div>

@@ -11,13 +11,13 @@ export default function Breadcrumbs({ items = [] }) {
         return (
           <span key={`${item.to || item.label}-${idx}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {isLast || !item.to ? (
-              <span style={{ color: 'var(--text-1)', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>
+              <span style={{ color: 'var(--text-1)', fontSize: "var(--text-base)", fontWeight: 600, textTransform: 'capitalize' }}>
                 {item.label}
               </span>
             ) : (
               <NavLink
                 to={item.to}
-                style={{ color: 'var(--text-3)', fontSize: 12, textDecoration: 'none' }}
+                style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)", textDecoration: 'none' }}
               >
                 {item.label}
               </NavLink>

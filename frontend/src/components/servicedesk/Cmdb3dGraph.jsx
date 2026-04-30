@@ -11,7 +11,7 @@ import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 
-const LAYER_COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#f87171', '#a78bfa', '#fb923c']
+const LAYER_COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#f87171', '#a78bfa', 'var(--orange)']
 
 export default function Cmdb3dGraph({ className = '' }) {
   const t = useAppT()
@@ -64,7 +64,7 @@ export default function Cmdb3dGraph({ className = '' }) {
       .attr('markerHeight', 6)
       .attr('orient', 'auto')
       .append('path')
-      .attr('fill', '#6b7280')
+      .attr('fill', 'var(--text-3)')
       .attr('d', 'M0,-5L10,0L0,5')
 
     const simulation = d3.forceSimulation(nodes)
@@ -75,7 +75,7 @@ export default function Cmdb3dGraph({ className = '' }) {
 
     const link = g.append('g').selectAll('line')
       .data(links).enter().append('line')
-      .attr('stroke', '#6b7280')
+      .attr('stroke', 'var(--text-3)')
       .attr('stroke-opacity', 0.6)
       .attr('stroke-width', 1.2)
       .attr('marker-end', 'url(#cmdb-arrow)')
@@ -98,7 +98,7 @@ export default function Cmdb3dGraph({ className = '' }) {
       .attr('dy', 20)
       .attr('text-anchor', 'middle')
       .attr('font-size', 9)
-      .attr('fill', dark ? '#d1d5db' : '#374151')
+      .attr('fill', dark ? 'var(--text-2)' : 'var(--surface-5)')
       .text(d => (d.label ?? d.id ?? '').slice(0, 16))
 
     simulation.on('tick', () => {

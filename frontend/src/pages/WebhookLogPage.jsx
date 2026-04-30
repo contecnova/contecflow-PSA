@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Webhook } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -55,7 +56,7 @@ export default function WebhookLogPage() {
   const failCount = allLogs.filter(l => !l.http_status || l.http_status >= 400).length
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Webhook size={18} />}
         title={t('webhooks.title')}
@@ -64,7 +65,7 @@ export default function WebhookLogPage() {
           <button onClick={() => refetch()}
             style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
               borderRadius:8, padding:'7px 14px', color:'var(--text-1)',
-              cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
+              cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
             🔄 Actualizar
           </button>
         }
@@ -80,9 +81,9 @@ export default function WebhookLogPage() {
         ].map(kpi => (
           <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'14px 18px' }}>
-            <div style={{ fontSize:24, fontWeight:900, color:kpi.color,
-              fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight:900, color:kpi.color,
+              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -99,7 +100,7 @@ export default function WebhookLogPage() {
             <thead>
               <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
                 {['Timestamp','Webhook','Evento','URL destino','Status','Duración'].map(h => (
-                  <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11,
+                  <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize: "var(--text-xs)",
                     fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
                     letterSpacing:'0.06em' }}>{h}</th>
                 ))}
@@ -115,33 +116,33 @@ export default function WebhookLogPage() {
                     onClick={() => setSelectedLog(log)}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding:'10px 14px', fontSize:12,
-                      fontFamily:'monospace', color:'var(--text-2)', whiteSpace:'nowrap' }}>
+                    <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)",
+                      fontFamily:'var(--font-mono)', color:'var(--text-2)', whiteSpace:'nowrap' }}>
                       {log.created_at ? log.created_at.slice(0, 19).replace('T', ' ') : '—'}
                     </td>
-                    <td style={{ padding:'10px 14px', fontSize:13, fontWeight:600 }}>
+                    <td style={{ padding:'10px 14px', fontSize: "var(--text-base)", fontWeight:600 }}>
                       {log.webhook_name || '—'}
                     </td>
                     <td style={{ padding:'10px 14px' }}>
-                      <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20,
+                      <span style={{ fontSize: "var(--text-xs)", padding:'2px 8px', borderRadius:20,
                         background:'var(--accent-muted)', color:'var(--accent)' }}>
                         {log.event_type || log.trigger_slug || '—'}
                       </span>
                     </td>
-                    <td style={{ padding:'10px 14px', fontSize:11,
-                      color:'var(--text-2)', fontFamily:'monospace', maxWidth:200,
+                    <td style={{ padding:'10px 14px', fontSize: "var(--text-xs)",
+                      color:'var(--text-2)', fontFamily:'var(--font-mono)', maxWidth:200,
                       overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                       {log.webhook_url || '—'}
                     </td>
                     <td style={{ padding:'10px 14px' }}>
-                      <span style={{ fontSize:12, fontWeight:800, padding:'2px 8px',
-                        borderRadius:6, fontFamily:'monospace',
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight:800, padding:'2px 8px',
+                        borderRadius:6, fontFamily:'var(--font-mono)',
                         background:`${statusColor}20`, color:statusColor }}>
                         {ok ? '✓' : '✗'} {log.http_status || 'ERR'}
                       </span>
                     </td>
-                    <td style={{ padding:'10px 14px', fontSize:12,
-                      color:'var(--text-2)', fontFamily:'monospace' }}>
+                    <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)",
+                      color:'var(--text-2)', fontFamily:'var(--font-mono)' }}>
                       {log.duration_ms ? `${log.duration_ms}ms` : '—'}
                     </td>
                   </tr>
@@ -166,18 +167,18 @@ export default function WebhookLogPage() {
               ['Duración', selectedLog.duration_ms ? `${selectedLog.duration_ms}ms` : '—'],
             ].map(([label, value]) => (
               <div key={label} style={{ display:'grid', gridTemplateColumns:'130px 1fr', gap:10 }}>
-                <span style={{ fontSize:11, fontWeight:700, color:'var(--text-2)',
+                <span style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em' }}>{label}</span>
-                <span style={{ fontSize:13, color:'var(--text-1)', wordBreak:'break-all' }}>{String(value)}</span>
+                <span style={{ fontSize: "var(--text-base)", color:'var(--text-1)', wordBreak:'break-all' }}>{String(value)}</span>
               </div>
             ))}
             {selectedLog.payload && (
               <div>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--text-2)',
+                <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Payload</div>
                 <pre style={{ background:'var(--surface-3)', borderRadius:8, padding:12,
-                  fontSize:11, color:'var(--success)', overflow:'auto',
-                  maxHeight:200, fontFamily:'monospace', margin:0 }}>
+                  fontSize: "var(--text-xs)", color:'var(--success)', overflow:'auto',
+                  maxHeight:200, fontFamily:'var(--font-mono)', margin:0 }}>
                   {JSON.stringify(
                     typeof selectedLog.payload === 'string'
                       ? JSON.parse(selectedLog.payload)
@@ -187,11 +188,11 @@ export default function WebhookLogPage() {
             )}
             {selectedLog.response_body && (
               <div>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--text-2)',
+                <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
                   textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Respuesta</div>
                 <pre style={{ background:'var(--surface-3)', borderRadius:8, padding:12,
-                  fontSize:11, color:'var(--text-2)', overflow:'auto',
-                  maxHeight:120, fontFamily:'monospace', margin:0 }}>
+                  fontSize: "var(--text-xs)", color:'var(--text-2)', overflow:'auto',
+                  maxHeight:120, fontFamily:'var(--font-mono)', margin:0 }}>
                   {String(selectedLog.response_body).slice(0, 500)}
                 </pre>
               </div>
@@ -199,6 +200,6 @@ export default function WebhookLogPage() {
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

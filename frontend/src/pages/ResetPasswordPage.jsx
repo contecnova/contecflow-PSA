@@ -60,15 +60,15 @@ export default function ResetPasswordPage() {
     <div className="login-layout">
       <div className="login-brand-panel">
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2, color: 'var(--text-1)', marginBottom: 12 }}>
+          <h2 style={{ fontSize: "var(--text-3xl)", fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.2, color: 'var(--text-1)', marginBottom: 12 }}>
             Restablecer
             <br />
             <span style={{ color: 'var(--accent)' }}>contrasena</span>
           </h2>
-          <p style={{ color: 'var(--text-2)', fontSize: 14, lineHeight: 1.6, marginBottom: 20, maxWidth: 320 }}>
+          <p style={{ color: 'var(--text-2)', fontSize: "var(--text-md)", lineHeight: 1.6, marginBottom: 20, maxWidth: 320 }}>
             Define una contrasena nueva para volver a entrar en tu cuenta.
           </p>
-          <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: 13 }}>
+          <Link to="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontSize: "var(--text-base)" }}>
             Volver al inicio de sesion
           </Link>
         </div>
@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
 
       <div className="login-form-panel">
         <div style={{ width: '100%', maxWidth: 380 }}>
-          <h3 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 8 }}>
+          <h3 style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-1)', marginBottom: 8 }}>
             Nueva contrasena
           </h3>
 
@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Nueva contraseña"
               autoComplete="new-password"
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', boxSizing: 'border-box' }}
             />
 
             <input
@@ -96,21 +96,21 @@ export default function ResetPasswordPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirma la contraseña"
               autoComplete="new-password"
-              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-5)', borderRadius: 8, padding: '11px 14px', color: 'var(--text-1)', fontSize: "var(--text-md)", outline: 'none', boxSizing: 'border-box' }}
             />
 
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
               Fortaleza: <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{strengthLabel}</span>
             </div>
 
             {error && (
-              <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: 13 }}>
+              <div style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 8, padding: '10px 14px', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
                 {error}
               </div>
             )}
 
             {success && (
-              <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: 13 }}>
+              <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: "var(--text-base)" }}>
                 {success}
               </div>
             )}
@@ -120,7 +120,7 @@ export default function ResetPasswordPage() {
               onClick={submit}
               disabled={loading}
               className="btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: 14, fontWeight: 700 }}
+              style={{ width: '100%', padding: '12px', marginTop: 4, fontSize: "var(--text-md)", fontWeight: 700 }}
             >
               {loading ? 'Actualizando...' : 'Actualizar contrasena'}
             </button>

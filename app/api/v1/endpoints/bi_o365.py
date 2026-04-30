@@ -73,20 +73,30 @@ def o365_save_config(
 @limiter.limit("10/minute")
 def o365_sync(
     request: Request,
-    body: SyncRequest,
+    body: Optional[SyncRequest] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     org_id = getattr(current_user, "organization_id", None)
+    payload = body or SyncRequest(client_secret="", reports=None)
     result = run_sync(
         db,
         str(org_id) if org_id else None,
-        reports=body.reports,
-        client_secret=body.client_secret,
+        reports=payload.reports,
+        client_secret=payload.client_secret,
     )
     if not result.get("ok"):
-        raise HTTPException(status_code=400, detail=result.get("error", "Sync failed"))
-    return result
+        return {
+            "status": "error",
+            "queued": False,
+            "detail": result.get("error", "Sync failed"),
+            **result,
+        }
+    return {
+        "status": "queued",
+        "queued": True,
+        **result,
+    }
 
 
 @router.get("/reports/{report_name}", summary="Datos de un informe O365 específico")

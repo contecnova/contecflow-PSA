@@ -3,15 +3,16 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
 import { Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ListTodo } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const ps = { background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:'20px 24px' }
-const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const ls = { fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
+const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding: '9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const STATUS_CFG = {
   draft:    {color:'var(--text-2)', bg:'rgba(120,138,170,0.09)'},
@@ -35,10 +36,10 @@ function GenerateModal({ projectId, onClose }) {
     setEstimating(true)
     try {
       // Obtener TODAS las tareas del backlog (con y sin story_points)
-      const tasksRes = await api.get(`/tasks?project_id=${projectId}&status=todo&page_size=200`)
+      const tasksRes = await tasksApi.list({ project_id: projectId, status: 'todo', page_size: 200 })
       const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : []
       if (!tasks.length) { toast.info(t('sprint_planning.no_todo_tasks')); return }
-      const res = await api.post('/semantic/estimate/sprint-backlog', {
+      const res = await semanticApi.estimateSprint({
         tasks: tasks.map(t => ({ id: t.id, title: t.title, description: t.description || '', story_points: t.story_points })),
         team_capacity_hours: form.team_capacity * 2, // aprox 2h por story point
       })
@@ -51,12 +52,12 @@ function GenerateModal({ projectId, onClose }) {
 
   const { data: sprints = [] } = useQuery({
     queryKey: ['sprints', projectId],
-    queryFn: () => api.get(`/sprints?project_id=${projectId}`).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
+    queryFn: () => sprintsApi.list(projectId).then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
     enabled: !!projectId,
   })
 
   const { mutate: generate, isPending } = useMutation({
-    mutationFn: () => api.post('/cmdb/sprint-plans/generate', {
+    mutationFn: () => sprintPlansApi.generate({
       ...form,
       project_id: projectId,
       sprint_id: form.sprint_id || null,
@@ -91,10 +92,10 @@ function GenerateModal({ projectId, onClose }) {
                 </select>
               </div>
             </div>
-            <div style={{padding:'12px 14px',background:'var(--surface-1)',borderRadius:8,border:'1px solid #1a2640',fontSize:12,color:'var(--text-2)',lineHeight:1.7}}>
+            <div style={{padding:'12px 14px',background:'var(--surface-1)',borderRadius:8,border:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",color:'var(--text-2)',lineHeight:1.7}}>
               <strong style={{color:'var(--accent)'}}>{t('sprint_planning.how_it_works')}:</strong> {t('sprint_planning.how_it_works_desc')}
               {semEstimate && (
-                <div style={{marginTop:10,padding:'8px 10px',background:'var(--purple-bg)',border:'1px solid #7c3aed30',borderRadius:8}}>
+                <div style={{marginTop:10,padding:'8px 10px',background:'var(--purple-bg)',border:'1px solid var(--purple-border)',borderRadius:8}}>
                   <div style={{color:'var(--purple)',fontWeight:700,marginBottom:4}}>🧠 {t('sprint_planning.semantic_estimate_title')}</div>
                   <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
                     <span>⏱ {t('sprint_planning.base_label')}: <strong style={{color:'var(--text-1)'}}>{semEstimate.total_base_hours}h</strong></span>
@@ -107,7 +108,7 @@ function GenerateModal({ projectId, onClose }) {
             </div>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
               <button onClick={estimateBacklog} disabled={estimating || !projectId}
-                style={{background:'transparent',border:'1px solid #7c3aed40',borderRadius:6,padding:'5px 12px',color:'var(--purple)',fontSize:11,cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
+                style={{background:'transparent',border:'1px solid var(--purple-border-strong)',borderRadius:6,padding:'5px 12px',color:'var(--purple)',fontSize: "var(--text-xs)",cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
                 {estimating ? `⏳ ${t('sprint_planning.estimating')}` : `🧠 ${t('sprint_planning.estimate_backlog')}`}
               </button>
               <div style={{display:'flex',gap:10}}>
@@ -120,13 +121,13 @@ function GenerateModal({ projectId, onClose }) {
           </>
         ) : (
           <>
-            <div style={{padding:'14px 16px',background:'var(--success-bg)',border:'1px solid #00e5a030',borderRadius:8}}>
-              <div style={{fontSize:14,fontWeight:600,color:'var(--success)',marginBottom:4}}>✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
-              <div style={{fontSize:12,color:'var(--text-2)'}}>{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}p de {result.team_capacity}p</div>
+            <div style={{padding:'14px 16px',background:'var(--success-bg)',border:'1px solid var(--success-border)',borderRadius:8}}>
+              <div style={{fontSize: "var(--text-md)",fontWeight:600,color:'var(--success)',marginBottom:4}}>✅ {t('sprint_planning.plan_generated_label')}: {result.name}</div>
+              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>{result.task_count} {t('sprint_planning.tasks_label')} · {result.total_points}p de {result.team_capacity}p</div>
             </div>
             {/* Barra de utilización */}
             <div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize: "var(--text-sm)"}}>
                 <span style={{color:'var(--text-2)'}}>{t('sprint_planning.sprint_utilization')}</span>
                 <span style={{color:utilizationColor,fontWeight:700}}>{utilizationPct}%</span>
               </div>
@@ -136,23 +137,23 @@ function GenerateModal({ projectId, onClose }) {
             </div>
             {/* Razonamiento IA */}
             <div>
-              <div style={{fontSize:11,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{t('sprint_planning.ai_reasoning')}</div>
-              <pre style={{background:'var(--surface-1)',borderRadius:8,padding:'12px 14px',fontSize:11,color:'var(--text-2)',
-                lineHeight:1.6,overflow:'auto',maxHeight:180,whiteSpace:'pre-wrap',border:'1px solid #1a2640',fontFamily:'monospace'}}>
+              <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:8}}>{t('sprint_planning.ai_reasoning')}</div>
+              <pre style={{background:'var(--surface-1)',borderRadius:8,padding:'12px 14px',fontSize: "var(--text-xs)",color:'var(--text-2)',
+                lineHeight:1.6,overflow:'auto',maxHeight:180,whiteSpace:'pre-wrap',border:'1px solid var(--surface-4)',fontFamily:'var(--font-mono)'}}>
                 {result.ai_reasoning}
               </pre>
             </div>
             {/* Warning tareas sin story points */}
             {result.unestimated_count > 0 && (
-              <div style={{padding:'8px 12px',background:'rgba(255,184,0,0.08)',border:'1px solid rgba(255,184,0,0.3)',borderRadius:8,fontSize:12,color:'var(--warning)'}}>
+              <div style={{padding:'8px 12px',background:'rgba(255,184,0,0.08)',border:'1px solid rgba(255,184,0,0.3)',borderRadius:8,fontSize: "var(--text-sm)",color:'var(--warning)'}}>
                 ⚠ {result.unestimated_count} {t('sprint_planning.unestimated_warning_suffix')}
               </div>
             )}
             {/* Lista de tareas */}
-            <div style={{maxHeight:220,overflowY:'auto',border:'1px solid #1a2640',borderRadius:8}}>
+            <div style={{maxHeight:220,overflowY:'auto',border:'1px solid var(--surface-4)',borderRadius:8}}>
               {result.tasks.map((t,i) => (
                 <div key={t.task_id} style={{display:'flex',gap:10,padding:'8px 12px',
-                  borderBottom:'1px solid #1a2640',fontSize:12,background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                  borderBottom:'1px solid var(--surface-4)',fontSize: "var(--text-sm)",background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                   <span style={{color:'var(--text-3)',minWidth:20}}>{i+1}</span>
                   <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.title}</span>
                   <span style={{color:PRIORITY_COLORS[t.priority]||'var(--text-2)',flexShrink:0}}>{t.priority}</span>
@@ -182,28 +183,28 @@ export default function SprintPlanningPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data)?r.data:[]).catch(()=>[]),
   })
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ['sprint-plans', project],
-    queryFn: () => api.get(`/cmdb/sprint-plans/${project}`).then(r => r.data).catch(()=>[]),
+    queryFn: () => sprintPlansApi.get(project).then(r => r.data).catch(()=>[]),
     enabled: !!project,
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({id, status}) => api.patch(`/cmdb/sprint-plans/${id}/status?status=${status}`).then(r => r.data),
+    mutationFn: ({id, status}) => sprintPlansApi.updateStatus(id, status).then(r => r.data),
     onSuccess: () => qc.invalidateQueries(['sprint-plans', project]),
     onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   const { mutate: deletePlan } = useMutation({
-    mutationFn: id => api.delete(`/cmdb/sprint-plans/${id}`),
+    mutationFn: id => sprintPlansApi.delete(id),
     onSuccess: () => { qc.invalidateQueries(['sprint-plans', project]); setExpandPlan(null) },
     onError: e => toast.error(extractErr(e, t('sprint_planning.error_delete'))),
   })
 
   return (
-    <div style={{padding:32}}>
+    <PageShell>
       <PageHeader icon={<ListTodo size={18} />} title={t('sprint_planning.title')} subtitle={t('sprint_planning.subtitle')}
         actions={project && <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_plan_action')}</Button>} />
 
@@ -220,9 +221,9 @@ export default function SprintPlanningPage() {
 
       {project && !isLoading && plans.length === 0 && (
         <div style={{...ps,textAlign:'center',padding:'48px 24px'}}>
-          <div style={{fontSize:48,marginBottom:16}}>✨</div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:8}}>{t('sprint_planning.no_plans_title')}</div>
-          <div style={{fontSize:13,color:'var(--text-2)',marginBottom:20}}>
+          <div style={{fontSize: "var(--text-6xl)",marginBottom:16}}>✨</div>
+          <div style={{fontSize: "var(--text-md-em)",fontWeight:600,marginBottom:8}}>{t('sprint_planning.no_plans_title')}</div>
+          <div style={{fontSize: "var(--text-base)",color:'var(--text-2)',marginBottom:20}}>
             {t('sprint_planning.no_plans_desc')}
           </div>
           <Button onClick={() => setShowGenerate(true)}>✨ {t('sprint_planning.generate_first_plan')}</Button>
@@ -240,35 +241,35 @@ export default function SprintPlanningPage() {
                 <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isExpanded?12:0}}>
                   <div style={{flex:1}}>
                     <div style={{display:'flex',alignItems:'center',gap:10}}>
-                      <span style={{fontWeight:600,fontSize:14}}>{plan.name}</span>
-                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,
+                      <span style={{fontWeight:600,fontSize: "var(--text-md)"}}>{plan.name}</span>
+                      <span style={{fontSize: "var(--text-xs)",padding:'2px 8px',borderRadius:20,
                         background:sc.bg,color:sc.color,fontWeight:600}}>{t('sprint_planning.status_' + plan.status)}</span>
                     </div>
-                    <div style={{fontSize:12,color:'var(--text-2)',marginTop:4}}>
+                    <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)',marginTop:4}}>
                       {plan.task_count} {t('sprint_planning.tasks_label')} · {plan.total_points}p de {plan.team_capacity}p ({pct}% {t('sprint_planning.utilization_label')})
                     </div>
                   </div>
                   <div style={{display:'flex',gap:8}}>
                     {plan.status === 'draft' && <>
                       <button onClick={() => updateStatus({id:plan.id,status:'accepted'})}
-                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid #00e5a030',
-                          background:'var(--success-bg)',color:'var(--success)',cursor:'pointer',fontFamily:'inherit',fontSize:12}}>
+                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--success-border)',
+                          background:'var(--success-bg)',color:'var(--success)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
                         ✓ {t('sprint_planning.accept_btn')}
                       </button>
                       <button onClick={() => updateStatus({id:plan.id,status:'rejected'})}
-                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid #ff475730',
-                          background:'var(--danger-bg)',color:'var(--danger)',cursor:'pointer',fontFamily:'inherit',fontSize:12}}>
+                        style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--danger-border)',
+                          background:'var(--danger-bg)',color:'var(--danger)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
                         ✕ {t('sprint_planning.reject_btn')}
                       </button>
                     </>}
                     <button onClick={() => setExpandPlan(isExpanded ? null : plan.id)}
                       style={{padding:'5px 12px',borderRadius:8,border:'1px solid var(--surface-4)',
-                        background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize:12}}>
+                        background:'transparent',color:'var(--text-2)',cursor:'pointer',fontFamily:'inherit',fontSize: "var(--text-sm)"}}>
                       {isExpanded ? `▲ ${t('sprint_planning.hide_details')}` : `▼ ${t('sprint_planning.view_details')}`}
                     </button>
                     <button onClick={() => { openConfirmGlobal({ message: t('sprint_planning.delete_confirm').replace('{name}', plan.name), onConfirm: () => deletePlan(plan.id), danger: true }) }}
-                      style={{padding:'5px 8px',borderRadius:8,border:'1px solid #ff475730',
-                        background:'transparent',color:'var(--danger)',cursor:'pointer',fontSize:12}}>
+                      style={{padding:'5px 8px',borderRadius:8,border:'1px solid var(--danger-border)',
+                        background:'transparent',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
                       🗑
                     </button>
                   </div>
@@ -276,10 +277,10 @@ export default function SprintPlanningPage() {
 
                 {isExpanded && (
                   <div style={{borderTop:'1px solid var(--surface-4)',paddingTop:12}}>
-                    <div style={{fontSize:11,color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>
+                    <div style={{fontSize: "var(--text-xs)",color:'var(--text-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>
                       {t('sprint_planning.created_label')}: {plan.created_at ? new Date(plan.created_at).toLocaleString() : '—'}
                     </div>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--text-2)',marginBottom:4}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize: "var(--text-xs)",color:'var(--text-2)',marginBottom:4}}>
                       <span>{t('sprint_planning.sprint_utilization')}</span>
                       <span style={{fontWeight:700,color: pct>=90?'var(--danger)':pct>=70?'var(--success)':'var(--warning)'}}>{pct}%</span>
                     </div>
@@ -298,6 +299,6 @@ export default function SprintPlanningPage() {
       {showGenerate && (
         <GenerateModal projectId={project} onClose={() => setShowGenerate(false)} />
       )}
-    </div>
+    </PageShell>
   )
 }

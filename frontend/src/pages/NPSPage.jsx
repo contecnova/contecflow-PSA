@@ -16,36 +16,37 @@ import {
 } from 'recharts'
 import { npsApi, clientsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Star } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
-const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-const HEALTH_COLOR = (score) => score >= 75 ? '#68d391' : score >= 50 ? '#f6ad55' : '#fc8181'
+const HEALTH_COLOR = (score) => score >= 75 ? 'var(--success)' : score >= 50 ? '#fb923c' : 'var(--danger)'
 
 function HealthBadge({ score }) {
   const c = HEALTH_COLOR(score)
   return (
-    <span style={{ fontWeight: 800, fontSize: 15, color: c }}>{Math.round(score)}</span>
+    <span style={{ fontWeight: 800, fontSize: "var(--text-md-em)", color: c }}>{Math.round(score)}</span>
   )
 }
 
 function NpsTrendChart({ trend }) {
   const t = useAppT();
   if (!trend || trend.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>{t('nps.no_trend')}</div>;
+    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_trend')}</div>;
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
       <LineChart data={trend} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-        <XAxis dataKey="month" tick={{ fill: '#718096', fontSize: 10 }} />
-        <YAxis domain={[-100, 100]} tick={{ fill: '#718096', fontSize: 10 }} />
-        <Tooltip contentStyle={{ background: '#1a202c', border: '1px solid #4a5568', borderRadius: 8 }} labelStyle={{ color: '#e2e8f0' }} />
-        <ReferenceLine y={0} stroke="#4a5568" />
-        <ReferenceLine y={50} stroke="#68d391" strokeDasharray="4 2" opacity={0.5} />
-        <Line type="monotone" dataKey="nps" stroke="#90cdf4" strokeWidth={2} dot={{ r: 3, fill: '#90cdf4' }} name="NPS" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+        <XAxis dataKey="month" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <YAxis domain={[-100, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8 }} labelStyle={{ color: 'var(--text-1)' }} />
+        <ReferenceLine y={0} stroke="var(--surface-5)" />
+        <ReferenceLine y={50} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
+        <Line type="monotone" dataKey="nps" stroke="var(--info)" strokeWidth={2} dot={{ r: 3, fill: 'var(--info)' }} name="NPS" />
       </LineChart>
     </ResponsiveContainer>
   )
@@ -54,7 +55,7 @@ function NpsTrendChart({ trend }) {
 function HealthChart({ data }) {
   const t = useAppT();
   if (!data || data.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 24, color: '#4a5568', fontSize: 12 }}>{t('nps.no_health_snapshots')}</div>;
+    return <div style={{ textAlign: 'center', padding: 24, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_health_snapshots')}</div>;
   }
   const chartData = [...data].reverse().map(d => ({
     date: new Date(d.snapshot_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
@@ -65,17 +66,17 @@ function HealthChart({ data }) {
       <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -10 }}>
         <defs>
           <linearGradient id="healthGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#90cdf4" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="#90cdf4" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--info)" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="var(--info)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#2d3748" />
-        <XAxis dataKey="date" tick={{ fill: '#718096', fontSize: 10 }} />
-        <YAxis domain={[0, 100]} tick={{ fill: '#718096', fontSize: 10 }} />
-        <Tooltip contentStyle={{ background: '#1a202c', border: '1px solid #4a5568', borderRadius: 8 }} labelStyle={{ color: '#e2e8f0' }} />
-        <Area type="monotone" dataKey="health" stroke="#90cdf4" fill="url(#healthGrad)" strokeWidth={2} name="Salud" dot={false} />
-        <ReferenceLine y={75} stroke="#68d391" strokeDasharray="4 2" opacity={0.5} />
-        <ReferenceLine y={50} stroke="#f6ad55" strokeDasharray="4 2" opacity={0.5} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
+        <XAxis dataKey="date" tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-2)', fontSize: "var(--text-2xs)" }} />
+        <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8 }} labelStyle={{ color: 'var(--text-1)' }} />
+        <Area type="monotone" dataKey="health" stroke="var(--info)" fill="url(#healthGrad)" strokeWidth={2} name="Salud" dot={false} />
+        <ReferenceLine y={75} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
+        <ReferenceLine y={50} stroke="#fb923c" strokeDasharray="4 2" opacity={0.5} />
       </AreaChart>
     </ResponsiveContainer>
   )
@@ -83,12 +84,12 @@ function HealthChart({ data }) {
 
 function NPSGauge({ nps }) {
   const t = useAppT();
-  if (nps === null || nps === undefined) return <div style={{ color: '#4a5568', fontSize: 13, textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
-  const color = nps >= 50 ? '#68d391' : nps >= 0 ? '#f6ad55' : '#fc8181'
+  if (nps === null || nps === undefined) return <div style={{ color: 'var(--surface-5)', fontSize: "var(--text-base)", textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
+  const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? '#fb923c' : 'var(--danger)'
   return (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
-      <div style={{ fontSize: 42, fontWeight: 900, color }}>{nps > 0 ? `+${nps}` : nps}</div>
-      <div style={{ fontSize: 11, color: '#718096' }}>NPS</div>
+      <div style={{ fontSize: "var(--text-42)", fontWeight: 900, color }}>{nps > 0 ? `+${nps}` : nps}</div>
+      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>NPS</div>
     </div>
   )
 }
@@ -149,7 +150,7 @@ export default function NPSPage() {
   const latestHealth = health[0]?.health_score
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 1100, margin: '0 auto' }}>
       <PageHeader
         icon={<Star size={18} />}
         title={t('nps.title')}
@@ -157,8 +158,8 @@ export default function NPSPage() {
       />
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
         {/* Leaderboard sidebar */}
-        <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #2d3748', fontSize: 12, fontWeight: 700, color: '#718096', textTransform: 'uppercase' }}>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
             {t('nps.ranking')}
           </div>
           {/* Clients without snapshots */}
@@ -167,11 +168,11 @@ export default function NPSPage() {
               {clients.map(c => (
                 <button key={c.id} onClick={() => setClientId(c.id)} style={{
                   display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                  background: clientId === c.id ? '#2d3748' : 'none',
+                  background: clientId === c.id ? 'var(--surface-4)' : 'none',
                   border: 'none', borderRadius: 6, padding: '7px 10px', cursor: 'pointer', marginBottom: 2,
                 }}>
-                  <span style={{ fontSize: 13, color: '#e2e8f0', textAlign: 'left', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                  <span style={{ fontSize: 11, color: '#4a5568' }}>—</span>
+                  <span style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', textAlign: 'left', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)' }}>—</span>
                 </button>
               ))}
             </div>
@@ -179,49 +180,49 @@ export default function NPSPage() {
           {leaderboard.map((l, i) => (
             <button key={l.client_id} onClick={() => setClientId(l.client_id)} style={{
               display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-              background: clientId === l.client_id ? '#2d3748' : 'none',
-              border: 'none', borderLeft: clientId === l.client_id ? '3px solid #63b3ed' : '3px solid transparent',
+              background: clientId === l.client_id ? 'var(--surface-4)' : 'none',
+              border: 'none', borderLeft: clientId === l.client_id ? '3px solid var(--info)' : '3px solid transparent',
               padding: '9px 14px', cursor: 'pointer', borderBottom: '1px solid var(--surface-4)',
             }}>
-              <span style={{ fontSize: 11, color: '#4a5568', width: 16 }}>{i + 1}</span>
-              <span style={{ flex: 1, fontSize: 13, color: '#e2e8f0', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.client_name}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: 'var(--surface-5)', width: 16 }}>{i + 1}</span>
+              <span style={{ flex: 1, fontSize: "var(--text-base)", color: 'var(--text-1)', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.client_name}</span>
               <HealthBadge score={l.health_score} />
             </button>
           ))}
           {leaderboard.length === 0 && clients.length === 0 && (
-            <div style={{ padding: 20, textAlign: 'center', color: '#4a5568', fontSize: 12 }}>{t('nps.no_clients')}</div>
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>{t('nps.no_clients')}</div>
           )}
         </div>
         {/* Right panel */}
         {!clientId ? (
-          <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 60, textAlign: 'center', color: '#4a5568', fontSize: 14 }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 60, textAlign: 'center', color: 'var(--surface-5)', fontSize: "var(--text-md)" }}>
             {t('nps.select_client')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Client header */}
-            <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>{selectedClient?.name || clientId}</div>
-                <div style={{ fontSize: 12, color: '#718096', marginTop: 2 }}>{selectedClient?.contact_email || ''}</div>
+                <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)' }}>{selectedClient?.name || clientId}</div>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{selectedClient?.contact_email || ''}</div>
               </div>
               {latestHealth !== undefined && (
-                <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: '1px solid #2d3748' }}>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
-                  <div style={{ fontSize: 10, color: '#718096' }}>{t('nps.current_health')}</div>
+                <div style={{ textAlign: 'center', padding: '0 20px', borderLeft: '1px solid var(--surface-4)' }}>
+                  <div style={{ fontSize: "var(--text-3xl)", fontWeight: 900, color: HEALTH_COLOR(latestHealth) }}>{Math.round(latestHealth)}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{t('nps.current_health')}</div>
                 </div>
               )}
               <button
                 onClick={() => computeHealth()}
                 disabled={computing}
-                style={{ background: '#2b4a7a', border: 'none', borderRadius: 8, color: '#90cdf4', padding: '8px 14px', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                style={{ background: 'var(--accent-glow)', border: 'none', borderRadius: 8, color: 'var(--info)', padding: '8px 14px', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                 {computing ? t('nps.calculating') : t('nps.calc_health')}
               </button>
             </div>
             {/* NPS summary */}
-            <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{t('nps.nps')}</div>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{t('nps.nps')}</div>
                 <select value={npsDays} onChange={e => setNpsDays(Number(e.target.value))}
                   style={{ ...fs, width: 120 }}>
                   {[30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{t('nps.last_days').replace('{d}', d)}</option>)}
@@ -232,12 +233,12 @@ export default function NPSPage() {
                   <NPSGauge nps={summary?.nps} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
                     {[
-                      { label: t('nps.promoters'), key: 'promoters', color: '#68d391' },
-                      { label: t('nps.passives'),  key: 'passives',  color: '#f6ad55' },
-                      { label: t('nps.detractors'),key: 'detractors',color: '#fc8181' },
+                      { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
+                      { label: t('nps.passives'),  key: 'passives',  color: '#fb923c' },
+                      { label: t('nps.detractors'),key: 'detractors',color: 'var(--danger)' },
                     ].map(({ label, key, color }) => (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                        <span style={{ color: '#718096' }}>{label}</span>
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)" }}>
+                        <span style={{ color: 'var(--text-2)' }}>{label}</span>
                         <span style={{ color }}>{summary?.[key] ?? 0}</span>
                       </div>
                     ))}
@@ -247,13 +248,13 @@ export default function NPSPage() {
               </div>
             </div>
             {/* Health trend */}
-            <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>{t('nps.health_trend')}</div>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>{t('nps.health_trend')}</div>
               <HealthChart data={health} />
             </div>
             {/* Submit NPS */}
-            <div style={{ background: '#1a202c', border: '1px solid #2d3748', borderRadius: 10, padding: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 14 }}>{t('nps.register_nps')}</div>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: 18 }}>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>{t('nps.register_nps')}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
                   <label style={ls}>{t('nps.score_label')}</label>
@@ -263,10 +264,10 @@ export default function NPSPage() {
                         width: 32, height: 32, borderRadius: 6,
                         background: scoreInput === n
                           ? (n >= 9 ? '#276227' : n >= 7 ? '#7b4a00' : '#6b1a1a')
-                          : '#2d3748',
-                        border: `1px solid ${scoreInput === n ? (n >= 9 ? '#68d391' : n >= 7 ? '#f6ad55' : '#fc8181') : '#4a5568'}`,
-                        color: scoreInput === n ? '#e2e8f0' : '#718096',
-                        cursor: 'pointer', fontWeight: 700, fontSize: 12, fontFamily: 'inherit',
+                          : 'var(--surface-4)',
+                        border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? '#fb923c' : 'var(--danger)') : 'var(--surface-5)'}`,
+                        color: scoreInput === n ? 'var(--text-1)' : 'var(--text-2)',
+                        cursor: 'pointer', fontWeight: 700, fontSize: "var(--text-sm)", fontFamily: 'inherit',
                       }}>{n}</button>
                     ))}
                   </div>
@@ -284,9 +285,9 @@ export default function NPSPage() {
                     style={{ ...fs, resize: 'vertical' }} rows={2} placeholder={t('nps.comment')} />
                 </div>
                 <button onClick={submitNPS} disabled={submitting} style={{
-                  alignSelf: 'flex-start', background: '#2b4a7a', border: 'none', borderRadius: 8,
-                  color: '#90cdf4', padding: '9px 20px', cursor: 'pointer', fontWeight: 700,
-                  fontSize: 13, fontFamily: 'inherit',
+                  alignSelf: 'flex-start', background: 'var(--accent-glow)', border: 'none', borderRadius: 8,
+                  color: 'var(--info)', padding: '9px 20px', cursor: 'pointer', fontWeight: 700,
+                  fontSize: "var(--text-base)", fontFamily: 'inherit',
                 }}>
                   {submitting ? t('nps.sending') : t('nps.submit_nps')}
                 </button>
@@ -295,6 +296,6 @@ export default function NPSPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

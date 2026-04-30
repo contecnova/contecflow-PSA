@@ -229,8 +229,8 @@ async def twilio_ivr_webhook(
 
     # ── Build TwiML response ──────────────────────────────────────────────────
     gather_verbs = "\n".join(
-        f'<Say language="{language}">{label}</Say>'
-        for key, label in sorted((dtmf_menu or {}).items())
+        f'<Say language="{language}">{item.get("label", key)}</Say>'
+        for key, item in sorted((dtmf_menu or {}).items())
     )
 
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -270,20 +270,22 @@ async def twilio_gather_webhook(
     dtmf_menu = cfg.get("dtmf_menu", {})
     language  = cfg.get("language", "es-ES")
 
-    selected_option = (dtmf_menu or {}).get(digit, "")
+    selected_option = (dtmf_menu or {}).get(digit, {})
+    selected_label = selected_option.get("label", "") if isinstance(selected_option, dict) else str(selected_option)
+    selected_queue = selected_option.get("intent", "general") if isinstance(selected_option, dict) else (selected_option or "general")
 
     if session_id:
-        add_transcript_turn(db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_option}")
+        add_transcript_turn(db, org_id, session_id, "user", f"DTMF selection: {digit} → {selected_label or selected_queue}")
 
-    if digit and selected_option:
-        message = f"Ha seleccionado: {selected_option}. Le transferimos ahora."
+    if digit and (selected_label or selected_queue):
+        message = f"Ha seleccionado: {selected_label or selected_queue}. Le transferimos ahora."
     else:
         message = "Opción no válida. Le transferimos con un agente."
 
     twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say language="{language}">{message}</Say>
-  <Dial><Queue>{selected_option or 'general'}</Queue></Dial>
+    <Dial><Queue>{selected_queue or 'general'}</Queue></Dial>
 </Response>"""
 
     from fastapi import Response

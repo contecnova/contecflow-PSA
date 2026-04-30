@@ -55,12 +55,12 @@ export default function NotificationsPanel() {
         style={{
           position: 'relative',
           background: 'none',
-          border: '1px solid #1e2d45',
+          border: '1px solid var(--surface-4)',
           borderRadius: 8,
           padding: '6px 10px',
           color: 'var(--text-2)',
           cursor: 'pointer',
-          fontSize: 16,
+          fontSize: "var(--text-lg)",
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -75,7 +75,7 @@ export default function NotificationsPanel() {
             top: -4, right: -4,
             background: 'var(--danger)',
             color: '#fff',
-            fontSize: 10,
+            fontSize: "var(--text-2xs)",
             fontWeight: 700,
             borderRadius: '50%',
             minWidth: 16,
@@ -84,7 +84,7 @@ export default function NotificationsPanel() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '0 3px',
-            border: '2px solid #0a1120',
+            border: '2px solid var(--surface-0)',
           }}>
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
@@ -100,21 +100,21 @@ export default function NotificationsPanel() {
           marginTop: 8,
           width: 360,
           background: 'var(--surface-2)',
-          border: '1px solid #1e2d45',
+          border: '1px solid var(--surface-4)',
           borderRadius: 12,
           boxShadow: '0 16px 48px #00000080',
           zIndex: 1000,
           overflow: 'hidden',
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #1e2d45' }}>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--surface-4)' }}>
+            <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>
               Notificaciones
-              {unreadCount > 0 && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{unreadCount} sin leer</span>}
+              {unreadCount > 0 && <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--danger-bg)', color: 'var(--danger)' }}>{unreadCount} sin leer</span>}
             </span>
             {unreadCount > 0 && (
               <button onClick={() => markAll()}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 Marcar todas como leídas
               </button>
             )}
@@ -124,8 +124,8 @@ export default function NotificationsPanel() {
           <div style={{ maxHeight: 400, overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🔕</div>
-                <div style={{ fontSize: 13 }}>Sin notificaciones</div>
+                <div style={{ fontSize: "var(--text-3xl-em)", marginBottom: 8 }}>🔕</div>
+                <div style={{ fontSize: "var(--text-base)" }}>Sin notificaciones</div>
               </div>
             ) : (
               notifications.map(n => (
@@ -156,18 +156,18 @@ export default function NotificationsPanel() {
                     border: `1px solid ${n.color}40`,
                     borderRadius: 10,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, flexShrink: 0,
+                    fontSize: "var(--text-lg)", flexShrink: 0,
                   }}>
                     {n.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: n.is_read ? 400 : 700, color: n.is_read ? 'var(--text-2)' : 'var(--text-1)', lineHeight: 1.3 }}>
+                      <span style={{ fontSize: "var(--text-base)", fontWeight: n.is_read ? 400 : 700, color: n.is_read ? 'var(--text-2)' : 'var(--text-1)', lineHeight: 1.3 }}>
                         {n.title}
                       </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0, marginLeft: 8 }}>{timeAgo(n.created_at)}</span>
+                      <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', flexShrink: 0, marginLeft: 8 }}>{timeAgo(n.created_at)}</span>
                     </div>
-                    {n.body && <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.4 }}>{n.body}</div>}
+                    {n.body && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', lineHeight: 1.4 }}>{n.body}</div>}
                   </div>
                   {!n.is_read && (
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: n.color, flexShrink: 0, marginTop: 4 }} />
@@ -179,10 +179,10 @@ export default function NotificationsPanel() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div style={{ padding: '10px 18px', borderTop: '1px solid #1e2d45', textAlign: 'center' }}>
+            <div style={{ padding: '10px 18px', borderTop: '1px solid var(--surface-4)', textAlign: 'center' }}>
               <button
                 onClick={() => { api.delete('/enterprise/notifications/clear-old', { params: { days: 90 } }).then(() => qc.invalidateQueries(['notifications'])) }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
                 Limpiar notificaciones leídas (+90d)
               </button>
             </div>

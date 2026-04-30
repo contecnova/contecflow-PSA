@@ -174,10 +174,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     width: '100%',
     padding: '8px 12px',
     borderRadius: 6,
-    border: '1px solid #4a5568',
-    background: '#2d3748',
-    color: '#e2e8f0',
-    fontSize: 14,
+    border: '1px solid var(--surface-5)',
+    background: 'var(--surface-4)',
+    color: 'var(--text-1)',
+    fontSize: "var(--text-md)",
     resize: 'vertical',
     lineHeight: 1.6,
     ...style,
@@ -189,8 +189,8 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
     left: 0,
     right: 0,
     zIndex: 9999,
-    background: '#1a202c',
-    border: '1px solid #4a5568',
+    background: 'var(--surface-2)',
+    border: '1px solid var(--surface-5)',
     borderRadius: 8,
     boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
     marginTop: 4,
@@ -220,7 +220,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {loading && (
         <div style={{
           position: 'absolute', top: 8, right: 12,
-          color: '#63b3ed', fontSize: 13, pointerEvents: 'none',
+          color: 'var(--info)', fontSize: "var(--text-base)", pointerEvents: 'none',
         }}>
           {t('ai_inline.processing')}
         </div>
@@ -229,12 +229,12 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {/* Error */}
       {error && (
         <div style={{
-          fontSize: 12, color: '#fc8181', marginTop: 4,
+          fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4,
           display: 'flex', justifyContent: 'space-between',
         }}>
           <span>⚠ {error}</span>
           <button onClick={() => setError('')}
-            style={{ background: 'none', border: 'none', color: '#fc8181', cursor: 'pointer', fontSize: 12 }}>
+            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>
             ✕
           </button>
         </div>
@@ -245,16 +245,16 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
         <div style={paletteStyle}>
           <div style={{
             padding: '6px 12px',
-            fontSize: 11,
-            color: '#718096',
-            borderBottom: '1px solid #2d3748',
+            fontSize: "var(--text-xs)",
+            color: 'var(--text-2)',
+            borderBottom: '1px solid var(--surface-4)',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
           }}>
-            ✨ <strong style={{ color: '#90cdf4' }}>{t('ai_inline.commands_title')}</strong>
+            ✨ <strong style={{ color: 'var(--info)' }}>{t('ai_inline.commands_title')}</strong>
             {filter && <span>- {t('ai_inline.searching')} &quot;{filter}&quot;</span>}
-            <span style={{ marginLeft: 'auto', fontSize: 10 }}>{t('ai_inline.esc_cancel')}</span>
+            <span style={{ marginLeft: 'auto', fontSize: "var(--text-2xs)" }}>{t('ai_inline.esc_cancel')}</span>
           </div>
           {filtered.map(cmd => (
             <button
@@ -268,21 +268,21 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
                 padding: '10px 14px',
                 background: 'none',
                 border: 'none',
-                borderBottom: '1px solid #2d3748',
-                color: '#e2e8f0',
+                borderBottom: '1px solid var(--surface-4)',
+                color: 'var(--text-1)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2d3748'}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-4)'}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}
             >
-              <span style={{ fontSize: 15, minWidth: 22 }}>{cmd.label.split(' ')[0]}</span>
+              <span style={{ fontSize: "var(--text-md-em)", minWidth: 22 }}>{cmd.label.split(' ')[0]}</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 500 }}>
                   {cmd.label.slice(cmd.label.indexOf(' ') + 1)}
                 </div>
-                <div style={{ fontSize: 11, color: '#718096', marginTop: 1 }}>{cmd.hint}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 1 }}>{cmd.hint}</div>
               </div>
             </button>
           ))}

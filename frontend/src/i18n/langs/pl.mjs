@@ -39,7 +39,7 @@ const pl = {
     organizations: 'Organizacje', enterprise: 'Enterprise',
     cmdb: 'CMDB', automations: 'Automatyzacje', search: 'Szukaj',
     okrs: 'OKRs', performance_reviews: 'Oceny', training: 'Szkolenia & Certyfikaty',
-    bi: 'BI & Executive', webhook_log: 'Log Webhook', jira_integration: 'Integracja Jira', notifications: 'Powiadomienia',
+    bi: 'BI & Executive', webhook_log: 'Log Webhook', jira_integration: 'Integracja Jira', notifications: 'Powiadomienia', inbox: 'Skrzynka odbiorcza',
     executive: 'Pulpit wykonawczy',
     bi_workspace: 'Obszar roboczy BI',
     log_hours: 'Zgłoś godziny', timer: 'Timer', calendar: 'Kalendarz',

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(awk -F: '{sum+=$2} END {print \"Total inline styles:\", sum}')",
+      "Bash(awk '{print $NF}')"
     ]
   }
 }

@@ -19,12 +19,12 @@ function fmtBytes(b) {
 }
 
 const FILE_COLORS = {
-  pdf: { c: '#ef4444', bg: '#ef444418', l: 'PDF' },
-  image: { c: '#3b82f6', bg: '#3b82f618', l: 'IMG' },
-  spreadsheet: { c: '#10b981', bg: '#10b98118', l: 'XLS' },
-  word: { c: '#6366f1', bg: '#6366f118', l: 'DOC' },
+  pdf: { c: 'var(--danger)', bg: '#f8717118', l: 'PDF' },
+  image: { c: 'var(--accent)', bg: '#4f8ef718', l: 'IMG' },
+  spreadsheet: { c: 'var(--success)', bg: '#34d39918', l: 'XLS' },
+  word: { c: 'var(--accent)', bg: '#6366f118', l: 'DOC' },
   presentation: { c: '#f59e0b', bg: '#f59e0b18', l: 'PPT' },
-  other: { c: '#6b7280', bg: '#6b728018', l: 'FILE' },
+  other: { c: 'var(--text-3)', bg: '#6b728018', l: 'FILE' },
 };
 
 function detectType(mime, name) {
@@ -44,7 +44,7 @@ function FileIcon({ mime, name, size = 30 }) {
       width: size, height: size, borderRadius: Math.round(size * 0.25),
       backgroundColor: ft.bg, display: 'flex', alignItems: 'center',
       justifyContent: 'center', flexShrink: 0,
-      fontFamily: "'Space Mono', monospace", fontSize: Math.round(size * 0.24),
+      fontFamily: 'var(--font-mono)', fontSize: Math.round(size * 0.24),
       fontWeight: 700, color: ft.c, letterSpacing: '-0.03em',
     }}>
       {ft.l}
@@ -53,8 +53,8 @@ function FileIcon({ mime, name, size = 30 }) {
 }
 
 const APPROVAL_ICON = {
-  approved: { c: '#10b981', icon: '✓' },
-  rejected: { c: '#ef4444', icon: '✕' },
+  approved: { c: 'var(--success)', icon: '✓' },
+  rejected: { c: 'var(--danger)', icon: '✕' },
   pending:  { c: '#f59e0b', icon: '◷' },
 };
 
@@ -129,7 +129,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
     if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); setShowForm(true); }
   }, []);
 
-  const fs = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
+  const fs = { width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 7, padding: '7px 10px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <div style={{ border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden', backgroundColor: 'var(--surface-1)' }}>
@@ -137,19 +137,19 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: '#3b82f618', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: '#4f8ef718', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>
             </svg>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
+          <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>
             Documentos
-            {!isLoading && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-3)', marginLeft: 5 }}>({docs.length})</span>}
+            {!isLoading && <span style={{ fontSize: "var(--text-xs)", fontWeight: 400, color: 'var(--text-3)', marginLeft: 5 }}>({docs.length})</span>}
           </span>
         </div>
         <button onClick={() => setShowForm(s => !s)}
-          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: 'none', backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: 'none', backgroundColor: showForm ? 'var(--surface-3)' : 'var(--accent)', color: showForm ? 'var(--text-2)' : 'white', fontSize: "var(--text-xs)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           {showForm ? <><X size={11} /> {t('documents_panel.close')}</> : <><Plus size={11} /> {t('documents_panel.add')}</>}
         </button>
       </div>
@@ -166,8 +166,8 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             <input ref={fileRef} type="file" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
             {file
-              ? <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
-              : <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              ? <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>{file.name}</span>
+              : <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   <Upload size={12} style={{ display: 'inline', marginRight: 4 }} />{t('documents_panel.click_or_drag')}
                 </span>}
           </button>
@@ -182,12 +182,12 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           </select>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => uploadMutation.mutate()} disabled={!file || uploadMutation.isPending}
-              style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: 12, fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', backgroundColor: !file ? 'var(--surface-4)' : 'var(--accent)', color: !file ? 'var(--text-3)' : 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               {uploadMutation.isPending ? <Loader size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={12} />}
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}
             </button>
             <button onClick={() => { setShowForm(false); setFile(null); setTitle(''); }}
-              style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid var(--surface-4)', backgroundColor: 'transparent', color: 'var(--text-2)', fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit' }}>
               {t('common.cancel')}
             </button>
           </div>
@@ -201,7 +201,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
             <Loader size={16} style={{ animation: 'spin 0.8s linear infinite', color: 'var(--text-3)' }} />
           </div>
         ) : docs.length === 0 ? (
-          <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ padding: '20px 14px', textAlign: 'center', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             {t('documents_panel.no_documents')}
           </div>
         ) : (
@@ -213,10 +213,10 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: i < docs.length - 1 ? '1px solid var(--surface-4)' : 'none' }}>
                 <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.title}</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 1 }}>
                     <span>{doc.category}</span>
-                    {lv && <span style={{ fontFamily: "'Space Mono', monospace" }}>{fmtBytes(lv.file_size)}</span>}
+                    {lv && <span style={{ fontFamily: 'var(--font-mono)' }}>{fmtBytes(lv.file_size)}</span>}
                     {approval && <span style={{ color: approval.c, fontWeight: 700 }}>{approval.icon}</span>}
                   </div>
                 </div>

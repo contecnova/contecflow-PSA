@@ -4,10 +4,11 @@ import {
   Settings2, CheckCircle, XCircle, RefreshCw, ArrowDownToLine,
   ArrowUpFromLine, Link2, Eye, EyeOff, AlertTriangle,
 } from 'lucide-react'
-import api from '../services/api'
+import { jiraApi } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { Card, Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -22,11 +23,11 @@ const PRIORITY_COLORS = {
 
 const _fs = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 const _ls = {
-  fontSize: 11, fontWeight: 600, color: 'var(--text-2)',
+  fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)',
   textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5,
 }
 
@@ -35,11 +36,11 @@ function StatusBadge({ ok, t }) {
   if (ok === null) return null
   return ok
     ? (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 600 }}>
         <CheckCircle size={14} /> {t('jira_integration.connected_status')}
       </span>
     ) : (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-base)", color: 'var(--danger)', fontWeight: 600 }}>
         <XCircle size={14} /> {t('jira_integration.disconnected_status')}
       </span>
     )
@@ -47,7 +48,7 @@ function StatusBadge({ ok, t }) {
 
 function SectionTitle({ children }) {
   return (
-    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+    <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
       {children}
     </div>
   )
@@ -66,7 +67,7 @@ export default function JiraIntegrationPage() {
   // ── queries ────────────────────────────────────────────────────────────────
   const { data: config, isLoading: loadingConfig } = useQuery({
     queryKey: ['jira-config'],
-    queryFn:  () => api.get('/jira/config').then(r => r.data),
+    queryFn:  () => jiraApi.config().then(r => r.data),
     onSuccess: (d) => {
       setForm(prev => ({
         ...prev,
@@ -79,24 +80,24 @@ export default function JiraIntegrationPage() {
 
   const { data: issues, isLoading: loadingIssues } = useQuery({
     queryKey: ['jira-issues'],
-    queryFn:  () => api.get('/jira/issues').then(r => r.data),
+    queryFn:  () => jiraApi.issues().then(r => r.data),
     enabled:  connStatus === true,
   })
 
   const { data: linked, isLoading: loadingLinked } = useQuery({
     queryKey: ['jira-linked'],
-    queryFn:  () => api.get('/jira/linked').then(r => r.data),
+    queryFn:  () => jiraApi.linked().then(r => r.data),
   })
 
   // ── mutations ──────────────────────────────────────────────────────────────
   const saveConfig = useMutation({
-    mutationFn: (payload) => api.post('/jira/config', payload).then(r => r.data),
+    mutationFn: (payload) => jiraApi.saveConfig(payload).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['jira-config']); toast.success(t('jira_integration.config_saved')) },
     onError: (e) => toast.error(extractErr(e, t('jira_integration.save_error'))),
   })
 
   const testConn = useMutation({
-    mutationFn: () => api.get('/jira/test').then(r => r.data),
+    mutationFn: () => jiraApi.test().then(r => r.data),
     onSuccess: (d) => {
       setConnStatus(d.ok)
       if (d.ok) { toast.success(`${t('jira_integration.connected_as')} ${d.display_name}`); qc.invalidateQueries(['jira-issues']) }
@@ -106,7 +107,7 @@ export default function JiraIntegrationPage() {
   })
 
   const syncPull = useMutation({
-    mutationFn: (payload) => api.post('/jira/sync', payload).then(r => r.data),
+    mutationFn: (payload) => jiraApi.sync(payload).then(r => r.data),
     onSuccess: (d) => {
       qc.invalidateQueries(['jira-linked'])
       toast.success(`${t('jira_integration.sync_complete')} ${d.created} ${t('jira_integration.created')}, ${d.updated} ${t('jira_integration.updated')}`)
@@ -115,7 +116,7 @@ export default function JiraIntegrationPage() {
   })
 
   const pushToJira = useMutation({
-    mutationFn: () => api.post('/jira/push').then(r => r.data),
+    mutationFn: () => jiraApi.push().then(r => r.data),
     onSuccess: (d) => {
       qc.invalidateQueries(['jira-linked'])
       toast.success(`${t('jira_integration.push_complete')} ${d.pushed} ${t('jira_integration.tasks_pushed')}`)
@@ -142,7 +143,7 @@ export default function JiraIntegrationPage() {
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Link2 size={18} />}
         title={t('jira_integration.title')}
@@ -250,8 +251,8 @@ export default function JiraIntegrationPage() {
                   : <ArrowDownToLine size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                 }
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.import_button_title')}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t('jira_integration.import_button_subtitle')}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.import_button_title')}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('jira_integration.import_button_subtitle')}</div>
                 </div>
               </button>
               <button
@@ -269,8 +270,8 @@ export default function JiraIntegrationPage() {
                   : <ArrowUpFromLine size={16} style={{ color: 'var(--purple)', flexShrink: 0 }} />
                 }
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.export_button_title')}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{t('jira_integration.export_button_subtitle')}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{t('jira_integration.export_button_title')}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{t('jira_integration.export_button_subtitle')}</div>
                 </div>
               </button>
             </div>
@@ -279,9 +280,9 @@ export default function JiraIntegrationPage() {
               background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 8,
             }}>
               <AlertTriangle size={14} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: 11, color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
                 {t('jira_integration.webhook_note')}{' '}
-                <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: 11 }}>/jira/webhook</code>{' '}
+                <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-xs)" }}>/jira/webhook</code>{' '}
                 {t('jira_integration.webhook_note_end')}
               </p>
             </div>
@@ -302,26 +303,26 @@ export default function JiraIntegrationPage() {
               <EmptyState icon="tasks" title={t('jira_integration.no_issues_title')} message={t('jira_integration.no_issues_message')} />
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                       {[t('jira_integration.col_key'), t('jira_integration.col_summary'), t('jira_integration.col_status'), t('jira_integration.col_priority')].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {issueList.map(issue => (
                       <tr key={issue.key} style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: 12, whiteSpace: 'nowrap' }}>{issue.key}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)", whiteSpace: 'nowrap' }}>{issue.key}</td>
                         <td style={{ padding: '8px 10px', color: 'var(--text-1)', maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.summary}</td>
                         <td style={{ padding: '8px 10px' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
                             {issue.status}
                           </span>
                         </td>
                         <td style={{ padding: '8px 10px' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-2)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: PRIORITY_COLORS[issue.priority?.toLowerCase()] || 'var(--surface-5)', flexShrink: 0 }} />
                             {issue.priority}
                           </span>
@@ -343,11 +344,11 @@ export default function JiraIntegrationPage() {
               <EmptyState icon="tasks" title={t('jira_integration.no_linked_title')} message={t('jira_integration.no_linked_message')} />
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                       {[t('jira_integration.col_task'), t('jira_integration.col_jira_key'), t('jira_integration.col_status'), t('jira_integration.col_synced')].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ textAlign: 'left', padding: '6px 10px 8px', fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -355,13 +356,13 @@ export default function JiraIntegrationPage() {
                     {linkedList.map(row => (
                       <tr key={row.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
                         <td style={{ padding: '8px 10px', color: 'var(--text-1)' }}>{row.title}</td>
-                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: 12 }}>{row.jira_issue_key}</td>
+                        <td style={{ padding: '8px 10px', fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: "var(--text-sm)" }}>{row.jira_issue_key}</td>
                         <td style={{ padding: '8px 10px' }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
+                          <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-4)', color: 'var(--text-2)' }}>
                             {row.status}
                           </span>
                         </td>
-                        <td style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text-3)' }}>
+                        <td style={{ padding: '8px 10px', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
                           {row.jira_synced_at ? new Date(row.jira_synced_at).toLocaleString() : '\u2014'}
                         </td>
                       </tr>
@@ -373,6 +374,6 @@ export default function JiraIntegrationPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

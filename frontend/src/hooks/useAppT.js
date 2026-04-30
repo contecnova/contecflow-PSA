@@ -90,7 +90,7 @@ export function useAppT() {
       }
       return trans;
     };
-  }, [ctx]);
+  }, [ctx, lang]);
 
   return useMemo(() => ({
     t,

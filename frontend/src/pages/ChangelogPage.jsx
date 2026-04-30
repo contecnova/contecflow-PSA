@@ -8,6 +8,7 @@ import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
 import { Spinner, EmptyState, Button, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ScrollText } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -20,17 +21,17 @@ function getTypeMeta(t) {
     bugfix:      { label: t('changelog.type_bugfix'),       color: 'var(--danger)',   bg: 'rgba(248,113,113,0.12)', icon: '🐛' },
     improvement: { label: t('changelog.type_improvement'),  color: 'var(--warning)',  bg: 'rgba(251,191,36,0.12)',  icon: '⚡' },
     milestone:   { label: t('changelog.type_milestone'),    color: 'var(--success)',  bg: 'rgba(74,222,128,0.12)',  icon: '🏆' },
-    breaking:    { label: t('changelog.type_breaking'),     color: '#f97316',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
+    breaking:    { label: t('changelog.type_breaking'),     color: 'var(--orange)',         bg: 'rgba(249,115,22,0.12)',  icon: '💥' },
   }
 }
 
 const inputStyle = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 const lbStyle = {
-  fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
+  fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase',
   display: 'block', marginBottom: 5,
 }
 
@@ -56,33 +57,33 @@ function EntryCard({ entry, onDelete }) {
       background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
       borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 14,
     }}>
-      <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{meta.icon}</div>
+      <div style={{ fontSize: "var(--text-xl-em)", flexShrink: 0, marginTop: 2 }}>{meta.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 10 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
               {entry.version_tag && (
-                <span style={{ fontSize: 10, fontFamily: 'monospace', padding: '2px 7px', borderRadius: 8, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700 }}>{entry.version_tag}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontFamily: 'var(--font-mono)', padding: '2px 7px', borderRadius: 8, background: 'var(--surface-4)', color: 'var(--text-2)', fontWeight: 700 }}>{entry.version_tag}</span>
               )}
-              <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, background: meta.bg, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
+              <span style={{ fontSize: "var(--text-xs)", padding: '2px 9px', borderRadius: 20, background: meta.bg, color: meta.color, fontWeight: 700 }}>{meta.label}</span>
               {entry.is_auto_generated && (
-                <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
+                <span style={{ fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 10, background: 'var(--surface-3)', color: 'var(--text-3)' }}>{t('changelog.auto')}</span>
               )}
             </div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)' }}>{entry.title}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{entry.entry_date}</span>
+            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{entry.entry_date}</span>
             <button onClick={() => onDelete(entry.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: 14, borderRadius: 4 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', padding: '2px 4px', fontSize: "var(--text-md)", borderRadius: 4 }}
               title="Eliminar entrada">×</button>
           </div>
         </div>
         {entry.description && (
-          <div style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5 }}>{entry.description}</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>{entry.description}</div>
         )}
         {entry.author && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 8 }}>{t('changelog.by_author', {author: entry.author.full_name})}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 8 }}>{t('changelog.by_author', {author: entry.author.full_name})}</div>
         )}
       </div>
     </div>
@@ -119,7 +120,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
         <div>
           <label style={lbStyle}>{t('changelog.date')}</label>
           <input type="date" value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} style={validation.inputStyle(inputStyle, 'entry_date')} />
-          {validation.errors.entry_date && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.entry_date}</p>}
+          {validation.errors.entry_date && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.entry_date}</p>}
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.type')}</label>
@@ -131,7 +132,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }) {
       <div>
         <label style={lbStyle}>{t('changelog.title_label')}</label>
         <input value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} style={validation.inputStyle(inputStyle, 'title')} placeholder={t('changelog.title_ph')} />
-        {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
+        {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
       </div>
       <div>
         <label style={lbStyle}>{t('changelog.description')}</label>
@@ -168,14 +169,14 @@ function GenerateModal({ projectId, onClose, onSaved }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--accent)' }}>
+      <div style={{ background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--accent)' }}>
         {t('changelog.generate_info')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
           <label style={lbStyle}>{t('changelog.period_weeks')}</label>
           <input type="number" value={weeks} onChange={e => { setWeeks(e.target.value); validation.clearFieldError('weeks') }} min={1} max={52} style={validation.inputStyle(inputStyle, 'weeks')} />
-          {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
+          {validation.errors.weeks && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.weeks}</p>}
         </div>
         <div>
           <label style={lbStyle}>{t('changelog.version_tag_optional')}</label>
@@ -183,12 +184,12 @@ function GenerateModal({ projectId, onClose, onSaved }) {
         </div>
       </div>
       {genResult && genResult.generated > 0 && (
-        <div style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>
+        <div style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--success)', fontWeight: 600 }}>
           {t('changelog.generated_success', {count: genResult.generated, weeks: genResult.period_weeks})}
         </div>
       )}
       {genResult && genResult.generated === 0 && (
-        <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--warning)', fontWeight: 500 }}>
+        <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-base)", color: 'var(--warning)', fontWeight: 500 }}>
           {t('changelog.generated_empty', {message: genResult.message})}
         </div>
       )}
@@ -234,13 +235,13 @@ export default function ChangelogPage() {
   const entries = changelog?.entries || []
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader title={t('changelog.title')} subtitle={t('changelog.subtitle')} icon={<ScrollText size={18} />} />
 
       {/* Project selector + actions */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
         <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          style={{ flex: 1, maxWidth: 380, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+          style={{ flex: 1, maxWidth: 380, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
           <option value="">{t('changelog.select_project')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
         </select>
@@ -256,14 +257,14 @@ export default function ChangelogPage() {
       {selectedProject && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
           <button onClick={() => setTypeFilter('all')}
-            style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)', background: typeFilter === 'all' ? 'var(--accent-muted)' : 'var(--surface-2)', color: typeFilter === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 20, border: '1px solid var(--surface-4)', background: typeFilter === 'all' ? 'var(--accent-muted)' : 'var(--surface-2)', color: typeFilter === 'all' ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {t('changelog.all')} ({entries.length})
           </button>
           {Object.entries(typeMeta).map(([k, v]) => {
             const count = entries.filter(e => e.entry_type === k).length
             return count > 0 ? (
               <button key={k} onClick={() => setTypeFilter(k)}
-                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? v.color + '60' : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '5px 14px', borderRadius: 20, border: `1px solid ${typeFilter === k ? v.color + '60' : 'var(--surface-4)'}`, background: typeFilter === k ? v.bg : 'var(--surface-2)', color: typeFilter === k ? v.color : 'var(--text-2)', fontSize: "var(--text-sm)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {v.icon} {v.label} ({count})
               </button>
             ) : null
@@ -278,7 +279,7 @@ export default function ChangelogPage() {
       ) : entries.length === 0 ? (
         <EmptyState icon="📝" title={t('changelog.empty_title')}
           description={t('changelog.empty_desc')}
-          action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: 13, padding: '8px 20px' }}>{t('changelog.generate')}</button>}
+          action={<button className="btn-primary" onClick={() => setShowGenerate(true)} style={{ fontSize: "var(--text-base)", padding: '8px 20px' }}>{t('changelog.generate')}</button>}
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -297,6 +298,6 @@ export default function ChangelogPage() {
           <GenerateModal projectId={selectedProject} onClose={() => setShowGenerate(false)} onSaved={invalidate} />
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

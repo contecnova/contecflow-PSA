@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
 import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
 import { fmtCurrency, fmtHours, fmtDate, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -12,8 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const _BILLING_TYPES = [
@@ -50,21 +51,21 @@ function MilestoneRow({ m, projectId, onUpdate }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: m.is_completed ? 'var(--success-bg)' : 'var(--surface-2)', border: `1px solid ${m.is_completed ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8 }}>
       <input type="checkbox" checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, textDecoration: m.is_completed ? 'line-through' : 'none', color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)' }}>{m.name}</div>
-        {m.due_date && <div style={{ fontSize: 11, color: new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' }}>📅 {fmtDate(m.due_date)}</div>}
+        <div style={{ fontSize: "var(--text-base)", fontWeight: 600, textDecoration: m.is_completed ? 'line-through' : 'none', color: m.is_completed ? 'var(--text-2)' : 'var(--text-1)' }}>{m.name}</div>
+        {m.due_date && <div style={{ fontSize: "var(--text-xs)", color: new Date(m.due_date) < new Date() && !m.is_completed ? 'var(--danger)' : 'var(--text-2)' }}>📅 {fmtDate(m.due_date)}</div>}
       </div>
       {m.billing_amount && (
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, fontFamily: "'Space Mono', monospace", color: 'var(--success)' }}>{fmtCurrency(m.billing_amount)}</div>
-          {m.billing_pct && <div style={{ fontSize: 10, color: 'var(--text-2)' }}>{m.billing_pct}% contrato</div>}
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(m.billing_amount)}</div>
+          {m.billing_pct && <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{m.billing_pct}% contrato</div>}
         </div>
       )}
       <div style={{ display: 'flex', gap: 6 }}>
         {m.is_completed && !m.is_billed && (
-          <button onClick={() => update({ is_billed: true, billed_at: new Date().toISOString().split('T')[0] })} style={{ background: 'var(--success-bg)', border: '1px solid #00e5a030', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>💶 Facturar</button>
+          <button onClick={() => update({ is_billed: true, billed_at: new Date().toISOString().split('T')[0] })} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>💶 Facturar</button>
         )}
-        {m.is_billed && <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ Facturado</span>}
-        <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+        {m.is_billed && <span style={{ fontSize: "var(--text-xs)", color: 'var(--success)' }}>✓ Facturado</span>}
+        <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este hito de facturación?', onConfirm: () => del(), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
       </div>
     </div>
   )
@@ -75,8 +76,8 @@ function ProjectDetail({ projectId, onClose }) {
   const qc = useQueryClient()
   const [showAddMilestone, setShowAddMilestone] = useState(false)
   const [msForm, setMsForm] = useState({ name: '', due_date: '', billing_amount: '', billing_pct: '', sort_order: 0 })
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { data, isLoading } = useQuery({
     queryKey: ['profitability-detail', projectId],
@@ -105,8 +106,8 @@ function ProjectDetail({ projectId, onClose }) {
           { label: '% Margen', value: `${data.margin_pct.toFixed(1)}%`, color: marginColor },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '14px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
           </div>
         ))}
       </div>
@@ -114,10 +115,10 @@ function ProjectDetail({ projectId, onClose }) {
       {/* Panel EVM — Earned Value Management */}
       {data.eac !== undefined && (
         <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             📐 Earned Value Management (EVM)
             <span style={{
-              fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 700,
+              fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, fontWeight: 700,
               background: data.risk_flag === 'critical' ? 'var(--danger-bg)' : data.risk_flag === 'warning' ? 'var(--warning-bg)' : 'var(--success-bg)',
               color:      data.risk_flag === 'critical' ? 'var(--danger)'   : data.risk_flag === 'warning' ? 'var(--warning)'   : 'var(--success)',
             }}>
@@ -132,9 +133,9 @@ function ProjectDetail({ projectId, onClose }) {
               { label: 'Margen final est.', value: `${data.margin_at_completion?.toFixed(1) || '—'}%`, desc: 'Al completar proyecto', color: (data.margin_at_completion||0) < 10 ? 'var(--danger)' : 'var(--success)' },
             ].map(k => (
               <div key={k.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
+                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
               </div>
             ))}
           </div>
@@ -146,13 +147,13 @@ function ProjectDetail({ projectId, onClose }) {
               { label: 'SV',  value: fmtCurrency(data.sv),          desc: 'Variación de cronograma', ok: (data.sv||0) >= 0 },
             ].map(k => (
               <div key={k.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: k.ok ? 'var(--success)' : 'var(--danger)', fontFamily: "'Space Mono', monospace" }}>{k.value}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
+                <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: k.ok ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--font-mono)' }}>{k.value}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 2 }}>{k.desc}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+          <div style={{ marginTop: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
             CPI &gt; 1 = bajo coste · SPI &gt; 1 = adelantado · EAC = coste total estimado al finalizar · VAC = presupuesto disponible restante
           </div>
         </div>
@@ -161,7 +162,7 @@ function ProjectDetail({ projectId, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* Hours */}
         <Card style={{ padding: 16 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horas</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Horas</h4>
           {[
             { label: 'Totales', value: fmtHours(data.total_hours) },
             { label: 'Facturables', value: fmtHours(data.billable_hours) },
@@ -169,7 +170,7 @@ function ProjectDetail({ projectId, onClose }) {
             { label: 'Tarifa media coste', value: `${data.avg_cost_rate}€/h` },
             { label: 'Tarifa cliente', value: data.billing_rate ? `${data.billing_rate}€/h` : '—' },
           ].map(({ label, value }) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: 13 }}>
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: "var(--text-base)" }}>
               <span style={{ color: 'var(--text-2)' }}>{label}</span>
               <span style={{ fontWeight: 600 }}>{value}</span>
             </div>
@@ -178,14 +179,14 @@ function ProjectDetail({ projectId, onClose }) {
 
         {/* By person */}
         <Card style={{ padding: 16 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Por persona</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Por persona</h4>
           {data.by_person?.length === 0 ? <EmptyState icon="👤" title="Sin detalle por persona" /> : (
             data.by_person?.slice(0, 6).map(p => (
-              <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: 12 }}>
+              <div key={p.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--surface-4)30', fontSize: "var(--text-sm)" }}>
                 <span>{p.user_name}</span>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <span style={{ color: 'var(--text-2)' }}>{fmtHours(p.hours)}</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--warning)' }}>{fmtCurrency(p.cost)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.cost)}</span>
                 </div>
               </div>
             ))
@@ -196,14 +197,14 @@ function ProjectDetail({ projectId, onClose }) {
       {/* Weekly evolution */}
       {data.by_week?.length > 0 && (
         <Card style={{ padding: 16, marginBottom: 20 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Evolución semanal</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 14, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Evolución semanal</h4>
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={data.by_week} margin={{ top: 0, right: 0, left: -20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
-              <YAxis tick={{ fontSize: 10, fill: 'var(--text-2)' }} />
-              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 11 }} formatter={v => [`${v.toFixed(1)}h`, 'Horas']} />
-              <Bar dataKey="hours" fill="#00d4ff" radius={[3, 3, 0, 0]} />
+              <XAxis dataKey="week" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} tickFormatter={w => w.slice(5)} angle={-30} textAnchor="end" />
+              <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
+              <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${v.toFixed(1)}h`, 'Horas']} />
+              <Bar dataKey="hours" fill="#4f8ef7" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -212,7 +213,7 @@ function ProjectDetail({ projectId, onClose }) {
       {/* Milestones */}
       <Card style={{ padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Hitos de facturación</h4>
+          <h4 style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Hitos de facturación</h4>
           <Button size="sm" onClick={() => setShowAddMilestone(true)} icon="＋">Añadir hito</Button>
         </div>
         {data.milestones?.length === 0 ? (
@@ -222,9 +223,9 @@ function ProjectDetail({ projectId, onClose }) {
             {data.milestones.map(m => (
               <MilestoneRow key={m.id} m={m} projectId={projectId} />
             ))}
-            <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <div style={{ borderTop: '1px solid var(--surface-4)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)" }}>
               <span style={{ color: 'var(--text-2)' }}>Total facturado:</span>
-              <span style={{ fontWeight: 700, fontFamily: "'Space Mono', monospace", color: 'var(--success)' }}>
+              <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
                 {fmtCurrency(data.milestones.filter(m => m.is_billed).reduce((s, m) => s + (m.billing_amount || 0), 0))}
               </span>
             </div>
@@ -232,7 +233,7 @@ function ProjectDetail({ projectId, onClose }) {
         )}
 
         {showAddMilestone && (
-          <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed #00d4ff30', borderRadius: 10 }}>
+          <div style={{ marginTop: 14, padding: 14, background: 'var(--accent-muted)', border: '1px dashed var(--accent-border)', borderRadius: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div><label style={ls}>Nombre</label><input value={msForm.name} onChange={e => setMsForm(f => ({ ...f, name: e.target.value }))} style={fs} placeholder="Nombre del hito" aria-label="Nombre del hito" /></div>
               <div><label style={ls}>Fecha</label><input type="date" value={msForm.due_date} onChange={e => setMsForm(f => ({ ...f, due_date: e.target.value }))} style={fs} /></div>
@@ -265,14 +266,14 @@ export default function ProfitabilityPage() {
   const portfolio = data?.portfolio || {}
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<TrendingUp size={18} />}
         title={t('profitability.title')}
         subtitle={t('profitability.subtitle')}
         actions={
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="active">Proyectos activos</option>
             <option value="closed">Cerrados</option>
           </select>
@@ -290,9 +291,9 @@ export default function ProfitabilityPage() {
             { label: 'Proyectos', value: portfolio.project_count, color: 'var(--text-2)', icon: '📁' },
           ].map(({ label, value, color, icon }) => (
             <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 20px', flex: 1, minWidth: 140 }}>
-              <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+              <div style={{ fontSize: "var(--text-xl)", marginBottom: 6 }}>{icon}</div>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -304,13 +305,13 @@ export default function ProfitabilityPage() {
         <>
           {/* Chart */}
           <Card style={{ marginBottom: 24, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margen por proyecto</h3>
+            <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Margen por proyecto</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={projects.slice().reverse()} margin={{ top: 0, right: 0, left: 0, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-4)" />
-                <XAxis dataKey="project_code" tick={{ fontSize: 11, fill: 'var(--text-2)' }} angle={-35} textAnchor="end" />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickFormatter={v => `${v.toFixed(0)}%`} />
-                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: 11 }} formatter={v => [`${v.toFixed(1)}%`, 'Margen']} />
+                <XAxis dataKey="project_code" tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} angle={-35} textAnchor="end" />
+                <YAxis tick={{ fontSize: "var(--text-xs)", fill: 'var(--text-2)' }} tickFormatter={v => `${v.toFixed(0)}%`} />
+                <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)" }} formatter={v => [`${v.toFixed(1)}%`, 'Margen']} />
                 <Bar dataKey="margin_pct" radius={[3, 3, 0, 0]}>
                   {projects.slice().reverse().map((p, i) => (
                     <Cell key={i} fill={p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : p.margin_pct < 30 ? 'var(--accent)' : 'var(--success)'} />
@@ -322,7 +323,7 @@ export default function ProfitabilityPage() {
 
           {/* Table */}
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               <span>Proyecto</span><span>Ingresos</span><span>Coste</span><span>Margen</span><span>% Margen</span><span>Horas</span><span></span>
             </div>
             {projects.map(p => (
@@ -334,18 +335,18 @@ export default function ProfitabilityPage() {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => setSelectedProject(p.project_id)}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.project_name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{p.project_code} · {p.client_name || p.department || '—'}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{p.project_name}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{p.project_code} · {p.client_name || p.department || '—'}</div>
                 </div>
-                <span style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
-                <span style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: 'var(--warning)' }}>{fmtCurrency(p.internal_cost)}</span>
-                <span style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: p.gross_margin >= 0 ? 'var(--accent)' : 'var(--danger)', fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
+                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>{fmtCurrency(p.billing_revenue)}</span>
+                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: 'var(--warning)' }}>{fmtCurrency(p.internal_cost)}</span>
+                <span style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: p.gross_margin >= 0 ? 'var(--accent)' : 'var(--danger)', fontWeight: 700 }}>{fmtCurrency(p.gross_margin)}</span>
                 <div>
-                  <div style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{p.margin_pct.toFixed(1)}%</div>
+                  <div style={{ fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)', color: p.margin_pct < 0 ? 'var(--danger)' : p.margin_pct < 15 ? 'var(--warning)' : 'var(--success)', fontWeight: 700, marginBottom: 4 }}>{p.margin_pct.toFixed(1)}%</div>
                   <MarginBar margin_pct={p.margin_pct} />
                 </div>
-                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{fmtHours(p.total_hours)}</span>
-                <button onClick={e => { e.stopPropagation(); setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>Detalle</button>
+                <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{fmtHours(p.total_hours)}</span>
+                <button onClick={e => { e.stopPropagation(); setSelectedProject(p.project_id) }} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Detalle</button>
               </div>
             ))}
           </div>
@@ -353,6 +354,6 @@ export default function ProfitabilityPage() {
       )}
 
       {selectedProject && <ProjectDetail projectId={selectedProject} onClose={() => setSelectedProject(null)} />}
-    </div>
+    </PageShell>
   )
 }

@@ -98,10 +98,10 @@ export default function AlertsDrawer({ onClose }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Bell size={16} color="var(--text-1)" />
-            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>Alertas activas</span>
+            <span style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>Alertas activas</span>
             {alerts.length > 0 && (
               <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px',
+                fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px',
                 background: 'var(--danger-bg)', color: 'var(--danger)',
                 border: '1px solid var(--danger-border)', borderRadius: 20,
               }}>{alerts.length}</span>
@@ -130,8 +130,8 @@ export default function AlertsDrawer({ onClose }) {
                 flex: 1, textAlign: 'center', padding: '8px 4px',
                 background: 'var(--surface-3)', borderRadius: 8,
               }}>
-                <div style={{ fontSize: 20, fontWeight: 800, color, fontFamily: 'monospace' }}>{count}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{count}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
               </div>
             ))}
           </div>
@@ -145,9 +145,9 @@ export default function AlertsDrawer({ onClose }) {
             </div>
           ) : alerts.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-3)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)' }}>Sin alertas activas</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Todo está en orden</div>
+              <div style={{ fontSize: "var(--text-5xl)", marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-2)' }}>Sin alertas activas</div>
+              <div style={{ fontSize: "var(--text-sm)", marginTop: 4 }}>Todo está en orden</div>
             </div>
           ) : (
             alerts.slice(0, 20).map(alert => {
@@ -166,16 +166,16 @@ export default function AlertsDrawer({ onClose }) {
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.dot, marginTop: 5, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                        <span style={{ fontSize: 14 }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{alert.title}</span>
+                        <span style={{ fontSize: "var(--text-md)" }}>{TYPE_ICONS[alert.alert_type] || '🔔'}</span>
+                        <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)' }}>{alert.title}</span>
                       </div>
                       {alert.description && (
-                        <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '0 0 6px', lineHeight: 1.4 }}>
+                        <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', margin: '0 0 6px', lineHeight: 1.4 }}>
                           {alert.description}
                         </p>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <span style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {fmtRelative(alert.created_at)}
                         </span>
                         <div style={{ display: 'flex', gap: 5 }}>
@@ -183,16 +183,16 @@ export default function AlertsDrawer({ onClose }) {
                             <button onClick={() => markRead(alert.id)} style={{
                               background: 'transparent', border: '1px solid var(--surface-4)',
                               borderRadius: 5, padding: '3px 8px', color: 'var(--text-2)',
-                              cursor: 'pointer', fontSize: 10, fontFamily: 'inherit',
+                              cursor: 'pointer', fontSize: "var(--text-2xs)", fontFamily: 'inherit',
                             }}>
                               Leída
                             </button>
                           )}
                           {hasRole('admin', 'pm', 'hr') && (
                             <button onClick={() => resolve(alert.id)} style={{
-                              background: 'var(--success-bg)', border: '1px solid #00e5a030',
+                              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
                               borderRadius: 5, padding: '3px 8px', color: 'var(--success)',
-                              cursor: 'pointer', fontSize: 10, fontWeight: 600, fontFamily: 'inherit',
+                              cursor: 'pointer', fontSize: "var(--text-2xs)", fontWeight: 600, fontFamily: 'inherit',
                             }}>
                               Resolver
                             </button>
@@ -220,7 +220,7 @@ export default function AlertsDrawer({ onClose }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
               padding: '9px', borderRadius: 8,
               background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-              color: 'var(--text-2)', textDecoration: 'none', fontSize: 13, fontWeight: 600,
+              color: 'var(--text-2)', textDecoration: 'none', fontSize: "var(--text-base)", fontWeight: 600,
               transition: 'all 0.1s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}

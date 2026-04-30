@@ -3,9 +3,10 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { projectsApi, usersApi, permissionsApi } from '../services/api'
 import { Avatar, Button, Spinner, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ShieldCheck } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -18,8 +19,8 @@ const LEVELS = [
 ]
 
 const panelStyle = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '20px 24px' }
-const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const inputStyle = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const labelStyle = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 function PermissionForm({ projectId, users, perm, onClose }) {
   const qc = useQueryClient()
@@ -37,8 +38,8 @@ function PermissionForm({ projectId, users, perm, onClose }) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
-      ? api.patch(`/permissions/${projectId}/${perm.id}`, d).then(r => r.data)
-      : api.post(`/permissions/${projectId}`, d).then(r => r.data),
+      ? permissionsApi.update(projectId, perm.id, d).then(r => r.data)
+      : permissionsApi.create(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries(['permissions', projectId]); onClose() },
     onError: e => toast.error(extractErr(e, 'Error al guardar')),
   })
@@ -60,7 +61,7 @@ function PermissionForm({ projectId, users, perm, onClose }) {
             <Avatar name={perm.user?.full_name} size={36} />
             <div>
               <div style={{ fontWeight: 500 }}>{perm.user?.full_name}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
             </div>
           </div>
         )}
@@ -73,8 +74,8 @@ function PermissionForm({ projectId, users, perm, onClose }) {
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, border: `1px solid ${form.level === l.value ? l.color + '50' : 'var(--surface-4)'}`, background: form.level === l.value ? l.color + '15' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: l.color, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: form.level === l.value ? 600 : 400, color: form.level === l.value ? l.color : 'var(--text-1)' }}>{l.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{l.desc}</div>
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: form.level === l.value ? 600 : 400, color: form.level === l.value ? l.color : 'var(--text-1)' }}>{l.label}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{l.desc}</div>
                 </div>
                 {form.level === l.value && <span style={{ color: l.color }}>✓</span>}
               </button>
@@ -83,18 +84,18 @@ function PermissionForm({ projectId, users, perm, onClose }) {
         </div>
 
         {['member','manager','owner'].includes(form.level) && (
-          <div style={{ padding: '14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1a2640' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Permisos adicionales</div>
+          <div style={{ padding: '14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Permisos adicionales</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
                 <span>Ver datos financieros (costes, presupuesto, facturación)</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_see_rates} onChange={e => set('can_see_rates')(e.target.checked)} />
                 <span>Ver tarifas €/hora de los compañeros</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: "var(--text-base)" }}>
                 <input type="checkbox" checked={form.can_export} onChange={e => set('can_export')(e.target.checked)} />
                 <span>Exportar datos del proyecto</span>
               </label>
@@ -123,22 +124,22 @@ export default function ProjectPermissionsPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => api.get('/projects').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => projectsApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
+    queryFn: () => usersApi.list().then(r => Array.isArray(r.data) ? r.data : []).catch(() => []),
   })
 
   const { data: perms = [], isLoading } = useQuery({
     queryKey: ['permissions', selectedProject],
-    queryFn: () => api.get(`/permissions/${selectedProject}`).then(r => r.data).catch(() => []),
+    queryFn: () => permissionsApi.list(selectedProject).then(r => r.data).catch(() => []),
     enabled: !!selectedProject,
   })
 
   const { mutate: revoke } = useMutation({
-    mutationFn: pid => api.delete(`/permissions/${selectedProject}/${pid}`),
+    mutationFn: pid => permissionsApi.delete(selectedProject, pid),
     onSuccess: () => qc.invalidateQueries(['permissions', selectedProject]),
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -150,7 +151,7 @@ export default function ProjectPermissionsPage() {
   const byLevel = Object.fromEntries(LEVELS.map(l => [l.value, perms.filter(p => p.level === l.value)]))
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<ShieldCheck size={18} />}
         title="Permisos de proyecto"
@@ -169,7 +170,7 @@ export default function ProjectPermissionsPage() {
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         {selectedProject && (
-          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)' }}>
+          <div style={{ marginTop: 10, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             Los permisos de proyecto sobrescriben el rol global del usuario. Un admin siempre tiene acceso completo independientemente de los permisos.
           </div>
         )}
@@ -183,9 +184,9 @@ export default function ProjectPermissionsPage() {
 
       {selectedProject && !isLoading && perms.length === 0 && (
         <div style={{ ...panelStyle, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔓</div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Sin permisos específicos</div>
-          <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 20 }}>
+          <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>🔓</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8 }}>Sin permisos específicos</div>
+          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 20 }}>
             Todos los usuarios con rol PM o Admin pueden ver este proyecto.<br />
             Añade permisos específicos para restringir o ampliar el acceso individualmente.
           </div>
@@ -199,22 +200,22 @@ export default function ProjectPermissionsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
             {LEVELS.map(l => (
               <div key={l.value} style={{ background: 'var(--surface-2)', border: `1px solid ${byLevel[l.value]?.length > 0 ? l.color + '40' : 'var(--surface-4)'}`, borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: l.color }}>{byLevel[l.value]?.length || 0}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{l.label}</div>
+                <div style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: l.color }}>{byLevel[l.value]?.length || 0}</div>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{l.label}</div>
               </div>
             ))}
           </div>
 
           {/* Tabla de permisos */}
           <div style={panelStyle}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>
               {perms.length} {perms.length === 1 ? 'permiso' : 'permisos'} — {selectedProj?.name}
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: "var(--text-base)" }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--surface-4)' }}>
                   {['Usuario', 'Nivel de acceso', 'Finanzas', 'Tarifas', 'Exportar', 'Acciones'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -228,28 +229,28 @@ export default function ProjectPermissionsPage() {
                           <Avatar name={perm.user?.full_name} size={30} />
                           <div>
                             <div style={{ fontWeight: 500 }}>{perm.user?.full_name || perm.user_id}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
+                            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{perm.user?.job_title || perm.user?.role}</div>
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
-                        <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, background: (level?.color || 'var(--text-2)') + '20', color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
+                        <span style={{ fontSize: "var(--text-sm)", padding: '3px 10px', borderRadius: 6, background: (level?.color || 'var(--text-2)') + '20', color: level?.color || 'var(--text-2)', fontWeight: 500 }}>
                           {level?.label || perm.level}
                         </span>
                       </td>
                       {[perm.can_see_financials, perm.can_see_rates, perm.can_export].map((v, idx) => (
                         <td key={idx} style={{ padding: '10px 12px' }}>
-                          <span style={{ color: v ? 'var(--success)' : 'var(--danger)', fontSize: 16 }}>{v ? '✓' : '✕'}</span>
+                          <span style={{ color: v ? 'var(--success)' : 'var(--danger)', fontSize: "var(--text-lg)" }}>{v ? '✓' : '✕'}</span>
                         </td>
                       ))}
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={() => { setEditingPerm(perm); setShowForm(true) }}
-                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>
+                            style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '4px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                             Editar
                           </button>
                           <button onClick={() => { openConfirmGlobal({ message: `¿Revocar acceso de ${perm.user?.full_name}?`, onConfirm: () => revoke(perm.id), danger: true }) }}
-                            style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>
+                            style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                             Revocar
                           </button>
                         </div>
@@ -263,15 +264,15 @@ export default function ProjectPermissionsPage() {
 
           {/* Leyenda de niveles */}
           <div style={{ ...panelStyle, marginTop: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Niveles de acceso</div>
+            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Niveles de acceso</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
               {LEVELS.map(l => (
                 <div key={l.value}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: l.color }}>{l.label}</span>
+                    <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: l.color }}>{l.label}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{l.desc}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{l.desc}</div>
                 </div>
               ))}
             </div>
@@ -287,6 +288,6 @@ export default function ProjectPermissionsPage() {
           onClose={() => { setShowForm(false); setEditingPerm(null) }}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

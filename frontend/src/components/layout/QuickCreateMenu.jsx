@@ -2,13 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi } from '../../services/api'
-import { X, CheckSquare, Clock, Ticket, Plus } from 'lucide-react'
+import { X, CheckSquare, Clock, Ticket, FileText, Building2, ScrollText, AlertTriangle, Receipt, FolderOpen } from 'lucide-react'
 import { useToast } from '../../context/ToastContext'
 
 const ACTIONS = [
-  { id: 'task',   icon: CheckSquare, label: 'Nueva tarea',    color: 'var(--accent)' },
-  { id: 'hours',  icon: Clock,       label: 'Imputar horas',  color: 'var(--success)' },
-  { id: 'ticket', icon: Ticket,      label: 'Nuevo ticket',   color: 'var(--warning)' },
+  { id: 'task',     icon: CheckSquare,  label: 'Nueva tarea',     color: 'var(--accent)',  inline: true },
+  { id: 'hours',    icon: Clock,        label: 'Imputar horas',   color: 'var(--success)', path: '/imputar' },
+  { id: 'ticket',   icon: Ticket,       label: 'Nuevo ticket',    color: 'var(--warning)', path: '/service-desk?create=1' },
+  { id: 'invoice',  icon: FileText,     label: 'Nueva factura',   color: 'var(--accent)',  path: '/invoices?create=1' },
+  { id: 'client',   icon: Building2,    label: 'Nuevo cliente',   color: 'var(--purple)',  path: '/clients?create=1' },
+  { id: 'contract', icon: ScrollText,   label: 'Nuevo contrato',  color: 'var(--purple)',  path: '/contracts?create=1' },
+  { id: 'risk',     icon: AlertTriangle,label: 'Nuevo riesgo',    color: 'var(--danger)',  path: '/risks?create=1' },
+  { id: 'expense',  icon: Receipt,      label: 'Reportar gasto',  color: 'var(--orange)',  path: '/expenses?create=1' },
+  { id: 'project',  icon: FolderOpen,   label: 'Nuevo proyecto',  color: 'var(--accent)',  path: '/projects?create=1' },
 ]
 
 function CreateTaskForm({ onClose }) {
@@ -41,7 +47,7 @@ function CreateTaskForm({ onClose }) {
 
   return (
     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>Nueva tarea</div>
+      <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 2 }}>Nueva tarea</div>
       <input
         ref={inputRef}
         value={title}
@@ -52,7 +58,7 @@ function CreateTaskForm({ onClose }) {
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)',
-          fontSize: 13, outline: 'none', fontFamily: 'inherit',
+          fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
         }}
         onFocus={e => e.target.style.borderColor = 'var(--accent)'}
         onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
@@ -64,7 +70,7 @@ function CreateTaskForm({ onClose }) {
           style={{
             width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 8, padding: '8px 12px', color: projectId ? 'var(--text-1)' : 'var(--text-3)',
-            fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
+            fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
           <option value="">Sin proyecto</option>
@@ -75,7 +81,7 @@ function CreateTaskForm({ onClose }) {
         <button onClick={onClose} style={{
           padding: '8px 16px', borderRadius: 8,
           background: 'transparent', border: '1px solid var(--surface-4)',
-          color: 'var(--text-2)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+          color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit',
         }}>
           Cancelar
         </button>
@@ -86,7 +92,7 @@ function CreateTaskForm({ onClose }) {
             padding: '8px 18px', borderRadius: 8,
             background: 'var(--accent)', border: 'none',
             color: '#fff', cursor: title.trim() ? 'pointer' : 'not-allowed',
-            fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+            fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'inherit',
             opacity: title.trim() ? 1 : 0.5,
           }}
         >
@@ -109,12 +115,10 @@ export default function QuickCreateMenu({ onClose }) {
   }, [onClose])
 
   function handleAction(id) {
-    if (id === 'task') {
-      setActiveAction('task')
-      return
-    }
-    if (id === 'hours') { navigate('/time'); onClose(); return }
-    if (id === 'ticket') { navigate('/service-desk'); onClose(); return }
+    const action = ACTIONS.find(a => a.id === id)
+    if (!action) return
+    if (action.inline) { setActiveAction(id); return }
+    if (action.path) { navigate(action.path); onClose() }
   }
 
   return (
@@ -129,7 +133,6 @@ export default function QuickCreateMenu({ onClose }) {
           boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
           overflow: 'hidden',
         }}
-        onMouseDown={e => e.stopPropagation()}
       >
         {activeAction === 'task' ? (
           <CreateTaskForm onClose={onClose} />
@@ -137,7 +140,7 @@ export default function QuickCreateMenu({ onClose }) {
           <>
             <div style={{
               padding: '12px 16px 8px',
-              fontSize: 11, fontWeight: 700, color: 'var(--text-3)',
+              fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)',
               textTransform: 'uppercase', letterSpacing: '.07em',
               borderBottom: '1px solid var(--surface-4)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -166,7 +169,7 @@ export default function QuickCreateMenu({ onClose }) {
                   }}>
                     <Icon size={15} color={color} />
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{label}</span>
+                  <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{label}</span>
                 </button>
               ))}
             </div>

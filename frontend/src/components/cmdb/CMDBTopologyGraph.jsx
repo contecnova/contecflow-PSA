@@ -17,26 +17,26 @@ const CI_ICONS = {
 }
 
 const STATUS_COLORS = {
-  active: '#22c55e',
+  active: '#34d399',
   maintenance: '#f59e0b',
-  decommissioned: '#ef4444',
+  decommissioned: '#f87171',
 }
 
 const REL_COLORS = {
-  depends_on: '#6366f1',
-  runs_on: '#0ea5e9',
-  connects_to: '#8b5cf6',
-  hosts: '#10b981',
+  depends_on: '#4f8ef7',
+  runs_on: '#60a5fa',
+  connects_to: '#a78bfa',
+  hosts: '#34d399',
   monitors: '#f59e0b',
   backs_up: '#64748b',
 }
 
 // Impact coloring by BFS hop distance from selected source node
 const IMPACT_COLORS = {
-  0: '#8b5cf6', // source — violet
-  1: '#ef4444', // hop 1 — red (direct impact)
-  2: '#f97316', // hop 2 — orange
-  3: '#eab308', // hop 3 — yellow
+  0: '#a78bfa', // source — violet
+  1: '#f87171', // hop 1 — red (direct impact)
+  2: '#fb923c', // hop 2 — orange
+  3: '#f59e0b', // hop 3 — yellow
 }
 const IMPACT_LABELS = {
   0: 'Origen del impacto',
@@ -134,7 +134,7 @@ function layout3D(nodes, edges) {
 // ─── TOOLBAR BUTTON STYLE ────────────────────────────────────────────────────
 
 const tbBtn = (active) => ({
-  padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+  padding: '4px 12px', borderRadius: 6, fontSize: "var(--text-sm)", cursor: 'pointer',
   border: '1px solid var(--surface-4)', fontFamily: 'inherit',
   background: active ? 'var(--accent)' : 'var(--surface-3)',
   color: active ? '#fff' : 'var(--text-2)', transition: 'background .15s, color .15s',
@@ -263,7 +263,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                   xmlns="http://www.w3.org/1999/xhtml"
                   style={{
                     background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
-                    borderRadius: 8, padding: '6px 10px', fontSize: 11,
+                    borderRadius: 8, padding: '6px 10px', fontSize: "var(--text-xs)",
                     color: 'var(--text-1)', boxShadow: '0 4px 16px rgba(0,0,0,.5)',
                     pointerEvents: 'none',
                   }}
@@ -276,7 +276,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
                       {IMPACT_LABELS[Math.min(impactDist[n.id], 3)]}
                     </div>
                   )}
-                  <div style={{ marginTop: 4, color: 'var(--text-3)', fontSize: 10 }}>
+                  <div style={{ marginTop: 4, color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>
                     Click → drill-down &amp; fijar impacto
                   </div>
                 </div>
@@ -399,7 +399,7 @@ function ImpactLegend({ impactRadius, sourceName }) {
   return (
     <div style={{
       display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
-      fontSize: 11, padding: '8px 2px',
+      fontSize: "var(--text-xs)", padding: '8px 2px',
     }}>
       {sourceName && (
         <span style={{ color: 'var(--text-2)', marginRight: 4 }}>
@@ -441,8 +441,8 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
 
   if (!nodes.length) {
     return (
-      <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-2)', fontSize: 13 }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>🔭</div>
+      <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
+        <div style={{ fontSize: "var(--text-4xl)", marginBottom: 8 }}>🔭</div>
         Selecciona un CI para ver su topología de dependencias
       </div>
     )
@@ -461,7 +461,7 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
 
         {/* Impact radius buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>
             Radio impacto:
           </span>
           {[1, 2, 3].map(r => (
@@ -474,7 +474,7 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
           <button
             onClick={() => setImpactSource(null)}
             style={{
-              padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
+              padding: '4px 10px', borderRadius: 6, fontSize: "var(--text-xs)", cursor: 'pointer',
               border: '1px solid var(--danger)', background: 'transparent',
               color: 'var(--danger)', fontFamily: 'inherit',
             }}
@@ -484,7 +484,7 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
         )}
 
         {centerName && (
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-3)' }}>
+          <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
             Centro: <strong style={{ color: 'var(--accent)' }}>{centerName}</strong>
             {' · '}{nodes.length} nodos · {edges.length} aristas
           </span>
@@ -493,7 +493,7 @@ export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick,
 
       {/* Hint */}
       {!impactSource && (
-        <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8 }}>
+        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
           💡 Haz clic en cualquier nodo para analizar su radio de impacto y abrir el panel de detalle
         </div>
       )}

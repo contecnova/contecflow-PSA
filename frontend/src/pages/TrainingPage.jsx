@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { BookOpen } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
@@ -23,9 +24,9 @@ const STATUS_CFG = {
 }
 
 const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-  borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
+  borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
   outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
+const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
   letterSpacing:'0.07em', display:'block', marginBottom:4 }
 
 function CourseModal({ course, onClose }) {
@@ -164,7 +165,7 @@ export default function TrainingPage() {
   ]
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader
         icon={<BookOpen size={18} />}
         title={t('training.title')}
@@ -186,26 +187,26 @@ export default function TrainingPage() {
         <div style={{ marginBottom:20 }}>
           {expired.map(c => (
             <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6,
-              background:'rgba(226,75,74,0.1)', border:'1px solid rgba(226,75,74,0.3)',
+              background:'var(--danger-bg)', border:'1px solid var(--danger-border)',
               borderRadius:10, alignItems:'center' }}>
               <span>🔴</span>
               <div style={{ flex:1 }}>
-                <span style={{ fontSize:13, fontWeight:700 }}>{c.name}</span>
-                <span style={{ fontSize:12, color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span>
+                <span style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{c.name}</span>
+                <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span>
               </div>
-              <span style={{ fontSize:12, color:'var(--danger)', fontWeight:700 }}>Caducada</span>
+              <span style={{ fontSize: "var(--text-sm)", color:'var(--danger)', fontWeight:700 }}>Caducada</span>
             </div>
           ))}
           {expiringSoon.map(c => (
             <div key={c.id} style={{ display:'flex', gap:10, padding:'10px 14px', marginBottom:6,
-              background:'rgba(186,117,23,0.1)', border:'1px solid rgba(186,117,23,0.3)',
+              background:'var(--orange-bg)', border:'1px solid var(--orange-border)',
               borderRadius:10, alignItems:'center' }}>
               <span>🟡</span>
               <div style={{ flex:1 }}>
-                <span style={{ fontSize:13, fontWeight:700 }}>{c.name}</span>
-                <span style={{ fontSize:12, color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span>
+                <span style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{c.name}</span>
+                <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginLeft:8 }}>{c.user_name}</span>
               </div>
-              <span style={{ fontSize:12, color:'var(--warning)', fontWeight:700 }}>
+              <span style={{ fontSize: "var(--text-sm)", color:'var(--warning)', fontWeight:700 }}>
                 Caduca en {c.days_until_expiry}d
               </span>
             </div>
@@ -217,7 +218,7 @@ export default function TrainingPage() {
       <div style={{ display:'flex', gap:6, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:600,
+            style={{ padding:'8px 16px', borderRadius:8, fontSize: "var(--text-sm)", fontWeight:600,
               border:`1px solid ${tab===t.id?'var(--accent-glow)':'var(--surface-4)'}`,
               background:tab===t.id?'var(--accent-muted)':'transparent',
               color:tab===t.id?'var(--accent)':'var(--text-2)',
@@ -238,25 +239,25 @@ export default function TrainingPage() {
                 borderRadius:12, padding:'16px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:700 }}>{c.title}</div>
-                    {c.provider && <div style={{ fontSize:11, color:'var(--accent)', marginTop:2 }}>{c.provider}</div>}
+                    <div style={{ fontSize: "var(--text-md)", fontWeight:700 }}>{c.title}</div>
+                    {c.provider && <div style={{ fontSize: "var(--text-xs)", color:'var(--accent)', marginTop:2 }}>{c.provider}</div>}
                   </div>
                   {isAdmin && (
                     <div style={{ display:'flex', gap:4, marginLeft:8 }}>
                       <button onClick={()=>{setEditingCourse(c);setShowCourseModal(true)}}
-                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'3px 7px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                        style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:5,padding:'3px 7px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✏</button>
                       <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar curso?', onConfirm: () => delCourse(c.id), danger: true }) }}
-                        style={{background:'none',border:'1px solid #ff475730',borderRadius:5,padding:'3px 7px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
+                        style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:5,padding:'3px 7px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🗑</button>
                     </div>
                   )}
                 </div>
-                {c.description && <div style={{ fontSize:12, color:'var(--text-2)', marginBottom:8, lineHeight:1.4 }}>{c.description.slice(0,100)}{c.description.length>100?'…':''}</div>}
+                {c.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:8, lineHeight:1.4 }}>{c.description.slice(0,100)}{c.description.length>100?'…':''}</div>}
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {c.category && <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--accent-muted)', color:'var(--accent)' }}>{c.category}</span>}
-                  {c.duration_h && <span style={{ fontSize:11, color:'var(--text-2)' }}>⏱ {c.duration_h}h</span>}
-                  {c.cost > 0 && <span style={{ fontSize:11, color:'var(--success)' }}>💶 {c.cost}€</span>}
-                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize:11, color:'var(--accent)' }}>🔗 Ver</a>}
-                  <span style={{ fontSize:10, color:'var(--text-3)', marginLeft:'auto' }}>{c.enrolled} inscritos</span>
+                  {c.category && <span style={{ fontSize: "var(--text-2xs)", fontWeight:700, padding:'2px 7px', borderRadius:20, background:'var(--accent-muted)', color:'var(--accent)' }}>{c.category}</span>}
+                  {c.duration_h && <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>⏱ {c.duration_h}h</span>}
+                  {c.cost > 0 && <span style={{ fontSize: "var(--text-xs)", color:'var(--success)' }}>💶 {c.cost}€</span>}
+                  {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: "var(--text-xs)", color:'var(--accent)' }}>🔗 Ver</a>}
+                  <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginLeft:'auto' }}>{c.enrolled} inscritos</span>
                 </div>
               </div>
             ))}
@@ -274,7 +275,7 @@ export default function TrainingPage() {
               <thead>
                 <tr style={{ borderBottom:'1px solid var(--surface-4)' }}>
                   {['Empleado','Curso','Estado','Inicio','Fin','Nota'].map(h => (
-                    <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{h}</th>
+                    <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -285,17 +286,17 @@ export default function TrainingPage() {
                     <tr key={e.id} style={{ borderBottom:'1px solid var(--surface-4)20' }}
                       onMouseEnter={el=>el.currentTarget.style.background='var(--surface-3)'}
                       onMouseLeave={el=>el.currentTarget.style.background='transparent'}>
-                      <td style={{ padding:'10px 14px', fontSize:13, fontWeight:600 }}>{e.user_name}</td>
-                      <td style={{ padding:'10px 14px', fontSize:13 }}>{e.course_title}</td>
+                      <td style={{ padding:'10px 14px', fontSize: "var(--text-base)", fontWeight:600 }}>{e.user_name}</td>
+                      <td style={{ padding:'10px 14px', fontSize: "var(--text-base)" }}>{e.course_title}</td>
                       <td style={{ padding:'10px 14px' }}>
-                        <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20,
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight:700, padding:'2px 8px', borderRadius:20,
                           background:`${sc.color}20`, color:sc.color }}>
                           {sc.icon} {sc.label}
                         </span>
                       </td>
-                      <td style={{ padding:'10px 14px', fontSize:12, color:'var(--text-2)' }}>{e.start_date || '—'}</td>
-                      <td style={{ padding:'10px 14px', fontSize:12, color:'var(--text-2)' }}>{e.end_date || '—'}</td>
-                      <td style={{ padding:'10px 14px', fontSize:12, color: e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>
+                      <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{e.start_date || '—'}</td>
+                      <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>{e.end_date || '—'}</td>
+                      <td style={{ padding:'10px 14px', fontSize: "var(--text-sm)", color: e.score >= 7 ? 'var(--success)' : e.score ? 'var(--warning)' : 'var(--text-3)' }}>
                         {e.score ? `${e.score}/10` : '—'}
                       </td>
                     </tr>
@@ -316,34 +317,34 @@ export default function TrainingPage() {
             {certs.map(c => (
               <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12,
                 padding:'12px 16px', background:'var(--surface-2)', borderRadius:10,
-                border:`1px solid ${c.is_expired ? 'rgba(226,75,74,0.3)' : c.expiring_soon ? 'rgba(186,117,23,0.3)' : 'var(--surface-4)'}` }}>
-                <div style={{ fontSize:24 }}>🏅</div>
+                border:`1px solid ${c.is_expired ? 'var(--danger-border)' : c.expiring_soon ? 'var(--orange-border)' : 'var(--surface-4)'}` }}>
+                <div style={{ fontSize: "var(--text-2xl)" }}>🏅</div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700 }}>{c.name}
-                    {c.issuer && <span style={{ fontSize:11, color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}
+                  <div style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{c.name}
+                    {c.issuer && <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginLeft:8 }}>{c.issuer}</span>}
                   </div>
-                  <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2 }}>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>
                     {c.user_name}
-                    {c.cert_id && <span style={{ marginLeft:8, fontFamily:'monospace', fontSize:11 }}>#{c.cert_id}</span>}
+                    {c.cert_id && <span style={{ marginLeft:8, fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)" }}>#{c.cert_id}</span>}
                     {c.obtained_at && <span style={{ marginLeft:8 }}>· Obtenida: {c.obtained_at}</span>}
                   </div>
                 </div>
                 <div style={{ textAlign:'right', flexShrink:0 }}>
                   {c.expires_at ? (
-                    <div style={{ fontSize:12, fontWeight:700,
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight:700,
                       color: c.is_expired ? 'var(--danger)' : c.expiring_soon ? 'var(--warning)' : 'var(--success)' }}>
                       {c.is_expired ? '⚠ Caducada' : `Caduca ${c.expires_at}`}
                     </div>
                   ) : (
-                    <div style={{ fontSize:11, color:'var(--text-3)' }}>Sin caducidad</div>
+                    <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)' }}>Sin caducidad</div>
                   )}
                 </div>
                 {c.url && <a href={sanitizeUrl(c.url)} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize:11, color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
+                  style={{ fontSize: "var(--text-xs)", color:'var(--accent)', whiteSpace:'nowrap' }}>🔗 Verificar</a>}
                 <button onClick={()=>{setEditingCert(c);setShowCertModal(true)}}
-                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize:11}}>✏</button>
+                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 8px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-xs)"}}>✏</button>
                 <button onClick={()=>{ openConfirmGlobal({ message: '¿Eliminar?', onConfirm: () => delCert(c.id), danger: true }) }}
-                  style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize:11}}>🗑</button>
+                  style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 8px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-xs)"}}>🗑</button>
               </div>
             ))}
           </div>
@@ -352,6 +353,6 @@ export default function TrainingPage() {
 
       {showCourseModal && <CourseModal course={editingCourse} onClose={()=>{setShowCourseModal(false);setEditingCourse(null)}} />}
       {showCertModal && <CertModal cert={editingCert} userId={!isAdmin?user?.id:null} onClose={()=>{setShowCertModal(false);setEditingCert(null)}} />}
-    </div>
+    </PageShell>
   )
 }

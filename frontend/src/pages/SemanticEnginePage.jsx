@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import { semanticApi, usersApi } from '../services/api'
 import { Button, EmptyState, Modal } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Brain } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 
 const card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const fs = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%' }
-const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
+const fs = { background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%' }
+const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
 
 const ENGINE_MODES = {
   hybrid:     { label: 'Híbrido',       icon: '⚡', desc: 'Semántico primero, LLM como desempate. Recomendado.' },
@@ -32,14 +33,14 @@ function ProfileModal({ user, onClose }) {
   const [maxLoad, setMaxLoad] = useState(user?.max_load || 10)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: d => api.post('/semantic/profiles', d),
+    mutationFn: d => semanticApi.createProfile(d),
     onSuccess: () => { qc.invalidateQueries(['sem-profiles']); onClose() },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
   return (
     <Modal open onClose={onClose} title={`Perfil semántico — ${user?.user_name || 'Usuario'}`} width={600}>
-      <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+      <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
         Describe las capacidades, rol, tecnologías y área de experiencia de este usuario.
         Cuanto más detallado, mejor será la asignación automática.
       </p>
@@ -77,8 +78,8 @@ function TestPanel() {
     setTesting(true)
     setResult(null)
     try {
-      const endpoint = type === 'ticket' ? '/semantic/suggest/ticket' : '/semantic/suggest/task'
-      const res = await api.post(endpoint, { title, description: desc })
+      const fn = type === 'ticket' ? semanticApi.suggestTicket : semanticApi.suggestTask
+      const res = await fn({ title, description: desc })
       setResult(res.data)
     } catch (e) {
       const raw = e?.response?.data?.detail
@@ -88,11 +89,11 @@ function TestPanel() {
 
   return (
     <div style={{ ...card, padding: '20px 24px' }}>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>🧪 Probar asignación</div>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>🧪 Probar asignación</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {['ticket', 'task'].map(t => (
           <button key={t} onClick={() => setType(t)}
-            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${type === t ? 'var(--accent)' : 'var(--surface-4)'}`, background: type === t ? 'var(--accent-muted)' : 'transparent', color: type === t ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {t === 'ticket' ? '🎫 Ticket' : '✅ Tarea'}
           </button>
         ))}
@@ -121,34 +122,34 @@ function TestPanel() {
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>Asignación sugerida</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: result.needs_review ? 'var(--warning)' : 'var(--success)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>Asignación sugerida</div>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: result.needs_review ? 'var(--warning)' : 'var(--success)' }}>
                     {result.suggested_user_name || result.suggested_user_id || '— Sin candidato —'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>Confianza</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: result.confidence > 0.7 ? 'var(--success)' : result.confidence > 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
+                  <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 4 }}>Confianza</div>
+                  <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: result.confidence > 0.7 ? 'var(--success)' : result.confidence > 0.5 ? 'var(--warning)' : 'var(--danger)' }}>
                     {Math.round((result.confidence || 0) * 100)}%
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>
+              <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
                 <span style={{ marginRight: 12 }}>Motor: <strong style={{ color: 'var(--text-1)' }}>{result.engine_mode}</strong></span>
                 {result.needs_review && <span style={{ color: 'var(--warning)' }}>⚠ Revisar manualmente</span>}
               </div>
               {result.reasoning && (
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10, fontStyle: 'italic' }}>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, fontStyle: 'italic' }}>
                   {result.reasoning}
                 </div>
               )}
               {result.top_candidates && Object.keys(result.top_candidates).length > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Top candidatos</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Top candidatos</div>
                   {Object.entries(result.top_candidates).map(([uid, info]) => (
-                    <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                    <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: "var(--text-sm)" }}>
                       <span>{info.name}</span>
-                      <span style={{ fontFamily: 'monospace', color: 'var(--accent)' }}>{Math.round(info.score * 100)}%</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{Math.round(info.score * 100)}%</span>
                     </div>
                   ))}
                 </div>
@@ -183,25 +184,25 @@ export default function SemanticEnginePage() {
 
   const { data: config = {}, isLoading: _loadingCfg } = useQuery({
     queryKey: ['sem-config'],
-    queryFn: () => api.get('/semantic/config').then(r => r.data),
+    queryFn: () => semanticApi.config().then(r => r.data),
   })
   const { data: profiles = [], isLoading: _loadingProfiles } = useQuery({
     queryKey: ['sem-profiles'],
-    queryFn: () => api.get('/semantic/profiles').then(r => r.data),
+    queryFn: () => semanticApi.profiles().then(r => r.data),
     enabled: tab === 'profiles' || tab === 'overview',
   })
   const { data: stats = {} } = useQuery({
     queryKey: ['sem-stats'],
-    queryFn: () => api.get('/semantic/stats').then(r => r.data),
+    queryFn: () => semanticApi.stats().then(r => r.data),
   })
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => api.get('/users').then(r => r.data),
+    queryFn: () => usersApi.list().then(r => r.data),
     enabled: tab === 'profiles',
   })
 
   const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: d => api.patch('/semantic/config', d).then(r => r.data),
+    mutationFn: d => semanticApi.updateConfig(d).then(r => r.data),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: ['sem-config'] })
       const previous = qc.getQueryData(['sem-config'])
@@ -219,7 +220,7 @@ export default function SemanticEnginePage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['sem-config'] }),
   })
   const { mutate: autoGenerate, isPending: generating } = useMutation({
-    mutationFn: () => api.post('/semantic/profiles/auto-generate'),
+    mutationFn: () => semanticApi.autoGenerate(),
     onMutate: () => setOpStatus({ type: 'generating', startedAt: Date.now() }),
     onSuccess: d => {
       qc.invalidateQueries(['sem-profiles'])
@@ -232,7 +233,7 @@ export default function SemanticEnginePage() {
     },
   })
   const { mutate: rebuildEmb, isPending: rebuilding } = useMutation({
-    mutationFn: () => api.post('/semantic/profiles/rebuild-embeddings'),
+    mutationFn: () => semanticApi.rebuildEmbeddings(),
     onMutate: () => setOpStatus({ type: 'rebuilding', startedAt: Date.now() }),
     onSuccess: d => {
       toast.success(`✅ ${d.data.rebuilt} embeddings reconstruidos`)
@@ -250,7 +251,7 @@ export default function SemanticEnginePage() {
   })
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<Brain size={18} />}
         title={_t('semantic_engine.title')}
@@ -259,7 +260,7 @@ export default function SemanticEnginePage() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {(generating || rebuilding || opStatus.type === 'failed' || opStatus.type === 'done') && (
               <div style={{
-                fontSize: 12,
+                fontSize: "var(--text-sm)",
                 color: generating || rebuilding ? 'var(--warning)' : opStatus.type === 'failed' ? 'var(--danger)' : 'var(--success)'
               }}>
                 {generating ? `Generando perfiles… ${opElapsed}s` : rebuilding ? `Reconstruyendo embeddings… ${opElapsed}s` : opStatus.type === 'failed' ? 'Última operación: fallo' : 'Última operación: completada'}
@@ -285,9 +286,9 @@ export default function SemanticEnginePage() {
           { icon: '🧠', label: 'Perfiles', value: stats.profiles || 0, color: 'var(--purple)' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '14px 18px' }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: k.color }}>{k.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{k.label}</div>
+            <div style={{ fontSize: "var(--text-xl-em)", marginBottom: 4 }}>{k.icon}</div>
+            <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{k.label}</div>
           </div>
         ))}
       </div>
@@ -296,7 +297,7 @@ export default function SemanticEnginePage() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {[['overview','⚙️ Configuración'],['profiles','👥 Perfiles'],['test','🧪 Probar'],['stats','📊 Estadísticas']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === id ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '5px 14px', borderRadius: 6, border: `1px solid ${tab === id ? 'var(--accent)' : 'var(--surface-4)'}`, background: tab === id ? 'var(--accent-muted)' : 'transparent', color: tab === id ? 'var(--accent)' : 'var(--text-2)', fontSize: "var(--text-xs)", cursor: 'pointer', fontFamily: 'inherit' }}>
             {label}
           </button>
         ))}
@@ -306,18 +307,18 @@ export default function SemanticEnginePage() {
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Modo del motor</div>
+            <div style={{ fontSize: "var(--text-md)", fontWeight: 600, marginBottom: 16 }}>Modo del motor</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
                 <button key={key} onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig}
-                  style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
+                  style={{ padding: '12px 16px', borderRadius: 8, border: `2px solid ${config.engine_mode === key ? 'var(--accent)' : 'var(--surface-4)'}`, background: config.engine_mode === key ? 'var(--accent-muted)' : 'transparent', cursor: savingConfig ? 'wait' : 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all 0.15s', opacity: savingConfig ? 0.7 : 1 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                    <span style={{ fontSize: "var(--text-xl)" }}>{meta.icon}</span>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>{meta.desc}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: config.engine_mode === key ? 'var(--accent)' : 'var(--text-1)' }}>{meta.label}</div>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2 }}>{meta.desc}</div>
                     </div>
-                    {config.engine_mode === key && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 18 }}>{savingConfig ? '⟳' : '✓'}</span>}
+                    {config.engine_mode === key && <span style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: "var(--text-lg-em)" }}>{savingConfig ? '⟳' : '✓'}</span>}
                   </div>
                 </button>
               ))}
@@ -326,7 +327,7 @@ export default function SemanticEnginePage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Umbrales de confianza</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Umbrales de confianza</div>
               {[
                 { key: 'threshold_ticket', label: 'Tickets (mín. para auto-asignar)', val: config.threshold_ticket },
                 { key: 'threshold_task',   label: 'Tareas (mín. para auto-asignar)',  val: config.threshold_task },
@@ -336,7 +337,7 @@ export default function SemanticEnginePage() {
                 <div key={f.key} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                     <label style={{ ...ls, marginBottom: 0 }}>{f.label}</label>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', fontFamily: 'monospace' }}>{f.val}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.val}</span>
                   </div>
                   <input type="range" min="0.3" max="0.99" step="0.01"
                     value={f.val || 0.6}
@@ -347,20 +348,20 @@ export default function SemanticEnginePage() {
             </div>
 
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Auto-asignación</div>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Auto-asignación</div>
               {[
                 { key: 'auto_assign_tickets', label: 'Auto-asignar tickets (sin confirmación)', val: config.auto_assign_tickets },
                 { key: 'auto_assign_tasks',   label: 'Auto-asignar tareas (sin confirmación)',  val: config.auto_assign_tasks },
               ].map(f => (
                 <div key={f.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--surface-4)30' }}>
-                  <span style={{ fontSize: 13 }}>{f.label}</span>
+                  <span style={{ fontSize: "var(--text-base)" }}>{f.label}</span>
                   <button onClick={() => saveConfig({ [f.key]: !f.val })}
                     style={{ width: 44, height: 24, borderRadius: 12, background: f.val ? 'var(--success-border)' : 'var(--surface-4)', border: `1px solid ${f.val ? 'rgba(52,211,153,0.38)' : 'var(--surface-4)'}`, cursor: 'pointer', position: 'relative', transition: 'all 0.2s' }}>
                     <div style={{ width: 18, height: 18, borderRadius: 9, background: f.val ? 'var(--success)' : 'var(--text-2)', position: 'absolute', top: 2, left: f.val ? 22 : 2, transition: 'all 0.2s' }} />
                   </button>
                 </div>
               ))}
-              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--warning-bg)', border: '1px solid #ffb80030', borderRadius: 8, fontSize: 11, color: 'var(--warning)' }}>
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--warning)' }}>
                 ⚠ Con auto-asignación activada, los items se asignan directamente si la confianza supera el umbral. Desactivado por defecto para permitir revisión.
               </div>
             </div>
@@ -372,7 +373,7 @@ export default function SemanticEnginePage() {
       {tab === 'profiles' && (
         <div>
           <div style={{ ...card, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase' }}>
               <span>Usuario</span><span>Perfil</span><span>Tickets</span><span>Tareas</span><span>Estado</span><span>Acción</span>
             </div>
             {profilesWithUsers.length === 0 ? (
@@ -380,24 +381,24 @@ export default function SemanticEnginePage() {
                 <EmptyState icon="👥" title="Sin perfiles semanticos" description="Configura perfiles para habilitar la asignacion automatica" />
               </div>
             ) : profilesWithUsers.map(u => (
-              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: 13 }}>
+              <div key={u.user_id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)30', display: 'grid', gridTemplateColumns: '1fr 200px 80px 80px 120px 100px', gap: 16, alignItems: 'center', fontSize: "var(--text-base)" }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{u.user_name}</div>
-                  {u.profile_text && <div style={{ fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
+                  {u.profile_text && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.profile_text}</div>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: u.has_embedding ? 'var(--success)' : u.has_profile ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: 'var(--text-2)' }}>
+                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
                     {u.has_embedding ? 'Embedding OK' : u.has_profile ? 'Sin embedding' : 'Sin perfil'}
                   </span>
                 </div>
                 <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{u.open_tickets || 0}</span>
                 <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{u.open_tasks || 0}</span>
-                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: u.is_available !== false ? 'var(--success-bg)' : 'var(--danger-bg)', color: u.is_available !== false ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+                <span style={{ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 12, background: u.is_available !== false ? 'var(--success-bg)' : 'var(--danger-bg)', color: u.is_available !== false ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
                   {u.is_available !== false ? 'Disponible' : 'No disponible'}
                 </span>
                 <button onClick={() => setEditProfile(u)}
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--surface-4)', background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>
                   ✏️ Editar
                 </button>
               </div>
@@ -417,7 +418,7 @@ export default function SemanticEnginePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16 }}>
             {/* Acceptance gauge */}
             <div style={{ ...card, padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>Tasa de aceptación</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16, alignSelf: 'flex-start' }}>Tasa de aceptación</div>
               {(() => {
                 const acc = stats.accepted || 0
                 const rej = stats.rejected || 0
@@ -436,20 +437,20 @@ export default function SemanticEnginePage() {
                         transform="rotate(-90 58 58)" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
                     </svg>
                     <div style={{ position: 'absolute', textAlign: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-1)' }}>
+                      <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: 'var(--text-1)' }}>
                         {pct != null ? `${pct}%` : '—'}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{tot} evaluadas</div>
+                      <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{tot} evaluadas</div>
                     </div>
                   </div>
                 )
               })()}
-              <div style={{ display: 'flex', gap: 12, marginTop: 12, fontSize: 11 }}>
+              <div style={{ display: 'flex', gap: 12, marginTop: 12, fontSize: "var(--text-xs)" }}>
                 {[['✅', stats.accepted || 0, 'var(--success)', 'Aceptadas'],
                   ['❌', stats.rejected || 0, 'var(--danger)', 'Rechazadas'],
                   ['⏳', stats.pending || 0, 'var(--text-3)', 'Pendientes']].map(([_ic, v, c, l]) => (
                   <div key={l} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: c }}>{v}</div>
+                    <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: c }}>{v}</div>
                     <div style={{ color: 'var(--text-3)' }}>{l}</div>
                   </div>
                 ))}
@@ -458,10 +459,10 @@ export default function SemanticEnginePage() {
 
             {/* Stacked breakdown */}
             <div style={{ ...card, padding: '20px 24px' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Distribución de sugerencias</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Distribución de sugerencias</div>
               {(() => {
                 const tot = (stats.accepted||0) + (stats.rejected||0) + (stats.pending||0)
-                if (tot === 0) return <div style={{ color: 'var(--text-2)', fontSize: 13 }}>Sin datos todavía. Procesa algunas tareas o tickets para obtener métricas.</div>
+                if (tot === 0) return <div style={{ color: 'var(--text-2)', fontSize: "var(--text-base)" }}>Sin datos todavía. Procesa algunas tareas o tickets para obtener métricas.</div>
                 const bars = [
                   { label: 'Aceptadas', val: stats.accepted||0, color: 'var(--success)' },
                   { label: 'Rechazadas', val: stats.rejected||0, color: 'var(--danger)' },
@@ -481,8 +482,8 @@ export default function SemanticEnginePage() {
                         <div style={{ width: 10, height: 10, borderRadius: 3, background: b.color, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                            <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{b.label}</span>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: b.color }}>{b.val} ({tot > 0 ? Math.round(b.val/tot*100) : 0}%)</span>
+                            <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>{b.label}</span>
+                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: b.color }}>{b.val} ({tot > 0 ? Math.round(b.val/tot*100) : 0}%)</span>
                           </div>
                           <div style={{ height: 4, borderRadius: 2, background: 'var(--surface-4)', overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${tot > 0 ? b.val/tot*100 : 0}%`, background: b.color, transition: 'width 0.4s ease' }} />
@@ -493,10 +494,10 @@ export default function SemanticEnginePage() {
                     {/* By mode */}
                     {Object.keys(stats.by_mode || {}).length > 0 && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--surface-4)', paddingTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>PIPELINE DE RESOLUCIÓN</div>
+                        <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', marginBottom: 8 }}>PIPELINE DE RESOLUCIÓN</div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           {Object.entries(stats.by_mode).map(([mode, count]) => (
-                            <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: 11, color: 'var(--text-1)' }}>
+                            <div key={mode} style={{ padding: '4px 10px', borderRadius: 20, background: 'var(--surface-3)', fontSize: "var(--text-xs)", color: 'var(--text-1)' }}>
                               {ENGINE_MODES[mode]?.icon} {ENGINE_MODES[mode]?.label || mode}: <strong>{count}</strong>
                             </div>
                           ))}
@@ -511,7 +512,7 @@ export default function SemanticEnginePage() {
 
           {/* Bottom row: system status */}
           <div style={{ ...card, padding: '20px 24px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16 }}>Estado del sistema</div>
+            <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 16 }}>Estado del sistema</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {[
                 { label: 'Expert cache', value: stats.cache_size || 0, icon: '⚡', hint: 'Items en caché exacta', color: 'var(--accent)' },
@@ -519,16 +520,16 @@ export default function SemanticEnginePage() {
                 { label: 'Perfiles con vector', value: profiles.filter(p => p.has_embedding).length, icon: '🧬', hint: `de ${profiles.length} perfiles`, color: 'var(--purple)' },
               ].map(s => (
                 <div key={s.label} style={{ padding: '14px 16px', background: 'var(--surface-1)', borderRadius: 10, display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ fontSize: 24 }}>{s.icon}</span>
+                  <span style={{ fontSize: "var(--text-2xl)" }}>{s.icon}</span>
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)' }}>{s.label}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.hint}</div>
+                    <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 900, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-1)' }}>{s.label}</div>
+                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>{s.hint}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+            <div style={{ marginTop: 14, padding: '12px 14px', background: 'var(--surface-1)', borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.6 }}>
               💡 Para mejorar la precisión: genera perfiles automáticos, procesa algunos tickets/tareas y corrige manualmente las asignaciones incorrectas. El sistema aprende de cada corrección.
             </div>
           </div>
@@ -538,6 +539,6 @@ export default function SemanticEnginePage() {
       {editProfile && (
         <ProfileModal user={editProfile} onClose={() => setEditProfile(null)} />
       )}
-    </div>
+    </PageShell>
   )
 }

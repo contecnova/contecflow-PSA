@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
 import { Spinner, useSort, SortableTH } from '../../components/ui'
 import { COLOR } from '../../constants/theme'
+import PageShell from '../../components/layout/PageShell'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtMinutes(m) {
@@ -29,7 +30,7 @@ const S = {
   },
   cardPad: { padding: '20px 24px' },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: "var(--text-xs)",
     fontWeight: 700,
     color: 'var(--text-3)',
     textTransform: 'uppercase',
@@ -40,7 +41,7 @@ const S = {
 
 const PRIORITY_META = {
   p1_critical: { label: 'P1 Crítico',  color: COLOR.danger,  bg: COLOR.dangerBg },
-  p2_high:     { label: 'P2 Alto',     color: '#fb923c',     bg: 'rgba(251,146,60,0.08)' },
+  p2_high:     { label: 'P2 Alto',     color: 'var(--orange)',     bg: 'rgba(251,146,60,0.08)' },
   p3_medium:   { label: 'P3 Medio',    color: COLOR.warning, bg: COLOR.warningBg },
   p4_low:      { label: 'P4 Bajo',     color: COLOR.text2,   bg: 'transparent' },
 }
@@ -56,7 +57,7 @@ function PeriodButton({ active, label, onClick }) {
         border: `1px solid ${active ? COLOR.accent : 'var(--surface-4)'}`,
         background: active ? COLOR.accentMuted : 'transparent',
         color: active ? COLOR.accent : 'var(--text-2)',
-        fontSize: 12,
+        fontSize: "var(--text-sm)",
         fontWeight: 600,
         cursor: 'pointer',
         fontFamily: 'inherit',
@@ -77,7 +78,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {icon && (
             <span style={{
-              fontSize: 18,
+              fontSize: "var(--text-lg-em)",
               background: `${bar}18`,
               borderRadius: 8,
               padding: '5px 7px',
@@ -87,7 +88,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }) {
             </span>
           )}
           <span style={{
-            fontSize: 10,
+            fontSize: "var(--text-2xs)",
             fontWeight: 700,
             color: 'var(--text-3)',
             textTransform: 'uppercase',
@@ -97,7 +98,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }) {
           </span>
         </div>
         <div style={{
-          fontSize: 34,
+          fontSize: "var(--text-34)",
           fontWeight: 700,
           color: color || 'var(--text-1)',
           lineHeight: 1.1,
@@ -106,7 +107,7 @@ function KpiCard({ label, value, sub, color, icon, accentBar }) {
           {value ?? '—'}
         </div>
         {sub && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.4 }}>{sub}</div>
         )}
       </div>
     </div>
@@ -118,12 +119,12 @@ function BarRow({ label, count, total, color }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--text-2)', textTransform: 'capitalize' }}>
+        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', textTransform: 'capitalize' }}>
           {label.replace(/_/g, ' ')}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
-            fontSize: 11,
+            fontSize: "var(--text-xs)",
             fontWeight: 700,
             color: 'var(--text-1)',
             background: 'var(--surface-4)',
@@ -132,7 +133,7 @@ function BarRow({ label, count, total, color }) {
           }}>
             {count}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
+          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', minWidth: 32, textAlign: 'right' }}>
             {pct}%
           </span>
         </div>
@@ -184,7 +185,7 @@ function GaugeCard({ label, value, color, suffix = '%', sub }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 12,
+          fontSize: "var(--text-sm)",
           fontWeight: 700,
           color,
         }}>
@@ -192,13 +193,13 @@ function GaugeCard({ label, value, color, suffix = '%', sub }) {
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4 }}>
+        <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 4 }}>
           {label}
         </div>
-        <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.5px' }}>
+        <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 700, color, lineHeight: 1, letterSpacing: '-0.5px' }}>
           {value != null ? `${value}${suffix}` : '—'}
         </div>
-        {sub && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>}
+        {sub && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>}
       </div>
     </div>
   )
@@ -211,7 +212,7 @@ function AgentAvatar({ name }) {
     .map(w => w[0])
     .join('')
     .toUpperCase()
-  const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', '#fb923c']
+  const colors = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
     <div style={{
@@ -223,7 +224,7 @@ function AgentAvatar({ name }) {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: 11,
+      fontSize: "var(--text-xs)",
       fontWeight: 700,
       color: colors[idx],
       flexShrink: 0,
@@ -247,13 +248,13 @@ function ResolutionBar({ resolved, total }) {
           transition: 'width 0.5s ease',
         }} />
       </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color, minWidth: 32 }}>{pct}%</span>
+      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, minWidth: 32 }}>{pct}%</span>
     </div>
   )
 }
 
 function StarRating({ value }) {
-  if (value == null) return <span style={{ color: 'var(--text-3)', fontSize: 12 }}>—</span>
+  if (value == null) return <span style={{ color: 'var(--text-3)', fontSize: "var(--text-sm)" }}>—</span>
   const filled = Math.round(value)
   const color = value >= 4 ? COLOR.success : value >= 3 ? COLOR.warning : COLOR.danger
   return (
@@ -268,7 +269,7 @@ function StarRating({ value }) {
           </svg>
         ))}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 600, color }}>{value.toFixed(1)}</span>
+      <span style={{ fontSize: "var(--text-xs)", fontWeight: 600, color }}>{value.toFixed(1)}</span>
     </div>
   )
 }
@@ -281,11 +282,11 @@ function EmptyState() {
       padding: '80px 24px',
       color: 'var(--text-3)',
     }}>
-      <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.4 }}>📊</div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>
+      <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16, opacity: 0.4 }}>📊</div>
+      <div style={{ fontSize: "var(--text-md-em)", fontWeight: 600, marginBottom: 8, color: 'var(--text-2)' }}>
         Sin datos de métricas
       </div>
-      <div style={{ fontSize: 13, maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>
+      <div style={{ fontSize: "var(--text-base)", maxWidth: 280, margin: '0 auto', lineHeight: 1.6 }}>
         Crea y gestiona tickets para ver las métricas ITIL aquí
       </div>
     </div>
@@ -341,10 +342,10 @@ export default function MetricsDashboardTab() {
   const totalTickets = metrics.volume?.total || 1
 
   /* palette for type bars */
-  const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', '#fb923c']
+  const typePalette = [COLOR.accent, COLOR.success, COLOR.warning, COLOR.purple, '#2dd4bf', 'var(--orange)']
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
 
       {/* ── Header ── */}
       <div style={{
@@ -356,10 +357,10 @@ export default function MetricsDashboardTab() {
         marginBottom: 28,
       }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-1)' }}>
+          <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: 700, color: 'var(--text-1)' }}>
             Métricas ITIL
           </h2>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
+          <p style={{ margin: '4px 0 0', fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
             Service Desk · últimos {days} días
           </p>
         </div>
@@ -462,7 +463,7 @@ export default function MetricsDashboardTab() {
           </div>
           <div style={{ ...S.cardPad }}>
             {typeEntries.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 12, padding: '16px 0' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
                 Sin datos
               </div>
             ) : (
@@ -486,7 +487,7 @@ export default function MetricsDashboardTab() {
           </div>
           <div style={S.cardPad}>
             {priorityEntries.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 12, padding: '16px 0' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '16px 0' }}>
                 Sin datos
               </div>
             ) : (
@@ -513,7 +514,7 @@ export default function MetricsDashboardTab() {
           <div style={S.sectionTitle}>Rendimiento de agentes</div>
           {sortedAgents.length > 0 && (
             <span style={{
-              fontSize: 10,
+              fontSize: "var(--text-2xs)",
               fontWeight: 700,
               color: 'var(--text-3)',
               background: 'var(--surface-4)',
@@ -528,7 +529,7 @@ export default function MetricsDashboardTab() {
         </div>
 
         {sortedAgents.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 12, padding: '32px 0' }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-sm)", padding: '32px 0' }}>
             Sin datos de agentes en este período
           </div>
         ) : (
@@ -549,7 +550,7 @@ export default function MetricsDashboardTab() {
                       style={{
                         padding: '10px 16px',
                         textAlign: col === 'agent_name' ? 'left' : 'center',
-                        fontSize: 10,
+                        fontSize: "var(--text-2xs)",
                         fontWeight: 700,
                         color: 'var(--text-3)',
                         textTransform: 'uppercase',
@@ -576,14 +577,14 @@ export default function MetricsDashboardTab() {
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <AgentAvatar name={a.agent_name} />
-                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
+                        <span style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
                           {a.agent_name}
                         </span>
                       </div>
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                       <span style={{
-                        fontSize: 15,
+                        fontSize: "var(--text-md-em)",
                         fontWeight: 700,
                         color: 'var(--text-1)',
                       }}>
@@ -597,7 +598,7 @@ export default function MetricsDashboardTab() {
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                       <span style={{
-                        fontSize: 12,
+                        fontSize: "var(--text-sm)",
                         fontWeight: 600,
                         color: 'var(--text-2)',
                         background: 'var(--surface-4)',
@@ -619,7 +620,7 @@ export default function MetricsDashboardTab() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 4,
-                          fontSize: 12,
+                          fontSize: "var(--text-sm)",
                           fontWeight: 700,
                           color: COLOR.danger,
                           background: COLOR.dangerBg,
@@ -634,7 +635,7 @@ export default function MetricsDashboardTab() {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 4,
-                          fontSize: 12,
+                          fontSize: "var(--text-sm)",
                           fontWeight: 700,
                           color: COLOR.success,
                           background: COLOR.successBg,
@@ -654,6 +655,6 @@ export default function MetricsDashboardTab() {
         )}
       </div>
 
-    </div>
+    </PageShell>
   )
 }

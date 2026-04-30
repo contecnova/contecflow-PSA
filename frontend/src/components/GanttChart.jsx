@@ -300,7 +300,7 @@ export default function GanttChart({
       : t('tasks.empty') || 'No hay tareas para mostrar'
     return (
       <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-3)' }}>
-        <p style={{ fontSize: 14, marginBottom: 8 }}>📊 {emptyMsg}</p>
+        <p style={{ fontSize: "var(--text-md)", marginBottom: 8 }}>📊 {emptyMsg}</p>
       </div>
     )
   }
@@ -309,7 +309,7 @@ export default function GanttChart({
     <div style={{ userSelect: 'none', fontFamily: 'var(--font-sans)' }}>
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('gantt.zoom')}</span>
+        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('gantt.zoom')}</span>
         {ZOOM_PRESETS.map(z => (
           <button key={z} onClick={() => setZoom(z)}
             style={{
@@ -317,12 +317,12 @@ export default function GanttChart({
               border: `1px solid ${zoom === z ? 'rgba(79,142,247,0.4)' : 'var(--surface-4)'}`,
               background: zoom === z ? 'var(--accent-muted)' : 'transparent',
               color: zoom === z ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: zoom === z ? 600 : 400,
+              fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: zoom === z ? 600 : 400,
             }}>
             {LBL_ZOOM[z]}
           </button>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: "var(--text-xs)", color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
           {[['var(--accent)', t('tasks.status_in_progress'), false], ['var(--success)', t('common.completed'), false], ['var(--danger)', t('tasks.status_blocked'), false], ['var(--purple)', t('gantt.milestone'), true]].map(([c, l, rot]) => (
             <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <div style={{ width: 10, height: 10, background: c, borderRadius: rot ? 2 : 3, transform: rot ? 'rotate(45deg)' : 'none' }} />
@@ -334,19 +334,19 @@ export default function GanttChart({
               <div style={{ width: 10, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />{t('gantt.baseline')}
             </span>
           )}
-          <span style={{ fontSize: 10, color: 'var(--text-3)', borderLeft: '1px solid var(--surface-4)', paddingLeft: 10 }}>
+          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', borderLeft: '1px solid var(--surface-4)', paddingLeft: 10 }}>
             +/− zoom · Esc cancelar{onDepCreate ? ' · Shift+▶ dep' : ''}
           </span>
         </div>
       </div>
 
       {/* Main: 2-column CSS grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid #1e2d45', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px 1fr`, border: '1px solid var(--surface-4)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface-1)' }}>
 
         {/* Left: label column */}
-        <div style={{ borderRight: '1px solid #1e2d45', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ height: HEADER_H, minHeight: HEADER_H, flexShrink: 0, borderBottom: '1px solid #1e2d45', background: '#0a1120', display: 'flex', alignItems: 'flex-end', padding: '0 14px 6px' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
+        <div style={{ borderRight: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: HEADER_H, minHeight: HEADER_H, flexShrink: 0, borderBottom: '1px solid var(--surface-4)', background: 'var(--surface-0)', display: 'flex', alignItems: 'flex-end', padding: '0 14px 6px' }}>
+            <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
               {mode === 'portfolio' ? 'Proyecto' : 'Tarea / Fase'}
             </span>
           </div>
@@ -354,7 +354,7 @@ export default function GanttChart({
             {rowsLayout.map(({ item, h, isGroup }) => {
               const isOverdue = !isGroup && item.due_date && parseDate(item.due_date) < today &&
                 !['done', 'closed', 'cancelled'].includes(item.status)
-              const dotColor = isOverdue ? '#f87171' : (STATUS_COLOR[item.status] || '#4a5a78')
+              const dotColor = isOverdue ? '#f87171' : (STATUS_COLOR[item.status] || 'var(--text-3)')
               return (
                 <div key={item.id} style={{
                   height: h, borderBottom: '1px solid #1e2d4520',
@@ -366,26 +366,26 @@ export default function GanttChart({
                     <>
                       <button
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: 9 }}>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-3)', fontSize: "var(--text-3xs)" }}>
                         {collapsed.has(item.id) ? '▶' : '▼'}
                       </button>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {item.title || item.name}
                       </span>
                     </>
                   ) : (
                     <>
                       <div style={{ width: 7, height: 7, borderRadius: item.is_milestone ? 0 : '50%', background: dotColor, flexShrink: 0, transform: item.is_milestone ? 'rotate(45deg)' : 'none' }} />
-                      <span style={{ fontSize: 12, color: isOverdue ? '#f87171' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? '#f87171' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {item.title || item.name}
                       </span>
                       {item.story_points > 0 && (
-                        <span style={{ fontSize: 10, color: 'var(--text-3)', background: 'var(--surface-4)', padding: '1px 4px', borderRadius: 4, flexShrink: 0 }}>
+                        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '1px 4px', borderRadius: 4, flexShrink: 0 }}>
                           {item.story_points}p
                         </span>
                       )}
                       {item.assignee_name && (
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-glow)', border: '1px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--accent-glow)', border: '1px solid var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-8)", fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
                           {item.assignee_name.slice(0, 1).toUpperCase()}
                         </div>
                       )}
@@ -407,19 +407,19 @@ export default function GanttChart({
             ))}
 
             {/* Header */}
-            <rect x={0} y={0} width={chartW} height={HEADER_H} fill="#0a1120" />
+            <rect x={0} y={0} width={chartW} height={HEADER_H} fill="var(--surface-0)" />
 
             {/* Top ticks (months / quarters / years) */}
             {topTicks.map(({ d, label }, i) => {
               const x = Math.max(0, dateToX(d))
               return (
                 <g key={i}>
-                  <line x1={x} y1={0} x2={x} y2={HEADER_H} stroke="#1e2d45" />
+                  <line x1={x} y1={0} x2={x} y2={HEADER_H} stroke="var(--surface-4)" />
                   <text x={x + 6} y={HDR_TOP / 2 + 5} fontSize={11} fill="#a0b0cc" fontFamily="inherit" fontWeight={600}>{label}</text>
                 </g>
               )
             })}
-            <line x1={0} y1={HDR_TOP} x2={chartW} y2={HDR_TOP} stroke="#1e2d45" />
+            <line x1={0} y1={HDR_TOP} x2={chartW} y2={HDR_TOP} stroke="var(--surface-4)" />
 
             {/* Bottom ticks (weeks / days / months) */}
             {botTicks.map(({ d, label }, i) => {
@@ -435,7 +435,7 @@ export default function GanttChart({
                 </g>
               )
             })}
-            <line x1={0} y1={HEADER_H} x2={chartW} y2={HEADER_H} stroke="#1e2d45" />
+            <line x1={0} y1={HEADER_H} x2={chartW} y2={HEADER_H} stroke="var(--surface-4)" />
 
             {/* Today line */}
             {todayX >= 0 && todayX <= chartW && (
@@ -459,7 +459,7 @@ export default function GanttChart({
               const startD    = parseDate(eff.start_date)
               const endD      = parseDate(eff.due_date || eff.end_date_planned || eff.end_date)
               const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status)
-              const barColor  = isOverdue ? '#f87171' : item.is_critical ? '#fb923c' : (STATUS_COLOR[item.status] || '#4a5a78')
+              const barColor  = isOverdue ? '#f87171' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
               const isDragging = dragState?.id === item.id
               const progress   = item.progress_pct != null ? item.progress_pct / 100
                 : item.status === 'done' ? 1 : item.status === 'in_progress' ? 0.4 : 0
@@ -568,7 +568,7 @@ export default function GanttChart({
               const x2 = dateToX(succStartD); const y2 = itemYCenter[succ.id]
               if (!y1 || !y2) return null
               const isHov = hoveredDep === di
-              const col   = isHov ? '#fbbf24' : '#f59e0b'
+              const col   = isHov ? '#f59e0b' : '#f59e0b'
               const midX  = x1 + 16
               const path  = y1 === y2
                 ? `M ${x1} ${y1} L ${x2} ${y2}`
@@ -606,7 +606,7 @@ export default function GanttChart({
               const ty = y - 56
               return (
                 <g style={{ pointerEvents: 'none' }}>
-                  <rect x={tx} y={ty} width={TW} height={50} rx={7} fill="#0d1424" stroke="#1e2d45" />
+                  <rect x={tx} y={ty} width={TW} height={50} rx={7} fill="var(--surface-1)" stroke="var(--surface-4)" />
                   <text x={tx + 8} y={ty + 16} fontSize={11} fill="#e8f0fe" fontFamily="inherit" fontWeight={600}>
                     {(item.title || item.name || '').slice(0, 24)}
                   </text>

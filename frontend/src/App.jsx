@@ -9,6 +9,8 @@ import { Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
 import { useAppT } from './hooks/useAppT'
 import useOfflineSync from './hooks/useOfflineSync'
+import OfflineIndicator from './components/OfflineIndicator'
+import OfflineConflictResolver from './components/OfflineConflictResolver'
 import {
   SkeletonDashboard, SkeletonTable, SkeletonProjects,
   SkeletonKanban, SkeletonGantt, SkeletonServiceDesk,
@@ -105,6 +107,7 @@ const PerformanceReviewsPage = lazy(() => import('./pages/PerformanceReviewsPage
 const TrainingPage           = lazy(() => import('./pages/TrainingPage'))
 const WebhookLogPage         = lazy(() => import('./pages/WebhookLogPage'))
 const NotificationsPage      = lazy(() => import('./pages/NotificationsPage'))
+const InboxPage              = lazy(() => import('./pages/InboxPage'))
 const RACIPage               = lazy(() => import('./pages/RACIPage'))
 const ChangelogPage          = lazy(() => import('./pages/ChangelogPage'))
 const UATPage                = lazy(() => import('./pages/UATPage'))
@@ -192,7 +195,7 @@ class PageErrorBoundary extends Component {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', minHeight: '60vh', padding: 40, textAlign: 'center'
       }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontSize: "var(--text-6xl)", marginBottom: 16 }}>⚠️</div>
         <h3 style={{ color: 'var(--danger)', marginBottom: 8 }}>
           {isChunk ? this.props.t('app_errors.page_load_outdated') : this.props.t('app_errors.page_load_failed')}
         </h3>
@@ -244,9 +247,25 @@ function ProtectedRoute({ children, roles }) {
   return children
 }
 
+// Default landing per role — aligns with PSA market standard:
+//   employee   → /work-dashboard ("My Day": tasks + timer + approvals)
+//   hr         → /team-dashboard (people, OKRs, performance, training)
+//   admin/pm/team_lead → /projects-dashboard (portfolio health + KPIs)
+//   fallback   → /tasks
+function landingPathFor(role) {
+  switch (role) {
+    case 'employee':           return '/work-dashboard'
+    case 'hr':                 return '/team-dashboard'
+    case 'admin':
+    case 'pm':
+    case 'team_lead':          return '/projects-dashboard'
+    default:                   return '/tasks'
+  }
+}
+
 function AppRoutes() {
   const { user } = useAuth()
-  const defaultPath = user?.role === 'employee' ? '/time' : '/tasks'
+  const defaultPath = landingPathFor(user?.role)
 
   return (
     <>
@@ -262,7 +281,6 @@ function AppRoutes() {
         <ProtectedRoute>
           <Layout>
             <Navigate to={defaultPath} replace />
-            {/* Por defecto: employee → /imputar, resto → /tasks */}
           </Layout>
         </ProtectedRoute>
       } />
@@ -494,6 +512,7 @@ function AppRoutes() {
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><GanttPage /></Layout></ProtectedRoute>} />
       <Route path="/bi" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIWorkspacePage /></Layout></ProtectedRoute>} />
+      <Route path="/bi/:section" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIWorkspacePage /></Layout></ProtectedRoute>} />
       <Route path="/bi/project/:projectId" element={<ProtectedRoute roles={['admin','pm']}><Layout><BIProjectDetailPage /></Layout></ProtectedRoute>} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
@@ -508,6 +527,7 @@ function AppRoutes() {
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
       <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><BIPage /></Layout></ProtectedRoute>} />
       <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
+      <Route path="/inbox"               element={<ProtectedRoute><Layout><InboxPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<ProtectedRoute><Layout><NotificationsPage /></Layout></ProtectedRoute>} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />
       <Route path="/changelog"           element={<ProtectedRoute><Layout><ChangelogPage /></Layout></ProtectedRoute>} />
@@ -532,6 +552,8 @@ export default function App() {
       <ConfirmProvider>
         <AppShell>
           <OfflineBanner />
+          <OfflineIndicator />
+          <OfflineConflictResolver />
           <AppRoutes />
         </AppShell>
       </ConfirmProvider>
@@ -541,6 +563,7 @@ export default function App() {
 
 function OfflineBanner() {
   const { isOnline, pendingCount } = useOfflineSync()
+  const { t } = useAppT()
   if (isOnline) return null
   return (
     <div
@@ -551,17 +574,17 @@ function OfflineBanner() {
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 9999,
-        background: '#f59e0b',
+        zIndex: 'var(--z-banner)',
+        background: 'var(--warning)',
         color: '#000',
         textAlign: 'center',
         padding: '6px 12px',
-        fontSize: 13,
+        fontSize: "var(--text-base)",
         fontWeight: 600,
       }}
     >
-      Sin conexión — trabajando en modo offline
-      {pendingCount > 0 && ` (${pendingCount} operaciones pendientes)`}
+      {t('offline_indicator.banner_offline')}
+      {pendingCount > 0 && ` ${t('offline_indicator.banner_pending', { count: pendingCount })}`}
     </div>
   )
 }

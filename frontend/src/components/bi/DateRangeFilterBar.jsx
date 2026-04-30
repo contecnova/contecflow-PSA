@@ -39,7 +39,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
     padding: '4px 12px',
     fontSize: '0.875em',
     borderRadius: '6px',
-    border: '1px solid var(--border-color, #d1d5db)',
+    border: '1px solid var(--border-color, var(--text-2))',
     background: 'var(--surface-3, transparent)',
     color: 'var(--text-1, #222)',
     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -56,7 +56,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
         flexWrap: 'wrap',
         background: 'var(--surface-2)',
         padding: '10px 14px',
-        border: '1px solid var(--surface-4, #e5e7eb)',
+        border: '1px solid var(--surface-4)',
         borderRadius: '0.5rem',
         color: 'var(--text-1, #222)',
       }}
@@ -95,7 +95,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
             onChange={(e) => setLocalFrom(e.target.value)}
             disabled={disabled}
             style={{
-              border: '1px solid var(--surface-4, #d1d5db)',
+              border: '1px solid var(--surface-4, var(--text-2))',
               borderRadius: '6px',
               padding: '3px 8px',
               fontSize: '0.875em',
@@ -111,7 +111,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
             onChange={(e) => setLocalTo(e.target.value)}
             disabled={disabled}
             style={{
-              border: '1px solid var(--surface-4, #d1d5db)',
+              border: '1px solid var(--surface-4, var(--text-2))',
               borderRadius: '6px',
               padding: '3px 8px',
               fontSize: '0.875em',
@@ -125,7 +125,7 @@ export default function DateRangeFilterBar({ dateFrom, dateTo, onDateChange, dis
             disabled={disabled || !localFrom || !localTo}
             style={{
               ...btnBase,
-              background: 'var(--primary, #2563eb)',
+              background: 'var(--primary)',
               color: '#fff',
               border: 'none',
               opacity: (disabled || !localFrom || !localTo) ? 0.5 : 1,

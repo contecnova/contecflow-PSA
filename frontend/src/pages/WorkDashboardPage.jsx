@@ -2,12 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
-import { Spinner } from '../components/ui'
 import { Clock, Plus, Timer, Ticket } from 'lucide-react'
-import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import {
-  COLOR, S, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -32,10 +30,10 @@ function TodayBanner({ navigate }) {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
     }}>
       <div>
-        <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500, textTransform: 'capitalize', marginBottom: 2 }}>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', fontWeight: 500, textTransform: 'capitalize', marginBottom: 2 }}>
           {greeting} · {day}, {date}
         </div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-1)' }}>¿Qué hacemos hoy?</div>
+        <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)' }}>¿Qué hacemos hoy?</div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {ACTIONS.map(({ label, icon: Icon, path, accent }) => (
@@ -43,7 +41,7 @@ function TodayBanner({ navigate }) {
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 14px', borderRadius: 8,
             background: `${accent}12`, border: `1px solid ${accent}35`,
-            color: accent, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            color: accent, cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600,
             fontFamily: 'inherit', transition: 'all 0.1s', whiteSpace: 'nowrap',
           }}
             onMouseEnter={e => { e.currentTarget.style.background = `${accent}22`; e.currentTarget.style.borderColor = `${accent}60` }}
@@ -58,7 +56,6 @@ function TodayBanner({ navigate }) {
 }
 
 export default function WorkDashboardPage() {
-  const t = useAppT()
   const navigate = useNavigate()
   const toast = useToast()
   const [days, setDays] = useState(30)

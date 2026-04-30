@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -51,19 +52,19 @@ function NotifItem({ notif, onMarkRead }) {
           flexShrink:0, marginTop:8, alignSelf:'flex-start' }} />
         <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
           background:`${cfg.color}20`, border:`1px solid ${cfg.color}30`,
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
           {cfg.icon}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-            <div style={{ fontSize:13, fontWeight:700,
+            <div style={{ fontSize: "var(--text-base)", fontWeight:700,
               color:'var(--text-1)', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis' }}>
               {notif.title}
             </div>
           </div>
-          <div style={{ fontSize:11, color:'var(--text-2)', marginTop:4 }}>{cfg.label}</div>
-          {notif.body && <div style={{ fontSize:12, color:'var(--text-2)', marginTop:6, lineHeight:1.45 }}>{notif.body}</div>}
-          <div style={{ fontSize:10, color:'var(--text-3)', marginTop:7 }}>{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
+          <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:4 }}>{cfg.label}</div>
+          {notif.body && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:6, lineHeight:1.45 }}>{notif.body}</div>}
+          <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginTop:7 }}>{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
         </div>
       </button>
     )
@@ -84,24 +85,24 @@ function NotifItem({ notif, onMarkRead }) {
       {/* Icono tipo */}
       <div style={{ width:36, height:36, borderRadius:10, flexShrink:0,
         background:`${cfg.color}20`, border:`1px solid ${cfg.color}30`,
-        display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
+        display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)" }}>
         {cfg.icon}
       </div>
       {/* Contenido */}
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-          <div style={{ fontSize:13, fontWeight: isUnread ? 700 : 400,
+          <div style={{ fontSize: "var(--text-base)", fontWeight: isUnread ? 700 : 400,
             color:'var(--text-1)' }}>{notif.title}</div>
-          <div style={{ fontSize:10, color:'var(--text-3)', whiteSpace:'nowrap', flexShrink:0 }}>
+          <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', whiteSpace:'nowrap', flexShrink:0 }}>
             {notif.created_at?.slice(0,16).replace('T',' ') || ''}
           </div>
         </div>
         {notif.body && (
-          <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2, lineHeight:1.4 }}>
+          <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2, lineHeight:1.4 }}>
             {notif.body}
           </div>
         )}
-        <div style={{ fontSize:10, color:cfg.color, marginTop:3, fontWeight:600 }}>
+        <div style={{ fontSize: "var(--text-2xs)", color:cfg.color, marginTop:3, fontWeight:600 }}>
           {cfg.label}
         </div>
       </div>
@@ -131,10 +132,10 @@ function GroupedNotifList({ notifications, onMarkRead }) {
         return (
           <div key={type} style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '0 4px' }}>
-              <span style={{ fontSize: 14 }}>{cfg.icon}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
+              <span style={{ fontSize: "var(--text-md)" }}>{cfg.icon}</span>
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{cfg.label}</span>
               {unread > 0 && (
-                <span style={{ fontSize: 10, fontWeight: 700, background: cfg.color, color: '#fff', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
+                <span style={{ fontSize: "var(--text-2xs)", fontWeight: 700, background: cfg.color, color: '#fff', borderRadius: 10, padding: '1px 7px', marginLeft: 2 }}>{unread}</span>
               )}
               <div style={{ flex: 1, height: 1, background: 'var(--surface-4)', marginLeft: 4 }} />
             </div>
@@ -181,6 +182,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!user) return
     let cancelled = false
+    let shouldCloseOnOpen = false
     let ws = null
     let ping = null
     api.get('/ws/ticket').then(r => {
@@ -191,9 +193,19 @@ export default function NotificationsPage() {
       const wsUrl = `${wsProto}://${window.location.host}/api/v1/ws/notifications?ticket=${ticket}`
       ws = new WebSocket(wsUrl)
       wsRef.current = ws
-      ws.onopen = () => setWsConnected(true)
-      ws.onclose = () => setWsConnected(false)
-      ws.onerror = () => setWsConnected(false)
+      ws.onopen = () => {
+        if (shouldCloseOnOpen) {
+          ws.close()
+          return
+        }
+        if (!cancelled) setWsConnected(true)
+      }
+      ws.onclose = () => {
+        if (!cancelled) setWsConnected(false)
+      }
+      ws.onerror = () => {
+        if (!cancelled) setWsConnected(false)
+      }
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data)
@@ -209,7 +221,17 @@ export default function NotificationsPage() {
     return () => {
       cancelled = true
       if (ping) clearInterval(ping)
-      if (ws) ws.close()
+      if (ws) {
+        ws.onmessage = null
+        ws.onerror = null
+        ws.onclose = null
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close()
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          // Avoid browser warning "WebSocket is closed before the connection is established"
+          shouldCloseOnOpen = true
+        }
+      }
     }
   }, [user, qc, toast])
 
@@ -226,14 +248,14 @@ export default function NotificationsPage() {
     : notifications
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader
         icon={<Bell size={18} />}
         title={t('notifications.title')}
         subtitle={t('notifications.subtitle')}
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11,
+            <div style={{ display:'flex', alignItems:'center', gap:5, fontSize: "var(--text-xs)",
               color: wsConnected ? 'var(--success)' : 'var(--text-3)' }}>
               <div style={{ width:6, height:6, borderRadius:'50%',
                 background: wsConnected ? 'var(--success)' : 'var(--text-3)' }} />
@@ -257,9 +279,9 @@ export default function NotificationsPage() {
         ].map(kpi => (
           <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'14px 18px' }}>
-            <div style={{ fontSize:26, fontWeight:800, color:kpi.color,
-              fontFamily:"'Space Mono',monospace" }}>{kpi.value}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
+            <div style={{ fontSize: "var(--text-2xl-em)", fontWeight:800, color:kpi.color,
+              fontFamily: 'var(--font-mono)' }}>{kpi.value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>{kpi.label}</div>
           </div>
         ))}
       </div>
@@ -268,7 +290,7 @@ export default function NotificationsPage() {
       <div style={{ display:'flex', gap:6, marginBottom:20 }}>
         {FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)}
-            style={{ padding:'7px 14px', borderRadius:8, fontSize:12, fontWeight:600,
+            style={{ padding:'7px 14px', borderRadius:8, fontSize: "var(--text-sm)", fontWeight:600,
               border:`1px solid ${filter===f.id?'rgba(79,142,247,.4)':'var(--surface-4)'}`,
               background:filter===f.id?'var(--accent-muted)':'transparent',
               color:filter===f.id?'var(--accent)':'var(--text-2)',
@@ -284,6 +306,6 @@ export default function NotificationsPage() {
       ) : (
         <GroupedNotifList notifications={filtered} onMarkRead={id => markRead(id)} />
       )}
-    </div>
+    </PageShell>
   )
 }

@@ -4,8 +4,9 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -14,8 +15,8 @@ import { useFormValidation } from '../hooks/useFormValidation'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
 const _card = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const IMPACT_CFG = {
@@ -64,7 +65,7 @@ const reviewSchema = z.object({
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || STATUS_CFG.draft
-  return <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
+  return <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40`, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{cfg.label}</span>
 }
 
 function CRFormModal({ cr, projectId, onClose }) {
@@ -82,8 +83,8 @@ function CRFormModal({ cr, projectId, onClose }) {
     scope_impact: cr?.scope_impact || '',
   })
   const validation = useFormValidation(crSchema)
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
   const set = (k) => (e) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -109,39 +110,39 @@ function CRFormModal({ cr, projectId, onClose }) {
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-title`} style={ls}>Título *</label>
           <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} style={validation.inputStyle(fs, 'title')} placeholder="Titulo de la solicitud" aria-label="Titulo de la solicitud" />
-          {validation.errors.title && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.title}</p>}
+          {validation.errors.title && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.title}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-description`} style={ls}>Descripción *</label>
           <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'description')} placeholder="Describe el cambio solicitado" aria-label="Descripcion del cambio" />
-          {validation.errors.description && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.description}</p>}
+          {validation.errors.description && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.description}</p>}
         </div>
         <div style={{ gridColumn: '1/-1' }}>
           <label htmlFor={`${idPrefix}-justification`} style={ls}>Justificación</label>
           <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} style={validation.inputStyle({ ...fs, resize: 'vertical' }, 'justification')} placeholder="Justificacion del cambio" aria-label="Justificacion del cambio" />
-          {validation.errors.justification && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.justification}</p>}
+          {validation.errors.justification && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.justification}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} style={ls}>Impacto</label>
           <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} style={validation.inputStyle(fs, 'impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
           </select>
-          {validation.errors.impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.impact}</p>}
+          {validation.errors.impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} style={ls}>Impacto en coste (€)</label>
           <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} style={validation.inputStyle(fs, 'cost_impact')} placeholder="Impacto economico" aria-label="Impacto economico" />
-          {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
+          {validation.errors.cost_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.cost_impact}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} style={ls}>Impacto en plazo (días)</label>
           <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} style={validation.inputStyle(fs, 'schedule_impact_days')} placeholder="Dias adicionales" aria-label="Dias adicionales" />
-          {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
+          {validation.errors.schedule_impact_days && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.schedule_impact_days}</p>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} style={ls}>Impacto en alcance</label>
           <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} style={validation.inputStyle(fs, 'scope_impact')} placeholder="Impacto en el alcance" aria-label="Impacto en el alcance" />
-          {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
+          {validation.errors.scope_impact && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.scope_impact}</p>}
         </div>
         <div style={{ gridColumn: '1/-1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -176,8 +177,8 @@ function ReviewCRModal({ cr, projectId, onClose }) {
   return (
     <Modal open title={`Revisar CR — ${cr.code}`} onClose={onClose} width={520}>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{cr.title}</div>
-        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>{cr.description}</p>
+        <div style={{ fontSize: "var(--text-lg)", fontWeight: 700, marginBottom: 8 }}>{cr.title}</div>
+        <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 12 }}>{cr.description}</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
           {[
             { label: 'Impacto', value: <span style={{ color: impact.color, fontWeight: 700 }}>{impact.label}</span> },
@@ -185,18 +186,18 @@ function ReviewCRModal({ cr, projectId, onClose }) {
             { label: 'Días adicionales', value: cr.schedule_impact_days ? `+${cr.schedule_impact_days}d` : '—' },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight: 600 }}>{value}</div>
             </div>
           ))}
         </div>
-        {cr.scope_impact && <p style={{ fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px' }}>📋 {cr.scope_impact}</p>}
+        {cr.scope_impact && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 8, padding: '8px 12px' }}>📋 {cr.scope_impact}</p>}
       </div>
       <div style={{ marginBottom: 16 }}>
-        <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
+        <label htmlFor={`${idPrefix}-resolution-notes`} style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6 }}>Notas de resolución</label>
         <textarea id={`${idPrefix}-resolution-notes`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2}
-          style={validation.inputStyle({ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }, 'resolution_notes')} />
-        {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: 11, color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
+          style={validation.inputStyle({ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }, 'resolution_notes')} />
+        {validation.errors.resolution_notes && <p style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--danger)' }}>{validation.errors.resolution_notes}</p>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -242,41 +243,41 @@ function CABBoard() {
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:20 }}>
         <div>
-          <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>CRs pendientes de votación CAB ({pendingCRs.length})</div>
-          {isLoading ? <div style={{ color:'var(--text-2)', fontSize:13 }}>Cargando...</div> :
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>CRs pendientes de votación CAB ({pendingCRs.length})</div>
+          {isLoading ? <div style={{ color:'var(--text-2)', fontSize: "var(--text-base)" }}>Cargando...</div> :
             pendingCRs.length === 0 ? (
-              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize:13 }}>Sin CRs pendientes de votación</div>
+              <div style={{ ...card, padding:32, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin CRs pendientes de votación</div>
             ) : pendingCRs.map(cr => {
               const ic = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (
                 <div key={cr.id} style={{ ...card, padding:'16px 20px', marginBottom:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                     <div>
-                      <div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>{cr.project_code} · {cr.code}</div>
-                      <div style={{ fontSize:14, fontWeight:500, marginBottom:6 }}>{cr.title}</div>
-                      <div style={{ display:'flex', gap:12, fontSize:12 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>{cr.project_code} · {cr.code}</div>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight:500, marginBottom:6 }}>{cr.title}</div>
+                      <div style={{ display:'flex', gap:12, fontSize: "var(--text-sm)" }}>
                         <span style={{ color:ic.color, fontWeight:500 }}>{ic.label} impacto</span>
                         {cr.cost_impact && <span style={{ color:'var(--danger)' }}>+{cr.cost_impact}€</span>}
                         {cr.schedule_impact_days && <span style={{ color:'var(--warning)' }}>+{cr.schedule_impact_days}d</span>}
                       </div>
                     </div>
-                    <div style={{ textAlign:'right', fontSize:12, color:'var(--text-2)' }}>
+                    <div style={{ textAlign:'right', fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
                       <div style={{ marginBottom:4 }}>✓ {cr.votes?.approve} | ✗ {cr.votes?.reject}</div>
                       <div>{cr.requester}</div>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
                     {cr.my_vote ? (
-                      <span style={{ fontSize:12, color:'var(--text-2)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
+                      <span style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', fontStyle:'italic' }}>Has votado: {cr.my_vote}</span>
                     ) : <>
-                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--success)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✓ Aprobar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>✗ Rechazar</button>
-                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>Abstener</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'approve' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✓ Aprobar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'reject' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 14px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>✗ Rechazar</button>
+                      <button onClick={() => vote({ id:cr.id, vote:'abstain' })} style={{ background:'transparent', border:'.5px solid var(--surface-4)', borderRadius:6, padding:'4px 14px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>Abstener</button>
                     </>}
                     {cr.votes?.total >= 3 && !['approved','rejected'].includes(cr.status) && (
                       <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                        <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
-                        <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize:12, fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
+                        <button onClick={() => close({ id:cr.id, decision:'approved' })} style={{ background:'var(--success-bg)', border:'.5px solid rgba(52,211,153,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--success)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Aprobada</button>
+                        <button onClick={() => close({ id:cr.id, decision:'rejected' })} style={{ background:'var(--danger-bg)', border:'.5px solid rgba(239,68,68,0.25)', borderRadius:6, padding:'4px 12px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit', fontWeight:500 }}>Cerrar: Rechazada</button>
                       </div>
                     )}
                   </div>
@@ -287,14 +288,14 @@ function CABBoard() {
         </div>
 
         <div>
-          <div style={{ fontSize:13, fontWeight:500, marginBottom:14 }}>Ventanas de mantenimiento</div>
+          <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:14 }}>Ventanas de mantenimiento</div>
           {windows.length === 0 ? (
-            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize:13 }}>Sin ventanas programadas</div>
+            <div style={{ ...card, padding:24, textAlign:'center', color:'var(--text-3)', fontSize: "var(--text-base)" }}>Sin ventanas programadas</div>
           ) : windows.slice(0,5).map(w => (
             <div key={w.id} style={{ ...card, padding:'12px 14px', marginBottom:10 }}>
-              <div style={{ fontSize:13, fontWeight:500, marginBottom:4 }}>{w.name}</div>
-              <div style={{ fontSize:11, color:'var(--text-2)', marginBottom:2 }}>{w.start_dt} → {w.end_dt}</div>
-              <div style={{ fontSize:11, padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', display:'inline-block' }}>{w.environment}</div>
+              <div style={{ fontSize: "var(--text-base)", fontWeight:500, marginBottom:4 }}>{w.name}</div>
+              <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginBottom:2 }}>{w.start_dt} → {w.end_dt}</div>
+              <div style={{ fontSize: "var(--text-xs)", padding:'1px 6px', borderRadius:4, background:'var(--surface-2)', color:'var(--text-2)', display:'inline-block' }}>{w.environment}</div>
             </div>
           ))}
         </div>
@@ -351,33 +352,34 @@ export default function ChangesPage() {
   const summary = changesData?.summary || {}
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<ArrowLeftRight size={18} />} title={t('changes.title')} subtitle={t('changes.subtitle')} />
-      <div style={{ display:'flex', gap:8, marginBottom:24 }}>
-        {[['changes','🔀 Control de cambios'],['cab','📋 CAB & Ventanas']].map(([id,label]) => (
-          <button key={id} onClick={() => setMainTab(id)}
-            style={{ padding:'8px 14px', borderRadius:8, border:`.5px solid ${mainTab===id?'rgba(0,212,255,0.25)':'var(--surface-4)'}`, background:mainTab===id?'var(--accent-muted)':'transparent', color:mainTab===id?'var(--accent)':'var(--text-2)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'changes', label: '🔀 Control de cambios' },
+          { id: 'cab',     label: '📋 CAB & Ventanas' },
+        ]}
+        active={mainTab}
+        onChange={setMainTab}
+        style={{ marginBottom: 24 }}
+      />
       {mainTab === 'cab' && <CABBoard />}
       {mainTab === 'changes' && <div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
-        {[['project', '📁 Por proyecto'], ...(hasRole('admin', 'pm') ? [['pending', `⏳ Pendientes (${allPending.length})`]] : [])].map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === t ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === t ? 'var(--accent-muted)' : 'transparent', color: tab === t ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
+      <Tabs
+        items={[
+          { id: 'project', label: '📁 Por proyecto' },
+          ...(hasRole('admin', 'pm') ? [{ id: 'pending', label: '⏳ Pendientes', count: allPending.length }] : []),
+        ]}
+        active={tab}
+        onChange={setTab}
+        style={{ marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--surface-4)' }}
+      />
       {tab === 'project' && (
         <>
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ flex: 1, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ flex: 1, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Seleccionar proyecto...</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
@@ -394,8 +396,8 @@ export default function ChangesPage() {
                 { label: 'Días adicionales', value: `+${summary.total_schedule_impact}d`, color: 'var(--danger)' },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px', flex: 1 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+                  <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -414,23 +416,23 @@ export default function ChangesPage() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: "'Space Mono', monospace" }}>{cr.code}</span>
-                          <span style={{ fontSize: 14, fontWeight: 700 }}>{cr.title}</span>
+                          <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{cr.code}</span>
+                          <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{cr.title}</span>
                         </div>
-                        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 8 }}>{cr.description}</p>
-                        <div style={{ display: 'flex', gap: 14, fontSize: 12 }}>
+                        <p style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 8 }}>{cr.description}</p>
+                        <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)" }}>
                           <span style={{ color: impact.color, fontWeight: 700 }}>⚡ {impact.label}</span>
                           {cr.cost_impact && <span style={{ color: 'var(--danger)' }}>💰 +{fmtCurrency(cr.cost_impact)}</span>}
                           {cr.schedule_impact_days && <span style={{ color: 'var(--warning)' }}>📅 +{cr.schedule_impact_days}d</span>}
                           {cr.requester_name && <span style={{ color: 'var(--text-2)' }}>👤 {cr.requester_name}</span>}
                         </div>
-                        {cr.resolution_notes && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>💬 {cr.resolution_notes}</div>}
+                        {cr.resolution_notes && <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>💬 {cr.resolution_notes}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                         <StatusBadge status={cr.status} />
                         <div style={{ display: 'flex', gap: 6 }}>
                           {cr.status === 'draft' && <>
-                            <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️</button>
+                            <button onClick={() => setEditing(cr)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>Enviar</Button>
                           </>}
                           {['submitted', 'under_review'].includes(cr.status) && hasRole('admin', 'pm') && (
@@ -439,7 +441,7 @@ export default function ChangesPage() {
                           {cr.status === 'approved' && (
                             <Button size="sm" onClick={() => implement(cr)}>✓ Implementar</Button>
                           )}
-                          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta solicitud de cambio?', onConfirm: () => del(cr), danger: true }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                          <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta solicitud de cambio?', onConfirm: () => del(cr), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                         </div>
                       </div>
                     </div>
@@ -459,12 +461,12 @@ export default function ChangesPage() {
             {allPending.map(cr => {
               const impact = IMPACT_CFG[cr.impact] || IMPACT_CFG.medium
               return (
-                <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid #ffb80030', borderRadius: 12 }}>
+                <div key={cr.id} style={{ padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 4 }}>{cr.project_code} · {cr.project_name} · {cr.code}</div>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>{cr.title}</div>
-                      <div style={{ display: 'flex', gap: 14, fontSize: 12 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{cr.project_code} · {cr.project_name} · {cr.code}</div>
+                      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 6 }}>{cr.title}</div>
+                      <div style={{ display: 'flex', gap: 14, fontSize: "var(--text-sm)" }}>
                         <span style={{ color: impact.color, fontWeight: 700 }}>{impact.label}</span>
                         {cr.cost_impact && <span style={{ color: 'var(--danger)' }}>+{fmtCurrency(cr.cost_impact)}</span>}
                         {cr.schedule_impact_days && <span style={{ color: 'var(--warning)' }}>+{cr.schedule_impact_days}d</span>}
@@ -483,6 +485,6 @@ export default function ChangesPage() {
       {editing && <CRFormModal cr={editing} projectId={editing.project_id} onClose={() => setEditing(null)} />}
       {reviewing && <ReviewCRModal cr={reviewing} projectId={reviewing.project_id || selectedProject} onClose={() => setReviewing(null)} />}
       </div>}
-    </div>
+    </PageShell>
   )
 }

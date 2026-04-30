@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery } from '@tanstack/react-query'
 import { forecastApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { EmptyState } from '../components/ui'
 import { BarChart } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
@@ -47,8 +48,8 @@ function HeatCell({ week }) {
       <div style={{
         position: 'absolute', inset: 0, display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        fontSize: 9, fontWeight: 700, color,
-        fontFamily: "'Space Mono', monospace",
+        fontSize: "var(--text-3xs)", fontWeight: 700, color,
+        fontFamily: 'var(--font-mono)',
       }}>
         {week.load_pct > 0 ? `${Math.round(week.load_pct)}%` : '—'}
       </div>
@@ -60,14 +61,14 @@ function HeatCell({ week }) {
           transform: 'translateX(-50%)',
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '8px 12px', zIndex: 100,
-          whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text-1)',
+          whiteSpace: 'nowrap', fontSize: "var(--text-xs)", color: 'var(--text-1)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
           minWidth: 140,
         }}>
           <div style={{ fontWeight: 700, marginBottom: 4, color }}>{STATUS_LABEL[week.status]}</div>
           <div>Comprometido: <strong>{week.committed_hours}h</strong></div>
           <div>Disponible: <strong>{week.available_hours}h</strong></div>
-          <div style={{ marginTop: 4, fontSize: 10, color: 'var(--text-2)' }}>{week.week}</div>
+          <div style={{ marginTop: 4, fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>{week.week}</div>
         </div>
       )}
     </div>
@@ -91,7 +92,7 @@ function UserRow({ user, selectedUser, onSelect }) {
         type="button"
         onClick={() => onSelect(isSelected ? null : user.user_id)}
         style={{
-          width: 160, flexShrink: 0, fontSize: 12, fontWeight: 600,
+          width: 160, flexShrink: 0, fontSize: "var(--text-sm)", fontWeight: 600,
           color: isSelected ? 'var(--accent)' : 'var(--text-1)',
           cursor: 'pointer', padding: '4px 6px', borderRadius: 6,
           background: isSelected ? 'var(--accent-muted)' : 'transparent',
@@ -105,8 +106,8 @@ function UserRow({ user, selectedUser, onSelect }) {
 
       {/* Carga media */}
       <div style={{
-        width: 44, flexShrink: 0, fontSize: 10, fontWeight: 700,
-        color: avgColor, textAlign: 'right', fontFamily: "'Space Mono', monospace",
+        width: 44, flexShrink: 0, fontSize: "var(--text-2xs)", fontWeight: 700,
+        color: avgColor, textAlign: 'right', fontFamily: 'var(--font-mono)',
       }}>
         {user.avg_load_pct}%
       </div>
@@ -119,7 +120,7 @@ function UserRow({ user, selectedUser, onSelect }) {
       {/* Indicador semanas saturadas */}
       {user.overloaded_weeks > 0 && (
         <div style={{
-          fontSize: 10, padding: '1px 6px', borderRadius: 4,
+          fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 4,
           background: 'var(--danger-bg)', color: 'var(--danger)', flexShrink: 0,
         }}>
           ⚠ {user.overloaded_weeks}s
@@ -139,7 +140,7 @@ function UserDetailPanel({ userId, weeks }) {
   })
 
   if (isLoading) return (
-    <div style={{ padding: 20, color: 'var(--text-2)', fontSize: 12, textAlign: 'center' }}>
+    <div style={{ padding: 20, color: 'var(--text-2)', fontSize: "var(--text-sm)", textAlign: 'center' }}>
       Cargando detalle...
     </div>
   )
@@ -150,11 +151,11 @@ function UserDetailPanel({ userId, weeks }) {
       background: 'var(--surface-1)', border: '1px solid rgba(79,142,247,0.2)',
       borderRadius: 12, padding: '18px 20px', marginTop: 16,
     }}>
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--accent)' }}>
+      <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 14, color: 'var(--accent)' }}>
         📊 {data.user_name} — Detalle {weeks} semanas
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 11 }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: "var(--text-xs)" }}>
           <thead>
             <tr>
               <th style={{ textAlign: 'left', color: 'var(--text-2)', padding: '4px 8px', borderBottom: '1px solid var(--surface-4)' }}>Semana</th>
@@ -173,7 +174,7 @@ function UserDetailPanel({ userId, weeks }) {
                 w.load_pct > 10  ? 'low' : 'available'
               ]
               return (
-                <tr key={w.week} style={{ borderBottom: '1px solid #0d1626' }}>
+                <tr key={w.week} style={{ borderBottom: '1px solid var(--surface-1)' }}>
                   <td style={{ padding: '5px 8px', color: 'var(--text-2)' }}>{w.week}</td>
                   <td style={{ padding: '5px 8px', textAlign: 'right', color, fontWeight: 700 }}>{w.load_pct}%</td>
                   <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--text-1)' }}>{w.committed_hours}h</td>
@@ -232,7 +233,7 @@ export default function ResourceForecastPage() {
   const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 14, padding: '16px 20px' }
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         title={_t('resource_forecast.title')}
         subtitle={_t('resource_forecast.subtitle', { weeks })}
@@ -250,10 +251,10 @@ export default function ResourceForecastPage() {
             { label: 'Personas saturadas',  value: summary.overloaded_users_count, color: summary.overloaded_users_count > 0 ? 'var(--danger)' : 'var(--success)' },
           ].map(k => (
             <div key={k.label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: k.color, fontFamily: "'Space Mono', monospace", lineHeight: 1.1 }}>
+              <div style={{ fontSize: "var(--text-xl-em)", fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>
                 {k.value}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -270,7 +271,7 @@ export default function ResourceForecastPage() {
               padding: '6px 16px', borderRadius: 7, border: 'none',
               background: view === v.id ? 'var(--accent-muted)' : 'transparent',
               color: view === v.id ? 'var(--accent)' : 'var(--text-2)',
-              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: 600,
+              cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: 600,
               outline: view === v.id ? '1px solid rgba(79,142,247,0.3)' : 'none',
             }}>{v.label}</button>
           ))}
@@ -278,7 +279,7 @@ export default function ResourceForecastPage() {
 
         <select value={weeks} onChange={e => setWeeks(+e.target.value)} style={{
           background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
-          padding: '6px 12px', color: 'var(--text-1)', fontSize: 12, fontFamily: 'inherit', outline: 'none',
+          padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'inherit', outline: 'none',
         }}>
           {[4,8,13,26,52].map(n => (
             <option key={n} value={n}>{n} semanas</option>
@@ -291,7 +292,7 @@ export default function ResourceForecastPage() {
           onChange={e => setDepartment(e.target.value)}
           style={{
             background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8,
-            padding: '6px 12px', color: 'var(--text-1)', fontSize: 12, outline: 'none', fontFamily: 'inherit',
+            padding: '6px 12px', color: 'var(--text-1)', fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit',
           }}
         />
       </div>
@@ -306,8 +307,8 @@ export default function ResourceForecastPage() {
             <div style={{ display: 'flex', gap: 3, flex: 1, overflowX: 'hidden' }}>
               {weekLabels.slice(0, VISIBLE_WEEKS).map(w => (
                 <div key={w} style={{
-                  width: 36, flexShrink: 0, fontSize: 8, color: 'var(--text-3)',
-                  textAlign: 'center', fontFamily: "'Space Mono', monospace",
+                  width: 36, flexShrink: 0, fontSize: "var(--text-8)", color: 'var(--text-3)',
+                  textAlign: 'center', fontFamily: 'var(--font-mono)',
                   transform: 'rotate(-45deg)', transformOrigin: 'center',
                   marginTop: 8,
                 }}>
@@ -340,12 +341,12 @@ export default function ResourceForecastPage() {
           {/* Leyenda */}
           <div style={{ display: 'flex', gap: 14, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--surface-4)', flexWrap: 'wrap' }}>
             {Object.entries(STATUS_COLOR).map(([k, c]) => k !== 'available' && (
-              <div key={k} style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 10, color: 'var(--text-2)' }}>
+              <div key={k} style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: "var(--text-2xs)", color: 'var(--text-2)' }}>
                 <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />
                 {STATUS_LABEL[k]}
               </div>
             ))}
-            <div style={{ fontSize: 10, color: 'var(--text-2)', marginLeft: 'auto' }}>
+            <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginLeft: 'auto' }}>
               Haz clic en un nombre para ver el detalle por proyecto
             </div>
           </div>
@@ -355,19 +356,19 @@ export default function ResourceForecastPage() {
       {/* Vista resumen semanal */}
       {view === 'summary' && (
         <div style={panel}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>
             Tendencia de carga del equipo — {weeks} semanas
           </div>
           {loadingSummary ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
               Cargando resumen...
             </div>
           ) : summaryError ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--danger)', fontSize: "var(--text-base)" }}>
               No se pudo cargar el resumen de capacidad.
             </div>
           ) : summary.week_trend.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-2)', fontSize: "var(--text-base)" }}>
               Sin datos de carga disponibles. Configura usuarios con capacidad semanal y asigna reservas de recursos.
             </div>
           ) : (
@@ -377,7 +378,7 @@ export default function ResourceForecastPage() {
               const color = pct > 100 ? 'var(--danger)' : pct > 85 ? 'var(--warning)' : pct > 50 ? 'var(--accent)' : 'var(--success)'
               return (
                 <div key={w.week} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-2)', width: 70, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', width: 70, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
                     {w.week}
                   </div>
                   <div style={{ flex: 1, height: 20, background: 'var(--surface-1)', borderRadius: 4, overflow: 'hidden' }}>
@@ -389,11 +390,11 @@ export default function ResourceForecastPage() {
                       transition: 'width 0.3s',
                     }} />
                   </div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color, width: 44, textAlign: 'right', fontFamily: "'Space Mono', monospace" }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 700, color, width: 44, textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                     {pct}%
                   </div>
                   {(summary.risk_weeks || []).includes(w.week) && (
-                    <span style={{ fontSize: 10, color: 'var(--danger)' }}>⚠</span>
+                    <span style={{ fontSize: "var(--text-2xs)", color: 'var(--danger)' }}>⚠</span>
                   )}
                 </div>
               )
@@ -407,6 +408,6 @@ export default function ResourceForecastPage() {
       {selectedUser && view === 'heatmap' && (
         <UserDetailPanel userId={selectedUser} weeks={weeks} />
       )}
-    </div>
+    </PageShell>
   )
 }

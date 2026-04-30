@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../context/ToastContext'
@@ -106,17 +107,17 @@ export default function CalendarPage() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader icon={<Calendar size={18} />} title={t('calendar.title')} subtitle={t('calendar.subtitle')} />
 
       {/* Controles */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>‹</button>
-          <div style={{ fontSize: 18, fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
-          <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 16 }}>›</button>
+          <button onClick={prevMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>‹</button>
+          <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, minWidth: 200, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
+          <button onClick={nextMonth} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-1)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-lg)" }}>›</button>
           <button onClick={() => { setYear(now.getFullYear()); setMonth(now.getMonth()) }}
-            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, color: 'var(--text-2)', padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-sm)" }}>
             Hoy
           </button>
         </div>
@@ -128,7 +129,7 @@ export default function CalendarPage() {
               style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${filter === k ? EVENT_TYPES[k]?.color || 'var(--accent)' : 'var(--surface-4)'}`,
                 background: filter === k ? (EVENT_TYPES[k]?.color || 'var(--accent)') + '15' : 'transparent',
                 color: filter === k ? (EVENT_TYPES[k]?.color || 'var(--accent)') : 'var(--text-2)',
-                fontSize: 11, fontWeight: filter === k ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
+                fontSize: "var(--text-xs)", fontWeight: filter === k ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
               {k !== 'all' && EVENT_TYPES[k]?.icon + ' '}{label}
             </button>
           ))}
@@ -138,12 +139,12 @@ export default function CalendarPage() {
       {/* Leyenda */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         {Object.entries(EVENT_TYPES).map(([k, v]) => (
-          <span key={k} style={{ fontSize: 11, color: 'var(--text-2)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <span key={k} style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', display: 'flex', gap: 5, alignItems: 'center' }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, display: 'inline-block' }} />
             {v.label}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-2)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
           {allEvents.length} evento(s) este mes
         </span>
       </div>
@@ -151,7 +152,7 @@ export default function CalendarPage() {
       {/* Cabecera días */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
         {DAYS.map(d => (
-          <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+          <div key={d} style={{ textAlign: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
             padding: '8px 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {d}
           </div>
@@ -167,22 +168,22 @@ export default function CalendarPage() {
           return (
             <div key={day} style={{
               minHeight: 100,
-              border: `1px solid ${isToday ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+              border: `1px solid ${isToday ? 'var(--accent)' : 'var(--surface-4)'}`,
               borderRadius: 8, padding: '8px 6px',
               background: isToday ? 'var(--accent-muted)' : 'var(--surface-2)',
             }}>
               <div style={{
-                fontSize: 13, fontWeight: isToday ? 800 : 400,
+                fontSize: "var(--text-base)", fontWeight: isToday ? 800 : 400,
                 color: isToday ? 'var(--accent)' : 'var(--text-2)',
                 marginBottom: 4,
-                ...(isToday ? { background: 'var(--accent)', color: '#000', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 } : {})
+                ...(isToday ? { background: 'var(--accent)', color: '#000', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)" } : {})
               }}>{day}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {dayEvents.slice(0, 3).map(e => {
                   const cfg = EVENT_TYPES[e.type] || {}
                   return (
                     <div key={e.id} title={e.title}
-                      style={{ fontSize: 10, padding: '2px 5px', borderRadius: 4, borderLeft: `2px solid ${cfg.color}`,
+                      style={{ fontSize: "var(--text-2xs)", padding: '2px 5px', borderRadius: 4, borderLeft: `2px solid ${cfg.color}`,
                         background: cfg.color + '15', color: 'var(--text-1)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       {cfg.icon} {e.title}
@@ -190,13 +191,13 @@ export default function CalendarPage() {
                   )
                 })}
                 {dayEvents.length > 3 && (
-                  <div style={{ fontSize: 10, color: 'var(--text-2)', padding: '1px 4px' }}>+{dayEvents.length - 3} más</div>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', padding: '1px 4px' }}>+{dayEvents.length - 3} más</div>
                 )}
               </div>
             </div>
           )
         })}
       </div>
-    </div>
+    </PageShell>
   )
 }

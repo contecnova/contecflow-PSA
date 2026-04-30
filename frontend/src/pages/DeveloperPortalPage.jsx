@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { Button, Modal, EmptyState, Spinner } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Code2 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -14,11 +15,11 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 
 const FS = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
-const LS = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
-const MONO = { fontFamily: "'Space Mono', monospace", background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px', fontSize: 12, color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
+const LS = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const MONO = { fontFamily: 'var(--font-mono)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px', fontSize: "var(--text-sm)", color: 'var(--text-1)', border: '1px solid var(--surface-4)', wordBreak: 'break-all', display: 'block' }
 
 const AVAILABLE_SCOPES = ['read', 'write', 'projects', 'tasks', 'timesheets', 'billing', 'admin']
 
@@ -66,15 +67,15 @@ function AppModal({ app, onClose }) {
     <Modal open title={t('developer.app_created')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ background: '#1a3a2a', border: '1px solid #2d6a4f', borderRadius: 10, padding: 16 }}>
-          <p style={{ color: '#b7e4c7', fontSize: 13, marginBottom: 12, fontWeight: 600 }}>
+          <p style={{ color: '#b7e4c7', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
             {t('developer.secret_warning')}
           </p>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ ...LS, color: '#68d391' }}>{t('developer.client_id')}</label>
+            <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_id')}</label>
             <code style={MONO}>{newSecret.client_id}</code>
           </div>
           <div>
-            <label style={{ ...LS, color: '#68d391' }}>{t('developer.client_secret')}</label>
+            <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>
             <code style={MONO}>{newSecret.client_secret}</code>
           </div>
         </div>
@@ -100,7 +101,7 @@ function AppModal({ app, onClose }) {
         </div>
         <div>
           <label style={LS}>{t('developer.app_redirect_label')}</label>
-          <textarea value={f.redirect_uris} onChange={set('redirect_uris')} style={{ ...FS, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }} rows={3}
+          <textarea value={f.redirect_uris} onChange={set('redirect_uris')} style={{ ...FS, resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: "var(--text-sm)" }} rows={3}
             placeholder={t('developer.app_redirect_placeholder')} />
         </div>
         <div>
@@ -111,7 +112,7 @@ function AppModal({ app, onClose }) {
                 padding: '5px 12px', borderRadius: 20, border: `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}`,
                 background: f.scopes.includes(s) ? 'var(--accent-muted)' : 'transparent',
                 color: f.scopes.includes(s) ? 'var(--accent)' : 'var(--text-2)',
-                fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit',
               }}>{s}</button>
             ))}
           </div>
@@ -145,12 +146,12 @@ function AppDetail({ app, onClose, onRotated }) {
           <label style={LS}>{t('developer.client_id')}</label>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <code style={{ ...MONO, flex: 1 }}>{app.client_id}</code>
-            <Button variant="secondary" onClick={() => copy(app.client_id)} style={{ fontSize: 12, flexShrink: 0 }}>{t('developer.copy_btn')}</Button>
+            <Button variant="secondary" onClick={() => copy(app.client_id)} style={{ fontSize: "var(--text-sm)", flexShrink: 0 }}>{t('developer.copy_btn')}</Button>
           </div>
         </div>
         <div>
           <label style={LS}>{t('developer.client_secret')}</label>
-          <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>{t('developer.secret_not_shown')}</p>
+          <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 8 }}>{t('developer.secret_not_shown')}</p>
           <Button variant="secondary" onClick={() => openConfirmGlobal({
             title: t('developer.rotate_confirm_title'),
             message: t('developer.rotate_confirm_message'),
@@ -167,9 +168,9 @@ function AppDetail({ app, onClose, onRotated }) {
           <label style={LS}>{t('developer.userinfo_endpoint')}</label>
           <code style={MONO}>{window.location.origin}/api/v1/developer/userinfo</code>
         </div>
-        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 12, fontSize: 12, color: 'var(--text-2)' }}>
+        <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: 12, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
           <strong>{t('developer.client_credentials_example')}</strong>
-          <pre style={{ marginTop: 8, fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-1)' }}>{`POST /api/v1/developer/token
+          <pre style={{ marginTop: 8, fontSize: "var(--text-xs)", whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'var(--text-1)' }}>{`POST /api/v1/developer/token
 Content-Type: application/json
 
 {
@@ -205,7 +206,7 @@ export default function DeveloperPortalPage() {
   })
 
   return (
-    <div style={{ padding: 32, maxWidth: 960, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 960, margin: '0 auto' }}>
       <PageHeader
         icon={<Code2 size={18} />}
         title={t('developer.portal_title')}
@@ -227,27 +228,27 @@ export default function DeveloperPortalPage() {
               borderRadius: 12, padding: 20,
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{app.name}</div>
+                <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{app.name}</div>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                  fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                   background: app.is_active ? '#2d6a4f' : 'var(--surface-4)',
                   color: app.is_active ? '#b7e4c7' : 'var(--text-3)',
                 }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
               </div>
-              {app.description && <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10, lineHeight: 1.4 }}>{app.description}</p>}
+              {app.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, lineHeight: 1.4 }}>{app.description}</p>}
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>{t('developer.client_id')}</div>
-                <code style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-2)' }}>{app.client_id}</code>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{t('developer.client_id')}</div>
+                <code style={{ fontSize: "var(--text-xs)", fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{app.client_id}</code>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
                 {app.scopes?.map(s => (
-                  <span key={s} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'var(--surface-3)', color: 'var(--text-2)', border: '1px solid var(--surface-4)' }}>{s}</span>
+                  <span key={s} style={{ fontSize: "var(--text-2xs)", padding: '2px 8px', borderRadius: 20, background: 'var(--surface-3)', color: 'var(--text-2)', border: '1px solid var(--surface-4)' }}>{s}</span>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Button variant="secondary" onClick={() => setViewCreds(app)} style={{ fontSize: 12 }}>{t('developer.credentials_btn')}</Button>
-                <Button variant="secondary" onClick={() => setEditing(app)} style={{ fontSize: 12 }}>{t('developer.edit_btn')}</Button>
-                <Button variant="danger" style={{ fontSize: 12 }} onClick={() =>
+                <Button variant="secondary" onClick={() => setViewCreds(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.credentials_btn')}</Button>
+                <Button variant="secondary" onClick={() => setEditing(app)} style={{ fontSize: "var(--text-sm)" }}>{t('developer.edit_btn')}</Button>
+                <Button variant="danger" style={{ fontSize: "var(--text-sm)" }} onClick={() =>
                   openConfirmGlobal({ title: t('developer.delete_app_title'), message: t('developer.delete_app_confirm', { name: app.name }), onConfirm: () => deleteApp(app.id) })
                 }>{t('developer.delete_btn')}</Button>
               </div>
@@ -265,16 +266,16 @@ export default function DeveloperPortalPage() {
         <Modal open title={t('developer.new_secret_generated')} onClose={() => { setRotatedSecret(null); setViewCreds(null) }} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ background: '#1a3a2a', border: '1px solid #2d6a4f', borderRadius: 10, padding: 14 }}>
-              <p style={{ color: '#b7e4c7', fontSize: 13, marginBottom: 10, fontWeight: 600 }}>
+              <p style={{ color: '#b7e4c7', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
                 {t('developer.save_new_secret')}
               </p>
-              <label style={{ ...LS, color: '#68d391' }}>{t('developer.client_secret')}</label>
+              <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>
               <code style={{ ...MONO }}>{rotatedSecret.client_secret}</code>
             </div>
             <Button onClick={() => { setRotatedSecret(null); setViewCreds(null) }}>{t('developer.understood_btn')}</Button>
           </div>
         </Modal>
       )}
-    </div>
+    </PageShell>
   )
 }

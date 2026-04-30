@@ -4,15 +4,16 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
-import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { AlertTriangle } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
 // ── Estilos compartidos ───────────────────────────────────────────────────────
-const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-const _ls = { fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+const _fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+const _ls = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
 
 const PROB_OPTIONS = [
@@ -94,14 +95,14 @@ function RiskMatrix({ risks }) {
       <table style={{ borderCollapse: 'separate', borderSpacing: 4 }}>
         <thead>
           <tr>
-            <th style={{ padding: '6px 10px', fontSize: 11, color: 'var(--text-2)', textAlign: 'right' }}>{t('risks.matrix.axis')}</th>
-            {probs.map(p => <th key={p} style={{ padding: '6px 10px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center', width: 90 }}>{probLabels[p]}</th>)}
+            <th style={{ padding: '6px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right' }}>{t('risks.matrix.axis')}</th>
+            {probs.map(p => <th key={p} style={{ padding: '6px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'center', width: 90 }}>{probLabels[p]}</th>)}
           </tr>
         </thead>
         <tbody>
           {[...impacts].reverse().map(imp => (
             <tr key={imp}>
-              <td style={{ padding: '4px 10px', fontSize: 11, color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>{impactLabels[imp]}</td>
+              <td style={{ padding: '4px 10px', fontSize: "var(--text-xs)", color: 'var(--text-2)', textAlign: 'right', whiteSpace: 'nowrap' }}>{impactLabels[imp]}</td>
               {probs.map(prob => {
                 const color = getColor(prob, imp)
                 const cr = cellRisks(prob, imp)
@@ -110,8 +111,8 @@ function RiskMatrix({ risks }) {
                     <div style={{ width: 82, height: 52, borderRadius: 6, background: color + '20', border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
                       {cr.length > 0 && (
                         <>
-                          <div style={{ fontSize: 16, fontWeight: 800, color, fontFamily: "'Space Mono', monospace" }}>{cr.length}</div>
-                          <div style={{ fontSize: 9, color: color, maxWidth: 70, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: "var(--text-lg)", fontWeight: 800, color, fontFamily: 'var(--font-mono)' }}>{cr.length}</div>
+                          <div style={{ fontSize: "var(--text-3xs)", color: color, maxWidth: 70, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {cr[0].code}
                             {cr.length > 1 ? ` +${cr.length - 1}` : ''}
                           </div>
@@ -153,8 +154,8 @@ function RiskFormModal({ risk, projectId, onClose }) {
     notes: risk?.notes || '',
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
-  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 12px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const ls = { fontSize: 11, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
+  const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
+  const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data) => isEdit
@@ -280,7 +281,7 @@ export default function RisksPage() {
   const { sortedData: sortedRisks } = useSort(filteredRisks, riskSortBy)
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader
         icon={<AlertTriangle size={18} />}
         title={t('risks.title')}
@@ -288,7 +289,7 @@ export default function RisksPage() {
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 200 }}>
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer', minWidth: 200 }}>
               <option value="">{t('risks.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
             </select>
@@ -306,37 +307,37 @@ export default function RisksPage() {
           { label: t('risks.summary.high'), value: summary.high_count || risks.filter(r => r.risk_level === 'high').length, color: 'var(--warning)' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '14px 18px', flex: 1 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "'Space Mono', monospace", color }}>{value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 800, fontFamily: 'var(--font-mono)', color }}>{value}</div>
+            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-        {[
-          ['register', t('risks.tabs.register')],
-          ['matrix', t('risks.tabs.matrix')],
-        ].map(([tabKey, label]) => (
-          <button key={tabKey} onClick={() => setTab(tabKey)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: `1px solid ${tab === tabKey ? 'var(--accent-glow)' : 'var(--surface-4)'}`, background: tab === tabKey ? 'var(--accent-muted)' : 'transparent', color: tab === tabKey ? 'var(--accent)' : 'var(--text-2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'register', label: t('risks.tabs.register') },
+          { id: 'matrix',   label: t('risks.tabs.matrix') },
+        ]}
+        active={tab}
+        onChange={setTab}
+        variant="pill"
+        size="sm"
+        ariaLabel={t('risks.title')}
+        style={{ marginBottom: 20, borderBottom: 'none' }}
+      />
 
       {isLoading ? <Spinner /> : risks.length === 0 ? (
         <EmptyState icon="🛡️" title={t('risks.empty.title')} description={selectedProject ? t('risks.empty.no_risks_project') : t('risks.empty.no_risks_portfolio')} />
       ) : tab === 'matrix' ? (
         <Card style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('risks.matrix.title')}</h3>
+          <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('risks.matrix.title')}</h3>
           <RiskMatrix risks={risks} />
         </Card>
       ) : (
         <div>
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
             <select value={riskLevelFilter} onChange={e => setRiskLevelFilter(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: riskLevelFilter ? 'var(--danger)' : 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: riskLevelFilter ? 'var(--danger)' : 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">{t('risks.filters.all_levels')}</option>
               <option value="critical">🚨 {t('risks.options.level_critical')}</option>
               <option value="high">🔴 {t('risks.options.level_high')}</option>
@@ -344,7 +345,7 @@ export default function RisksPage() {
               <option value="low">🟢 {t('risks.options.level_low')}</option>
             </select>
             <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value)}
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 14px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="risk_level">{t('risks.sort.level')}</option>
               <option value="title">{t('risks.sort.title')}</option>
               <option value="status">{t('risks.sort.status')}</option>
@@ -365,18 +366,18 @@ export default function RisksPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                       <div>
-                        <span style={{ fontSize: 14, fontWeight: 700 }}>{r.title}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-2)', marginLeft: 8, fontFamily: "'Space Mono', monospace" }}>{r.code}</span>
-                        {r.project_name && <span style={{ fontSize: 11, color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
+                        <span style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{r.title}</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>{r.code}</span>
+                        {r.project_name && <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginLeft: 8 }}>· {r.project_name}</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${lvl.color}40` }}>{lvl.label}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{r.status_label}</span>
-                        <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️</button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                        <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: lvl.bg, color: lvl.color, border: `1px solid ${lvl.color}40` }}>{lvl.label}</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>{r.status_label}</span>
+                        <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 8px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
+                        <button onClick={() => { openConfirmGlobal({ message: t('risks.delete_confirm'), onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '3px 8px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
+                    <div style={{ display: 'flex', gap: 16, fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: r.mitigation_plan ? 8 : 0 }}>
                       <span>Prob: <span style={{ color: 'var(--text-1)' }}>{r.probability_label}</span></span>
                       <span>Impacto: <span style={{ color: 'var(--text-1)' }}>{r.impact_label}</span></span>
                       {r.category_label && <span>Tipo: <span style={{ color: 'var(--text-1)' }}>{r.category_label}</span></span>}
@@ -385,7 +386,7 @@ export default function RisksPage() {
                       {r.schedule_impact_days && <span>Plazo: <span style={{ color: 'var(--warning)' }}>+{r.schedule_impact_days}d</span></span>}
                     </div>
                     {r.mitigation_plan && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
+                      <div style={{ marginTop: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-3)', borderRadius: 6, padding: '6px 10px' }}>
                         🛡️ <span style={{ color: 'var(--text-1)' }}>{r.mitigation_plan}</span>
                       </div>
                     )}
@@ -404,22 +405,22 @@ export default function RisksPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: lvl.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: lvl.bg, color: lvl.color }}>{lvl.label}</span>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: lvl.bg, color: lvl.color }}>{lvl.label}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '2px 7px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 11 }}>✏️</button>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este riesgo?', onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid #ff475730', borderRadius: 5, padding: '2px 7px', color: 'var(--danger)', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                      <button onClick={() => setEditing(r)} style={{ background: 'none', border: '1px solid var(--surface-4)', borderRadius: 5, padding: '2px 7px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>✏️</button>
+                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar este riesgo?', onConfirm: () => deleteRisk({ projectId: r.project_id, riskId: r.id, danger: true }) }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 5, padding: '2px 7px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                     </div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{r.title}</div>
-                  {r.project_name && <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>📁 {r.project_name}</div>}
+                  <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>{r.title}</div>
+                  {r.project_name && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>📁 {r.project_name}</div>}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>P: {r.probability_label}</span>
-                    <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>I: {r.impact_label}</span>
-                    {r.owner_name && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>👤 {r.owner_name}</span>}
+                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>P: {r.probability_label}</span>
+                    <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>I: {r.impact_label}</span>
+                    {r.owner_name && <span style={{ fontSize: "var(--text-xs)", padding: '2px 7px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>👤 {r.owner_name}</span>}
                   </div>
                   {r.mitigation_plan && (
-                    <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.4, borderTop: '1px solid var(--surface-4)', paddingTop: 6, marginTop: 4 }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.4, borderTop: '1px solid var(--surface-4)', paddingTop: 6, marginTop: 4 }}>
                       🛡️ {r.mitigation_plan.length > 80 ? r.mitigation_plan.slice(0, 80) + '…' : r.mitigation_plan}
                     </div>
                   )}
@@ -433,6 +434,6 @@ export default function RisksPage() {
 
       {showCreate && <RiskFormModal projectId={selectedProject} onClose={() => setShowCreate(false)} />}
       {editing && <RiskFormModal risk={editing} projectId={editing.project_id} onClose={() => setEditing(null)} />}
-    </div>
+    </PageShell>
   )
 }

@@ -29,7 +29,7 @@ const DEFAULT_LINKS = [
   { source: 'Router-Core', target: 'Client-02', value: 1 },
 ]
 
-const GROUP_COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#10b981', '#ef4444', '#a855f7']
+const GROUP_COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#34d399', '#f87171', '#a855f7']
 
 export default function NetworkChart({ data, width = 900, height = 420 }) {
   const svgRef = useRef(null)
@@ -134,7 +134,7 @@ export default function NetworkChart({ data, width = 900, height = 420 }) {
     })
 
     return () => simulation.stop()
-  }, [nodes.length, links.length, tokens, dark, width, height])
+  }, [nodes, links, tokens, dark, width, height])
 
   return (
     <div role="img" aria-label="Network graph chart">

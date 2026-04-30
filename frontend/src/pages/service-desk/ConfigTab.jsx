@@ -58,15 +58,15 @@ function CatalogConfig() {
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block',
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block',
     marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.catalog_empty_desc')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.catalog_empty_desc')}</div>
         <div style={{ display:'flex', gap:8 }}>
           <Button variant="secondary" onClick={() => setShowNewSvc(true)} disabled={catalog.length===0}>+ {t('service_desk.svc_new_title')}</Button>
           <Button onClick={() => setShowNewCat(true)}>+ {t('service_desk.cat_new_title')}</Button>
@@ -80,15 +80,15 @@ function CatalogConfig() {
           <div key={cat.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', background:'var(--surface-1)', borderBottom:'1px solid var(--surface-4)',
               display:'flex', alignItems:'center', gap:10 }}>
-              <span style={{ fontSize:18 }}>{cat.icon || '📁'}</span>
-              <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>{cat.name}</span>
-              {cat.description && <span style={{ fontSize:12, color:'var(--text-3)' }}>— {cat.description}</span>}
-              <span style={{ marginLeft:'auto', fontSize:11, color:'var(--text-3)' }}>{cat.services?.length || 0} servicios</span>
+              <span style={{ fontSize: "var(--text-lg-em)" }}>{cat.icon || '📁'}</span>
+              <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{cat.name}</span>
+              {cat.description && <span style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>— {cat.description}</span>}
+              <span style={{ marginLeft:'auto', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{cat.services?.length || 0} servicios</span>
               <div style={{ display:'flex', gap:6, marginLeft:8 }}>
                 <button onClick={() => setEditingCat(cat)}
-                  style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
+                  style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar categoría y todos sus servicios?', onConfirm: () => deleteCat(cat.id), danger: true }) }}
-                  style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+                  style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
             {cat.services?.length > 0 && (
@@ -96,17 +96,17 @@ function CatalogConfig() {
                 <tbody>
                   {cat.services.map(svc => (
                     <tr key={svc.id} style={{ borderBottom:'1px solid var(--surface-4)' }}>
-                      <td style={{ padding:'10px 18px', fontSize:13, color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
-                      <td style={{ padding:'10px 8px', fontSize:11, color:'var(--text-2)' }}>{svc.ticket_type?.replace(/_/g,' ')}</td>
+                      <td style={{ padding:'10px 18px', fontSize: "var(--text-base)", color:'var(--text-1)', fontWeight:500 }}>{svc.name}</td>
+                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>{svc.ticket_type?.replace(/_/g,' ')}</td>
                       <td style={{ padding:'10px 8px' }}><PBadge v={svc.default_priority} /></td>
-                      <td style={{ padding:'10px 8px', fontSize:11, color:'var(--text-2)' }}>R:{svc.sla_response_hours}h / Res:{svc.sla_resolution_hours}h</td>
-                      <td style={{ padding:'10px 8px', fontSize:11, color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
+                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-2)' }}>R:{svc.sla_response_hours}h / Res:{svc.sla_resolution_hours}h</td>
+                      <td style={{ padding:'10px 8px', fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{svc.requires_approval ? '🔐' : ''}</td>
                       <td style={{ padding:'6px 12px' }}>
                         <div style={{ display:'flex', gap:6 }}>
                           <button onClick={() => setEditingSvc({...svc, category_id: cat.id})}
-                            style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>✏</button>
+                            style={{ padding:'3px 8px', borderRadius:5, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                           <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar servicio?', onConfirm: () => deleteSvc(svc.id), danger: true }) }}
-                            style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
+                            style={{ padding:'3px 8px', borderRadius:5, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
                         </div>
                       </td>
                     </tr>
@@ -209,7 +209,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <input type="checkbox" id="req_appr" checked={form.requires_approval} onChange={set('requires_approval')} />
-          <label htmlFor="req_appr" style={{ fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
+          <label htmlFor="req_appr" style={{ fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.svc_requires_approval')}</label>
         </div>
         <div style={{ gridColumn:'1/-1', display:'flex', justifyContent:'flex-end', gap:10 }}>
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -249,14 +249,14 @@ function SLAConfig() {
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.sla_empty_desc')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.sla_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.sla_new_title')}</Button>
       </div>
 
@@ -264,23 +264,23 @@ function SLAConfig() {
        policies.length === 0 ? <EmptyState icon="⏱" title={t('service_desk.sla_empty')} description={t('service_desk.sla_empty_desc')} /> :
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         {policies.map(p => (
-          <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent-glow)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
+          <div key={p.id} style={{ background:'var(--surface-2)', border:`1px solid ${p.is_default ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius:12, padding:20 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-              <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
-              {p.is_default && <span style={{ fontSize:10, background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight: 600 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
-              {p.business_hours_only && <span style={{ fontSize:10, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{t('service_desk.sla_business_hours')}</span>}
+              <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{p.name}</span>
+              {p.is_default && <span style={{ fontSize: "var(--text-2xs)", background:'var(--accent-muted)', color:'var(--accent)', padding:'2px 8px', borderRadius:4, fontWeight: 600 }}>{t('service_desk.sla_default_policy').toUpperCase()}</span>}
+              {p.business_hours_only && <span style={{ fontSize: "var(--text-2xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{t('service_desk.sla_business_hours')}</span>}
               <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
                 <button onClick={() => setEditing(p)}
-                  style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
+                  style={{ padding:'3px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>✏ Editar</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta política SLA?', onConfirm: () => remove(p.id), danger: true }) }}
-                  style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize:11, cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
+                  style={{ padding:'3px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit' }}>🗑 Eliminar</button>
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-              {[['P1 Crítico', 'p1', COLOR.danger], ['P2 Alto', 'p2', '#fb923c'], ['P3 Medio', 'p3', COLOR.warning], ['P4 Bajo', 'p4', COLOR.text2]].map(([label, key, color]) => (
+              {[['P1 Crítico', 'p1', COLOR.danger], ['P2 Alto', 'p2', 'var(--orange)'], ['P3 Medio', 'p3', COLOR.warning], ['P4 Bajo', 'p4', COLOR.text2]].map(([label, key, color]) => (
                 <div key={key} style={{ background:'var(--surface-1)', borderRadius:8, padding:12, borderTop:`3px solid ${color}` }}>
-                  <div style={{ fontSize:11, fontWeight:700, color, marginBottom:8 }}>{label}</div>
-                  <div style={{ fontSize:12, color:'var(--text-2)' }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight:700, color, marginBottom:8 }}>{label}</div>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)' }}>
                     <div>Resp: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_response_hours`]}h</strong></div>
                     <div>Res: <strong style={{ color:'var(--text-1)' }}>{p[`${key}_resolution_hours`]}h</strong></div>
                   </div>
@@ -323,7 +323,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
       <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('common.name')} *</label><input value={form.name} onChange={set('name')} style={IS} /></div>
       {[['P1 Crítico', 'p1'], ['P2 Alto', 'p2'], ['P3 Medio', 'p3'], ['P4 Bajo', 'p4']].map(([label, key]) => (
         <div key={key} style={{ background:'var(--surface-1)', borderRadius:10, padding:14 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
+          <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)', marginBottom:10 }}>{label}</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <div><label style={LS}>{t('service_desk.sla_response_h')}</label><input type="number" value={form[`${key}_response_hours`]} onChange={set(`${key}_response_hours`)} style={IS} /></div>
             <div><label style={LS}>{t('service_desk.sla_resolution_h')}</label><input type="number" value={form[`${key}_resolution_hours`]} onChange={set(`${key}_resolution_hours`)} style={IS} /></div>
@@ -331,11 +331,11 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }) {
         </div>
       ))}
       <div style={{ gridColumn:'1/-1', display:'flex', gap:20, alignItems:'center' }}>
-        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>
+        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
           <input type="checkbox" checked={form.is_default} onChange={set('is_default')} />
           {t('service_desk.sla_default_policy')}
         </label>
-        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:13, color:'var(--text-1)', cursor:'pointer' }}>
+        <label style={{ display:'flex', gap:8, alignItems:'center', fontSize: "var(--text-base)", color:'var(--text-1)', cursor:'pointer' }}>
           <input type="checkbox" checked={form.business_hours_only} onChange={set('business_hours_only')} />
           {t('service_desk.sla_business_only')}
         </label>
@@ -391,14 +391,14 @@ function GroupsConfig() {
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.groups_empty_desc')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.groups_empty_desc')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.groups_new_title')}</Button>
       </div>
 
@@ -412,37 +412,37 @@ function GroupsConfig() {
             <div key={g.id} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:12, padding:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontSize:14, fontWeight:600, color:'var(--text-1)' }}>{g.name}</span>
-                  <span style={{ fontSize:11, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{g.support_level?.toUpperCase() || 'L1'}</span>
+                  <span style={{ fontSize: "var(--text-md)", fontWeight:600, color:'var(--text-1)' }}>{g.name}</span>
+                  <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>{g.support_level?.toUpperCase() || 'L1'}</span>
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                   {available.length > 0 && (
                     <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
-                      style={{ ...IS, width:'auto', fontSize:12 }}>
+                      style={{ ...IS, width:'auto', fontSize: "var(--text-sm)" }}>
                       <option value="" disabled>+ Añadir miembro</option>
                       {available.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                     </select>
                   )}
                   <button onClick={() => setEditing(g)}
-                    style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
+                    style={{ padding:'4px 10px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>✏ Editar</button>
                   <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar el grupo "${g.name}"?`, onConfirm: () => deleteGroup(g.id), danger: true }) }}
-                    style={{ padding:'4px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize:11, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
+                    style={{ padding:'4px 10px', borderRadius:6, border:`1px solid ${COLOR.danger}30`, background:'transparent', color:COLOR.danger, fontSize: "var(--text-xs)", cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>🗑 Eliminar</button>
                 </div>
               </div>
-              {g.description && <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
+              {g.description && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', marginBottom:12 }}>{g.description}</div>}
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {(g.members || []).map(m => (
                   <div key={m.id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--surface-1)',
                     border:'1px solid var(--surface-4)', borderRadius:20, padding:'4px 12px' }}>
-                    <span style={{ fontSize:12, color:'var(--text-1)' }}>{m.full_name}</span>
-                    {m.is_lead && <span style={{ fontSize:10, color:COLOR.accent }}>★</span>}
+                    <span style={{ fontSize: "var(--text-sm)", color:'var(--text-1)' }}>{m.full_name}</span>
+                    {m.is_lead && <span style={{ fontSize: "var(--text-2xs)", color:COLOR.accent }}>★</span>}
                     <button onClick={() => removeMember({gid:g.id, uid:m.id})}
                       style={{ background:'none', border:'none', color:'var(--text-4)', cursor:'pointer',
-                        fontSize:14, padding:'0 0 0 4px', lineHeight:1 }}>×</button>
+                        fontSize: "var(--text-md)", padding:'0 0 0 4px', lineHeight:1 }}>×</button>
                   </div>
                 ))}
                 {(!g.members || g.members.length === 0) &&
-                  <span style={{ fontSize:12, color:'var(--text-4)' }}>{t('service_desk.groups_no_members')}</span>}
+                  <span style={{ fontSize: "var(--text-sm)", color:'var(--text-4)' }}>{t('service_desk.groups_no_members')}</span>}
               </div>
             </div>
           )
@@ -528,14 +528,14 @@ function TemplatesConfig() {
   })
 
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'9px 13px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }
 
   return (
     <div>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
-        <div style={{ fontSize:12, color:'var(--text-3)' }}>{t('service_desk.templates_hint')}</div>
+        <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)' }}>{t('service_desk.templates_hint')}</div>
         <Button onClick={() => setShowNew(true)}>+ {t('service_desk.templates_new_title')}</Button>
       </div>
 
@@ -547,30 +547,30 @@ function TemplatesConfig() {
             borderRadius:12, padding:16, opacity: tmpl.is_active ? 1 : 0.55 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
               <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{tmpl.name}</div>
-                <span style={{ fontSize:11, background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
+                <div style={{ fontSize: "var(--text-base)", fontWeight:600, color:'var(--text-1)', marginBottom:4 }}>{tmpl.name}</div>
+                <span style={{ fontSize: "var(--text-xs)", background:'var(--surface-4)', color:'var(--text-2)', padding:'2px 8px', borderRadius:4 }}>
                   {tmpl.ticket_type?.replace(/_/g,' ')}
                 </span>
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 <button onClick={() => toggle({id:tmpl.id, is_active:!tmpl.is_active})}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
-                    fontSize:11, color: tmpl.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
+                    fontSize: "var(--text-xs)", color: tmpl.is_active ? COLOR.success : 'var(--text-3)', cursor:'pointer', fontFamily:'inherit' }}>
                   {tmpl.is_active ? t('service_desk.templates_active') : t('service_desk.templates_inactive')}
                 </button>
                 <button onClick={() => setEditing(tmpl)}
                   style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6, padding:'3px 8px',
-                    fontSize:11, color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>✏</button>
+                    fontSize: "var(--text-xs)", color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>✏</button>
                 <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta plantilla?', onConfirm: () => remove(tmpl.id), danger: true }) }}
                   style={{ background:'none', border:`1px solid ${COLOR.danger}30`, borderRadius:6, padding:'3px 8px',
-                    fontSize:11, color:COLOR.danger, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
+                    fontSize: "var(--text-xs)", color:COLOR.danger, cursor:'pointer', fontFamily:'inherit' }}>🗑</button>
               </div>
             </div>
-            {tmpl.default_priority && <div style={{ fontSize:12, color:'var(--text-2)', marginBottom:6 }}>
+            {tmpl.default_priority && <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginBottom:6 }}>
               {t('service_desk.templates_priority')}: <PBadge v={tmpl.default_priority} />
             </div>}
             {tmpl.description_template && (
-              <div style={{ fontSize:12, color:'var(--text-3)', borderTop:'1px solid var(--surface-4)', paddingTop:8, marginTop:8 }}>
+              <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', borderTop:'1px solid var(--surface-4)', paddingTop:8, marginTop:8 }}>
                 {tmpl.description_template.slice(0, 80)}{tmpl.description_template.length > 80 ? '…' : ''}
               </div>
             )}
@@ -648,9 +648,9 @@ function CannedResponsesManager() {
     queryFn: () => sdCannedApi.list().then(r => r.data).catch(() => []),
   })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8,
-    padding:'8px 12px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit',
+    padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit',
     boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
+  const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase',
     letterSpacing:'0.06em', display:'block', marginBottom:4 }
 
   const { mutate: create } = useMutation({
@@ -671,7 +671,7 @@ function CannedResponsesManager() {
 
   return (
     <div>
-      <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:16 }}>
+      <div style={{ fontSize: "var(--text-base)", color:'var(--text-2)', marginBottom:16 }}>
         Respuestas predefinidas reutilizables por los agentes al responder tickets.
       </div>
 
@@ -693,10 +693,10 @@ function CannedResponsesManager() {
                   style={{...IS, resize:'vertical'}} /></div>
               <div style={{display:'flex',gap:8}}>
                 <button onClick={() => update({ id:r.id, data:editForm })} disabled={!editForm.title||!editForm.body}
-                  style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color:'#fff',cursor:'pointer',fontSize:12,fontFamily:'inherit'}}>
+                  style={{background:'var(--accent)',border:'none',borderRadius:7,padding:'7px 16px',color:'#fff',cursor:'pointer',fontSize: "var(--text-sm)",fontFamily:'inherit'}}>
                   ✓ Guardar</button>
                 <button onClick={() => setEditing(null)}
-                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:7,padding:'7px 12px',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>
+                  style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:7,padding:'7px 12px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>
                   Cancelar</button>
               </div>
             </div>
@@ -704,28 +704,28 @@ function CannedResponsesManager() {
             <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px',
               background:'var(--surface-2)', border:'1px solid var(--surface-4)', borderRadius:10 }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:700 }}>{r.title}
-                  {r.shortcut && <span style={{ fontSize:10, color:'var(--accent)', marginLeft:8,
-                    fontFamily:'monospace', background:'var(--accent-muted)', padding:'1px 6px', borderRadius:4 }}>{r.shortcut}</span>}
-                  {r.category && <span style={{ fontSize:10, color:'var(--text-3)', marginLeft:6 }}>{r.category}</span>}
+                <div style={{ fontSize: "var(--text-base)", fontWeight:700 }}>{r.title}
+                  {r.shortcut && <span style={{ fontSize: "var(--text-2xs)", color:'var(--accent)', marginLeft:8,
+                    fontFamily:'var(--font-mono)', background:'var(--accent-muted)', padding:'1px 6px', borderRadius:4 }}>{r.shortcut}</span>}
+                  {r.category && <span style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', marginLeft:6 }}>{r.category}</span>}
                 </div>
-                <div style={{ fontSize:11, color:'var(--text-2)', marginTop:2, overflow:'hidden',
+                <div style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginTop:2, overflow:'hidden',
                   textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.body?.slice(0,100)}</div>
               </div>
               <button onClick={() => { setEditing(r.id); setEditForm({title:r.title,body:r.body,category:r.category||'',shortcut:r.shortcut||''}) }}
-                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize:12}}>✏</button>
+                style={{background:'none',border:'1px solid var(--surface-4)',borderRadius:6,padding:'4px 10px',color:'var(--text-2)',cursor:'pointer',fontSize: "var(--text-sm)"}}>✏</button>
               <button onClick={() => { openConfirmGlobal({ message: `¿Eliminar "${r.title}"?`, onConfirm: () => del(r.id), danger: true }) }}
-                style={{background:'none',border:'1px solid #ff475730',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize:12}}>🗑</button>
+                style={{background:'none',border:'1px solid var(--danger-border)',borderRadius:6,padding:'4px 10px',color:'var(--danger)',cursor:'pointer',fontSize: "var(--text-sm)"}}>🗑</button>
             </div>
           ))}
           {responses.length === 0 && !isLoading && (
-            <div style={{fontSize:13,color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>{t('service_desk.canned_empty')}</div>
+            <div style={{fontSize: "var(--text-base)",color:'var(--text-3)',textAlign:'center',padding:'20px 0'}}>{t('service_desk.canned_empty')}</div>
           )}
         </div>
       )}
 
-      <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed #00d4ff30', borderRadius:10 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--accent)', marginBottom:12 }}>{t('service_desk.canned_new_header')}</div>
+      <div style={{ padding:'14px', background:'var(--accent-muted)', border:'1px dashed var(--accent-border)', borderRadius:10 }}>
+        <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--accent)', marginBottom:12 }}>{t('service_desk.canned_new_header')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
           <div><label style={LS}>{t('common.name')} *</label>
             <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={IS} /></div>
@@ -738,7 +738,7 @@ function CannedResponsesManager() {
           <textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4}
             style={{...IS, resize:'vertical'}} placeholder="Texto de la respuesta enlatada..." /></div>
         <button onClick={() => create(form)} disabled={!form.title || !form.body}
-          style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize:13,fontFamily:'inherit',fontWeight:600}}>
+          style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'8px 18px',color:'#fff',cursor:'pointer',fontSize: "var(--text-base)",fontFamily:'inherit',fontWeight:600}}>
           + {t('service_desk.canned_add_btn')}
         </button>
       </div>
@@ -754,9 +754,9 @@ export function AnnouncementsConfig() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
 
-  const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize:12, outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
-  const LS = { fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
-  const TYPE_COLOR = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'#a855f7' }
+  const IS = { background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:7, padding:'7px 11px', color:'var(--text-1)', fontSize: "var(--text-sm)", outline:'none', fontFamily:'inherit', width:'100%', boxSizing:'border-box' }
+  const LS = { fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }
+  const TYPE_COLOR = { info:'var(--accent)', warning:'var(--warning)', outage:'var(--danger)', maintenance:'var(--purple)' }
 
   const { data: anns = [], isLoading } = useQuery({
     queryKey: ['sd-announcements'],
@@ -787,20 +787,20 @@ export function AnnouncementsConfig() {
                 <div key={a.id} style={{ display:'flex', gap:14, padding:'12px 16px', background:'var(--surface-2)', border:`1px solid ${(TYPE_COLOR[a.type]||'var(--accent)')}30`, borderRadius:10, alignItems:'flex-start' }}>
                   <div style={{ width:4, alignSelf:'stretch', borderRadius:4, background:TYPE_COLOR[a.type]||'var(--accent)', flexShrink:0 }} />
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>{a.title}
-                      <span style={{ fontSize:10, padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type]||'var(--accent)')+'20', color:TYPE_COLOR[a.type]||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
-                      {a.show_to_clients && <span style={{ fontSize:10, marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
+                    <div style={{ fontSize: "var(--text-base)", fontWeight:700, marginBottom:4 }}>{a.title}
+                      <span style={{ fontSize: "var(--text-2xs)", padding:'2px 7px', marginLeft:8, borderRadius:20, background:(TYPE_COLOR[a.type]||'var(--accent)')+'20', color:TYPE_COLOR[a.type]||'var(--accent)', fontWeight:700, textTransform:'uppercase' }}>{a.type}</span>
+                      {a.show_to_clients && <span style={{ fontSize: "var(--text-2xs)", marginLeft:6, color:'var(--text-3)' }}>👁 {t('service_desk.ann_visible_clients')}</span>}
                     </div>
-                    <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>
+                    <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', lineHeight:1.5 }}>{a.body}</div>
                     {(a.starts_at||a.ends_at) && (
-                      <div style={{ fontSize:11, color:'var(--text-3)', marginTop:6 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:6 }}>
                         {a.starts_at && `${t('service_desk.ann_starts')}: ${new Date(a.starts_at).toLocaleString()}`}
                         {a.ends_at && ` · ${t('service_desk.ann_ends')}: ${new Date(a.ends_at).toLocaleString()}`}
                       </div>
                     )}
                   </div>
                   <button onClick={() => { openConfirmGlobal({ message: '¿Desactivar este anuncio?', onConfirm: () => del(a.id) }) }}
-                    style={{ background:'none', border:'1px solid #ff475730', borderRadius:6, padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize:11 }}>🗑</button>
+                    style={{ background:'none', border:'1px solid var(--danger-border)', borderRadius:6, padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
                 </div>
               ))}
             </div>
@@ -817,14 +817,14 @@ export function AnnouncementsConfig() {
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:18 }}>
               <input type="checkbox" id="showCl" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label htmlFor="showCl" style={{ fontSize:12, color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
+              <label htmlFor="showCl" style={{ fontSize: "var(--text-sm)", color:'var(--text-1)', cursor:'pointer' }}>{t('service_desk.ann_visible_clients')}</label>
             </div>
             <div><label style={LS}>{t('service_desk.ann_starts')}</label><input type="datetime-local" value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} style={IS} /></div>
             <div><label style={LS}>{t('service_desk.ann_ends')}</label><input type="datetime-local" value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} style={IS} /></div>
             <div style={{ gridColumn:'1/-1' }}><label style={LS}>{t('service_desk.ann_message')} *</label><textarea value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} style={{ ...IS, resize:'vertical' }} /></div>
           </div>
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize:12 }}>{t('common.cancel')}</button>
+            <button onClick={()=>setShowCreate(false)} style={{ background:'transparent', border:'1px solid var(--surface-4)', borderRadius:8, padding:'7px 16px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-sm)" }}>{t('common.cancel')}</button>
             <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('service_desk.ann_published')}</Button>
           </div>
         </Modal>
@@ -851,10 +851,10 @@ export default function Config() {
         {tabs.map(tab => (
           <button key={tab.id} onClick={() => setSub(tab.id)} style={{
             padding:'7px 16px', borderRadius:8,
-            border:`1px solid ${sub===tab.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+            border:`1px solid ${sub===tab.id ? 'var(--accent)' : 'var(--surface-4)'}`,
             background: sub===tab.id ? 'var(--accent-muted)' : 'transparent',
             color: sub===tab.id ? 'var(--accent)' : 'var(--text-2)',
-            fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit',
+            fontSize: "var(--text-sm)", fontWeight:600, cursor:'pointer', fontFamily:'inherit',
           }}>{tab.label}</button>
         ))}
       </div>

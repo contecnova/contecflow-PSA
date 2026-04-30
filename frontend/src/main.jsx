@@ -47,8 +47,8 @@ class ErrorBoundary extends React.Component {
           alignItems: 'center', justifyContent: 'center',
           fontFamily: 'system-ui, sans-serif', padding: 40, textAlign: 'center',
         }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>⚠</div>
-          <h2 style={{ color: 'var(--danger)', marginBottom: 12, fontSize: 22 }}>
+          <div style={{ fontSize: "var(--text-56)", marginBottom: 20 }}>⚠</div>
+          <h2 style={{ color: 'var(--danger)', marginBottom: 12, fontSize: "var(--text-xl-em)" }}>
             {isChunkError ? this.props.t('app_errors.app_load_outdated') : this.props.t('app_errors.app_load_failed')}
           </h2>
           {isChunkError ? (
@@ -60,7 +60,7 @@ class ErrorBoundary extends React.Component {
               <pre style={{
                 background: 'var(--surface-2)', border: '1px solid #1e2d45', borderRadius: 8,
                 padding: 20, maxWidth: 700, width: '100%', overflow: 'auto',
-                fontSize: 12, color: 'var(--warning)', lineHeight: 1.6, textAlign: 'left',
+                fontSize: "var(--text-sm)", color: 'var(--warning)', lineHeight: 1.6, textAlign: 'left',
                 marginBottom: 24,
               }}>
                 {err?.message}{'\n\n'}{err?.stack?.split('\n').slice(0, 6).join('\n')}
@@ -82,7 +82,7 @@ class ErrorBoundary extends React.Component {
             style={{
               padding: '12px 28px', background: 'var(--accent)', border: 'none',
               borderRadius: 8, color: 'var(--surface-0)', cursor: 'pointer',
-              fontWeight: 700, fontSize: 15,
+              fontWeight: 700, fontSize: "var(--text-md-em)",
             }}
           >
             {this.props.t('app_errors.app_reload')}

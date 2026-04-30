@@ -24,7 +24,7 @@ describe('helpers', () => {
   })
 
   it('statusColor falls back safely for unknown status', () => {
-    expect(statusColor('in_progress')).toBe('#00d4ff')
+    expect(statusColor('in_progress')).toBe('#4f8ef7')
     expect(statusColor('unknown_status')).toBe('#7a8aaa')
   })
 })

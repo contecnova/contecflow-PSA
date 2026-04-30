@@ -29,14 +29,14 @@ const THEMES = [
 ]
 
 const ACCENT_PRESETS = [
-  { label: 'Azul',    color: '#4f8ef7' },
-  { label: 'Índigo',  color: '#7c3aed' },
+  { label: 'Índigo',  color: '#4f8ef7' },
+  { label: 'Violeta', color: '#a78bfa' },
   { label: 'Teal',    color: '#1d9e75' },
-  { label: 'Cyan',    color: '#0ea5e9' },
+  { label: 'Azul',    color: '#60a5fa' },
   { label: 'Rosa',    color: '#f43f5e' },
   { label: 'Ámbar',   color: '#f59e0b' },
-  { label: 'Verde',   color: '#16a34a' },
-  { label: 'Coral',   color: '#f97316' },
+  { label: 'Verde',   color: '#34d399' },
+  { label: 'Coral',   color: '#fb923c' },
 ]
 
 const LANGUAGES = [
@@ -52,7 +52,7 @@ const LANGUAGES = [
 
 const IS = {
   width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
-  borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 13,
+  borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)",
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 
@@ -153,18 +153,18 @@ export default function UserProfilePanel({ onClose }) {
           display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <Avatar name={user?.full_name} size={44} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)',
+            <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {user?.full_name}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)',
+            <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)',
               textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 1 }}>
               {user?.role} · {user?.department || 'Sin departamento'}
             </div>
           </div>
           <button onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--text-3)',
-              cursor: 'pointer', fontSize: 20, padding: '0 4px' }}>✕</button>
+              cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>
         </div>
 
         {/* Tabs */}
@@ -172,7 +172,7 @@ export default function UserProfilePanel({ onClose }) {
           borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ padding: '6px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600,
+              style={{ padding: '6px 10px', borderRadius: 7, fontSize: "var(--text-xs)", fontWeight: 600,
                 border: `1px solid ${tab === t.id ? 'rgba(79,142,247,0.4)' : 'transparent'}`,
                 background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
                 color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
@@ -190,10 +190,10 @@ export default function UserProfilePanel({ onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Info no editable */}
               <div style={{ padding: '10px 14px', background: 'var(--surface-3)',
-                borderRadius: 8, fontSize: 12, color: 'var(--text-2)' }}>
+                borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 <div>👤 Usuario: <strong style={{ color: 'var(--text-1)' }}>{user?.username}</strong></div>
                 <div style={{ marginTop: 4 }}>📧 Email: <strong style={{ color: 'var(--text-1)' }}>{user?.email}</strong></div>
-                <div style={{ marginTop: 2, fontSize: 11, color: 'var(--text-3)' }}>
+                <div style={{ marginTop: 2, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   El usuario y email los gestiona el administrador
                 </div>
               </div>
@@ -201,7 +201,7 @@ export default function UserProfilePanel({ onClose }) {
               {/* Nombre */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                  <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em',
                     display: 'block', marginBottom: 4 }}>Nombre</label>
                   <input value={profileForm.first_name}
@@ -209,7 +209,7 @@ export default function UserProfilePanel({ onClose }) {
                     style={IS} placeholder="Tu nombre" />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                  <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em',
                     display: 'block', marginBottom: 4 }}>Apellidos</label>
                   <input value={profileForm.last_name}
@@ -219,7 +219,7 @@ export default function UserProfilePanel({ onClose }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>Cargo</label>
                 <input value={profileForm.job_title}
@@ -228,7 +228,7 @@ export default function UserProfilePanel({ onClose }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>Teléfono</label>
                 <input value={profileForm.phone}
@@ -237,7 +237,7 @@ export default function UserProfilePanel({ onClose }) {
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em',
                   display: 'block', marginBottom: 4 }}>URL de avatar (opcional)</label>
                 <input value={profileForm.avatar_url}
@@ -255,7 +255,7 @@ export default function UserProfilePanel({ onClose }) {
               <button onClick={() => saveProfile(profileForm)} disabled={savingProfile}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
                   borderRadius: 8, color: '#fff', cursor: savingProfile ? 'wait' : 'pointer',
-                  fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                  fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600,
                   opacity: savingProfile ? 0.7 : 1 }}>
                 {savingProfile ? 'Guardando...' : '✓ Guardar perfil'}
               </button>
@@ -268,7 +268,7 @@ export default function UserProfilePanel({ onClose }) {
 
               {/* Tema */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)',
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   Tema de color
                 </div>
@@ -280,18 +280,18 @@ export default function UserProfilePanel({ onClose }) {
                         background: localTheme === t.id ? 'var(--accent-muted)' : 'var(--surface-3)',
                         border: `1px solid ${localTheme === t.id ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
                         cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>
-                      <span style={{ fontSize: 20, flexShrink: 0 }}>{t.icon}</span>
+                      <span style={{ fontSize: "var(--text-xl)", flexShrink: 0 }}>{t.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600,
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: 600,
                           color: localTheme === t.id ? 'var(--accent)' : 'var(--text-1)' }}>
                           {t.label}
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>
+                        <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 1 }}>
                           {t.desc}
                         </div>
                       </div>
                       {localTheme === t.id && (
-                        <span style={{ color: 'var(--accent)', fontSize: 14 }}>✓</span>
+                        <span style={{ color: 'var(--accent)', fontSize: "var(--text-md)" }}>✓</span>
                       )}
                     </button>
                   ))}
@@ -300,7 +300,7 @@ export default function UserProfilePanel({ onClose }) {
 
               {/* Color de acento */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)',
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   Color de acento
                 </div>
@@ -321,10 +321,10 @@ export default function UserProfilePanel({ onClose }) {
                     style={{ width: 36, height: 36, border: 'none', borderRadius: 7,
                       cursor: 'pointer', padding: 0, background: 'none' }} />
                   <div>
-                    <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>
                       {localAccent}
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-3)' }}>Color personalizado</div>
+                    <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>Color personalizado</div>
                   </div>
                   {/* Preview */}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -338,7 +338,7 @@ export default function UserProfilePanel({ onClose }) {
 
               {/* Densidad */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)',
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
                   Densidad de la interfaz
                 </div>
@@ -349,7 +349,7 @@ export default function UserProfilePanel({ onClose }) {
                     ['comfortable', '▦ Confortable'],
                   ].map(([val, label]) => (
                     <button key={val} onClick={() => setLocalDensity(val)}
-                      style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 11,
+                      style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: "var(--text-xs)",
                         fontWeight: 600, border: `1px solid ${localDensity === val ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
                         background: localDensity === val ? 'var(--accent-muted)' : 'var(--surface-3)',
                         color: localDensity === val ? 'var(--accent)' : 'var(--text-2)',
@@ -363,7 +363,7 @@ export default function UserProfilePanel({ onClose }) {
               <button onClick={saveAppearance}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
                   borderRadius: 8, color: '#fff', cursor: 'pointer',
-                  fontSize: 13, fontFamily: 'inherit', fontWeight: 600 }}>
+                  fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600 }}>
                 ✓ Guardar apariencia
               </button>
             </div>
@@ -374,10 +374,10 @@ export default function UserProfilePanel({ onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ padding: '10px 14px', background: 'var(--accent-muted)',
                 border: '1px solid rgba(79,142,247,0.25)', borderRadius: 8,
-                fontSize: 12, color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 4 }}>
+                fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5, marginBottom: 4 }}>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Idioma activo: </span>
                 {LANGUAGES.find(l => l.code === activeLang)?.flag} {LANGUAGES.find(l => l.code === activeLang)?.label}
-                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-3)' }}>
+                <div style={{ marginTop: 4, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
                   La navegación cambia al instante. El contenido de las páginas se traduce progresivamente.
                 </div>
               </div>
@@ -392,12 +392,12 @@ export default function UserProfilePanel({ onClose }) {
                       border: `1px solid ${isPending ? 'rgba(79,142,247,0.5)' : 'var(--surface-4)'}`,
                       cursor: 'pointer', fontFamily: 'inherit', width: '100%',
                       transition: 'all .15s' }}>
-                    <span style={{ fontSize: 24 }}>{lang.flag}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600,
+                    <span style={{ fontSize: "var(--text-2xl)" }}>{lang.flag}</span>
+                    <span style={{ fontSize: "var(--text-base)", fontWeight: 600,
                       color: isPending ? 'var(--accent)' : 'var(--text-1)', flex: 1 }}>
                       {lang.label}
                     </span>
-                    {isPending && <span style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 700 }}>✓</span>}
+                    {isPending && <span style={{ color: 'var(--accent)', fontSize: "var(--text-md)", fontWeight: 700 }}>✓</span>}
                   </button>
                 )
               })}
@@ -411,7 +411,7 @@ export default function UserProfilePanel({ onClose }) {
                 disabled={pendingLang === activeLang}
                 style={{ padding: '10px', background: 'var(--accent)', border: 'none',
                   borderRadius: 8, color: '#fff', cursor: pendingLang === activeLang ? 'default' : 'pointer',
-                  fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                  fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: 600,
                   opacity: pendingLang === activeLang ? 0.5 : 1, marginTop: 4 }}>
                 ✓ Guardar idioma
               </button>
@@ -423,7 +423,7 @@ export default function UserProfilePanel({ onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Info sesión */}
               <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
-                borderRadius: 8, fontSize: 12 }}>
+                borderRadius: 8, fontSize: "var(--text-sm)" }}>
                 <div style={{ color: 'var(--text-2)', marginBottom: 6 }}>Sesión actual</div>
                 <div style={{ color: 'var(--text-1)' }}>
                   Último acceso: {user?.last_login
@@ -440,7 +440,7 @@ export default function UserProfilePanel({ onClose }) {
               {/* Cambio de contraseña */}
               {!user?.sso_provider && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)',
+                  <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)',
                     textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
                     Cambiar contraseña
                   </div>
@@ -450,7 +450,7 @@ export default function UserProfilePanel({ onClose }) {
                     ['confirm', 'Confirmar nueva',   'Repite la nueva contraseña'],
                   ].map(([key, label, ph]) => (
                     <div key={key}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)',
+                      <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
                         textTransform: 'uppercase', letterSpacing: '0.07em',
                         display: 'block', marginBottom: 4 }}>{label}</label>
                       <input type="password" value={pwForm[key]}
@@ -459,7 +459,7 @@ export default function UserProfilePanel({ onClose }) {
                     </div>
                   ))}
                   {pwForm.new && pwForm.confirm && pwForm.new !== pwForm.confirm && (
-                    <div style={{ fontSize: 11, color: 'var(--danger)' }}>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)' }}>
                       ✗ Las contraseñas no coinciden
                     </div>
                   )}
@@ -468,7 +468,7 @@ export default function UserProfilePanel({ onClose }) {
 
               {user?.sso_provider && (
                 <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
-                  borderRadius: 8, fontSize: 12, color: 'var(--text-2)' }}>
+                  borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                   Tu cuenta usa SSO ({user.sso_provider}). La contraseña se gestiona
                   desde tu proveedor de identidad corporativo.
                 </div>
@@ -477,10 +477,10 @@ export default function UserProfilePanel({ onClose }) {
               {/* MFA */}
               <div style={{ padding: '12px 14px', background: 'var(--surface-3)',
                 borderRadius: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: "var(--text-base)", fontWeight: 600, marginBottom: 4 }}>
                   Autenticación de dos factores (MFA)
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 10 }}>
+                <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>
                   {user?.mfa_enabled
                     ? 'MFA activado. Tu cuenta está protegida con autenticación de doble factor.'
                     : 'MFA desactivado. Actívalo para mayor seguridad.'}
@@ -489,7 +489,7 @@ export default function UserProfilePanel({ onClose }) {
                   onClick={() => window.location.href = '/mfa'}
                   style={{ padding: '7px 14px', background: user?.mfa_enabled ? 'var(--surface-4)' : 'var(--accent)',
                     border: 'none', borderRadius: 7, color: user?.mfa_enabled ? 'var(--text-2)' : '#fff',
-                    fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                    fontSize: "var(--text-sm)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                   {user?.mfa_enabled ? 'Gestionar MFA' : '🛡 Activar MFA'}
                 </button>
               </div>
@@ -503,7 +503,7 @@ export default function UserProfilePanel({ onClose }) {
                     new_password: pwForm.new,
                   })}
                   style={{ padding: '10px', background: 'var(--accent)', border: 'none',
-                    borderRadius: 8, color: '#fff', fontSize: 13,
+                    borderRadius: 8, color: '#fff', fontSize: "var(--text-base)",
                     fontFamily: 'inherit', fontWeight: 600,
                     cursor: changingPw || !pwForm.current || !pwForm.new ||
                       pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'default' : 'pointer',

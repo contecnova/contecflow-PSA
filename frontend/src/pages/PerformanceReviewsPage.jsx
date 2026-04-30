@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi } from '../services/api'
 import { Button, Modal, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
@@ -16,7 +17,7 @@ import { useAppT } from '../i18n/AppLangContext'
 const STATUS_CFG = {
   draft:     { color:'var(--text-3)',  bg:'var(--surface-4)',    label:'Borrador' },
   active:    { color:'var(--accent)',  bg:'var(--accent-muted)', label:'Activo' },
-  closed:    { color:'var(--success)', bg:'rgba(29,158,117,.15)',label:'Cerrado' },
+  closed:    { color:'var(--success)', bg:'var(--success-border)',label:'Cerrado' },
 }
 const REVIEW_TYPE = {
   self:    { icon:'👤', label:'Autoevaluación' },
@@ -40,8 +41,8 @@ function ScoreBar({ value, max=5 }) {
       <div style={{ flex:1, height:6, background:'var(--surface-4)', borderRadius:3 }}>
         <div style={{ width:`${pct}%`, height:'100%', background:color, borderRadius:3 }} />
       </div>
-      <span style={{ fontSize:12, fontWeight:700, color, minWidth:24, textAlign:'right',
-        fontFamily:"'Space Mono',monospace" }}>{value ? value.toFixed(1) : '—'}</span>
+      <span style={{ fontSize: "var(--text-sm)", fontWeight:700, color, minWidth:24, textAlign:'right',
+        fontFamily: 'var(--font-mono)' }}>{value ? value.toFixed(1) : '—'}</span>
     </div>
   )
 }
@@ -60,7 +61,7 @@ function ReviewForm({ review, onClose }) {
     goals_next:   review.goals_next   || '',
   })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
 
   const { mutate: save, isPending: saving } = useMutation({
@@ -82,14 +83,14 @@ function ReviewForm({ review, onClose }) {
       <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
         {/* Puntuaciones */}
         <div style={{ background:'var(--surface-3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'var(--text-2)',
+          <div style={{ fontSize: "var(--text-sm)", fontWeight:700, color:'var(--text-2)',
             textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:12 }}>
             Puntuaciones (1–5)
           </div>
           {DIMENSIONS.map(({ key, label }) => (
             <div key={key} style={{ display:'grid', gridTemplateColumns:'1fr 1fr',
               gap:10, alignItems:'center', marginBottom:10 }}>
-              <label style={{ fontSize:13, color:'var(--text-1)' }}>{label}</label>
+              <label style={{ fontSize: "var(--text-base)", color:'var(--text-1)' }}>{label}</label>
               <div style={{ display:'flex', gap:4 }}>
                 {[1,2,3,4,5].map(n => (
                   <button key={n} onClick={() => setScores(s => ({...s, [key]: n}))}
@@ -97,7 +98,7 @@ function ReviewForm({ review, onClose }) {
                       background: scores[key] >= n ? 'var(--accent)' : 'var(--surface-4)',
                       border: scores[key] >= n ? '1px solid var(--accent)' : '1px solid var(--surface-4)',
                       color: scores[key] >= n ? '#fff' : 'var(--text-3)',
-                      cursor:'pointer', fontSize:12, fontWeight:700 }}>
+                      cursor:'pointer', fontSize: "var(--text-sm)", fontWeight:700 }}>
                     {n}
                   </button>
                 ))}
@@ -113,7 +114,7 @@ function ReviewForm({ review, onClose }) {
           { key:'goals_next',   label:'Objetivos próximo periodo', ph:'¿Qué debería focalizarse?' },
         ].map(({ key, label, ph }) => (
           <div key={key}>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)',
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)',
               textTransform:'uppercase', letterSpacing:'0.07em',
               display:'block', marginBottom:4 }}>{label}</label>
             <textarea value={scores[key]} onChange={e => setScores(s => ({...s, [key]:e.target.value}))}
@@ -155,23 +156,23 @@ function CycleCard({ cycle, onActivate, onClose }) {
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => setExpanded(s => !s)}
           style={{ background:'none', border:'none', color:'var(--text-3)',
-            cursor:'pointer', fontSize:16, padding:0 }}>
+            cursor:'pointer', fontSize: "var(--text-lg)", padding:0 }}>
           {expanded ? '▾' : '▸'}
         </button>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:15, fontWeight:700 }}>{cycle.name}</div>
+          <div style={{ fontSize: "var(--text-md-em)", fontWeight:700 }}>{cycle.name}</div>
           <div style={{ display:'flex', gap:8, marginTop:2 }}>
-            <span style={{ fontSize:11, fontWeight:700, padding:'1px 8px', borderRadius:20,
+            <span style={{ fontSize: "var(--text-xs)", fontWeight:700, padding:'1px 8px', borderRadius:20,
               background: statusCfg.bg, color: statusCfg.color }}>
               {statusCfg.label}
             </span>
-            {cycle.start_date && <span style={{ fontSize:11, color:'var(--text-2)' }}>
+            {cycle.start_date && <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
               {fmtDate(cycle.start_date)} – {fmtDate(cycle.end_date)}
             </span>}
-            <span style={{ fontSize:11, color:'var(--text-2)' }}>
+            <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)' }}>
               {cycle.pending} pendientes · {cycle.submitted} enviadas
             </span>
-            {avgScore && <span style={{ fontSize:11, color:'var(--accent)', fontWeight:700 }}>
+            {avgScore && <span style={{ fontSize: "var(--text-xs)", color:'var(--accent)', fontWeight:700 }}>
               Media: {avgScore}/5
             </span>}
           </div>
@@ -189,7 +190,7 @@ function CycleCard({ cycle, onActivate, onClose }) {
       {expanded && (
         <div style={{ marginTop:12 }}>
           {isLoading ? <Spinner /> : reviews.length === 0 ? (
-            <div style={{ fontSize:12, color:'var(--text-3)', padding:'8px 0' }}>
+            <div style={{ fontSize: "var(--text-sm)", color:'var(--text-3)', padding:'8px 0' }}>
               Sin evaluaciones en este ciclo
             </div>
           ) : (
@@ -199,12 +200,12 @@ function CycleCard({ cycle, onActivate, onClose }) {
                   padding:'10px 12px', border:'1px solid var(--surface-4)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                     <div>
-                      <span style={{ fontSize:12, fontWeight:700 }}>{r.reviewee_name}</span>
-                      <span style={{ fontSize:11, color:'var(--text-2)', marginLeft:6 }}>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight:700 }}>{r.reviewee_name}</span>
+                      <span style={{ fontSize: "var(--text-xs)", color:'var(--text-2)', marginLeft:6 }}>
                         {REVIEW_TYPE[r.review_type]?.icon} {REVIEW_TYPE[r.review_type]?.label}
                       </span>
                     </div>
-                    <span style={{ fontSize:10, color: r.status === 'submitted' ? 'var(--success)' : 'var(--text-3)',
+                    <span style={{ fontSize: "var(--text-2xs)", color: r.status === 'submitted' ? 'var(--success)' : 'var(--text-3)',
                       fontWeight:600 }}>
                       {r.status === 'submitted' ? '✓ Enviado' : '⏳ Pendiente'}
                     </span>
@@ -214,7 +215,7 @@ function CycleCard({ cycle, onActivate, onClose }) {
                       <ScoreBar value={r.score_overall} />
                     </div>
                   )}
-                  <div style={{ fontSize:11, color:'var(--text-3)', marginTop:4 }}>
+                  <div style={{ fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:4 }}>
                     por {r.reviewer_name}
                   </div>
                 </div>
@@ -232,7 +233,7 @@ function NewCycleModal({ onClose }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ name:'', start_date:'', end_date:'' })
   const IS = { width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)',
-    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize:13,
+    borderRadius:8, padding:'8px 12px', color:'var(--text-1)', fontSize: "var(--text-base)",
     outline:'none', fontFamily:'inherit', boxSizing:'border-box' }
   const { mutate, isPending } = useMutation({
     mutationFn: d => performanceApi.createCycle(d),
@@ -243,17 +244,17 @@ function NewCycleModal({ onClose }) {
     <Modal open onClose={onClose} title="Nuevo ciclo de evaluacion" width={480}>
       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
         <div>
-          <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Nombre *</label>
+          <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Nombre *</label>
           <input value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))}
             style={IS} placeholder="Ej: Evaluacion Q1 2025" autoFocus />
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Inicio</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Inicio</label>
             <input type="date" value={form.start_date} onChange={e => setForm(f => ({...f, start_date:e.target.value}))} style={IS} />
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Fin</label>
+            <label style={{ fontSize: "var(--text-xs)", fontWeight:700, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:4 }}>Fin</label>
             <input type="date" value={form.end_date} onChange={e => setForm(f => ({...f, end_date:e.target.value}))} style={IS} />
           </div>
         </div>
@@ -304,7 +305,7 @@ export default function PerformanceReviewsPage() {
   ]
 
   return (
-    <div style={{ padding:32 }}>
+    <PageShell>
       <PageHeader
         icon={<BarChart2 size={18} />}
         title={t('performance.title')}
@@ -320,8 +321,8 @@ export default function PerformanceReviewsPage() {
       <div style={{ display:'flex', gap:6, marginBottom: 20 , borderBottom: '1px solid var(--surface-4)', paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:600,
-              border: `1px solid ${tab===t.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+            style={{ padding:'8px 16px', borderRadius:8, fontSize: "var(--text-sm)", fontWeight:600,
+              border: `1px solid ${tab===t.id ? 'var(--accent)' : 'var(--surface-4)'}`,
               background: tab===t.id ? 'var(--accent-muted)' : 'transparent',
               color: tab===t.id ? 'var(--accent)' : 'var(--text-2)',
               cursor:'pointer', fontFamily:'inherit' }}>
@@ -355,12 +356,12 @@ export default function PerformanceReviewsPage() {
               <div key={r.id} style={{ display:'flex', alignItems:'center', gap:12,
                 padding:'12px 16px', background:'var(--surface-2)',
                 border:'1px solid var(--surface-4)', borderRadius:10 }}>
-                <div style={{ fontSize:24 }}>{REVIEW_TYPE[r.review_type]?.icon || '📋'}</div>
+                <div style={{ fontSize: "var(--text-2xl)" }}>{REVIEW_TYPE[r.review_type]?.icon || '📋'}</div>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:14, fontWeight:700 }}>
+                  <div style={{ fontSize: "var(--text-md)", fontWeight:700 }}>
                     Evaluar a {r.reviewee_name}
                   </div>
-                  <div style={{ fontSize:12, color:'var(--text-2)', marginTop:2 }}>
+                  <div style={{ fontSize: "var(--text-sm)", color:'var(--text-2)', marginTop:2 }}>
                     {REVIEW_TYPE[r.review_type]?.label}
                   </div>
                 </div>
@@ -373,6 +374,6 @@ export default function PerformanceReviewsPage() {
 
       {showNewCycle && <NewCycleModal onClose={() => setShowNewCycle(false)} />}
       {editingReview && <ReviewForm review={editingReview} onClose={() => setEditingReview(null)} />}
-    </div>
+    </PageShell>
   )
 }

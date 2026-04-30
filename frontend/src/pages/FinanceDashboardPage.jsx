@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { currencyApi } from '../services/api'
-import { Spinner } from '../components/ui'
 import { DollarSign } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
 import {
-  COLOR, S, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
+  COLOR, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, BarRow, SectionCard, DashEmpty,
   dateRange, fmtCur, typePalette,
 } from '../components/dashboard/DashKit'
 
@@ -207,7 +206,7 @@ export default function FinanceDashboardPage() {
                     <th key={col} style={{
                       padding: '10px 16px',
                       textAlign: i === 0 ? 'left' : 'center',
-                      fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+                      fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)',
                       textTransform: 'uppercase', letterSpacing: '0.08em',
                     }}>{col}</th>
                   ))}
@@ -226,27 +225,27 @@ export default function FinanceDashboardPage() {
                       background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
                     }}>
                       <td style={{ padding: '11px 16px' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
+                        <div style={{ fontSize: "var(--text-base)", fontWeight: 500, color: 'var(--text-1)' }}>
                           {p.project_name || p.name}
                         </div>
                         {p.client_name && (
-                          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{p.client_name}</div>
+                          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.client_name}</div>
                         )}
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: 'var(--text-1)' }}>
+                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)' }}>
                         {fmtCur(rev, lang)}
                       </td>
                       <td style={{ padding: '11px 16px', textAlign: 'center' }}>
-                        <span style={{ fontSize: 12, color: 'var(--text-2)', background: 'var(--surface-4)', padding: '3px 8px', borderRadius: 6 }}>
+                        <span style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', background: 'var(--surface-4)', padding: '3px 8px', borderRadius: 6 }}>
                           {fmtCur(cost, lang)}
                         </span>
                       </td>
-                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: 12, fontWeight: 700, color: mColor }}>
+                      <td style={{ padding: '11px 16px', textAlign: 'center', fontSize: "var(--text-sm)", fontWeight: 700, color: mColor }}>
                         {fmtCur(mgn, lang)}
                       </td>
                       <td style={{ padding: '11px 16px', textAlign: 'center' }}>
                         <span style={{
-                          fontSize: 12, fontWeight: 700, color: mColor,
+                          fontSize: "var(--text-sm)", fontWeight: 700, color: mColor,
                           background: `${mColor}18`, border: `1px solid ${mColor}30`,
                           borderRadius: 6, padding: '3px 9px',
                         }}>{pct}%</span>
@@ -263,7 +262,7 @@ export default function FinanceDashboardPage() {
       {/* Currency exchange rates */}
       <SectionCard title="Tipos de cambio"
         badge={<button onClick={() => setShowRateForm(v => !v)}
-          style={{ fontSize:11, padding:'2px 9px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>
+          style={{ fontSize: "var(--text-xs)", padding:'2px 9px', borderRadius:6, border:'1px solid var(--surface-4)', background:'transparent', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit' }}>
           {showRateForm ? '✕' : '+ Añadir'}
         </button>}
       >
@@ -271,19 +270,19 @@ export default function FinanceDashboardPage() {
           <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginBottom:14, flexWrap:'wrap' }}>
             {[['from_currency','De','EUR'],['to_currency','A','USD']].map(([k,l,ph]) => (
               <div key={k} style={{ flex:'0 0 90px' }}>
-                <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>{l}</div>
+                <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>{l}</div>
                 <input maxLength={3} value={rateForm[k]} onChange={e => setRateForm(f => ({...f,[k]:e.target.value.toUpperCase()}))}
-                  style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder={ph} />
+                  style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder={ph} />
               </div>
             ))}
             <div style={{ flex:'0 0 100px' }}>
-              <div style={{ fontSize:10, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>Tasa</div>
+              <div style={{ fontSize: "var(--text-2xs)", color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>Tasa</div>
               <input type="number" step="0.0001" min="0" value={rateForm.rate} onChange={e => setRateForm(f => ({...f,rate:e.target.value}))}
-                style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder="1.0850" />
+                style={{ width:'100%', background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:6, padding:'6px 8px', color:'var(--text-1)', fontSize: "var(--text-base)", outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} placeholder="1.0850" />
             </div>
             <button onClick={() => upsertRate({ from_currency:rateForm.from_currency, to_currency:rateForm.to_currency, rate:parseFloat(rateForm.rate) })}
               disabled={savingRate || !rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}
-              style={{ padding:'7px 14px', borderRadius:6, border:'1px solid var(--accent)', background:'var(--accent-muted)', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:600 }}>
+              style={{ padding:'7px 14px', borderRadius:6, border:'1px solid var(--accent)', background:'var(--accent-muted)', color:'var(--accent)', cursor:'pointer', fontFamily:'inherit', fontSize: "var(--text-sm)", fontWeight:600 }}>
               {savingRate ? '...' : 'Guardar'}
             </button>
           </div>
@@ -293,12 +292,12 @@ export default function FinanceDashboardPage() {
         ) : (
           <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
             {rates.map(r => (
-              <div key={r.id} style={{ background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', fontSize:13 }}>
+              <div key={r.id} style={{ background:'var(--surface-3)', border:'1px solid var(--surface-4)', borderRadius:8, padding:'8px 14px', fontSize: "var(--text-base)" }}>
                 <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.from_currency}</span>
                 <span style={{ color:'var(--text-3)', margin:'0 6px' }}>→</span>
                 <span style={{ fontWeight:700, color:'var(--text-1)' }}>{r.to_currency}</span>
                 <span style={{ marginLeft:10, fontWeight:600, color:'var(--accent)' }}>{r.rate}</span>
-                {r.effective_date && <span style={{ marginLeft:8, fontSize:11, color:'var(--text-3)' }}>{r.effective_date}</span>}
+                {r.effective_date && <span style={{ marginLeft:8, fontSize: "var(--text-xs)", color:'var(--text-3)' }}>{r.effective_date}</span>}
               </div>
             ))}
           </div>

@@ -39,6 +39,7 @@ _SUPPORTED_REPORTS = [
 _DEFAULT_CONFIG: Dict[str, Any] = {
     "tenant_id": "",
     "client_id": "",
+    "enabled": True,
     "client_secret_ref": "o365_client_secret",  # key in secrets vault (not stored here)
     "sync_period": "D7",  # D7 | D30 | D90 | D180
     "enabled_reports": _SUPPORTED_REPORTS,
@@ -137,13 +138,15 @@ def get_config(db: Session, org_id: Optional[str]) -> Dict[str, Any]:
     # Never expose secret
     merged = {**_DEFAULT_CONFIG, **cfg}
     merged.pop("client_secret_ref", None)
+    merged.pop("client_secret", None)
     return merged
 
 
 def save_config(db: Session, org_id: Optional[str], updates: Dict[str, Any]) -> Dict[str, Any]:
     cfg = _get_json(db, _CONFIG_KEY, org_id, default=_DEFAULT_CONFIG) or _DEFAULT_CONFIG
-    # Don't allow overwriting secret directly — use secret_ref pattern
-    updates.pop("client_secret", None)
+    # Keep client_secret internally for runtime sync compatibility; never expose it.
+    if "client_secret" in updates and not updates.get("client_secret"):
+        updates.pop("client_secret", None)
     cfg.update(updates)
     _set_json(db, _CONFIG_KEY, org_id, cfg, "O365 BI connector configuration")
     return get_config(db, org_id)
@@ -158,6 +161,9 @@ def run_sync(
 ) -> Dict[str, Any]:
     """Pull O365 usage data and store to BI blobs. Returns sync summary."""
     cfg = _get_json(db, _CONFIG_KEY, org_id, default=_DEFAULT_CONFIG) or _DEFAULT_CONFIG
+    if not cfg.get("enabled", True):
+        return {"ok": False, "error": "connector_disabled", "synced": []}
+
     tenant_id = cfg.get("tenant_id", "")
     client_id = cfg.get("client_id", "")
     period = cfg.get("sync_period", "D7")
@@ -169,7 +175,7 @@ def run_sync(
     results = []
 
     try:
-        secret = client_secret or ""
+        secret = client_secret or cfg.get("client_secret") or ""
         if not secret:
             return {"ok": False, "error": "client_secret required for sync", "synced": []}
         token = _get_graph_token(tenant_id, client_id, secret)

@@ -6,6 +6,7 @@ import { imputationsApi, projectsApi, tasksApi } from '../services/api'
 import { queueImputation } from '../services/offlineQueue'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, extractErr} from '../utils/helpers'
@@ -20,19 +21,19 @@ function WeekGrid({ weekData, t }) {
 
   return (
     <Card style={{ marginTop: 20 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>{t('imputa_page.week_title')}</h3>
+      <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>{t('imputa_page.week_title')}</h3>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {days.map((d, i) => {
           const entry = byDay[i]
           const hasHours = entry && entry.hours > 0
           return (
             <div key={d} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 6 }}>{d}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{d}</div>
               <div style={{
                 background: hasHours ? 'var(--accent-glow)' : 'var(--surface-3)',
-                border: `1px solid ${hasHours ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+                border: `1px solid ${hasHours ? 'var(--accent)' : 'var(--surface-4)'}`,
                 borderRadius: 8, padding: '12px 4px',
-                fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700,
+                fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", fontWeight: 700,
                 color: hasHours ? 'var(--accent)' : 'var(--text-3)',
               }}>
                 {hasHours ? `${entry.hours}h` : '—'}
@@ -41,7 +42,7 @@ function WeekGrid({ weekData, t }) {
           )
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
         <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{weekData.total_hours?.toFixed(1)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span style={{ color: 'var(--text-1)' }}>{weekData.capacity_hours}h</span></span>
         <span style={{ color: weekData.load_pct > 100 ? 'var(--danger)' : weekData.load_pct > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
@@ -158,7 +159,7 @@ export default function ImputarPage() {
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
   return (
-    <div style={{ padding: 32, maxWidth: 680, margin: '0 auto' }}>
+    <PageShell style={{ maxWidth: 680, margin: '0 auto' }}>
       <PageHeader
         icon={<Clock size={18} />}
         title={t('imputa_page.title')}
@@ -175,18 +176,18 @@ export default function ImputarPage() {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          fontSize: 13,
+          fontSize: "var(--text-base)",
           color: 'var(--accent)',
           fontWeight: 600,
         }}>
-          <span style={{ fontSize: 18 }}>⏱</span>
+          <span style={{ fontSize: "var(--text-lg-em)" }}>⏱</span>
           {t('imputa_page.timer_running')}
           {activeTimer.total_elapsed_seconds != null && (
-            <span style={{ fontFamily: "'Space Mono', monospace", marginLeft: 4 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
               · {Math.floor(activeTimer.total_elapsed_seconds / 3600)}h {Math.floor((activeTimer.total_elapsed_seconds % 3600) / 60)}m
             </span>
           )}
-          <a href="/timer" style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: 12, textDecoration: 'underline' }}>
+          <a href="/timer" style={{ marginLeft: 'auto', color: 'var(--accent)', fontSize: "var(--text-sm)", textDecoration: 'underline' }}>
             {t('imputa_page.timer_link')}
           </a>
         </div>
@@ -195,7 +196,7 @@ export default function ImputarPage() {
       <Card>
         {/* Project */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.project_label')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <select
@@ -212,7 +213,7 @@ export default function ImputarPage() {
 
         {/* Task */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.task_label')}
           </label>
           <select
@@ -230,7 +231,7 @@ export default function ImputarPage() {
 
         {/* Date */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.date_label')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <input
@@ -244,7 +245,7 @@ export default function ImputarPage() {
 
         {/* Hours */}
         <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+          <label style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
             {t('imputa_page.hours_label')} <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
@@ -254,7 +255,7 @@ export default function ImputarPage() {
                 onClick={() => set('hours')(h)}
                 style={{
                   flex: '1 0 60px', padding: 'var(--space-4) var(--space-2)', borderRadius: 'var(--radius-md)', textAlign: 'center',
-                  border: `1px solid ${form.hours === h ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
+                  border: `1px solid ${form.hours === h ? 'var(--accent)' : 'var(--surface-4)'}`,
                   background: form.hours === h ? 'var(--accent-glow)' : 'var(--surface-3)',
                   color: form.hours === h ? 'var(--accent)' : 'var(--text-2)',
                   fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all 0.15s',
@@ -294,7 +295,7 @@ export default function ImputarPage() {
             width: '100%', padding: '14px', borderRadius: 10, border: 'none',
             background: saved ? 'var(--success)' : canSubmit ? 'var(--accent)' : 'var(--surface-4)',
             color: canSubmit ? 'var(--surface-0)' : 'var(--text-2)',
-            fontWeight: 800, fontSize: 15, cursor: canSubmit ? 'pointer' : 'not-allowed',
+            fontWeight: 800, fontSize: "var(--text-md-em)", cursor: canSubmit ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit', transition: 'all 0.3s',
           }}
         >
@@ -305,29 +306,29 @@ export default function ImputarPage() {
       {/* Today's imputations */}
       {todayImputations.length > 0 && (
         <Card style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{t('imputa_page.today_entries')}</h3>
+          <h3 style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 12 }}>{t('imputa_page.today_entries')}</h3>
           {todayImputations.map(imp => (
             <div key={imp.id} style={{ background: 'var(--surface-3)', borderRadius: 8, marginBottom: 6 }}>
               {editingId === imp.id ? (
                 /* Modo edición inline */
                 <div style={{ padding: '10px 12px', display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
                   <div style={{ flex: '0 0 80px' }}>
-                    <label style={{ fontSize: 10, color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.hours_edit').toUpperCase()}</label>
+                    <label style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.hours_edit').toUpperCase()}</label>
                     <input
                       type="number" step="0.25" min="0.25" max="24"
                       value={editForm.hours}
                       onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
                       style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 6,
-                        padding: '6px 8px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                        padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
                     />
                   </div>
                   <div style={{ flex: 1, minWidth: 120 }}>
-                    <label style={{ fontSize: 10, color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.description_edit').toUpperCase()}</label>
+                    <label style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', display: 'block', marginBottom: 3 }}>{t('imputa_page.description_edit').toUpperCase()}</label>
                     <input
                       value={editForm.description}
                       onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                       style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--accent)', borderRadius: 6,
-                        padding: '6px 8px', color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                        padding: '6px 8px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                     />
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -341,22 +342,22 @@ export default function ImputarPage() {
                 </div>
               ) : (
                 /* Vista normal con botones de editar/borrar */
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', fontSize: 13 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', fontSize: "var(--text-base)" }}>
                   <div>
                     <span style={{ fontWeight: 600 }}>{imp.project?.name || '—'}</span>
-                    {imp.task?.title && <span style={{ color: 'var(--text-3)', marginLeft: 6, fontSize: 11 }}>· {imp.task.title}</span>}
+                    {imp.task?.title && <span style={{ color: 'var(--text-3)', marginLeft: 6, fontSize: "var(--text-xs)" }}>· {imp.task.title}</span>}
                     {imp.description && <span style={{ color: 'var(--text-2)', marginLeft: 8 }}>· {imp.description}</span>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--accent)', fontWeight: 700 }}>{imp.hours}h</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontWeight: 700 }}>{imp.hours}h</span>
                     <button
                       onClick={() => { setEditingId(imp.id); setEditForm({ hours: imp.hours, description: imp.description || '' }) }}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-md)", padding: '2px 4px' }}
                       aria-label={t('imputa_page.edit_aria')}
                       title={t('imputa_page.edit_aria')}>✏</button>
                     <button
                       onClick={() => { openConfirmGlobal({ message: t('imputa_page.confirm_delete'), onConfirm: () => deleteImp(imp.id), danger: true }) }}
-                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14, padding: '2px 4px' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-md)", padding: '2px 4px' }}
                       aria-label={t('imputa_page.delete_aria')}
                       title={t('imputa_page.delete_aria')}>✕</button>
                   </div>
@@ -364,13 +365,13 @@ export default function ImputarPage() {
               )}
             </div>
           ))}
-          <div style={{ borderTop: '1px solid var(--surface-4)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: 14, fontWeight: 700 }}>
-            {t('imputa_page.total')}: <span style={{ fontFamily: "'Space Mono', monospace", color: 'var(--accent)', marginLeft: 8 }}>{todayHours.toFixed(1)}h</span>
+          <div style={{ borderTop: '1px solid var(--surface-4)', marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: "var(--text-md)", fontWeight: 700 }}>
+            {t('imputa_page.total')}: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', marginLeft: 8 }}>{todayHours.toFixed(1)}h</span>
           </div>
         </Card>
       )}
 
       <WeekGrid weekData={weekData} t={t} />
-    </div>
+    </PageShell>
   )
 }

@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
+import PageShell from '../components/layout/PageShell'
+import { Tabs } from '../components/ui'
 import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
@@ -63,7 +65,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(visibleTabs[0]?.id || 'general')
 
   return (
-    <div style={{ padding: 32 }}>
+    <PageShell>
       <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} icon={<Settings size={18} />} />
 
       <div style={{ marginBottom: 20, borderBottom: '1px solid var(--surface-4)', paddingBottom: 14 }}>
@@ -73,30 +75,20 @@ export default function SettingsPage() {
           return (
             <div key={group.label} style={{ marginBottom: gi < TAB_GROUPS.length - 1 ? 10 : 0 }}>
               <div style={{
-                fontSize: 9.5, fontWeight: 700, color: 'var(--text-4)',
+                fontSize: "var(--text-3xs-h)", fontWeight: 700, color: 'var(--text-4)',
                 textTransform: 'uppercase', letterSpacing: '0.09em',
                 marginBottom: 5, paddingLeft: 2,
               }}>
                 {group.label}
               </div>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {groupVisible.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{
-                      padding: '6px 13px', borderRadius: 8,
-                      border: `1px solid ${activeTab === tab.id ? 'var(--accent-glow)' : 'var(--surface-4)'}`,
-                      background: activeTab === tab.id ? 'var(--accent-muted)' : 'transparent',
-                      color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-2)',
-                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all 0.1s',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+              <Tabs
+                items={groupVisible}
+                active={activeTab}
+                onChange={setActiveTab}
+                variant="pill"
+                ariaLabel={group.label}
+                style={{ marginBottom: 0, borderBottom: 'none' }}
+              />
             </div>
           )
         })}
@@ -117,6 +109,6 @@ export default function SettingsPage() {
       {activeTab === 'idiomas'       && <IdiomasSection />}
       {activeTab === 'email-inbound' && <EmailInboundSection />}
       {activeTab === 'log-level'     && <LogLevelSection />}
-    </div>
+    </PageShell>
   )
 }

@@ -46,17 +46,21 @@ export function useSort(data = [], defaultKey = '', defaultDir = 'asc') {
 export function SortableTH({ col, sort, onSort, children, style = {}, align = 'left' }) {
   const isActive = sort?.key === col
   const dir = sort?.dir ?? 'asc'
-
+  // Para que aria-sort tenga efecto, este botón debe estar dentro de un <th>.
+  // Si la página usa <th><SortableTH/></th>, el screen reader lee sort state
+  // del <th> ancestor — por eso adjuntamos aria-sort al wrapper button también.
   return (
     <button
       type="button"
       onClick={() => onSort(col)}
+      aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      aria-label={`${typeof children === 'string' ? children : col}, ordenar ${isActive ? (dir === 'asc' ? 'descendente' : 'ascendente') : 'ascendente'}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
         justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
         cursor: 'pointer', userSelect: 'none',
         color: isActive ? 'var(--accent)' : 'var(--text-2)',
-        fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
+        fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
         transition: 'color 0.15s',
         background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
         ...style,
@@ -101,7 +105,7 @@ export function ViewToggle({ view, onChange, views = ['list', 'grid'] }) {
     table:  { icon: '⊟', label: 'Tabla' },
   }
   return (
-    <div style={{ display: 'flex', border: '1px solid #1e2d45', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', border: '1px solid var(--surface-4)', borderRadius: 8, overflow: 'hidden' }}>
       {views.map(v => {
         const def = icons[v] || { icon: v, label: v }
         const active = view === v
@@ -109,12 +113,12 @@ export function ViewToggle({ view, onChange, views = ['list', 'grid'] }) {
           <button key={v} onClick={() => onChange(v)} title={def.label}
             style={{
               padding: '6px 12px', background: active ? 'var(--accent-muted)' : 'transparent',
-              border: 'none', borderRight: '1px solid #1e2d45',
+              border: 'none', borderRight: '1px solid var(--surface-4)',
               color: active ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+              fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
               transition: 'all 0.15s',
             }}>
-            {def.icon} <span style={{ fontSize: 11, marginLeft: 3 }}>{def.label}</span>
+            {def.icon} <span style={{ fontSize: "var(--text-xs)", marginLeft: 3 }}>{def.label}</span>
           </button>
         )
       })}
@@ -130,10 +134,10 @@ export function FilterSelect({ value, onChange, options, placeholder, style = {}
     <select value={value} onChange={e => onChange(e.target.value)}
       style={{
         background: active ? 'var(--accent-muted)' : 'var(--surface-2)',
-        border: `1px solid ${active ? 'var(--accent-glow)' : '#1e2d45'}`,
+        border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`,
         borderRadius: 8, padding: '8px 12px',
         color: active ? 'var(--accent)' : 'var(--text-1)',
-        fontSize: 12, outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
+        fontSize: "var(--text-sm)", outline: 'none', fontFamily: 'inherit', cursor: 'pointer',
         fontWeight: active ? 600 : 400,
         ...style,
       }}>
@@ -151,13 +155,13 @@ export function FilterSelect({ value, onChange, options, placeholder, style = {}
 export function SearchInput({ value, onChange, placeholder = 'Buscar...', style = {} }) {
   return (
     <div style={{ position: 'relative', ...style }}>
-      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: 13, pointerEvents: 'none' }}>🔍</span>
+      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: "var(--text-base)", pointerEvents: 'none' }}>🔍</span>
       <input value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         style={{
-          width: '100%', background: 'var(--surface-2)', border: '1px solid #1e2d45',
+          width: '100%', background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
           borderRadius: 8, padding: '8px 12px 8px 32px',
-          color: 'var(--text-1)', fontSize: 13, outline: 'none', fontFamily: 'inherit',
+          color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit',
           boxSizing: 'border-box',
         }} />
     </div>
@@ -171,19 +175,19 @@ export function ActiveFilters({ filters, onClear, onClearAll }) {
   if (active.length === 0) return null
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-      <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600 }}>Filtros:</span>
+      <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', fontWeight: 600 }}>Filtros:</span>
       {active.map(([key, val]) => (
         <span key={key} style={{
           display: 'inline-flex', alignItems: 'center', gap: 4,
           background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
           borderRadius: 20, padding: '2px 8px 2px 10px',
-          fontSize: 11, color: 'var(--accent)', fontWeight: 600,
+          fontSize: "var(--text-xs)", color: 'var(--accent)', fontWeight: 600,
         }}>
           {val}
-          <button onClick={() => onClear(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0 0 0 2px', fontSize: 13, lineHeight: 1 }}>×</button>
+          <button onClick={() => onClear(key)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0 0 0 2px', fontSize: "var(--text-base)", lineHeight: 1 }}>×</button>
         </span>
       ))}
-      <button onClick={onClearAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: 11, padding: '2px 6px', borderRadius: 20, textDecoration: 'underline' }}>
+      <button onClick={onClearAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: "var(--text-xs)", padding: '2px 6px', borderRadius: 20, textDecoration: 'underline' }}>
         Limpiar todo
       </button>
     </div>
