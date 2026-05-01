@@ -1255,18 +1255,20 @@ export default function Layout({ children }) {
         className="app-main-shell"
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: '100vh', overflow: 'auto' }}
         {...swipeHandlers}>
-        <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
-          ariaLabel={text.open_menu}
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-primary-nav"
-          style={{
-            position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
-            background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-            borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-          }}
-        >
-          <Menu size={18} color="var(--text-2)" />
-        </IconButton>
+        {!mobileOpen && (
+          <IconButton className="mobile-hamburger" onClick={() => { setCollapsed(false); setMobileOpen(true) }}
+            ariaLabel={text.open_menu}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-primary-nav"
+            style={{
+              position: 'fixed', top: 'calc(12px + var(--safe-top))', left: 'calc(12px + var(--safe-left))', zIndex: 100,
+              background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+              borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}
+          >
+            <Menu size={18} color="var(--text-2)" />
+          </IconButton>
+        )}
         <TopAppBar
           onSearchOpen={() => setSearchOpen(true)}
           onAiToggle={() => setAiOpen(o => !o)}

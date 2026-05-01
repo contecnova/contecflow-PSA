@@ -180,14 +180,19 @@ export default function BudgetsPage() {
                       {['planned','actual','committed'].map(field => (
                         <tr key={field} style={{ borderBottom:'.5px solid var(--surface-4)' }}>
                           <td style={{ padding:'6px 10px', fontWeight:500, textTransform:'capitalize', color:'var(--text-2)' }}>{field}</td>
-                          {b.entries.map(e => (
-                            <td key={e.month} style={{ padding:'6px 8px', textAlign:'right', cursor: field==='actual'&&!e.is_locked?'pointer':'default' }}
-                              onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual,committed:e.committed,notes:e.notes||''}) }}}>
-                              <span style={{ color: field==='actual'&&e.actual>e.planned?'var(--danger)':'var(--text-1)' }}>
-                                {e[field] > 0 ? `${(e[field]/1000).toFixed(1)}k` : '—'}
-                              </span>
-                            </td>
-                          ))}
+                          {b.entries.map(e => {
+                            const val = Number(e[field]) || 0
+                            const planned = Number(e.planned) || 0
+                            const actual = Number(e.actual) || 0
+                            return (
+                              <td key={e.month} style={{ padding:'6px 8px', textAlign:'right', cursor: field==='actual'&&!e.is_locked?'pointer':'default' }}
+                                onClick={()=>{ if(field==='actual'&&!e.is_locked){ setEditEntry({budget_id:b.id,month:e.month,entry:e}); setEntryForm({actual:e.actual,committed:e.committed,notes:e.notes||''}) }}}>
+                                <span style={{ color: field==='actual'&&actual>planned?'var(--danger)':'var(--text-1)' }}>
+                                  {val > 0 ? `${(val/1000).toFixed(1)}k` : '—'}
+                                </span>
+                              </td>
+                            )
+                          })}
                         </tr>
                       ))}
                     </tbody>

@@ -9,7 +9,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, usersApi, capacityApi } from '../services/api'
+import { projectsApi, usersApi, capacityApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp } from 'lucide-react'
@@ -65,11 +65,11 @@ function AssignModal({ prefill, onClose }) {
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data.filter(u => u.is_active)),
+    queryFn: () => usersApi.list().then(r => unwrapList(r).filter(u => u.is_active)),
   })
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data.filter(p => p.status === 'active')),
+    queryFn: () => projectsApi.list().then(r => unwrapList(r).filter(p => p.status === 'active')),
   })
 
   const { mutate, isPending } = useMutation({
@@ -261,7 +261,7 @@ export default function CapacityPage() {
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list().then(r => r.data.filter(u => u.is_active)),
+    queryFn: () => usersApi.list().then(r => unwrapList(r).filter(u => u.is_active)),
   })
 
   const { data: board = [], isLoading } = useQuery({

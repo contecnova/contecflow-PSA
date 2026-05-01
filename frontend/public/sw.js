@@ -1,4 +1,4 @@
-const CACHE_NAME = 'contecflow-pwa-v24';
+const CACHE_NAME = 'contecflow-pwa-v25';
 const API_CACHE  = 'contecflow-bi-api-v1';
 const APP_SHELL  = ['/', '/index.html', '/manifest.json', '/contecflow-icon.svg', '/icon-192.png', '/icon-512.png'];
 

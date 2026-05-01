@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -448,7 +448,7 @@ export function LogLevelSection() {
 
   return (
     <Section icon="📋" title="Nivel de log" description="Controla la verbosidad del backend y frontend">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '18px 20px' }}>
           <div style={{ fontSize: "var(--text-base)", fontWeight: 700, marginBottom: 4 }}>🖥️ Servidor (FastAPI / Uvicorn)</div>
           <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 16 }}>
@@ -506,61 +506,84 @@ export function EmailInboundSection() {
 
   return (
     <Section icon="📧" title="Email a ticket" description="Configura la entrada de correos al Service Desk">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-        <div style={{ background: 'var(--surface-3)', borderRadius: 10, padding: '16px 20px', fontSize: "var(--text-base)" }}>
-          <div style={{ fontWeight: 600, marginBottom: 10 }}>¿Como funciona?</div>
-          <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 2, color: 'var(--text-2)' }}>
-            <li>Configura tu proveedor de email (Mailgun, SendGrid, Postmark o similar) para reenviar los emails entrantes a la URL de webhook.</li>
-            <li>El proveedor envia el email parseado como JSON a Contecflow.</li>
-            <li>Contecflow crea el ticket automaticamente con asunto→titulo y cuerpo→descripcion.</li>
-            <li>El ticket se asigna al primer agente disponible con politica SLA activa.</li>
-          </ol>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Pasos + URL/Header en grid 2 columnas para aprovechar el ancho */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px', fontSize: "var(--text-sm)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 10, color: 'var(--text-1)' }}>¿Cómo funciona?</div>
+            <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7, color: 'var(--text-2)' }}>
+              <li>Configura tu proveedor de email (Mailgun, SendGrid, Postmark o similar) para reenviar los emails entrantes a la URL de webhook.</li>
+              <li>El proveedor envía el email parseado como JSON a Contecflow.</li>
+              <li>Contecflow crea el ticket automáticamente con asunto → título y cuerpo → descripción.</li>
+              <li>El ticket se asigna al primer agente disponible con política SLA activa.</li>
+            </ol>
+          </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-            URL del Webhook (configura en tu proveedor de email)
-          </label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input readOnly value={webhookUrl}
-              style={{ flex: 1, padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'var(--font-mono)' }} />
-            <button onClick={() => { navigator.clipboard.writeText(webhookUrl) }}
-              style={{ padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
-              Copiar
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
+                URL del Webhook
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input readOnly value={webhookUrl}
+                  style={{ flex: 1, minWidth: 0, padding: '9px 13px', borderRadius: 8, border: '1px solid var(--surface-4)', background: 'var(--surface-3)', color: 'var(--text-1)', fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', textOverflow: 'ellipsis' }} />
+                <button onClick={() => { navigator.clipboard.writeText(webhookUrl) }}
+                  style={{ padding: '9px 16px', borderRadius: 8, background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 700, flexShrink: 0 }}>
+                  Copiar
+                </button>
+              </div>
+              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                Configura esta URL en tu proveedor de email.
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
+                Autenticación (X-Contecflow-Email-Secret)
+              </label>
+              <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-xs)", color: 'var(--text-2)', lineHeight: 1.6 }}>
+                Configura la variable de entorno <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>INBOUND_EMAIL_SECRET</code> en el servidor con un valor secreto aleatorio.
+                El relay debe enviar ese mismo valor en la cabecera HTTP <code style={{ background: 'var(--surface-4)', padding: '1px 6px', borderRadius: 4, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>X-Contecflow-Email-Secret</code> con cada petición.
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Guías por proveedor */}
         <div>
-          <label style={{ display: 'block', fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>
-            Header de autenticacion (X-Contecflow-Email-Secret)
-          </label>
-          <div style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '10px 14px', fontSize: "var(--text-sm)", color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>
-            Configura la variable de entorno <strong style={{ color: 'var(--accent)' }}>INBOUND_EMAIL_SECRET</strong> en el servidor con un valor secreto aleatorio.
-            El relay de email debe enviar ese mismo valor en la cabecera HTTP <strong>X-Contecflow-Email-Secret</strong> con cada peticion.
+          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 8 }}>
+            Guías de configuración por proveedor
           </div>
-        </div>
-
-        <div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 10 }}>Guias de configuracion por proveedor</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
             {[
-              { name: 'Mailgun', url: 'https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/', note: 'Routes -> Forward -> URL' },
+              { name: 'Mailgun',  url: 'https://documentation.mailgun.com/docs/mailgun/user-manual/receive-forward-store/', note: 'Routes → Forward → URL' },
               { name: 'SendGrid', url: 'https://docs.sendgrid.com/for-developers/parsing-email/setting-up-the-inbound-parse-webhook', note: 'Inbound Parse Webhook' },
               { name: 'Postmark', url: 'https://postmarkapp.com/developer/user-guide/inbound/how-it-works', note: 'Inbound Message Webhook' },
             ].map(p => (
               <a key={p.name} href={p.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'block', padding: '12px 16px', background: 'var(--surface-3)', borderRadius: 10, textDecoration: 'none', color: 'var(--text-1)' }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{p.name}</div>
+                style={{ display: 'block', padding: '12px 16px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, textDecoration: 'none', color: 'var(--text-1)', transition: 'border-color .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)' }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{p.name} ↗</div>
                 <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>{p.note}</div>
               </a>
             ))}
           </div>
         </div>
 
+        {/* Formato JSON esperado */}
         <div>
-          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 6 }}>Formato JSON esperado (superset compatible con todos los proveedores)</div>
-          <pre style={{ background: 'var(--surface-3)', borderRadius: 8, padding: '12px 16px', fontSize: "var(--text-xs)", color: 'var(--text-2)', overflow: 'auto', margin: 0 }}>{`{
+          <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 6 }}>
+            Formato JSON esperado <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(superset compatible con todos los proveedores)</span>
+          </div>
+          <pre style={{
+            background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+            borderRadius: 8, padding: '12px 16px',
+            fontSize: "var(--text-xs)", color: 'var(--text-2)',
+            margin: 0, overflowX: 'auto', whiteSpace: 'pre',
+            fontFamily: 'var(--font-mono)',
+          }}>{`{
   "from": "Cliente <cliente@empresa.com>",
   "subject": "Mi impresora no funciona",
   "body-plain": "Texto del email...",
@@ -569,6 +592,211 @@ export function EmailInboundSection() {
 }`}</pre>
         </div>
       </div>
+    </Section>
+  )
+}
+
+// ── Estado del sistema (admin debug) ──────────────────────────────────────────
+
+const SYSTEM_KEY_GROUPS = [
+  {
+    label: 'BI · Plataforma',
+    icon: '📊',
+    prefixes: ['bi.phase', 'bi.smart_alerts', 'bi.governance', 'bi.collaboration', 'bi.platform'],
+    description: 'Estado interno de Smart Alerts, gobernanza, conectores BI, snapshots OLAP y plataforma.',
+  },
+  {
+    label: 'BI · ETL & O365',
+    icon: '🔌',
+    prefixes: ['bi.etl', 'bi.o365', 'bi.intelligence'],
+    description: 'Estado de conectores ETL, Microsoft 365 y configuración Intelligence.',
+  },
+  {
+    label: 'Service Desk · Voz',
+    icon: '📞',
+    prefixes: ['sd.voice'],
+    description: 'Configuración del agente IVR y sesiones de voz registradas.',
+  },
+  {
+    label: 'Service Desk · ML',
+    icon: '🤖',
+    prefixes: ['sd.ml_', 'sd.feedback', 'sd.auto_resolution', 'sd.assignment'],
+    description: 'Estado del motor de asignación ML y feedback de auto-resolución.',
+  },
+  {
+    label: 'Service Desk · Otros',
+    icon: '🛠',
+    prefixes: ['sd.'],
+    description: 'Cualquier otro estado interno de Service Desk.',
+  },
+  {
+    label: 'OLAP & Cache',
+    icon: '⚡',
+    prefixes: ['olap.', 'cache_'],
+    description: 'Estado de cubos OLAP, claves de cache y políticas TTL.',
+  },
+]
+
+const isInternalKey = (key) => {
+  if (!key) return false
+  const k = String(key).toLowerCase()
+  if (k.includes('.')) return true
+  if (k.startsWith('bi_') || k.startsWith('sd_') || k.startsWith('ml_')) return true
+  if (k.startsWith('_') || k.startsWith('cache_') || k.startsWith('feedback_')) return true
+  return false
+}
+
+const groupForKey = (key) => {
+  const k = String(key).toLowerCase()
+  for (const g of SYSTEM_KEY_GROUPS) {
+    if (g.prefixes.some(p => k.startsWith(p))) return g.label
+  }
+  return 'Otros'
+}
+
+function tryFormatValue(raw) {
+  if (raw == null || raw === '') return null
+  if (typeof raw === 'object') {
+    try { return JSON.stringify(raw, null, 2) } catch { return String(raw) }
+  }
+  if (typeof raw !== 'string') return String(raw)
+  const trimmed = raw.trim()
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    try {
+      return JSON.stringify(JSON.parse(trimmed), null, 2)
+    } catch {
+      return raw
+    }
+  }
+  return raw
+}
+
+function SystemSettingItem({ setting }) {
+  const [expanded, setExpanded] = useState(false)
+  const formatted = tryFormatValue(setting.value)
+  const isJson = formatted && (formatted.startsWith('{') || formatted.startsWith('['))
+  const lineCount = formatted ? formatted.split('\n').length : 0
+  const preview = formatted
+    ? formatted.split('\n').slice(0, 3).join('\n') + (lineCount > 3 ? '\n…' : '')
+    : '—'
+
+  return (
+    <div style={{
+      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+      borderRadius: 10, padding: '12px 14px',
+      minWidth: 0, overflow: 'hidden',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <code style={{
+          fontSize: 'var(--text-xs)', color: 'var(--accent)',
+          fontFamily: 'var(--font-mono)', wordBreak: 'break-all',
+          flex: 1, minWidth: 0,
+        }}>{setting.key}</code>
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          style={{
+            background: 'transparent', border: '1px solid var(--surface-4)',
+            borderRadius: 6, padding: '3px 9px',
+            color: 'var(--text-2)', fontFamily: 'inherit',
+            fontSize: 'var(--text-2xs)', cursor: 'pointer', flexShrink: 0,
+          }}
+        >{expanded ? 'Ocultar' : 'Ver completo'}</button>
+      </div>
+      {setting.description && (
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 6 }}>
+          {setting.description}
+        </div>
+      )}
+      <pre style={{
+        background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
+        borderRadius: 6, padding: '8px 10px',
+        fontSize: 'var(--text-2xs)', color: 'var(--text-2)',
+        margin: 0, fontFamily: 'var(--font-mono)',
+        maxHeight: expanded ? 'none' : 64,
+        overflow: expanded ? 'auto' : 'hidden',
+        whiteSpace: 'pre',
+        ...(expanded ? { overflowX: 'auto' } : {}),
+      }}>{expanded ? (formatted || '—') : preview}</pre>
+      <div style={{ marginTop: 4, fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+        {isJson ? `JSON · ${lineCount} líneas` : `Texto · ${(setting.value || '').length} caracteres`}
+      </div>
+    </div>
+  )
+}
+
+export function SystemStateSection() {
+  const { data: settings = [], isLoading } = useQuery({
+    queryKey: ['settings-general'],
+    queryFn: () => api.get('/settings/general').then(r => r.data),
+  })
+
+  const internal = (settings || []).filter(s => isInternalKey(s.key))
+  // Agrupar por grupo lógico
+  const grouped = {}
+  for (const s of internal) {
+    const label = groupForKey(s.key)
+    if (!grouped[label]) grouped[label] = []
+    grouped[label].push(s)
+  }
+  const orderedGroups = SYSTEM_KEY_GROUPS.map(g => g.label).filter(l => grouped[l]?.length)
+  if (grouped['Otros']?.length) orderedGroups.push('Otros')
+  const groupMeta = Object.fromEntries(SYSTEM_KEY_GROUPS.map(g => [g.label, g]))
+
+  return (
+    <Section icon="🔧" title="Estado del sistema" description="Lectura del estado interno persistido por servicios BI / ITSM (admin · solo lectura)">
+      {isLoading ? (
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)' }}>Cargando…</div>
+      ) : internal.length === 0 ? (
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+          Sin estado interno registrado.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{
+            background: 'color-mix(in srgb, var(--warning) 8%, var(--surface-3))',
+            border: '1px solid color-mix(in srgb, var(--warning) 30%, var(--surface-4))',
+            borderRadius: 10, padding: '10px 14px',
+            fontSize: 'var(--text-xs)', color: 'var(--text-2)', lineHeight: 1.5,
+          }}>
+            <strong style={{ color: 'var(--warning)' }}>⚠ Vista de solo lectura.</strong>{' '}
+            Estos blobs son estado interno de servicios y se gestionan desde sus paneles dedicados
+            (<code style={{ fontFamily: 'var(--font-mono)' }}>/bi/govern</code>, <code style={{ fontFamily: 'var(--font-mono)' }}>/bi/data</code>,
+            <code style={{ fontFamily: 'var(--font-mono)' }}>/service-desk → Voz/ML/Auto-Resolución</code>).
+            Editarlos directamente puede romper el módulo correspondiente.
+          </div>
+
+          {orderedGroups.map(label => {
+            const meta = groupMeta[label]
+            const items = grouped[label]
+            return (
+              <div key={label}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 8 }}>
+                  <div>
+                    <div style={{
+                      fontSize: 'var(--text-2xs)', color: 'var(--text-3)',
+                      textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700,
+                    }}>{meta?.icon || '📦'} {label}</div>
+                    {meta?.description && (
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                        {meta.description}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: 'var(--text-2xs)', fontWeight: 700,
+                    color: 'var(--text-2)', background: 'var(--surface-4)',
+                    borderRadius: 999, padding: '2px 9px',
+                  }}>{items.length}</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 10 }}>
+                  {items.map(s => <SystemSettingItem key={s.key} setting={s} />)}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Section>
   )
 }

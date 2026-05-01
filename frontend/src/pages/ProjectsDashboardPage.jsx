@@ -19,6 +19,17 @@ const STATUS_COLORS = {
   archived:  'var(--text-3)',
 }
 
+const STATUS_LABELS = {
+  active:    'Activo',
+  planning:  'Planificación',
+  on_hold:   'En espera',
+  paused:    'Pausado',
+  completed: 'Completado',
+  closed:    'Cerrado',
+  cancelled: 'Cancelado',
+  archived:  'Archivado',
+}
+
 export default function ProjectsDashboardPage() {
   const [days, setDays] = useState(30)
   const params = dateRange(days)
@@ -26,6 +37,12 @@ export default function ProjectsDashboardPage() {
   const { data: health = [], isLoading: lh } = useQuery({
     queryKey: ['proj-dash-health', days],
     queryFn: () => api.get('/dashboard/projects-health', { params }).then(r => r.data).catch(() => []),
+    staleTime: 60_000,
+  })
+
+  const { data: allProjects = [] } = useQuery({
+    queryKey: ['proj-dash-all-projects'],
+    queryFn: () => api.get('/projects', { params: { page_size: 200 } }).then(r => r.data || []).catch(() => []),
     staleTime: 60_000,
   })
 
@@ -55,26 +72,33 @@ export default function ProjectsDashboardPage() {
     </div>
   )
 
-  const total     = health.length
-  const active    = health.filter(p => p.status === 'active').length
-  const crit      = health.filter(p => p.schedule_deviation_days > 0 || p.budget_used_pct > 100).length
-  const warn      = health.filter(p => p.budget_used_pct > 80 || p.alerts_count > 0).length
-  const ok        = total - crit - warn
-  const onTimePct = total > 0 ? Math.round((ok / total) * 100) : 0
+  const total = allProjects.length
+  const active = allProjects.filter(p => p.status === 'active').length
+  const isCrit = p => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
+  const isWarn = p => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
+  const crit = health.filter(isCrit).length
+  const warn = health.filter(isWarn).length
+  const ok = Math.max(health.length - crit - warn, 0)
+  const onTimePct = health.length > 0 ? Math.round((ok / health.length) * 100) : 0
   const onTimeColor = onTimePct >= 80 ? COLOR.success : onTimePct >= 60 ? COLOR.warning : COLOR.danger
 
-  const budgetPct = kpis?.total_budget > 0
-    ? Math.round((kpis.total_spent / kpis.total_budget) * 100) : null
+  const budgetTotal = Number(kpis?.total_budget) || 0
+  const budgetSpent = Number(kpis?.total_spent) || 0
+  const budgetPct = budgetTotal > 0 ? Math.round((budgetSpent / budgetTotal) * 100) : null
   const budgetColor = budgetPct == null ? COLOR.accent : budgetPct > 90 ? COLOR.danger : budgetPct > 70 ? COLOR.warning : COLOR.success
 
   const highRisks = risks.filter(r => r.severity === 'high' || r.severity === 'critical').length
 
-  const statusCounts = health.reduce((acc, p) => {
+  const statusCounts = allProjects.reduce((acc, p) => {
     acc[p.status] = (acc[p.status] || 0) + 1; return acc
   }, {})
   const statusRows = Object.entries(statusCounts)
     .sort((a, b) => b[1] - a[1])
-    .map(([status, count]) => ({ label: status, count, color: STATUS_COLORS[status] || 'var(--text-3)' }))
+    .map(([status, count]) => ({
+      label: STATUS_LABELS[status] || status,
+      count,
+      color: STATUS_COLORS[status] || 'var(--text-3)',
+    }))
 
   const totalByType = byType.reduce((s, r) => s + (r.value || 0), 0)
 

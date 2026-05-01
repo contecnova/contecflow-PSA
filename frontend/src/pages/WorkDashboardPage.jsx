@@ -4,10 +4,18 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Clock, Plus, Timer, Ticket } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
+import { useAuth } from '../context/AuthContext'
 import {
   COLOR, DashPageShell, KpiCard, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow, SectionCard, DashEmpty,
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
+
+function startOfWeekIso() {
+  const d = new Date()
+  const dow = (d.getDay() + 6) % 7 // Monday-based
+  d.setDate(d.getDate() - dow)
+  return d.toISOString().slice(0, 10)
+}
 
 function TodayBanner({ navigate }) {
   const now = new Date()
@@ -58,6 +66,8 @@ function TodayBanner({ navigate }) {
 export default function WorkDashboardPage() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { user } = useAuth()
+  const userId = user?.id
   const [days, setDays] = useState(30)
   const params = dateRange(days)
 
@@ -66,6 +76,15 @@ export default function WorkDashboardPage() {
     queryFn: () => api.get('/dashboard/kpis', { params }).then(r => r.data),
     staleTime: 60_000,
     retry: 1,
+  })
+
+  const { data: myWeekHours = 0 } = useQuery({
+    queryKey: ['work-dash-my-week', userId],
+    queryFn: () => api.get('/analytics/query/hours_by_week', {
+      params: { user_id: userId, date_from: startOfWeekIso(), date_to: new Date().toISOString().slice(0, 10) },
+    }).then(r => (r.data?.rows || []).reduce((s, x) => s + (x.value || 0), 0)).catch(() => 0),
+    enabled: !!userId,
+    staleTime: 60_000,
   })
 
   const { data: approvals = [], isLoading: la } = useQuery({
@@ -85,10 +104,13 @@ export default function WorkDashboardPage() {
   })
 
   const { data: hoursData = [] } = useQuery({
-    queryKey: ['work-dash-hours', days],
-    queryFn: () => api.get('/analytics/query/hours_by_month', { params }).then(r => r.data?.rows || []).catch(e => {
+    queryKey: ['work-dash-hours-trend', userId],
+    queryFn: () => api.get('/analytics/query/hours_by_month', {
+      params: { ...dateRange(180), ...(userId ? { user_id: userId } : {}) },
+    }).then(r => r.data?.rows || []).catch(e => {
       console.error('Error loading hours data:', e); return []
     }),
+    enabled: !!userId,
     staleTime: 60_000,
   })
 
@@ -106,12 +128,12 @@ export default function WorkDashboardPage() {
 
   const tasksOpen    = kpis?.tasks_open ?? 0
   const tasksOverdue = kpis?.tasks_overdue ?? 0
-  const hoursWeek    = kpis?.hours_logged_this_week ?? 0
+  const hoursWeek    = myWeekHours || 0
   const pendingApprv = approvals.length
   const pendingExp   = expenses.length
   const pendingAbsences = absences.filter(a => a.status === 'pending').length
 
-  const hoursTarget  = kpis?.weekly_hours_target ?? 40
+  const hoursTarget  = user?.weekly_capacity_hours ?? kpis?.weekly_hours_target ?? 40
   const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)
   const hoursColor   = hoursWeekPct >= 80 ? COLOR.success : hoursWeekPct >= 50 ? COLOR.warning : COLOR.danger
 

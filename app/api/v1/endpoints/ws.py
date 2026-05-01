@@ -21,6 +21,7 @@ import json
 import logging
 import secrets
 import re
+import time
 from datetime import datetime, timezone
 from app.core.config import settings
 from app.core.deps import get_current_user
@@ -192,6 +193,7 @@ class ConnectionManager:
     def __init__(self):
         self.connections: Dict[str, List[WebSocket]] = {}   # user_id → [ws, ...]
         self._redis_sub_task: Optional[asyncio.Task] = None
+        self._redis_sub_retry_after: float = 0.0
 
     async def connect(self, websocket: WebSocket, user_id: str):
         await websocket.accept()
@@ -200,7 +202,7 @@ class ConnectionManager:
         self.connections[user_id].append(websocket)
         log.info(f"WS: {user_id} conectado ({len(self.connections[user_id])} sesiones)")
         # Start Redis subscriber on first connection if not already running
-        if _REDIS_URL and self._redis_sub_task is None:
+        if _REDIS_URL and self._redis_sub_task is None and time.monotonic() >= self._redis_sub_retry_after:
             self._redis_sub_task = asyncio.create_task(self._redis_subscriber())
 
     def disconnect(self, websocket: WebSocket, user_id: str):
@@ -267,7 +269,8 @@ class ConnectionManager:
                 except Exception as exc:
                     log.debug(f"WS Redis subscriber parse error: {exc}")
         except Exception as exc:
-            log.warning(f"WS Redis subscriber crashed: {exc}")
+            self._redis_sub_retry_after = time.monotonic() + 30.0
+            log.warning(f"WS Redis subscriber crashed: {exc}. Reintentando en 30s")
             self._redis_sub_task = None  # Allow restart on next connection
 
     def connected_users(self) -> List[str]:

@@ -6,7 +6,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectsApi, invoicesApi, accountingApi, clientsApi } from '../services/api'
+import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
 import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -49,9 +49,8 @@ function InvoicesTab() {
     queryFn: () => invoicesApi.list({ project_id: selectedProject || undefined, status: statusFilter || undefined }).then(r => r.data),
   })
   const { data: summary } = useQuery({ queryKey: ['invoice-summary'], queryFn: () => invoicesApi.summary().then(r => r.data) })
-  const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
-  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(r => { const d = r.data; return Array.isArray(d) ? d : (d?.items || []) }) })
-  const projects = Array.isArray(projRaw) ? projRaw : []
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(unwrapList) })
+  const { data: clients = [] } = useQuery({ queryKey: ['clients'], queryFn: () => clientsApi.list({ page_size: 200 }).then(unwrapList) })
 
   const { mutate: create, isPending } = useMutation({
     mutationFn: d => invoicesApi.create(d),

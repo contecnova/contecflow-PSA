@@ -24,6 +24,7 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -42,6 +43,7 @@ class UserUpdate(BaseModel):
 class UserSelfUpdate(BaseModel):
     """Campos que el propio usuario puede editar (sin privilegios)."""
 
+    email: Optional[EmailStr] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     full_name: Optional[str] = None

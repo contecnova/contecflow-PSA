@@ -21,6 +21,7 @@ from app.models.epics import (
 from app.models.epics import WikiTemplate as _WT
 from app.models.project import Project
 from app.models.task import Task
+from app.models.service_desk import Ticket
 from datetime import date
 from datetime import timedelta
 from fastapi import HTTPException
@@ -74,20 +75,40 @@ def serialize_epic(e: Epic) -> dict:
 # ── Mentions ──────────────────────────────────────────────────────────────────
 
 def extract_mentions(content: str) -> List[str]:
-    return re.findall(r'@([\w\-\.]+)', content or '')
+    # Mention format is strict email-only: @user@domain.tld
+    return re.findall(r'@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})', content or '')
 
 
 def save_mentions(entity_type: str, entity_id: str, content: str, by_id: str, db: Session):
     for handle in extract_mentions(content):
-        u = db.query(User).filter(
-            or_(User.username == handle, User.email == handle)
-        ).first()
+        normalized = (handle or "").strip().lower()
+        u = db.query(User).filter(func.lower(User.email) == normalized).first()
         if u and u.id != by_id:
             db.add(Mention(
                 mentioned_user=u.id, mentioned_by=by_id,
                 entity_type=entity_type, entity_id=entity_id,
                 context_text=content[:300],
             ))
+
+
+def _resolve_threaded_entity_id(entity_type: str, entity_ref: str, db: Session) -> str:
+    ref = (entity_ref or "").strip()
+    if not ref:
+        raise HTTPException(400, "entity_id requerido")
+
+    if entity_type == "task":
+        task = db.query(Task).filter(or_(Task.id == ref, func.upper(Task.code) == ref.upper())).first()
+        if not task:
+            raise HTTPException(404, f"Tarea '{entity_ref}' no encontrada")
+        return task.id
+
+    if entity_type == "ticket":
+        ticket = db.query(Ticket).filter(or_(Ticket.id == ref, func.upper(Ticket.number) == ref.upper())).first()
+        if not ticket:
+            raise HTTPException(404, f"Ticket '{entity_ref}' no encontrado")
+        return ticket.id
+
+    return ref
 
 
 # ── Block → plain text ────────────────────────────────────────────────────────
@@ -527,9 +548,22 @@ def get_my_mentions(user_id, only_unread: bool, db) -> list:
     if only_unread:
         q = q.filter(Mention.is_read == False)
     mentions = q.order_by(Mention.created_at.desc()).limit(50).all()
+    actor_ids = {m.mentioned_by for m in mentions if m.mentioned_by}
+    actor_map = {}
+    if actor_ids:
+        users = db.query(User).filter(User.id.in_(list(actor_ids))).all()
+        actor_map = {
+            u.id: {
+                "email": (u.email or "").lower() if u.email else None,
+                "name": u.full_name or u.username,
+            }
+            for u in users
+        }
     return [{"id": m.id, "entity_type": m.entity_type, "entity_id": m.entity_id,
              "context_text": m.context_text, "is_read": m.is_read,
-             "created_at": m.created_at.isoformat() if m.created_at else None}
+             "created_at": m.created_at.isoformat() if m.created_at else None,
+             "mentioned_by_email": (actor_map.get(m.mentioned_by) or {}).get("email"),
+             "mentioned_by_name": (actor_map.get(m.mentioned_by) or {}).get("name")}
             for m in mentions]
 
 
@@ -544,29 +578,60 @@ def mark_all_mentions_read(user_id, db) -> dict:
 # ── Threaded Comments ─────────────────────────────────────────────────────────
 
 def list_threaded_comments(entity_type: str, entity_id: str, db) -> list:
-    def _ser(c):
-        return {"id": c.id, "content": c.content, "created_by": c.created_by,
-                "is_resolved": c.is_resolved,
-                "created_at": c.created_at.isoformat() if c.created_at else None,
-                "replies": [_ser(r) for r in (c.replies or [])]}
+    resolved_entity_id = _resolve_threaded_entity_id(entity_type, entity_id, db)
+
+    def _collect_user_ids(nodes) -> set[str]:
+        ids = set()
+        for n in nodes:
+            if n.created_by:
+                ids.add(n.created_by)
+            for r in (n.replies or []):
+                if r.created_by:
+                    ids.add(r.created_by)
+        return ids
+
     root = (db.query(ThreadedComment)
             .filter(ThreadedComment.entity_type == entity_type,
-                    ThreadedComment.entity_id   == entity_id,
+            ThreadedComment.entity_id   == resolved_entity_id,
                     ThreadedComment.parent_id   == None)
             .options(_jl(ThreadedComment.replies))
             .order_by(ThreadedComment.created_at).all())
+
+    user_ids = _collect_user_ids(root)
+    users_by_id = {}
+    if user_ids:
+        users = db.query(User).filter(User.id.in_(list(user_ids))).all()
+        users_by_id = {
+            u.id: {
+                "email": (u.email or "").lower() if u.email else None,
+                "name": u.full_name or u.username,
+            }
+            for u in users
+        }
+
+    def _ser(c):
+        author = users_by_id.get(c.created_by) or {}
+        return {"id": c.id, "content": c.content, "created_by": c.created_by,
+                "created_by_email": author.get("email"),
+                "created_by_name": author.get("name"),
+                "is_resolved": c.is_resolved,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "replies": [_ser(r) for r in (c.replies or [])]}
+
     return [_ser(c) for c in root]
 
 
 def add_threaded_comment(entity_type: str, entity_id: str, content: str,
                           parent_id, created_by_id, db) -> dict:
-    c = ThreadedComment(entity_type=entity_type, entity_id=entity_id,
+    resolved_entity_id = _resolve_threaded_entity_id(entity_type, entity_id, db)
+
+    c = ThreadedComment(entity_type=entity_type, entity_id=resolved_entity_id,
                         content=content, parent_id=parent_id, created_by=created_by_id)
     db.add(c); db.flush()
-    save_mentions(entity_type, entity_id, content, created_by_id, db)
+    save_mentions(entity_type, resolved_entity_id, content, created_by_id, db)
     db.commit(); db.refresh(c)
     return {"id": c.id, "content": c.content, "entity_type": entity_type,
-            "entity_id": entity_id, "parent_id": c.parent_id}
+        "entity_id": resolved_entity_id, "parent_id": c.parent_id}
 
 
 def edit_threaded_comment(comment_id: str, content: str, user_id, db) -> dict:

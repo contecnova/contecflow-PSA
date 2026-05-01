@@ -617,13 +617,28 @@ export default function TasksPage() {
   }, [])
 
   const { mutate: moveTaskStatus } = useMutation({
-    mutationFn: ({ id, status }) => tasksApi.update(id, { status }),
+    mutationFn: ({ id, status, move_reason }) =>
+      tasksApi.update(id, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries(['tasks'])
       qc.invalidateQueries(['kanban-board'])
     },
     onError: e => toast.error(e?.response?.data?.detail || 'Error al mover tarea'),
   })
+
+  const requestMoveTask = useCallback((id, fromStatus, toStatus) => {
+    if (fromStatus === toStatus) return
+    let move_reason
+    if (fromStatus === 'done' || fromStatus === 'cancelled') {
+      move_reason = window.prompt(
+        `Vas a reabrir/mover una tarea desde "${fromStatus}". Indica el motivo (queda registrado en el log):`,
+        ''
+      )
+      if (move_reason === null) return
+      move_reason = move_reason.trim() || undefined
+    }
+    moveTaskStatus({ id, status: toStatus, move_reason })
+  }, [moveTaskStatus])
 
   const handleTaskDragStart = useCallback((e, task, onDragStarted) => {
     const startX = e.clientX
@@ -663,7 +678,7 @@ export default function TasksPage() {
       if (dragging) {
         const target = dropTargetRef.current
         if (dragTask.current && target && dragTask.current.status !== target) {
-          moveTaskStatus({ id: dragTask.current.id, status: target })
+          requestMoveTask(dragTask.current.id, dragTask.current.status, target)
         }
       }
       dragTask.current = null

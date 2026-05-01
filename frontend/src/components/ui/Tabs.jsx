@@ -60,15 +60,23 @@ export default function Tabs({
               fontFamily: 'inherit',
               cursor: it.disabled ? 'not-allowed' : 'pointer',
               opacity: it.disabled ? 0.5 : 1,
-              border: isPill
+              borderTop: isPill
                 ? `1px solid ${isActive ? 'var(--accent)' : 'var(--surface-4)'}`
                 : 'none',
+              borderRight: isPill
+                ? `1px solid ${isActive ? 'var(--accent)' : 'var(--surface-4)'}`
+                : 'none',
+              borderLeft: isPill
+                ? `1px solid ${isActive ? 'var(--accent)' : 'var(--surface-4)'}`
+                : 'none',
+              borderBottom: isPill
+                ? `1px solid ${isActive ? 'var(--accent)' : 'var(--surface-4)'}`
+                : (isActive ? '2px solid var(--accent)' : '2px solid transparent'),
               background: isPill
                 ? (isActive ? 'var(--accent-muted)' : 'transparent')
                 : 'transparent',
               color: isActive ? 'var(--accent)' : 'var(--text-2)',
               borderRadius: isPill ? 6 : 0,
-              borderBottom: isPill ? undefined : (isActive ? '2px solid var(--accent)' : '2px solid transparent'),
               marginBottom: isPill ? 0 : -1,
               transition: 'color 0.12s, background 0.12s, border-color 0.12s',
               whiteSpace: 'nowrap',

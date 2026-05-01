@@ -15,6 +15,9 @@ const is = { width:'100%', background:'var(--surface-3)', border:'1px solid var(
 const ls = { fontSize: "var(--text-xs)", fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:5 }
 
 const ENTITY_ICONS = { task:'📌', ticket:'🎫', wiki_comment:'💬', wiki_page:'📄', comment:'💬' }
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const TASK_CODE_RE = /^TSK-\d{4,}$/i
+const TICKET_NUMBER_RE = /^(INC|REQ|QST|PRB|CHG)-\d{4,}$/i
 
 function MentionCard({ mention, onRead }) {
   const t = useAppT()
@@ -57,6 +60,7 @@ function MentionCard({ mention, onRead }) {
 }
 
 function ThreadedCommentSection({ entityType, entityId, title }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [newContent, setNewContent] = useState('')
@@ -92,7 +96,7 @@ function ThreadedCommentSection({ entityType, entityId, title }) {
       <div style={{padding:'12px 14px',background:comment.is_resolved?'rgba(255,255,255,0.03)':'var(--surface-1)',borderRadius:8,border:`1px solid ${comment.is_resolved?'var(--surface-4)':'var(--surface-4)'}`,opacity:comment.is_resolved?0.6:1}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{comment.created_by?.slice(0,8)||'Usuario'}</span>
+            <span style={{fontSize: "var(--text-sm)",fontWeight:600,color:'var(--accent)'}}>{comment.created_by_email || comment.created_by_name || 'Usuario'}</span>
             {comment.is_resolved&&<span style={{fontSize: "var(--text-2xs)",padding:'1px 6px',borderRadius:4,background:'var(--success-bg)',color:'var(--success)'}}>{t('mentions.resolved')}</span>}
           </div>
           <div style={{display:'flex',gap:6}}>
@@ -168,6 +172,12 @@ export default function MentionsPage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
+  const normalizedEntityId = demoEntity.trim()
+  const hasEntityInput = normalizedEntityId.length > 0
+  const hasValidEntityId =
+    demoType === 'task'
+      ? (UUID_RE.test(normalizedEntityId) || TASK_CODE_RE.test(normalizedEntityId))
+      : (UUID_RE.test(normalizedEntityId) || TICKET_NUMBER_RE.test(normalizedEntityId))
   const unreadCount = mentions.filter(m=>!m.is_read).length
 
   return (
@@ -233,9 +243,17 @@ export default function MentionsPage() {
             </div>
           </div>
 
-          {demoEntity?(
+          {hasEntityInput && hasValidEntityId?(
             <div style={ps}>
-              <ThreadedCommentSection entityType={demoType} entityId={demoEntity} title={`${demoType} #${demoEntity.slice(0,8)}`}/>
+              <ThreadedCommentSection entityType={demoType} entityId={normalizedEntityId} title={`${demoType} #${normalizedEntityId.slice(0,8)}`}/>
+            </div>
+          ):hasEntityInput?(
+            <div style={{...ps,textAlign:'center',padding:'28px 24px'}}>
+              <div style={{fontSize: "var(--text-sm)",color:'var(--text-2)'}}>
+                {demoType === 'task'
+                  ? t('mentions.invalid_entity_id_format_task', 'Introduce un UUID o codigo de tarea valido (ej: TSK-0011).')
+                  : t('mentions.invalid_entity_id_format_ticket', 'Introduce un UUID o numero de ticket valido (ej: INC-0001).')}
+              </div>
             </div>
           ):(
             <div style={{...ps,textAlign:'center',padding:'40px 24px'}}>

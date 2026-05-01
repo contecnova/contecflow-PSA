@@ -1,78 +1,104 @@
 /**
  * AutoResolutionPanel — AI auto-resolution dashboard for ITSM
  *
- * Shows resolution stats, lets ops trigger the daily job or the
- * auto-close job, and allows per-ticket feedback submission.
- *
  * Backend endpoints:
- *   GET  /sd/auto-resolution/stats
- *   POST /sd/auto-resolution/run-job
- *   POST /sd/auto-resolution/run-close-job
- *   POST /sd/tickets/{id}/auto-resolution/feedback
+ *   GET  /sd/auto-resolution/stats                   -> { total_auto_resolved, pct_of_all_tickets, feedback_total_validated, overall_success_rate, per_bucket: [{bucket, total, success, failed, success_rate}] }
+ *   POST /sd/auto-resolution/run-job                 -> { processed, auto_resolved, suggested, failed, status, timestamp }
+ *   POST /sd/auto-resolution/run-close-job           -> { processed, auto_closed, validated, failed, status, timestamp }
+ *   POST /sd/tickets/{id}/auto-resolution/feedback   { success: bool } -> { recorded, ticket_id, success }
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
-import { Button, Spinner, Modal } from '../ui'
+import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
-import { COLOR } from '../../constants/theme'
 
-const card = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 12,
-  padding: '20px 24px',
+const card = { padding: '20px 22px' }
+
+const fieldLabel = {
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
 }
 
-const statBox = (accent) => ({
-  background: `${accent}12`,
-  border: `1px solid ${accent}30`,
-  borderRadius: 10,
-  padding: '16px 20px',
-  textAlign: 'center',
-  flex: 1,
-  minWidth: 100,
-})
-
-function StatCard({ label, value, accent = COLOR.accent }) {
+function StatCard({ label, value, accent, sub }) {
   return (
-    <div style={statBox(accent)}>
-      <div style={{ fontSize: "var(--text-2xl-em)", fontWeight: 700, color: accent }}>{value ?? '—'}</div>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
+    <div style={{
+      flex: '1 1 140px',
+      background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
+      border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: accent, lineHeight: 1.1 }}>
+        {value ?? '—'}
+      </div>
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {label}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 6 }}>{sub}</div>
+      )}
     </div>
   )
 }
 
 function FeedbackModal({ ticketId, onClose }) {
   const toast = useToast()
-  const [helpful, setHelpful] = useState(true)
-  const [comment, setComment] = useState('')
-  const IS = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
-  const LS = { fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-2)', display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }
+  const qc = useQueryClient()
+  const [success, setSuccess] = useState(true)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => api.post(`/sd/tickets/${ticketId}/auto-resolution/feedback`, { helpful, comment }),
-    onSuccess: () => { toast.success('Feedback enviado'); onClose() },
-    onError: () => toast.error('Error al enviar feedback'),
+    mutationFn: () => api.post(`/sd/tickets/${ticketId}/auto-resolution/feedback`, { success }),
+    onSuccess: () => {
+      toast.success('Feedback registrado en el bucket de la ticket.')
+      qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
+      onClose()
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al registrar feedback'),
   })
 
   return (
-    <Modal open title={`Feedback auto-resolución — Ticket #${ticketId}`} onClose={onClose} size="md">
+    <Modal open title={`Feedback auto-resolución — ${ticketId}`} onClose={onClose} width={460}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <label style={LS}>¿Fue útil la resolución automática?</label>
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button onClick={() => setHelpful(true)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${helpful ? COLOR.success : 'var(--surface-4)'}`, background: helpful ? `${COLOR.success}15` : 'transparent', color: helpful ? COLOR.success : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
-              👍 Sí, fue útil
-            </button>
-            <button onClick={() => setHelpful(false)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1px solid ${!helpful ? COLOR.danger : 'var(--surface-4)'}`, background: !helpful ? `${COLOR.danger}15` : 'transparent', color: !helpful ? COLOR.danger : 'var(--text-2)', cursor: 'pointer', fontFamily: 'inherit', fontSize: "var(--text-base)", fontWeight: 600 }}>
-              👎 No, falló
-            </button>
+          <div style={fieldLabel}>¿La auto-resolución fue correcta?</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setSuccess(true)}
+              style={{
+                flex: 1, padding: '10px 14px', borderRadius: 8,
+                border: `1px solid ${success ? 'var(--success)' : 'var(--surface-4)'}`,
+                background: success ? 'color-mix(in srgb, var(--success) 12%, transparent)' : 'var(--surface-3)',
+                color: success ? 'var(--success)' : 'var(--text-2)',
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', fontWeight: 600,
+              }}
+            >👍 Correcta</button>
+            <button
+              type="button"
+              onClick={() => setSuccess(false)}
+              style={{
+                flex: 1, padding: '10px 14px', borderRadius: 8,
+                border: `1px solid ${!success ? 'var(--danger)' : 'var(--surface-4)'}`,
+                background: !success ? 'color-mix(in srgb, var(--danger) 12%, transparent)' : 'var(--surface-3)',
+                color: !success ? 'var(--danger)' : 'var(--text-2)',
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--text-base)', fontWeight: 600,
+              }}
+            >👎 Falló</button>
           </div>
         </div>
-        <div>
-          <label style={LS}>Comentario (opcional)</label>
-          <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} style={{ ...IS, resize: 'vertical' }} placeholder="Explica qué salió bien o mal…" />
+        <div style={{
+          fontSize: 'var(--text-xs)', color: 'var(--text-3)',
+          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+          borderRadius: 8, padding: '8px 12px',
+        }}>
+          Tu feedback alimenta el bucket category/priority del ticket y ajusta el score de
+          confianza para futuras auto-resoluciones similares.
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -80,6 +106,29 @@ function FeedbackModal({ ticketId, onClose }) {
         </div>
       </div>
     </Modal>
+  )
+}
+
+function FeedbackLookup({ onOpen }) {
+  const [id, setId] = useState('')
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <input
+        value={id}
+        onChange={e => setId(e.target.value)}
+        placeholder="ID o número del ticket (TSK-... / uuid)"
+        style={{
+          flex: '1 1 240px',
+          background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
+          borderRadius: 8, padding: '8px 12px',
+          color: 'var(--text-1)', fontSize: 'var(--text-sm)',
+          fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+      <Button onClick={() => id && onOpen(id.trim())} disabled={!id.trim()}>
+        Dar feedback
+      </Button>
+    </div>
   )
 }
 
@@ -91,98 +140,153 @@ export default function AutoResolutionPanel() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-auto-resolution-stats'],
     queryFn: () => api.get('/sd/auto-resolution/stats').then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 30_000,
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({
     mutationFn: () => api.post('/sd/auto-resolution/run-job'),
     onSuccess: (res) => {
-      toast.success(`Job completado: ${res.data?.auto_resolved ?? 0} tickets auto-resueltos`)
+      const r = res.data || {}
+      toast.success(
+        `Job: ${r.processed ?? 0} procesados · ${r.auto_resolved ?? 0} auto-resueltos · ${r.suggested ?? 0} sugeridos · ${r.failed ?? 0} fallidos`
+      )
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: () => toast.error('Error al ejecutar el job'),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job'),
   })
 
   const { mutate: runCloseJob, isPending: runningClose } = useMutation({
     mutationFn: () => api.post('/sd/auto-resolution/run-close-job'),
     onSuccess: (res) => {
-      toast.success(`Auto-cierre: ${res.data?.closed ?? 0} tickets cerrados`)
+      const r = res.data || {}
+      toast.success(
+        `Auto-cierre: ${r.auto_closed ?? 0} cerrados · ${r.validated ?? 0} validados · ${r.failed ?? 0} fallidos`
+      )
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
-    onError: () => toast.error('Error al ejecutar el job de cierre'),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job de cierre'),
   })
 
+  const successRate = stats?.overall_success_rate
+  const successColor = successRate == null ? 'var(--text-3)'
+    : successRate >= 85 ? 'var(--success)'
+    : successRate >= 60 ? 'var(--warning)' : 'var(--danger)'
+
+  const buckets = stats?.per_bucket ?? []
+  const topBuckets = buckets.slice(0, 6)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Stats */}
-      <div style={card}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+      <Card style={card}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
           📊 Estadísticas de auto-resolución
         </div>
-        {statsLoading ? (
-          <Spinner />
-        ) : (
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <StatCard label="Auto-resueltos" value={stats?.total_auto_resolved} accent={COLOR.success} />
-            <StatCard label="Auto-cerrados" value={stats?.total_auto_closed} accent={COLOR.info ?? 'var(--info)'} />
-            <StatCard label="Feedback positivo" value={stats?.positive_feedback} accent={COLOR.success} />
-            <StatCard label="Feedback negativo" value={stats?.negative_feedback} accent={COLOR.danger} />
-            <StatCard label="Confianza media" value={stats?.avg_confidence != null ? `${Math.round(stats.avg_confidence * 100)}%` : '—'} accent={COLOR.warning} />
-          </div>
+        {statsLoading ? <Spinner /> : (
+          <>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <StatCard
+                label="Auto-resueltos (total)"
+                value={stats?.total_auto_resolved}
+                accent="var(--success)"
+                sub={stats?.pct_of_all_tickets != null ? `${stats.pct_of_all_tickets}% de todos los tickets` : undefined}
+              />
+              <StatCard
+                label="Feedback validado"
+                value={stats?.feedback_total_validated}
+                accent="var(--accent)"
+                sub="Tickets con feedback registrado"
+              />
+              <StatCard
+                label="Tasa de éxito global"
+                value={successRate != null ? `${successRate}%` : '—'}
+                accent={successColor}
+                sub={successRate == null ? 'Sin datos suficientes' : (
+                  successRate >= 85 ? 'Excelente' : successRate >= 60 ? 'Aceptable' : 'Necesita ajuste'
+                )}
+              />
+              <StatCard
+                label="Buckets con datos"
+                value={buckets.length || 0}
+                accent="var(--purple)"
+              />
+            </div>
+
+            {topBuckets.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={fieldLabel}>Top buckets (categoría · prioridad)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {topBuckets.map(b => {
+                    const rate = b.success_rate
+                    const color = rate == null ? 'var(--text-3)'
+                      : rate >= 85 ? 'var(--success)'
+                      : rate >= 60 ? 'var(--warning)' : 'var(--danger)'
+                    const pct = rate == null ? 0 : Math.max(0, Math.min(100, rate))
+                    return (
+                      <div key={b.bucket} style={{
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--surface-4)',
+                        borderRadius: 8, padding: '8px 12px',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 'var(--text-sm)' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{b.bucket}</span>
+                          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                              {b.success}/{b.total}
+                            </span>
+                            <span style={{
+                              fontSize: 'var(--text-xs)', fontWeight: 700, color,
+                              background: `color-mix(in srgb, ${color} 15%, transparent)`,
+                              border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+                              borderRadius: 6, padding: '2px 8px',
+                            }}>{rate != null ? `${rate}%` : '—'}</span>
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 6, height: 4, background: 'var(--surface-4)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width .4s' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
-      </div>
+      </Card>
 
       {/* Manual job triggers */}
-      <div style={card}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
+      <Card style={card}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
           ⚡ Acciones manuales
         </div>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 16 }}>
-          Los jobs también se ejecutan automáticamente de forma programada.
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
+          Los jobs también se ejecutan de forma programada en background.
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button onClick={() => runJob()} loading={runningJob}>
-            ▶ Ejecutar auto-resolución ahora
+            ▶ Ejecutar auto-resolución
           </Button>
           <Button onClick={() => runCloseJob()} loading={runningClose} variant="secondary">
-            🔒 Ejecutar auto-cierre ahora
+            🔒 Ejecutar auto-cierre
           </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* Feedback lookup */}
-      <div style={card}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
-          💬 Enviar feedback por ticket
+      {/* Feedback */}
+      <Card style={card}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+          💬 Feedback por ticket
         </div>
-        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', marginBottom: 14 }}>
-          Indica si la resolución automática fue correcta para un ticket específico.
+        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-3)', marginBottom: 14 }}>
+          Registra si la resolución automática fue correcta para un ticket — ajusta el bucket de confianza.
         </div>
         <FeedbackLookup onOpen={id => setFeedbackTicketId(id)} />
-      </div>
+      </Card>
 
       {feedbackTicketId && (
         <FeedbackModal ticketId={feedbackTicketId} onClose={() => setFeedbackTicketId(null)} />
       )}
-    </div>
-  )
-}
-
-function FeedbackLookup({ onOpen }) {
-  const [id, setId] = useState('')
-  return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-      <input
-        value={id}
-        onChange={e => setId(e.target.value)}
-        placeholder="ID del ticket…"
-        type="number"
-        min="1"
-        style={{ width: 140, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit' }}
-      />
-      <Button onClick={() => id && onOpen(Number(id))} disabled={!id}>
-        Dar feedback
-      </Button>
     </div>
   )
 }

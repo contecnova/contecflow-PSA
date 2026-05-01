@@ -220,7 +220,7 @@ export default function EpicGanttPage() {
   })
   const { data: roadmap, isLoading: lRoadmap } = useQuery({
     queryKey: ['epic-gantt', project],
-    queryFn: () => api.get(`roadmap?project_id=${project}`).then(r => r.data).catch(() => null),
+    queryFn: () => api.get('/epics/roadmap', { params: { project_id: project } }).then(r => r.data).catch(() => null),
     enabled: !!project,
   })
   const { data: epicDeps = [], isLoading: lDeps } = useQuery({

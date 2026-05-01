@@ -154,69 +154,22 @@ def resolve_wiki_comment(comment_id: str, db: Session = Depends(get_db),
 
 @router.get("")
 def list_epics(project_id: str = Query(...),
-
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return list_epics_records(project_id, db)
 
 
 @router.post("")
 def create_epic(p: EpicIn, project_id: str = Query(...),
-
                 db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
     return create_epic_record(p.model_dump(), project_id, cu.id, db)
 
 
-@router.get("/{epic_id}")
-def get_epic(epic_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return get_epic_record(epic_id, db)
-
-
-@router.patch("/{epic_id}")
-def update_epic(epic_id: str, p: EpicIn,
-                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return update_epic_record(epic_id, p.model_dump(exclude_unset=True), db)
-
-
-@router.delete("/{epic_id}")
-def delete_epic(epic_id: str, db: Session = Depends(get_db),
-                cu: User = Depends(require_admin_or_pm)):
-    return delete_epic_record(epic_id, db)
-
-
-@router.post("/{epic_id}/tasks/{task_id}")
-def add_task_to_epic(epic_id: str, task_id: str,
-                     db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return add_task_to_epic_record(epic_id, task_id, db)
-
-
-@router.delete("/{epic_id}/tasks/{task_id}")
-def remove_task_from_epic(epic_id: str, task_id: str,
-                          db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return remove_task_from_epic_record(epic_id, task_id, db)
-
-
-@router.post("/{epic_id}/dependencies/{depends_on_id}")
-def add_dependency(epic_id: str, depends_on_id: str,
-                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return add_epic_dependency(epic_id, depends_on_id, db)
-
-
-@router.delete("/{epic_id}/dependencies/{depends_on_id}")
-def remove_dependency(epic_id: str, depends_on_id: str,
-                      db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
-    return remove_epic_dependency(epic_id, depends_on_id, db)
-
+# ── static sub-paths must be declared BEFORE /{epic_id} to avoid shadowing ──
 
 @router.get("/roadmap")
 def get_roadmap(project_id: str = Query(...),
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return get_roadmap_data(project_id, db)
-
-
-# ══════════════════════════════════════════════════════════════════════
-# 4. NQL — BÚSQUEDA AVANZADA
-# ══════════════════════════════════════════════════════════════════════
-
 
 
 @router.post("/nql/search")
@@ -230,8 +183,6 @@ def list_filters(entity_type: Optional[str] = None,
     return list_saved_filters(entity_type, cu.id, db)
 
 
-
-
 @router.post("/filters")
 def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return create_saved_filter(p.model_dump(), cu.id, db)
@@ -241,10 +192,6 @@ def save_filter(p: SavedFilterIn, db: Session = Depends(get_db), cu: User = Depe
 def delete_filter(filter_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     return delete_saved_filter(filter_id, cu.id, db)
 
-
-# ══════════════════════════════════════════════════════════════════════
-# 5. CUMULATIVE FLOW DIAGRAM
-# ══════════════════════════════════════════════════════════════════════
 
 @router.post("/cfd/snapshot")
 def take_snapshot(project_id: str = Query(...), sprint_id: Optional[str] = Query(None),
@@ -259,7 +206,7 @@ def get_cfd(project_id: str = Query(...), sprint_id: Optional[str] = Query(None)
 
 
 # ══════════════════════════════════════════════════════════════════════
-# 6. @MENCIONES
+# 4–6. MENCIONES, COMMENTS, THREADS
 # ══════════════════════════════════════════════════════════════════════
 
 @router.get("/mentions")
@@ -307,3 +254,46 @@ def resolve_comment(comment_id: str, db: Session = Depends(get_db),
 def delete_comment(comment_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(get_current_user)):
     return delete_threaded_comment(comment_id, cu.id, db)
+
+
+# ── dynamic /{epic_id} routes ────────────────────────────────────────────────
+
+@router.get("/{epic_id}")
+def get_epic(epic_id: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    return get_epic_record(epic_id, db)
+
+
+@router.patch("/{epic_id}")
+def update_epic(epic_id: str, p: EpicIn,
+                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    return update_epic_record(epic_id, p.model_dump(exclude_unset=True), db)
+
+
+@router.delete("/{epic_id}")
+def delete_epic(epic_id: str, db: Session = Depends(get_db),
+                cu: User = Depends(require_admin_or_pm)):
+    return delete_epic_record(epic_id, db)
+
+
+@router.post("/{epic_id}/tasks/{task_id}")
+def add_task_to_epic(epic_id: str, task_id: str,
+                     db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    return add_task_to_epic_record(epic_id, task_id, db)
+
+
+@router.delete("/{epic_id}/tasks/{task_id}")
+def remove_task_from_epic(epic_id: str, task_id: str,
+                          db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    return remove_task_from_epic_record(epic_id, task_id, db)
+
+
+@router.post("/{epic_id}/dependencies/{depends_on_id}")
+def add_dependency(epic_id: str, depends_on_id: str,
+                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    return add_epic_dependency(epic_id, depends_on_id, db)
+
+
+@router.delete("/{epic_id}/dependencies/{depends_on_id}")
+def remove_dependency(epic_id: str, depends_on_id: str,
+                      db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+    return remove_epic_dependency(epic_id, depends_on_id, db)

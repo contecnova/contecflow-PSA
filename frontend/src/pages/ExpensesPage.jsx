@@ -317,7 +317,7 @@ function MyExpenses() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0)
+  const total = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const pending = expenses.filter(e => e.status === 'submitted').length
 
   return (
@@ -407,7 +407,7 @@ function PendingApproval() {
   return (
     <div>
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
-        {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + e.amount, 0))} total` : 'No hay gastos pendientes'}
+        {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))} total` : 'No hay gastos pendientes'}
       </div>
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
         <EmptyState icon="✅" title="Sin pendientes" description="No hay gastos pendientes de revisión." />

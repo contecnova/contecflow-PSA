@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { milestonesApi, projectsApi } from '../services/api'
+import { milestonesApi, projectsApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Flag } from 'lucide-react'
-import { Button, Modal, EmptyState } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
@@ -33,10 +33,27 @@ function StatusBadge({ status }) {
 }
 
 // ── Modal de rechazo ──────────────────────────────────────────────────────────
-function RejectModal({ _milestone, onClose, onReject }) {
+function RejectModal({ milestone, onClose, onReject }) {
   const [reason, setReason] = useState('')
+  const milestoneLabel = milestone?.name || milestone?.title || milestone?.code || milestone?.id
   return (
     <Modal open title="Rechazar milestone" onClose={onClose} width={420}>
+      {milestoneLabel && (
+        <div style={{
+          marginBottom: 14,
+          padding: '8px 12px',
+          background: 'var(--surface-3)',
+          border: '1px solid var(--surface-4)',
+          borderRadius: 8,
+          fontSize: 'var(--text-sm)',
+          color: 'var(--text-2)',
+        }}>
+          Milestone: <strong style={{ color: 'var(--text-1)' }}>{milestoneLabel}</strong>
+          {milestone?.amount != null && (
+            <span style={{ marginLeft: 8, color: 'var(--text-3)' }}>· {milestone.amount} {milestone.currency || ''}</span>
+          )}
+        </div>
+      )}
       <div style={{ marginBottom: 16 }}>
         <label style={lbl}>Motivo del rechazo *</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)}
@@ -230,7 +247,7 @@ export default function MilestoneBillingPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(unwrapList),
   })
 
   const { data: milestones = [], refetch } = useQuery({
@@ -253,13 +270,6 @@ export default function MilestoneBillingPage() {
     return acc
   }, {})
 
-  const tabStyle = (active) => ({
-    padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-    background: active ? 'var(--accent-glow)' : 'transparent',
-    color: active ? 'var(--accent)' : 'var(--text-2)',
-    fontSize: "var(--text-base)", fontFamily: 'inherit', fontWeight: active ? 700 : 400,
-  })
-
   return (
     <PageShell>
       <PageHeader
@@ -268,18 +278,15 @@ export default function MilestoneBillingPage() {
         subtitle={_t('milestone_billing.subtitle')}
       />
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 10, padding: 4, marginBottom: 20, width: 'fit-content' }}>
-        <button onClick={() => setTab('project')}   style={tabStyle(tab === 'project')}>Por proyecto</button>
-        <button onClick={() => setTab('dashboard')} style={tabStyle(tab === 'dashboard')}>
-          Dashboard pendientes
-          {dashboard.length > 0 && (
-            <span style={{ marginLeft: 6, fontSize: "var(--text-2xs)", padding: '1px 6px', borderRadius: 10, background: 'var(--warning-border)', color: 'var(--warning)', fontWeight: 700 }}>
-              {dashboard.length}
-            </span>
-          )}
-        </button>
-      </div>
+      <Tabs
+        items={[
+          { id: 'project',   label: 'Por proyecto' },
+          { id: 'dashboard', label: 'Dashboard pendientes', count: dashboard.length || undefined },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Facturación por hitos"
+      />
 
       {/* Vista por proyecto */}
       {tab === 'project' && (

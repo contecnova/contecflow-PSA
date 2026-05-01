@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import api, { projectsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
-import { LayoutGrid } from 'lucide-react'
+import { LayoutGrid, History, X } from 'lucide-react'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 
@@ -318,6 +318,7 @@ export default function KanbanAdvancedPage() {
   const [swimlaneBy, setSwimlaneBy]     = useState('none')   // none | assignee | priority | epic
   const [wipLimits, setWipLimits]       = useState({})
   const [showSettings, setShowSettings] = useState(false)
+  const [selectedTask, setSelectedTask] = useState(null)   // task whose movement log is shown
   const searchRef = useRef(null)
 
   // drag state
@@ -354,10 +355,26 @@ export default function KanbanAdvancedPage() {
   })
 
   const { mutate: updateStatus } = useMutation({
-    mutationFn: ({ id, status }) => api.patch(`/tasks/${id}`, { status }),
+    mutationFn: ({ id, status, move_reason }) =>
+      api.patch(`/tasks/${id}`, { status, ...(move_reason ? { move_reason } : {}) }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['kanban-tasks'] }),
     onError:    (e) => toast.error(e?.response?.data?.detail || t('kanban.error_move_task')),
   })
+
+  const SENSITIVE_FROM = new Set(['done', 'cancelled'])
+  const requestStatusChange = useCallback((id, fromStatus, toStatus) => {
+    if (fromStatus === toStatus) return
+    let move_reason
+    if (SENSITIVE_FROM.has(fromStatus)) {
+      move_reason = window.prompt(
+        `Vas a reabrir/mover una tarea desde "${fromStatus}". Indica el motivo (queda registrado en el log):`,
+        ''
+      )
+      if (move_reason === null) return // user cancelled
+      move_reason = move_reason.trim() || undefined
+    }
+    updateStatus({ id, status: toStatus, move_reason })
+  }, [updateStatus])
 
   // ── Native drag-and-drop ───────────────────────────────────────────────────
   const cleanupGhost = useCallback(() => {
@@ -478,7 +495,7 @@ export default function KanbanAdvancedPage() {
         if (dragTask.current && target) {
           const { colId } = target
           if (dragTask.current.status !== colId) {
-            updateStatus({ id: dragTask.current.id, status: colId })
+            requestStatusChange(dragTask.current.id, dragTask.current.status, colId)
           }
         }
       }
@@ -489,7 +506,7 @@ export default function KanbanAdvancedPage() {
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [updateStatus, cleanupGhost])
+  }, [requestStatusChange, cleanupGhost])
 
   const handleColumnEnter = useCallback((colId, swLane) => {
     dropTargetRef.current = { colId, swLane }  // update ref synchronously
@@ -653,7 +670,7 @@ export default function KanbanAdvancedPage() {
                     onTaskDragStart={handleTaskDragStart}
                     onColumnEnter={() => handleColumnEnter(col.id, 'all')}
                     onColumnLeave={handleColumnLeave}
-                    onTaskClick={t => void t}
+                    onTaskClick={t => setSelectedTask(t)}
                     onCreated={() => qc.invalidateQueries({ queryKey: ['kanban-tasks'] })}
                     priorityLabels={priorityLabels}
                   />
@@ -672,7 +689,7 @@ export default function KanbanAdvancedPage() {
                 onTaskDragStart={handleTaskDragStart}
                 onColumnEnter={(colId) => handleColumnEnter(colId, lane.label + projectId)}
                 onColumnLeave={handleColumnLeave}
-                onTaskClick={t => void t}
+                onTaskClick={t => setSelectedTask(t)}
                 onCreated={() => qc.invalidateQueries({ queryKey: ['kanban-tasks'] })}
                 priorityLabels={priorityLabels}
               />
@@ -680,6 +697,115 @@ export default function KanbanAdvancedPage() {
           ))}
         </div>
       )}
+
+      {/* Movement log drawer */}
+      {selectedTask && (
+        <TaskMovementLogDrawer task={selectedTask} onClose={() => setSelectedTask(null)} />
+      )}
+    </div>
+  )
+}
+
+// ── Movement Log Drawer ───────────────────────────────────────────────────────
+
+const STATUS_COLORS = {
+  backlog: 'var(--text-3)', todo: 'var(--accent)', in_progress: '#4f8ef7',
+  in_review: '#f59e0b', done: '#34d399', cancelled: '#f87171', blocked: '#fb923c',
+}
+
+function StatusBadge({ status }) {
+  const color = STATUS_COLORS[status] || 'var(--text-3)'
+  return (
+    <span style={{
+      display: 'inline-block', padding: '1px 8px', borderRadius: 10,
+      fontSize: 'var(--text-2xs)', fontWeight: 700, color,
+      background: `${color}18`, border: `1px solid ${color}44`,
+      textTransform: 'uppercase', letterSpacing: '0.04em',
+    }}>{status?.replace('_', ' ')}</span>
+  )
+}
+
+function TaskMovementLogDrawer({ task, onClose }) {
+  const { data: log = [], isLoading } = useQuery({
+    queryKey: ['task-movement-log', task.id],
+    queryFn: () => api.get(`/tasks/${task.id}/movement-log`).then(r => r.data),
+    staleTime: 0,
+    retry: false,
+  })
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0, width: 380,
+      background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
+      zIndex: 'var(--z-modal, 1000)', display: 'flex', flexDirection: 'column',
+      boxShadow: '-4px 0 24px rgba(0,0,0,0.35)',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px', borderBottom: '1px solid var(--surface-4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <History size={16} color="var(--accent)" />
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--text-1)' }}>Historial</span>
+        </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center' }}>
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Task title */}
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{task.code}</div>
+        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)', lineHeight: 1.4 }}>{task.title}</div>
+      </div>
+
+      {/* Log entries */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px' }}>
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+        ) : log.length === 0 ? (
+          <div style={{ color: 'var(--text-3)', fontSize: 'var(--text-sm)', textAlign: 'center', paddingTop: 40 }}>Sin movimientos registrados</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {log.map((entry, i) => (
+              <div key={entry.id} style={{ position: 'relative', paddingLeft: 24, paddingBottom: i < log.length - 1 ? 20 : 0 }}>
+                {/* Timeline line */}
+                {i < log.length - 1 && (
+                  <div style={{ position: 'absolute', left: 7, top: 18, bottom: 0, width: 2, background: 'var(--surface-4)' }} />
+                )}
+                {/* Dot */}
+                <div style={{
+                  position: 'absolute', left: 2, top: 6, width: 12, height: 12,
+                  borderRadius: '50%', background: STATUS_COLORS[entry.to_status] || 'var(--accent)',
+                  border: '2px solid var(--surface-1)',
+                }} />
+                {/* Content */}
+                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                    {entry.from_status && <StatusBadge status={entry.from_status} />}
+                    {entry.from_status && <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>→</span>}
+                    <StatusBadge status={entry.to_status} />
+                  </div>
+                  {entry.reason && (
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontStyle: 'italic', marginBottom: 4 }}>
+                      &ldquo;{entry.reason}&rdquo;
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+                      {entry.moved_by?.username || entry.moved_by?.full_name || 'Sistema'}
+                    </span>
+                    <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)' }}>
+                      {new Date(entry.moved_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

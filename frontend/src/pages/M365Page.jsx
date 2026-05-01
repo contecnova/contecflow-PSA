@@ -23,7 +23,7 @@ function StatusBadge({ ok, label }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
       background: ok ? 'var(--success-bg)' : 'var(--surface-2)',
-      border: `1px solid ${ok ? '#276227' : 'var(--surface-5)'}`,
+      border: `1px solid ${ok ? 'var(--success-border)' : 'var(--surface-5)'}`,
       borderRadius: 8, padding: '4px 10px', fontSize: "var(--text-sm)",
       color: ok ? 'var(--success)' : 'var(--text-2)',
     }}>
@@ -115,7 +115,7 @@ function CalendarTab() {
             <label style={ls}>Días</label>
             <input type="number" value={msDays} onChange={e => setMsDays(Number(e.target.value))} style={fs} min={1} max={90} />
           </div>
-          <button onClick={pushMilestones} disabled={!msUpn || msLoading} style={{ background: '#276227', border: 'none', borderRadius: 8, color: 'var(--success)', padding: '10px 18px', cursor: msUpn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+          <button onClick={pushMilestones} disabled={!msUpn || msLoading} style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, color: 'var(--success)', padding: '10px 18px', cursor: msUpn ? 'pointer' : 'not-allowed', fontSize: "var(--text-base)", fontFamily: 'inherit', whiteSpace: 'nowrap', fontWeight: 600 }}>
             {msLoading ? 'Creando eventos…' : '📤 Push Milestones'}
           </button>
         </div>
@@ -131,10 +131,15 @@ function CalendarTab() {
   )
 }
 
+// Microsoft Teams brand color palette (NO USAR tokens del producto — son colores
+// corporativos de Microsoft que se envían literalmente al Adaptive Card de Teams).
+// Ver https://learn.microsoft.com/microsoftteams/platform/task-modules-and-cards/cards/cards-format
+const TEAMS_BRAND_PRESETS = ['0078D4', 'FF0000', 'FF8C00', '107C10', '5C2D91']
+
 function TeamsTab() {
   const [title,   setTitle]   = useState('')
   const [text,    setText]    = useState('')
-  const [color,   setColor]   = useState('0078D4')
+  const [color,   setColor]   = useState(TEAMS_BRAND_PRESETS[0])
   const [sending, setSending] = useState(false)
   const [result,  setResult]  = useState(null)
 
@@ -168,8 +173,9 @@ function TeamsTab() {
             <label style={ls}>Color (hex sin #)</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input value={color} onChange={e => setColor(e.target.value)} style={{ ...fs, width: 120 }} placeholder="0078D4" />
-              {['0078D4','FF0000','FF8C00','107C10','5C2D91'].map(c => (
-                <button key={c} onClick={() => setColor(c)} style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid #fff' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />
+              {TEAMS_BRAND_PRESETS.map(c => (
+                <button key={c} onClick={() => setColor(c)} title={`Color de marca Teams #${c}`}
+                  style={{ width: 22, height: 22, background: `#${c}`, border: color === c ? '2px solid var(--text-1)' : '2px solid transparent', borderRadius: 4, cursor: 'pointer' }} />
               ))}
             </div>
           </div>

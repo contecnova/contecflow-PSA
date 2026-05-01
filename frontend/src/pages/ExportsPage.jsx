@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { integrationsApi, projectsApi } from '../services/api'
+import { integrationsApi, projectsApi, unwrapList } from '../services/api'
 import { Button, Card } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -24,7 +24,7 @@ export default function ExportsPage() {
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectsApi.list().then(r => r.data),
+    queryFn: () => projectsApi.list().then(unwrapList),
   })
 
   const setLoad = (k, v) => setLoading(l => ({ ...l, [k]: v }))

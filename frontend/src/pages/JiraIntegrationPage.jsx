@@ -136,10 +136,11 @@ export default function JiraIntegrationPage() {
     saveConfig.mutate(payload)
   }
 
-  const issueList   = issues?.issues  || issues       || []
-  const linkedList  = linked?.tasks   || []
-  const issueCount  = issues?.total   ?? issueList.length
-  const linkedCount = linked?.count   ?? linkedList.length ?? 0
+  // Normaliza ambas formas: array crudo vs {issues, total} / {tasks, count}
+  const issueList   = Array.isArray(issues) ? issues : (issues?.issues || issues?.items || [])
+  const linkedList  = Array.isArray(linked) ? linked : (linked?.tasks  || linked?.items  || [])
+  const issueCount  = (Array.isArray(issues) ? issues.length : issues?.total) ?? issueList.length
+  const linkedCount = (Array.isArray(linked) ? linked.length : linked?.count) ?? linkedList.length
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (

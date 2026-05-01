@@ -174,8 +174,9 @@ export default function RcaWizardModal({ problem, onClose, onCompleted }) {
 
   const { data: wizardState, isLoading, refetch } = useQuery({
     queryKey: ['rca-wizard', problem.id],
-    queryFn: () => api.get(`/sd/problems/${problem.id}/rca-wizard`).then(r => r.data).catch(() => null),
+    queryFn: () => api.get(`/sd/problems/${problem.id}/rca-wizard`).then(r => r.data).catch(() => ({ wizard: null })),
     staleTime: 0,
+    retry: false,
   })
 
   const { mutate: startWizard, isPending: starting } = useMutation({

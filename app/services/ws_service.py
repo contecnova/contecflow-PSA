@@ -10,6 +10,7 @@ import secrets
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Tuple, List, Dict, Any, Optional
+from sqlalchemy import select
 
 # ── WS Ticket Store ────────────────────────────────────────────────────────────
 _ws_tickets: Dict[str, tuple] = {}       # ticket → (user_id, expires_at)
@@ -89,10 +90,10 @@ def get_team_poll_data(db: Session, user_id: str) -> Dict[str, Any]:
     if not user:
         return {"governed_unread": 0, "pending_reviews": 0, "assigned_overdue": 0}
 
-    conv_ids = db.query(PortalConversationParticipant.conversation_id).filter(
+    conv_ids = select(PortalConversationParticipant.conversation_id).where(
         PortalConversationParticipant.user_id == user_id,
         PortalConversationParticipant.removed_at == None,
-    ).subquery()
+    )
 
     governed_unread = db.query(PortalConversationMessage).join(
         PortalConversation,

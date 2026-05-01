@@ -329,7 +329,7 @@ export default function ReportBuilderPage() {
     if (!entity) return
     setLoading(true)
     try {
-      const res = await api.post('/reports/preview', buildQuery())
+      const res = await reportBuilderApi.preview(buildQuery())
       setPreview(res.data)
     } catch {
       setPreview({ rows: [], count: 0, error: true })
@@ -341,7 +341,7 @@ export default function ReportBuilderPage() {
   const exportCSV = async () => {
     if (!entity) return
     const q = buildQuery()
-    const res = await api.post('/reports/export', q, { responseType: 'blob' })
+    const res = await reportBuilderApi.export(q, { responseType: 'blob' })
     const url = URL.createObjectURL(res.data)
     const a = document.createElement('a')
     a.href = url
@@ -354,7 +354,7 @@ export default function ReportBuilderPage() {
     if (!tplName.trim() || !entity) return
     setSavingTpl(true)
     try {
-      await api.post('/reports/templates', { name: tplName.trim(), query: buildQuery() })
+      await reportBuilderApi.saveTemplate({ name: tplName.trim(), query: buildQuery() })
       await qc.invalidateQueries(['report-templates'])
       setTplName('')
     } finally {
@@ -364,11 +364,11 @@ export default function ReportBuilderPage() {
 
   const { data: templates = [] } = useQuery({
     queryKey: ['report-templates'],
-    queryFn: () => api.get('/reports/templates').then(r => r.data),
+    queryFn: () => reportBuilderApi.templates().then(r => r.data),
   })
 
   const { mutate: deleteTpl } = useMutation({
-    mutationFn: (id) => api.delete(`/reports/templates/${id}`),
+    mutationFn: (id) => reportBuilderApi.deleteTemplate(id),
     onSuccess: () => qc.invalidateQueries(['report-templates']),
   })
 

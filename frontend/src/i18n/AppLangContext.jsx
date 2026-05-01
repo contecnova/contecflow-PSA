@@ -10,7 +10,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { APP_LANGUAGES, APP_TRANSLATIONS, loadLanguage } from './appTranslations'
-import { deepMergeTranslations, resolveTranslation } from './translationRuntime.mjs'
+import { deepMergeTranslations, resolveTranslation, getByPath } from './translationRuntime.mjs'
 import api from '../services/api'
 
 export const AppLangContext = createContext(null)
@@ -74,6 +74,30 @@ export function AppLangProvider({ children }) {
   })
   const [loading, setLoading] = useState(() => !inTest)
 
+  const resolveRawByFullKey = useCallback((fullKey) => {
+    if (!fullKey || typeof fullKey !== 'string' || !fullKey.includes('.')) return undefined
+    const parts = fullKey.split('.')
+    const moduleName = parts[0]
+    const keyPath = parts.slice(1)
+    if (!moduleName || keyPath.length === 0) return undefined
+
+    const fallbackKey = keyPath[keyPath.length - 1]
+    const candidates = [
+      getByPath(translations, moduleName, keyPath),
+      getByPath(baseTranslations, moduleName, keyPath),
+      getByPath(APP_TRANSLATIONS.en, moduleName, keyPath),
+      getByPath(APP_TRANSLATIONS.es, moduleName, keyPath),
+    ]
+
+    for (const value of candidates) {
+      if (typeof value !== 'string') continue
+      if (!value.trim()) continue
+      if (value === fallbackKey) continue
+      return value
+    }
+    return undefined
+  }, [translations, baseTranslations])
+
   // Carga asíncrona del idioma activo
   useEffect(() => {
     if (inTest) return
@@ -129,15 +153,28 @@ export function AppLangProvider({ children }) {
     localStorage.setItem(CUSTOM_KEY, JSON.stringify(data))
   }, [])
 
-  // Función de traducción: t('module.key') o t('module', 'key')
-  // Soporta claves anidadas: t('module.section.key')
-  // Soporta interpolación: t('module.key', { var1: val1, var2: val2 })
+  // Función de traducción:
+  //   t('module.key')
+  //   t('module', 'key')
+  //   t('module.key', { var: value })
+  //   t('module.key', 'Fallback')
   const t = useCallback((moduleOrFullKey, keyOrParams) => {
     // Detect if second argument is an interpolation params object
     const isParams = keyOrParams !== null
       && typeof keyOrParams === 'object'
       && !Array.isArray(keyOrParams)
     const params = isParams ? keyOrParams : null
+    const fallback = !isParams && typeof keyOrParams === 'string' ? keyOrParams : undefined
+
+    // Backward-compatible shorthand: t('module.key', 'Fallback text')
+    // If first arg already contains a full key path, treat second string as
+    // literal fallback instead of subkey to avoid synthetic i18n-missing keys.
+    if (!isParams && fallback && typeof moduleOrFullKey === 'string' && moduleOrFullKey.includes('.')) {
+      const existing = resolveRawByFullKey(moduleOrFullKey)
+      if (existing) return existing
+      return fallback
+    }
+
     const key = isParams ? undefined : keyOrParams
 
     let module
@@ -171,7 +208,7 @@ export function AppLangProvider({ children }) {
     }
 
     return trans
-  }, [translations, baseTranslations, lang])
+  }, [translations, baseTranslations, lang, resolveRawByFullKey])
 
   if (loading) return null // O un spinner global
   return (

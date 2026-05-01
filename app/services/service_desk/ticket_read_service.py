@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import Ticket, TicketComment, TicketHistory
+from app.models.epics import ThreadedComment
 from app.models.user import User
 from app.services.service_desk.scoping import scope_ticket_query
 from app.services.service_desk.status_compat import normalize_ticket_status, sanitize_legacy_ticket_statuses
@@ -202,4 +203,35 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
     if not ticket:
         raise HTTPException(404, "Ticket no encontrado")
 
-    return ticket_out(ticket, include_comments=True)
+    payload = ticket_out(ticket, include_comments=True)
+
+    # Merge threaded comments (Mentions page) so ticket detail shows the same
+    # discussion history as the threaded comments module.
+    threaded = (
+        db.query(ThreadedComment)
+        .filter(
+            ThreadedComment.entity_type == "ticket",
+            ThreadedComment.entity_id == ticket_id,
+        )
+        .order_by(ThreadedComment.created_at.asc())
+        .all()
+    )
+    if threaded:
+        comments = list(payload.get("comments") or [])
+        for c in threaded:
+            body = c.content if not c.parent_id else f"↳ {c.content}"
+            comments.append(
+                {
+                    "id": c.id,
+                    "body": body,
+                    "is_public": True,
+                    "is_solution": False,
+                    "author_name": "Usuario",
+                    "author_type": "agent",
+                    "created_at": str(c.created_at)[:16],
+                }
+            )
+        comments.sort(key=lambda x: x.get("created_at") or "")
+        payload["comments"] = comments
+
+    return payload

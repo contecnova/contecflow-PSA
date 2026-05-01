@@ -25,18 +25,20 @@ export default function TimePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Tabs
-        items={TABS}
-        active={tab}
-        onChange={setTab}
-        ariaLabel="Tiempo"
+      <div
         style={{
-          paddingLeft: 24,
-          background: 'var(--surface-1)',
-          marginBottom: 0,
+          padding: 'var(--page-pad-y) var(--page-pad-x) 0',
           flexShrink: 0,
         }}
-      />
+      >
+        <Tabs
+          items={TABS}
+          active={tab}
+          onChange={setTab}
+          ariaLabel="Tiempo"
+          style={{ marginBottom: 0 }}
+        />
+      </div>
 
       <div style={{ flex: 1 }}>
         <Suspense fallback={<TabFallback />}>

@@ -70,6 +70,7 @@ export default function UserProfilePanel({ onClose }) {
 
   // ── Perfil ──────────────────────────────────────────────────────────────────
   const [profileForm, setProfileForm] = useState({
+    email:      user?.email      || '',
     first_name: user?.first_name || '',
     last_name:  user?.last_name  || '',
     phone:      user?.phone      || '',
@@ -188,14 +189,23 @@ export default function UserProfilePanel({ onClose }) {
           {/* ── PERFIL ───────────────────────────────────────────────────────── */}
           {tab === 'profile' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Info no editable */}
+              {/* Info general */}
               <div style={{ padding: '10px 14px', background: 'var(--surface-3)',
                 borderRadius: 8, fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
                 <div>👤 Usuario: <strong style={{ color: 'var(--text-1)' }}>{user?.username}</strong></div>
-                <div style={{ marginTop: 4 }}>📧 Email: <strong style={{ color: 'var(--text-1)' }}>{user?.email}</strong></div>
+                <div style={{ marginTop: 4 }}>📧 Email: <strong style={{ color: 'var(--text-1)' }}>{profileForm.email || user?.email}</strong></div>
                 <div style={{ marginTop: 2, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
-                  El usuario y email los gestiona el administrador
+                  Los cambios se aplican al mismo recurso en todo el sistema
                 </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)',
+                  textTransform: 'uppercase', letterSpacing: '0.07em',
+                  display: 'block', marginBottom: 4 }}>Email</label>
+                <input value={profileForm.email}
+                  onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
+                  style={IS} type="email" placeholder="nombre@empresa.com" />
               </div>
 
               {/* Nombre */}

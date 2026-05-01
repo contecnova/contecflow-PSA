@@ -1,91 +1,154 @@
 /**
  * AlertCorrelationPanel — ML-based alert clustering/correlation for ITSM
  *
- * Shows alert clusters from DBSCAN clustering, lets ops merge a cluster
- * into a Problem record and trigger a new scan.
- *
  * Backend endpoints:
- *   GET  /sd/alert-clusters
- *   GET  /sd/alert-clusters/stats
- *   POST /sd/alert-clusters/merge       { cluster_id }
- *   POST /sd/alert-clusters/run-scan
+ *   GET  /sd/alert-clusters                    -> { window_hours, total, clusters: [{cluster_id, size, ticket_ids, ticket_numbers, ci_id, category, priority, correlation_score, suggested_action, root_ci_ids, earliest_at, latest_at}] }
+ *   GET  /sd/alert-clusters/stats              -> { window_hours, open_tickets_in_window, clusters_detected, tickets_in_clusters, tickets_needing_problem, top_clusters }
+ *   POST /sd/alert-clusters/merge              { ticket_ids, auto_rca } -> { ok, problem_id, problem_number, linked_tickets }
+ *   POST /sd/alert-clusters/run-scan           -> stats summary
  */
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
-import { Button, Spinner, EmptyState } from '../ui'
+import { Card, Button, Spinner, EmptyState } from '../ui'
 import { useToast } from '../../context/ToastContext'
-import { COLOR } from '../../constants/theme'
 
-const card = {
-  background: 'var(--surface-2)',
-  border: '1px solid var(--surface-4)',
-  borderRadius: 12,
-  padding: '20px 24px',
+const PRIORITY_LABELS = {
+  p1_critical: 'P1 Crítico',
+  p2_high: 'P2 Alto',
+  p3_medium: 'P3 Medio',
+  p4_low: 'P4 Bajo',
 }
 
-const statBox = (accent) => ({
-  background: `${accent}12`,
-  border: `1px solid ${accent}30`,
-  borderRadius: 10,
-  padding: '14px 18px',
-  textAlign: 'center',
-  flex: 1,
-  minWidth: 90,
+const ACTION_META = {
+  create_problem: { label: 'Crear problema', color: 'var(--danger)' },
+  review:         { label: 'Revisar',          color: 'var(--warning)' },
+  monitor:        { label: 'Monitorizar',      color: 'var(--text-3)' },
+}
+
+const fieldLabel = {
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
+}
+const chip = (color) => ({
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color,
+  background: `color-mix(in srgb, ${color} 15%, transparent)`,
+  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+  borderRadius: 'var(--radius-full, 999px)',
+  padding: '2px 9px',
+  whiteSpace: 'nowrap',
 })
 
-function StatCard({ label, value, accent = COLOR.accent }) {
+function StatCard({ label, value, accent }) {
   return (
-    <div style={statBox(accent)}>
-      <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, color: accent }}>{value ?? '—'}</div>
-      <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 4 }}>{label}</div>
+    <div style={{
+      flex: '1 1 140px',
+      background: `color-mix(in srgb, ${accent} 8%, var(--surface-3))`,
+      border: `1px solid color-mix(in srgb, ${accent} 25%, var(--surface-4))`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 'var(--text-2xl-em)', fontWeight: 800, color: accent, lineHeight: 1.1 }}>
+        {value ?? '—'}
+      </div>
+      <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {label}
+      </div>
     </div>
   )
 }
 
-function ClusterCard({ cluster, onMerge, merging }) {
-  const sizeColor = cluster.size >= 10 ? COLOR.danger : cluster.size >= 5 ? COLOR.warning : COLOR.success
+function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }) {
+  const sizeColor = cluster.size >= 10 ? 'var(--danger)' : cluster.size >= 5 ? 'var(--warning)' : 'var(--success)'
+  const score = Math.round((cluster.correlation_score ?? 0) * 100)
+  const action = ACTION_META[cluster.suggested_action] || ACTION_META.monitor
+  const ticketNums = cluster.ticket_numbers || []
+  const ticketIds = cluster.ticket_ids || []
+
   return (
-    <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 18px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-3)' }}>Cluster #{cluster.id}</span>
-            <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: sizeColor, background: `${sizeColor}15`, padding: '2px 8px', borderRadius: 4 }}>
-              {cluster.size} alertas
+    <div style={{
+      background: 'var(--surface-3)',
+      border: '1px solid var(--surface-4)',
+      borderRadius: 10,
+      padding: '14px 16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+              #{(cluster.cluster_id || '').slice(0, 8)}
             </span>
-            {cluster.problem_id && (
-              <span style={{ fontSize: "var(--text-xs)", color: COLOR.info ?? 'var(--info)', background: `${COLOR.info ?? 'var(--info)'}15`, padding: '2px 8px', borderRadius: 4 }}>
-                → Problema #{cluster.problem_id}
-              </span>
+            <span style={chip(sizeColor)}>{cluster.size} alertas</span>
+            <span style={chip(action.color)}>{action.label}</span>
+            <span style={chip('var(--accent)')}>score {score}%</span>
+          </div>
+          <div style={{ fontSize: 'var(--text-base)', color: 'var(--text-1)', fontWeight: 600 }}>
+            {cluster.category ? `${cluster.category}` : 'Cluster sin categoría'}
+            {cluster.priority && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> · {PRIORITY_LABELS[cluster.priority] || cluster.priority}</span>}
+          </div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {cluster.ci_id && <span>CI: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>{cluster.ci_id}</span></span>}
+            {cluster.earliest_at && (
+              <span>Desde {new Date(cluster.earliest_at).toLocaleString()}</span>
+            )}
+            {cluster.latest_at && (
+              <span>Hasta {new Date(cluster.latest_at).toLocaleString()}</span>
             )}
           </div>
-          <div style={{ fontSize: "var(--text-base)", color: 'var(--text-1)', fontWeight: 600 }}>{cluster.label || cluster.title || `Cluster de alertas #${cluster.id}`}</div>
-          {cluster.description && (
-            <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 4 }}>{cluster.description}</div>
-          )}
         </div>
-        {!cluster.problem_id && (
+        {cluster.suggested_action !== 'monitor' && ticketIds.length >= 2 && (
           <Button
-            onClick={() => onMerge(cluster.id)}
-            loading={merging === cluster.id}
+            onClick={() => onMerge(ticketIds, cluster.cluster_id)}
+            loading={merging === cluster.cluster_id}
             variant="secondary"
-            style={{ flexShrink: 0, marginLeft: 12 }}
+            size="sm"
+            style={{ flexShrink: 0 }}
           >
             🔗 Crear problema
           </Button>
         )}
       </div>
 
-      {/* Alert list preview */}
-      {cluster.alerts?.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-          {cluster.alerts.slice(0, 8).map((a, i) => (
-            <span key={i} style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', background: 'var(--surface-4)', padding: '2px 8px', borderRadius: 4 }}>
-              {a.title || a.name || `Alerta #${a.id}`}
-            </span>
+      {/* Ticket chips */}
+      {ticketNums.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+          {(expanded ? ticketNums : ticketNums.slice(0, 8)).map((num, i) => (
+            <span key={`${num}-${i}`} style={{
+              fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)',
+              color: 'var(--text-2)', background: 'var(--surface-4)',
+              padding: '2px 8px', borderRadius: 4,
+            }}>{num}</span>
           ))}
-          {cluster.alerts.length > 8 && (
-            <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>+{cluster.alerts.length - 8} más</span>
+          {!expanded && ticketNums.length > 8 && (
+            <button
+              type="button"
+              onClick={onToggle}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--accent)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
+                padding: '2px 8px',
+              }}
+            >+{ticketNums.length - 8} más</button>
+          )}
+          {expanded && ticketNums.length > 8 && (
+            <button
+              type="button"
+              onClick={onToggle}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--accent)', fontSize: 'var(--text-xs)', fontFamily: 'inherit',
+                padding: '2px 8px',
+              }}
+            >mostrar menos</button>
           )}
         </div>
       )}
@@ -96,88 +159,105 @@ function ClusterCard({ cluster, onMerge, merging }) {
 export default function AlertCorrelationPanel() {
   const toast = useToast()
   const qc = useQueryClient()
+  const [expanded, setExpanded] = useState({})
 
-  const { data: clusters = [], isLoading: clustersLoading } = useQuery({
+  const { data: clustersData, isLoading: clustersLoading } = useQuery({
     queryKey: ['sd-alert-clusters'],
     queryFn: () => api.get('/sd/alert-clusters').then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: 60_000,
   })
+
+  const clusters = clustersData?.clusters ?? []
+  const windowHours = clustersData?.window_hours ?? 4
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-alert-clusters-stats'],
     queryFn: () => api.get('/sd/alert-clusters/stats').then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: 60_000,
   })
 
   const { mutate: mergeMutate, variables: mergeVars, isPending: isMerging } = useMutation({
-    mutationFn: (clusterId) => api.post('/sd/alert-clusters/merge', { cluster_id: clusterId }),
+    mutationFn: ({ ticket_ids }) => api.post('/sd/alert-clusters/merge', { ticket_ids, auto_rca: true }),
     onSuccess: (res) => {
-      toast.success(`Problema #${res.data?.problem_id ?? '?'} creado desde el cluster`)
+      const num = res.data?.problem_number || res.data?.problem_id || ''
+      toast.success(`Problema ${num} creado desde el cluster`)
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters'] })
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
       qc.invalidateQueries({ queryKey: ['sd-problems'] })
     },
-    onError: () => toast.error('Error al crear problema desde cluster'),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear problema desde cluster'),
   })
 
   const { mutate: runScan, isPending: scanning } = useMutation({
     mutationFn: () => api.post('/sd/alert-clusters/run-scan'),
     onSuccess: (res) => {
-      toast.success(`Escáner completado: ${res.data?.clusters_found ?? 0} clusters detectados`)
+      const found = res.data?.clusters_detected ?? res.data?.clusters_found ?? 0
+      const created = res.data?.problems_auto_created ?? res.data?.created_problems ?? 0
+      toast.success(`Escáner: ${found} clusters · ${created} problemas auto-creados`)
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters'] })
       qc.invalidateQueries({ queryKey: ['sd-alert-clusters-stats'] })
+      qc.invalidateQueries({ queryKey: ['sd-problems'] })
     },
-    onError: () => toast.error('Error al ejecutar el escáner'),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el escáner'),
   })
 
-  const mergingId = isMerging ? mergeVars : null
+  const mergingId = isMerging ? mergeVars?.cluster_id : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Stats */}
-      <div style={card}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
-          📊 Estadísticas de correlación
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <Card style={{ padding: '20px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)' }}>
+              📊 Estadísticas de correlación
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+              ventana últimas {windowHours}h
+            </span>
+          </div>
+          <Button onClick={() => runScan()} loading={scanning} variant="secondary" size="sm">
+            🔍 Escanear ahora
+          </Button>
         </div>
+
         {statsLoading ? <Spinner /> : (
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <StatCard label="Clusters activos" value={stats?.active_clusters} accent={COLOR.warning} />
-            <StatCard label="Alertas correladas" value={stats?.total_correlated_alerts} accent={'var(--info)'} />
-            <StatCard label="Problemas creados" value={stats?.problems_created} accent={COLOR.success} />
-            <StatCard label="Último escaneo" value={stats?.last_scan_ts ? new Date(stats.last_scan_ts).toLocaleTimeString() : 'Nunca'} accent={COLOR.text2 ?? 'var(--text-2)'} />
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <StatCard label="Clusters detectados" value={stats?.clusters_detected} accent="var(--warning)" />
+            <StatCard label="Tickets correlados" value={stats?.tickets_in_clusters} accent="var(--accent)" />
+            <StatCard label="Necesitan problema" value={stats?.tickets_needing_problem} accent="var(--danger)" />
+            <StatCard label="Tickets en ventana" value={stats?.open_tickets_in_window} accent="var(--text-3)" />
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button onClick={() => runScan()} loading={scanning}>
-          🔍 Ejecutar escaneo DBSCAN ahora
-        </Button>
-      </div>
-
-      {/* Cluster list */}
-      <div style={card}>
-        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 16 }}>
+      <Card style={{ padding: '20px 22px' }}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
           🧩 Clusters de alertas
         </div>
-        {clustersLoading ? <Spinner /> :
-         clusters.length === 0 ? (
-           <EmptyState icon="🔎" title="Sin clusters detectados" description="Ejecuta un escaneo para detectar grupos de alertas correladas." />
-         ) : (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-             {clusters.map(c => (
-               <ClusterCard
-                 key={c.id}
-                 cluster={c}
-                 onMerge={mergeMutate}
-                 merging={mergingId}
-               />
-             ))}
-           </div>
-         )
-        }
-      </div>
+
+        {clustersLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}><Spinner /></div>
+        ) : clusters.length === 0 ? (
+          <EmptyState
+            icon="🔎"
+            title="Sin clusters detectados"
+            description="No hay grupos de alertas correladas en la ventana actual. Ejecuta el escáner para revisar."
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {clusters.map(c => (
+              <ClusterCard
+                key={c.cluster_id}
+                cluster={c}
+                onMerge={(ticket_ids, cluster_id) => mergeMutate({ ticket_ids, cluster_id })}
+                merging={mergingId}
+                expanded={!!expanded[c.cluster_id]}
+                onToggle={() => setExpanded(prev => ({ ...prev, [c.cluster_id]: !prev[c.cluster_id] }))}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

@@ -253,16 +253,16 @@ export default function RevenuePage() {
   // ── Chart data ─────────────────────────────────────────────────────────────
   const byMonth = summary?.by_month || []
   const chartData = byMonth.slice(-12).map(m => ({
-    mes: m.month.slice(0,7),
-    Reconocido: Math.round(m.recognised),
-    Diferido: Math.round(m.deferred),
+    mes: (m.month || '').slice(0, 7),
+    Reconocido: Math.round(Number(m.recognised) || 0),
+    Diferido:   Math.round(Number(m.deferred) || 0),
   }))
 
   const asc606ChartData = (asc606Dashboard?.by_month || []).map(m => ({
     mes: MONTHS[m.month - 1],
-    Reconocido: Math.round(m.recognized),
-    Diferido: Math.round(m.deferred),
-    Unbilled: Math.round(m.unbilled),
+    Reconocido: Math.round(Number(m.recognized) || 0),
+    Diferido:   Math.round(Number(m.deferred) || 0),
+    Unbilled:   Math.round(Number(m.unbilled) || 0),
   }))
 
   const TABS = [

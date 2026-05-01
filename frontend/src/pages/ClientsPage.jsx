@@ -53,7 +53,7 @@ const SLA_COLOR = {
 import { useState } from 'react'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { unwrapList } from '../services/api'
 import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -90,7 +90,7 @@ export default function ClientsPage() {
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ['clients', search, statusF],
-    queryFn: () => api.get('/clients', { params: { q: search || undefined, status: statusF || undefined } }).then(r => r.data),
+    queryFn: () => api.get('/clients', { params: { q: search || undefined, status: statusF || undefined } }).then(unwrapList),
   })
 
   const { sort: clientSort, setSort: setClientSort, sortedData: sortedClients } = useSort(clients, sortBy)

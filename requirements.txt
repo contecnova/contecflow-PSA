@@ -153,10 +153,8 @@ pluggy==1.6.0
 # Install these only when you need the ML/semantic features:
 #   pip install -r requirements-ml.txt
 
-# ── Optional: SMS / WhatsApp (Multi-channel Portal) ───────────────────────────
-# Install when you need SMS / Twilio features:
-#   pip install "twilio>=8.0.0"
-# twilio>=8.0.0
+# ── SMS / WhatsApp / Voice (Twilio-backed) ────────────────────────────────────
+twilio>=8.0.0
 
 # ── Optional: Apache Iceberg table format ─────────────────────────────────────
 # Enables create_iceberg_snapshot() in bi_data_versioning_service.py

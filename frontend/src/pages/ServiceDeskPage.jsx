@@ -5,7 +5,6 @@
  * CMDB: sección independiente en /cmdb
  */
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { Link } from 'react-router-dom'
 import { useAppT } from '../i18n/AppLangContext'
 import { MessageSquare } from 'lucide-react'
 import { Button, Spinner, Tabs } from '../components/ui'
@@ -23,7 +22,6 @@ import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
 import AutoResolutionPanel from '../components/servicedesk/AutoResolutionPanel'
 import AlertCorrelationPanel from '../components/servicedesk/AlertCorrelationPanel'
 
-const LazyMetricsDashboard    = lazy(() => import('./service-desk/MetricsDashboardTab'))
 const LazyChangeManagementTab = lazy(() => import('./service-desk/ChangeManagementTab'))
 const LazyITSMKnowledgeTab    = lazy(() => import('./service-desk/ITSMKnowledgeTab'))
 const LazyAnnouncements       = lazy(() => import('./service-desk/ConfigTab').then(m => ({ default: m.AnnouncementsConfig })))
@@ -58,13 +56,12 @@ export default function ServiceDeskPage() {
     { id: 'kedb',     label: `${t('service_desk.tab_kedb')}` },
     { id: 'kb',       label: `${t('service_desk.tab_kb')}` },
     { id: 'announcements', label: `${t('service_desk.tab_announcements')}` },
-    { id: 'metrics',  label: `${t('service_desk.tab_metrics')}` },
     { id: 'config',   label: `${t('service_desk.tab_config')}` },
     { id: 'voice',       label: t('service_desk.tab_voice') },
     { id: 'assign',      label: t('service_desk.tab_assign') },
     { id: 'rollout',     label: t('service_desk.tab_rollout') },
-    { id: 'autoresolve', label: t('service_desk.tab_autoresolve', 'Auto-resolución') },
-    { id: 'alertcorr',   label: t('service_desk.tab_alertcorr', 'Correlación alertas') },
+    { id: 'autoresolve', label: t('service_desk.tab_autoresolve') },
+    { id: 'alertcorr',   label: t('service_desk.tab_alertcorr') },
   ]
 
   return (
@@ -77,24 +74,13 @@ export default function ServiceDeskPage() {
           <Button onClick={() => setShowCreate(true)}>+ {t('service_desk.ticket_create_btn')}</Button>
         }/>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Tabs
-          items={TABS}
-          active={tab}
-          onChange={setTab}
-          variant="pill"
-          ariaLabel={t('service_desk.tab_config')}
-          style={{ marginBottom: 0, borderBottom: 'none', flex: 1, minWidth: 0 }}
-        />
-        <Link to="/cmdb" style={{
-          padding: '6px 14px', borderRadius: 'var(--radius-md)',
-          border: '1px dashed var(--surface-4)',
-          background: 'transparent', color: 'var(--text-3)',
-          fontSize: "var(--text-sm)", fontWeight: 600, textDecoration: 'none',
-          whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4,
-          flexShrink: 0,
-        }} title="CMDB es ahora una sección independiente">🖥️ CMDB ↗</Link>
-      </div>
+      <Tabs
+        items={TABS}
+        active={tab}
+        onChange={setTab}
+        variant="pill"
+        ariaLabel={t('service_desk.tab_config')}
+      />
 
       {/* Mobile toggle bar when in split mode */}
       {isMobile && splitMode && (
@@ -154,11 +140,6 @@ export default function ServiceDeskPage() {
                 <LazyITSMKnowledgeTab mode="kb" />
               </Suspense></div>
             )}
-            {tab === 'metrics'  && (
-              <div id="sd-panel-metrics" role="tabpanel" aria-labelledby="sd-tab-metrics"><Suspense fallback={<Loading />}>
-                <LazyMetricsDashboard />
-              </Suspense></div>
-            )}
             {tab === 'announcements' && (
               <div id="sd-panel-announcements" role="tabpanel" aria-labelledby="sd-tab-announcements"><Suspense fallback={<Loading />}>
                 <LazyAnnouncements />
@@ -168,8 +149,6 @@ export default function ServiceDeskPage() {
             {tab === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-labelledby="sd-tab-voice"><VoiceAgentPanel /></div>}
             {tab === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-labelledby="sd-tab-assign"><IncidentAssignmentPanel /></div>}
             {tab === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-labelledby="sd-tab-rollout"><ChangeRolloutPanel /></div>}
-            {tab === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-labelledby="sd-tab-autoresolve"><AutoResolutionPanel /></div>}
-            {tab === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-labelledby="sd-tab-alertcorr"><AlertCorrelationPanel /></div>}
             {tab === 'autoresolve' && <div id="sd-panel-autoresolve" role="tabpanel" aria-labelledby="sd-tab-autoresolve"><AutoResolutionPanel /></div>}
             {tab === 'alertcorr'   && <div id="sd-panel-alertcorr" role="tabpanel" aria-labelledby="sd-tab-alertcorr"><AlertCorrelationPanel /></div>}
           </div>

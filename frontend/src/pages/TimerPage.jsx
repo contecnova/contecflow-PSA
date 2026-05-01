@@ -205,7 +205,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
           <button disabled={isPending}
             onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable })}
             style={{
-              flex: 1, padding: '11px', background: '#c0392b', border: 'none',
+              flex: 1, padding: '11px', background: 'var(--danger)', border: 'none',
               borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit', opacity: isPending ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -289,7 +289,7 @@ export default function TimerPage() {
   const isPaused  = !!currentTimer?.paused_at
   const isRunning = !!currentTimer && !isPaused
   const isLoading = pauseMutation.isPending || resumeMutation.isPending || stopMutation.isPending
-  const stateColor = isRunning ? 'var(--success)' : isPaused ? '#fb923c' : 'var(--text-3)'
+  const stateColor = isRunning ? 'var(--success)' : isPaused ? 'var(--orange)' : 'var(--text-3)'
   const stateLabel = isRunning ? 'Corriendo' : isPaused ? 'Pausado' : 'Sin sesión'
   const isOnline = useOnlineStatus()
 
@@ -297,8 +297,8 @@ export default function TimerPage() {
     <PageShell style={{ maxWidth: 860, margin: '0 auto' }}>
       {!isOnline && (
         <div style={{
-          background: '#744210', border: '1px solid #d69e2e', borderRadius: 10,
-          padding: '10px 16px', marginBottom: 16, color: '#fefcbf',
+          background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 10,
+          padding: '10px 16px', marginBottom: 16, color: 'var(--warning)',
           fontSize: "var(--text-base)", fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
         }}>
           ⚠️ Sin conexión — los registros de tiempo se guardarán automáticamente cuando recuperes internet.
@@ -370,14 +370,14 @@ export default function TimerPage() {
               }}>▶ Reanudar</button>
             ) : (
               <button onClick={() => pauseMutation.mutate()} disabled={isLoading} style={{
-                padding: '12px 28px', background: '#f59e0b', border: 'none',
+                padding: '12px 28px', background: 'var(--warning)', border: 'none',
                 borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
                 cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 opacity: isLoading ? 0.6 : 1,
               }}>⏸ Pausar</button>
             )}
             <button onClick={() => setShowStop(true)} disabled={isLoading} style={{
-              padding: '12px 28px', background: '#c0392b', border: 'none',
+              padding: '12px 28px', background: 'var(--danger)', border: 'none',
               borderRadius: 10, color: '#fff', fontSize: "var(--text-md)", fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
               opacity: isLoading ? 0.6 : 1,

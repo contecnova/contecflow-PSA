@@ -7,7 +7,7 @@ import { enterpriseSubsApi, projectsApi, skillsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
-import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle } from '../components/ui'
+import { Button, Modal, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 const inp = { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }
 const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }
@@ -398,13 +398,6 @@ function SubDetail({ sub, onBack }) {
   const totalCost     = timelogs.reduce((s, l) => s + (l.cost_amount || 0), 0)
   const pendingAmount = invoices.filter(i => i.status === 'received').reduce((s, i) => s + i.total, 0)
 
-  const tabStyle = active => ({
-    padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-    background: active ? 'var(--accent-glow)' : 'transparent',
-    color: active ? 'var(--accent)' : 'var(--text-2)',
-    fontSize: "var(--text-sm)", fontFamily: 'inherit', fontWeight: active ? 700 : 400,
-  })
-
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
@@ -431,17 +424,17 @@ function SubDetail({ sub, onBack }) {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--surface-1)', borderRadius: 8, padding: 3, marginBottom: 16, width: 'fit-content' }}>
-        {[
-          { id: 'workers',     label: `Personas` },
-          { id: 'assignments', label: `Asignaciones (${assignments.length})` },
-          { id: 'timelogs',    label: `Horas (${timelogs.length})` },
-          { id: 'invoices',    label: `Facturas (${invoices.length})` },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={tabStyle(tab === t.id)}>{t.label}</button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'workers',     label: 'Personas' },
+          { id: 'assignments', label: 'Asignaciones', count: assignments.length || undefined },
+          { id: 'timelogs',    label: 'Horas',        count: timelogs.length || undefined },
+          { id: 'invoices',    label: 'Facturas',     count: invoices.length || undefined },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Subcontratista"
+      />
 
       {/* Personas (Workers) */}
       {tab === 'workers' && <WorkersPanel subId={sub.id} />}

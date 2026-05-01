@@ -11,9 +11,12 @@ from app.core.abac_enforce import enforce_abac
 from app.core.deps import get_current_user, require_admin_or_pm
 from app.models.user import User, UserRole
 from app.models.task import Task, TaskStatus, TaskPriority
+from app.models.epics import ThreadedComment
 from app.schemas import (
     TaskCreate, TaskUpdate, TaskOut, TaskCommentCreate, TaskCommentOut, BulkTaskUpdatePayload
 )
+from app.schemas.tasks import TaskMovementLogOut
+from app.models.task_movement_log import TaskMovementLog
 from app.services.task_service import (
     cascade_reschedule as svc_cascade_reschedule,
     bulk_update_tasks as svc_bulk_update_tasks,
@@ -118,7 +121,37 @@ def get_task(
     current_user: User = Depends(get_current_user),
 ):
     enforce_abac(db, current_user, "task", task_id, action="read")
-    return get_task_record(db, task_id, current_user)
+    task = get_task_record(db, task_id, current_user)
+
+    # Merge threaded comments (Mentions page) into the same payload consumed
+    # by task detail so users see a single unified conversation history.
+    task_out = TaskOut.model_validate(task).model_dump(mode="python")
+    threaded = (
+        db.query(ThreadedComment)
+        .filter(
+            ThreadedComment.entity_type == "task",
+            ThreadedComment.entity_id == task_id,
+        )
+        .order_by(ThreadedComment.created_at.asc())
+        .all()
+    )
+    if threaded:
+        merged = list(task_out.get("comments") or [])
+        for c in threaded:
+            content = c.content if not c.parent_id else f"↳ {c.content}"
+            merged.append(
+                {
+                    "id": c.id,
+                    "task_id": task_id,
+                    "author": None,
+                    "content": content,
+                    "created_at": c.created_at,
+                }
+            )
+        merged.sort(key=lambda x: x.get("created_at") or "")
+        task_out["comments"] = merged
+
+    return task_out
 
 
 @router.post("", response_model=TaskOut, summary="Crear tarea")
@@ -153,6 +186,25 @@ def update_task(
 
     return task
 
+
+@router.get("/{task_id}/movement-log", response_model=List[TaskMovementLogOut], summary="Historial de movimientos de tarea")
+def get_movement_log(
+    task_id: str,
+    limit: int = Query(50, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Devuelve el historial de movimientos (cambios de estado) de una tarea, ordenado del más reciente al más antiguo."""
+    from sqlalchemy.orm import joinedload as jl
+    entries = (
+        db.query(TaskMovementLog)
+        .options(jl(TaskMovementLog.moved_by))
+        .filter(TaskMovementLog.task_id == task_id)
+        .order_by(TaskMovementLog.moved_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return entries
 
 
 @router.delete("/{task_id}", summary="Eliminar tarea")

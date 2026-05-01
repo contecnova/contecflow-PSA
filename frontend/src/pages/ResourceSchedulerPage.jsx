@@ -12,7 +12,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
-import api, { projectsApi } from '../services/api'
+import api, { projectsApi, unwrapList } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import { CalendarDays } from 'lucide-react'
 import { Spinner, EmptyState } from '../components/ui'
@@ -228,8 +228,7 @@ export default function ResourceSchedulerPage() {
 
   const { data: bookingsData = [] } = useQuery({
     queryKey: ['bookings'],
-    queryFn:  () => api.get('/bookings', { params: { page_size: 500 } })
-      .then(r => Array.isArray(r.data) ? r.data : (r.data?.items || [])),
+    queryFn:  () => api.get('/bookings', { params: { page_size: 500 } }).then(unwrapList),
     staleTime: 15000,
   })
 

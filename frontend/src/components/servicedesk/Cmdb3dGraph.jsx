@@ -1,21 +1,47 @@
 /**
- * Cmdb3dGraph.jsx — CMDB 3D Network graph using D3 force simulation.
- * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/* endpoints.
- * 
- * Note: Renders as a 2D force-directed graph with Z-coordinate encoded as color/layer.
+ * Cmdb3dGraph.jsx — CMDB dependency graph (D3 force-directed) + blast radius lookup.
+ * Connects to /api/v1/sd/cmdb/3d-graph and /api/v1/sd/cmdb/blast-radius/*.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { useChartTheme } from '../../charts/useChartTheme'
+import { Card, Button, Spinner } from '../ui'
 
-const LAYER_COLORS = ['#60a5fa', '#34d399', '#f59e0b', '#f87171', '#a78bfa', 'var(--orange)']
+const LAYER_COLORS = [
+  'var(--accent)',
+  'var(--success)',
+  'var(--warning)',
+  'var(--danger)',
+  'var(--purple)',
+  'var(--orange)',
+]
+const LAYER_LABELS = ['Aplicación', 'Infraestructura', 'Red', 'Base de datos', 'Servicio', 'Externo']
+
+const fieldLabel = {
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 4,
+}
+const inputBase = {
+  width: '100%',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 8,
+  padding: '8px 12px',
+  color: 'var(--text-1)',
+  fontSize: 'var(--text-sm)',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+}
 
 export default function Cmdb3dGraph({ className = '' }) {
   const t = useAppT()
-  const { dark } = useChartTheme()
   const svgRef = useRef(null)
   const [blastCiId, setBlastCiId] = useState('')
   const [blastResult, setBlastResult] = useState(null)
@@ -55,7 +81,6 @@ export default function Cmdb3dGraph({ className = '' }) {
       })
     )
 
-    // Arrow marker
     svg.append('defs').append('marker')
       .attr('id', 'cmdb-arrow')
       .attr('viewBox', '0 -5 10 10')
@@ -76,7 +101,7 @@ export default function Cmdb3dGraph({ className = '' }) {
     const link = g.append('g').selectAll('line')
       .data(links).enter().append('line')
       .attr('stroke', 'var(--text-3)')
-      .attr('stroke-opacity', 0.6)
+      .attr('stroke-opacity', 0.5)
       .attr('stroke-width', 1.2)
       .attr('marker-end', 'url(#cmdb-arrow)')
 
@@ -91,14 +116,15 @@ export default function Cmdb3dGraph({ className = '' }) {
     nodeG.append('circle')
       .attr('r', 10)
       .attr('fill', d => LAYER_COLORS[(d.layer ?? d.z ?? 0) % LAYER_COLORS.length])
-      .attr('stroke', dark ? '#1f2937' : '#fff')
+      .attr('stroke', 'var(--surface-2)')
       .attr('stroke-width', 2)
 
     nodeG.append('text')
-      .attr('dy', 20)
+      .attr('dy', 22)
       .attr('text-anchor', 'middle')
-      .attr('font-size', 9)
-      .attr('fill', dark ? 'var(--text-2)' : 'var(--surface-5)')
+      .attr('font-size', 10)
+      .attr('fill', 'var(--text-2)')
+      .attr('font-family', 'var(--font-sans)')
       .text(d => (d.label ?? d.id ?? '').slice(0, 16))
 
     simulation.on('tick', () => {
@@ -109,85 +135,127 @@ export default function Cmdb3dGraph({ className = '' }) {
     })
 
     return () => simulation.stop()
-  }, [data, dark])
-
-  const cardCls = `rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`
+  }, [data])
 
   return (
-    <div className={`${cardCls} ${className}`}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold">{t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}</h2>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Max nodes:</label>
+    <Card className={className} style={{ padding: '20px 22px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+          {t('sd.cmdb3d.title', 'Mapa 3D de Dependencias CMDB')}
+        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Máx. nodos</span>
           <select
             value={maxNodes}
             onChange={e => setMaxNodes(Number(e.target.value))}
-            className={`rounded border px-2 py-1 text-xs ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+            style={{ ...inputBase, width: 'auto', padding: '6px 10px', fontSize: 'var(--text-xs)' }}
           >
             {[50, 80, 120, 200].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Layer legend */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {['Aplicación', 'Infraestructura', 'Red', 'Base de datos', 'Servicio', 'Externo'].map((lbl, i) => (
-          <span key={i} className="flex items-center gap-1 text-xs">
-            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: LAYER_COLORS[i] }} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 14 }}>
+        {LAYER_LABELS.map((lbl, i) => (
+          <span key={lbl} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>
+            <span aria-hidden style={{ width: 9, height: 9, borderRadius: '50%', background: LAYER_COLORS[i] }} />
             {lbl}
           </span>
         ))}
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-96 text-gray-400">
-          {t('sd.cmdb3d.loading', 'Cargando grafo...')}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 420 }}>
+          <Spinner />
         </div>
       ) : (
-        <svg
-          ref={svgRef}
-          className="w-full"
-          style={{ height: 420, cursor: 'grab' }}
-          role="img"
-          aria-label={t('sd.cmdb3d.aria', 'Grafo de dependencias CMDB')}
-        />
+        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
+          <svg
+            ref={svgRef}
+            style={{ width: '100%', height: 420, cursor: 'grab', display: 'block' }}
+            role="img"
+            aria-label={t('sd.cmdb3d.aria', 'Grafo de dependencias CMDB')}
+          />
+        </div>
       )}
 
-      {/* Blast radius */}
-      <div className={`mt-4 rounded-lg border p-4 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-        <p className="text-sm font-medium mb-2">{t('sd.cmdb3d.blast_radius', 'Radio de impacto (Blast Radius)')}</p>
-        <div className="flex gap-2">
+      <div style={{
+        marginTop: 18,
+        background: 'var(--surface-3)',
+        border: '1px solid var(--surface-4)',
+        borderRadius: 10,
+        padding: '14px 16px',
+      }}>
+        <div style={fieldLabel}>{t('sd.cmdb3d.blast_radius', 'Radio de impacto (Blast Radius)')}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
           <input
             type="text"
             placeholder="CI ID (ej: ci-app-server-01)"
             value={blastCiId}
             onChange={e => setBlastCiId(e.target.value)}
-            className={`rounded border px-3 py-1.5 text-sm flex-1 ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+            onKeyDown={e => e.key === 'Enter' && handleBlastRadius()}
+            style={{ ...inputBase, flex: 1 }}
           />
-          <button
-            onClick={handleBlastRadius}
-            className="px-4 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700"
-          >
+          <Button onClick={handleBlastRadius} disabled={!blastCiId.trim()}>
             {t('sd.cmdb3d.calculate', 'Calcular')}
-          </button>
+          </Button>
         </div>
-        {blastResult && (
-          <div className="mt-2 text-sm">
-            {blastResult.error ? (
-              <p className="text-red-500">{blastResult.error}</p>
-            ) : (
-              <div>
-                <p><strong>{blastResult.ci_id}</strong> afecta a <strong>{blastResult.affected_count ?? blastResult.affected_cis?.length ?? 0}</strong> CIs</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(blastResult.affected_cis ?? []).slice(0, 20).map(cid => (
-                    <span key={cid} className={`text-xs px-2 py-0.5 rounded-full ${dark ? 'bg-gray-700' : 'bg-gray-200'}`}>{cid}</span>
-                  ))}
-                </div>
+
+        {blastResult && (() => {
+          if (blastResult.error) {
+            return (
+              <div style={{
+                marginTop: 12,
+                color: 'var(--danger)',
+                background: 'var(--danger-bg, rgba(239,68,68,0.08))',
+                border: '1px solid var(--danger-border, rgba(239,68,68,0.25))',
+                padding: '8px 12px', borderRadius: 8, fontSize: 'var(--text-sm)',
+              }}>{blastResult.error}</div>
+            )
+          }
+          // Soporta forma actual del backend (impacted_*) y posibles aliases (affected_*)
+          const list = blastResult.impacted_cis ?? blastResult.affected_cis ?? []
+          const total = blastResult.impacted_count ?? blastResult.affected_count ?? list.length
+          const ciName = blastResult.ci_name || blastResult.ci_id
+          return (
+            <div style={{ marginTop: 12, fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>
+              <div style={{ marginBottom: 8 }}>
+                <strong style={{ color: 'var(--text-1)' }}>{ciName}</strong>
+                {' afecta a '}
+                <strong style={{ color: total > 0 ? 'var(--danger)' : 'var(--success)' }}>{total}</strong>
+                {' CI(s) dependientes'}
               </div>
-            )}
-          </div>
-        )}
+              {list.length === 0 ? (
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                  Ningún CI depende de este — fallo aislado.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {list.slice(0, 20).map((ci, idx) => {
+                    const id = typeof ci === 'string' ? ci : ci.id
+                    const label = typeof ci === 'string' ? ci : (ci.name || ci.id)
+                    const depth = typeof ci === 'object' ? ci.impact_depth : undefined
+                    return (
+                      <span key={id || idx} title={depth != null ? `Profundidad: ${depth}` : undefined} style={{
+                        fontSize: 'var(--text-xs)',
+                        background: 'var(--surface-4)',
+                        color: 'var(--text-2)',
+                        borderRadius: 'var(--radius-full, 999px)',
+                        padding: '2px 9px',
+                      }}>{label}{depth != null && depth > 0 ? ` · L${depth}` : ''}</span>
+                    )
+                  })}
+                  {list.length > 20 && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', alignSelf: 'center' }}>
+                      +{list.length - 20} más
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
-    </div>
+    </Card>
   )
 }

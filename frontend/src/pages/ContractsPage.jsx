@@ -382,7 +382,11 @@ export default function ContractsPage() {
     return { ...c, daysLeft }
   }).sort((a, b) => a.daysLeft - b.daysLeft)
 
-  const totalValue = contracts.reduce((s, c) => s + (c.total_amount || c.monthly_retainer * 12 || 0), 0)
+  const totalValue = contracts.reduce((s, c) => {
+    const totalAmount = Number(c.total_amount) || 0
+    const retainer = Number(c.monthly_retainer) || 0
+    return s + (totalAmount > 0 ? totalAmount : retainer * 12)
+  }, 0)
   const active = contracts.filter(c => c.status === 'active').length
   const { sort: contractSort, setSort: setContractSort, sortedData: sortedContracts } = useSort(contracts, 'name')
 

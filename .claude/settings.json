@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(awk -F: '{sum+=$2} END {print \"Total inline styles:\", sum}')",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(python -c \"from app.services.metrics import METRICS_REGISTRY; print\\('projects_by_type' in METRICS_REGISTRY\\); print\\(METRICS_REGISTRY.get\\('projects_by_type'\\)\\)\")",
+      "Bash(grep -n \"#[0-9a-f]\\\\{3,6\\\\}\\\\|rgba\\\\|rgb\\(\" /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiEtlPanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiGovernancePanel.jsx /Users/oriolvallsanton/Code/contecflow-PSA/frontend/src/components/bi/BiDashboardCollabPanel.jsx)"
     ]
   }
 }

@@ -3,6 +3,7 @@ from app.models.public_forms import PublicForm, PublicFormSubmission  # noqa: F4
 from app.models.oauth_apps import OAuthApp, OAuthToken  # noqa: F401
 from app.models.project import Project, ProjectPhase, ProjectType, ProjectStatus, ProjectRisk  # noqa: F401
 from app.models.task import Task, TaskComment, TaskStatus, TaskPriority  # noqa: F401
+from app.models.task_movement_log import TaskMovementLog  # noqa: F401
 from app.models.imputation import Imputation, TimerSession, ImputationAlert, ImputationSnapshot  # noqa: F401
 from app.models.alert import Alert  # noqa: F401
 from app.models.settings import AppSetting, CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday  # noqa: F401

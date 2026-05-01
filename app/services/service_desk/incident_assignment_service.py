@@ -134,9 +134,84 @@ def recommend_assignment(
 
 
 def get_assignment_stats(db: Session, *, org_id: Optional[str]) -> dict:
+    """Aggregate stats for the ML assignment dashboard.
+
+    Returns counters of past recommendations PLUS real-time agent_loads for SD
+    agents (so the UI can render a workload chart and use them as candidates
+    for a new recommendation).
+    """
+    from sqlalchemy import func as sqlfunc  # noqa: PLC0415
+
+    from app.models.service_desk import (  # noqa: PLC0415
+        Ticket, TicketStatus, AgentGroupMember,
+    )
+    from app.models.user import User  # noqa: PLC0415
+
     stats = _get_setting(db, _KEY_ASSIGNMENT_STATS, org_id)
+
+    # Build agent_loads: every user who is a member of any SD agent group
+    # (i.e. an actual SD agent), with their current open-ticket count and
+    # specialisations from the group memberships.
+    members_q = db.query(AgentGroupMember).join(User, AgentGroupMember.user_id == User.id)
+    if org_id:
+        members_q = members_q.filter(User.organization_id == org_id)
+    members = members_q.all()
+
+    if members:
+        # Open ticket counts per assignee in a single query
+        active_states = [TicketStatus.resolved, TicketStatus.closed, TicketStatus.cancelled]
+        load_q = (
+            db.query(Ticket.assigned_to_user_id, sqlfunc.count(Ticket.id).label("cnt"))
+            .filter(Ticket.assigned_to_user_id.isnot(None))
+            .filter(Ticket.status.notin_(active_states))
+        )
+        if org_id:
+            load_q = load_q.filter(Ticket.organization_id == org_id)
+        load_q = load_q.group_by(Ticket.assigned_to_user_id)
+        load_by_user: dict[str, int] = {row.assigned_to_user_id: int(row.cnt or 0) for row in load_q.all()}
+
+        # Aggregate by user (a user may appear in several groups)
+        agg: dict[str, dict[str, Any]] = {}
+        for m in members:
+            uid = m.user_id
+            if not m.user:
+                continue
+            if uid not in agg:
+                agg[uid] = {
+                    "user_id": uid,
+                    "agent_id": uid,
+                    "agent_name": m.user.full_name or m.user.email or uid,
+                    "name": m.user.full_name or m.user.email or uid,
+                    "open_tickets": load_by_user.get(uid, 0),
+                    "active_tickets": load_by_user.get(uid, 0),
+                    "capacity": int(getattr(m.user, "weekly_capacity_hours", 40) or 40) // 4 or 10,
+                    "specializations": [],
+                    "is_on_call": False,
+                    "groups": [],
+                }
+            if m.group and m.group.name and m.group.name not in agg[uid]["groups"]:
+                agg[uid]["groups"].append(m.group.name)
+                # Treat group name as a soft specialisation tag
+                agg[uid]["specializations"].append(m.group.name.lower())
+
+        # Open tickets unassigned (any SD ticket without assignee, in open state)
+        unassigned_q = db.query(sqlfunc.count(Ticket.id)).filter(
+            Ticket.assigned_to_user_id.is_(None),
+            Ticket.status.notin_(active_states),
+        )
+        if org_id:
+            unassigned_q = unassigned_q.filter(Ticket.organization_id == org_id)
+        total_unassigned = int(unassigned_q.scalar() or 0)
+
+        agent_loads = sorted(agg.values(), key=lambda a: a["open_tickets"], reverse=True)
+    else:
+        agent_loads = []
+        total_unassigned = 0
+
     return {
         **stats,
+        "agent_loads": agent_loads,
+        "total_unassigned": total_unassigned,
         "lgbm_available": _LGBM_AVAILABLE,
     }
 

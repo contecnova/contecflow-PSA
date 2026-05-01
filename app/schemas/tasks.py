@@ -37,6 +37,7 @@ class TaskUpdate(BaseModel):
     due_date: Optional[date] = None
     blocked_reason: Optional[str] = None
     tags: Optional[str] = None
+    move_reason: Optional[str] = Field(None, max_length=500, description="Motivo del movimiento (para trazabilidad)")
 
 
 class BulkTaskUpdatePayload(BaseModel):
@@ -73,6 +74,20 @@ class TaskOut(TaskBase):
     comments: List[TaskCommentOut] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TaskMovementLogOut(BaseModel):
+    id: str
+    task_id: str
+    project_id: str
+    from_status: Optional[str] = None
+    to_status: str
+    reason: Optional[str] = None
+    moved_at: datetime
+    moved_by: Optional[UserPublic] = None
 
     class Config:
         from_attributes = True

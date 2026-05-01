@@ -4,7 +4,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { cmdbApi } from '../services/api'
-import { Button, Spinner, Modal } from '../components/ui'
+import { Button, Spinner, Modal, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Database } from 'lucide-react'
@@ -321,11 +321,14 @@ function CMDBAgentsTab() {
   const [platform, setPlatform] = useState('linux')
   const [newToken, setNewToken] = useState(null)
 
-  const { data: agents = [], isLoading } = useQuery({
+  const { data: agentsData, isLoading } = useQuery({
     queryKey: ['cmdb-agents'],
     queryFn: () => api.get('/sd/cmdb/agents').then(r => r.data).catch(() => []),
     refetchInterval: 15000,
   })
+  const agents = Array.isArray(agentsData)
+    ? agentsData
+    : (agentsData?.agents || agentsData?.items || [])
 
   const { mutate: registerAgent, isPending } = useMutation({
     mutationFn: () => api.post('/sd/cmdb/agents/register', { name: agentName.trim(), platform }),
@@ -523,18 +526,17 @@ export default function CMDBPage() {
       <PageHeader icon={<Database size={18} />} title={t('cmdb.title')} subtitle={t('cmdb.subtitle')}
         actions={<Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo activo</Button>} />
 
-      {/* Tabs */}
-      <div style={{display:'flex',gap:4,marginBottom:20,borderBottom:'1px solid var(--surface-4)',paddingBottom:0}}>
-        {[['list','📋 Inventario'],['topology','🔗 Topología'],['3d','🌐 3D / Blast Radius'],['agents','🤖 Agentes on-prem']].map(([id,label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{padding:'8px 18px',fontSize: "var(--text-base)",fontWeight:tab===id?700:400,
-              color:tab===id?'var(--accent)':'var(--text-2)',background:'transparent',
-              border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',
-              cursor:'pointer',fontFamily:'inherit',transition:'color .15s'}}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'list',     label: '📋 Inventario' },
+          { id: 'topology', label: '🔗 Topología' },
+          { id: '3d',       label: '🌐 3D / Blast Radius' },
+          { id: 'agents',   label: '🤖 Agentes on-prem' },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="CMDB"
+      />
 
       {/* ─── TOPOLOGÍA ─────────────────────────────────────────────── */}
       {tab === 'topology' && (

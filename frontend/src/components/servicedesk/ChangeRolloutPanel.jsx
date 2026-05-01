@@ -1,26 +1,127 @@
 /**
  * ChangeRolloutPanel.jsx — Advanced change rollout management UI.
- * Connects to /api/v1/sd/changes/* rollout endpoints.
+ *
+ * Backend endpoints:
+ *   GET  /sd/changes/{cr_id}/rollout-plans
+ *   POST /sd/changes/{cr_id}/rollout-plans
+ *     body: { title, rollout_phases: [{name, description, target_pct, gate_criteria, duration_minutes}], rollback_steps, ... }
+ *   POST /sd/changes/rollout-plans/{plan_id}/approve
+ *   POST /sd/changes/rollout-plans/{plan_id}/advance-phase   { phase_notes }
+ *   POST /sd/changes/{cr_id}/rollout-plans/{plan_id}/simulate
+ *   POST /sd/changes/{cr_id}/rollback                         { reason }
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { useChartTheme } from '../../charts/useChartTheme'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus } from 'lucide-react'
+import { Card, Button, Spinner, EmptyState } from '../ui'
+import { useToast } from '../../context/ToastContext'
 
 const STATUS_META = {
-  draft:      { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
-  approved:   { label: 'Aprobado',    cls: 'bg-green-100 text-green-700' },
-  in_progress:{ label: 'En curso',    cls: 'bg-blue-100 text-blue-700' },
-  rolled_back:{ label: 'Revertido',   cls: 'bg-red-100 text-red-700' },
-  completed:  { label: 'Completado',  cls: 'bg-emerald-100 text-emerald-700' },
+  draft:        { label: 'Borrador',   color: 'var(--text-3)' },
+  approved:     { label: 'Aprobado',   color: 'var(--success)' },
+  in_progress:  { label: 'En curso',   color: 'var(--accent)' },
+  rolled_back:  { label: 'Revertido',  color: 'var(--danger)' },
+  completed:    { label: 'Completado', color: 'var(--success)' },
+}
+
+const RISK_COLOR = {
+  low: 'var(--success)',
+  medium: 'var(--warning)',
+  high: 'var(--orange)',
+  critical: 'var(--danger)',
+}
+
+const STRATEGY_LABEL = {
+  canary:     'Canary',
+  blue_green: 'Blue/Green',
+  rolling:    'Rolling',
+  big_bang:   'Big Bang',
+}
+
+const fieldLabel = {
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
+}
+const inputBase = {
+  width: '100%',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 8,
+  padding: '8px 12px',
+  color: 'var(--text-1)',
+  fontSize: 'var(--text-sm)',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+const chip = (color) => ({
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color,
+  background: `color-mix(in srgb, ${color} 15%, transparent)`,
+  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+  borderRadius: 'var(--radius-full, 999px)',
+  padding: '2px 9px',
+  whiteSpace: 'nowrap',
+})
+
+/**
+ * Build canonical rollout_phases from strategy + total phases.
+ * Each strategy maps to a sensible default progression.
+ */
+function buildPhases(strategy, total) {
+  const n = Math.max(1, Math.min(10, Number(total) || 3))
+  switch (strategy) {
+    case 'canary': {
+      // 1% → 5% → 25% → 50% → 100% (sliced to n)
+      const seed = [1, 5, 25, 50, 100]
+      const ramp = seed.slice(0, Math.max(2, n - 1)).concat([100])
+      const slice = ramp.slice(0, n)
+      return slice.map((pct, i) => ({
+        name: `Canary ${pct}%`,
+        description: i === 0 ? 'Canary inicial' : i === slice.length - 1 ? 'Rollout completo' : `Expansión a ${pct}%`,
+        target_pct: pct,
+        duration_minutes: i === 0 ? 30 : i === slice.length - 1 ? 60 : 45,
+        gate_criteria: i === 0 ? ['Sin errores en logs', 'Latencia p95 estable'] : [],
+      }))
+    }
+    case 'blue_green':
+      return [
+        { name: 'Provisión Green', description: 'Levantar entorno paralelo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Smoke tests OK'] },
+        { name: 'Cutover', description: 'Conmutación de tráfico Blue → Green', target_pct: 100, duration_minutes: 15, gate_criteria: ['Healthcheck OK'] },
+        { name: 'Decomisionar Blue', description: 'Retirada del entorno antiguo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Sin rollbacks tras 1h'] },
+      ].slice(0, n)
+    case 'rolling': {
+      const buckets = Array.from({ length: n }, (_, i) => Math.round(((i + 1) / n) * 100))
+      return buckets.map((pct, i) => ({
+        name: `Rolling ${i + 1}/${n}`,
+        description: `Reemplazo progresivo (${pct}%)`,
+        target_pct: pct,
+        duration_minutes: 30,
+        gate_criteria: [],
+      }))
+    }
+    case 'big_bang':
+    default:
+      return [
+        { name: 'Big Bang', description: 'Despliegue total simultáneo', target_pct: 100, duration_minutes: 30, gate_criteria: ['Smoke tests pre-deploy'] },
+      ]
+  }
 }
 
 export default function ChangeRolloutPanel() {
   const t = useAppT()
-  const { dark } = useChartTheme()
+  const toast = useToast()
   const qc = useQueryClient()
+
   const [selectedId, setSelectedId] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [changeRequestFilter, setChangeRequestFilter] = useState('')
@@ -30,234 +131,373 @@ export default function ChangeRolloutPanel() {
   const { data: plansData, isLoading } = useQuery({
     queryKey: ['change-rollout-plans', changeRequestFilter],
     queryFn: () => api.get(`/sd/changes/${changeRequestFilter}/rollout-plans`).then(r => r.data),
-    enabled: Boolean(changeRequestFilter),
+    enabled: Boolean(changeRequestFilter.trim()),
   })
 
-  const selectedPlan = (plansData?.items ?? []).find(p => p.id === selectedId)
+  const plans = plansData?.items ?? []
+  const selectedPlan = plans.find(p => p.id === selectedId)
 
   const createMutation = useMutation({
-    mutationFn: (data) => api.post(`/sd/changes/${data.change_request_id}/rollout-plans`, data).then(r => r.data),
+    mutationFn: (data) => {
+      const phases = buildPhases(data.strategy, data.phases)
+      return api.post(`/sd/changes/${data.change_request_id}/rollout-plans`, {
+        title: data.name?.trim() || `Plan ${STRATEGY_LABEL[data.strategy] || data.strategy}`,
+        rollout_phases: phases,
+        rollback_steps: [
+          'Detener el rollout actual',
+          'Restaurar el estado anterior',
+          'Notificar a stakeholders',
+        ],
+      }).then(r => r.data)
+    },
     onSuccess: (_res, data) => {
+      toast.success('Plan de rollout creado')
       qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
       setChangeRequestFilter(data.change_request_id)
       setShowCreate(false)
+      setForm({ change_request_id: '', strategy: 'canary', phases: 3, name: '' })
     },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al crear el plan'),
   })
 
   const approveMutation = useMutation({
-    mutationFn: (id) => api.post(`/sd/changes/rollout-plans/${id}/approve`, { approved_by: 'admin' }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
+    mutationFn: (id) => api.post(`/sd/changes/rollout-plans/${id}/approve`).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Plan aprobado')
+      qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al aprobar el plan'),
   })
 
   const advanceMutation = useMutation({
-    mutationFn: ({ id, notes }) => api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, { phase_notes: notes }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
+    mutationFn: ({ id, notes }) =>
+      api.post(`/sd/changes/rollout-plans/${id}/advance-phase`, { phase_notes: notes || null }).then(r => r.data),
+    onSuccess: (data) => {
+      const status = data?.status || 'in_progress'
+      toast.success(status === 'completed' ? 'Rollout completado 🎉' : 'Fase avanzada')
+      qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al avanzar de fase'),
   })
 
   const rollbackMutation = useMutation({
-    mutationFn: ({ changeId, reason }) => api.post(`/sd/changes/${changeId}/rollback`, { reason }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['change-rollout-plans'] }),
+    mutationFn: ({ changeId, reason }) =>
+      api.post(`/sd/changes/${changeId}/rollback`, { reason }).then(r => r.data),
+    onSuccess: () => {
+      toast.success('Rollback ejecutado')
+      qc.invalidateQueries({ queryKey: ['change-rollout-plans'] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar rollback'),
   })
 
-  const handleSimulate = async (id) => {
-    const res = await api.post(`/sd/changes/rollout-plans/${id}/simulate`, {})
-    setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
+  const handleSimulate = async (plan) => {
+    try {
+      const res = await api.post(
+        `/sd/changes/${plan.change_request_id}/rollout-plans/${plan.id}/simulate`,
+        {},
+      )
+      setSimulate(res.data?.simulation ?? res.data?.impact ?? res.data)
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Error al simular')
+    }
   }
 
-  const cardCls = `rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`
-  const plans = plansData?.items ?? []
+  const handleAdvance = (id) => {
+    const notes = window.prompt('Notas opcionales para esta fase:', '') ?? ''
+    advanceMutation.mutate({ id, notes: notes.trim() })
+  }
+
+  const handleRollback = (changeId) => {
+    const reason = window.prompt('Motivo del rollback (queda registrado):', '')
+    if (!reason || !reason.trim()) return
+    rollbackMutation.mutate({ changeId, reason: reason.trim() })
+  }
 
   return (
-    <div className={cardCls}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-purple-500" />
-          <h2 className="text-lg font-bold">{t('sd.rollout.title', 'Planes de Rollout de Cambios')}</h2>
+    <Card style={{ padding: '20px 22px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <GitBranch size={18} style={{ color: 'var(--purple)' }} />
+          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+            {t('sd.rollout.title', 'Planes de rollout de cambios')}
+          </h2>
         </div>
-        <button
-          onClick={() => setShowCreate(v => !v)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded bg-purple-600 text-white text-sm hover:bg-purple-700"
-        >
-          <Plus className="w-4 h-4" />
-          {t('sd.rollout.create', 'Nuevo plan')}
-        </button>
+        <Button onClick={() => setShowCreate(v => !v)} icon={<Plus size={14} />}>
+          {showCreate ? 'Cerrar' : t('sd.rollout.create', 'Nuevo plan')}
+        </Button>
       </div>
 
-      <div className="mb-4">
+      <div style={{ marginBottom: 14 }}>
+        <div style={fieldLabel}>Filtrar por Change Request</div>
         <input
           type="text"
-          placeholder="Filtrar por Change Request ID"
+          placeholder="Change Request ID (uuid)"
           value={changeRequestFilter}
           onChange={e => setChangeRequestFilter(e.target.value)}
-          className={`w-full rounded border px-3 py-2 text-sm ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+          style={inputBase}
         />
       </div>
 
       {showCreate && (
-        <div className={`rounded-lg border p-4 mb-4 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-purple-50 border-purple-200'}`}>
-          <p className="text-sm font-semibold mb-3">{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</p>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+        <div style={{
+          background: 'var(--surface-3)',
+          border: '1px solid color-mix(in srgb, var(--purple) 30%, var(--surface-4))',
+          borderRadius: 12,
+          padding: '14px 16px',
+          marginBottom: 16,
+        }}>
+          <div style={fieldLabel}>{t('sd.rollout.new_plan', 'Nuevo plan de rollout')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <input
               type="text"
               placeholder="Change Request ID"
               value={form.change_request_id}
               onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
-              className={`col-span-2 rounded border px-3 py-1.5 text-sm ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={{ ...inputBase, gridColumn: '1 / -1' }}
             />
             <input
               type="text"
-              placeholder="Nombre del plan"
+              placeholder="Nombre del plan (opcional)"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className={`rounded border px-3 py-1.5 text-sm ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={inputBase}
             />
             <select
               value={form.strategy}
               onChange={e => setForm(f => ({ ...f, strategy: e.target.value }))}
-              className={`rounded border px-3 py-1.5 text-sm ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={inputBase}
             >
-              {['canary', 'blue_green', 'rolling', 'big_bang'].map(s => (
-                <option key={s} value={s}>{s}</option>
+              {Object.entries(STRATEGY_LABEL).map(([id, label]) => (
+                <option key={id} value={id}>{label}</option>
               ))}
             </select>
-            <div className="flex items-center gap-2">
-              <label className="text-xs">Fases:</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>Fases:</span>
               <input
-                type="number"
-                min={1} max={10}
+                type="number" min={1} max={10}
                 value={form.phases}
                 onChange={e => setForm(f => ({ ...f, phases: Number(e.target.value) }))}
-                className={`rounded border px-2 py-1 text-sm w-16 ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+                style={{ ...inputBase, width: 80 }}
               />
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                Vista previa: {buildPhases(form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')}
+              </span>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
               onClick={() => createMutation.mutate(form)}
-              disabled={!form.change_request_id || createMutation.isPending}
-              className="px-4 py-1.5 rounded bg-purple-600 text-white text-sm hover:bg-purple-700 disabled:opacity-50"
+              disabled={!form.change_request_id.trim() || createMutation.isPending}
+              loading={createMutation.isPending}
             >
               {t('sd.rollout.create_plan', 'Crear plan')}
-            </button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-1.5 rounded text-sm text-gray-500 hover:text-gray-700">
-              Cancelar
-            </button>
+            </Button>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
         {/* Plans list */}
-        <div className="space-y-2">
-          {isLoading && <p className="text-sm text-gray-400">{t('common.loading', 'Cargando...')}</p>}
-          {plans.map(plan => {
-            const meta = STATUS_META[plan.status] ?? STATUS_META.draft
-            return (
-              <button
-                key={plan.id}
-                onClick={() => setSelectedId(plan.id === selectedId ? null : plan.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                  selectedId === plan.id
-                    ? (dark ? 'border-purple-500 bg-gray-800' : 'border-purple-400 bg-purple-50')
-                    : (dark ? 'border-gray-700 bg-gray-800 hover:border-gray-500' : 'border-gray-200 bg-gray-50 hover:border-gray-300')
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{plan.name ?? plan.id}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${meta.cls}`}>{meta.label}</span>
-                </div>
-                <div className="flex gap-3 mt-1 text-xs text-gray-400">
-                  <span>{plan.strategy}</span>
-                  <span>Fase {plan.current_phase ?? 0}/{plan.total_phases ?? plan.phases}</span>
-                </div>
-              </button>
-            )
-          })}
-          {!isLoading && !plans.length && (
-            <p className="text-sm text-gray-400">{t('sd.rollout.no_plans', 'No hay planes de rollout')}</p>
+        <div>
+          <div style={fieldLabel}>Planes</div>
+          {!changeRequestFilter.trim() ? (
+            <EmptyState icon="🔎" title="Filtra por Change Request ID" description="Indica el ID del Change Request para listar sus planes de rollout." />
+          ) : isLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : !plans.length ? (
+            <EmptyState icon="🚀" title={t('sd.rollout.no_plans', 'No hay planes para este CR')} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {plans.map(plan => {
+                const meta = STATUS_META[plan.status] ?? STATUS_META.draft
+                const isSel = selectedId === plan.id
+                const totalPhases = plan.rollout_phases?.length ?? 0
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      padding: '12px 14px',
+                      background: isSel
+                        ? 'color-mix(in srgb, var(--purple) 8%, var(--surface-3))'
+                        : 'var(--surface-3)',
+                      border: `1px solid ${isSel ? 'var(--purple)' : 'var(--surface-4)'}`,
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'border-color .15s, background .15s',
+                    }}
+                    onMouseEnter={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--accent)' }}
+                    onMouseLeave={e => { if (!isSel) e.currentTarget.style.borderColor = 'var(--surface-4)' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                        {plan.title || plan.name || plan.id}
+                      </span>
+                      <span style={chip(meta.color)}>{meta.label}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+                      <span>Fase {(plan.current_phase_index ?? 0) + (plan.status === 'completed' ? 0 : 1)} / {totalPhases || '—'}</span>
+                      {plan.created_at && (
+                        <span>Creado {new Date(plan.created_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           )}
         </div>
 
-        {/* Plan detail + actions */}
+        {/* Plan detail */}
         {selectedPlan && (
-          <div className={`rounded-lg border p-4 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-            <p className="font-semibold mb-3">{selectedPlan.name ?? selectedPlan.id}</p>
+          <div style={{
+            background: 'var(--surface-3)',
+            border: '1px solid var(--surface-4)',
+            borderRadius: 12,
+            padding: '14px 16px',
+          }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 4 }}>
+              {selectedPlan.title || selectedPlan.name || selectedPlan.id}
+            </div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
+              {selectedPlan.id}
+            </div>
 
-            {/* Phase progress */}
-            <div className="mb-3">
-              <p className="text-xs text-gray-400 mb-1">{t('sd.rollout.phases', 'Progreso de fases')}</p>
-              <div className="flex gap-1">
-                {Array.from({ length: selectedPlan.total_phases ?? selectedPlan.phases ?? 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`flex-1 h-2 rounded ${
-                      i < (selectedPlan.current_phase ?? 0) ? 'bg-green-500' :
-                      i === (selectedPlan.current_phase ?? 0) ? 'bg-blue-500' : (dark ? 'bg-gray-700' : 'bg-gray-300')
-                    }`}
-                  />
-                ))}
-              </div>
+            {/* Phases progress */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={fieldLabel}>{t('sd.rollout.phases', 'Progreso de fases')}</div>
+              {(selectedPlan.rollout_phases || []).length === 0 ? (
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Sin fases definidas</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {selectedPlan.rollout_phases.map((phase, i) => {
+                    const cur = selectedPlan.current_phase_index ?? 0
+                    const phaseStatus = phase.status || (i < cur ? 'completed' : i === cur ? 'ready' : 'pending')
+                    const color = phaseStatus === 'completed' ? 'var(--success)'
+                      : phaseStatus === 'in_progress' || phaseStatus === 'ready' ? 'var(--accent)'
+                      : 'var(--text-3)'
+                    return (
+                      <div key={phase.id || i} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 12px',
+                        background: 'var(--surface-1)',
+                        border: '1px solid var(--surface-4)',
+                        borderRadius: 8,
+                      }}>
+                        <div style={{
+                          width: 22, height: 22, borderRadius: '50%',
+                          background: `color-mix(in srgb, ${color} 15%, transparent)`,
+                          border: `1px solid ${color}`,
+                          color, fontSize: 'var(--text-xs)', fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0,
+                        }}>{phaseStatus === 'completed' ? '✓' : i + 1}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', fontWeight: 600 }}>
+                            {phase.name}
+                            <span style={{ marginLeft: 8, fontSize: 'var(--text-xs)', color: 'var(--text-3)', fontWeight: 400 }}>
+                              {phase.target_pct}% · {phase.duration_minutes}min
+                            </span>
+                          </div>
+                          {phase.description && (
+                            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                              {phase.description}
+                            </div>
+                          )}
+                        </div>
+                        <span style={chip(color)}>{phaseStatus}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Action buttons */}
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {selectedPlan.status === 'draft' && (
-                <button
+                <Button
+                  size="sm"
+                  variant="secondary"
                   onClick={() => approveMutation.mutate(selectedPlan.id)}
-                  disabled={approveMutation.isPending}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                >
-                  <CheckCircle className="w-3.5 h-3.5" /> Aprobar
-                </button>
+                  loading={approveMutation.isPending}
+                  icon={<CheckCircle size={13} />}
+                >Aprobar</Button>
               )}
-              {selectedPlan.status === 'approved' || selectedPlan.status === 'in_progress' ? (
-                <button
-                  onClick={() => advanceMutation.mutate({ id: selectedPlan.id, notes: '' })}
-                  disabled={advanceMutation.isPending}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" /> Avanzar fase
-                </button>
-              ) : null}
+              {(selectedPlan.status === 'approved' || selectedPlan.status === 'in_progress') && (
+                <Button
+                  size="sm"
+                  onClick={() => handleAdvance(selectedPlan.id)}
+                  loading={advanceMutation.isPending}
+                  icon={<ChevronRight size={13} />}
+                >Avanzar fase</Button>
+              )}
               {['approved', 'in_progress'].includes(selectedPlan.status) && (
-                <button
-                  onClick={() => rollbackMutation.mutate({ changeId: selectedPlan.change_request_id, reason: 'Manual rollback' })}
-                  disabled={rollbackMutation.isPending}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" /> Rollback
-                </button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => handleRollback(selectedPlan.change_request_id)}
+                  loading={rollbackMutation.isPending}
+                  icon={<RotateCcw size={13} />}
+                >Rollback</Button>
               )}
-              <button
-                onClick={() => handleSimulate(selectedPlan.id)}
-                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded bg-amber-500 text-white hover:bg-amber-600"
-              >
-                <Play className="w-3.5 h-3.5" /> Simular
-              </button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleSimulate(selectedPlan)}
+                icon={<Play size={13} />}
+              >Simular</Button>
             </div>
 
             {/* Simulation result */}
             {simulate && (
-              <div className={`mt-3 text-xs rounded p-3 ${dark ? 'bg-gray-900' : 'bg-white'} border ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <p className="font-medium mb-1">{t('sd.rollout.simulation', 'Simulación')}</p>
-                {simulate.risks && (
-                  <div className="space-y-1">
-                    {simulate.risks.map((r, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+              <div style={{
+                marginTop: 14,
+                background: 'var(--surface-1)',
+                border: '1px solid var(--surface-4)',
+                borderRadius: 8,
+                padding: '12px 14px',
+                fontSize: 'var(--text-xs)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ ...fieldLabel, marginBottom: 0 }}>{t('sd.rollout.simulation', 'Simulación de impacto')}</div>
+                  {simulate.risk_label && (
+                    <span style={chip(RISK_COLOR[simulate.risk_label] || 'var(--text-3)')}>
+                      Riesgo {simulate.risk_label}
+                      {simulate.risk_score != null && ` · ${Math.round(simulate.risk_score * 100)}%`}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>
+                  {simulate.estimated_duration_minutes != null && (
+                    <span><span style={{ color: 'var(--text-3)' }}>Duración estimada:</span> <strong>{simulate.estimated_duration_minutes}min</strong></span>
+                  )}
+                  {simulate.recommended_window && (
+                    <span><span style={{ color: 'var(--text-3)' }}>Ventana:</span> <strong>{simulate.recommended_window}</strong></span>
+                  )}
+                  {simulate.rollback_readiness && (
+                    <span><span style={{ color: 'var(--text-3)' }}>Rollback:</span> <strong>{simulate.rollback_readiness}</strong></span>
+                  )}
+                </div>
+                {Array.isArray(simulate.recommendations) && simulate.recommendations.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {simulate.recommendations.map((r, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-2)' }}>
+                        <AlertTriangle size={12} style={{ color: 'var(--warning)', flexShrink: 0 }} />
                         <span>{r}</span>
                       </div>
                     ))}
                   </div>
-                )}
-                {simulate.estimated_duration && (
-                  <p className="mt-1 text-gray-400">{t('sd.rollout.est_duration', 'Duración estimada')}: {simulate.estimated_duration}</p>
                 )}
               </div>
             )}
           </div>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

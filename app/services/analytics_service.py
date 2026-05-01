@@ -42,7 +42,7 @@ METRIC_CACHE_TTL = {
     "budget_consumption": 300, "revenue_by_client": 300,
     "tickets_by_status": 60, "tickets_by_type": 60, "tickets_by_agent": 60,
     "tickets_by_priority": 60, "tasks_by_status": 60, "tasks_by_project": 60,
-    "projects_by_status": 60, "tasks_blocked_by_project": 60, "tasks_overdue": 60,
+    "projects_by_status": 60, "projects_by_type": 60, "tasks_blocked_by_project": 60, "tasks_overdue": 60,
     "hours_by_person": 120, "hours_by_week": 120, "hours_by_month": 120,
     "hours_by_department": 120, "load_by_week": 120, "productivity_by_person": 120,
     "license_cost_by_vendor": 3600, "license_utilization": 3600,

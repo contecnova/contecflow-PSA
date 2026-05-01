@@ -31,6 +31,7 @@ const _EPIC_DEP_TYPES = [
 const STATUS_COLOR = {todo:'var(--text-2)',in_progress:'var(--accent)',done:'var(--success)',blocked:'var(--danger)',in_review:'var(--warning)'}
 
 function DepForm({ projectId, tasks, onClose }) {
+  const t = useAppT();
   const qc = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState({ predecessor_id:'', successor_id:'', dependency_type:'blocks', lag_days:0 });
@@ -95,11 +96,6 @@ function DepForm({ projectId, tasks, onClose }) {
             <input type="number" style={is} value={form.lag_days} min={0}
               onChange={e => set('lag_days')(+e.target.value)} />
             <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', marginTop:4}}>Días extra tras cumplir la condición</div>
-          </div>
-          <div>
-            <label style={ls}>Nota (opcional)</label>
-            <input style={is} value={form.note} onChange={e => set('note')(e.target.value)}
-              placeholder="Nota sobre la dependencia" aria-label="Nota sobre la dependencia" />
           </div>
         </div>
 

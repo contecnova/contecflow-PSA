@@ -4,7 +4,7 @@ import { extractErr } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi } from '../services/api'
-import { Card, Button, Modal, Spinner, EmptyState } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Zap } from 'lucide-react'
@@ -429,20 +429,7 @@ export default function SkillsPage() {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: 'var(--surface-1)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ padding: '7px 18px', borderRadius: 7, border: 'none',
-              background: tab === t.id ? 'var(--accent-muted)' : 'transparent',
-              color: tab === t.id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              outline: tab === t.id ? '1px solid rgba(79,142,247,0.3)' : 'none',
-              transition: 'all .15s' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={tabs} active={tab} onChange={setTab} ariaLabel="Skills" />
 
       {tab === 'matrix' && (
         loadingMatrix ? <Spinner /> : !matrix ? null : matrix.users.length === 0 ? (

@@ -217,7 +217,16 @@ def update_user_record(user_id: str, payload, current_user, db: Session):
     if current_user.organization_id and _payload_org_id not in (None, current_user.organization_id):
         raise HTTPException(status_code=403, detail="No puedes mover usuarios a otra organización")
 
+    incoming_email = getattr(payload, "email", None)
+    if incoming_email is not None:
+        normalized_email = incoming_email.strip().lower()
+        existing = db.query(User).filter(func.lower(User.email) == normalized_email, User.id != user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email ya registrado")
+
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "email" and isinstance(value, str):
+            value = value.strip().lower()
         setattr(user, field, value)
 
     db.commit()
@@ -375,9 +384,19 @@ def get_user_by_id(db: Session, user_id: str):
 # ── Self-profile update ────────────────────────────────────────────────────────
 
 def update_self_profile(user, update_data: dict, db: Session):
-    allowed_fields = {"first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
+    allowed_fields = {"email", "first_name", "last_name", "full_name", "phone", "job_title", "avatar_url"}
+
+    incoming_email = update_data.get("email")
+    if incoming_email is not None:
+        normalized_email = incoming_email.strip().lower()
+        existing = db.query(User).filter(func.lower(User.email) == normalized_email, User.id != user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email ya registrado")
+
     for field, value in update_data.items():
         if field in allowed_fields:
+            if field == "email" and isinstance(value, str):
+                value = value.strip().lower()
             setattr(user, field, value)
             if field in ("first_name", "last_name"):
                 fn = user.first_name or ""

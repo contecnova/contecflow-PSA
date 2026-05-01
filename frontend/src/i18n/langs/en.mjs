@@ -424,7 +424,7 @@ const en = {
     sending: 'Sending...',
     reply_btn: 'Reply',
     cancel: 'Cancel',
-    comment_placeholder: 'Write a comment...',
+    comment_placeholder: 'Write a comment... (mention with @email)',
     add_comment_btn: 'Add comment',
     thread_comments: 'Threaded comments are available on any task or ticket. Select an entity to view and add comments:',
     threaded_comments_info: 'Threaded comments are available on any task or ticket. Select an entity to view and add comments:',
@@ -435,7 +435,7 @@ const en = {
     entity_id_placeholder: 'Enter entity ID...',
     enter_entity_id: 'Enter the ID of a task or ticket to view its comments',
     how_to_use_title: 'How to use @mentions',
-    how_to_use_desc: 'In any comment, type @user-uuid to mention them. They will receive a notification in the "My mentions" tab and in the system alerts panel. Comments support nested replies (one level deep) and can be marked as resolved.',
+    how_to_use_desc: 'In any comment, type @user-email to mention someone (example: @ana@company.com). They will receive a notification in the "My mentions" tab and in the system alerts panel. Comments support nested replies (one level deep) and can be marked as resolved.',
   },
   kanban: {
     title: 'Kanban Board',
@@ -1443,6 +1443,15 @@ const en = {
   },
 
   sd: {
+    assign: {
+      title: 'Intelligent Incident Assignment',
+      get_recommendations: 'Get recommendations for ticket',
+      recommend: 'Recommend',
+      top_agents: 'Suggested agents',
+      error: 'Ticket not found or error',
+      load_by_agent: 'Load by agent',
+      unassigned: 'unassigned tickets',
+    },
     voice: {
       title: 'Voice Agent / IVR',
       sessions: 'Sessions',

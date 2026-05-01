@@ -23,7 +23,7 @@ import { useAppT } from '../i18n/AppLangContext'
 const fs = { width: '100%', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
 const ls = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }
 
-const HEALTH_COLOR = (score) => score >= 75 ? 'var(--success)' : score >= 50 ? '#fb923c' : 'var(--danger)'
+const HEALTH_COLOR = (score) => score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--orange)' : 'var(--danger)'
 
 function HealthBadge({ score }) {
   const c = HEALTH_COLOR(score)
@@ -76,7 +76,7 @@ function HealthChart({ data }) {
         <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--surface-5)', borderRadius: 8 }} labelStyle={{ color: 'var(--text-1)' }} />
         <Area type="monotone" dataKey="health" stroke="var(--info)" fill="url(#healthGrad)" strokeWidth={2} name="Salud" dot={false} />
         <ReferenceLine y={75} stroke="var(--success)" strokeDasharray="4 2" opacity={0.5} />
-        <ReferenceLine y={50} stroke="#fb923c" strokeDasharray="4 2" opacity={0.5} />
+        <ReferenceLine y={50} stroke="var(--orange)" strokeDasharray="4 2" opacity={0.5} />
       </AreaChart>
     </ResponsiveContainer>
   )
@@ -85,7 +85,7 @@ function HealthChart({ data }) {
 function NPSGauge({ nps }) {
   const t = useAppT();
   if (nps === null || nps === undefined) return <div style={{ color: 'var(--surface-5)', fontSize: "var(--text-base)", textAlign: 'center', padding: 12 }}>{t('nps.no_data')}</div>;
-  const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? '#fb923c' : 'var(--danger)'
+  const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
   return (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
       <div style={{ fontSize: "var(--text-42)", fontWeight: 900, color }}>{nps > 0 ? `+${nps}` : nps}</div>
@@ -234,7 +234,7 @@ export default function NPSPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
                     {[
                       { label: t('nps.promoters'), key: 'promoters', color: 'var(--success)' },
-                      { label: t('nps.passives'),  key: 'passives',  color: '#fb923c' },
+                      { label: t('nps.passives'),  key: 'passives',  color: 'var(--orange)' },
                       { label: t('nps.detractors'),key: 'detractors',color: 'var(--danger)' },
                     ].map(({ label, key, color }) => (
                       <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-xs)" }}>
@@ -263,9 +263,11 @@ export default function NPSPage() {
                       <button key={n} onClick={() => setScoreInput(n)} style={{
                         width: 32, height: 32, borderRadius: 6,
                         background: scoreInput === n
-                          ? (n >= 9 ? '#276227' : n >= 7 ? '#7b4a00' : '#6b1a1a')
+                          ? (n >= 9 ? 'color-mix(in srgb, var(--success) 25%, var(--surface-2))'
+                             : n >= 7 ? 'color-mix(in srgb, var(--orange) 25%, var(--surface-2))'
+                             : 'color-mix(in srgb, var(--danger) 25%, var(--surface-2))')
                           : 'var(--surface-4)',
-                        border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? '#fb923c' : 'var(--danger)') : 'var(--surface-5)'}`,
+                        border: `1px solid ${scoreInput === n ? (n >= 9 ? 'var(--success)' : n >= 7 ? 'var(--orange)' : 'var(--danger)') : 'var(--surface-5)'}`,
                         color: scoreInput === n ? 'var(--text-1)' : 'var(--text-2)',
                         cursor: 'pointer', fontWeight: 700, fontSize: "var(--text-sm)", fontFamily: 'inherit',
                       }}>{n}</button>

@@ -1,38 +1,73 @@
 /**
- * BiDashboardCollabPanel.jsx — Complete BI Dashboard Collaboration UI
+ * BiDashboardCollabPanel.jsx — Colaboración en dashboards BI.
  *
- * Features:
- * - Comments with resolution on dashboard widgets
- * - Shared views with persistent filters
- * - Dashboard sharing with permission management
- * - Collaboration notifications
- * - Dashboard version history with restore
+ * Endpoints (todos bajo /api/v1):
+ *   GET   /bi/collaboration/comments?dashboard_key=&widget_id=&include_resolved=  -> { items, count }
+ *   POST  /bi/collaboration/comments                                              { dashboard_key, widget_id, message }
+ *   PATCH /bi/collaboration/comments/{id}/resolve
+ *   GET   /bi/collaboration/shared-views                                          -> { items }
+ *   POST  /bi/collaboration/shared-views                                          { name, dashboard_key, filters }
+ *   PATCH /bi/collaboration/shared-views/{id}                                     { active }
+ *   GET   /bi/collaboration/dashboards/{key}/shares                               -> { items }
+ *   POST  /bi/collaboration/dashboards/{key}/shares                               { target_user_id, target_user_name, permission }
+ *   DEL   /bi/collaboration/dashboards/{key}/shares/{shareId}
+ *   GET   /bi/collaboration/dashboards/{key}/versions                             -> { items }
+ *   POST  /bi/collaboration/dashboards/{key}/versions/{versionId}/restore
+ *   GET   /bi/collaboration/notifications?include_read=false                      -> { items }
+ *   PATCH /bi/collaboration/notifications/{id}                                    { is_read }
  */
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { useChartTheme } from '../../charts/useChartTheme'
-import {
-  MessageCircle,
-  Eye,
-  Share2,
-  Plus,
-  Trash2,
-  Lock,
-  CheckCircle,
-  Clock,
-} from 'lucide-react'
+import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
+import { Card, Button, Tabs, Spinner, EmptyState } from '../ui'
+import { useToast } from '../../context/ToastContext'
 
 const SHARE_PERMISSIONS = [
-  { value: 'view', label: 'Ver' },
-  { value: 'edit', label: 'Editar' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'view',  label: 'Ver',     color: 'var(--text-3)' },
+  { value: 'edit',  label: 'Editar',  color: 'var(--warning)' },
+  { value: 'admin', label: 'Admin',   color: 'var(--danger)' },
 ]
+const PERMISSION_LABEL = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.label]))
+const PERMISSION_COLOR = Object.fromEntries(SHARE_PERMISSIONS.map(p => [p.value, p.color]))
+
+const fieldLabel = {
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  color: 'var(--text-3)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  marginBottom: 6,
+}
+const inputBase = {
+  width: '100%',
+  background: 'var(--surface-3)',
+  border: '1px solid var(--surface-4)',
+  borderRadius: 8,
+  padding: '8px 12px',
+  color: 'var(--text-1)',
+  fontSize: 'var(--text-sm)',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+const chip = (color) => ({
+  fontSize: 'var(--text-2xs)',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color,
+  background: `color-mix(in srgb, ${color} 15%, transparent)`,
+  border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+  borderRadius: 'var(--radius-full, 999px)',
+  padding: '2px 9px',
+  whiteSpace: 'nowrap',
+})
 
 export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
   const t = useAppT()
-  const { dark } = useChartTheme()
+  const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('comments')
   const [newComment, setNewComment] = useState('')
@@ -43,10 +78,9 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const { data: commentsData, isLoading: commentsLoading } = useQuery({
     queryKey: ['bi-collab-comments', dashboardKey],
-    queryFn: () =>
-      api.get('/bi/collaboration/comments', {
-        params: { dashboard_key: dashboardKey },
-      }).then(r => r.data),
+    queryFn: () => api.get('/bi/collaboration/comments', {
+      params: { dashboard_key: dashboardKey, include_resolved: false },
+    }).then(r => r.data),
   })
 
   const { data: viewsData, isLoading: viewsLoading } = useQuery({
@@ -57,26 +91,23 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
 
   const { data: sharesData, isLoading: sharesLoading } = useQuery({
     queryKey: ['bi-collab-shares', dashboardKey],
-    queryFn: () =>
-      api.get(`/bi/collaboration/dashboards/${dashboardKey}/shares`).then(r => r.data),
+    queryFn: () => api.get(`/bi/collaboration/dashboards/${dashboardKey}/shares`).then(r => r.data),
     enabled: tab === 'shares',
   })
 
   const { data: versionsData, isLoading: versionsLoading } = useQuery({
     queryKey: ['bi-collab-versions', dashboardKey],
-    queryFn: () =>
-      api.get(`/bi/collaboration/dashboards/${dashboardKey}/versions`).then(r => r.data),
+    queryFn: () => api.get(`/bi/collaboration/dashboards/${dashboardKey}/versions`).then(r => r.data),
     enabled: tab === 'versions',
   })
 
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
     queryKey: ['bi-collab-notifications', dashboardKey],
-    queryFn: () =>
-      api.get('/bi/collaboration/notifications', {
-        params: { dashboard_key: dashboardKey, include_read: false },
-      }).then(r => r.data),
+    queryFn: () => api.get('/bi/collaboration/notifications', {
+      params: { dashboard_key: dashboardKey, include_read: false },
+    }).then(r => r.data),
     enabled: tab === 'notifications',
-    refetchInterval: 5000,
+    refetchInterval: 15_000,
   })
 
   const addCommentMutation = useMutation({
@@ -86,275 +117,424 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }) {
       qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al añadir comentario'),
   })
 
   const resolveCommentMutation = useMutation({
     mutationFn: (id) => api.patch(`/bi/collaboration/comments/${id}/resolve`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] }),
+    onSuccess: () => {
+      toast.success('Comentario resuelto')
+      qc.invalidateQueries({ queryKey: ['bi-collab-comments', dashboardKey] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al resolver'),
   })
 
   const saveViewMutation = useMutation({
     mutationFn: (data) => api.post('/bi/collaboration/shared-views', data).then(r => r.data),
     onSuccess: () => {
       setViewName('')
+      toast.success('Vista compartida guardada')
       qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar vista'),
+  })
+
+  const toggleViewMutation = useMutation({
+    mutationFn: ({ id, active }) => api.patch(`/bi/collaboration/shared-views/${id}`, { active }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-views', dashboardKey] }),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al actualizar vista'),
   })
 
   const shareDashboardMutation = useMutation({
-    mutationFn: (data) =>
-      api.post(`/bi/collaboration/dashboards/${dashboardKey}/shares`, data).then(r => r.data),
+    mutationFn: (data) => api.post(`/bi/collaboration/dashboards/${dashboardKey}/shares`, data).then(r => r.data),
     onSuccess: () => {
       setShareUserId('')
       setShareUserName('')
+      toast.success('Acceso compartido')
       qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al compartir'),
   })
 
   const revokeShareMutation = useMutation({
     mutationFn: (shareId) =>
       api.delete(`/bi/collaboration/dashboards/${dashboardKey}/shares/${shareId}`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] }),
+    onSuccess: () => {
+      toast.success('Acceso revocado')
+      qc.invalidateQueries({ queryKey: ['bi-collab-shares', dashboardKey] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al revocar'),
   })
 
   const restoreVersionMutation = useMutation({
     mutationFn: (versionId) =>
       api.post(`/bi/collaboration/dashboards/${dashboardKey}/versions/${versionId}/restore`).then(r => r.data),
     onSuccess: () => {
+      toast.success('Versión restaurada')
       qc.invalidateQueries({ queryKey: ['bi-collab-versions', dashboardKey] })
       qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] })
     },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al restaurar'),
   })
 
   const markNotificationReadMutation = useMutation({
     mutationFn: (notificationId) =>
       api.patch(`/bi/collaboration/notifications/${notificationId}`, { is_read: true }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bi-collab-notifications', dashboardKey] }),
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al marcar leída'),
   })
 
-  const cardCls = `rounded-xl border p-6 ${dark ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`
-  const comments = commentsData?.comments ?? commentsData?.items ?? []
-  const views = viewsData?.views ?? viewsData?.items ?? []
-  const shares = sharesData?.items ?? []
-  const versions = versionsData?.items ?? []
-  const notifications = notificationsData?.items ?? []
+  const comments = commentsData?.items ?? commentsData?.comments ?? []
+  const views = viewsData?.items ?? viewsData?.views ?? []
+  const shares = sharesData?.items ?? sharesData?.shares ?? []
+  const versions = versionsData?.items ?? versionsData?.versions ?? []
+  const notifications = notificationsData?.items ?? notificationsData?.notifications ?? []
+
+  function submitComment() {
+    const msg = newComment.trim()
+    if (!msg) return
+    addCommentMutation.mutate({ dashboard_key: dashboardKey, widget_id: 'main', message: msg })
+  }
 
   return (
-    <div className={cardCls}>
-      <div className="flex items-center gap-2 mb-4">
-        <MessageCircle className="w-5 h-5 text-indigo-500" />
-        <h2 className="text-lg font-bold">{t('bi.collab.title', 'Colaboración en Dashboards BI')}</h2>
+    <Card style={{ padding: '20px 22px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MessageCircle size={18} style={{ color: 'var(--purple)' }} />
+          <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', margin: 0 }}>
+            {t('bi.collab.title', 'Colaboración en dashboards BI')}
+          </h2>
+        </div>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>
+          dashboard_key: <span style={{ fontFamily: 'var(--font-mono)' }}>{dashboardKey}</span>
+        </span>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-5">
-        {[
-          ['comments', 'Comentarios'],
-          ['views', 'Vistas compartidas'],
-          ['shares', 'Accesos'],
-          ['versions', 'Versiones'],
-          ['notifications', 'Notificaciones'],
-        ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === id ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t(`bi.collab.${id}`, label)}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        items={[
+          { id: 'comments',      label: t('bi.collab.comments', 'Comentarios') },
+          { id: 'views',         label: t('bi.collab.views', 'Vistas compartidas') },
+          { id: 'shares',        label: t('bi.collab.shares', 'Accesos') },
+          { id: 'versions',      label: t('bi.collab.versions', 'Versiones') },
+          { id: 'notifications', label: t('bi.collab.notifications', 'Notificaciones') },
+        ]}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Colaboración BI"
+      />
 
+      {/* Comments */}
       {tab === 'comments' && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
+        <div>
+          <div style={fieldLabel}>{t('bi.collab.add_comment', 'Añadir comentario')}</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               type="text"
-              placeholder={t('bi.collab.add_comment', 'Añadir comentario...')}
+              placeholder="Escribe un comentario para este dashboard…"
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && newComment && addCommentMutation.mutate({ dashboard_key: dashboardKey, widget_id: 'main', message: newComment })}
-              className={`rounded border px-3 py-1.5 text-sm flex-1 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+              onKeyDown={e => e.key === 'Enter' && submitComment()}
+              style={{ ...inputBase, flex: 1 }}
             />
-            <button
-              onClick={() => newComment && addCommentMutation.mutate({ dashboard_key: dashboardKey, widget_id: 'main', message: newComment })}
-              disabled={!newComment}
-              className="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm disabled:opacity-50 hover:bg-indigo-700"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <Button
+              onClick={submitComment}
+              disabled={!newComment.trim() || addCommentMutation.isPending}
+              loading={addCommentMutation.isPending}
+              icon={<Plus size={13} />}
+            >Comentar</Button>
           </div>
 
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {commentsLoading && <p className="text-sm text-gray-400">Cargando...</p>}
-            {comments.map((c) => (
-              <div key={c.id} className={`rounded-lg border px-4 py-3 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} ${c.resolved ? 'opacity-50' : ''}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <p className="text-sm">{c.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">{c.author_name ?? c.user_id ?? 'Usuario'} · {c.dashboard_key}</p>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+          {commentsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : comments.length === 0 ? (
+            <EmptyState icon="💬" title={t('bi.collab.no_comments', 'Sin comentarios todavía')} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+              {comments.map(c => (
+                <div key={c.id} style={{
+                  padding: '10px 14px',
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--surface-4)',
+                  borderRadius: 8,
+                  opacity: c.resolved ? 0.55 : 1,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {c.message}
+                      </div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span>{c.author_name ?? c.user_id ?? 'Usuario'}</span>
+                        {c.widget_id && <span>· widget {c.widget_id}</span>}
+                        {c.created_at && <span>· {new Date(c.created_at).toLocaleString()}</span>}
+                        {c.resolved && <span style={chip('var(--success)')}>resuelto</span>}
+                      </div>
+                    </div>
                     {!c.resolved && (
-                      <button onClick={() => resolveCommentMutation.mutate(c.id)}
-                        className="ml-1 text-green-500 hover:text-green-600" title="Resolver">
-                        <CheckCircle className="w-4 h-4" />
-                      </button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => resolveCommentMutation.mutate(c.id)}
+                        loading={resolveCommentMutation.isPending && resolveCommentMutation.variables === c.id}
+                        icon={<CheckCircle size={12} />}
+                      >Resolver</Button>
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
-            {!comments.length && <p className="text-sm text-gray-400">{t('bi.collab.no_comments', 'Sin comentarios todavía')}</p>}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
+      {/* Shared views */}
       {tab === 'views' && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
+        <div>
+          <div style={fieldLabel}>{t('bi.collab.save_view', 'Guardar vista actual')}</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               type="text"
-              placeholder={t('bi.collab.view_name', 'Nombre de la vista...')}
+              placeholder="Nombre de la vista compartida…"
               value={viewName}
               onChange={e => setViewName(e.target.value)}
-              className={`rounded border px-3 py-1.5 text-sm flex-1 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+              onKeyDown={e => e.key === 'Enter' && viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
+              style={{ ...inputBase, flex: 1 }}
             />
-            <button
-              onClick={() => viewName && saveViewMutation.mutate({ name: viewName, dashboard_key: dashboardKey, filters: {} })}
-              disabled={!viewName}
-              className="flex items-center gap-1 px-4 py-1.5 rounded bg-indigo-600 text-white text-sm disabled:opacity-50 hover:bg-indigo-700"
-            >
-              <Eye className="w-4 h-4" />
-              {t('bi.collab.save_view', 'Guardar vista')}
-            </button>
+            <Button
+              onClick={() => viewName.trim() && saveViewMutation.mutate({ name: viewName.trim(), dashboard_key: dashboardKey, filters: {} })}
+              disabled={!viewName.trim() || saveViewMutation.isPending}
+              loading={saveViewMutation.isPending}
+              icon={<Eye size={13} />}
+            >Guardar vista</Button>
           </div>
 
-          <div className="space-y-2">
-            {viewsLoading && <p className="text-sm text-gray-400">Cargando...</p>}
-            {views.map((v) => (
-              <div key={v.id} className={`flex items-center justify-between px-4 py-2 rounded-lg ${dark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div>
-                  <span className="font-medium text-sm">{v.name}</span>
-                  <p className="text-xs text-gray-400">{v.dashboard_key} · {v.created_at ? new Date(v.created_at).toLocaleDateString() : ''}</p>
+          {viewsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : views.length === 0 ? (
+            <EmptyState icon="👁" title={t('bi.collab.no_views', 'Sin vistas guardadas')} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {views.map(v => (
+                <div key={v.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--surface-4)',
+                  borderRadius: 8, gap: 10, flexWrap: 'wrap',
+                }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>{v.name}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                      {v.dashboard_key} {v.created_at && `· ${new Date(v.created_at).toLocaleDateString()}`}
+                      {v.created_by_name && ` · ${v.created_by_name}`}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={chip(v.active === false ? 'var(--text-3)' : 'var(--accent)')}>
+                      {v.active === false ? 'Inactiva' : 'Activa'}
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      onClick={() => toggleViewMutation.mutate({ id: v.id, active: !(v.active === false ? false : true) })}
+                    >{v.active === false ? 'Activar' : 'Desactivar'}</Button>
+                  </div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 flex items-center gap-1">
-                  <Eye className="w-3 h-3" /> Guardada
-                </span>
-              </div>
-            ))}
-            {!views.length && <p className="text-sm text-gray-400">{t('bi.collab.no_views', 'Sin vistas guardadas')}</p>}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
+      {/* Shares */}
       {tab === 'shares' && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
+        <div>
+          <div style={fieldLabel}>Compartir con un usuario</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <input
               type="text"
-              placeholder="ID usuario"
+              placeholder="user_id"
               value={shareUserId}
               onChange={e => setShareUserId(e.target.value)}
-              className={`rounded border px-3 py-1.5 text-sm flex-1 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={{ ...inputBase, flex: '1 1 140px' }}
             />
             <input
               type="text"
-              placeholder="Nombre usuario"
+              placeholder="Nombre visible"
               value={shareUserName}
               onChange={e => setShareUserName(e.target.value)}
-              className={`rounded border px-3 py-1.5 text-sm flex-1 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={{ ...inputBase, flex: '1 1 160px' }}
             />
             <select
               value={sharePermission}
               onChange={e => setSharePermission(e.target.value)}
-              className={`rounded border px-3 py-1.5 text-sm w-28 ${dark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}
+              style={{ ...inputBase, width: 130 }}
             >
-              {SHARE_PERMISSIONS.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
+              {SHARE_PERMISSIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
-            <button
-              onClick={() => shareUserId && shareUserName && shareDashboardMutation.mutate({ target_user_id: shareUserId, target_user_name: shareUserName, permission: sharePermission })}
-              disabled={!shareUserId || !shareUserName}
-              className="px-3 py-1.5 rounded bg-indigo-600 text-white text-sm disabled:opacity-50 hover:bg-indigo-700"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
+            <Button
+              onClick={() => shareUserId.trim() && shareUserName.trim() && shareDashboardMutation.mutate({
+                target_user_id: shareUserId.trim(),
+                target_user_name: shareUserName.trim(),
+                permission: sharePermission,
+              })}
+              disabled={!shareUserId.trim() || !shareUserName.trim() || shareDashboardMutation.isPending}
+              loading={shareDashboardMutation.isPending}
+              icon={<Share2 size={13} />}
+            >Compartir</Button>
           </div>
 
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {sharesLoading && <p className="text-sm text-gray-400">Cargando...</p>}
-            {shares.map((s) => (
-              <div key={s.id} className={`rounded-lg border px-4 py-3 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">{s.user_name}</p>
-                    <p className="text-xs text-gray-400 mt-1">{s.user_id} · {s.permission}</p>
+          {sharesLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : shares.length === 0 ? (
+            <EmptyState icon="🔗" title="Sin accesos compartidos" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {shares.map(s => (
+                <div key={s.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--surface-4)',
+                  borderRadius: 8, gap: 10, flexWrap: 'wrap',
+                }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                      {s.target_user_name || s.user_name || s.target_user_id || s.user_id}
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>{s.target_user_id || s.user_id}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {s.permission === 'view' && <Lock className="w-4 h-4 text-gray-500" />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {s.permission === 'view' && <Lock size={12} style={{ color: 'var(--text-3)' }} />}
+                    <span style={chip(PERMISSION_COLOR[s.permission] || 'var(--text-3)')}>
+                      {PERMISSION_LABEL[s.permission] || s.permission}
+                    </span>
                     <button
-                      onClick={() => revokeShareMutation.mutate(s.id)}
-                      className="text-red-500 hover:text-red-600"
-                      title="Revocar"
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`¿Revocar acceso de ${s.target_user_name || s.user_name}?`)) {
+                          revokeShareMutation.mutate(s.id)
+                        }
+                      }}
+                      title="Revocar acceso"
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-3)', padding: 4, display: 'inline-flex',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)' }}
+                      onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-3)' }}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
-            {!shares.length && <p className="text-sm text-gray-400">Sin accesos compartidos</p>}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
+      {/* Versions */}
       {tab === 'versions' && (
-        <div className="space-y-2 max-h-72 overflow-y-auto">
-          {versionsLoading && <p className="text-sm text-gray-400">Cargando...</p>}
-          {versions.map((v) => (
-            <div key={v.id} className={`rounded-lg border px-4 py-3 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">Versión {v.version}</p>
-                  <p className="text-xs text-gray-400 mt-1">{v.change_log || 'Sin descripción'}</p>
-                  <p className="text-xs text-gray-400 mt-1"><Clock className="w-3 h-3 inline mr-1" />{v.created_at ? new Date(v.created_at).toLocaleString() : ''}</p>
+        <div>
+          <div style={fieldLabel}>Historial de versiones del dashboard</div>
+          {versionsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : versions.length === 0 ? (
+            <EmptyState icon="📜" title="Sin versiones guardadas" description="Las ediciones del dashboard se guardan automáticamente como versiones." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+              {versions.map(v => (
+                <div key={v.id} style={{
+                  padding: '10px 14px',
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--surface-4)',
+                  borderRadius: 8,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-1)' }}>
+                      <History size={12} style={{ display: 'inline', marginRight: 6, color: 'var(--text-3)' }} />
+                      Versión {v.version}
+                    </div>
+                    {v.change_log && (
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>
+                        {v.change_log}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={11} />
+                      {v.created_at ? new Date(v.created_at).toLocaleString() : ''}
+                      {v.created_by_name && ` · ${v.created_by_name}`}
+                    </div>
+                  </div>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      if (window.confirm(`¿Restaurar versión ${v.version}? Se creará una nueva versión con este contenido.`)) {
+                        restoreVersionMutation.mutate(v.id)
+                      }
+                    }}
+                    loading={restoreVersionMutation.isPending && restoreVersionMutation.variables === v.id}
+                  >Restaurar</Button>
                 </div>
-                <button
-                  onClick={() => restoreVersionMutation.mutate(v.id)}
-                  className="text-indigo-500 hover:text-indigo-600 text-xs"
-                >
-                  Restaurar
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-          {!versions.length && <p className="text-sm text-gray-400">Sin versiones aún</p>}
+          )}
         </div>
       )}
 
+      {/* Notifications */}
       {tab === 'notifications' && (
-        <div className="space-y-2 max-h-72 overflow-y-auto">
-          {notificationsLoading && <p className="text-sm text-gray-400">Cargando...</p>}
-          {notifications.map((n) => (
-            <div key={n.id} className={`rounded-lg border px-4 py-3 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{n.event_type}</p>
-                  <p className="text-xs text-gray-400 mt-1">{n.dashboard_key}</p>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+            <div style={fieldLabel}>Notificaciones de colaboración (no leídas)</div>
+            <span style={chip('var(--accent)')}>{notifications.length}</span>
+          </div>
+          {notificationsLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}><Spinner /></div>
+          ) : notifications.length === 0 ? (
+            <EmptyState icon="🔔" title="Sin notificaciones pendientes" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+              {notifications.map(n => (
+                <div key={n.id} style={{
+                  padding: '10px 14px',
+                  background: 'var(--surface-3)',
+                  border: '1px solid var(--surface-4)',
+                  borderRadius: 8,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Bell size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-1)' }}>
+                        {n.event_type || n.type || 'evento'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                      {n.message || n.dashboard_key || ''}
+                      {n.created_at && ` · ${new Date(n.created_at).toLocaleString()}`}
+                    </div>
+                  </div>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => markNotificationReadMutation.mutate(n.id)}
+                    loading={markNotificationReadMutation.isPending && markNotificationReadMutation.variables === n.id}
+                    icon={<CheckCircle size={12} />}
+                  >Marcar leída</Button>
                 </div>
-                <button
-                  onClick={() => markNotificationReadMutation.mutate(n.id)}
-                  className="text-green-500 hover:text-green-600"
-                  title="Marcar leída"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                </button>
-              </div>
+              ))}
             </div>
-          ))}
-          {!notifications.length && <p className="text-sm text-gray-400">Sin notificaciones pendientes</p>}
+          )}
         </div>
       )}
-    </div>
+    </Card>
   )
 }

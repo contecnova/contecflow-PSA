@@ -21,6 +21,7 @@ import {
   IdiomasSection,
   EmailInboundSection,
   LogLevelSection,
+  SystemStateSection,
 } from './SettingsPageSections'
 
 const TAB_GROUPS = [
@@ -52,6 +53,7 @@ const TAB_GROUPS = [
       { id: 'roles',        label: 'Roles',          roles: ['admin'] },
       { id: 'email-inbound',label: 'Email-to-ticket', roles: ['admin'] },
       { id: 'log-level',    label: 'Nivel de log',   roles: ['admin'] },
+      { id: 'system-state', label: 'Estado sistema', roles: ['admin'] },
     ],
   },
 ]
@@ -109,6 +111,7 @@ export default function SettingsPage() {
       {activeTab === 'idiomas'       && <IdiomasSection />}
       {activeTab === 'email-inbound' && <EmailInboundSection />}
       {activeTab === 'log-level'     && <LogLevelSection />}
+      {activeTab === 'system-state'  && <SystemStateSection />}
     </PageShell>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { currencyApi } from '../services/api'
+import api, { currencyApi, unwrapList } from '../services/api'
 import { DollarSign } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -25,25 +25,19 @@ export default function FinanceDashboardPage() {
 
   const { data: clients = [], isLoading: lc } = useQuery({
     queryKey: ['fin-dash-clients'],
-    queryFn: () => api.get('/clients', { params: { page_size: 200 } }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => api.get('/clients', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
 
   const { data: pipeline = [] } = useQuery({
     queryKey: ['fin-dash-pipeline'],
-    queryFn: () => api.get('/pipeline', { params: { page_size: 100 } }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => api.get('/pipeline', { params: { page_size: 100 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
 
   const { data: invoicesData } = useQuery({
     queryKey: ['fin-dash-invoices'],
-    queryFn: () => api.get('/invoices', { params: { page_size: 200 } }).then(r => {
-      const d = r.data; return Array.isArray(d) ? d : (d?.items || [])
-    }).catch(() => []),
+    queryFn: () => api.get('/invoices', { params: { page_size: 200 } }).then(unwrapList).catch(() => []),
     staleTime: 60_000,
   })
 
@@ -78,19 +72,25 @@ export default function FinanceDashboardPage() {
   const marginColor = marginPct == null ? COLOR.accent : marginPct >= 30 ? COLOR.success : marginPct >= 15 ? COLOR.warning : COLOR.danger
 
   const invoices        = Array.isArray(invoicesData) ? invoicesData : []
-  const pendingInvoices = invoices.filter(i => i.status === 'pending' || i.status === 'sent')
+  const pendingInvoices = invoices.filter(i => i.status === 'sent' || i.status === 'overdue')
   const overdueInvoices = invoices.filter(i => i.status === 'overdue')
-  const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.amount || i.total || 0), 0)
-  const overdueAmount   = overdueInvoices.reduce((s, i) => s + (i.amount || i.total || 0), 0)
+  const pendingAmount   = pendingInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
+  const overdueAmount   = overdueInvoices.reduce((s, i) => s + (i.total || i.amount || 0), 0)
 
   const activeClients    = clients.filter(c => c.status === 'active').length
   const pipelineValue    = pipeline.reduce((s, o) => s + (o.value || o.amount || 0), 0)
   const openOpportunities = pipeline.filter(o => o.status !== 'closed_won' && o.status !== 'closed_lost').length
 
-  const clientRows = clients
-    .filter(c => (c.revenue || 0) > 0)
-    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+  const revenueByClient = topProjects.reduce((acc, p) => {
+    const name = p.client_name || 'Sin cliente'
+    const rev = p.revenue_actual ?? p.budget_amount ?? 0
+    if (rev > 0) acc[name] = (acc[name] || 0) + rev
+    return acc
+  }, {})
+  const clientRows = Object.entries(revenueByClient)
+    .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
+    .map(([name, revenue]) => ({ name, revenue }))
   const maxRevenue = clientRows[0]?.revenue || 1
 
   const pipelineByStage = pipeline.reduce((acc, o) => {
@@ -169,9 +169,9 @@ export default function FinanceDashboardPage() {
           {clientRows.length === 0
             ? <DashEmpty icon="🏢" title="Sin datos de ingresos por cliente" description="Asocia proyectos e ingresos a clientes para ver esta métrica" />
             : clientRows.map((c, i) => (
-                <BarRow key={c.id || c.name}
-                  label={c.name || c.short_name || 'Cliente'}
-                  count={c.revenue || 0}
+                <BarRow key={c.name}
+                  label={c.name}
+                  count={c.revenue}
                   total={maxRevenue}
                   color={typePalette[i % typePalette.length]}
                   displayValue={fmtCur(c.revenue, lang)} />

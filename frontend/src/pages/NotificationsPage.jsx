@@ -153,10 +153,16 @@ export default function NotificationsPage() {
   const t = useAppT()
   const { user } = useAuth()
   const toast = useToast()
+  const toastRef = useRef(toast)
   const qc = useQueryClient()
   const [filter, setFilter] = useState('all')
   const wsRef = useRef(null)
+  const lastWsNotifRef = useRef({ count: null, firstId: null })
   const [wsConnected, setWsConnected] = useState(false)
+
+  useEffect(() => {
+    toastRef.current = toast
+  }, [toast])
 
   const { data, isLoading, _refetch } = useQuery({
     queryKey: ['notifications-page', filter],
@@ -189,8 +195,19 @@ export default function NotificationsPage() {
       if (cancelled) return
       const ticket = r.data?.ticket
       if (!ticket) return
-      const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const wsUrl = `${wsProto}://${window.location.host}/api/v1/ws/notifications?ticket=${ticket}`
+      let wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+      let wsHost = window.location.host
+      const apiBaseUrl = import.meta.env.VITE_API_URL
+      if (apiBaseUrl) {
+        try {
+          const apiUrl = new URL(apiBaseUrl, window.location.origin)
+          wsProto = apiUrl.protocol === 'https:' ? 'wss' : 'ws'
+          wsHost = apiUrl.host
+        } catch {
+          // Keep same-origin websocket fallback if VITE_API_URL is malformed.
+        }
+      }
+      const wsUrl = `${wsProto}://${wsHost}/api/v1/ws/notifications?ticket=${ticket}`
       ws = new WebSocket(wsUrl)
       wsRef.current = ws
       ws.onopen = () => {
@@ -209,10 +226,18 @@ export default function NotificationsPage() {
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data)
-          if (msg.type === 'notifications' && msg.count > 0) {
+          if (msg.type === 'notifications') {
+            const firstId = msg.items?.[0]?.id || null
+            const changed =
+              lastWsNotifRef.current.count !== msg.count ||
+              lastWsNotifRef.current.firstId !== firstId
+            if (!changed) return
+            lastWsNotifRef.current = { count: msg.count, firstId }
+
+            if (!(msg.count > 0 || firstId)) return
             qc.invalidateQueries({ queryKey: ['notifications-page'] })
             qc.invalidateQueries({ queryKey: ['notifications'] })
-            toast.info(`🔔 ${msg.count} notificación${msg.count > 1 ? 'es' : ''} nueva${msg.count > 1 ? 's' : ''}`)
+            toastRef.current?.info?.(`🔔 ${msg.count} notificación${msg.count > 1 ? 'es' : ''} nueva${msg.count > 1 ? 's' : ''}`)
           }
         } catch { /* noop */ }
       }
@@ -233,7 +258,7 @@ export default function NotificationsPage() {
         }
       }
     }
-  }, [user, qc, toast])
+  }, [user, qc])
 
   const FILTERS = [
     { id:'all',    label:'Todas' },

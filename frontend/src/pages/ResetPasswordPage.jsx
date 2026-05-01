@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
             )}
 
             {success && (
-              <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.25)', borderRadius: 8, padding: '10px 14px', color: '#2ecc71', fontSize: "var(--text-base)" }}>
+              <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--success)', fontSize: "var(--text-base)" }}>
                 {success}
               </div>
             )}

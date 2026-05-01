@@ -8,7 +8,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { BarChart2 } from 'lucide-react'
 import { fmtCurrency, extractErr } from '../utils/helpers'
-import { CHART_COLORS_EXTENDED, COLOR } from '../constants/theme'
+import { CHART_COLORS_EXTENDED } from '../constants/theme'
 import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import {
@@ -80,7 +80,7 @@ const PRESETS = [
   { id: 'p17', label: 'Pipeline por etapa',       icon: '🎪', metric: 'pipeline_by_stage',          chart: 'bar',         color: '#a78bfa', cat: 'Negocio' },
   { id: 'p18', label: 'Win rate comercial',       icon: '🏆', metric: 'win_rate_evolution',         chart: 'line',        color: '#34d399', cat: 'Negocio' },
   { id: 'p19', label: 'Ingresos por cliente',     icon: '🏢', metric: 'revenue_by_client',          chart: 'bar',         color: '#f59e0b', cat: 'Negocio' },
-  { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: CHART.lime, cat: 'RRHH' },
+  { id: 'p20', label: 'Productividad equipo',     icon: '📊', metric: 'productivity_by_person',     chart: 'bar_grouped', color: '#84cc16', cat: 'RRHH' },
   { id: 'p21', label: 'Ausencias por tipo',       icon: '🏖️', metric: 'absences_by_type',           chart: 'pie',         color: '#f59e0b', cat: 'RRHH' },
   { id: 'p43', label: 'Evolución del pipeline',   icon: '📈', metric: 'pipeline_evolution',         chart: 'line',        color: '#a78bfa', cat: 'Negocio' },
   { id: 'p44', label: 'Contratos por estado',     icon: '📃', metric: 'contracts_by_status',        chart: 'bar',         color: '#a78bfa', cat: 'Negocio' },

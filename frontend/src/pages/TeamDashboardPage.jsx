@@ -8,6 +8,23 @@ import {
   dateRange, typePalette,
 } from '../components/dashboard/DashKit'
 
+const ROLE_LABELS = {
+  admin: 'Admin',
+  pm: 'PM',
+  team_lead: 'Team Lead',
+  employee: 'Empleado',
+  hr: 'RRHH',
+  finance: 'Finanzas',
+  client_user: 'Cliente',
+}
+
+const okrCategory = (o) => {
+  if (o.status === 'cancelled') return 'cancelled'
+  if (o.status === 'completed' || (o.progress_pct ?? 0) >= 100) return 'completed'
+  if ((o.progress_pct ?? 0) > 0 || o.status === 'in_progress') return 'in_progress'
+  return 'pending'
+}
+
 export default function TeamDashboardPage() {
   const [days, setDays] = useState(30)
   const params = dateRange(days)
@@ -69,7 +86,12 @@ export default function TeamDashboardPage() {
   const utilColor  = utilPct == null ? COLOR.accent : utilPct >= 70 ? COLOR.success : utilPct >= 50 ? COLOR.warning : COLOR.danger
 
   const totalOkrs      = okrs.length
-  const completedOkrs  = okrs.filter(o => o.status === 'completed' || o.progress_pct >= 100).length
+  const okrBuckets     = okrs.reduce((acc, o) => {
+    const cat = okrCategory(o)
+    acc[cat] = (acc[cat] || 0) + 1
+    return acc
+  }, {})
+  const completedOkrs  = okrBuckets.completed || 0
   const okrPct         = totalOkrs > 0 ? Math.round((completedOkrs / totalOkrs) * 100) : null
   const okrColor       = okrPct == null ? COLOR.accent : okrPct >= 70 ? COLOR.success : okrPct >= 40 ? COLOR.warning : COLOR.danger
 
@@ -101,7 +123,7 @@ export default function TeamDashboardPage() {
   const roleRows = Object.entries(roleCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([role, count]) => ({ label: role, count }))
+    .map(([role, count]) => ({ label: ROLE_LABELS[role] || role, count }))
 
   return (
     <DashPageShell
@@ -188,10 +210,10 @@ export default function TeamDashboardPage() {
         <SectionCard title="Estado de OKRs" badge={totalOkrs}>
           {(() => {
             const groups = [
-              { label: 'Completados',    count: completedOkrs, color: COLOR.success },
-              { label: 'En progreso',    count: okrs.filter(o => o.status === 'in_progress' || (o.progress_pct > 0 && o.progress_pct < 100)).length, color: COLOR.accent },
-              { label: 'Sin iniciar',    count: okrs.filter(o => !o.status || o.status === 'pending' || o.progress_pct === 0).length, color: 'var(--text-3)' },
-              { label: 'Cancelados',     count: okrs.filter(o => o.status === 'cancelled').length, color: COLOR.danger },
+              { label: 'Completados', count: okrBuckets.completed   || 0, color: COLOR.success },
+              { label: 'En progreso', count: okrBuckets.in_progress || 0, color: COLOR.accent },
+              { label: 'Sin iniciar', count: okrBuckets.pending     || 0, color: 'var(--text-3)' },
+              { label: 'Cancelados',  count: okrBuckets.cancelled   || 0, color: COLOR.danger },
             ].filter(g => g.count > 0)
             return groups.map(g => (
               <BarRow key={g.label} label={g.label}

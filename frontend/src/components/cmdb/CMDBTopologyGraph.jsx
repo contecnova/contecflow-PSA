@@ -1,9 +1,9 @@
 /**
  * CMDBTopologyGraph — 2D SVG radial + 3D Plotly scatter3d topology viewer.
  *
- * Props:
- *  - nodes: [{id, name, ci_type, status, is_center, hostname?}]
- *  - edges: [{source, target, rel_type}]
+ * Props (acepta ambas formas de payload):
+ *  - nodes: [{id, name, ci_type, is_root|is_center, criticality|status, depth?, hostname?}]
+ *  - edges: [{source, target, relation_type|rel_type}]
  *  - onNodeClick: (node) => void
  *  - centerName: string
  */
@@ -20,6 +20,35 @@ const STATUS_COLORS = {
   active: '#34d399',
   maintenance: '#f59e0b',
   decommissioned: '#f87171',
+}
+
+// Color por criticidad (cuando el payload viene del endpoint SD CMDB)
+const CRITICALITY_COLORS = {
+  low:      '#34d399',
+  medium:   '#f59e0b',
+  high:     '#fb923c',
+  critical: '#f87171',
+}
+
+function normalizeNode(n) {
+  return {
+    ...n,
+    is_center: n.is_center ?? n.is_root ?? false,
+    status: n.status ?? n.criticality ?? 'active',
+  }
+}
+
+function normalizeEdge(e) {
+  return {
+    ...e,
+    rel_type: e.rel_type ?? e.relation_type ?? 'depends_on',
+  }
+}
+
+function pickNodeColor(n) {
+  // Prioriza criticality si está presente; fallback a status
+  if (n.criticality && CRITICALITY_COLORS[n.criticality]) return CRITICALITY_COLORS[n.criticality]
+  return STATUS_COLORS[n.status] || STATUS_COLORS.active
 }
 
 const REL_COLORS = {
@@ -154,7 +183,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
       if (d === undefined || d > impactRadius) return '#334155'
       return IMPACT_COLORS[Math.min(d, 3)]
     }
-    return STATUS_COLORS[node.status] || STATUS_COLORS.active
+    return pickNodeColor(node)
   }, [impactDist, impactRadius])
 
   const getEdgeOpacity = useCallback((e) => {
@@ -300,7 +329,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
       if (d === undefined || d > impactRadius) return '#334155'
       return IMPACT_COLORS[Math.min(d, 3)]
     }
-    return STATUS_COLORS[n.status] || STATUS_COLORS.active
+    return pickNodeColor(n)
   }, [impactDist, impactRadius])
 
   const edgeX = [], edgeY = [], edgeZ = []
@@ -422,11 +451,14 @@ function ImpactLegend({ impactRadius, sourceName }) {
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 
-export default function CMDBTopologyGraph({ nodes = [], edges = [], onNodeClick, centerName }) {
+export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdges = [], onNodeClick, centerName }) {
   const [hovered, setHovered] = useState(null)
   const [viewMode, setViewMode] = useState('2d')
   const [impactSource, setImpactSource] = useState(null)
   const [impactRadius, setImpactRadius] = useState(2)
+
+  const nodes = useMemo(() => rawNodes.map(normalizeNode), [rawNodes])
+  const edges = useMemo(() => rawEdges.map(normalizeEdge), [rawEdges])
 
   const impactDist = useMemo(
     () => impactSource ? bfsDistances(nodes, edges, impactSource) : null,

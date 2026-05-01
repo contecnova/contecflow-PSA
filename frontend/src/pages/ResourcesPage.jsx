@@ -3,8 +3,8 @@ import { useToast } from '../context/ToastContext'
 import ResourceHeatmap from '../components/ResourceHeatmap'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
-import { usersApi } from '../services/api'
-import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle } from '../components/ui'
+import { usersApi, unwrapList } from '../services/api'
+import { Avatar, LoadBar, Button, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Users } from 'lucide-react'
@@ -217,6 +217,7 @@ function EditUserModal({ user, open, onClose }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({
+    email:                 user?.user?.email                 || user?.email                 || '',
     full_name:             user?.user?.full_name             || user?.full_name             || '',
     job_title:             user?.user?.job_title             || user?.job_title             || '',
     department:            user?.user?.department            || user?.department            || '',
@@ -235,6 +236,7 @@ function EditUserModal({ user, open, onClose }) {
   return (
     <Modal open={open} onClose={onClose} title="Editar recurso">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Input label="Email" type="email" value={form.email} onChange={set('email')} />
         <Input label="Nombre completo" value={form.full_name} onChange={set('full_name')} />
         <Input label="Cargo" value={form.job_title} onChange={set('job_title')} />
         <Input label="Departamento" value={form.department} onChange={set('department')} />
@@ -256,11 +258,10 @@ function SmartMatchTab() {
   const [skillInput, setSkillInput] = useState('')
   const [results, setResults] = useState(null)
 
-  const { data: skillsRaw = [] } = useQuery({
+  const { data: allSkills = [] } = useQuery({
     queryKey: ['skills-sm'],
-    queryFn: () => api.get('/skills/catalog').then(r => r.data),
+    queryFn: () => api.get('/skills/catalog').then(unwrapList),
   })
-  const allSkills = Array.isArray(skillsRaw) ? skillsRaw : []
 
   const { mutate: search, isPending } = useMutation({
     mutationFn: d => api.post('/billing-reports/smartmatch', d).then(r => r.data),
@@ -396,7 +397,7 @@ export default function ResourcesPage() {
 
   const { data: loadData = [], isLoading } = useQuery({
     queryKey: ['resources'],
-    queryFn: () => usersApi.load().then(r => r.data),
+    queryFn: () => usersApi.load().then(unwrapList),
   })
 
   const filtered = loadData.filter(r => {
@@ -437,20 +438,7 @@ export default function ResourcesPage() {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: 'var(--surface-1)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {TABS.map(({ id, label }) => (
-          <button key={id} onClick={() => setResTab(id)}
-            style={{ padding: '7px 18px', borderRadius: 7, border: 'none',
-              background: resTab === id ? 'var(--accent-muted)' : 'transparent',
-              color: resTab === id ? 'var(--accent)' : 'var(--text-2)',
-              fontSize: "var(--text-base)", fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              outline: resTab === id ? '1px solid rgba(79,142,247,0.3)' : 'none',
-              transition: 'all .15s' }}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TABS} active={resTab} onChange={setResTab} ariaLabel="Recursos" />
 
       {resTab === 'heatmap' ? <ResourceHeatmap /> : resTab === 'smartmatch' ? <SmartMatchTab /> : resTab === 'burnout' ? <BurnoutMonitorTab /> : (
         <>

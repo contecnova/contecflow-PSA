@@ -141,6 +141,41 @@ export const uatApi = {
 
 export default api
 
+// ── Response shape helpers ────────────────────────────────────────────────────
+/**
+ * Normaliza la respuesta de un endpoint de listado a un array garantizado.
+ * Soporta tres shapes que el backend usa indistintamente:
+ *   1) array crudo: `[a, b, c]`
+ *   2) paginado: `{ items: [...], count?, total? }`
+ *   3) clave alternativa: `{ rows | results | data | tickets | sessions: [...] }`
+ *
+ * Uso:
+ *   unwrapList(response)                  → busca array en data, items, rows...
+ *   unwrapList(response, 'tickets')       → fuerza la clave 'tickets' como prioridad
+ *
+ * Nunca devuelve null/undefined — siempre array (vacío si no hay match).
+ */
+export function unwrapList(response, key) {
+  const data = response?.data ?? response
+  if (Array.isArray(data)) return data
+  if (data && typeof data === 'object') {
+    if (key && Array.isArray(data[key])) return data[key]
+    for (const k of ['items', 'results', 'rows', 'data', 'list']) {
+      if (Array.isArray(data[k])) return data[k]
+    }
+  }
+  return []
+}
+
+/**
+ * Variante "raw data" — devuelve el objeto data si no es array, o el primer
+ * array que encuentre. Útil cuando el endpoint puede devolver objeto o array
+ * y necesitas también los metadatos paginated (`{items, count}` mantiene `count`).
+ */
+export function unwrapData(response) {
+  return response?.data ?? response ?? null
+}
+
 // ── Typed API helpers ─────────────────────────────────────────────────────────
 
 export const authApi = {

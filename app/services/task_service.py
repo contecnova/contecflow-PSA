@@ -2,8 +2,7 @@
 task_service.py — Lógica de negocio para tareas.
 
 Funciones exportadas:
-  TASK_VALID_TRANSITIONS
-  validate_task_transition(current_status, new_status) -> raises HTTPException if invalid
+  validate_task_transition(current_status, new_status) -> no-op (siempre permite)
   apply_status_side_effects(task, new_status)
   cascade_reschedule(task_id, new_end_date, db) -> dict
   bulk_update_tasks(task_ids, updates, current_user, db) -> dict
@@ -25,6 +24,7 @@ from app.models.bookings import TaskDependency, DependencyType
 from app.models.project import Project
 from app.models.task import Task, TaskComment
 from app.models.task import Task as TaskModel
+from app.models.task_movement_log import TaskMovementLog
 from app.models.user import UserRole
 from app.schemas import TaskOut as TaskOutSchema
 from app.services.numbering import next_numbered_code
@@ -35,28 +35,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 
-# ── Transition table ───────────────────────────────────────────────────────────
-
-TASK_VALID_TRANSITIONS: dict = {
-    TaskStatus.backlog:     {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.todo:        {TaskStatus.in_progress, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.in_progress: {TaskStatus.todo, TaskStatus.blocked, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.blocked:     {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.in_review, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.in_review:   {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.done, TaskStatus.cancelled},
-    TaskStatus.done:        {TaskStatus.todo, TaskStatus.in_progress, TaskStatus.cancelled},  # Permite reabrir
-    TaskStatus.cancelled:   set(),  # Terminal
-    TaskStatus.review:      {TaskStatus.todo, TaskStatus.done, TaskStatus.in_progress, TaskStatus.cancelled},  # legacy alias
-}
+# ── Transition policy ─────────────────────────────────────────────────────────
+# Toda transición entre estados está permitida: el kanban es una herramienta de
+# trabajo donde el usuario decide cómo mueve sus tareas. La trazabilidad se
+# garantiza vía TaskMovementLog (cada cambio queda registrado con quién, cuándo,
+# desde/hasta y motivo opcional). Si el frontend considera una transición
+# "sensible" (p.ej. reabrir una tarea ya done/cancelled) puede solicitar al
+# usuario un `move_reason` antes de enviar el PATCH.
 
 
 def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus) -> None:
-    """Raises HTTPException(400) if the transition is not allowed."""
-    allowed = TASK_VALID_TRANSITIONS.get(current_status, set())
-    if new_status not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Transición de estado no permitida: '{current_status.value}' → '{new_status.value}'",
-        )
+    """No-op: todas las transiciones se permiten. La trazabilidad va al log."""
+    return None
 
 
 def apply_status_side_effects(task, new_status: TaskStatus) -> None:
@@ -224,13 +214,6 @@ def bulk_update_tasks(task_ids: list, updates: dict, current_user, db: Session) 
                 continue
 
         if new_status and new_status != task.status:
-            allowed = TASK_VALID_TRANSITIONS.get(task.status, set())
-            if new_status not in allowed:
-                skipped.append({
-                    "id": task.id,
-                    "reason": f"invalid_transition:{task.status.value}->{new_status.value}",
-                })
-                continue
             apply_status_side_effects(task, new_status)
             task.status = new_status
 
@@ -373,6 +356,8 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
 
     old_assignee_id = task.assignee_id
 
+    old_status = task.status  # capture before any mutation
+
     if payload.status and payload.status != task.status:
         validate_task_transition(task.status, payload.status)
         apply_status_side_effects(task, payload.status)
@@ -402,8 +387,24 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
         raise HTTPException(status_code=503, detail="Database operation failed")
 
     db.refresh(task)
-    from app.core.events import emit, EventType
+
+    # ── Movement log ──────────────────────────────────────────────────────────
     changed_fields = payload.model_dump(exclude_unset=True)
+    new_status_val = changed_fields.get("status")
+    if new_status_val is not None and new_status_val != old_status:
+        move_reason = changed_fields.get("move_reason")
+        log_entry = TaskMovementLog(
+            task_id=task.id,
+            project_id=task.project_id,
+            moved_by_id=current_user.id,
+            from_status=str(old_status.value) if old_status else None,
+            to_status=str(new_status_val.value) if hasattr(new_status_val, 'value') else str(new_status_val),
+            reason=move_reason,
+        )
+        db.add(log_entry)
+        db.commit()
+
+    from app.core.events import emit, EventType
     new_assignee = changed_fields.get("assignee_id")
     new_status = changed_fields.get("status")
     if new_status and str(new_status) in ("done", "completed", "closed"):

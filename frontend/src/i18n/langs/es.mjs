@@ -235,7 +235,7 @@ const es = {
     sending: 'Enviando...',
     reply_btn: 'Responder',
     cancel: 'Cancelar',
-    comment_placeholder: 'Escribe un comentario...',
+    comment_placeholder: 'Escribe un comentario... (menciona con @correo)',
     add_comment_btn: 'Añadir comentario',
     threaded_comments_info: 'Los comentarios encadenados están disponibles en cualquier tarea o ticket. Selecciona una entidad para ver y añadir comentarios:',
       thread_comments: 'Los comentarios encadenados están disponibles en cualquier tarea o ticket. Selecciona una entidad para ver y añadir comentarios:',
@@ -246,7 +246,7 @@ const es = {
     entity_id_placeholder: 'Introduce el ID...',
     enter_entity_id: 'Introduce el ID de una tarea o ticket para ver sus comentarios',
     how_to_use_title: 'Cómo usar @menciones',
-    how_to_use_desc: 'En cualquier comentario escribe @uuid-del-usuario para mencionarle. Recibirá una notificación en la pestaña "Mis menciones" y en el panel de alertas del sistema. Los comentarios admiten respuestas anidadas (un nivel de profundidad) y pueden marcarse como resueltos.',
+    how_to_use_desc: 'En cualquier comentario escribe @correo-del-usuario para mencionarle (ejemplo: @ana@empresa.com). Recibirá una notificación en la pestaña "Mis menciones" y en el panel de alertas del sistema. Los comentarios admiten respuestas anidadas (un nivel de profundidad) y pueden marcarse como resueltos.',
   },
   inbox: {
     title: 'Bandeja de entrada',
@@ -1668,6 +1668,15 @@ const es = {
   },
 
   sd: {
+    assign: {
+      title: 'Asignación Inteligente de Incidentes',
+      get_recommendations: 'Obtener recomendaciones para ticket',
+      recommend: 'Recomendar',
+      top_agents: 'Agentes sugeridos',
+      error: 'Ticket no encontrado o error',
+      load_by_agent: 'Carga por agente',
+      unassigned: 'tickets sin asignar',
+    },
     voice: {
       title: 'Agente de Voz / IVR',
       sessions: 'Sesiones',

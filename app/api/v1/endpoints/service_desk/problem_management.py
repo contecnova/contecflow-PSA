@@ -466,9 +466,7 @@ def get_rca_wizard_state(
 
     problem = get_scoped_problem_or_404(db, current_user, problem_id)
     state = get_wizard_state(problem)
-    if state is None:
-        raise HTTPException(status_code=404, detail='RCA wizard not started for this problem')
-    return {'wizard': state}
+    return {'wizard': state}  # state is None when not yet started — 200 so frontend avoids console 404
 
 
 @router.post('/problems/{problem_id}/rca-wizard/step', summary='Enviar respuesta de un paso del wizard')

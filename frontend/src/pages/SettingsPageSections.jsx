@@ -10,7 +10,7 @@ import { Settings } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { extractErr } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
-import { IdiomasSection, EmailInboundSection, LogLevelSection } from './settings-sections/SettingsAdvancedSections'
+import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 const fs = { width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-1)', fontSize: "var(--text-base)", outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }
@@ -29,17 +29,52 @@ function Section({ icon, title, description, children }) {
 }
 
 // ── General settings ──────────────────────────────────────────────────────────
+
+const LABELS = {
+  company_name: 'Nombre empresa',
+  company_logo_url: 'URL logotipo',
+  currency: 'Moneda',
+  timezone: 'Zona horaria',
+  language: 'Idioma',
+  work_hours_per_day: 'Horas/día',
+  work_days_per_week: 'Días laborables/semana',
+  budget_alert_threshold: '% alerta presupuesto',
+  overload_threshold: '% carga máxima',
+}
+
+// Settings cuya key empieza por estos prefijos son estado interno de servicios BI/ITSM
+// (no deben aparecer en la página de Configuración general porque son JSON serializado).
+const INTERNAL_KEY_PREFIXES = [
+  'bi.', 'sd.', 'olap.', 'ml_', '_', 'cache_', 'feedback_', 'lineage_', 'embed_',
+]
+const isUserFacingSetting = (key) => {
+  if (!key) return false
+  if (key in LABELS) return true
+  const lower = String(key).toLowerCase()
+  if (INTERNAL_KEY_PREFIXES.some(p => lower.startsWith(p))) return false
+  // Permitir keys "limpias" (sin punto y sin parecer JSON): nombres simples como
+  // company_name, currency, etc.
+  return !lower.includes('.')
+}
+
 function GeneralSection() {
   const qc = useQueryClient()
   const toast = useToast()
   const { data: settings = [] } = useQuery({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
   const { mutate: update } = useMutation({ mutationFn: ({ key, value }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries(['settings-general']) , onError: e => toast.error(extractErr(e, 'Error'))})
-  const LABELS = { company_name: 'Nombre empresa', company_logo_url: 'URL logotipo', currency: 'Moneda', timezone: 'Zona horaria', language: 'Idioma', work_hours_per_day: 'Horas/día', work_days_per_week: 'Días laborables/semana', budget_alert_threshold: '% alerta presupuesto', overload_threshold: '% carga máxima' }
+
+  const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
+
   return (
-    <Section icon="⚙️" title="Configuracion general" description="Parametros globales de la organizacion">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {settings.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
+    <Section icon="⚙️" title="Configuración general" description="Parámetros globales de la organización">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+        {visible.map(s => <SettingField key={s.key} setting={s} label={LABELS[s.key] || s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
       </div>
+      {visible.length === 0 && (
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', textAlign: 'center', padding: 16 }}>
+          Sin parámetros generales configurados.
+        </div>
+      )}
     </Section>
   )
 }
@@ -48,18 +83,27 @@ function SettingField({ setting, label, onSave }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(setting.value || '')
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '12px 16px' }}>
+    <div style={{
+      background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
+      borderRadius: 10, padding: '12px 16px',
+      minWidth: 0, overflow: 'hidden',
+    }}>
       <label style={ls}>{label}</label>
       {editing ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
-          <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700 }}>✓</button>
-          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer' }}>✕</button>
+          <input value={val} onChange={e => setVal(e.target.value)} style={{ ...fs, flex: 1, minWidth: 0 }} autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
+          <button onClick={() => { onSave(val); setEditing(false) }} style={{ background: 'var(--accent)', border: 'none', borderRadius: 6, padding: '0 12px', color: 'var(--surface-0)', cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>✓</button>
+          <button onClick={() => { setVal(setting.value); setEditing(false) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '0 12px', color: 'var(--text-2)', cursor: 'pointer', flexShrink: 0 }}>✕</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: setting.value ? 'var(--text-1)' : 'var(--text-3)' }}>{setting.value || '—'}</span>
-          <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)" }}>✏️</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, minWidth: 0 }}>
+          <span style={{
+            fontSize: "var(--text-md)", fontWeight: 600,
+            color: setting.value ? 'var(--text-1)' : 'var(--text-3)',
+            wordBreak: 'break-word', overflowWrap: 'anywhere',
+            flex: 1, minWidth: 0,
+          }}>{setting.value || '—'}</span>
+          <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", flexShrink: 0 }}>✏️</button>
         </div>
       )}
     </div>
@@ -582,10 +626,11 @@ function TemplatesSection() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 16 }}>
           {templates.map(t => (
-            <button key={t.id} type="button" style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
+              <div key={t.id} role="button" tabIndex={0} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: 18, cursor: 'pointer', width:'100%', textAlign:'left', fontFamily:'inherit' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-glow)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--surface-4)'}
-              onClick={() => setSelected(t)}>
+                onClick={() => setSelected(t)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t) } }}>
               <div style={{ fontSize: "var(--text-md-em)", fontWeight: 700, marginBottom: 6 }}>{t.name}</div>
               {t.description && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>{t.description}</div>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
@@ -598,7 +643,7 @@ function TemplatesSection() {
                 <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(t) }}>Ver detalle</Button>
                 <button onClick={e => { e.stopPropagation(); deleteTemplate(t.id) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>🗑</button>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -874,4 +919,5 @@ export {
   IdiomasSection,
   EmailInboundSection,
   LogLevelSection,
+  SystemStateSection,
 }

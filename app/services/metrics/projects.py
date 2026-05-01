@@ -29,6 +29,14 @@ STATUS_PROJECT_LABELS = {
     "cancelled": "Cancelado"
 }
 
+TYPE_PROJECT_LABELS = {
+    "development": "Desarrollo",
+    "maintenance": "Mantenimiento",
+    "rd": "I+D",
+    "internal": "Interno",
+    "consulting": "Consultoría",
+}
+
 STATUS_DELIVERABLE_LABELS = {
     "planned": "Planificado",
     "in_progress": "En curso",
@@ -120,6 +128,33 @@ def metric_projects_by_status(
         {"label": STATUS_PROJECT_LABELS.get(r.status, r.status), "value": r.count}
         for r in q.all()
     ]
+    return rows, {}
+
+
+@register_metric("projects_by_type")
+def metric_projects_by_type(
+    db: Session,
+    d_from: date,
+    d_to: date,
+    top_n: int,
+    project_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    project_ids: Optional[list[str]] = None,
+    **kwargs
+) -> tuple[list[dict], dict]:
+    """Distribución de proyectos por tipo."""
+    q = db.query(Project.project_type, func.count(Project.id).label("count")).group_by(Project.project_type)
+    if project_ids:
+        q = q.filter(Project.id.in_(project_ids))
+
+    def _key(t):
+        return t.value if hasattr(t, "value") else t
+
+    rows = [
+        {"label": TYPE_PROJECT_LABELS.get(_key(r.project_type), _key(r.project_type) or "Sin tipo"), "value": r.count}
+        for r in q.all()
+    ]
+    rows.sort(key=lambda x: x["value"], reverse=True)
     return rows, {}
 
 

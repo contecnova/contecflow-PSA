@@ -516,8 +516,9 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
         position: 'fixed', inset: 0,
         background: 'rgba(8,12,20,0.85)',
         backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 'var(--z-modal)', padding: 24,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        zIndex: 'var(--z-modal)', padding: '40px 24px',
+        overflowY: 'auto',
       }}
     >
       <div
@@ -530,9 +531,10 @@ export function Modal({ open, onClose, title, children, width = 520, subtitle })
           background: 'var(--surface-2)',
           border: '1px solid var(--surface-4)',
           borderRadius: 'var(--radius-xl)',
-          width: '100%', maxWidth: width, maxHeight: '90vh', overflow: 'auto',
+          width: '100%', maxWidth: width,
           padding: 28, animation: 'fadeUp 0.2s ease',
           boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>

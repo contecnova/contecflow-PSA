@@ -25,8 +25,9 @@ export default function WebhookLogPage() {
   const { data: allLogs = [], isLoading, refetch } = useQuery({
     queryKey: ['webhook-logs-all'],
     queryFn: async () => {
+      const validWebhooks = webhooks.filter(w => w && w.id)
       const results = await Promise.all(
-        webhooks.map(w =>
+        validWebhooks.map(w =>
           api.get(`/webhooks/${w.id}/logs`)
             .then(r => (r.data || []).map(l => ({
               ...l,
