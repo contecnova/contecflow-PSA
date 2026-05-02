@@ -125,7 +125,7 @@ export default function SprintChartsPage() {
                 />
                 <Legend wrapperStyle={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }} />
                 <Bar dataKey="planned"   name="Planificados" fill="var(--surface-5)" radius={[4,4,0,0]} />
-                <Bar dataKey="completed" name="Completados"  fill="#a78bfa" radius={[4,4,0,0]} />
+                <Bar dataKey="completed" name="Completados"  fill="var(--purple)" radius={[4,4,0,0]} />
                 <Line dataKey="velocity" name="Velocidad"    stroke="var(--success)" strokeWidth={2} dot={{ r: 4, fill: 'var(--success)' }} type="monotone" />
                 {avgVel > 0 && (
                   <ReferenceLine y={avgVel} stroke="var(--info)" strokeDasharray="4 4"
@@ -144,7 +144,7 @@ export default function SprintChartsPage() {
             <h3 style={{ margin: 0, fontSize: "var(--text-lg)", color: 'var(--text-1)' }}>📈 Burnup — {burnupData?.sprint?.name || 'Sprint'}</h3>
             {burnupData?.target > 0 && (
               <span style={{ fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-                Objetivo: <strong style={{ color: '#f59e0b' }}>{burnupData.target} pts</strong>
+                Objetivo: <strong style={{ color: 'var(--warning)' }}>{burnupData.target} pts</strong>
               </span>
             )}
           </div>
@@ -186,9 +186,9 @@ export default function SprintChartsPage() {
                   {burnupData?.target > 0 && (
                     <ReferenceLine
                       y={burnupData.target}
-                      stroke="#f59e0b"
+                      stroke="var(--warning)"
                       strokeDasharray="5 5"
-                      label={{ value: 'Objetivo', fill: '#f59e0b', fontSize: "var(--text-xs)", position: 'right' }}
+                      label={{ value: 'Objetivo', fill: 'var(--warning)', fontSize: "var(--text-xs)", position: 'right' }}
                     />
                   )}
                 </ComposedChart>
@@ -203,10 +203,10 @@ export default function SprintChartsPage() {
                     {[
                       { label: 'Completado', value: `${last.completed} pts`, color: 'var(--success)' },
                       { label: 'Scope total', value: `${last.scope} pts`, color: 'var(--info)' },
-                      { label: 'Progreso', value: `${pct}%`, color: pct >= 80 ? 'var(--success)' : pct >= 50 ? '#f59e0b' : 'var(--danger)' },
+                      { label: 'Progreso', value: `${pct}%`, color: pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)' },
                     ].map(k => (
                       <div key={k.label} style={{
-                        flex: 1, background: '#0d1117', border: '1px solid var(--surface-4)',
+                        flex: 1, background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
                         borderRadius: 8, padding: '12px 16px',
                       }}>
                         <div style={{ fontSize: "var(--text-xl)", fontWeight: 800, color: k.color }}>{k.value}</div>

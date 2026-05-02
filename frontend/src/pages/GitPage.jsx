@@ -15,12 +15,12 @@ import { useAppT } from '../i18n/AppLangContext'
 const STATUS_PR = {
   open:   { key: 'git_integration.status_open',   color: 'var(--success)', bg: 'var(--success-bg)' },
   draft:  { key: 'git_integration.status_draft',  color: 'var(--text-2)', bg: 'var(--surface-2)' },
-  merged: { key: 'git_integration.status_merged', color: '#a78bfa', bg: 'var(--purple-bg)' },
+  merged: { key: 'git_integration.status_merged', color: 'var(--purple)', bg: 'var(--purple-bg)' },
   closed: { key: 'git_integration.status_closed', color: 'var(--danger)', bg: 'var(--danger-bg)' },
 }
 
 const STATUS_DEPLOY = {
-  pending:   { key: 'git_integration.status_pending',  color: '#f59e0b', bg: 'var(--warning-bg)' },
+  pending:   { key: 'git_integration.status_pending',  color: 'var(--warning)', bg: 'var(--warning-bg)' },
   running:   { key: 'git_integration.status_running',  color: 'var(--info)', bg: 'var(--accent-muted)' },
   success:   { key: 'git_integration.status_success',  color: 'var(--success)', bg: 'var(--success-bg)' },
   failure:   { key: 'git_integration.status_failure',  color: 'var(--danger)', bg: 'var(--danger-bg)' },
@@ -113,7 +113,7 @@ export default function GitPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: t('git_integration.kpi_prs_open'),  value: openPRs,   color: 'var(--success)' },
-          { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: '#a78bfa' },
+          { label: t('git_integration.kpi_prs_merged'), value: mergedPRs,  color: 'var(--purple)' },
           { label: t('git_integration.kpi_deploys_ok'),    value: okDeploys,  color: 'var(--success)' },
           { label: t('git_integration.kpi_deploys_ko'),    value: failDeps,   color: 'var(--danger)' },
         ].map(k => (
@@ -306,11 +306,12 @@ function ConfigSection({ title, icon, webhookPath, envVar, events, steps }) {
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.webhook_url_label')}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <code style={{
-            flex: 1, background: '#0d1117', border: '1px solid var(--surface-4)', borderRadius: 6,
+            flex: 1, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 6,
             padding: '8px 12px', fontSize: "var(--text-sm)", color: 'var(--info)', overflowX: 'auto',
           }}>{url}</code>
           <button onClick={copy} style={{
-            background: copied ? '#276227' : 'var(--surface-4)', border: 'none', borderRadius: 6,
+            background: copied ? 'var(--success-bg)' : 'var(--surface-4)',
+            border: `1px solid ${copied ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 6,
             color: copied ? 'var(--success)' : 'var(--text-2)', padding: '8px 14px', cursor: 'pointer',
             fontSize: "var(--text-sm)", fontFamily: 'inherit', flexShrink: 0,
           }}>
@@ -320,7 +321,7 @@ function ConfigSection({ title, icon, webhookPath, envVar, events, steps }) {
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 4 }}>{t('git_integration.env_var_label')}</div>
-        <code style={{ fontSize: "var(--text-sm)", color: '#f59e0b' }}>{envVar}=tu-secreto-largo</code>
+        <code style={{ fontSize: "var(--text-sm)", color: 'var(--warning)' }}>{envVar}=tu-secreto-largo</code>
       </div>
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginBottom: 6 }}>{t('git_integration.events_label')}</div>

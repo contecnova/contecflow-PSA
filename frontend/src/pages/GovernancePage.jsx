@@ -148,7 +148,7 @@ export default function GovernancePage() {
                     <XAxis dataKey="name" tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
                     <YAxis tick={{ fontSize: "var(--text-2xs)", fill: 'var(--text-2)' }} />
                     <Tooltip contentStyle={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }} />
-                    <Bar dataKey="calls" name="Llamadas" fill="#4f8ef7" radius={[4, 4, 0, 0]}>
+                    <Bar dataKey="calls" name="Llamadas" fill="var(--accent)" radius={[4, 4, 0, 0]}>
                       {chartData.map((_, i) => <Cell key={i} fill={['var(--accent)','var(--success)','var(--warning)','var(--purple)','var(--warning)','var(--danger)'][i % 6]} />)}
                     </Bar>
                   </BarChart>

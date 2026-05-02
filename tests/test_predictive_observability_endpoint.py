@@ -71,6 +71,36 @@ def test_health_endpoint_respects_lookback_days(client, admin_token, db):
     assert data["itsm"]["lookback_days"] == 7
 
 
+def test_health_endpoint_prioritizes_insufficient_data_status(client, admin_token, db, monkeypatch):
+    import app.api.v1.endpoints.predictive_observability as ep_module
+
+    def _itsm_eval(_db, *, organization_id, lookback_days=30):
+        _ = lookback_days
+        return {
+            "organization_id": organization_id,
+            "status": "attention",
+            "score": 0.6,
+        }
+
+    def _bi_eval(_db, *, organization_id):
+        return {
+            "organization_id": organization_id,
+            "status": "insufficient_data",
+            "score": 0.9,
+        }
+
+    monkeypatch.setattr(ep_module, "evaluate_itsm_model_health", _itsm_eval)
+    monkeypatch.setattr(ep_module, "evaluate_bi_model_health", _bi_eval)
+
+    res = client.get(
+        "/api/v1/bi/predictive/observability/health",
+        headers=auth(admin_token),
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["overall_status"] == "insufficient_data"
+
+
 def test_trigger_retrain_endpoint_executes_cycle(client, admin_token, db, monkeypatch):
     import app.api.v1.endpoints.predictive_observability as ep_module
 

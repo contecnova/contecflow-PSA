@@ -786,8 +786,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
             title="Cronómetro activo — click para gestionar"
             style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
-              background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
-              borderRadius: 8, color: '#34d399', textDecoration: 'none',
+              background: 'var(--success-bg)', border: '1px solid var(--success-border)',
+              borderRadius: 8, color: 'var(--success)', textDecoration: 'none',
               fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'var(--font-mono)',
               animation: 'timerPulse 2s ease-in-out infinite',
             }}

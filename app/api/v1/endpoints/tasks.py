@@ -34,8 +34,49 @@ from app.services.task_service import (
     create_task_dependency as svc_create_task_dependency,
     delete_task_dependency as svc_delete_task_dependency,
 )
+from app.services.semantic_engine_service import enrich_suggestion, get_project_member_ids
+from app.services.semantic_classifier import SemanticAssigner
+from app.models.semantic_engine import SemConfig
 
 router = APIRouter()
+
+
+@router.post("/suggest-assignee", summary="Sugerir asignación de tarea (requiere confirmación manual)")
+def suggest_task_assignee(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    enforce_abac(db, current_user, "task", action="read")
+
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="title es obligatorio")
+
+    description = str(payload.get("description") or "")
+    project_id = payload.get("project_id")
+    priority = str(payload.get("priority") or "medium")
+    candidate_user_ids = payload.get("candidate_user_ids")
+
+    if not candidate_user_ids and project_id:
+        candidate_user_ids = get_project_member_ids(db, project_id)
+
+    suggestion = SemanticAssigner(db).suggest_for_task(
+        title,
+        description,
+        candidate_user_ids,
+        priority=priority,
+    )
+    suggestion = enrich_suggestion(db, suggestion)
+    sem_cfg = db.query(SemConfig).first()
+    semantic_auto_assign_enabled = bool(getattr(sem_cfg, "auto_assign_tasks", False)) if sem_cfg else False
+
+    return {
+        "requires_confirmation": True,
+        "semantic_auto_assign_enabled": semantic_auto_assign_enabled,
+        "suggestion": suggestion,
+        "confirmation_hint": "Confirma asignando assignee_id en POST /tasks o PATCH /tasks/{task_id}",
+    }
 
 
 @router.get("", response_model=List[TaskOut], summary="Listar tareas con filtros")

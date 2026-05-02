@@ -18,6 +18,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
@@ -25,7 +26,7 @@ from app.models.settings import AppSetting
 try:
     import lightgbm as lgb  # type: ignore
     _LGBM_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError):
     _LGBM_AVAILABLE = False
 
 _KEY_ASSIGNMENT_STATS = "sd.ml_assignment.stats"
@@ -84,37 +85,76 @@ def recommend_assignment(
         method_used, reasoning
       }
     """
-    if not candidate_agents:
+    from app.models.service_desk import AgentGroupMember, Ticket  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+        get_routing_candidates,
+        predict_best_agent,
+    )
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    members: list[Any] = []
+    if ticket.assigned_group_id:
+        members = (
+            db.query(AgentGroupMember)
+            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+            .all()
+        )
+    elif candidate_agents:
+        class _MemberProxy:
+            def __init__(self, user_id: str):
+                self.user_id = user_id
+
+        members = [_MemberProxy(str(a.get("user_id"))) for a in candidate_agents if a.get("user_id")]
+    else:
+        all_members = db.query(AgentGroupMember).all()
+        seen: set[str] = set()
+        for m in all_members:
+            if m.user_id in seen:
+                continue
+            seen.add(m.user_id)
+            members.append(m)
+
+    if not members:
         return {
             "recommended_user_id": None,
             "recommended_name": None,
             "confidence": 0.0,
             "all_scores": [],
+            "recommendations": [],
             "method_used": "no_candidates",
-            "reasoning": "No candidate agents provided",
+            "reasoning": "No candidate agents available",
+            "lgbm_available": _LGBM_AVAILABLE,
         }
 
-    priority_boost = {"p1_critical": 0.3, "p1": 0.3, "p2_high": 0.15, "p2": 0.15}.get(priority, 0.0)
-    scores = []
+    ranked = get_routing_candidates(db, ticket, members)
+    best_user_id = predict_best_agent(db, ticket, members)
+    best = next((c for c in ranked if c.get("user_id") == best_user_id), ranked[0] if ranked else None)
 
-    for agent in candidate_agents:
-        kw_score = _keyword_category_score(title, description, agent.get("specializations", []))
-        wl_score = _workload_score(agent.get("active_tickets", 0), agent.get("capacity", 10))
-        oncall_bonus = 0.2 if agent.get("is_on_call") else 0.0
+    if not best:
+        return {
+            "recommended_user_id": None,
+            "recommended_name": None,
+            "confidence": 0.0,
+            "all_scores": [],
+            "recommendations": [],
+            "method_used": "no_candidates",
+            "reasoning": "No eligible candidates",
+            "lgbm_available": _LGBM_AVAILABLE,
+        }
 
-        total = 0.45 * kw_score + 0.4 * wl_score + 0.1 * oncall_bonus + priority_boost
-        scores.append({
-            "user_id": agent["user_id"],
-            "name": agent.get("name", agent["user_id"]),
-            "score": round(min(1.0, total), 4),
-            "kw_score": round(kw_score, 4),
-            "workload_score": round(wl_score, 4),
-            "is_on_call": agent.get("is_on_call", False),
-            "active_tickets": agent.get("active_tickets", 0),
-        })
-
-    scores.sort(key=lambda s: s["score"], reverse=True)
-    best = scores[0]
+    scores = [
+        {
+            "user_id": c.get("user_id"),
+            "name": c.get("user_name"),
+            "score": c.get("composite_score", 0.0),
+            "available": c.get("available", False),
+            "components": c.get("components", {}),
+        }
+        for c in ranked
+    ]
 
     # Record stat
     stats: dict = _get_setting(db, _KEY_ASSIGNMENT_STATS, org_id)
@@ -123,12 +163,19 @@ def recommend_assignment(
     _set_setting(db, _KEY_ASSIGNMENT_STATS, org_id, stats)
 
     return {
-        "recommended_user_id": best["user_id"],
-        "recommended_name": best["name"],
-        "confidence": best["score"],
+        "recommended_user_id": best.get("user_id"),
+        "recommended_name": best.get("user_name"),
+        "confidence": best.get("composite_score", 0.0),
         "all_scores": scores,
-        "method_used": "lightgbm_stub" if _LGBM_AVAILABLE else "rule_based",
-        "reasoning": f"Top score: keyword_match={best['kw_score']}, workload={best['workload_score']}, oncall={best['is_on_call']}",
+        "recommendations": scores,
+        "method_used": "ml_score_v2",
+        "reasoning": (
+            "Top score ML: "
+            f"availability={best.get('components', {}).get('availability')}, "
+            f"historical_speed={best.get('components', {}).get('historical_speed')}, "
+            f"historical_csat={best.get('components', {}).get('historical_csat')}, "
+            f"skill_match={best.get('components', {}).get('skill_match')}"
+        ),
         "lgbm_available": _LGBM_AVAILABLE,
     }
 

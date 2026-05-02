@@ -339,6 +339,19 @@ setup_backend() {
     log "Dependencias Python sin cambios, omitiendo pip install"
   fi
 
+  # Stack ML (semantic transformer): instalar si requirements-ml.txt existe.
+  if [ -f "requirements-ml.txt" ]; then
+    REQ_ML_HASH_FILE="$VENV_DIR/.req_ml_hash"
+    REQ_ML_HASH=$(hash_file requirements-ml.txt)
+    if [ ! -f "$REQ_ML_HASH_FILE" ] || [ "$(cat $REQ_ML_HASH_FILE)" != "$REQ_ML_HASH" ]; then
+      log "Instalando dependencias ML (requirements-ml.txt)..."
+      "$PIP_BIN" install --quiet -r requirements-ml.txt
+      echo "$REQ_ML_HASH" > "$REQ_ML_HASH_FILE"
+    else
+      log "Dependencias ML sin cambios, omitiendo pip install"
+    fi
+  fi
+
   # Dependencias opcionales: CMDB auto-discovery (boto3=AWS, kubernetes=K8s)
   # Se instalan solo si el archivo requirements-discovery.txt existe O si se detectan
   # variables de entorno de proveedor cloud configuradas.

@@ -13,10 +13,10 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../../services/api'
 
 const RISK_CFG = {
-  low:      { color: 'var(--success)',  bg: 'var(--success-bg)',  label: 'Bajo riesgo',     dot: '#34d399' },
-  medium:   { color: 'var(--warning)',  bg: 'rgba(250,199,117,0.15)', label: 'Riesgo moderado', dot: '#FAC775' },
-  high:     { color: '#F87171',         bg: 'rgba(248,113,113,0.12)', label: 'Alto riesgo',     dot: '#F87171' },
-  critical: { color: 'var(--danger)',         bg: 'rgba(239,68,68,0.15)',   label: 'Riesgo crítico',  dot: 'var(--danger)' },
+  low:      { color: 'var(--success)', bg: 'var(--success-bg)',                                          label: 'Bajo riesgo',     dot: 'var(--success)' },
+  medium:   { color: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 15%, transparent)',        label: 'Riesgo moderado', dot: 'var(--warning)' },
+  high:     { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 12%, transparent)',         label: 'Alto riesgo',     dot: 'var(--danger)' },
+  critical: { color: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 18%, transparent)',         label: 'Riesgo crítico',  dot: 'var(--danger)' },
 }
 
 export default function ProjectRiskBadge({ projectId, hasData = true }) {

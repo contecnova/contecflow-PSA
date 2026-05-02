@@ -17,12 +17,12 @@ const fmtEur = (n) => n == null ? '—' : `${fmt(n, 0)} €`;
 const fmtPct = (n) => n == null ? '—' : `${fmt(n, 1)} %`;
 const fmtIdx = (n) => n == null ? '—' : fmt(n, 3);
 
-const HEALTH_COLOR = { green: 'var(--success)', yellow: '#f59e0b', red: 'var(--danger)', grey: 'var(--text-3)' };
+const HEALTH_COLOR = { green: 'var(--success)', yellow: 'var(--warning)', red: 'var(--danger)', grey: 'var(--text-3)' };
 const HEALTH_LABEL = { green: 'En control', yellow: 'Atención', red: 'En riesgo', grey: 'Sin datos' };
 const HEALTH_ICON  = { green: CheckCircle, yellow: AlertTriangle, red: AlertTriangle, grey: Clock };
 
 function IndexBadge({ label, value, good, format = fmtIdx }) {
-  const color = value == null ? 'var(--text-3)' : value >= (good || 0.9) ? 'var(--success)' : value >= 0.8 ? '#f59e0b' : 'var(--danger)';
+  const color = value == null ? 'var(--text-3)' : value >= (good || 0.9) ? 'var(--success)' : value >= 0.8 ? 'var(--warning)' : 'var(--danger)';
   return (
     <div style={{ background: 'var(--surface-2)', borderRadius: 10, padding: '12px 16px', minWidth: 120 }}>
       <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 4 }}>{label}</div>

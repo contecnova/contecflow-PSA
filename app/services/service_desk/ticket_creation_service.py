@@ -16,6 +16,108 @@ from app.services.sla_service import (
 )
 
 
+def _semantic_assignee_if_enabled(db: Session, ticket: Ticket, candidate_user_ids: list[str]) -> str | None:
+    """Return semantic suggestion when enabled by SemConfig; else None.
+
+    This preserves semantic engine value without replacing the ML routing fallback.
+    """
+    try:
+        from app.models.semantic_engine import SemConfig  # noqa: PLC0415
+        from app.services.semantic_classifier import SemanticAssigner  # noqa: PLC0415
+
+        cfg = db.query(SemConfig).first()
+        if not cfg or not bool(getattr(cfg, "auto_assign_tickets", False)):
+            return None
+
+        priority = str(ticket.priority.value) if hasattr(ticket.priority, "value") else str(ticket.priority or "medium")
+        suggestion = SemanticAssigner(db).suggest_for_ticket(
+            ticket.title or "",
+            ticket.description or "",
+            candidate_user_ids,
+            priority=priority,
+        )
+        suggested = suggestion.get("suggested_user_id")
+        if suggested and suggested in set(candidate_user_ids):
+            return suggested
+    except Exception:
+        return None
+    return None
+
+
+def _auto_assign_ticket_on_create(db: Session, ticket: Ticket) -> None:
+    """Ensure every newly created ticket gets an assignee using ML routing.
+
+    If a manual assignee already exists, preserve it and just normalize status/event.
+    """
+    from app.models.service_desk import AgentGroupMember, TicketStatus  # noqa: PLC0415
+    from app.services.service_desk.ml_routing_service import (  # noqa: PLC0415
+        predict_best_agent,
+        record_routing_event,
+    )
+
+    def _status_value(v):
+        if hasattr(v, "value"):
+            return str(v.value)
+        s = str(v)
+        if s.startswith("TicketStatus."):
+            return s.split(".", 1)[1]
+        return s
+
+    if ticket.assigned_to_user_id:
+        status_now = _status_value(ticket.status)
+        if not ticket.status or status_now in {TicketStatus.new.value, TicketStatus.assigned.value, "None"}:
+            ticket.status = TicketStatus.assigned
+        if not ticket.id:
+            db.flush()
+        record_routing_event(db, ticket)
+        return
+
+    # Service Catalog can define a default target group.
+    if not ticket.assigned_group_id and ticket.service_item and ticket.service_item.auto_assign_group:
+        ticket.assigned_group_id = ticket.service_item.auto_assign_group
+
+    if ticket.assigned_group_id:
+        members = (
+            db.query(AgentGroupMember)
+            .filter(AgentGroupMember.group_id == ticket.assigned_group_id)
+            .all()
+        )
+    else:
+        # Global fallback: all SD agents (deduplicated by user)
+        all_members = db.query(AgentGroupMember).all()
+        seen: set[str] = set()
+        members = []
+        for m in all_members:
+            if m.user_id in seen:
+                continue
+            seen.add(m.user_id)
+            members.append(m)
+
+    if not members:
+        return
+
+    candidate_user_ids = [m.user_id for m in members if getattr(m, "user_id", None)]
+    best_agent_id = _semantic_assignee_if_enabled(db, ticket, candidate_user_ids)
+    if not best_agent_id:
+        best_agent_id = predict_best_agent(db, ticket, members)
+    if not best_agent_id:
+        return
+
+    ticket.assigned_to_user_id = best_agent_id
+    if not ticket.assigned_group_id:
+        chosen = next((m for m in members if m.user_id == best_agent_id), None)
+        if chosen:
+            ticket.assigned_group_id = chosen.group_id
+
+    status_now = _status_value(ticket.status)
+    if not ticket.status or status_now in {TicketStatus.new.value, TicketStatus.assigned.value, "None"}:
+        ticket.status = TicketStatus.assigned
+
+    if not ticket.id:
+        db.flush()
+    record_routing_event(db, ticket)
+
+
 def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_id: str) -> Ticket:
     priority = payload.priority
     if not priority:
@@ -77,8 +179,7 @@ def build_internal_ticket(db: Session, payload: TicketCreateIn, requester_user_i
 
     db.add(ticket)
     apply_routing_rules(ticket, db)
-    if payload.assigned_to_user_id:
-        ticket.status = TicketStatus.assigned
+    _auto_assign_ticket_on_create(db, ticket)
     return ticket
 
 
@@ -127,4 +228,6 @@ def build_client_portal_ticket(db: Session, payload: TicketCreateIn, client: Cli
         sla_resolution_due=res_due,
     )
     db.add(ticket)
+    apply_routing_rules(ticket, db)
+    _auto_assign_ticket_on_create(db, ticket)
     return ticket

@@ -1328,6 +1328,7 @@ def sync_connector_data(self, connector_id: str, org_id: str | None = None):
 
     from app.db.session import SessionLocal
     from app.services.bi_intelligence_service import (
+        CONNECTORS_KEY,
         get_connectors,
         CONNECTOR_CONFIGS_KEY,
         _get_json,
@@ -1346,7 +1347,7 @@ def sync_connector_data(self, connector_id: str, org_id: str | None = None):
             # Collect all orgs that have this connector enabled in their state blob
             from app.models.settings import AppSetting
             rows = db.query(AppSetting).filter(
-                AppSetting.key == "bi.intelligence.connectors",
+                AppSetting.key == CONNECTORS_KEY,
             ).all()
             org_ids = [str(row.organization_id) if row.organization_id else None for row in rows]
             if not org_ids:
@@ -1570,6 +1571,7 @@ def bi_kpi_push():
     from app.db.session import SessionLocal
     from app.models.settings import AppSetting
     from app.services.bi_intelligence_service import (
+        CONNECTORS_KEY,
         ml_forecast_revenue,
         ml_detect_revenue_anomalies,
         publish_kpi_snapshot,
@@ -1581,9 +1583,14 @@ def bi_kpi_push():
         # Collect distinct org IDs that have BI connector state
         org_ids = [
             row.organization_id
-            for row in db.query(AppSetting.organization_id).distinct().all()
+            for row in db.query(AppSetting.organization_id)
+            .filter(AppSetting.key == CONNECTORS_KEY)
+            .distinct()
+            .all()
         ]
         org_ids = list({oid for oid in org_ids})  # deduplicate (includes None)
+        if not org_ids:
+            org_ids = [None]
 
         for org_id in org_ids:
             try:
@@ -1620,15 +1627,20 @@ def bi_ml_retrain():
     """
     from app.db.session import SessionLocal
     from app.models.settings import AppSetting
-    from app.services.bi_intelligence_service import ml_detect_anomalies_multivariate
+    from app.services.bi_intelligence_service import CONNECTORS_KEY, ml_detect_anomalies_multivariate
 
     db = SessionLocal()
     retrained = 0
     try:
         org_ids = list({
             row.organization_id
-            for row in db.query(AppSetting.organization_id).distinct().all()
+            for row in db.query(AppSetting.organization_id)
+            .filter(AppSetting.key == CONNECTORS_KEY)
+            .distinct()
+            .all()
         })
+        if not org_ids:
+            org_ids = [None]
         for org_id in org_ids:
             try:
                 # Run anomaly detection to exercise IsolationForest training path

@@ -19,12 +19,12 @@ function fmtBytes(b) {
 }
 
 const FILE_COLORS = {
-  pdf: { c: 'var(--danger)', bg: '#f8717118', l: 'PDF' },
-  image: { c: 'var(--accent)', bg: '#4f8ef718', l: 'IMG' },
-  spreadsheet: { c: 'var(--success)', bg: '#34d39918', l: 'XLS' },
-  word: { c: 'var(--accent)', bg: '#6366f118', l: 'DOC' },
-  presentation: { c: '#f59e0b', bg: '#f59e0b18', l: 'PPT' },
-  other: { c: 'var(--text-3)', bg: '#6b728018', l: 'FILE' },
+  pdf:         { c: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 9%, transparent)',  l: 'PDF' },
+  image:       { c: 'var(--accent)',  bg: 'color-mix(in srgb, var(--accent) 9%, transparent)',  l: 'IMG' },
+  spreadsheet: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 9%, transparent)', l: 'XLS' },
+  word:        { c: 'var(--accent)',  bg: 'color-mix(in srgb, var(--accent) 9%, transparent)',  l: 'DOC' },
+  presentation:{ c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 9%, transparent)', l: 'PPT' },
+  other:       { c: 'var(--text-3)', bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)',   l: 'FILE' },
 };
 
 function detectType(mime, name) {
@@ -55,7 +55,7 @@ function FileIcon({ mime, name, size = 30 }) {
 const APPROVAL_ICON = {
   approved: { c: 'var(--success)', icon: '✓' },
   rejected: { c: 'var(--danger)', icon: '✕' },
-  pending:  { c: '#f59e0b', icon: '◷' },
+  pending:  { c: 'var(--warning)', icon: '◷' },
 };
 
 const CATS = ['contract','deliverable','proposal','sop','legal','requirements','meeting_notes','other'];
@@ -137,7 +137,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--surface-4)', backgroundColor: 'var(--surface-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: '#4f8ef718', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, backgroundColor: 'color-mix(in srgb, var(--accent) 9%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
               <polyline points="14 2 14 8 20 8"/>

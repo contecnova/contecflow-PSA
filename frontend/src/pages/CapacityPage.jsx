@@ -221,7 +221,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }) {
               fontSize: "var(--text-3xs)", color: 'var(--text-1)', background: 'var(--surface-4)',
               borderRadius: 4, padding: '2px 4px', marginTop: 2,
               cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              border: '1px solid #2a3a55',
+              border: '1px solid var(--surface-4)',
             }}
             onPointerEnter={() => {}}
           >

@@ -139,6 +139,15 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if exist "requirements-ml.txt" (
+    echo [INFO] Instalando dependencias ML ^(requirements-ml.txt^)...
+    .venv\Scripts\python -m pip install --quiet -r requirements-ml.txt
+    if errorlevel 1 (
+        echo [ERROR] Fallo al instalar dependencias ML
+        exit /b 1
+    )
+)
+
 :: Dependencias opcionales: CMDB auto-discovery (boto3=AWS, kubernetes=K8s)
 :: Se instalan solo si requirements-discovery.txt existe o si hay vars AWS/K8s en .env
 if exist "requirements-discovery.txt" (

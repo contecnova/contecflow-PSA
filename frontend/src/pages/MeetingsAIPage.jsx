@@ -57,6 +57,7 @@ Luis: Sin problema, esta semana lo organizo.
 Pedro: Resumiendo: Carlos revisa infraestructura de Alpha antes del viernes, Ana actualiza el contrato de Beta antes del 30, y Luis organiza la formación. Cerramos.`
 
 function ProcessModal({ onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ title: '', transcript: '', platform: 'teams', participants: '', duration_minutes: '' })

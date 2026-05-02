@@ -28,24 +28,29 @@ export const fmtPct = (n) => `${fmtNumber(n ?? 0, 1)}%`
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
 export function loadColor(pct) {
-  if (pct > 100) return '#ff4757'
-  if (pct > 85)  return '#ffb800'
-  return '#00e5a0'
+  if (pct > 100) return 'var(--danger)'
+  if (pct > 85)  return 'var(--warning)'
+  return 'var(--success)'
 }
 
 export function riskColor(risk) {
-  const map = { low: '#00e5a0', medium: '#ffb800', high: '#ff4757', critical: '#ff4757' }
-  return map[risk] ?? '#7a8aaa'
+  const map = {
+    low: 'var(--success)',
+    medium: 'var(--warning)',
+    high: 'var(--danger)',
+    critical: 'var(--danger)',
+  }
+  return map[risk] ?? 'var(--text-3)'
 }
 
 export function statusColor(status) {
   const map = {
-    active: '#4f8ef7', planning: '#7a8aaa', paused: '#ffb800',
-    closed: '#00e5a0', cancelled: '#ff4757',
-    todo: '#7a8aaa', in_progress: '#4f8ef7', done: '#00e5a0',
-    blocked: '#ff4757', review: '#ffb800', backlog: '#3d4f6e',
+    active: 'var(--accent)', planning: 'var(--text-3)', paused: 'var(--warning)',
+    closed: 'var(--success)', cancelled: 'var(--danger)',
+    todo: 'var(--text-3)', in_progress: 'var(--accent)', done: 'var(--success)',
+    blocked: 'var(--danger)', review: 'var(--warning)', backlog: 'var(--surface-5)',
   }
-  return map[status] ?? '#7a8aaa'
+  return map[status] ?? 'var(--text-3)'
 }
 
 // ── File download helper ──────────────────────────────────────────────────────

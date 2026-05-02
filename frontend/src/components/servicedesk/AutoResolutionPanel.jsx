@@ -7,7 +7,7 @@
  *   POST /sd/auto-resolution/run-close-job           -> { processed, auto_closed, validated, failed, status, timestamp }
  *   POST /sd/tickets/{id}/auto-resolution/feedback   { success: bool } -> { recorded, ticket_id, success }
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../services/api'
 import { Card, Button, Spinner, Modal, EmptyState } from '../ui'
@@ -132,10 +132,39 @@ function FeedbackLookup({ onOpen }) {
   )
 }
 
+function formatDurationMs(ms) {
+  if (!Number.isFinite(ms) || ms == null) return '—'
+  if (ms < 1000) return `${ms} ms`
+  const sec = Math.round(ms / 1000)
+  if (sec < 60) return `${sec}s`
+  const min = Math.floor(sec / 60)
+  const rem = sec % 60
+  return `${min}m ${rem}s`
+}
+
+function formatDateTime(value) {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString('es-ES')
+}
+
 export default function AutoResolutionPanel() {
   const toast = useToast()
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState(null)
+  const [cfgDraft, setCfgDraft] = useState(null)
+
+  const { data: config, isLoading: configLoading } = useQuery({
+    queryKey: ['sd-auto-resolution-config'],
+    queryFn: () => api.get('/sd/auto-resolution/config').then(r => r.data),
+  })
+
+  useEffect(() => {
+    if (config) {
+      setCfgDraft(config)
+    }
+  }, [config])
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['sd-auto-resolution-stats'],
@@ -144,12 +173,18 @@ export default function AutoResolutionPanel() {
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({
-    mutationFn: () => api.post('/sd/auto-resolution/run-job'),
+    mutationFn: () => api.post(`/sd/auto-resolution/run-job?run_async=true&limit=${cfgDraft?.default_job_limit ?? 25}`),
     onSuccess: (res) => {
       const r = res.data || {}
-      toast.success(
-        `Job: ${r.processed ?? 0} procesados · ${r.auto_resolved ?? 0} auto-resueltos · ${r.suggested ?? 0} sugeridos · ${r.failed ?? 0} fallidos`
-      )
+      if (r.status === 'queued') {
+        toast.success(`Job encolado (lote ${r.limit ?? 25}). Puedes seguir trabajando mientras procesa.`)
+      } else if (r.status === 'already_running') {
+        toast.warning('Ya hay un job de auto-resolución en ejecución.')
+      } else {
+        toast.success(
+          `Job: ${r.processed ?? 0} procesados · ${r.auto_resolved ?? 0} auto-resueltos · ${r.suggested ?? 0} sugeridos · ${r.failed ?? 0} fallidos`
+        )
+      }
       qc.invalidateQueries({ queryKey: ['sd-auto-resolution-stats'] })
     },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job'),
@@ -167,6 +202,21 @@ export default function AutoResolutionPanel() {
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al ejecutar el job de cierre'),
   })
 
+  const { mutate: saveConfig, isPending: savingConfig } = useMutation({
+    mutationFn: () => api.patch('/sd/auto-resolution/config', {
+      threshold_auto: Number(cfgDraft?.threshold_auto ?? 0.85),
+      threshold_suggest: Number(cfgDraft?.threshold_suggest ?? 0.65),
+      auto_close_hours_after_resolution: Number(cfgDraft?.auto_close_hours_after_resolution ?? 72),
+      validation_window_hours: Number(cfgDraft?.validation_window_hours ?? 48),
+      default_job_limit: Number(cfgDraft?.default_job_limit ?? 25),
+    }),
+    onSuccess: () => {
+      toast.success('Configuración de auto-resolución guardada')
+      qc.invalidateQueries({ queryKey: ['sd-auto-resolution-config'] })
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al guardar configuración'),
+  })
+
   const successRate = stats?.overall_success_rate
   const successColor = successRate == null ? 'var(--text-3)'
     : successRate >= 85 ? 'var(--success)'
@@ -174,9 +224,108 @@ export default function AutoResolutionPanel() {
 
   const buckets = stats?.per_bucket ?? []
   const topBuckets = buckets.slice(0, 6)
+  const runtime = stats?.runtime || null
+  const jobHistory = stats?.job_history ?? []
+  const runtimeStatus = runtime?.running ? 'running' : runtime?.status || 'never_run'
+  const runtimeLabel = runtimeStatus === 'running'
+    ? 'En ejecución'
+    : runtimeStatus === 'completed'
+      ? 'Último job completado'
+      : runtimeStatus === 'failed'
+        ? 'Último job fallido'
+        : runtimeStatus === 'never_run'
+          ? 'Sin ejecuciones aún'
+          : 'Estado desconocido'
+  const runtimeColor = runtimeStatus === 'running'
+    ? 'var(--info)'
+    : runtimeStatus === 'completed'
+      ? 'var(--success)'
+      : runtimeStatus === 'failed'
+        ? 'var(--danger)'
+        : 'var(--text-3)'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Config */}
+      <Card style={card}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 12 }}>
+          ⚙️ Configuración del motor de auto-resolución
+        </div>
+        {configLoading || !cfgDraft ? <Spinner /> : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              <div>
+                <div style={fieldLabel}>Umbral auto-resolver</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={cfgDraft.threshold_auto ?? 0.85}
+                  onChange={e => setCfgDraft(prev => ({ ...prev, threshold_auto: Number(e.target.value) }))}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)}%</div>
+              </div>
+
+              <div>
+                <div style={fieldLabel}>Umbral sugerencia</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={cfgDraft.threshold_suggest ?? 0.65}
+                  onChange={e => setCfgDraft(prev => ({ ...prev, threshold_suggest: Number(e.target.value) }))}
+                  style={{ width: '100%' }}
+                />
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)}%</div>
+              </div>
+
+              <div>
+                <div style={fieldLabel}>Horas para auto-cierre</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="720"
+                  value={cfgDraft.auto_close_hours_after_resolution ?? 72}
+                  onChange={e => setCfgDraft(prev => ({ ...prev, auto_close_hours_after_resolution: Number(e.target.value) }))}
+                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                />
+              </div>
+
+              <div>
+                <div style={fieldLabel}>Ventana validación (horas)</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="720"
+                  value={cfgDraft.validation_window_hours ?? 48}
+                  onChange={e => setCfgDraft(prev => ({ ...prev, validation_window_hours: Number(e.target.value) }))}
+                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                />
+              </div>
+
+              <div>
+                <div style={fieldLabel}>Lote por ejecución manual</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={cfgDraft.default_job_limit ?? 25}
+                  onChange={e => setCfgDraft(prev => ({ ...prev, default_job_limit: Number(e.target.value) }))}
+                  style={{ width: '100%', background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-1)' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button onClick={() => saveConfig()} loading={savingConfig}>Guardar configuración</Button>
+            </div>
+          </>
+        )}
+      </Card>
+
       {/* Stats */}
       <Card style={card}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 14 }}>
@@ -254,6 +403,90 @@ export default function AutoResolutionPanel() {
           </>
         )}
       </Card>
+
+      {/* Runtime health */}
+      <Card style={card}>
+        <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 6 }}>
+          🩺 Salud operativa
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: runtimeColor, display: 'inline-block' }} />
+          <span style={{ fontSize: 'var(--text-sm)', color: runtimeColor, fontWeight: 700 }}>{runtimeLabel}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={fieldLabel}>Inicio</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDateTime(runtime?.started_at)}</div>
+          </div>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={fieldLabel}>Fin</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDateTime(runtime?.completed_at)}</div>
+          </div>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={fieldLabel}>Duración</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{formatDurationMs(runtime?.duration_ms)}</div>
+          </div>
+          <div style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={fieldLabel}>Resultado</div>
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>
+              {runtime?.stats
+                ? `${runtime.stats.processed ?? 0} procesados · ${runtime.stats.auto_resolved ?? 0} auto-resueltos · ${runtime.stats.failed ?? 0} fallidos`
+                : '—'}
+            </div>
+          </div>
+        </div>
+        {runtime?.error && (
+          <div style={{ marginTop: 10, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
+            Error: {runtime.error}
+          </div>
+        )}
+      </Card>
+
+      {/* Job history timeline */}
+      {jobHistory.length > 0 && (
+        <Card style={card}>
+          <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 }}>
+            📋 Historial de ejecuciones
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {jobHistory.map((run, idx) => {
+              const runColor = run.status === 'completed' ? 'var(--success)'
+                : run.status === 'failed' ? 'var(--danger)' : 'var(--text-3)'
+              const runLabel = run.status === 'completed' ? 'Completado'
+                : run.status === 'failed' ? 'Fallido' : run.status
+              const processed = run.stats?.processed ?? 0
+              const autoResolved = run.stats?.auto_resolved ?? 0
+              const failed = run.stats?.failed ?? 0
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'var(--surface-3)',
+                    border: '1px solid var(--surface-4)',
+                    fontSize: 'var(--text-xs)',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: runColor, flexShrink: 0 }} />
+                  <span style={{ fontWeight: 700, color: runColor, minWidth: 80 }}>{runLabel}</span>
+                  <span style={{ color: 'var(--text-3)', minWidth: 130 }}>{formatDateTime(run.started_at)}</span>
+                  <span style={{ color: 'var(--text-2)', minWidth: 70 }}>{formatDurationMs(run.duration_ms)}</span>
+                  {run.stats
+                    ? <span style={{ color: 'var(--text-2)', flex: 1 }}>{processed} procesados · {autoResolved} auto-resueltos · {failed} fallidos</span>
+                    : run.error
+                      ? <span style={{ color: 'var(--danger)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{run.error}</span>
+                      : <span style={{ color: 'var(--text-3)', flex: 1 }}>—</span>
+                  }
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Manual job triggers */}
       <Card style={card}>

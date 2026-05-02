@@ -25,16 +25,16 @@ const S = {
   input:    { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%', boxSizing: 'border-box' },
   select:   { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '9px 13px', color: 'var(--text-1)', fontSize: "var(--text-base)", fontFamily: 'inherit', outline: 'none', width: '100%' },
   btn:      { padding: '7px 16px', borderRadius: 8, background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit' },
-  btnRed:   { padding: '6px 12px', borderRadius: 8, background: '#f87171', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
-  btnGreen: { padding: '6px 12px', borderRadius: 8, background: '#34d399', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
+  btnRed:   { padding: '6px 12px', borderRadius: 8, background: 'var(--danger)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
+  btnGreen: { padding: '6px 12px', borderRadius: 8, background: 'var(--success)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: "var(--text-xs)", fontWeight: 600, fontFamily: 'inherit' },
   btnGhost: { padding: '6px 12px', borderRadius: 8, background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent-border)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' },
   row:      { background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 },
-  badge:    (color) => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: color + '22', color }),
+  badge:    (color) => ({ fontSize: "var(--text-xs)", padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13%, transparent)`, color }),
   sectionTitle: { fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--text-1)', marginBottom: 10 },
 }
 
-const TYPE_COLOR  = { erasure: '#f87171', portability: '#4f8ef7', rectification: '#f59e0b', restriction: '#a78bfa' }
-const STATUS_COLOR= { pending: '#f59e0b', completed: '#34d399', rejected: '#f87171' }
+const TYPE_COLOR  = { erasure: 'var(--danger)', portability: 'var(--accent)', rectification: 'var(--warning)', restriction: 'var(--purple)' }
+const STATUS_COLOR= { pending: 'var(--warning)', completed: 'var(--success)', rejected: 'var(--danger)' }
 
 function fmt(iso) {
   if (!iso) return '—'
@@ -52,7 +52,7 @@ function isOverdue(dsr) {
 function StatCard({ icon, label, value, color = 'var(--accent)' }) {
   return (
     <div style={{ ...S.innerCard, display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', flex: 1, minWidth: 130 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${color} 13%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
         {icon}
       </div>
       <div>
@@ -149,9 +149,9 @@ function DsrTab() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: "var(--text-base)", fontWeight: 600, color: 'var(--text-1)' }}>{dsr.subject_id ?? dsr.user_id}</span>
-                      <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? '#888')}>{dsr.request_type}</span>
-                      <span style={S.badge(STATUS_COLOR[dsr.status] ?? '#888')}>{dsr.status}</span>
-                      {overdue && <span style={S.badge('#f87171')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
+                      <span style={S.badge(TYPE_COLOR[dsr.request_type] ?? 'var(--text-3)')}>{dsr.request_type}</span>
+                      <span style={S.badge(STATUS_COLOR[dsr.status] ?? 'var(--text-3)')}>{dsr.status}</span>
+                      {overdue && <span style={S.badge('var(--danger)')}><AlertTriangle size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />SLA vencido</span>}
                     </div>
                     <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginTop: 3, display: 'flex', gap: 12 }}>
                       <span>Creado: {fmt(dsr.created_at)}</span>
@@ -271,10 +271,10 @@ function ConsentTab() {
                   {c.updated_at && <span>Actualizado: {fmt(c.updated_at)}</span>}
                 </div>
               </div>
-              <span style={S.badge(c.consented ? '#34d399' : '#f87171')}>{c.consented ? 'concedido' : 'revocado'}</span>
+              <span style={S.badge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? 'concedido' : 'revocado'}</span>
               <button onClick={() => toggleMut.mutate({ userId: c.user_id, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? 'Revocar' : 'Conceder'}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.consented ? '#f87171' : '#34d399', padding: 4, display: 'flex' }}>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.consented ? 'var(--danger)' : 'var(--success)', padding: 4, display: 'flex' }}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
               </button>
               <button onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
@@ -307,7 +307,7 @@ function ConsentTab() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {historyData.history.map((h, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 12, fontSize: "var(--text-xs)", color: 'var(--text-2)', padding: '4px 0', borderBottom: '1px solid var(--surface-4)' }}>
-                  <span style={{ color: h.action === 'granted' ? '#34d399' : '#f87171', fontWeight: 700, width: 60 }}>{h.action}</span>
+                  <span style={{ color: h.action === 'granted' ? 'var(--success)' : 'var(--danger)', fontWeight: 700, width: 60 }}>{h.action}</span>
                   <span>{h.purpose}</span>
                   <span>{h.channel}</span>
                   <span style={{ marginLeft: 'auto', color: 'var(--text-3)' }}>{fmt(h.timestamp)}</span>
@@ -337,7 +337,7 @@ function MasksTab() {
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['bi-gdpr-masks'] }),
   })
 
-  const MASK_COLOR = { hash: '#4f8ef7', redact: '#f87171', partial: '#f59e0b', suppress: '#a78bfa', pseudonymize: '#0891b2' }
+  const MASK_COLOR = { hash: 'var(--accent)', redact: 'var(--danger)', partial: 'var(--warning)', suppress: 'var(--purple)', pseudonymize: 'var(--info)' }
 
   return (
     <div>
@@ -356,7 +356,7 @@ function MasksTab() {
         {(masksData?.items ?? []).map((m, i) => (
           <div key={i} style={{ ...S.row, justifyContent: 'space-between' }}>
             <span style={{ fontSize: "var(--text-sm)", fontFamily: 'var(--font-mono)', color: 'var(--text-1)' }}>{m.dataset ?? m.entity}.{m.field}</span>
-            <span style={S.badge(MASK_COLOR[m.mask_type] ?? '#888')}>{m.mask_type}</span>
+            <span style={S.badge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{m.mask_type}</span>
             <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 'auto' }}>{fmt(m.updated_at)}</span>
           </div>
         ))}
@@ -388,11 +388,11 @@ function StatsTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
-        <StatCard icon={<Clock size={18} />}         label="DSRs pendientes" value={data?.pending}   color="#f59e0b" />
-        <StatCard icon={<AlertTriangle size={18} />} label="SLA vencidos"    value={data?.overdue}   color="#f87171" />
-        <StatCard icon={<CheckCircle size={18} />}   label="Completadas"     value={data?.completed} color="#34d399" />
-        <StatCard icon={<Users size={18} />}         label="Consentidos"     value={data?.consented} color="#4f8ef7" />
-        <StatCard icon={<Shield size={18} />}        label="Revocados"       value={data?.revoked}   color="#a78bfa" />
+        <StatCard icon={<Clock size={18} />}         label="DSRs pendientes" value={data?.pending}   color="var(--warning)" />
+        <StatCard icon={<AlertTriangle size={18} />} label="SLA vencidos"    value={data?.overdue}   color="var(--danger)" />
+        <StatCard icon={<CheckCircle size={18} />}   label="Completadas"     value={data?.completed} color="var(--success)" />
+        <StatCard icon={<Users size={18} />}         label="Consentidos"     value={data?.consented} color="var(--accent)" />
+        <StatCard icon={<Shield size={18} />}        label="Revocados"       value={data?.revoked}   color="var(--purple)" />
       </div>
 
       {byType.length > 0 && (
@@ -401,7 +401,7 @@ function StatsTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {byType.map(({ type, count }) => (
               <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ ...S.badge(TYPE_COLOR[type] ?? '#888'), minWidth: 110, display: 'inline-block' }}>{type}</span>
+                <span style={{ ...S.badge(TYPE_COLOR[type] ?? 'var(--text-3)'), minWidth: 110, display: 'inline-block' }}>{type}</span>
                 <div style={{ flex: 1, height: 8, background: 'var(--surface-4)', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${Math.min(100, (count / (data?.total_dsrs || 1)) * 100)}%`, background: TYPE_COLOR[type] ?? 'var(--accent)', borderRadius: 4 }} />
                 </div>
@@ -413,8 +413,8 @@ function StatsTab() {
       )}
 
       {data?.overdue > 0 && (
-        <div style={{ ...S.innerCard, borderColor: '#dc262644' }}>
-          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: '#f87171', marginBottom: 6 }}>
+        <div style={{ ...S.innerCard, borderColor: 'var(--danger-border)' }}>
+          <div style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>
             <AlertTriangle size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
             {data.overdue} DSR{data.overdue !== 1 ? 's' : ''} ha{data.overdue !== 1 ? 'n' : ''} superado el plazo GDPR (30 días)
           </div>
@@ -442,7 +442,7 @@ export default function BiGdprPanel() {
   return (
     <div style={S.card}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f8ef7' }}>
+        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)' }}>
           <Shield size={16} />
         </div>
         <h3 style={{ margin: 0, fontSize: "var(--text-md-em)", fontWeight: 700, color: 'var(--text-1)' }}>

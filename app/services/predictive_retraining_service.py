@@ -150,21 +150,47 @@ def evaluate_bi_model_health(db: Session, *, organization_id: Optional[str]) -> 
 
     forecast_engine = str(forecast.get("engine", "unknown"))
     overrun_engine = str(overrun.get("engine", "unknown"))
+    history_months = int(forecast.get("history_months", 0) or 0)
+
+    # Check whether optional ML libraries are installed.
+    # A fallback due to a missing library is an infrastructure issue, not a model quality issue.
+    # Penalise lightly (-0.10) instead of heavily (-0.35) so the score reflects
+    # model quality rather than deployment completeness.
+    prophet_available = True
+    try:
+        import prophet  # noqa: F401
+    except (ImportError, OSError):
+        prophet_available = False
+
+    lgbm_available = True
+    try:
+        import lightgbm  # noqa: F401
+    except (ImportError, OSError):
+        lgbm_available = False
 
     score = 1.0
     if "fallback" in forecast_engine:
-        score -= 0.35
+        # Heavy penalty only if Prophet IS installed but still falling back (data problem).
+        # Light penalty if it is a pure library-availability issue.
+        score -= 0.10 if not prophet_available else 0.35
     if "heuristic" in overrun_engine:
-        score -= 0.35
+        score -= 0.10 if not lgbm_available else 0.35
     score = round(max(0.0, min(1.0, score)), 4)
 
-    status = "healthy" if score >= 0.65 else "attention"
+    # Forecasting quality is not meaningful with too little history.
+    if history_months < 6:
+        status = "insufficient_data"
+    else:
+        status = "healthy" if score >= 0.65 else "attention"
 
     return {
         "model": "bi_predictive",
         "organization_id": organization_id,
         "forecast_engine": forecast_engine,
         "overrun_engine": overrun_engine,
+        "history_months": history_months,
+        "forecast_library_available": prophet_available,
+        "overrun_library_available": lgbm_available,
         "score": score,
         "status": status,
         "evaluated_at": _iso_now(),

@@ -223,7 +223,7 @@ function EditUserModal({ user, open, onClose }) {
     department:            user?.user?.department            || user?.department            || '',
     role:                  user?.user?.role                  || user?.role                  || 'employee',
     weekly_capacity_hours: user?.user?.weekly_capacity_hours || 40,
-    hourly_rate:           user?.user?.hourly_rate           || '',
+    hourly_rate:           user?.hourly_rate                 ?? user?.user?.hourly_rate     ?? '',
   })
   const { hasRole } = useAuth()
   const userId = user?.user?.id || user?.id
@@ -233,6 +233,14 @@ function EditUserModal({ user, open, onClose }) {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const handleSave = () => {
+    const payload = {
+      ...form,
+      weekly_capacity_hours: form.weekly_capacity_hours !== '' ? parseFloat(form.weekly_capacity_hours) : 40,
+      hourly_rate: form.hourly_rate !== '' ? parseFloat(form.hourly_rate) : null,
+    }
+    mutate(payload)
+  }
   return (
     <Modal open={open} onClose={onClose} title="Editar recurso">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -245,7 +253,7 @@ function EditUserModal({ user, open, onClose }) {
         {hasRole('admin') && <Input label="Tarifa por hora" type="number" value={form.hourly_rate} onChange={set('hourly_rate')} />}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
+          <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? 'Guardando...' : 'Guardar cambios'}</Button>
         </div>
       </div>
     </Modal>

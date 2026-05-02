@@ -170,7 +170,7 @@ function PortfolioDashboard({ portfolioId, onClose }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
             {[
               { label: 'Presupuesto total', value: fmtE(dash.budget_envelope), sub: `Gastado: ${fmtE(dash.budget_spent)}`, Icon: DollarSign, color: dash.budget_pct > 100 ? 'var(--danger)' : 'var(--text-1)' },
-              { label: '% Gastado',   value: `${dash.budget_pct}%`, sub: dash.budget_pct > 90 ? '⚠ Cerca del límite' : 'Dentro de presupuesto', Icon: BarChart2, color: dash.budget_pct > 100 ? 'var(--danger)' : dash.budget_pct > 85 ? '#f59e0b' : 'var(--success)' },
+              { label: '% Gastado',   value: `${dash.budget_pct}%`, sub: dash.budget_pct > 90 ? '⚠ Cerca del límite' : 'Dentro de presupuesto', Icon: BarChart2, color: dash.budget_pct > 100 ? 'var(--danger)' : dash.budget_pct > 85 ? 'var(--warning)' : 'var(--success)' },
               { label: 'En riesgo',   value: dash.health_counts.red || 0, sub: `${dash.health_counts.yellow || 0} en atención`, Icon: AlertTriangle, color: dash.health_counts.red > 0 ? 'var(--danger)' : 'var(--text-1)' },
               { label: 'En control',  value: dash.health_counts.green || 0, sub: `${dash.project_count} total`, Icon: CheckCircle, color: 'var(--success)' },
             ].map(({ label, value, sub, Icon, color }) => (

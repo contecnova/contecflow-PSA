@@ -66,8 +66,8 @@ function AppModal({ app, onClose }) {
   if (newSecret) return (
     <Modal open title={t('developer.app_created')} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: '#1a3a2a', border: '1px solid #2d6a4f', borderRadius: 10, padding: 16 }}>
-          <p style={{ color: '#b7e4c7', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 16 }}>
+          <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 12, fontWeight: 600 }}>
             {t('developer.secret_warning')}
           </p>
           <div style={{ marginBottom: 10 }}>
@@ -231,8 +231,8 @@ export default function DeveloperPortalPage() {
                 <div style={{ fontWeight: 700, fontSize: "var(--text-md-em)" }}>{app.name}</div>
                 <span style={{
                   fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                  background: app.is_active ? '#2d6a4f' : 'var(--surface-4)',
-                  color: app.is_active ? '#b7e4c7' : 'var(--text-3)',
+                  background: app.is_active ? 'var(--success-border)' : 'var(--surface-4)',
+                  color: app.is_active ? 'var(--success)' : 'var(--text-3)',
                 }}>{app.is_active ? t('developer.app_card_active') : t('developer.app_card_inactive')}</span>
               </div>
               {app.description && <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10, lineHeight: 1.4 }}>{app.description}</p>}
@@ -265,8 +265,8 @@ export default function DeveloperPortalPage() {
       {rotatedSecret && (
         <Modal open title={t('developer.new_secret_generated')} onClose={() => { setRotatedSecret(null); setViewCreds(null) }} width={480}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ background: '#1a3a2a', border: '1px solid #2d6a4f', borderRadius: 10, padding: 14 }}>
-              <p style={{ color: '#b7e4c7', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 10, padding: 14 }}>
+              <p style={{ color: 'var(--success)', fontSize: "var(--text-base)", marginBottom: 10, fontWeight: 600 }}>
                 {t('developer.save_new_secret')}
               </p>
               <label style={{ ...LS, color: 'var(--success)' }}>{t('developer.client_secret')}</label>

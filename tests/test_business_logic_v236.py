@@ -429,6 +429,56 @@ class TestSemanticEngineConfig:
         r = client.patch("/api/v1/semantic/config", json={"engine_mode": "semantico-magico"}, headers=auth(admin_token))
         assert r.status_code == 400
 
+    def test_embeddings_backend_can_switch_to_tfidf(self, client, admin_token, db):
+        r = client.patch(
+            "/api/v1/semantic/config",
+            json={"embeddings_backend": "tfidf"},
+            headers=auth(admin_token),
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is True
+        assert body["config"]["embeddings_backend"] == "tfidf"
+        assert body["config"]["effective_model_name"] == "all-MiniLM-L6-v2"
+
+    def test_embeddings_backend_transformer_saves_model_name(self, client, admin_token, db):
+        model = "sentence-transformers/all-MiniLM-L6-v2"
+        r = client.patch(
+            "/api/v1/semantic/config",
+            json={"embeddings_backend": "transformer", "local_model_name": model},
+            headers=auth(admin_token),
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["config"]["embeddings_backend"] == "transformer"
+        assert body["config"]["effective_model_name"] == model
+        assert body["config"]["local_model_name"] == model
+
+        r2 = client.get("/api/v1/semantic/config", headers=auth(admin_token))
+        assert r2.status_code == 200, r2.text
+        cfg = r2.json()
+        assert cfg["embeddings_backend"] == "transformer"
+        assert cfg["effective_model_name"] == model
+
+    def test_embeddings_backend_transformer_from_tfidf_without_model_uses_default(self, client, admin_token, db):
+        r0 = client.patch(
+            "/api/v1/semantic/config",
+            json={"embeddings_backend": "tfidf"},
+            headers=auth(admin_token),
+        )
+        assert r0.status_code == 200, r0.text
+
+        r1 = client.patch(
+            "/api/v1/semantic/config",
+            json={"embeddings_backend": "transformer"},
+            headers=auth(admin_token),
+        )
+        assert r1.status_code == 200, r1.text
+        cfg = r1.json()["config"]
+        assert cfg["embeddings_backend"] == "transformer"
+        assert cfg["effective_model_name"] == "all-MiniLM-L6-v2"
+        assert cfg["local_model_name"] == "all-MiniLM-L6-v2"
+
 
 # ─── 8. Resource Scheduler bookings ───────────────────────────────────────────
 

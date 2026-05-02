@@ -113,6 +113,7 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
             hours_this_month=hours_month,
             active_tasks=active_tasks,
             active_projects=active_proj,
+            hourly_rate=user.hourly_rate if getattr(current_user, 'role', None) in ('admin', 'hr') else None,
         ))
 
     result.sort(key=lambda x: x.current_load_pct, reverse=True)

@@ -659,7 +659,7 @@ export default function TasksPage() {
           position: 'fixed', zIndex: 'var(--z-drag)', pointerEvents: 'none',
           background: 'var(--surface-1)', border: '1px solid var(--accent)',
           borderRadius: '8px', padding: '8px 12px',
-          color: '#e8f0fe', fontSize: '12px', fontFamily: 'var(--font-sans)',
+          color: 'var(--text-1)', fontSize: '12px', fontFamily: 'var(--font-sans)',
           maxWidth: '220px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           opacity: '0.9', left: ev.clientX + 12 + 'px', top: ev.clientY + 12 + 'px',
         })

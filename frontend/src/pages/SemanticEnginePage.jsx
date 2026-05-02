@@ -20,6 +20,17 @@ const ENGINE_MODES = {
   rules_only: { label: 'Solo reglas',    icon: '📋', desc: 'Sin IA, solo reglas de negocio y carga de trabajo.' },
 }
 
+const EMBEDDINGS_BACKENDS = {
+  tfidf: {
+    label: 'TF-IDF (ligero)',
+    desc: 'Sin descarga de modelos. Menor precision, arranque inmediato.',
+  },
+  transformer: {
+    label: 'Transformer (Hugging Face)',
+    desc: 'Mejor precision semantica. Requiere dependencias ML y descarga de modelo.',
+  },
+}
+
 const _COMPLEXITY_CFG = {
   simple:  { label: 'Simple',   color: 'var(--success)', bg: 'var(--success-bg)' },
   medium:  { label: 'Media',    color: 'var(--warning)', bg: 'var(--warning-bg)' },
@@ -170,6 +181,7 @@ export default function SemanticEnginePage() {
   const [editProfile, setEditProfile] = useState(null)
   const [opStatus, setOpStatus] = useState({ type: 'idle', startedAt: null })
   const [opElapsed, setOpElapsed] = useState(0)
+  const [hfModelDraft, setHfModelDraft] = useState('')
 
   useEffect(() => {
     if (!opStatus.startedAt) {
@@ -186,6 +198,10 @@ export default function SemanticEnginePage() {
     queryKey: ['sem-config'],
     queryFn: () => semanticApi.config().then(r => r.data),
   })
+
+  useEffect(() => {
+    setHfModelDraft(config.local_model_name && config.local_model_name !== 'tfidf' ? config.local_model_name : 'all-MiniLM-L6-v2')
+  }, [config.local_model_name])
   const { data: profiles = [], isLoading: _loadingProfiles } = useQuery({
     queryKey: ['sem-profiles'],
     queryFn: () => semanticApi.profiles().then(r => r.data),
@@ -327,6 +343,60 @@ export default function SemanticEnginePage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ ...card, padding: '20px 24px' }}>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Embeddings y modelo</div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={ls}>Backend de embeddings</label>
+                <select
+                  value={config.embeddings_backend || 'tfidf'}
+                  onChange={e => {
+                    const backend = e.target.value
+                    if (backend === 'transformer') {
+                      const modelName = (hfModelDraft || config.local_model_name || 'all-MiniLM-L6-v2').trim()
+                      saveConfig({ embeddings_backend: 'transformer', local_model_name: modelName || 'all-MiniLM-L6-v2' })
+                      return
+                    }
+                    saveConfig({ embeddings_backend: 'tfidf', local_model_name: 'tfidf' })
+                  }}
+                  style={fs}
+                  disabled={savingConfig}
+                >
+                  {Object.entries(EMBEDDINGS_BACKENDS).map(([key, meta]) => (
+                    <option key={key} value={key}>{meta.label}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 6 }}>
+                  {EMBEDDINGS_BACKENDS[config.embeddings_backend || 'tfidf']?.desc}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <label style={ls}>Modelo Hugging Face</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={hfModelDraft}
+                    onChange={e => setHfModelDraft(e.target.value)}
+                    placeholder="all-MiniLM-L6-v2 o sentence-transformers/all-MiniLM-L6-v2"
+                    style={fs}
+                    disabled={(config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig}
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={(config.embeddings_backend || 'tfidf') !== 'transformer' || savingConfig || !hfModelDraft.trim()}
+                    onClick={() => saveConfig({ embeddings_backend: 'transformer', local_model_name: hfModelDraft.trim() })}
+                  >
+                    Guardar
+                  </Button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 8, fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>
+                <div>Backend activo: <strong style={{ color: 'var(--text-1)' }}>{config.embeddings_backend || 'tfidf'}</strong></div>
+                <div>Modelo efectivo: <strong style={{ color: 'var(--text-1)' }}>{config.effective_model_name || (config.local_model_name || 'all-MiniLM-L6-v2')}</strong></div>
+              </div>
+            </div>
+
+            <div style={{ ...card, padding: '20px 24px' }}>
               <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 16 }}>Umbrales de confianza</div>
               {[
                 { key: 'threshold_ticket', label: 'Tickets (mín. para auto-asignar)', val: config.threshold_ticket },
@@ -339,7 +409,7 @@ export default function SemanticEnginePage() {
                     <label style={{ ...ls, marginBottom: 0 }}>{f.label}</label>
                     <span style={{ fontSize: "var(--text-base)", fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{f.val}</span>
                   </div>
-                  <input type="range" min="0.3" max="0.99" step="0.01"
+                  <input type="range" min={f.key === 'load_balance_weight' ? '0.0' : '0.3'} max="0.99" step="0.01"
                     value={f.val || 0.6}
                     onChange={e => saveConfig({ [f.key]: parseFloat(e.target.value) })}
                     style={{ width: '100%', accentColor: 'var(--accent)' }} />

@@ -138,7 +138,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
           <div style={{ textAlign: 'center', padding: 12, color: 'var(--surface-5)', fontSize: "var(--text-sm)" }}>Sin resultados</div>
         )}
         {filtered.map(([key, col]) => (
-          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: selected.includes(key) ? '#1e3a5a' : 'transparent' }}>
+          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: selected.includes(key) ? 'var(--accent-muted)' : 'transparent' }}>
             <input
               type="checkbox"
               checked={selected.includes(key)}
@@ -538,10 +538,11 @@ export default function ReportBuilderPage() {
                 onClick={exportCSV}
                 disabled={!entity}
                 style={{
-                  background: entity ? '#276227' : 'var(--surface-4)', border: 'none', borderRadius: 8,
-                  color: entity ? 'var(--success)' : 'var(--surface-5)',
+                  background: entity ? 'var(--success-bg)' : 'var(--surface-4)',
+                  border: `1px solid ${entity ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 8,
+                  color: entity ? 'var(--success)' : 'var(--text-3)',
                   padding: '8px 16px', cursor: entity ? 'pointer' : 'not-allowed',
-                  fontSize: "var(--text-sm)", fontFamily: 'inherit',
+                  fontSize: "var(--text-sm)", fontWeight: 600, fontFamily: 'inherit',
                 }}>
                 ⬇ Exportar CSV
               </button>

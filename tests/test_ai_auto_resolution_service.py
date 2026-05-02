@@ -10,6 +10,7 @@ from app.models.service_desk import Ticket, TicketType, TicketStatus, TicketPrio
 from app.services.service_desk.ai_auto_resolution_service import (
     analyze_ticket_for_resolution,
     run_daily_auto_resolution_job,
+    save_auto_resolution_config,
 )
 
 
@@ -62,6 +63,38 @@ def test_analyze_ticket_with_high_confidence(db: Session):
 
     # Basic checks
     assert result["confidence"] >= 0
+
+
+def test_analyze_ticket_uses_persisted_thresholds(db: Session, monkeypatch):
+    ticket = create_test_ticket(
+        db,
+        title="Password reset request",
+        description="User cannot login to system. Forgot password.",
+    )
+
+    save_auto_resolution_config(
+        db,
+        {
+            "threshold_auto": 0.60,
+            "threshold_suggest": 0.40,
+            "default_job_limit": 20,
+        },
+    )
+    db.commit()
+
+    monkeypatch.setattr(
+        "app.services.service_desk.ai_auto_resolution_service.call_ai",
+        lambda *args, **kwargs: '{"analysis":"ok","suggestion":"reset","confidence":70,"root_cause":"known"}',
+    )
+    monkeypatch.setattr(
+        "app.services.service_desk.ai_auto_resolution_service._composite_confidence",
+        lambda *_args, **_kwargs: 0.70,
+    )
+
+    result = analyze_ticket_for_resolution(db, ticket)
+
+    assert result["action_taken"] == "auto-resolved"
+    assert result["confidence"] == 0.70
 
 
 def test_run_auto_resolution_job(db: Session):

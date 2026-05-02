@@ -39,12 +39,12 @@ _MODEL_INSTANCE = None
 _MODEL_NAME     = None
 _USE_TRANSFORMER = False
 
-def _get_model(model_name: str = "all-MiniLM-L6-v2"):
+def _get_model(model_name: str = "all-MiniLM-L6-v2", backend_override: str | None = None):
     """Singleton del modelo (se carga UNA sola vez, como el ModelRegistry de Ficosa)."""
     global _MODEL_INSTANCE, _MODEL_NAME, _USE_TRANSFORMER
     if _MODEL_INSTANCE is not None and _MODEL_NAME == model_name:
         return _MODEL_INSTANCE, _USE_TRANSFORMER
-    backend = (settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
+    backend = (backend_override or settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
     if backend != "transformer":
         _MODEL_INSTANCE = TFIDFEncoder()
         _MODEL_NAME = "tfidf"
@@ -183,13 +183,33 @@ class SemanticAssigner:
     WEIGHT_HISTORY   = _cfg.SEM_WEIGHT_HISTORY
     TOP_K_HISTORY    = _cfg.SEM_TOP_K_HISTORY
 
+    @staticmethod
+    def _resolve_embeddings_runtime(config) -> tuple[str, str]:
+        """
+        Resolve backend/model with runtime priority:
+        1) SemConfig.local_model_name (supports explicit "tfidf")
+        2) ENV SEMANTIC_EMBEDDINGS_BACKEND fallback
+        """
+        configured_model = (getattr(config, "local_model_name", "") or "").strip()
+        if configured_model:
+            if configured_model.lower() == "tfidf":
+                return "tfidf", "all-MiniLM-L6-v2"
+            return "transformer", configured_model
+
+        backend = (settings.SEMANTIC_EMBEDDINGS_BACKEND or "tfidf").strip().lower()
+        if backend == "transformer":
+            return "transformer", "all-MiniLM-L6-v2"
+        return "tfidf", "all-MiniLM-L6-v2"
+
     def __init__(self, db, config=None):
         self.db = db
         self.config = config or db.query(SemConfig).first()
         if not self.config:
             self.config = SemConfig()
+        runtime_backend, runtime_model_name = self._resolve_embeddings_runtime(self.config)
         self.model, self.use_transformer = _get_model(
-            self.config.local_model_name or "all-MiniLM-L6-v2"
+            runtime_model_name,
+            backend_override=runtime_backend,
         )
         self.load_weight = self.config.load_balance_weight or 0.20
 
@@ -346,6 +366,10 @@ class SemanticAssigner:
                  priority: str = "medium") -> dict:
         """Pipeline de 4 niveles (igual que Ficosa)."""
 
+        mode = str(getattr(self.config, "engine_mode", "hybrid") or "hybrid").lower()
+        if "." in mode:
+            mode = mode.split(".", 1)[1]
+
         h = _text_hash(text)
 
         # Nivel 1 — Expert Cache exacto (hash SHA-256)
@@ -390,25 +414,41 @@ class SemanticAssigner:
             "low":         {"auto": True,  "min": _thr_low},
             "p4_low":      {"auto": True,  "min": _thr_low},
         }
+        base_threshold = (
+            self.config.threshold_ticket if item_type == "ticket" else self.config.threshold_task
+        )
         pth = PRIORITY_THRESHOLDS.get(
             str(priority).lower(),
-            {"auto": True, "min": (self.config.threshold_ticket if item_type == "ticket"
-                                   else self.config.threshold_task)},
+            {"auto": True, "min": base_threshold},
         )
-        threshold    = pth["min"]
+        # Global item threshold always applies; priority thresholds can only
+        # make auto-assignment stricter, never weaker.
+        threshold = max(float(base_threshold or 0.0), float(pth["min"] or 0.0))
         force_review = not pth["auto"]
+
+        # "Solo LLM" bypasses semantic scoring and delegates directly.
+        if mode == "llm":
+            llm_result = self._llm_suggest(text, profiles, item_type)
+            if llm_result:
+                llm_result["engine_mode"] = "llm"
+                return llm_result
+            return self._result(None, 0.0, "llm", {}, True, "LLM no disponible")
 
         # Bug 1 fix: real-time load from ResourceAnalyticsService
         current_week = ResourceAnalyticsService.get_week_iso(date.today())
 
-        # Nivel 3 — Motor semantico
+        # Nivel 3 — Motor semantico (or rules-only, see branch below)
         item_emb = self._encode_single(text)
         scores   = {}
         for p in profiles:
-            if not p.embedding: continue
-            profile_emb    = json.loads(p.embedding)
-            history_tuples = self._get_history_embeddings(p.user_id, item_type)  # Bug 3: now returns (emb, ts) tuples
-            score          = self._hybrid_score(item_emb, profile_emb, history_tuples)
+            if mode == "rules_only":
+                score = 0.0
+            else:
+                if not p.embedding:
+                    continue
+                profile_emb = json.loads(p.embedding)
+                history_tuples = self._get_history_embeddings(p.user_id, item_type)  # Bug 3: now returns (emb, ts) tuples
+                score = self._hybrid_score(item_emb, profile_emb, history_tuples)
             # Mejora 1: weighted blend de carga horaria + carga por ítems
             try:
                 avail = ResourceAnalyticsService.get_user_availability(
@@ -422,6 +462,7 @@ class SemanticAssigner:
                     load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
             except Exception:
                 load_ratio = min(1.0, (p.open_tickets + p.open_tasks) / max(p.max_load, 1))
+
             # Mejora 6: penalización por concentración excesiva del mismo tipo
             diversity_pen = self._diversity_penalty(p, item_type)
             raw_final = score * (1 - self.load_weight) + (1 - load_ratio) * self.load_weight
@@ -438,15 +479,19 @@ class SemanticAssigner:
         needs_review = force_review or (best_score < threshold)
         top_scores   = dict(sorted(scores.items(), key=lambda x: -x[1])[:5])
 
-        # Nivel 4 — LLM si score bajo y modo hybrid/llm
-        reasoning = f"Semantico (score={best_score:.2f}, umbral={threshold})"
-        if needs_review and not force_review and self.config.engine_mode in ("llm", "hybrid"):
+        # Nivel 4 — LLM si score bajo y modo hybrid
+        if mode == "rules_only":
+            reasoning = f"Reglas/carga (score={best_score:.2f}, umbral={threshold})"
+        else:
+            reasoning = f"Semantico (score={best_score:.2f}, umbral={threshold})"
+
+        if needs_review and not force_review and mode == "hybrid":
             llm_result = self._llm_suggest(text, profiles, item_type)
             if llm_result:
                 return {**llm_result, "top_scores": top_scores,
                         "sem_score": best_score}
 
-        return self._result(best_uid, best_score, self.config.engine_mode,
+        return self._result(best_uid, best_score, mode,
                             top_scores, needs_review, reasoning)
 
     def _hybrid_score(self, item_emb: list, profile_emb: list,

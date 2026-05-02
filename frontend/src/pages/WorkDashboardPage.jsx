@@ -28,7 +28,7 @@ function TodayBanner({ navigate }) {
     { label: 'Nueva tarea',    icon: Plus,   path: '/tasks',        accent: 'var(--accent)' },
     { label: 'Imputar horas',  icon: Clock,  path: '/time',         accent: 'var(--success)' },
     { label: 'Nuevo ticket',   icon: Ticket, path: '/service-desk', accent: 'var(--warning)' },
-    { label: 'Cronómetro',     icon: Timer,  path: '/time',         accent: '#a78bfa' },
+    { label: 'Cronómetro',     icon: Timer,  path: '/time',         accent: 'var(--purple)' },
   ]
 
   return (

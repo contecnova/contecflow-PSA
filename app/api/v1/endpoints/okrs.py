@@ -13,6 +13,7 @@ from app.services.okr_service import (
     sync_kr_from_tasks as _sync_kr_from_tasks,
 )
 from app.schemas.okrs import ObjectiveIn, KeyResultIn, ObjectiveUpdate, KeyResultUpdate, OKRCheckinIn as CheckinIn
+from datetime import datetime
 
 router = APIRouter(tags=["OKRs"])
 
@@ -20,7 +21,7 @@ router = APIRouter(tags=["OKRs"])
 # ── Objectives CRUD ───────────────────────────────────────────────────────────
 @router.get("", summary="Listar objetivos")
 def list_objectives(
-    year: int = Query(default=2025),
+    year: int = Query(default=None),
     period: Optional[str] = None,
     status: Optional[str] = None,
     owner_id: Optional[str] = None,
@@ -29,7 +30,7 @@ def list_objectives(
 ):
     objectives = okr_service.list_objectives(
         db,
-        year=year,
+        year=year or datetime.now().year,
         period=period,
         status=status,
         owner_id=owner_id,

@@ -136,10 +136,10 @@ function ALMDashboard({ onNavigate }) {
     <div>
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="#4f8ef7"
+        <KPI icon="📄" label={t('alm.dashboard_contracts_active')}        value={kpis.total_contracts ?? 0}   color="var(--accent)"
           sub={kpis.expiring_soon ? `${kpis.expiring_soon} ${t('alm.dashboard_expire_60')}` : undefined}
           alert={kpis.expiring_soon > 0} />
-        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="#a78bfa"
+        <KPI icon="🔑" label={t('alm.dashboard_licenses_managed')}   value={kpis.total_licenses ?? 0}    color="var(--purple)"
           sub={kpis.expired_licenses ? `${kpis.expired_licenses} ${t('alm.dashboard_expired')}` : undefined}
           alert={kpis.expired_licenses > 0} />
         <KPI icon="🖥️" label={t('alm.dashboard_assets_inventory')}  value={kpis.total_assets ?? 0}       color="var(--success)"

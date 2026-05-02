@@ -34,9 +34,72 @@ CONFIDENCE_THRESHOLD_SUGGEST = 0.65  # Show suggestion if composite >= 65%
 FEEDBACK_SETTING_KEY = "sd.auto_resolution.feedback_stats"
 AUTO_CLOSE_HOURS_AFTER_RESOLUTION = 72  # Auto-close resolved tickets after 72h
 VALIDATION_WINDOW_HOURS = 48            # Check for reopens within 48h
+AUTO_CONFIG_SETTING_KEY = "sd.auto_resolution.config"
+
+DEFAULT_AUTO_RESOLUTION_CONFIG = {
+    "threshold_auto": CONFIDENCE_THRESHOLD_AUTO,
+    "threshold_suggest": CONFIDENCE_THRESHOLD_SUGGEST,
+    "auto_close_hours_after_resolution": AUTO_CLOSE_HOURS_AFTER_RESOLUTION,
+    "validation_window_hours": VALIDATION_WINDOW_HOURS,
+    "default_job_limit": 100,
+}
 
 
 # ── Feedback loop helpers ─────────────────────────────────────────────────────
+
+
+def _clamp(value: float, min_value: float, max_value: float) -> float:
+    return max(min_value, min(float(value), max_value))
+
+
+def _normalize_auto_resolution_config(raw: dict | None) -> dict:
+    merged = {**DEFAULT_AUTO_RESOLUTION_CONFIG, **(raw or {})}
+
+    threshold_auto = _clamp(merged.get("threshold_auto", CONFIDENCE_THRESHOLD_AUTO), 0.0, 1.0)
+    threshold_suggest = _clamp(merged.get("threshold_suggest", CONFIDENCE_THRESHOLD_SUGGEST), 0.0, 1.0)
+    if threshold_suggest > threshold_auto:
+        threshold_suggest = threshold_auto
+
+    auto_close_hours = int(_clamp(merged.get("auto_close_hours_after_resolution", AUTO_CLOSE_HOURS_AFTER_RESOLUTION), 1, 720))
+    validation_hours = int(_clamp(merged.get("validation_window_hours", VALIDATION_WINDOW_HOURS), 1, 720))
+    default_job_limit = int(_clamp(merged.get("default_job_limit", 100), 1, 500))
+
+    return {
+        "threshold_auto": round(threshold_auto, 4),
+        "threshold_suggest": round(threshold_suggest, 4),
+        "auto_close_hours_after_resolution": auto_close_hours,
+        "validation_window_hours": validation_hours,
+        "default_job_limit": default_job_limit,
+    }
+
+
+def get_auto_resolution_config(db: Session) -> dict:
+    """Return persisted auto-resolution config with defaults and normalization."""
+    try:
+        from app.models.settings import AppSetting  # noqa: PLC0415
+
+        row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
+        if row and row.value:
+            return _normalize_auto_resolution_config(json.loads(row.value))
+    except Exception:
+        pass
+    return _normalize_auto_resolution_config(None)
+
+
+def save_auto_resolution_config(db: Session, payload: dict) -> dict:
+    """Persist auto-resolution config into AppSetting."""
+    from app.models.settings import AppSetting  # noqa: PLC0415
+
+    current = get_auto_resolution_config(db)
+    updated = _normalize_auto_resolution_config({**current, **(payload or {})})
+
+    row = db.query(AppSetting).filter(AppSetting.key == AUTO_CONFIG_SETTING_KEY).first()
+    if row:
+        row.value = json.dumps(updated)
+    else:
+        db.add(AppSetting(key=AUTO_CONFIG_SETTING_KEY, value=json.dumps(updated)))
+    db.flush()
+    return updated
 
 def _load_feedback_stats(db: Session) -> dict:
     """Load per-category/priority feedback counters from AppSetting."""
@@ -239,8 +302,11 @@ def run_auto_close_job(db: Session) -> dict:
     Returns: {processed, auto_closed, validated, failed}
     """
     stats = {"processed": 0, "auto_closed": 0, "validated": 0, "failed": 0}
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=AUTO_CLOSE_HOURS_AFTER_RESOLUTION)
-    validation_cutoff = datetime.now(timezone.utc) - timedelta(hours=VALIDATION_WINDOW_HOURS)
+    cfg = get_auto_resolution_config(db)
+    auto_close_hours = int(cfg["auto_close_hours_after_resolution"])
+    validation_hours = int(cfg["validation_window_hours"])
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=auto_close_hours)
+    validation_cutoff = datetime.now(timezone.utc) - timedelta(hours=validation_hours)
 
     try:
         # Tickets eligible for auto-close: auto_resolved, still in resolved state, resolved > cutoff ago
@@ -397,16 +463,20 @@ def analyze_ticket_for_resolution(
             root_cause = "No determinada"
 
         # ── Step 5: Composite confidence (AI + KB similarity + historical) ─
+        cfg = get_auto_resolution_config(db)
+        threshold_auto = float(cfg["threshold_auto"])
+        threshold_suggest = float(cfg["threshold_suggest"])
+
         result["confidence"] = _composite_confidence(ai_raw_confidence, db, ticket)
         result["ai_raw_confidence"] = ai_raw_confidence
-        if result["confidence"] >= CONFIDENCE_THRESHOLD_AUTO:
+        if result["confidence"] >= threshold_auto:
             result["action_taken"] = "auto-resolved"
             result["recommendation"] = (
                 f"✅ Auto-resolviendo con confianza {result['confidence']*100:.1f}%"
             )
             _apply_auto_resolution(db, ticket, result, current_user, root_cause)
 
-        elif result["confidence"] >= CONFIDENCE_THRESHOLD_SUGGEST:
+        elif result["confidence"] >= threshold_suggest:
             result["action_taken"] = "suggested"
             result["recommendation"] = (
                 f"⚠️ Sugerencia con confianza {result['confidence']*100:.1f}%. "
@@ -562,7 +632,7 @@ def _apply_auto_resolution(
     )
 
 
-def run_daily_auto_resolution_job(db: Session) -> dict:
+def run_daily_auto_resolution_job(db: Session, *, limit: int | None = None) -> dict:
     """
     Daily job: Auto-analyze open tickets and resolve if confident.
     
@@ -577,6 +647,9 @@ def run_daily_auto_resolution_job(db: Session) -> dict:
 
     try:
         # Get open, non-auto-assigned tickets
+        cfg = get_auto_resolution_config(db)
+        configured_limit = int(cfg.get("default_job_limit", 100))
+        safe_limit = max(1, min(int(limit if limit is not None else configured_limit), 500))
         open_tickets = (
             db.query(Ticket)
             .filter(
@@ -587,7 +660,7 @@ def run_daily_auto_resolution_job(db: Session) -> dict:
                 Ticket.created_at <= datetime.now(timezone.utc),  # Old enough for analysis
             )
             .order_by(Ticket.created_at.desc())
-            .limit(100)  # Limit batch size
+            .limit(safe_limit)
             .all()
         )
 

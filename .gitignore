@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.claude/settings.local.json
 
 # Python
 __pycache__/
@@ -27,6 +28,7 @@ htmlcov/
 *.db-wal
 *.sqlite
 *.sqlite3
+backup_pre_fix_*.db
 
 # Logs
 *.log
@@ -57,6 +59,10 @@ Thumbs.db
 uploads/**
 !uploads/**/.gitkeep
 pdf_storage/
+
+# Generated QA artifacts (keep only intentional markdown/csv reports)
+reports/qa/*.xlsx
+reports/qa/*structured_summary*.md
 
 # Caches (belt-and-suspenders)
 .ruff_cache/

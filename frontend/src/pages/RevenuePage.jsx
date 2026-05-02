@@ -317,8 +317,8 @@ export default function RevenuePage() {
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
                   <Legend />
-                  <Bar dataKey="Reconocido" fill="#34d399" radius={[3,3,0,0]} />
-                  <Bar dataKey="Diferido"   fill="#FAC775" radius={[3,3,0,0]} />
+                  <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
+                  <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -423,9 +423,9 @@ export default function RevenuePage() {
                   <YAxis tickFormatter={v => `${Math.round(v/1000)}k€`} tick={{ fontSize: "var(--text-xs)" }} />
                   <Tooltip formatter={(v,n) => [fmtEur(v), n]} />
                   <Legend />
-                  <Bar dataKey="Reconocido" fill="#34d399" radius={[3,3,0,0]} />
-                  <Bar dataKey="Diferido"   fill="#FAC775" radius={[3,3,0,0]} />
-                  <Bar dataKey="Unbilled"   fill="#7C8CF8" radius={[3,3,0,0]} />
+                  <Bar dataKey="Reconocido" fill="var(--success)" radius={[3,3,0,0]} />
+                  <Bar dataKey="Diferido"   fill="var(--warning)" radius={[3,3,0,0]} />
+                  <Bar dataKey="Unbilled"   fill="var(--accent)" radius={[3,3,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -29,7 +29,7 @@ except ImportError:
 try:
     import lightgbm as lgb  # type: ignore
     _LGBM_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError):
     _LGBM_AVAILABLE = False
 
 

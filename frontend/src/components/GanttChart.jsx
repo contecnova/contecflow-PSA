@@ -354,10 +354,10 @@ export default function GanttChart({
             {rowsLayout.map(({ item, h, isGroup }) => {
               const isOverdue = !isGroup && item.due_date && parseDate(item.due_date) < today &&
                 !['done', 'closed', 'cancelled'].includes(item.status)
-              const dotColor = isOverdue ? '#f87171' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const dotColor = isOverdue ? 'var(--danger)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
               return (
                 <div key={item.id} style={{
-                  height: h, borderBottom: '1px solid #1e2d4520',
+                  height: h, borderBottom: '1px solid color-mix(in srgb, var(--surface-4) 60%, transparent)',
                   display: 'flex', alignItems: 'center',
                   padding: isGroup ? '0 10px' : '0 14px', gap: 7,
                   background: isGroup ? 'rgba(79,142,247,0.04)' : 'transparent',
@@ -376,7 +376,7 @@ export default function GanttChart({
                   ) : (
                     <>
                       <div style={{ width: 7, height: 7, borderRadius: item.is_milestone ? 0 : '50%', background: dotColor, flexShrink: 0, transform: item.is_milestone ? 'rotate(45deg)' : 'none' }} />
-                      <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? '#f87171' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      <span style={{ fontSize: "var(--text-sm)", color: isOverdue ? 'var(--danger)' : 'rgba(200,216,240,0.85)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {item.title || item.name}
                       </span>
                       {item.story_points > 0 && (
@@ -415,7 +415,7 @@ export default function GanttChart({
               return (
                 <g key={i}>
                   <line x1={x} y1={0} x2={x} y2={HEADER_H} stroke="var(--surface-4)" />
-                  <text x={x + 6} y={HDR_TOP / 2 + 5} fontSize={11} fill="#a0b0cc" fontFamily="inherit" fontWeight={600}>{label}</text>
+                  <text x={x + 6} y={HDR_TOP / 2 + 5} fontSize={11} fill="var(--text-2)" fontFamily="inherit" fontWeight={600}>{label}</text>
                 </g>
               )
             })}
@@ -427,9 +427,9 @@ export default function GanttChart({
               const isToday = fmtDate(d) === fmtDate(today)
               return (
                 <g key={i}>
-                  <line x1={x} y1={HDR_TOP} x2={x} y2={svgHeight} stroke="#1e2d4518" />
+                  <line x1={x} y1={HDR_TOP} x2={x} y2={svgHeight} stroke="color-mix(in srgb, var(--surface-4) 50%, transparent)" />
                   <text x={x + 4} y={HDR_TOP + HDR_BOT / 2 + 5} fontSize={10}
-                    fill={isToday ? 'var(--danger)' : '#5a6a86'} fontFamily="inherit" fontWeight={isToday ? 700 : 400}>
+                    fill={isToday ? 'var(--danger)' : 'var(--text-3)'} fontFamily="inherit" fontWeight={isToday ? 700 : 400}>
                     {label}
                   </text>
                 </g>
@@ -440,8 +440,8 @@ export default function GanttChart({
             {/* Today line */}
             {todayX >= 0 && todayX <= chartW && (
               <g>
-                <line x1={todayX} y1={HEADER_H} x2={todayX} y2={svgHeight} stroke="#f87171" strokeWidth={1.5} strokeDasharray="3 3" opacity={0.65} />
-                <rect x={todayX - 16} y={HEADER_H - 14} width={32} height={12} rx={3} fill="#f87171" />
+                <line x1={todayX} y1={HEADER_H} x2={todayX} y2={svgHeight} stroke="var(--danger)" strokeWidth={1.5} strokeDasharray="3 3" opacity={0.65} />
+                <rect x={todayX - 16} y={HEADER_H - 14} width={32} height={12} rx={3} fill="var(--danger)" />
                 <text x={todayX} y={HEADER_H - 5} textAnchor="middle" fontSize={8} fontWeight={700} fill="white" fontFamily="inherit">HOY</text>
               </g>
             )}
@@ -459,7 +459,7 @@ export default function GanttChart({
               const startD    = parseDate(eff.start_date)
               const endD      = parseDate(eff.due_date || eff.end_date_planned || eff.end_date)
               const isOverdue = endD && endD < today && !['done', 'closed', 'cancelled'].includes(item.status)
-              const barColor  = isOverdue ? '#f87171' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
+              const barColor  = isOverdue ? 'var(--danger)' : item.is_critical ? 'var(--orange)' : (STATUS_COLOR[item.status] || 'var(--text-3)')
               const isDragging = dragState?.id === item.id
               const progress   = item.progress_pct != null ? item.progress_pct / 100
                 : item.status === 'done' ? 1 : item.status === 'in_progress' ? 0.4 : 0
@@ -471,7 +471,7 @@ export default function GanttChart({
                 return (
                   <g key={item.id} onMouseEnter={() => setTooltip({ item, x: mx, y: svgY })} onMouseLeave={() => setTooltip(null)}>
                     <rect x={0} y={svgY} width={chartW} height={h} fill="transparent" />
-                    <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="#1e2d4515" />
+                    <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
                     <rect x={mx - MS_R} y={my - MS_R} width={MS_R * 2} height={MS_R * 2}
                       fill={barColor + '30'} stroke={barColor} strokeWidth={1.5}
                       transform={`rotate(45,${mx},${my})`} rx={1} style={{ cursor: 'pointer' }} />
@@ -485,11 +485,11 @@ export default function GanttChart({
                 return (
                   <g key={item.id} onMouseEnter={() => setTooltip({ item, x: x1 + 80, y: svgY })} onMouseLeave={() => setTooltip(null)}>
                     <rect x={0} y={svgY} width={chartW} height={h} fill="transparent" />
-                    <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="#1e2d4515" />
+                    <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
                     <rect x={x1} y={svgY + BAR_PAD} width={150} height={h - BAR_PAD * 2} rx={4}
-                      fill="#4a5a7840" stroke="#4a5a7860" strokeWidth={1.5} strokeDasharray="3,2"
+                      fill="color-mix(in srgb, var(--surface-4) 50%, transparent)" stroke="color-mix(in srgb, var(--surface-4) 70%, transparent)" strokeWidth={1.5} strokeDasharray="3,2"
                       style={{ cursor: 'default', opacity: 0.7 }} />
-                    <text x={x1 + 10} y={svgY + h / 2 + 3} fontSize={11} fill="#8a9aaa" fontFamily="inherit" fontWeight={500}
+                    <text x={x1 + 10} y={svgY + h / 2 + 3} fontSize={11} fill="var(--text-3)" fontFamily="inherit" fontWeight={500}
                       style={{ pointerEvents: 'none', fontStyle: 'italic' }}>
                       📅 Sin fechas definidas
                     </text>
@@ -505,7 +505,7 @@ export default function GanttChart({
               return (
                 <g key={item.id} onMouseEnter={() => setTooltip({ item, x: x1 + bW / 2, y: svgY })} onMouseLeave={() => setTooltip(null)}>
                   <rect x={0} y={svgY} width={chartW} height={h} fill={item.is_critical ? 'rgba(251,146,60,0.04)' : 'transparent'} />
-                  <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="#1e2d4515" />
+                  <line x1={0} y1={svgY + h} x2={chartW} y2={svgY + h} stroke="color-mix(in srgb, var(--surface-4) 40%, transparent)" />
 
                   {/* Baseline */}
                   {showBaseline && item.baseline_start && item.baseline_end && (() => {
@@ -568,7 +568,7 @@ export default function GanttChart({
               const x2 = dateToX(succStartD); const y2 = itemYCenter[succ.id]
               if (!y1 || !y2) return null
               const isHov = hoveredDep === di
-              const col   = isHov ? '#f59e0b' : '#f59e0b'
+              const col   = 'var(--warning)'
               const midX  = x1 + 16
               const path  = y1 === y2
                 ? `M ${x1} ${y1} L ${x2} ${y2}`
@@ -607,13 +607,13 @@ export default function GanttChart({
               return (
                 <g style={{ pointerEvents: 'none' }}>
                   <rect x={tx} y={ty} width={TW} height={50} rx={7} fill="var(--surface-1)" stroke="var(--surface-4)" />
-                  <text x={tx + 8} y={ty + 16} fontSize={11} fill="#e8f0fe" fontFamily="inherit" fontWeight={600}>
+                  <text x={tx + 8} y={ty + 16} fontSize={11} fill="var(--text-1)" fontFamily="inherit" fontWeight={600}>
                     {(item.title || item.name || '').slice(0, 24)}
                   </text>
-                  <text x={tx + 8} y={ty + 30} fontSize={10} fill="#6a7a96" fontFamily="inherit">
+                  <text x={tx + 8} y={ty + 30} fontSize={10} fill="var(--text-3)" fontFamily="inherit">
                     {item.start_date || '?'} {'→'} {item.due_date || item.end_date_planned || '?'}
                   </text>
-                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status] || '#6a7a96'} fontFamily="inherit">
+                  <text x={tx + 8} y={ty + 44} fontSize={10} fill={STATUS_COLOR[item.status] || 'var(--text-3)'} fontFamily="inherit">
                     {item.status}{item.progress_pct != null ? ` · ${item.progress_pct}%` : ''}{item.story_points ? ` · ${item.story_points}p` : ''}
                   </text>
                 </g>

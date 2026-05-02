@@ -79,12 +79,12 @@ export default function OfflineIndicator() {
       {totalConflicts > 0 && (
         <div
           style={{
-            background: '#7c2d12',
+            background: 'color-mix(in srgb, var(--orange) 25%, var(--surface-1))',
             border: '1px solid var(--orange)',
             borderRadius: 8,
             padding: '8px 12px',
             fontSize: "var(--text-sm)",
-            color: '#fed7aa',
+            color: 'var(--orange)',
             pointerEvents: 'auto',
             display: 'flex',
             alignItems: 'center',
@@ -115,7 +115,7 @@ export default function OfflineIndicator() {
           padding: '8px 14px',
           borderRadius: 20,
           background: isOnline ? 'var(--success-bg)' : 'var(--danger-bg)',
-          border: `1px solid ${isOnline ? '#276227' : '#822'}`,
+          border: `1px solid ${isOnline ? 'var(--success-border)' : 'var(--danger-border)'}`,
           boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
           pointerEvents: 'auto',
           cursor: 'pointer',
@@ -146,14 +146,14 @@ export default function OfflineIndicator() {
         </span>
 
         {syncInProgress && (
-          <span style={{ fontSize: "var(--text-2xs)", color: '#f59e0b', marginLeft: 4 }}>🔄 Syncing...</span>
+          <span style={{ fontSize: "var(--text-2xs)", color: 'var(--warning)', marginLeft: 4 }}>🔄 Syncing...</span>
         )}
 
         {totalPending > 0 && (
           <span
             style={{
-              background: '#744210',
-              color: '#f59e0b',
+              background: 'color-mix(in srgb, var(--warning) 30%, var(--surface-1))',
+              color: 'var(--warning)',
               borderRadius: 10,
               padding: '1px 7px',
               fontSize: "var(--text-xs)",
@@ -165,7 +165,7 @@ export default function OfflineIndicator() {
         )}
 
         {/* Expand indicator */}
-        <span style={{ fontSize: "var(--text-2xs)", color: '#7a8aaa', marginLeft: 4 }}>
+        <span style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginLeft: 4 }}>
           {expanded ? '▼' : '▶'}
         </span>
       </div>
@@ -174,12 +174,12 @@ export default function OfflineIndicator() {
       {expanded && (
         <div
           style={{
-            background: '#1f2937',
+            background: 'var(--surface-2)',
             border: '1px solid var(--surface-5)',
             borderRadius: 8,
             padding: 12,
             fontSize: "var(--text-xs)",
-            color: '#e5e7eb',
+            color: 'var(--text-1)',
             minWidth: 250,
             maxWidth: 350,
             pointerEvents: 'auto',
@@ -190,11 +190,11 @@ export default function OfflineIndicator() {
           <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--surface-5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span>Pending operations:</span>
-              <strong style={{ color: '#f59e0b' }}>{totalPending}</strong>
+              <strong style={{ color: 'var(--warning)' }}>{totalPending}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span>Pending conflicts:</span>
-              <strong style={{ color: totalConflicts > 0 ? '#f87171' : 'var(--success)' }}>
+              <strong style={{ color: totalConflicts > 0 ? 'var(--danger)' : 'var(--success)' }}>
                 {totalConflicts}
               </strong>
             </div>
@@ -212,7 +212,7 @@ export default function OfflineIndicator() {
               <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-2)' }}>Last sync:</div>
               <div>✓ Synced: {lastSyncResult.synced}</div>
               {lastSyncResult.failed > 0 && (
-                <div style={{ color: '#f87171' }}>✗ Failed: {lastSyncResult.failed}</div>
+                <div style={{ color: 'var(--danger)' }}>✗ Failed: {lastSyncResult.failed}</div>
               )}
               {lastSyncResult.conflicts > 0 && (
                 <div style={{ color: 'var(--orange)' }}>⚠ Conflicts: {lastSyncResult.conflicts}</div>
@@ -228,10 +228,10 @@ export default function OfflineIndicator() {
               style={{
                 width: '100%',
                 padding: '6px 12px',
-                background: '#4f8ef7',
-                border: '1px solid #1e40af',
+                background: 'var(--accent)',
+                border: '1px solid var(--accent-dim)',
                 borderRadius: 4,
-                color: '#e0e7ff',
+                color: '#fff',
                 fontSize: "var(--text-xs)",
                 fontWeight: 500,
                 cursor: manualSyncing || syncInProgress ? 'wait' : 'pointer',
@@ -243,7 +243,7 @@ export default function OfflineIndicator() {
           )}
 
           {isOnline && totalPending === 0 && totalConflicts === 0 && (
-            <div style={{ textAlign: 'center', color: '#7a8aaa', fontSize: "var(--text-2xs)" }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: "var(--text-2xs)" }}>
               ✓ All synced
             </div>
           )}

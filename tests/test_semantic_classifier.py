@@ -924,3 +924,194 @@ class TestMejora6DiversityPenalty:
             assert score_bal >= score_conc, (
                 "Balanced workload user should score >= concentrated workload user"
             )
+
+
+class TestConfigControlsAreFunctional:
+    """Ensure Semantic Engine UI controls truly affect runtime behavior."""
+
+    def _single_profile_db(self, profile):
+        from app.models.semantic_engine import SemProfile
+
+        db = _make_db()
+
+        def _query_side(model):
+            if model is SemProfile:
+                q = MagicMock()
+                q.filter.return_value = q
+                q.all.return_value = [profile]
+                return q
+            q = MagicMock()
+            filt = MagicMock()
+            filt.first.return_value = None
+            filt.all.return_value = []
+            filt.limit.return_value.all.return_value = []
+            filt.order_by.return_value.limit.return_value.all.return_value = []
+            q.filter.return_value = filt
+            return q
+
+        db.query.side_effect = _query_side
+        return db
+
+    def test_engine_mode_llm_uses_llm_directly(self):
+        from app.models.semantic_engine import SemProfile
+
+        profile = MagicMock(spec=SemProfile)
+        profile.user_id = "u-llm"
+        profile.embedding = json.dumps([0.1, 0.2])
+        profile.is_available = True
+        profile.open_tickets = 0
+        profile.open_tasks = 0
+        profile.max_load = 10
+
+        db = self._single_profile_db(profile)
+        assigner = _make_assigner(db=db, config=_make_config(engine_mode="llm"))
+        assigner._llm_suggest = lambda *_: {
+            "suggested_user_id": "u-llm",
+            "confidence": 0.81,
+            "engine_mode": "llm",
+            "top_scores": {},
+            "needs_review": False,
+            "reasoning": "LLM",
+        }
+
+        result = assigner._suggest("assign with llm", "ticket", ["u-llm"], priority="medium")
+        assert result["engine_mode"] == "llm"
+        assert result["suggested_user_id"] == "u-llm"
+
+    def test_engine_mode_rules_only_ignores_semantic_similarity(self):
+        from app.models.semantic_engine import SemProfile
+
+        profile = MagicMock(spec=SemProfile)
+        profile.user_id = "u-rules"
+        profile.embedding = json.dumps([1.0, 0.0])
+        profile.is_available = True
+        profile.open_tickets = 0
+        profile.open_tasks = 0
+        profile.max_load = 10
+
+        db = self._single_profile_db(profile)
+
+        with patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_user_availability",
+            return_value={"available_hours": 40.0, "capacity_hours": 40.0, "planned_hours": 0.0, "actual_hours": 0.0},
+        ), patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_week_iso",
+            return_value="2026-W18",
+        ):
+            semantic_assigner = _make_assigner(db=db, config=_make_config(engine_mode="semantic"))
+            semantic_assigner._encode_single = lambda _: [1.0, 0.0]
+            semantic_assigner._hybrid_score = lambda *_: 1.0
+            semantic_result = semantic_assigner._suggest("semantic", "ticket", ["u-rules"], priority="low")
+
+            rules_assigner = _make_assigner(db=db, config=_make_config(engine_mode="rules_only"))
+            rules_assigner._encode_single = lambda _: [1.0, 0.0]
+            rules_assigner._hybrid_score = lambda *_: 1.0
+            rules_result = rules_assigner._suggest("rules", "ticket", ["u-rules"], priority="low")
+
+        assert semantic_result["confidence"] > rules_result["confidence"]
+        assert rules_result["engine_mode"] == "rules_only"
+
+    def test_ticket_threshold_slider_affects_decision(self):
+        from app.models.semantic_engine import SemProfile
+
+        profile = MagicMock(spec=SemProfile)
+        profile.user_id = "u-th"
+        profile.embedding = json.dumps([1.0, 0.0])
+        profile.is_available = True
+        profile.open_tickets = 0
+        profile.open_tasks = 0
+        profile.max_load = 10
+
+        db = self._single_profile_db(profile)
+
+        with patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_user_availability",
+            return_value={"available_hours": 40.0, "capacity_hours": 40.0, "planned_hours": 0.0, "actual_hours": 0.0},
+        ), patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_week_iso",
+            return_value="2026-W18",
+        ):
+            assigner = _make_assigner(
+                db=db,
+                config=_make_config(engine_mode="semantic", threshold_ticket=0.95, threshold_medium=0.58),
+            )
+            assigner._encode_single = lambda _: [1.0, 0.0]
+            assigner._hybrid_score = lambda *_: 0.90
+            result = assigner._suggest("strict-threshold", "ticket", ["u-th"], priority="medium")
+
+        assert result["needs_review"] is True
+
+    def test_rules_only_does_not_require_embeddings(self):
+        from app.models.semantic_engine import SemProfile
+
+        profile = MagicMock(spec=SemProfile)
+        profile.user_id = "u-rules-no-emb"
+        profile.embedding = None
+        profile.is_available = True
+        profile.open_tickets = 1
+        profile.open_tasks = 1
+        profile.max_load = 10
+
+        db = self._single_profile_db(profile)
+
+        with patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_user_availability",
+            return_value={"available_hours": 40.0, "capacity_hours": 40.0, "planned_hours": 0.0, "actual_hours": 0.0},
+        ), patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_week_iso",
+            return_value="2026-W18",
+        ):
+            assigner = _make_assigner(db=db, config=_make_config(engine_mode="rules_only"))
+            result = assigner._suggest("rules-no-embedding", "ticket", ["u-rules-no-emb"], priority="low")
+
+        assert result["engine_mode"] == "rules_only"
+        assert result["suggested_user_id"] == "u-rules-no-emb"
+
+    def test_threshold_expert_cache_is_used_in_lookup(self):
+        cfg = _make_config(threshold_expert_cache=0.87)
+        assigner = _make_assigner(config=cfg)
+        assigner._semantic_lookup_feedback = MagicMock(return_value=None)
+
+        assigner._suggest("expert-threshold", "ticket", [], priority="low")
+
+        assert assigner._semantic_lookup_feedback.call_count == 1
+        _, _, used_threshold = assigner._semantic_lookup_feedback.call_args[0]
+        assert used_threshold == 0.87
+
+    def test_load_balance_weight_changes_final_score(self):
+        from app.models.semantic_engine import SemProfile
+
+        emb = [0.25] * 12
+        profile = MagicMock(spec=SemProfile)
+        profile.user_id = "u-load-weight"
+        profile.embedding = json.dumps(emb)
+        profile.is_available = True
+        profile.open_tickets = 0
+        profile.open_tasks = 0
+        profile.max_load = 10
+
+        db = self._single_profile_db(profile)
+        with patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_user_availability",
+            return_value={"available_hours": 0.0, "capacity_hours": 40.0, "planned_hours": 40.0, "actual_hours": 40.0},
+        ), patch(
+            "app.services.resource_analytics.ResourceAnalyticsService.get_week_iso",
+            return_value="2026-W18",
+        ):
+            low_weight = _make_assigner(db=db, config=_make_config(load_balance_weight=0.0))
+            high_weight = _make_assigner(db=db, config=_make_config(load_balance_weight=0.9))
+            low_weight._encode_single = lambda _t: emb
+            high_weight._encode_single = lambda _t: emb
+
+            res_low = low_weight._suggest("load-weight", "ticket", ["u-load-weight"], priority="medium")
+            res_high = high_weight._suggest("load-weight", "ticket", ["u-load-weight"], priority="medium")
+
+        assert res_low["confidence"] > res_high["confidence"]
+
+    def test_local_model_name_tfidf_forces_tfidf_backend(self):
+        from app.services.semantic_classifier import SemanticAssigner
+
+        backend, model = SemanticAssigner._resolve_embeddings_runtime(_make_config(local_model_name="tfidf"))
+
+        assert backend == "tfidf"
+        assert model == "all-MiniLM-L6-v2"

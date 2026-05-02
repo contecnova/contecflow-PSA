@@ -161,3 +161,25 @@ def test_periodic_pipeline_skips_retraining_when_models_healthy_and_fresh(db, mo
 
     assert result["itsm_retrained"] == 0
     assert result["bi_retrained"] == 0
+
+
+def test_bi_health_reports_insufficient_data_when_history_is_too_short(db, monkeypatch):
+    def _forecast(_db, *, organization_id, metric_key="revenue", periods=2, frequency="MS"):
+        _ = (organization_id, metric_key, periods, frequency)
+        return {
+            "engine": "prophet",
+            "history_months": 3,
+            "forecast": [],
+        }
+
+    def _overrun(_db, *, organization_id):
+        _ = organization_id
+        return {"engine": "lightgbm", "predictions": []}
+
+    monkeypatch.setattr(retraining_service.bi_intelligence_service, "ml_forecast_prophet", _forecast)
+    monkeypatch.setattr(retraining_service.bi_intelligence_service, "ml_predict_project_overrun_lgbm", _overrun)
+
+    result = retraining_service.evaluate_bi_model_health(db, organization_id="1")
+
+    assert result["history_months"] == 3
+    assert result["status"] == "insufficient_data"

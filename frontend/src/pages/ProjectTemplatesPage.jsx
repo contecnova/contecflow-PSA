@@ -13,7 +13,7 @@ import { LayoutTemplate } from 'lucide-react'
 
 const PHASE_COLOR = 'var(--accent)'
 const TASK_COLOR  = 'var(--success)'
-const RISK_COLOR  = '#F59E0B'
+const RISK_COLOR  = 'var(--warning)'
 const DELIV_COLOR = 'var(--accent)'
 
 function Badge({ color, label }) {

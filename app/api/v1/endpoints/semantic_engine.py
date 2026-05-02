@@ -37,12 +37,25 @@ def update_config(data: SemConfigPatch = Body(...),
                "threshold_expert_cache", "load_balance_weight",
                "threshold_critical", "threshold_high", "threshold_medium",
                "threshold_low", "history_decay_days",
-               "auto_assign_tickets", "auto_assign_tasks", "local_model_name"}
+               "auto_assign_tickets", "auto_assign_tasks", "local_model_name", "embeddings_backend"}
     payload = data.model_dump(exclude_unset=True)
     if "engine_mode" in payload:
         payload["engine_mode"] = str(payload["engine_mode"]).strip().lower()
         if payload["engine_mode"] not in _svc.VALID_ENGINE_MODES:
             raise HTTPException(400, f"engine_mode inválido. Use uno de: {', '.join(sorted(_svc.VALID_ENGINE_MODES))}")
+
+    # Normalize backend/model relationship without schema changes:
+    # local_model_name="tfidf" is the explicit persisted toggle for TF-IDF mode.
+    backend = payload.pop("embeddings_backend", None)
+    if backend == "tfidf":
+        payload["local_model_name"] = "tfidf"
+    elif backend == "transformer":
+        model_name = (payload.get("local_model_name") or cfg.local_model_name or "").strip()
+        payload["local_model_name"] = model_name if model_name and model_name.lower() != "tfidf" else "all-MiniLM-L6-v2"
+
+    if "local_model_name" in payload and isinstance(payload["local_model_name"], str):
+        payload["local_model_name"] = payload["local_model_name"].strip()
+
     for k, v in payload.items():
         if k in allowed and hasattr(cfg, k):
             setattr(cfg, k, v)

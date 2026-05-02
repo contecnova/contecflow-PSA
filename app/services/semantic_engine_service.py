@@ -18,6 +18,14 @@ from sqlalchemy import func
 VALID_ENGINE_MODES = {"semantic", "llm", "hybrid", "rules_only"}
 
 
+def resolve_embeddings_backend_and_model(cfg) -> tuple[str, str]:
+    """Return normalized embeddings backend and model name for UI/runtime visibility."""
+    model = (getattr(cfg, "local_model_name", "") or "").strip()
+    if model and model.lower() != "tfidf":
+        return "transformer", model
+    return "tfidf", "all-MiniLM-L6-v2"
+
+
 def get_assigner(db: Session):
     return SemanticAssigner(db)
 
@@ -33,6 +41,7 @@ def get_or_create_config(db: Session):
 
 
 def serialize_config(cfg) -> dict:
+    embeddings_backend, effective_model_name = resolve_embeddings_backend_and_model(cfg)
     return {
         "engine_mode":            str(cfg.engine_mode.value if hasattr(cfg.engine_mode, "value") else cfg.engine_mode),
         "threshold_ticket":       cfg.threshold_ticket,
@@ -46,7 +55,9 @@ def serialize_config(cfg) -> dict:
         "history_decay_days":     getattr(cfg, "history_decay_days", 90.0),
         "auto_assign_tickets":    cfg.auto_assign_tickets,
         "auto_assign_tasks":      cfg.auto_assign_tasks,
+        "embeddings_backend":     embeddings_backend,
         "local_model_name":       cfg.local_model_name,
+        "effective_model_name":   effective_model_name,
     }
 
 

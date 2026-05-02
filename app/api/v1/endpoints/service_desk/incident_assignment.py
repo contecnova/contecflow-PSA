@@ -36,11 +36,11 @@ class CandidateAgentIn(BaseModel):
 
 
 class AssignmentRequestIn(BaseModel):
-    title: str = Field(..., min_length=2, max_length=500)
+    title: str = Field(default="", max_length=500)
     description: str = ""
     priority: str = "p3_medium"
     ticket_type: str = "incident"
-    candidate_agents: list[CandidateAgentIn] = Field(..., min_length=1, max_length=50)
+    candidate_agents: list[CandidateAgentIn] = Field(default_factory=list, max_length=50)
 
 
 @router.post(

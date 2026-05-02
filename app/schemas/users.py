@@ -81,3 +81,4 @@ class UserLoad(BaseModel):
     hours_this_month: float
     active_tasks: int
     active_projects: int
+    hourly_rate: Optional[float] = None  # populated for admin/hr only

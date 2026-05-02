@@ -18,13 +18,13 @@ describe('helpers', () => {
   })
 
   it('loadColor marks overload above 100%', () => {
-    expect(loadColor(110)).toBe('#ff4757')
-    expect(loadColor(90)).toBe('#ffb800')
-    expect(loadColor(70)).toBe('#00e5a0')
+    expect(loadColor(110)).toBe('var(--danger)')
+    expect(loadColor(90)).toBe('var(--warning)')
+    expect(loadColor(70)).toBe('var(--success)')
   })
 
   it('statusColor falls back safely for unknown status', () => {
-    expect(statusColor('in_progress')).toBe('#4f8ef7')
-    expect(statusColor('unknown_status')).toBe('#7a8aaa')
+    expect(statusColor('in_progress')).toBe('var(--accent)')
+    expect(statusColor('unknown_status')).toBe('var(--text-3)')
   })
 })

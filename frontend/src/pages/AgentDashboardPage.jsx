@@ -137,7 +137,7 @@ export default function AgentDashboardPage() {
                 <XAxis dataKey="date" tick={{fill:'var(--text-2)',fontSize: "var(--text-2xs)"}} tickFormatter={d=>d.slice(5)} />
                 <YAxis domain={[0,5]} tick={{fill:'var(--text-2)',fontSize: "var(--text-2xs)"}} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Line type="monotone" dataKey="csat" name="CSAT" stroke="#a78bfa" strokeWidth={2} dot={{r:3}} />
+                <Line type="monotone" dataKey="csat" name="CSAT" stroke="var(--purple)" strokeWidth={2} dot={{r:3}} />
               </LineChart>
             </ResponsiveContainer>
           </div>

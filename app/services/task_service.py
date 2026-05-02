@@ -21,7 +21,8 @@ from sqlalchemy.orm import Session
 from app.models.task import TaskStatus
 from app.db.session import SessionLocal
 from app.models.bookings import TaskDependency, DependencyType
-from app.models.project import Project
+from app.models.project import Project, ProjectMember
+from app.models.semantic_engine import SemConfig
 from app.models.task import Task, TaskComment
 from app.models.task import Task as TaskModel
 from app.models.task_movement_log import TaskMovementLog
@@ -33,6 +34,44 @@ from datetime import date as _date
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
+
+
+def _auto_assign_task_on_create(db: Session, task: Task) -> None:
+    """Auto-assign task at creation time when semantic config enables it.
+
+    Honors explicit assignee from payload and only assigns when the semantic
+    suggestion is confident enough (needs_review=False).
+    """
+    if task.assignee_id:
+        return
+
+    cfg = db.query(SemConfig).first()
+    if not cfg or not bool(getattr(cfg, "auto_assign_tasks", False)):
+        return
+
+    members = (
+        db.query(ProjectMember)
+        .filter(ProjectMember.project_id == task.project_id)
+        .all()
+    )
+    candidate_user_ids = [m.user_id for m in members if getattr(m, "user_id", None)]
+    if not candidate_user_ids:
+        return
+
+    priority = str(task.priority.value) if hasattr(task.priority, "value") else str(task.priority or "medium")
+    suggestion = SemanticAssigner(db).suggest_for_task(
+        task.title or "",
+        task.description or "",
+        candidate_user_ids,
+        priority=priority,
+    )
+    suggested = suggestion.get("suggested_user_id")
+    if not suggested or suggestion.get("needs_review", True):
+        return
+    if suggested not in set(candidate_user_ids):
+        return
+
+    task.assignee_id = suggested
 
 
 # ── Transition policy ─────────────────────────────────────────────────────────
@@ -294,6 +333,7 @@ def create_task_record(db: Session, payload, current_user):
         reporter_id=current_user.id,
         created_by=current_user.id,
     )
+    _auto_assign_task_on_create(db, task)
     try:
         db.add(task)
         db.commit()

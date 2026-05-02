@@ -224,7 +224,10 @@ def score_agent_for_ticket_ml(db: Session, user: User, ticket: Ticket) -> dict[s
 
     Returns a dict with component breakdown and final composite score.
     """
-    ticket_type = str(ticket.ticket_type.value) if ticket.ticket_type else None
+    def _enum_val(v: Any) -> Any:
+        return v.value if hasattr(v, "value") else v
+
+    ticket_type = str(_enum_val(ticket.ticket_type)) if ticket.ticket_type else None
     # category_id comes from service_item → category, or direct category_id if present
     category_id = None
     try:
@@ -309,6 +312,9 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
     Call this after `ticket.assigned_to_user_id` is set.
     Skips gracefully if feedback already exists for this ticket.
     """
+    def _enum_val(v: Any) -> Any:
+        return v.value if hasattr(v, "value") else v
+
     if not ticket.assigned_to_user_id:
         return
     try:
@@ -320,7 +326,7 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
         if existing:
             # Update agent in case of re-assignment
             existing.assigned_agent_id = ticket.assigned_to_user_id
-            existing.ticket_type = str(ticket.ticket_type.value) if ticket.ticket_type else None
+            existing.ticket_type = str(_enum_val(ticket.ticket_type)) if ticket.ticket_type else None
             db.flush()
             return
 
@@ -338,10 +344,10 @@ def record_routing_event(db: Session, ticket: Ticket) -> None:
             id=str(uuid.uuid4()),
             ticket_id=ticket.id,
             assigned_agent_id=ticket.assigned_to_user_id,
-            ticket_type=str(ticket.ticket_type.value) if ticket.ticket_type else None,
+            ticket_type=str(_enum_val(ticket.ticket_type)) if ticket.ticket_type else None,
             category_id=category_id,
-            priority=str(ticket.priority.value) if ticket.priority else None,
-            support_level=str(ticket.support_level.value) if ticket.support_level else None,
+            priority=str(_enum_val(ticket.priority)) if ticket.priority else None,
+            support_level=str(_enum_val(ticket.support_level)) if ticket.support_level else None,
         )
         db.add(row)
         db.flush()

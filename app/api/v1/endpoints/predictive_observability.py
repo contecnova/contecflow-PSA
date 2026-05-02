@@ -25,6 +25,12 @@ from app.services.predictive_retraining_service import (
 
 router = APIRouter()
 
+_STATUS_RANK = {
+    "healthy": 0,
+    "attention": 1,
+    "insufficient_data": 2,
+}
+
 
 def _require_admin(current_user: User = Depends(get_current_user)) -> User:
     if getattr(current_user, "role", None) != UserRole.admin:
@@ -80,16 +86,14 @@ def predictive_observability_health(
     bi_eval = evaluate_bi_model_health(db, organization_id=org_id)
 
     overall_score = round((itsm_eval.get("score", 0) + bi_eval.get("score", 0)) / 2, 4)
-    overall_status = "healthy"
-    for s in (itsm_eval.get("status", ""), bi_eval.get("status", "")):
-        if s in ("attention", "insufficient_data"):
-            overall_status = s
-            break
+    statuses = [str(itsm_eval.get("status", "healthy")), str(bi_eval.get("status", "healthy"))]
+    overall_status = max(statuses, key=lambda s: _STATUS_RANK.get(s, 0))
 
     return {
         "organization_id": org_id,
         "overall_score": overall_score,
         "overall_status": overall_status,
+        "status_rank": _STATUS_RANK,
         "itsm": itsm_eval,
         "bi": bi_eval,
     }

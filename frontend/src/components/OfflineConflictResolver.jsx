@@ -84,7 +84,7 @@ export default function OfflineConflictResolver() {
         right: 20,
         width: '400px',
         maxHeight: '500px',
-        background: '#1f2937',
+        background: 'var(--surface-2)',
         border: '1px solid var(--text-2)',
         borderRadius: 8,
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
@@ -100,22 +100,22 @@ export default function OfflineConflictResolver() {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '12px 16px',
-          background: '#111827',
+          background: 'var(--surface-1)',
           borderBottom: '1px solid var(--surface-5)',
           position: 'sticky',
           top: 0,
         }}
       >
-        <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: '#f3f4f6' }}>
+        <span style={{ fontSize: "var(--text-md)", fontWeight: 600, color: 'var(--text-1)' }}>
           {showHistory ? 'Conflict History' : `${conflicts.length} Conflicts`}
         </span>
         <button
           onClick={handleShowHistory}
           style={{
             background: 'transparent',
-            border: '1px solid #4b5563',
+            border: '1px solid var(--surface-4)',
             borderRadius: 4,
-            color: '#7a8aaa',
+            color: 'var(--text-3)',
             fontSize: "var(--text-sm)",
             padding: '4px 8px',
             cursor: 'pointer',
@@ -129,7 +129,7 @@ export default function OfflineConflictResolver() {
       {showHistory && (
         <div style={{ padding: 12 }}>
           {history.length === 0 ? (
-            <p style={{ fontSize: "var(--text-sm)", color: '#7a8aaa', margin: 0 }}>No conflict history yet.</p>
+            <p style={{ fontSize: "var(--text-sm)", color: 'var(--text-3)', margin: 0 }}>No conflict history yet.</p>
           ) : (
             history.map((item) => (
               <div
@@ -148,7 +148,7 @@ export default function OfflineConflictResolver() {
                 </div>
                 <div>Operation: {item.opId}</div>
                 <div>Resolution: {item.resolution}</div>
-                <div style={{ fontSize: "var(--text-2xs)", color: '#7a8aaa', marginTop: 4 }}>
+                <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)', marginTop: 4 }}>
                   {new Date(item.resolvedAt).toLocaleTimeString()}
                 </div>
               </div>
@@ -178,21 +178,21 @@ export default function OfflineConflictResolver() {
               </button>
 
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: '#f3f4f6', marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
                   Conflict #{selectedConflict.id}
                 </div>
 
-                <div style={{ fontSize: "var(--text-xs)", color: '#7a8aaa', marginBottom: 8 }}>
+                <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>
                   Operation: {selectedConflict.opId}
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: '#e5e7eb', marginBottom: 4 }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: 'var(--text-1)', marginBottom: 4 }}>
                     Local value:
                   </div>
                   <pre
                     style={{
-                      background: '#1f2937',
+                      background: 'var(--surface-2)',
                       border: '1px solid var(--surface-5)',
                       borderRadius: 4,
                       padding: 8,
@@ -208,12 +208,12 @@ export default function OfflineConflictResolver() {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: '#e5e7eb', marginBottom: 4 }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 500, color: 'var(--text-1)', marginBottom: 4 }}>
                     Server value:
                   </div>
                   <pre
                     style={{
-                      background: '#1f2937',
+                      background: 'var(--surface-2)',
                       border: '1px solid var(--surface-5)',
                       borderRadius: 4,
                       padding: 8,
@@ -237,7 +237,7 @@ export default function OfflineConflictResolver() {
                   style={{
                     flex: 1,
                     padding: '6px 12px',
-                    background: '#34d399',
+                    background: 'var(--success)',
                     border: 'none',
                     borderRadius: 4,
                     color: '#fff',
@@ -283,18 +283,18 @@ export default function OfflineConflictResolver() {
                     background: 'var(--surface-5)',
                     borderRadius: 4,
                     cursor: 'pointer',
-                    border: '1px solid #4b5563',
+                    border: '1px solid var(--surface-4)',
                     transition: 'all 0.2s',
                     width: '100%',
                     textAlign: 'left',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = '#4b5563')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-4)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-5)')}
                 >
-                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: '#f3f4f6', marginBottom: 4 }}>
+                  <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
                     Conflict #{conflict.id}
                   </div>
-                  <div style={{ fontSize: "var(--text-2xs)", color: '#7a8aaa' }}>
+                  <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-3)' }}>
                     {conflict.opId}
                   </div>
                   <div style={{ fontSize: "var(--text-2xs)", color: 'var(--text-2)', marginTop: 4 }}>

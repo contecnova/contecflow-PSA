@@ -629,11 +629,17 @@ async def request_logger(request: Request, call_next):
     # Some 401s are expected and short-lived in normal UX:
     # - startup session probe (/auth/me)
     # - concurrent queries while interceptor refreshes expired access cookie
+    # - activity/imputations/settings queries during token rotation or early app startup
     _expected_401_paths = {
         "/api/v1/auth/me",
         "/api/v1/users/me/preferences",
         "/api/v1/alerts",
         "/api/v1/approvals/requests/pending-my-action",
+        "/api/v1/activity/mentions/my",
+        "/api/v1/imputations/timer/current",
+        "/api/v1/settings/log-level",
+        "/api/v1/sd/auto-resolution/stats",
+        "/api/v1/sd/auto-resolution/config",
     }
     _expected_401 = (status == 401 and path in _expected_401_paths)
     if status < 300:

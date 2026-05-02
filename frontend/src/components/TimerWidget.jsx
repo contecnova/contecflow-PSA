@@ -68,7 +68,7 @@ const TimerWidget = () => {
   }
 
   const isPaused = !!timer?.paused_at
-  const stateColor = timer && !isPaused ? 'var(--success)' : isPaused ? '#fb923c' : 'var(--text-3)'
+  const stateColor = timer && !isPaused ? 'var(--success)' : isPaused ? 'var(--warning)' : 'var(--text-3)'
 
   const btnStyle = (bg) => ({
     padding: '7px 14px', background: bg, border: 'none', borderRadius: 7,
@@ -111,12 +111,12 @@ const TimerWidget = () => {
                   onClick={() => call(() => api.post('/imputations/timer/resume'))}>
                   {'\u25b6'} Reanudar
                 </button>
-              : <button style={btnStyle('#f59e0b')} disabled={loading}
+              : <button style={btnStyle('var(--warning)')} disabled={loading}
                   onClick={() => call(() => api.post('/imputations/timer/pause'))}>
                   {'\u23f8'} Pausar
                 </button>
             }
-            <button style={btnStyle('#c0392b')} disabled={loading}
+            <button style={btnStyle('var(--danger)')} disabled={loading}
               onClick={() => call(() =>
                 api.post('/imputations/timer/stop', { description: 'Sesión', is_billable: true })
                   .then(r => { setTimer(null); return r })

@@ -268,7 +268,7 @@ export default function WorkflowsPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {states.map(s => (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1e2d45' }}>
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)' }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
                   <span style={{ fontSize: "var(--text-lg)" }}>{s.icon}</span>
                   <div style={{ flex: 1 }}>
@@ -309,7 +309,7 @@ export default function WorkflowsPage() {
                 (s.transitions_from || []).map(t => {
                   const toState = states.find(ss => ss.id === t.to_state_id)
                   return (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid #1e2d45', fontSize: "var(--text-sm)" }}>
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
                         <span style={{ color: 'var(--text-1)' }}>{s.icon} {s.name}</span>

@@ -26,14 +26,14 @@ function fmtDate(d) {
 }
 
 const FILE_COLORS = {
-  pdf: { c: 'var(--danger)', bg: '#f8717118', l: 'PDF' },
-  image: { c: 'var(--accent)', bg: '#4f8ef718', l: 'IMG' },
-  spreadsheet: { c: 'var(--success)', bg: '#34d39918', l: 'XLS' },
-  word: { c: 'var(--accent)', bg: '#6366f118', l: 'DOC' },
-  presentation: { c: '#f59e0b', bg: '#f59e0b18', l: 'PPT' },
-  archive: { c: 'var(--purple)', bg: '#8b5cf618', l: 'ZIP' },
-  text: { c: '#64748b', bg: '#64748b18', l: 'TXT' },
-  other: { c: 'var(--text-3)', bg: '#6b728018', l: 'FILE' },
+  pdf:         { c: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 9%, transparent)',  l: 'PDF' },
+  image:       { c: 'var(--accent)',  bg: 'color-mix(in srgb, var(--accent) 9%, transparent)',  l: 'IMG' },
+  spreadsheet: { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 9%, transparent)', l: 'XLS' },
+  word:        { c: 'var(--accent)',  bg: 'color-mix(in srgb, var(--accent) 9%, transparent)',  l: 'DOC' },
+  presentation:{ c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 9%, transparent)', l: 'PPT' },
+  archive:     { c: 'var(--purple)',  bg: 'color-mix(in srgb, var(--purple) 9%, transparent)',  l: 'ZIP' },
+  text:        { c: 'var(--text-3)',  bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)',  l: 'TXT' },
+  other:       { c: 'var(--text-3)',  bg: 'color-mix(in srgb, var(--text-3) 9%, transparent)',  l: 'FILE' },
 };
 
 function detectType(mime, name) {
@@ -64,11 +64,15 @@ function FileIcon({ mime, name, size = 36 }) {
 }
 
 const CAT_STYLE = {
-  contract: { c: 'var(--accent)', bg: '#4f8ef715' }, deliverable: { c: 'var(--success)', bg: '#34d39915' },
-  proposal: { c: 'var(--purple)', bg: '#8b5cf615' }, sop: { c: '#f59e0b', bg: '#f59e0b15' },
-  legal: { c: 'var(--danger)', bg: '#f8717115' }, requirements: { c: '#2dd4bf', bg: '#06b6d415' },
-  report: { c: 'var(--orange)', bg: '#f9731615' }, presentation: { c: '#ec4899', bg: '#ec489915' },
-  other: { c: 'var(--text-3)', bg: '#6b728015' },
+  contract:     { c: 'var(--accent)',  bg: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
+  deliverable:  { c: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)' },
+  proposal:     { c: 'var(--purple)',  bg: 'color-mix(in srgb, var(--purple) 8%, transparent)' },
+  sop:          { c: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)' },
+  legal:        { c: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 8%, transparent)' },
+  requirements: { c: 'var(--info)',    bg: 'color-mix(in srgb, var(--info) 8%, transparent)' },
+  report:       { c: 'var(--orange)',  bg: 'color-mix(in srgb, var(--orange) 8%, transparent)' },
+  presentation: { c: 'var(--coral)',   bg: 'color-mix(in srgb, var(--coral) 8%, transparent)' },
+  other:        { c: 'var(--text-3)',  bg: 'color-mix(in srgb, var(--text-3) 8%, transparent)' },
 };
 
 const DocumentViewer = ({ documentId }) => {
@@ -157,12 +161,12 @@ const DocumentViewer = ({ documentId }) => {
               {doc.category}
             </span>
             {doc.approval_status === 'approved' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#34d39915', color: 'var(--success)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: 'color-mix(in srgb, var(--success) 8%, transparent)', color: 'var(--success)' }}>
                 <CheckCircle size={9} /> {t('document_viewer.approved')}
               </span>
             )}
             {doc.requires_approval && doc.approval_status === 'pending' && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#f59e0b15', color: '#f59e0b' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: "var(--text-2xs)", fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: 'color-mix(in srgb, var(--warning) 8%, transparent)', color: 'var(--warning)' }}>
                {t('document_viewer.pending_approval')}
               </span>
             )}

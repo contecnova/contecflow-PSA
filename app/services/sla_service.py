@@ -247,7 +247,7 @@ def next_ticket_number(ticket_type: str, db: Session) -> str:
         pass  # SQLite / non-PG — best-effort
     last_num = (
         db.query(func.max(cast(func.substr(Ticket.number, len(prefix) + 2), Integer)))
-        .filter(Ticket.ticket_type == ticket_type)
+        .filter(Ticket.number.like(f"{prefix}-%"))
         .scalar()
     ) or 0
     return f"{prefix}-{(last_num + 1):04d}"
