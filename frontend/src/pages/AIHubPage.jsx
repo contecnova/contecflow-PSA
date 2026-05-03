@@ -10,7 +10,7 @@ import { Button, Spinner, Modal, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
-import { Cpu } from 'lucide-react'
+import { Cpu, X } from 'lucide-react'
 
 
 const getStatusCfg = (t) => ({
@@ -85,8 +85,28 @@ function ProviderModal({ provider, catalog, onClose }) {
     }))
   }
 
+  const title = isEdit ? `${t('ai.edit_provider')} — ${provider.name}` : t('ai.add_provider')
+
   return (
-    <Modal open onClose={onClose} title={isEdit ? `${t('ai.edit_provider')} — ${provider.name}` : t('ai.add_provider')} width={660}>
+    <>
+      <div role="presentation" onMouseDown={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)' }} />
+      <div role="dialog" aria-modal="true" aria-label={title}
+        style={{ position: 'fixed', top: 12, right: 12, width: 640, maxWidth: 'calc(100vw - 24px)',
+          background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12,
+          zIndex: 201, display: 'flex', flexDirection: 'column',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
+        {/* Drawer header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--surface-4)', flexShrink: 0 }}>
+          <span style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: 'var(--text-1)' }}>{title}</span>
+          <button onClick={onClose} aria-label="Cerrar" style={{ background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-3)', display: 'flex', padding: 4, borderRadius: 6 }}>
+            <X size={16} />
+          </button>
+        </div>
+        {/* Body */}
+        <div style={{ padding: '20px' }}>
       {/* Selector de proveedor */}
       {!isEdit && (
         <div style={{ marginBottom: 20 }}>
@@ -221,13 +241,18 @@ function ProviderModal({ provider, catalog, onClose }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.provider} loading={isPending}>
-          {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
-        </Button>
+        </div>
+        {/* Fixed footer */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10,
+          padding: '12px 20px', borderTop: '1px solid var(--surface-4)',
+          background: 'var(--surface-1)', flexShrink: 0 }}>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.provider} loading={isPending}>
+            {isPending ? t('common.saving') : isEdit ? t('ai.save_changes') : t('ai.add_provider_action')}
+          </Button>
+        </div>
       </div>
-    </Modal>
+    </>
   )
 }
 

@@ -9,7 +9,7 @@ import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi } from '../services/api'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Receipt } from 'lucide-react'
@@ -293,13 +293,30 @@ function MyExpenses() {
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
+  const [search, setSearch] = useState('')
+  const [catFilter, setCatFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const { data: raw = [], isLoading } = useQuery({
     queryKey: ['expenses-my', statusFilter],
     queryFn: () => expensesApi.my({ status: statusFilter || undefined }).then(r => r.data),
   })
   const expenses = Array.isArray(raw) ? raw : []
-  const { sort: expSort, setSort: setExpSort, sortedData: sortedExpenses } = useSort(expenses, 'expense_date', 'desc')
+  const filteredExpenses = expenses.filter(e => {
+    if (search) {
+      const q = search.toLowerCase()
+      const haystack = `${e.code || ''} ${e.description || ''} ${e.category || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    if (catFilter && e.category !== catFilter) return false
+    if (dateFrom && e.expense_date && e.expense_date < dateFrom) return false
+    if (dateTo && e.expense_date && e.expense_date > dateTo) return false
+    return true
+  })
+  const { sort: expSort, setSort: setExpSort, sortedData: sortedExpenses } = useSort(filteredExpenses, 'expense_date', 'desc')
+  const dateInput = (val) => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
+  const hasFilter = search || statusFilter || catFilter || dateFrom || dateTo
 
   const { mutate: submit, isPending: saving } = useMutation({
     mutationFn: id => expensesApi.submitMy(id),
@@ -334,15 +351,26 @@ function MyExpenses() {
             </div>
           ))}
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...fs, width: 'auto', marginLeft: 'auto' }}>
-          <option value="">Todos los estados</option>
-          {Object.entries(STATUSES).map(([v, c]) => <option key={v} value={v}>{c.label}</option>)}
-        </select>
-        <Button onClick={() => setShowCreate(true)}>＋ Nuevo gasto</Button>
+        <Button onClick={() => setShowCreate(true)} style={{ marginLeft: 'auto' }}>＋ Nuevo gasto</Button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar código o descripción..." style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
+        <FilterSelect value={statusFilter} onChange={setStatusFilter} placeholder="Estado" options={Object.entries(STATUSES).map(([v, c]) => ({ value: v, label: c.label }))} />
+        <FilterSelect value={catFilter} onChange={setCatFilter} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
+        <input type="date" aria-label="Desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={dateInput(dateFrom)} />
+        <span style={{ color: 'var(--text-3)' }}>—</span>
+        <input type="date" aria-label="Hasta" value={dateTo} onChange={e => setDateTo(e.target.value)} style={dateInput(dateTo)} />
+        {hasFilter && (
+          <button onClick={() => { setSearch(''); setStatusFilter(''); setCatFilter(''); setDateFrom(''); setDateTo('') }}
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedExpenses.length} / {expenses.length}</span>
       </div>
 
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
         <EmptyState icon="💸" title="Sin gastos" description="Crea tu primer gasto para empezar a registrarlos." />
+      ) : sortedExpenses.length === 0 ? (
+        <EmptyState icon="🔍" title="Sin resultados" description="Ningún gasto coincide con los filtros aplicados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>
@@ -396,7 +424,24 @@ function PendingApproval() {
     refetchInterval: 30000,
   })
   const expenses = Array.isArray(raw) ? raw : []
-  const { sort: pendSort, setSort: setPendSort, sortedData: sortedPending } = useSort(expenses, 'expense_date', 'desc')
+  const [pendSearch, setPendSearch] = useState('')
+  const [pendCat, setPendCat] = useState('')
+  const [pendFrom, setPendFrom] = useState('')
+  const [pendTo, setPendTo] = useState('')
+  const filteredPending = expenses.filter(e => {
+    if (pendSearch) {
+      const q = pendSearch.toLowerCase()
+      const haystack = `${e.code || ''} ${e.description || ''} ${e.user_name || ''} ${e.requester_name || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    if (pendCat && e.category !== pendCat) return false
+    if (pendFrom && e.expense_date && e.expense_date < pendFrom) return false
+    if (pendTo && e.expense_date && e.expense_date > pendTo) return false
+    return true
+  })
+  const { sort: pendSort, setSort: setPendSort, sortedData: sortedPending } = useSort(filteredPending, 'expense_date', 'desc')
+  const dateInput = (val) => ({ background: val ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${val ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: val ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' })
+  const hasFilter = pendSearch || pendCat || pendFrom || pendTo
 
   const { mutate: _reimburse } = useMutation({
     mutationFn: id => expensesApi.reimburse(id),
@@ -409,8 +454,22 @@ function PendingApproval() {
       <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', marginBottom: 16 }}>
         {expenses.length > 0 ? `${expenses.length} gasto(s) pendientes de revisión · ${fmt(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))} total` : 'No hay gastos pendientes'}
       </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
+        <SearchInput value={pendSearch} onChange={setPendSearch} placeholder="Buscar código, descripción o solicitante..." style={{ minWidth: 240, flex: '1 1 240px', maxWidth: 360 }} />
+        <FilterSelect value={pendCat} onChange={setPendCat} placeholder="Tipo" options={Object.entries(CATEGORIES).map(([v, c]) => ({ value: v, label: `${c.icon} ${c.label}` }))} />
+        <input type="date" aria-label="Desde" value={pendFrom} onChange={e => setPendFrom(e.target.value)} style={dateInput(pendFrom)} />
+        <span style={{ color: 'var(--text-3)' }}>—</span>
+        <input type="date" aria-label="Hasta" value={pendTo} onChange={e => setPendTo(e.target.value)} style={dateInput(pendTo)} />
+        {hasFilter && (
+          <button onClick={() => { setPendSearch(''); setPendCat(''); setPendFrom(''); setPendTo('') }}
+            style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>Limpiar</button>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedPending.length} / {expenses.length}</span>
+      </div>
       {isLoading ? <Spinner /> : expenses.length === 0 ? (
         <EmptyState icon="✅" title="Sin pendientes" description="No hay gastos pendientes de revisión." />
+      ) : sortedPending.length === 0 ? (
+        <EmptyState icon="🔍" title="Sin resultados" description="Ningún gasto pendiente coincide con los filtros aplicados." />
       ) : (
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '80px 110px 1fr 120px 110px 130px auto', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

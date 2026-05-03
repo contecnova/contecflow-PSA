@@ -13,6 +13,23 @@ from app.models.user import User
 from . import register_metric
 
 
+def _is_sqlite(db: Session) -> bool:
+    bind = db.get_bind()
+    return bool(bind and bind.dialect.name == "sqlite")
+
+
+def _week_bucket_expr(db: Session):
+    if _is_sqlite(db):
+        return func.strftime('%Y-%W', Imputation.date)
+    return func.date_trunc('week', Imputation.date)
+
+
+def _month_bucket_expr(db: Session):
+    if _is_sqlite(db):
+        return func.strftime('%Y-%m-01', Imputation.date)
+    return func.date_trunc('month', Imputation.date)
+
+
 def _month_label(d) -> str:
     """Format date to "Ene 2024" format."""
     months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
@@ -70,8 +87,9 @@ def metric_hours_by_week(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Evolución semanal de horas imputadas."""
+    week_bucket = _week_bucket_expr(db)
     q = db.query(
-        func.date_trunc('week', Imputation.date).label('week_start'),
+        week_bucket.label('week_start'),
         func.sum(Imputation.hours).label('value')
     ).filter(Imputation.date.between(d_from, d_to))
     if project_ids is not None:
@@ -80,7 +98,7 @@ def metric_hours_by_week(
         q = q.filter(Imputation.project_id == project_id)
     if user_id:
         q = q.filter(Imputation.user_id == user_id)
-    q = q.group_by(func.date_trunc('week', Imputation.date)).order_by(func.date_trunc('week', Imputation.date))
+    q = q.group_by(week_bucket).order_by(week_bucket)
     rows = [
         {"label": str(r.week_start)[5:10], "full_label": str(r.week_start), "value": round(r.value or 0, 1)}
         for r in q.all()
@@ -100,8 +118,9 @@ def metric_hours_by_month(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Evolución mensual de horas imputadas."""
+    month_bucket = _month_bucket_expr(db)
     q = db.query(
-        func.date_trunc('month', Imputation.date).label('month_start'),
+        month_bucket.label('month_start'),
         func.sum(Imputation.hours).label('value')
     ).filter(Imputation.date.between(d_from, d_to))
     if project_ids is not None:
@@ -110,7 +129,7 @@ def metric_hours_by_month(
         q = q.filter(Imputation.project_id == project_id)
     if user_id:
         q = q.filter(Imputation.user_id == user_id)
-    q = q.group_by(func.date_trunc('month', Imputation.date)).order_by(func.date_trunc('month', Imputation.date))
+    q = q.group_by(month_bucket).order_by(month_bucket)
     rows = [
         {"label": str(r.month_start)[5:7] + "/" + str(r.month_start)[:4], "full_label": str(r.month_start), "value": round(r.value or 0, 1)}
         for r in q.all()

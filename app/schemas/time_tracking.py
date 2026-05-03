@@ -13,7 +13,9 @@ class TimerSessionOut(BaseModel):
     id: str
     user_id: str
     task_id: Optional[str] = None
+    task_name: Optional[str] = None
     project_id: str
+    project_name: Optional[str] = None
     started_at: datetime
     paused_at: Optional[datetime] = None
     paused_duration_secs: int
@@ -32,6 +34,8 @@ class TimerStartPayload(BaseModel):
 class TimerStopPayload(BaseModel):
     description: Optional[str] = None
     is_billable: bool = True
+    task_id: Optional[str] = None
+    force_duplicate: bool = False
 
 
 # ── Imputation Alert Schemas ───────────────────────────────────────────────

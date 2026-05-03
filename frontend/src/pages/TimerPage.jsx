@@ -57,19 +57,16 @@ function _onKeyboardActivate(event, action) {
   }
 }
 
-function StartModal({ onClose, onStart, isPending, user }) {
+function StartModal({ onClose, onStart, isPending }) {
   const [projectId, setProjectId] = useState('')
   const [taskId,    setTaskId]    = useState('')
   const [billable,  setBillable]  = useState(true)
-
-  const hasRate = user?.hourly_rate && user.hourly_rate > 0
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects-list-timer'],
     queryFn: () => projectsApi.list({ page_size: 200, status: 'active' }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
-    enabled: hasRate,
   })
 
   const { data: tasks = [] } = useQuery({
@@ -77,7 +74,7 @@ function StartModal({ onClose, onStart, isPending, user }) {
     queryFn: () => tasksApi.list({ project_id: projectId, assigned_to_me: true, page_size: 200 }).then(r =>
       Array.isArray(r.data) ? r.data : (r.data.items || [])
     ),
-    enabled: !!projectId && hasRate,
+    enabled: !!projectId,
   })
 
   return (
@@ -127,23 +124,14 @@ function StartModal({ onClose, onStart, isPending, user }) {
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Tiempo facturable
         </label>
-        {!hasRate && (
-          <div style={{
-            background: 'rgba(252,129,129,0.12)', border: '1px solid var(--danger)',
-            borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            fontSize: "var(--text-sm)", color: 'var(--danger)', lineHeight: 1.5,
-          }}>
-            ⚠ No tienes tarifa horaria asignada. No puedes iniciar el cronómetro hasta que Recursos Humanos la configure.
-          </div>
-        )}
         <div style={{ display: 'flex', gap: 10 }}>
-          <button disabled={!projectId || isPending || !hasRate}
+          <button disabled={!projectId || isPending}
             onClick={() => onStart({ project_id: projectId, task_id: taskId || null, is_billable: billable })}
             style={{
               flex: 1, padding: '11px', background: 'var(--accent)', border: 'none',
               borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
-              cursor: (projectId && hasRate) ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-              opacity: (!projectId || isPending || !hasRate) ? 0.6 : 1,
+              cursor: projectId ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+              opacity: (!projectId || isPending) ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
             {isPending ? '▶ Iniciando…' : '▶ Iniciar'}
@@ -159,9 +147,29 @@ function StartModal({ onClose, onStart, isPending, user }) {
   )
 }
 
-function StopModal({ onClose, onStop, isPending, elapsed }) {
+function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction, elapsed }) {
   const [description, setDescription] = useState('')
   const [billable, setBillable] = useState(true)
+  const [taskId, setTaskId] = useState(currentTimer?.task_id || '')
+  const [forceDuplicate, setForceDuplicate] = useState(false)
+
+  useEffect(() => {
+    setTaskId(currentTimer?.task_id || '')
+    setForceDuplicate(false)
+  }, [currentTimer?.id, currentTimer?.task_id])
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks-for-stop-timer', currentTimer?.project_id],
+    queryFn: () => tasksApi.list({ project_id: currentTimer?.project_id, page_size: 200 }).then(r =>
+      Array.isArray(r.data) ? r.data : (r.data.items || [])
+    ),
+    enabled: !!currentTimer?.project_id,
+  })
+
+  const isSaving = pendingAction === 'stop'
+  const isCancelling = pendingAction === 'cancel'
+  const isBusy = pendingAction !== null
+
   return (
     <>
       <div role="presentation" onMouseDown={onClose} style={{
@@ -180,6 +188,7 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
         background: 'var(--surface-1)', border: '1px solid var(--surface-4)',
         borderRadius: 14, padding: 28, width: 420, maxWidth: '95vw',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        pointerEvents: 'all',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
@@ -196,26 +205,48 @@ function StopModal({ onClose, onStop, isPending, elapsed }) {
             style={{ ...FS, resize: 'vertical' }} rows={3}
             placeholder="Describe el trabajo realizado" aria-label="Descripcion del trabajo" autoFocus />
         </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={LS}>Tarea final</label>
+          <select value={taskId} onChange={e => setTaskId(e.target.value)} style={FS} aria-label="Tarea final">
+            <option value="">— Sin tarea —</option>
+            {tasks.map(task => <option key={task.id} value={task.id}>{task.title || task.name}</option>)}
+          </select>
+          <div style={{ marginTop: 6, fontSize: "var(--text-xs)", color: 'var(--text-3)', lineHeight: 1.5 }}>
+            Si ya existe una imputación para esa tarea y fecha, selecciona otra tarea o activa el guardado forzado.
+          </div>
+        </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-base)", color: 'var(--text-1)' }}>
           <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)}
             style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
           Marcar como facturable
         </label>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button disabled={isPending}
-            onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable })}
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 22, fontSize: "var(--text-sm)", color: 'var(--text-2)', lineHeight: 1.5 }}>
+          <input type="checkbox" checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2 }} />
+          <span>Permitir imputación duplicada y avisar al manager para revisión si ya existe una en la misma tarea y fecha.</span>
+        </label>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button disabled={isBusy}
+            onClick={() => onStop({ description: description || 'Sesión de trabajo', is_billable: billable, task_id: taskId || null, force_duplicate: forceDuplicate })}
             style={{
-              flex: 1, padding: '11px', background: 'var(--danger)', border: 'none',
+              padding: '11px', background: 'var(--danger)', border: 'none',
               borderRadius: 9, color: '#fff', fontSize: "var(--text-base)", fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit', opacity: isPending ? 0.6 : 1,
+              cursor: 'pointer', fontFamily: 'inherit', opacity: isBusy ? 0.6 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
-            {isPending ? 'Guardando…' : '⏹ Guardar y cerrar'}
+            {isSaving ? 'Guardando…' : '⏹ Guardar y cerrar'}
           </button>
           <button onClick={onClose} style={{
             padding: '11px 18px', background: 'var(--surface-3)', border: '1px solid var(--surface-4)',
             borderRadius: 9, color: 'var(--text-2)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
           }}>Cancelar</button>
+          </div>
+          <button disabled={isBusy} onClick={onCancelTimer} style={{
+            padding: '11px 18px', width: '100%', background: 'rgba(255,71,87,0.14)', border: '1px solid rgba(255,71,87,0.35)',
+            borderRadius: 9, color: 'var(--danger)', fontSize: "var(--text-base)", cursor: 'pointer', fontFamily: 'inherit',
+            opacity: isBusy ? 0.6 : 1,
+          }}>{isCancelling ? 'Cancelando…' : '🗑 Cancelar cronómetro'}</button>
         </div>
       </div>
       </div>
@@ -237,6 +268,20 @@ export default function TimerPage() {
     queryKey: ['timer-current'],
     queryFn: () => imputationsApi.timerCurrent().then(r => r.data),
     refetchInterval: 30_000,
+  })
+
+  const { data: timerProject } = useQuery({
+    queryKey: ['timer-current-project', currentTimer?.project_id],
+    queryFn: () => projectsApi.get(currentTimer.project_id).then(r => r.data),
+    enabled: !!currentTimer?.project_id && !currentTimer?.project_name,
+    staleTime: 300_000,
+  })
+
+  const { data: timerTask } = useQuery({
+    queryKey: ['timer-current-task', currentTimer?.task_id],
+    queryFn: () => tasksApi.get(currentTimer.task_id).then(r => r.data),
+    enabled: !!currentTimer?.task_id && !currentTimer?.task_name,
+    staleTime: 300_000,
   })
 
   const { data: timerHistory = [] } = useQuery({
@@ -275,6 +320,16 @@ export default function TimerPage() {
     onSuccess: (data) => { toast.success('Cronómetro reanudado'); qc.setQueryData(['timer-current'], data) },
     onError: (e) => toast.error(e?.response?.data?.detail || 'Error al reanudar'),
   })
+  const cancelMutation = useMutation({
+    mutationFn: () => imputationsApi.timerCancel().then(r => r.data),
+    onSuccess: () => {
+      toast.success('Cronómetro cancelado')
+      qc.setQueryData(['timer-current'], null)
+      setShowStop(false)
+      setElapsed(0)
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al cancelar el cronómetro'),
+  })
   const stopMutation = useMutation({
     mutationFn: (p) => imputationsApi.timerStop(p).then(r => r.data),
     onSuccess: () => {
@@ -283,15 +338,21 @@ export default function TimerPage() {
       qc.invalidateQueries({ queryKey: ['timer-history'] })
       setShowStop(false); setElapsed(0)
     },
-    onError: (e) => toast.error(e?.response?.data?.detail || 'Error al detener'),
+    onError: (e) => {
+      const detail = e?.response?.data?.detail || 'Error al detener'
+      toast.error(detail)
+    },
   })
 
   const isPaused  = !!currentTimer?.paused_at
   const isRunning = !!currentTimer && !isPaused
-  const isLoading = pauseMutation.isPending || resumeMutation.isPending || stopMutation.isPending
+  const isLoading = pauseMutation.isPending || resumeMutation.isPending || stopMutation.isPending || cancelMutation.isPending
+  const stopPendingAction = stopMutation.isPending ? 'stop' : cancelMutation.isPending ? 'cancel' : null
   const stateColor = isRunning ? 'var(--success)' : isPaused ? 'var(--orange)' : 'var(--text-3)'
   const stateLabel = isRunning ? 'Corriendo' : isPaused ? 'Pausado' : 'Sin sesión'
   const isOnline = useOnlineStatus()
+  const timerProjectLabel = currentTimer?.project_name || timerProject?.name || (currentTimer?.project_id ? `Proyecto #${currentTimer.project_id}` : '—')
+  const timerTaskLabel = currentTimer?.task_name || timerTask?.title || timerTask?.name || (currentTimer?.task_id ? `Tarea #${currentTimer.task_id}` : null)
 
   return (
     <PageShell style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -336,10 +397,10 @@ export default function TimerPage() {
           </div>
 
           <div style={{ fontSize: "var(--text-base)", color: 'var(--text-2)', fontWeight: 600 }}>
-            📁 {currentTimer.project_name || `Proyecto #${currentTimer.project_id}`}
+            📁 {timerProjectLabel}
             {currentTimer.task_id && (
               <span style={{ marginLeft: 12, fontSize: "var(--text-sm)", color: 'var(--text-3)' }}>
-                · Tarea #{currentTimer.task_id}
+                · {timerTaskLabel}
               </span>
             )}
           </div>
@@ -465,8 +526,8 @@ export default function TimerPage() {
         )}
       </div>
 
-      {showStart && <StartModal onClose={() => setShowStart(false)} onStart={p => startMutation.mutate(p)} isPending={startMutation.isPending} user={user} />}
-      {showStop  && <StopModal  elapsed={elapsed} onClose={() => setShowStop(false)} onStop={p => stopMutation.mutate(p)} isPending={stopMutation.isPending} />}
+      {showStart && <StartModal onClose={() => setShowStart(false)} onStart={p => startMutation.mutate(p)} isPending={startMutation.isPending} />}
+      {showStop  && <StopModal  currentTimer={currentTimer} elapsed={elapsed} onClose={() => setShowStop(false)} onStop={p => stopMutation.mutate(p)} onCancelTimer={() => cancelMutation.mutate()} pendingAction={stopPendingAction} />}
 
       <style>{`
         @keyframes timerPulse {

@@ -37,6 +37,7 @@ from app.schemas import WeekSummary
 from app.schemas.time_tracking import TimerSessionOut
 from app.schemas.time_tracking import LockoutStatusOut
 from app.schemas.time_tracking import ImputationAlertOut
+from app.services.notifications import notify_user
 from fastapi import HTTPException
 
 
@@ -88,6 +89,68 @@ def _assert_project_membership(project, task, current_user: User, db: Session) -
             status_code=403,
             detail="No puedes imputar horas en un proyecto al que no estás asignado.",
         )
+
+
+def _resolve_timer_stop_task(payload, timer: TimerSession, db: Session) -> Optional[Task]:
+    task_id_provided = "task_id" in getattr(payload, "model_fields_set", set())
+    selected_task_id = payload.task_id if task_id_provided else timer.task_id
+    if not selected_task_id:
+        return None
+
+    task = db.query(Task).filter(
+        Task.id == selected_task_id,
+        Task.project_id == timer.project_id,
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada o no pertenece al proyecto")
+    if task.status in (TaskStatus.done, TaskStatus.cancelled):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"La tarea '{task.title or task.id}' está en estado '{task.status.value}' "
+                "y no admite nuevas imputaciones."
+            ),
+        )
+    return task
+
+
+def _notify_duplicate_imputation_manager(
+    db: Session,
+    current_user: User,
+    project: Project,
+    task: Optional[Task],
+    imputation: Imputation,
+    duplicate_imputation_id: Optional[str],
+) -> None:
+    manager_id = None
+    if current_user.manager_id and current_user.manager_id != current_user.id:
+        manager_id = current_user.manager_id
+    elif project.pm_id and project.pm_id != current_user.id:
+        manager_id = project.pm_id
+
+    if not manager_id:
+        return
+
+    task_label = task.title if task and task.title else "sin tarea"
+    body = (
+        f"{current_user.full_name} forzó el cierre de un cronómetro con una imputación duplicada "
+        f"para {project.name} · {task_label} el {imputation.date}. "
+        f"Se registraron {imputation.hours}h."
+    )
+    if duplicate_imputation_id:
+        body += f" Ya existía la imputación {duplicate_imputation_id}."
+    body += " Revisa el timesheet si quieres rechazarla."
+
+    notify_user(
+        db,
+        manager_id,
+        "system",
+        "Imputación forzada pendiente de revisión",
+        body,
+        resource="imputations",
+        resource_id=imputation.id,
+        action_url="/time",
+    )
 
 
 # ── Validate & create ──────────────────────────────────────────────────────────
@@ -357,6 +420,18 @@ def resume_timer_session(current_user: User, db: Session):
     return timer
 
 
+def cancel_timer_session(current_user: User, db: Session):
+    timer = db.query(TimerSession).filter(
+        and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
+    ).first()
+    if not timer:
+        raise HTTPException(status_code=404, detail="No active timer found")
+
+    db.delete(timer)
+    db.commit()
+    return {"message": "Cronómetro cancelado"}
+
+
 def stop_timer_session(payload, current_user: User, db: Session):
     """Stop timer and create the resulting Imputation. Returns the Imputation."""
 
@@ -386,19 +461,9 @@ def stop_timer_session(payload, current_user: User, db: Session):
                 "y no admite nuevas imputaciones."
             ),
         )
-    _assert_project_membership(project, None, current_user, db)
-
-    # Re-validate task status if applicable.
-    if timer.task_id:
-        task = db.query(Task).filter(Task.id == timer.task_id).first()
-        if task and task.status in (TaskStatus.done, TaskStatus.cancelled):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"La tarea está en estado '{task.status.value}' "
-                    "y no admite nuevas imputaciones."
-                ),
-            )
+    task = _resolve_timer_stop_task(payload, timer, db)
+    selected_task_id = task.id if task else None
+    _assert_project_membership(project, task, current_user, db)
 
     now = datetime.now(timezone.utc)
     started = timer.started_at if timer.started_at.tzinfo else timer.started_at.replace(tzinfo=timezone.utc)
@@ -438,14 +503,17 @@ def stop_timer_session(payload, current_user: User, db: Session):
         )
 
     # Duplicate check (mirrors validate_and_create_imputation)
-    if timer.task_id:
+    duplicate_imputation_id = None
+    if selected_task_id:
         duplicate = db.query(Imputation.id).filter(
             Imputation.user_id == current_user.id,
-            Imputation.task_id == timer.task_id,
+            Imputation.task_id == selected_task_id,
             Imputation.date == imputation_date,
         ).first()
         if duplicate:
-            raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
+            duplicate_imputation_id = duplicate[0]
+            if not payload.force_duplicate:
+                raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
     else:
         duplicate = db.query(Imputation.id).filter(
             Imputation.user_id == current_user.id,
@@ -454,11 +522,13 @@ def stop_timer_session(payload, current_user: User, db: Session):
             Imputation.date == imputation_date,
         ).first()
         if duplicate:
-            raise HTTPException(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
+            duplicate_imputation_id = duplicate[0]
+            if not payload.force_duplicate:
+                raise HTTPException(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
 
     imputation = Imputation(
         user_id=current_user.id,
-        task_id=timer.task_id,
+        task_id=selected_task_id,
         project_id=timer.project_id,
         date=imputation_date,
         hours=hours,
@@ -473,6 +543,17 @@ def stop_timer_session(payload, current_user: User, db: Session):
 
     timer.imputation_id = imputation.id
     timer.ended_at = datetime.now(timezone.utc)
+
+    if duplicate_imputation_id and payload.force_duplicate:
+        _notify_duplicate_imputation_manager(
+            db,
+            current_user,
+            project,
+            task,
+            imputation,
+            duplicate_imputation_id,
+        )
+
     db.commit()
 
     imputation = db.query(Imputation).options(
@@ -491,11 +572,16 @@ def timer_out(timer) -> "TimerSessionOut":
     started = timer.started_at
     if started.tzinfo is None:
         started = started.replace(tzinfo=timezone.utc)
+    task_name = None
+    if getattr(timer, "task", None):
+        task_name = timer.task.title or getattr(timer.task, "name", None)
     return TimerSessionOut(
         id=timer.id,
         user_id=timer.user_id,
         task_id=timer.task_id,
+        task_name=task_name,
         project_id=timer.project_id,
+        project_name=getattr(getattr(timer, "project", None), "name", None),
         started_at=started.isoformat(),
         paused_at=timer.paused_at,
         paused_duration_secs=timer.paused_duration_secs or 0,
@@ -506,7 +592,10 @@ def timer_out(timer) -> "TimerSessionOut":
 
 def get_current_timer_record(db: Session, current_user: User):
     """Return the active (non-ended) TimerSession for the user, or None."""
-    return db.query(TimerSession).filter(
+    return db.query(TimerSession).options(
+        joinedload(TimerSession.project),
+        joinedload(TimerSession.task),
+    ).filter(
         and_(
             TimerSession.user_id == current_user.id,
             TimerSession.ended_at == None,

@@ -8,7 +8,7 @@ from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 from app.schemas import ImputationCreate, ImputationUpdate, ImputationOut, WeekSummary
 from app.schemas.time_tracking import TimerSessionOut, TimerStartPayload, TimerStopPayload, ImputationAlertOut, LockoutStatusOut
-from app.services.psa_flows import approve_imputation_flow
+from app.services.psa_flows import approve_imputation_flow, reject_imputation_flow
 from app.services.imputation_service import (
     validate_and_create_imputation,
     validate_imputation_edit_allowed,
@@ -16,6 +16,7 @@ from app.services.imputation_service import (
     start_timer_session,
     pause_timer_session,
     resume_timer_session,
+    cancel_timer_session,
     stop_timer_session,
     timer_out,
     get_current_timer_record,
@@ -111,6 +112,16 @@ def approve_imputation(
     return {"message": "Imputación aprobada"}
 
 
+@router.post("/{imputation_id}/reject", summary="Rechazar imputación (manager)")
+def reject_imputation(
+    imputation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    reject_imputation_flow(db, imputation_id, current_user)
+    return {"message": "Imputación rechazada"}
+
+
 # ── Timer Endpoints ────────────────────────────────────────────────────────
 
 @router.post("/timer/start", response_model=TimerSessionOut, summary="Start work timer")
@@ -149,6 +160,14 @@ def stop_timer(
     current_user: User = Depends(get_current_user),
 ):
     return stop_timer_session(payload, current_user, db)
+
+
+@router.post("/timer/cancel", summary="Cancel active timer without creating imputation")
+def cancel_timer(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return cancel_timer_session(current_user, db)
 
 
 @router.get("/timer/current", response_model=Optional[TimerSessionOut], summary="Get active timer")

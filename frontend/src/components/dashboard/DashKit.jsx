@@ -183,14 +183,28 @@ export function SectionCard({ title, children, badge }) {
 /* ── Page shell (header + period selector) ───────────────────────────────────
    Wrapper sobre <PageShell> + <PageHeader>. Mantiene API legacy con icon/title/
    subtitle/days/setDays/periods para los Dashboards. */
-export function DashPageShell({ icon, title, subtitle, days, setDays, periods = [7, 30, 90], children }) {
+export function DashPageShell({
+  icon,
+  title,
+  subtitle,
+  days,
+  setDays,
+  periods = [7, 30, 90],
+  showPeriodSuffix = true,
+  children,
+}) {
+  const hasPeriodSelector = Array.isArray(periods) && periods.length > 0 && typeof days === 'number' && typeof setDays === 'function'
+  const headerSubtitle = showPeriodSuffix && typeof days === 'number'
+    ? `${subtitle} · últimos ${days} días`
+    : subtitle
+
   return (
     <PageShell>
       <PageHeader
         icon={icon}
         title={title}
-        subtitle={`${subtitle} · últimos ${days} días`}
-        actions={
+        subtitle={headerSubtitle}
+        actions={hasPeriodSelector ? (
           <div style={{ display: 'flex', gap: 6 }}>
             {periods.map(d => (
               <PeriodButton key={d} active={days === d}
@@ -198,7 +212,7 @@ export function DashPageShell({ icon, title, subtitle, days, setDays, periods = 
                 onClick={() => setDays(d)} />
             ))}
           </div>
-        }
+        ) : undefined}
       />
       {children}
     </PageShell>

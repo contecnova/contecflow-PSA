@@ -310,9 +310,9 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }) {
       height: 'calc(100vh - 210px)', minHeight: 520, background: 'var(--surface-0)',
       border: '1px solid var(--surface-4)', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden',
     } : {
-      position: 'fixed', top: 0, right: 0, bottom: 0, width: 560,
-      background: 'var(--surface-0)', borderLeft: '1px solid var(--surface-4)',
-      zIndex: 200, display: 'flex', flexDirection: 'column', overflowY: 'auto',
+      position: 'fixed', top: 12, right: 12, width: 560, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
+      background: 'var(--surface-0)', border: '1px solid var(--surface-4)', borderRadius: 12,
+      zIndex: 200, display: 'flex', flexDirection: 'column', overflow: 'hidden',
       boxShadow: '-8px 0 32px rgba(0,0,0,0.25)',
     }}>
       {/* Header */}

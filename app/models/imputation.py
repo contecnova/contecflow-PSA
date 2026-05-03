@@ -62,13 +62,6 @@ class Imputation(Base):
     project = relationship("Project", back_populates="imputations")
     approver = relationship("User", foreign_keys=[approved_by])
 
-    __table_args__ = (
-        # DB-level race-condition guard: one row per user+task+date.
-        # task_id is nullable; DBs typically allow multiple NULLs, so this only
-        # enforces uniqueness when a concrete task exists.
-        Index("uq_imputations_user_task_date", "user_id", "task_id", "date", unique=True),
-    )
-
     def __repr__(self):
         return f"<Imputation user={self.user_id} task={self.task_id} date={self.date} hours={self.hours}>"
 

@@ -40,10 +40,10 @@ export default function InboxPage() {
     }
   }, [tab, params, setParams])
 
-  const { alertCount, mentionCount, approvalCount } = useNotificationBadges()
+  const { alertCount, notifUnreadCount, mentionCount, approvalCount } = useNotificationBadges()
 
   const items = [
-    { id: 'notifications', label: t('inbox.tab_notifications'), count: alertCount || undefined },
+    { id: 'notifications', label: t('inbox.tab_notifications'), count: (alertCount + notifUnreadCount) || undefined },
     { id: 'mentions',      label: t('inbox.tab_mentions'),      count: mentionCount || undefined },
     { id: 'approvals',     label: t('inbox.tab_approvals'),     count: approvalCount || undefined },
   ]

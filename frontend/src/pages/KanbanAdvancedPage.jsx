@@ -735,10 +735,10 @@ function TaskMovementLogDrawer({ task, onClose }) {
 
   return (
     <div style={{
-      position: 'fixed', top: 0, right: 0, bottom: 0, width: 380,
-      background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
+      position: 'fixed', top: 12, right: 12, width: 380, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
+      background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12,
       zIndex: 'var(--z-modal, 1000)', display: 'flex', flexDirection: 'column',
-      boxShadow: '-4px 0 24px rgba(0,0,0,0.35)',
+      overflow: 'hidden', boxShadow: '-4px 0 24px rgba(0,0,0,0.35)',
     }}>
       {/* Header */}
       <div style={{

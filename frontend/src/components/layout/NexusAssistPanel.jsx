@@ -117,9 +117,11 @@ export default function ContecflowAssistPanel({ open, onClose, context }) {
 
   if (!open) return null
   return (
-    <div style={{ position:'fixed', top:0, right:0, bottom:0, width:420, zIndex:1000,
-      background:'var(--surface-1)', borderLeft:'.5px solid var(--surface-4)',
-      display:'flex', flexDirection:'column', boxShadow:'-4px 0 24px rgba(0,0,0,0.18)' }}>
+    <div style={{
+      position:'fixed', top:12, right:12, width:420, maxWidth:'calc(100vw - 24px)', maxHeight:'calc(100vh - 24px)', zIndex:1000,
+      background:'var(--surface-1)', border:'.5px solid var(--surface-4)', borderRadius:12,
+      display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'-4px 0 24px rgba(0,0,0,0.18)',
+    }}>
       <div style={{ padding:'16px 20px', borderBottom:'.5px solid var(--surface-4)',
         background:'var(--surface-2)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>

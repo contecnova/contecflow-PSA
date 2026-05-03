@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton } from '../ui'
-import api, { projectsApi } from '../../services/api'
+import api, { projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
 import NexusAssistPanel from './NexusAssistPanel'
@@ -682,6 +682,24 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
     staleTime: 300_000,
   })
 
+  const { data: timerProject } = useQuery({
+    queryKey: ['topbar-timer-project', activeTimer?.project_id],
+    queryFn: () => projectsApi.get(activeTimer.project_id).then(r => r.data),
+    enabled: !!activeTimer?.project_id && !activeTimer?.project_name,
+    staleTime: 300_000,
+  })
+
+  const { data: timerTask } = useQuery({
+    queryKey: ['topbar-timer-task', activeTimer?.task_id],
+    queryFn: () => tasksApi.get(activeTimer.task_id).then(r => r.data),
+    enabled: !!activeTimer?.task_id && !activeTimer?.task_name,
+    staleTime: 300_000,
+  })
+
+  const topbarProjectLabel = activeTimer?.project_name || timerProject?.name || (activeTimer?.project_id ? `Proyecto #${activeTimer.project_id}` : null)
+  const topbarTaskLabel = activeTimer?.task_name || timerTask?.title || timerTask?.name || (activeTimer?.task_id ? `Tarea #${activeTimer.task_id}` : null)
+  const topbarTimerSubtitle = topbarTaskLabel ? `${topbarProjectLabel} · ${topbarTaskLabel}` : topbarProjectLabel
+
   const breadcrumbs = useMemo(() => {
     const items = []
     const pathname = location.pathname || '/'
@@ -783,17 +801,28 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, user, onProfileOpen, onLo
         </button>
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
-            title="Cronómetro activo — click para gestionar"
+            title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'}
             style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
               background: 'var(--success-bg)', border: '1px solid var(--success-border)',
               borderRadius: 8, color: 'var(--success)', textDecoration: 'none',
-              fontSize: "var(--text-sm)", fontWeight: 700, fontFamily: 'var(--font-mono)',
-              animation: 'timerPulse 2s ease-in-out infinite',
+              fontSize: "var(--text-sm)", fontWeight: 700,
             }}
           >
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%', background: 'var(--success)',
+              boxShadow: '0 0 10px var(--success)', animation: 'timerPulse 1.5s ease-in-out infinite',
+            }} />
             <Timer size={12} />
-            <span>{formatTimerDisplay(timerElapsed)}</span>
+            <span style={{ fontFamily: 'var(--font-mono)' }}>{formatTimerDisplay(timerElapsed)}</span>
+            {topbarTimerSubtitle && (
+              <span style={{
+                maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                color: 'var(--text-2)', fontSize: "var(--text-xs)", fontWeight: 600,
+              }}>
+                {topbarTimerSubtitle}
+              </span>
+            )}
           </NavLink>
         )}
         {/* Inbox bell unificado: alerts + mentions + approvals */}
@@ -990,9 +1019,9 @@ export default function Layout({ children }) {
   const [timerElapsed, setTimerElapsed] = useState(0)
 
   const { data: activeTimer } = useQuery({
-    queryKey: ['timer-active-layout'],
+    queryKey: ['timer-current'],
     queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
-    refetchInterval: 30_000,
+    refetchInterval: 5_000,
     retry: false,
     staleTime: 10_000,
   })

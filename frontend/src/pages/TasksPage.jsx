@@ -244,6 +244,8 @@ function TaskDetailModal({ task, open, onClose }) {
   const STATUS_LABEL_MAP = { backlog: t('tasks.status_backlog'), todo: t('tasks.status_todo'), in_progress: t('tasks.status_in_progress'), review: t('tasks.status_review'), blocked: t('tasks.status_blocked'), done: t('tasks.status_done'), cancelled: t('tasks.status_cancelled') }
   const PRIORITY_COLOR   = { critical: 'var(--danger)', high: 'var(--warning)', medium: 'var(--accent)', low: 'var(--text-2)' }
   const STATUS_COLOR     = { done: 'var(--success)', blocked: 'var(--danger)', in_progress: 'var(--accent)', review: 'var(--warning)', todo: 'var(--text-2)', backlog: 'var(--text-3)', cancelled: 'var(--text-3)' }
+  const bodyPad = '20px 20px 24px'
+  const tabPanelStyle = { paddingTop: 8 }
 
   if (!open || !task || !form) return null
 
@@ -252,9 +254,11 @@ function TaskDetailModal({ task, open, onClose }) {
       <div role="presentation" onMouseDown={onClose}
         style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.35)' }} />
       <div role="dialog" aria-modal="true"
-        style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 520, maxWidth: '95vw',
+        style={{ position: 'fixed', top: 12, right: 12, width: 520, maxWidth: 'calc(100vw - 24px)',
+          maxHeight: 'calc(100vh - 24px)',
           background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)',
-          zIndex: 201, display: 'flex', flexDirection: 'column',
+          border: '1px solid var(--surface-4)', borderRadius: 12,
+          zIndex: 201, display: 'flex', flexDirection: 'column', overflow: 'hidden',
           boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
         {/* Drawer header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -266,7 +270,7 @@ function TaskDetailModal({ task, open, onClose }) {
           </button>
         </div>
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: bodyPad }}>
 
       {/* Tabs */}
       <Tabs
@@ -278,12 +282,12 @@ function TaskDetailModal({ task, open, onClose }) {
         active={tab}
         onChange={setTab}
         ariaLabel={t('tasks.tab_details')}
-        style={{ marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid var(--surface-4)' }}
+        style={{ marginBottom: 16, paddingBottom: 10, borderBottom: '1px solid var(--surface-4)' }}
       />
 
       {/* ── DETALLES / EDITAR ── */}
       {tab === 'detail' && !isEditing && (
-        <div>
+        <div style={tabPanelStyle}>
           {/* Title */}
           <div style={{ fontSize: "var(--text-lg-em)", fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, lineHeight: 1.3 }}>{task.title}</div>
 
@@ -393,7 +397,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── MODO EDICIÓN ── */}
       {tab === 'detail' && isEditing && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ ...tabPanelStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
           {/* Título */}
           <div style={{ gridColumn: '1/-1' }}>
@@ -558,7 +562,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── COMENTARIOS ── */}
       {tab === 'comments' && (
-        <div>
+        <div style={tabPanelStyle}>
           {(!task.comments || task.comments.length === 0) ? (
             <p style={{ color: 'var(--text-2)', fontSize: "var(--text-base)", marginBottom: 16 }}>{t('tasks.no_comments')}</p>
           ) : (
@@ -591,7 +595,7 @@ function TaskDetailModal({ task, open, onClose }) {
 
       {/* ── DOCUMENTOS ── */}
       {tab === 'docs' && (
-        <div style={{ marginTop: 4 }}>
+        <div style={{ ...tabPanelStyle, marginTop: 0 }}>
           <DocumentsPanel taskId={task.id} />
         </div>
       )}

@@ -3,7 +3,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { absencesApi } from '../services/api'
-import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, useSort, SortableTH, Tabs, SearchInput, FilterSelect } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Umbrella } from 'lucide-react'
@@ -388,7 +388,20 @@ export default function AbsencesPage() {
     queryFn: () => absencesApi.team().then(r => r.data),
     enabled: tab === 'team' && hasRole('admin', 'hr', 'pm'),
   })
-  const { sort: teamAbsSort, setSort: setTeamAbsSort, sortedData: sortedTeamAbs } = useSort(teamAbsences, 'start_date', 'desc')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [teamFilterType, setTeamFilterType] = useState('')
+  const [teamFilterStatus, setTeamFilterStatus] = useState('')
+  const [teamFilterFrom, setTeamFilterFrom] = useState('')
+  const [teamFilterTo, setTeamFilterTo] = useState('')
+  const filteredTeamAbs = teamAbsences.filter(a => {
+    if (teamSearch && !(a.user_name || '').toLowerCase().includes(teamSearch.toLowerCase())) return false
+    if (teamFilterType && a.type !== teamFilterType) return false
+    if (teamFilterStatus && a.status !== teamFilterStatus) return false
+    if (teamFilterFrom && a.end_date && a.end_date < teamFilterFrom) return false
+    if (teamFilterTo && a.start_date && a.start_date > teamFilterTo) return false
+    return true
+  })
+  const { sort: teamAbsSort, setSort: setTeamAbsSort, sortedData: sortedTeamAbs } = useSort(filteredTeamAbs, 'start_date', 'desc')
 
   const { mutate: cancel } = useMutation({
     mutationFn: (id) => absencesApi.deleteMy(id),
@@ -498,8 +511,32 @@ export default function AbsencesPage() {
 
       {tab === 'team' && (
         <div id="absences-panel-team" role="tabpanel" aria-labelledby="absences-tab-team">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+            <SearchInput value={teamSearch} onChange={setTeamSearch} placeholder={t('absences.search_person', 'Buscar persona...')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
+            <FilterSelect value={teamFilterType} onChange={setTeamFilterType} placeholder={t('absences.type_label')} options={Object.entries(typeLabels(t)).map(([v, l]) => ({ value: v, label: l.replace(/^\S+\s/, '') }))} />
+            <FilterSelect value={teamFilterStatus} onChange={setTeamFilterStatus} placeholder={t('common.status')} options={[
+              { value: 'pending', label: t('absences.status_pending') },
+              { value: 'approved', label: t('absences.status_approved') },
+              { value: 'rejected', label: t('absences.status_rejected') },
+              { value: 'cancelled', label: t('absences.status_cancelled') },
+            ]} />
+            <input type="date" aria-label={t('absences.start_label')} value={teamFilterFrom} onChange={e => setTeamFilterFrom(e.target.value)}
+              style={{ background: teamFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${teamFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: teamFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+            <span style={{ color: 'var(--text-3)' }}>—</span>
+            <input type="date" aria-label={t('absences.end_label')} value={teamFilterTo} onChange={e => setTeamFilterTo(e.target.value)}
+              style={{ background: teamFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${teamFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: teamFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+            {(teamSearch || teamFilterType || teamFilterStatus || teamFilterFrom || teamFilterTo) && (
+              <button onClick={() => { setTeamSearch(''); setTeamFilterType(''); setTeamFilterStatus(''); setTeamFilterFrom(''); setTeamFilterTo('') }}
+                style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {t('common.clear', 'Limpiar')}
+              </button>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{sortedTeamAbs.length} / {teamAbsences.length}</span>
+          </div>
           {teamAbsences.length === 0 ? (
             <EmptyState icon="👥" title={t('absences.empty_team_title')} />
+          ) : sortedTeamAbs.length === 0 ? (
+            <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
           ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 80px 100px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', alignItems: 'center' }}>

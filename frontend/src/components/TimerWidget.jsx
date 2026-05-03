@@ -3,6 +3,7 @@
  * Usa el api autenticado y el mismo cálculo de tiempo que TimerPage.
  */
 import { useState, useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -30,9 +31,8 @@ function calcElapsed(timer) {
 }
 
 const TimerWidget = () => {
-  const { user } = useAuth()
-  const hasRate = !!(user?.hourly_rate && user.hourly_rate > 0)
-  const [timer,     setTimer]    = useState(null)
+  useAuth()
+  const queryClient = useQueryClient()
   const [elapsed,   setElapsed]  = useState(0)
   const [projects,  setProjects] = useState([])
   const [projectId, setProjectId] = useState('')
@@ -40,16 +40,19 @@ const TimerWidget = () => {
   const [error,     setError]    = useState('')
   const tickRef = useRef(null)
 
+  const { data: timer = null } = useQuery({
+    queryKey: ['timer-current'],
+    queryFn: () => api.get('/imputations/timer/current').then(r => r.data).catch(() => null),
+    refetchInterval: 5_000,
+    retry: false,
+    staleTime: 1_000,
+  })
+
   useEffect(() => {
-    api.get('/imputations/timer/current').then(r => {
-      if (r.data) setTimer(r.data)
+    api.get('/projects?page_size=100').then(r => {
+      setProjects(Array.isArray(r.data) ? r.data : (r.data.items || []))
     }).catch(() => {})
-    if (hasRate) {
-      api.get('/projects?page_size=100').then(r => {
-        setProjects(Array.isArray(r.data) ? r.data : (r.data.items || []))
-      }).catch(() => {})
-    }
-  }, [hasRate])
+  }, [])
 
   useEffect(() => {
     clearInterval(tickRef.current)
@@ -60,12 +63,25 @@ const TimerWidget = () => {
     return () => clearInterval(tickRef.current)
   }, [timer])
 
-  const call = async (fn) => {
+  const call = async (fn, options = {}) => {
+    const { syncTimerFromResponse = true } = options
     setLoading(true); setError('')
-    try { const r = await fn(); if (r?.data !== undefined) setTimer(r.data || null) }
+    try {
+      const r = await fn()
+      if (syncTimerFromResponse && r?.data !== undefined) {
+        queryClient.setQueryData(['timer-current'], r.data || null)
+      }
+    }
     catch (e) { const raw = e?.response?.data?.detail; setError(Array.isArray(raw) ? raw.map(d => d.msg).join(', ') : (raw || 'Error')) }
     finally { setLoading(false) }
   }
+
+  const stopTimer = () => call(async () => {
+    const payload = { description: 'Sesión', is_billable: true }
+    const response = await api.post('/imputations/timer/stop', payload)
+    queryClient.setQueryData(['timer-current'], null)
+    return response
+  }, { syncTimerFromResponse: false })
 
   const isPaused = !!timer?.paused_at
   const stateColor = timer && !isPaused ? 'var(--success)' : isPaused ? 'var(--warning)' : 'var(--text-3)'
@@ -103,7 +119,8 @@ const TimerWidget = () => {
             {fmt(elapsed)}
           </div>
           <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 10, textAlign: 'center' }}>
-            Proyecto #{timer.project_id}
+            {timer.project_name || `Proyecto #${timer.project_id}`}
+            {timer.task_id && ` · ${timer.task_name || `Tarea #${timer.task_id}`}`}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             {isPaused
@@ -117,34 +134,25 @@ const TimerWidget = () => {
                 </button>
             }
             <button style={btnStyle('var(--danger)')} disabled={loading}
-              onClick={() => call(() =>
-                api.post('/imputations/timer/stop', { description: 'Sesión', is_billable: true })
-                  .then(r => { setTimer(null); return r })
-              )}>
+              onClick={stopTimer}>
               {'\u23f9'}
             </button>
           </div>
         </>
       ) : (
         <>
-          {!hasRate ? (
-            <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', lineHeight: 1.5 }}>
-              ⚠ Sin tarifa horaria asignada. Contacta con RRHH para activar el cronómetro.
-            </div>
-          ) : (
-            <>
-              <select value={projectId} onChange={e => setProjectId(e.target.value)} style={selectStyle}>
-                <option value="">— Proyecto —</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <button
-                disabled={!projectId || loading}
-                onClick={() => call(() => api.post('/imputations/timer/start', { project_id: projectId }))}
-                style={{ ...btnStyle('var(--accent)'), width: '100%', opacity: (!projectId || loading) ? 0.5 : 1 }}>
-                {loading ? 'Iniciando…' : '▶ Iniciar'}
-              </button>
-            </>
-          )}
+          <>
+            <select value={projectId} onChange={e => setProjectId(e.target.value)} style={selectStyle}>
+              <option value="">— Proyecto —</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <button
+              disabled={!projectId || loading}
+              onClick={() => call(() => api.post('/imputations/timer/start', { project_id: projectId }))}
+              style={{ ...btnStyle('var(--accent)'), width: '100%', opacity: (!projectId || loading) ? 0.5 : 1 }}>
+              {loading ? 'Iniciando…' : '▶ Iniciar'}
+            </button>
+          </>
         </>
       )}
       {error && <div style={{ fontSize: "var(--text-xs)", color: 'var(--danger)', marginTop: 6 }}>{'⚠'} {error}</div>}

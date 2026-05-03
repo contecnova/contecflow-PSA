@@ -348,8 +348,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   50%       { opacity: 0.4; }
 }
 @keyframes timerPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
-  50%       { box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2); }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.8); }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -381,7 +381,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .page-content {
   padding: var(--page-pad-y) var(--page-pad-x);
   max-width: var(--page-max-w);
-  animation: fadeUp 0.25s ease forwards;
+  animation: fadeUp 0.25s ease;
 }
 
 /* Sticky toolbar/header utility — usado por PageHeader sticky y filter rows */

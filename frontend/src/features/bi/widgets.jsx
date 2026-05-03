@@ -561,7 +561,11 @@ export function ConfigPanel({ prefs, onSave, onClose }) {
   }
 
   return (
-    <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 340, zIndex: 200, background: 'var(--surface-1)', borderLeft: '1px solid var(--surface-4)', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.4)' }}>
+    <div style={{
+      position: 'fixed', top: 12, right: 12, width: 340, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
+      zIndex: 200, background: 'var(--surface-1)', border: '1px solid var(--surface-4)', borderRadius: 12,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
+    }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>⚙ {t('bi.customize_dashboard')}</div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xl)", padding: '0 4px' }}>✕</button>

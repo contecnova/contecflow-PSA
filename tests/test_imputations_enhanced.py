@@ -6,7 +6,13 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date
 
 from app.models.imputation import ImputationAlert
+from app.models.imputation import Imputation
 from app.models.user import User
+from app.models.user import UserRole
+from app.models.project import Project
+from app.models.project import ProjectType, ProjectStatus
+from app.models.task import Task
+from app.models.enterprise import Notification
 
 
 @pytest.fixture
@@ -23,7 +29,6 @@ def test_start_timer(db: Session, timer_client):
     headers = {"Authorization": f"Bearer {token}"}
 
     # Get a project to timer on
-    from app.models.project import Project
     project = db.query(Project).first()
     if not project:
         pytest.skip("No project found")
@@ -50,7 +55,6 @@ def test_start_timer_duplicate(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
     project = db.query(Project).first()
     if not project:
         pytest.skip("No project found")
@@ -72,7 +76,6 @@ def test_pause_resume_timer(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
     project = db.query(Project).first()
     if not project:
         pytest.skip("No project found")
@@ -97,7 +100,6 @@ def test_stop_timer_creates_imputation(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
     project = db.query(Project).first()
     if not project:
         pytest.skip("No project found")
@@ -127,10 +129,18 @@ def test_get_current_timer(db: Session, timer_client):
     client, token = timer_client
     headers = {"Authorization": f"Bearer {token}"}
 
-    from app.models.project import Project
     project = db.query(Project).first()
     if not project:
         pytest.skip("No project found")
+
+    task = Task(
+        id="timer-task-test-id",
+        project_id=project.id,
+        title="Implementar vista legible del cronómetro",
+        assignee_id="dev-test-id",
+    )
+    db.add(task)
+    db.commit()
 
     # No timer yet
     response = client.get("/api/v1/imputations/timer/current", headers=headers)
@@ -138,7 +148,7 @@ def test_get_current_timer(db: Session, timer_client):
     assert response.json() is None
 
     # Start timer
-    payload = {"project_id": project.id}
+    payload = {"project_id": project.id, "task_id": task.id}
     client.post("/api/v1/imputations/timer/start", json=payload, headers=headers)
 
     # Get current timer
@@ -147,6 +157,236 @@ def test_get_current_timer(db: Session, timer_client):
     data = response.json()
     assert data is not None
     assert data["user_id"] is not None
+    assert data["project_name"] == project.name
+    assert data["task_name"] == task.title
+
+
+def test_stop_timer_allows_switching_task_on_duplicate(db: Session, timer_client):
+    client, token = timer_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    project = db.query(Project).first()
+    user = db.query(User).filter(User.username == "dev_test").first()
+    if not project or not user:
+        pytest.skip("Missing project or user")
+
+    task_primary = Task(
+        id="timer-stop-primary-task",
+        project_id=project.id,
+        title="Tarea principal timer",
+        assignee_id=user.id,
+    )
+    task_alternative = Task(
+        id="timer-stop-alt-task",
+        project_id=project.id,
+        title="Tarea alternativa timer",
+        assignee_id=user.id,
+    )
+    db.add_all([task_primary, task_alternative])
+    db.flush()
+
+    db.add(Imputation(
+        user_id=user.id,
+        project_id=project.id,
+        task_id=task_primary.id,
+        date=date.today(),
+        hours=1.0,
+        description="Duplicada previa",
+        is_billable=True,
+        hourly_rate_snapshot=user.hourly_rate,
+        cost_amount=10.0,
+    ))
+    db.commit()
+
+    client.post(
+        "/api/v1/imputations/timer/start",
+        json={"project_id": project.id, "task_id": task_primary.id},
+        headers=headers,
+    )
+
+    response = client.post(
+        "/api/v1/imputations/timer/stop",
+        json={"description": "Reasignada", "is_billable": True, "task_id": task_alternative.id},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["task"]["id"] == task_alternative.id
+
+
+def test_stop_timer_force_duplicate_notifies_manager(db: Session, timer_client):
+    client, token = timer_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    project = db.query(Project).first()
+    user = db.query(User).filter(User.username == "dev_test").first()
+    if not project or not user:
+        pytest.skip("Missing project or user")
+
+    manager = User(
+        id="timer-force-manager-id",
+        username="timer_force_manager",
+        email="timer-force-manager@example.com",
+        full_name="Timer Force Manager",
+        role=UserRole.pm,
+        is_active=True,
+    )
+    db.add(manager)
+    db.flush()
+
+    user.manager_id = manager.id
+    project.pm_id = manager.id
+
+    task = Task(
+        id="timer-force-task-id",
+        project_id=project.id,
+        title="Tarea con duplicado permitido",
+        assignee_id=user.id,
+    )
+    db.add(task)
+    db.flush()
+
+    db.add(Imputation(
+        user_id=user.id,
+        project_id=project.id,
+        task_id=task.id,
+        date=date.today(),
+        hours=1.0,
+        description="Imputación existente",
+        is_billable=True,
+        hourly_rate_snapshot=user.hourly_rate,
+        cost_amount=10.0,
+    ))
+    db.commit()
+
+    client.post(
+        "/api/v1/imputations/timer/start",
+        json={"project_id": project.id, "task_id": task.id},
+        headers=headers,
+    )
+
+    response = client.post(
+        "/api/v1/imputations/timer/stop",
+        json={"description": "Duplicada forzada", "is_billable": True, "force_duplicate": True},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+    duplicates = db.query(Imputation).filter(
+        Imputation.user_id == user.id,
+        Imputation.task_id == task.id,
+        Imputation.date == date.today(),
+    ).all()
+    assert len(duplicates) == 2
+    assert sum(imp.hours for imp in duplicates) >= 1.25
+
+    forced = db.query(Imputation).filter(
+        Imputation.user_id == user.id,
+        Imputation.task_id == task.id,
+        Imputation.description == "Duplicada forzada",
+    ).all()
+    assert len(forced) == 1
+
+    notification = db.query(Notification).filter(Notification.user_id == manager.id).order_by(Notification.created_at.desc()).first()
+    assert notification is not None
+    assert notification.resource == "imputations"
+    assert "forzó el cierre de un cronómetro" in (notification.body or "")
+
+    week = client.get("/api/v1/imputations/my/week", headers=headers)
+    assert week.status_code == 200
+    assert week.json()["total_hours"] >= 1.25
+
+
+def test_cancel_timer_discards_active_session(db: Session, timer_client):
+    client, token = timer_client
+    headers = {"Authorization": f"Bearer {token}"}
+
+    project = db.query(Project).first()
+    if not project:
+        pytest.skip("No project found")
+
+    client.post("/api/v1/imputations/timer/start", json={"project_id": project.id}, headers=headers)
+    response = client.post("/api/v1/imputations/timer/cancel", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["message"] == "Cronómetro cancelado"
+
+    current = client.get("/api/v1/imputations/timer/current", headers=headers)
+    assert current.status_code == 200
+    assert current.json() is None
+
+
+def test_manager_approval_of_forced_duplicate_keeps_sum(client, db: Session, dev_token, pm_token):
+    dev_headers = {"Authorization": f"Bearer {dev_token}"}
+    pm_headers = {"Authorization": f"Bearer {pm_token}"}
+
+    project = db.query(Project).first()
+    user = db.query(User).filter(User.username == "dev_test").first()
+    if not user:
+        pytest.skip("Missing user")
+    if not project:
+        project = Project(
+            id="timer-force-approval-project-id",
+            code="TMR-FRC-APP",
+            name="Proyecto prueba aprobación duplicada",
+            project_type=ProjectType.development,
+            status=ProjectStatus.active,
+            organization_id=user.organization_id,
+        )
+        db.add(project)
+        db.flush()
+
+    project.pm_id = "pm-test-id"
+
+    task = Task(
+        id="timer-force-approval-task-id",
+        code="TMR-FRC-APP-T1",
+        project_id=project.id,
+        title="Tarea duplicada aprobable",
+        assignee_id=user.id,
+    )
+    db.add(task)
+    db.flush()
+
+    db.add(Imputation(
+        user_id=user.id,
+        project_id=project.id,
+        task_id=task.id,
+        date=date.today(),
+        hours=1.0,
+        description="Imputación original",
+        is_billable=True,
+        hourly_rate_snapshot=user.hourly_rate,
+        cost_amount=10.0,
+    ))
+    db.commit()
+
+    client.post(
+        "/api/v1/imputations/timer/start",
+        json={"project_id": project.id, "task_id": task.id},
+        headers=dev_headers,
+    )
+
+    stop_response = client.post(
+        "/api/v1/imputations/timer/stop",
+        json={"description": "Duplicada aprobable", "is_billable": True, "force_duplicate": True},
+        headers=dev_headers,
+    )
+    assert stop_response.status_code == 200
+    forced_id = stop_response.json()["id"]
+
+    approve_response = client.post(f"/api/v1/imputations/{forced_id}/approve", headers=pm_headers)
+    assert approve_response.status_code == 200
+
+    duplicates = db.query(Imputation).filter(
+        Imputation.user_id == user.id,
+        Imputation.task_id == task.id,
+        Imputation.date == date.today(),
+    ).all()
+    assert len(duplicates) == 2
+    assert sum(imp.hours for imp in duplicates) >= 1.25
+
+    week = client.get("/api/v1/imputations/my/week", headers=dev_headers)
+    assert week.status_code == 200
+    assert week.json()["total_hours"] >= 1.25
 
 
 # ── Lockout Status Tests ───────────────────────────────────────────────────

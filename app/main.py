@@ -315,9 +315,12 @@ async def lifespan(_app: FastAPI):
     logger.info("🛑 Apagando Contecflow PSA...")
     if _scheduler:
         try:
-            _scheduler.shutdown(wait=False)
+            if _scheduler.running:
+                _scheduler.shutdown(wait=False)
+            else:
+                logger.info("   ⏭️  Scheduler ya detenido; se omite shutdown")
         except Exception as e:
-            logger.warning(f"Scheduler shutdown error: {e}", exc_info=True)
+            logger.warning(f"Scheduler shutdown error: {e}")
     logger.info("   ✅ Shutdown completo")
 
 

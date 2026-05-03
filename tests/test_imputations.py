@@ -1,6 +1,8 @@
 """Tests de imputaciones (registro de horas)."""
 from datetime import date
 from tests.conftest import auth
+from app.models.project import Project
+from app.models.imputation import Imputation
 
 
 def _create_project(client, token):
@@ -63,3 +65,28 @@ def test_delete_imputation(client, admin_token, dev_token, db):
     iid = create.json()["id"]
     res = client.delete(f"/api/v1/imputations/{iid}", headers=auth(dev_token))
     assert res.status_code in (200, 204)
+
+
+def test_manager_can_reject_imputation(client, admin_token, dev_token, pm_token, db):
+    pid = _create_project(client, admin_token)
+    project = db.query(Project).filter(Project.id == pid).first()
+    project.pm_id = "pm-test-id"
+    db.commit()
+
+    create = client.post("/api/v1/imputations", headers=auth(dev_token), json={
+        "project_id": pid,
+        "date": str(date.today()),
+        "hours": 2.0,
+        "description": "Imputación para rechazo",
+    })
+    assert create.status_code in (200, 201)
+    iid = create.json()["id"]
+
+    res = client.post(f"/api/v1/imputations/{iid}/reject", headers=auth(pm_token))
+    assert res.status_code == 200
+
+    imp = db.query(Imputation).filter(Imputation.id == iid).first()
+    assert imp is not None
+    assert imp.is_approved is False
+    assert imp.approved_by is None
+    assert imp.approved_at is None

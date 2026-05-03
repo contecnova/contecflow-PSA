@@ -15,6 +15,17 @@ from app.models.project import Project
 from app.models.resources import Absence, AbsenceStatus
 from app.models.sprints import Sprint, SprintStatus, SprintTask
 from app.models.user import User, UserRole
+from app.services.notifications import notify_user
+
+
+def _assert_can_review_imputation(db: Session, imp: Imputation, current_user: User) -> None:
+    if current_user.role in [UserRole.admin, UserRole.hr]:
+        return
+    if not imp.project_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para revisar esta imputacion")
+    project = db.query(Project).filter(Project.id == imp.project_id).first()
+    if not project or project.pm_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para revisar esta imputacion")
 
 
 def approve_imputation_flow(db: Session, imputation_id: str, current_user: User) -> Imputation:
@@ -22,16 +33,39 @@ def approve_imputation_flow(db: Session, imputation_id: str, current_user: User)
     if not imp:
         raise HTTPException(status_code=404, detail="Imputacion no encontrada")
 
-    if current_user.role not in [UserRole.admin, UserRole.hr]:
-        if not imp.project_id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para aprobar esta imputacion")
-        project = db.query(Project).filter(Project.id == imp.project_id).first()
-        if not project or project.pm_id != current_user.id:
-            raise HTTPException(status_code=403, detail="No tienes permiso para aprobar esta imputacion")
+    _assert_can_review_imputation(db, imp, current_user)
 
     imp.is_approved = True
     imp.approved_by = current_user.id
     imp.approved_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(imp)
+    return imp
+
+
+def reject_imputation_flow(db: Session, imputation_id: str, current_user: User) -> Imputation:
+    imp = db.query(Imputation).filter(Imputation.id == imputation_id).first()
+    if not imp:
+        raise HTTPException(status_code=404, detail="Imputacion no encontrada")
+
+    _assert_can_review_imputation(db, imp, current_user)
+
+    imp.is_approved = False
+    imp.approved_by = None
+    imp.approved_at = None
+
+    if imp.user_id and imp.user_id != current_user.id:
+        notify_user(
+            db,
+            imp.user_id,
+            "system",
+            "Imputación rechazada por manager",
+            "Tu imputación ha sido rechazada y queda pendiente de corrección.",
+            resource="imputations",
+            resource_id=imp.id,
+            action_url="/time",
+        )
+
     db.commit()
     db.refresh(imp)
     return imp

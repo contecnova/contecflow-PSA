@@ -4,16 +4,28 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { alertsApi } from '../services/api'
 import { Button, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bell } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+
+const ALERT_TYPE_CFG = {
+  budget_overrun:     { icon:'💰', color:'var(--danger)',  label:'Presupuesto excedido' },
+  overdue_tasks:      { icon:'⏰', color:'var(--danger)',  label:'Tareas vencidas' },
+  capacity_risk:      { icon:'⚡', color:'var(--warning)', label:'Riesgo de capacidad' },
+  sla_breach:         { icon:'🚨', color:'var(--danger)',  label:'SLA incumplido' },
+  sla_risk:           { icon:'⚠',  color:'var(--warning)', label:'Riesgo SLA' },
+  low_margin:         { icon:'📉', color:'var(--warning)', label:'Margen bajo' },
+  overbudget:         { icon:'💸', color:'var(--danger)',  label:'Fuera de presupuesto' },
+  high_utilization:   { icon:'🔥', color:'var(--warning)', label:'Utilización alta' },
+  stalled_project:    { icon:'🛑', color:'var(--warning)', label:'Proyecto parado' },
+}
 import { useAppT } from '../i18n/AppLangContext'
 
-const TYPE_CFG = {
+const TYPE_CFG_NOTIF = {
   task_assigned:       { icon:'▦',  color:'var(--success)',  label:'Tarea asignada' },
   task_mentioned:      { icon:'@',  color:'var(--accent)',   label:'Mención' },
   task_due_soon:       { icon:'⏰', color:'var(--warning)',  label:'Vence pronto' },
@@ -34,7 +46,10 @@ const TYPE_CFG = {
 }
 
 function NotifItem({ notif, onMarkRead }) {
-  const cfg = TYPE_CFG[notif.type] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' }
+  const baseCfg = notif._isAlert
+    ? (ALERT_TYPE_CFG[notif.type] || { icon:'🔔', color:'var(--danger)', label:'Alerta' })
+    : (TYPE_CFG_NOTIF[notif.type] || { icon:'🔔', color:'var(--text-2)', label:'Notificación' })
+  const cfg = baseCfg
   const isUnread = !notif.is_read
 
   if (isUnread) {
@@ -112,7 +127,7 @@ function NotifItem({ notif, onMarkRead }) {
 
 function GroupedNotifList({ notifications, onMarkRead }) {
   const groups = notifications.reduce((acc, n) => {
-    const key = n.type || 'other'
+    const key = (n._isAlert ? 'alert_' : '') + (n.type || 'other')
     if (!acc[key]) acc[key] = []
     acc[key].push(n)
     return acc
@@ -127,7 +142,11 @@ function GroupedNotifList({ notifications, onMarkRead }) {
   return (
     <div>
       {sortedGroups.map(([type, notifs]) => {
-        const cfg = TYPE_CFG[type] || { icon: '🔔', color: 'var(--text-2)', label: 'Notificación' }
+        const isAlertGroup = type.startsWith('alert_')
+        const baseKey = isAlertGroup ? type.replace('alert_', '') : type
+        const cfg = isAlertGroup
+          ? (ALERT_TYPE_CFG[baseKey] || { icon: '🔔', color: 'var(--danger)', label: 'Alerta' })
+          : (TYPE_CFG_NOTIF[baseKey] || { icon: '🔔', color: 'var(--text-2)', label: 'Notificación' })
         const unread = notifs.filter(n => !n.is_read).length
         return (
           <div key={type} style={{ marginBottom: 20 }}>
@@ -151,7 +170,7 @@ function GroupedNotifList({ notifications, onMarkRead }) {
 
 export default function NotificationsPage() {
   const t = useAppT()
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
   const toast = useToast()
   const toastRef = useRef(toast)
   const qc = useQueryClient()
@@ -164,7 +183,7 @@ export default function NotificationsPage() {
     toastRef.current = toast
   }, [toast])
 
-  const { data, isLoading, _refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['notifications-page', filter],
     queryFn: () => api.get('/enterprise/notifications', {
       params: { page_size: 50, ...(filter !== 'all' && { is_read: filter === 'read' }) }
@@ -172,8 +191,30 @@ export default function NotificationsPage() {
     refetchInterval: 60000,
   })
 
+  const { data: alertsRaw = [], isLoading: alertsLoading } = useQuery({
+    queryKey: ['alerts-count'],
+    queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data || []).catch(() => []),
+    refetchInterval: 60000,
+    enabled: hasRole('admin', 'pm', 'hr'),
+  })
+
+  // Normalize alerts to notification shape for unified display
+  const alertsAsNotifs = alertsRaw.map(a => ({
+    id: 'alert_' + a.id,
+    _alertId: a.id,
+    _isAlert: true,
+    type: a.alert_type,
+    title: a.title,
+    body: a.description,
+    is_read: a.is_read,
+    created_at: typeof a.created_at === 'string' ? a.created_at : (a.created_at?.toISOString?.() || ''),
+  }))
+
   const notifications = data?.notifications || []
-  const unreadCount   = data?.unread_count || 0
+  const allNotifications = [...notifications, ...alertsAsNotifs]
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+
+  const unreadCount = (data?.unread_count || 0) + alertsRaw.filter(a => !a.is_read).length
 
   const { mutate: markRead } = useMutation({
     mutationFn: id => api.post(`/enterprise/notifications/${id}/read`),
@@ -181,8 +222,17 @@ export default function NotificationsPage() {
   })
   const { mutate: markAll } = useMutation({
     mutationFn: () => api.post('/enterprise/notifications/read-all'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-page'] }); toast.success('Todas marcadas como leídas') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['notifications-page'] }); qc.invalidateQueries({ queryKey: ['alerts-count'] }); toast.success('Todas marcadas como leídas') },
   })
+
+  const handleMarkRead = (id) => {
+    if (String(id).startsWith('alert_')) {
+      const alertId = String(id).replace('alert_', '')
+      alertsApi.read(alertId).then(() => qc.invalidateQueries({ queryKey: ['alerts-count'] }))
+    } else {
+      markRead(id)
+    }
+  }
 
   // Conectar WebSocket usando one-shot ticket (httpOnly-cookie safe)
   useEffect(() => {
@@ -267,10 +317,10 @@ export default function NotificationsPage() {
   ]
 
   const filtered = filter === 'unread'
-    ? notifications.filter(n => !n.is_read)
+    ? allNotifications.filter(n => !n.is_read)
     : filter === 'read'
-    ? notifications.filter(n => n.is_read)
-    : notifications
+    ? allNotifications.filter(n => n.is_read)
+    : allNotifications
 
   return (
     <PageShell>
@@ -299,8 +349,8 @@ export default function NotificationsPage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
         {[
           { label:'Sin leer', value:unreadCount, color: unreadCount > 0 ? 'var(--warning)' : 'var(--text-3)' },
-          { label:'Total hoy', value:notifications.filter(n => n.created_at?.startsWith(new Date().toISOString().slice(0,10))).length, color:'var(--accent)' },
-          { label:'Total recientes', value:notifications.length, color:'var(--text-2)' },
+          { label:'Total hoy', value:allNotifications.filter(n => n.created_at?.startsWith(new Date().toISOString().slice(0,10))).length, color:'var(--accent)' },
+          { label:'Total recientes', value:allNotifications.length, color:'var(--text-2)' },
         ].map(kpi => (
           <div key={kpi.label} style={{ background:'var(--surface-2)', border:'1px solid var(--surface-4)',
             borderRadius:12, padding:'14px 18px' }}>
@@ -325,11 +375,11 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {isLoading ? <Spinner /> : filtered.length === 0 ? (
+      {(isLoading && alertsLoading) ? <Spinner /> : filtered.length === 0 ? (
         <EmptyState icon="🔔" title="Sin notificaciones"
           description={filter === 'unread' ? 'Todo al día — no tienes notificaciones sin leer' : 'Sin notificaciones en este filtro'} />
       ) : (
-        <GroupedNotifList notifications={filtered} onMarkRead={id => markRead(id)} />
+        <GroupedNotifList notifications={filtered} onMarkRead={handleMarkRead} />
       )}
     </PageShell>
   )

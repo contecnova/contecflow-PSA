@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 /**
  * Centralises badge queries (alerts + approvals + mentions) y
  * los unifica en un total para el inbox bell del header.
+ * notifUnreadCount es exclusivo para el badge de la pestaña Notificaciones del Inbox.
  */
 export default function useNotificationBadges() {
   const { hasRole, user, loading } = useAuth()
@@ -15,6 +16,16 @@ export default function useNotificationBadges() {
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: 60_000,
     enabled: hasRole('admin', 'pm', 'hr'),
+  })
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['notifications-unread-badge'],
+    queryFn: () =>
+      api.get('/enterprise/notifications', { params: { page_size: 1 } })
+        .then(r => r.data || { unread_count: 0 })
+        .catch(() => ({ unread_count: 0 })),
+    refetchInterval: 60_000,
+    enabled: canQueryProtected,
   })
 
   const { data: pendingApprovals = [] } = useQuery({
@@ -34,9 +45,10 @@ export default function useNotificationBadges() {
   })
 
   const alertCount = alerts ? alerts.filter(a => !a.is_read).length : 0
+  const notifUnreadCount = Number(notificationsData?.unread_count || 0)
   const approvalCount = pendingApprovals.length
   const mentionCount = Array.isArray(mentions) ? mentions.length : 0
   const inboxTotal = alertCount + approvalCount + mentionCount
 
-  return { alertCount, approvalCount, mentionCount, inboxTotal }
+  return { alertCount, notifUnreadCount, approvalCount, mentionCount, inboxTotal }
 }

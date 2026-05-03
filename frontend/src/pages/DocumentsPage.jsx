@@ -591,12 +591,13 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
       <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 900, backgroundColor: 'rgba(0,0,0,0.35)' }} onMouseDown={onClose} />
 
       {/* Drawer */}
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 901,
-        width: 600, backgroundColor: 'var(--surface-1)',
-        borderLeft: '1px solid var(--surface-4)',
-        boxShadow: '-12px 0 48px rgba(0,0,0,0.3)',
-        display: 'flex', flexDirection: 'column', overflowY: 'auto',
+      <div role="dialog" aria-modal="true" aria-label={doc?.title || 'Documento'} style={{
+        position: 'fixed', top: 12, right: 12, zIndex: 901,
+        width: 600, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100vh - 24px)',
+        backgroundColor: 'var(--surface-1)',
+        border: '1px solid var(--surface-4)', borderRadius: 12,
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {isLoading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-3)', fontSize: "var(--text-base)" }}>

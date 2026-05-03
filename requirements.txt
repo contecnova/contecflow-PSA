@@ -140,6 +140,8 @@ typer==0.24.1
 
 # ── Testing ────────────────────────────────────────────────────────────────────
 pytest>=8.0.0,<9.0.0
+playwright==1.55.0
+pytest-playwright==0.7.1
 schemathesis==3.39.16
 pytest-cov==7.1.0
 coverage==7.13.5

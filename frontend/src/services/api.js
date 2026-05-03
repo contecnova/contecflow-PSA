@@ -240,10 +240,12 @@ export const imputationsApi = {
   update:         (id, data) => api.patch(`/imputations/${id}`, data),
   delete:         (id) => api.delete(`/imputations/${id}`),
   approve:        (id) => api.post(`/imputations/${id}/approve`),
+  reject:         (id) => api.post(`/imputations/${id}/reject`),
   timerCurrent:   () => api.get('/imputations/timer/current'),
   timerStart:     (data) => api.post('/imputations/timer/start', data),
   timerPause:     () => api.post('/imputations/timer/pause'),
   timerResume:    () => api.post('/imputations/timer/resume'),
+  timerCancel:    () => api.post('/imputations/timer/cancel'),
   timerStop:      (data) => api.post('/imputations/timer/stop', data),
 }
 
