@@ -309,6 +309,20 @@ class ScheduledReport(Base):
 
 
 # ── Approval Workflows — Multi-nivel configurables ─────────────────────────────
+class ApprovalGroup(Base):
+    """Grupo reutilizable de aprobadores para asignar a pasos."""
+    __tablename__ = "approval_groups"
+
+    id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name        = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    member_ids  = Column(Text, nullable=False, default="[]")  # JSON list of user IDs
+    created_by  = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    creator = relationship("User", foreign_keys=[created_by])
+
+
 class ApprovalWorkflow(Base):
     """Flujo de aprobación configurable con N niveles para timesheets, gastos, cambios."""
     __tablename__ = "approval_workflows"
@@ -316,11 +330,17 @@ class ApprovalWorkflow(Base):
     id          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name        = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    entity_type = Column(String(50), nullable=False)  # timesheet | expense | change_request | milestone | purchase
+    entity_type = Column(String(50), nullable=False)
     is_active   = Column(Boolean, default=True)
     is_default  = Column(Boolean, default=False)
     # Condiciones de activación (JSON): {"amount_gt": 1000, "department": "IT"}
     trigger_conditions = Column(Text, default="{}")
+    # Encadenamiento: lanzar otro flujo al aprobar
+    chain_on_approval_workflow_id = Column(String(36), ForeignKey("approval_workflows.id"), nullable=True)
+    # Bloqueo duro al superar SLA
+    sla_block_on_breach = Column(Boolean, default=False)
+    # Reglas de auto-aprobación (JSON): [{"conditions": {...}, "action": "auto_approve"}]
+    auto_approval_rules = Column(Text, nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
     steps = relationship("ApprovalStep", back_populates="workflow",
@@ -341,14 +361,22 @@ class ApprovalStep(Base):
     approver_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     approver_department = Column(String(100), nullable=True)
     # Comportamiento
-    is_optional     = Column(Boolean, default=False)   # puede saltarse
-    timeout_hours   = Column(Integer, default=72)      # horas para aprobar antes de escalar
+    is_optional     = Column(Boolean, default=False)
+    timeout_hours   = Column(Integer, default=72)
     on_timeout      = Column(String(20), default="escalate")  # escalate | auto_approve | reject
     escalate_to_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    # Enterprise v2
+    parallel_quorum    = Column(Boolean, default=False)   # múltiples aprobadores en paralelo
+    required_approvals = Column(Integer, default=1)        # quórum: cuántos votos positivos se necesitan
+    step_condition     = Column(Text, nullable=True)       # JSON: condición para activar el paso
+    requires_attachment = Column(Boolean, default=False)   # la decisión debe incluir adjunto
+    reminder_hours     = Column(Integer, nullable=True)    # recordatorio tras N horas
+    approver_group_id  = Column(String(36), ForeignKey("approval_groups.id"), nullable=True)
 
-    workflow  = relationship("ApprovalWorkflow", back_populates="steps")
-    approver  = relationship("User", foreign_keys=[approver_user_id])
-    escalatee = relationship("User", foreign_keys=[escalate_to_user_id])
+    workflow       = relationship("ApprovalWorkflow", back_populates="steps")
+    approver       = relationship("User", foreign_keys=[approver_user_id])
+    escalatee      = relationship("User", foreign_keys=[escalate_to_user_id])
+    approver_group = relationship("ApprovalGroup", foreign_keys=[approver_group_id])
 
 
 class ApprovalRequest(Base):
@@ -386,8 +414,9 @@ class ApprovalDecision(Base):
     step_order   = Column(Integer, nullable=False)
     approver_id  = Column(String(36), ForeignKey("users.id"), nullable=False)
     decision     = Column(String(20), nullable=False)   # approved | rejected | delegated
-    note         = Column(Text, nullable=True)
-    decided_at   = Column(DateTime(timezone=True), server_default=func.now())
+    note           = Column(Text, nullable=True)
+    attachment_url = Column(Text, nullable=True)
+    decided_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     request  = relationship("ApprovalRequest", back_populates="decisions")
     approver = relationship("User", foreign_keys=[approver_id])

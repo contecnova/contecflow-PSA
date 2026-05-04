@@ -15,6 +15,7 @@ class ImputationCreate(BaseModel):
     hours: float = Field(..., gt=0, le=24)
     description: Optional[str] = None
     is_billable: bool = False
+    force_duplicate: bool = False
 
     @field_validator("hours")
     @classmethod

@@ -118,6 +118,13 @@ Crear frontend/.env desde frontend/.env.example.
 Notas operativas recientes:
 - El cierre del cronómetro ahora permite cancelar la sesión sin guardar, cambiar la tarea final antes de imputar y forzar una imputación duplicada cuando ya existe otra para la misma tarea y fecha.
 - Si se fuerza una imputación duplicada desde el cronómetro, se genera una notificación in-app al manager responsable para que revise el timesheet y pueda rechazarlo si procede.
+- El módulo de tareas usa estados de workflow por proyecto cuando existen; si un proyecto no tiene workflow configurado, aplica automáticamente los estados base por defecto.
+- Se añadió restablecimiento de workflow por proyecto a Scrum estándar mediante DELETE /api/v1/project-workflows/{project_id}/reset, disponible desde la página de configuración de workflows.
+- Se corrigió el enrutado de Issue Types para soportar la ruta canónica /api/v1/issue-types/{project_id} (incluyendo /init), manteniendo compatibilidad con alias legado.
+- Se corrigió una colisión de variable en la UI de tipos de issue que podía romper textos traducidos al listar o editar tipos.
+- Se completó la localización de la página de tipos de incidencia (Issue Types) para español/inglés, incluyendo el botón de inicialización estándar y textos de selección de proyecto.
+- Se añadieron mensajes de éxito y error más claros en crear/editar/eliminar/inicializar tipos de incidencia para facilitar diagnóstico en UI.
+- Se robusteció el formulario de edición de tipos de incidencia para permitir guardar cambios aunque existan datos legacy con valor interno vacío (autocompletado y validación condicional en modo edición).
 - La unicidad usuario+tarea+fecha deja de depender del índice SQL y pasa a controlarse desde la lógica de negocio para permitir únicamente los duplicados forzados desde el cronómetro.
 - Las imputaciones duplicadas forzadas nunca sustituyen la anterior: se almacenan como registros adicionales y sus horas se acumulan en los totales semanales (suma de imputaciones).
 - Se añade revisión individual de imputaciones para managers en `POST /api/v1/imputations/{imputation_id}/reject` (además de `approve`), para marcar una imputación forzada como rechazada sin borrar el histórico.
@@ -128,7 +135,11 @@ Notas operativas recientes:
 - En TimerPage y en el widget compacto, no existe reintento forzado automático sin consentimiento explícito del usuario.
 - El reloj activo de la barra superior está sincronizado con la misma query global del cronómetro (`timer-current`), por lo que aparece al iniciar y desaparece al detener/imputar sin esperar al ciclo largo de polling.
 - El widget compacto del cronómetro también usa `timer-current` y actualiza esa cache en start/pause/resume/stop, asegurando consistencia instantánea entre widget, barra superior y página de Time.
-- En `work-dashboard`, la gráfica "Tendencia de horas (mensual)" representa la carga horaria imputada de cada mes (anchura de barra por horas), mientras que la variación frente al mes anterior se muestra aparte como indicador textual/porcentaje al final de cada fila.
+- En `work-dashboard`, la gráfica "Tendencia de horas (mensual)" representa la carga horaria imputada de cada mes (anchura de barra por horas) con barra de color neutro; la variación frente al mes anterior se muestra aparte como indicador textual/porcentaje (con color de tendencia) al final de cada fila.
+- En `work-dashboard`, los KPIs de tareas enlazan a `/tasks` con filtros aplicados por URL: abiertas (`status=open`) y vencidas (`status=open&overdue=1`), ambos en ámbito personal (`mine=1`) para evitar saltar al listado general sin filtrar.
+- En `tasks`, cuando la vista entra con filtros rápidos por URL (`mine=1`, `overdue=1`, `status=open`), se muestran pills visibles de filtros activos con acción de quitar individual y botón de limpieza rápida.
+- En `/timesheets`, las tres pestañas (`Mis timesheets`, `Pendientes`, `Equipo`) incluyen filtros en UI (estado, búsqueda y/o rango de fechas según el contexto) con contador `filtrado/total`, botón `Limpiar` y estado vacío de "Sin resultados".
+- En `/imputar` (Registrar horas), los valores diarios y el total semanal del bloque "Esta semana" se formatean con un máximo de 2 decimales para evitar artefactos de coma flotante (ej. `2.969999999...`).
 
 ### Seed
 - python scripts/seed_full_data.py
@@ -314,3 +325,205 @@ Reglas:
 - Evitar historicos largos de cambios internos.
 - Evitar referencias a documentos retirados.
 - Consolidar periodicamente para mantener claridad.
+
+## 18. Motor de flujos de aprobacion documental (implementado)
+
+### Descripcion
+Los documentos que requieren aprobacion (`requires_approval=True`) ahora se gestionan a traves del motor de aprobaciones multi-nivel (`approval_engine`). El motor de flujos es una pieza fundamental y diferencial de la plataforma — la misma arquitectura que gestiona timesheets, gastos, facturas y compras ahora tambien rige los documentos.
+
+### Como funciona
+1. Al crear un documento con `requires_approval=True`, el sistema busca automaticamente el mejor flujo para esa categoria.
+2. Busqueda: primero flujo con `trigger_conditions={"category":"<cat>"}`, luego generico `entity_type=document` + `is_default=True`.
+3. Si se encuentra un flujo, se crea un `ApprovalRequest` y se notifica al primer aprobador.
+4. Si no hay flujo, el usuario puede enviarlo manualmente con "Enviar para aprobacion" una vez configurado.
+5. Cada decision avanza el flujo paso a paso. Al completarse todos los pasos, `Document.approval_status` se actualiza automaticamente.
+
+### Archivos modificados
+- `app/models/documents.py`: campo `approval_request_id` FK
+- `alembic/versions/050_document_approval_workflow_integration.py`: migracion
+- `app/services/approval_engine.py`: `find_default_workflow(category=)`, `find_document_workflow`, `_apply_entity_final_decision`
+- `app/services/documents_service.py`: `_auto_create_approval_request`, `submit_for_approval`, `approve_document` via engine, `_serialize_approval_request`
+- `app/schemas/documents.py`: `DocumentOut.approval_request`, `DocumentApprovalPayload.note`
+- `app/api/v1/endpoints/documents.py`: nuevo `POST /{doc_id}/submit-approval`
+- `frontend/src/pages/DocumentsPage.jsx`: panel de progreso, indicador de pasos, historial de decisiones
+- `frontend/src/services/api.js`: `documentsApi.submitApproval`
+
+### Configuracion de flujos por categoria de documento
+En Settings > Approval Workflows: crear flujo con `entity_type=document` y `trigger_conditions={"category":"legal"}`. El motor selecciona el flujo mas especifico automaticamente.
+
+## 19. Gobierno de flujos: separacion operacion vs configuracion
+
+Objetivo:
+- Evitar confusion entre "aprobar solicitudes" y "definir reglas de flujo".
+- Centralizar toda definicion en Configuracion.
+
+Mapa funcional:
+- Approval Inbox (`/approvals`): bandeja operativa diaria para aprobar/rechazar pendientes.
+- Approval Flows (Config) (`/settings/approval-workflows`): definicion de flujos de aprobacion multi-nivel (pasos, roles, tiempos, reglas).
+- Project Issue Flows (Config) (`/settings/project-workflows`): definicion de estados y transiciones de tareas/incidencias por proyecto.
+
+Compatibilidad de rutas:
+- `/workflows` redirige a `/settings/project-workflows`.
+- `/settings/workflows` redirige a `/settings/project-workflows`.
+
+Regla de producto:
+- Ninguna pantalla operativa debe mezclar decisiones en curso con edicion de definiciones.
+- Toda definicion de comportamiento de flujo debe vivir bajo Configuracion con naming explicito.
+
+## 20. Approval Flows (Config) - capacidades enterprise implementadas
+
+URL principal:
+- `/settings/approval-workflows`
+
+Capacidades nuevas:
+- Templates: biblioteca de plantillas listas para crear flujos base (legal, engineering, expense high-amount).
+- Simulator: simulacion de seleccion de flujo y ruta de pasos antes de publicar.
+- Validate: valida calidad del flujo (pasos, orden, aprobadores requeridos, consistencia).
+- Publish: publicacion segura (solo publica si la validacion no tiene errores bloqueantes).
+- Clone Version: clona un flujo como nueva version editable sin impactar el activo.
+- Bottlenecks: analitica de cuellos de botella por paso (tiempo medio, rechazo, pendientes, riesgo de SLA, score).
+   - Incluye dashboard ejecutivo con:
+      - KPIs globales de riesgo (pasos criticos, pending total, tiempo medio).
+      - Top workflows con mayor riesgo agregado.
+      - Tendencia semanal de rechazo.
+      - Recomendaciones automaticas priorizadas (high/medium) para optimizacion.
+
+## Approval Engine v2 Enterprise (migración 060)
+
+### Nuevos tipos de entidad soportados
+invoice, contract, budget, leave, deliverable, proposal, subcontractor, scope_change, hire, price_change
+(se suman a timesheet, expense, change_request, milestone, purchase, document)
+
+### Funcionalidades v2
+
+**Grupos de aprobadores** (`ApprovalGroup`):
+- CRUD: `GET/POST /approvals/groups`, `PATCH/DELETE /approvals/groups/{id}`
+- Los pasos de flujo pueden asignarse a un grupo (`approver_type=group`, `approver_group_id`).
+- Autorización: el motor lee los `member_ids` JSON y valida que el usuario decisor sea miembro.
+
+**Quórum paralelo**:
+- Campo `parallel_quorum=True` + `required_approvals` en el paso.
+- Varios aprobadores pueden votar en paralelo; el paso avanza cuando se alcanza el quórum.
+- Prevención de doble-voto: un usuario no puede votar dos veces en el mismo paso/solicitud.
+
+**Condición de paso** (`step_condition`):
+- JSON con reglas (`amount_gt`, `amount_lt`, `department`, `category`).
+- Si se define, el paso solo se activa si la condición se cumple; si no, se salta automáticamente.
+
+**Adjunto obligatorio** (`requires_attachment`):
+- Si el paso lo requiere, la decisión de aprobación debe incluir `attachment_url`.
+- El campo `attachment_url` se persiste en `ApprovalDecision`.
+
+**Recordatorio automático** (`reminder_hours`):
+- Campo en el paso para configurar recordatorio antes del timeout.
+
+**Auto-aprobación** (`auto_approval_rules`):
+- Reglas JSON en el workflow (ej: `[{"condition":"amount_lt","value":100,"action":"auto_approve"}]`).
+- Si la solicitud cumple las reglas, se auto-aprueba al crearla sin pasar por pasos manuales.
+
+**Encadenamiento de flujos** (`chain_on_approval_workflow_id`):
+- Al aprobarse completamente un flujo, si tiene un workflow encadenado, se crea automáticamente una nueva solicitud en ese workflow.
+
+**SLA block** (`sla_block_on_breach`):
+- Marcar entidad para bloqueo si se supera el SLA del flujo.
+
+**Carga de aprobadores** (`/analytics/approver-load`):
+- Por aprobador: pendientes, tiempo medio de respuesta, tasa de rechazo, score de carga (0-10).
+- Lista de aprobadores sobrecargados (score > 7).
+
+### Nuevas tabs en el frontend
+
+- **Grupos**: CRUD completo de grupos de aprobadores con selección de miembros.
+- **Carga**: Tabla de carga de trabajo por aprobador con score, badge de sobrecargado y selector de período.
+- **Matriz**: Grid visual entidad × flujo mostrando qué flujos están activos/default por tipo de entidad.
+
+### Archivos modificados
+
+- `alembic/versions/060_approval_engine_v2_enterprise.py`: migración con `approval_groups` tabla + campos v2 en steps/workflows/decisions.
+- `app/models/billing_reports.py`: modelo `ApprovalGroup`, campos v2 en `ApprovalWorkflow`, `ApprovalStep`, `ApprovalDecision`.
+- `app/services/approval_engine.py`: lógica completa v2 (quórum, auto-aprobación, condiciones, adjuntos, chaining, grupos, serializers v2, `get_approver_load`).
+- `app/api/v1/endpoints/approvals.py`: endpoints `/groups` CRUD, `/analytics/approver-load`, `decide` con `attachment_url`.
+- `app/schemas/approvals.py`: `DecisionIn.attachment_url`, `StepIn` v2 fields, `WorkflowIn` v2 fields.
+- `frontend/src/services/api.js`: `approvalsApi.groups.*`, `approvalsApi.approverLoad`.
+- `frontend/src/pages/ApprovalsPage.jsx`: entityLabels +10 entidades, StepModal v2, WorkflowForm v2, tabs Grupos/Carga/Matriz, componentes `ApprovalGroupsTab`, `ApproverLoadTab`, `ApprovalMatrixTab`.
+
+APIs nuevas:
+- `GET /api/v1/approvals/workflow-templates`
+- `POST /api/v1/approvals/workflows/from-template`
+- `POST /api/v1/approvals/simulate`
+- `GET /api/v1/approvals/workflows/{workflow_id}/validate`
+- `POST /api/v1/approvals/workflows/{workflow_id}/publish`
+- `POST /api/v1/approvals/workflows/{workflow_id}/clone-version`
+- `GET /api/v1/approvals/analytics/bottlenecks?days=90`
+   - Respuesta enriquecida con `summary`, `top_workflows`, `weekly_trend`, `recommendations`.
+- `GET /api/v1/approvals/analytics/approver-load?days=90`
+- `GET/POST /api/v1/approvals/groups`
+- `GET/PATCH/DELETE /api/v1/approvals/groups/{id}`
+
+Notas:
+- `trigger_conditions` soporta reglas por categoria/departamento/importe (`amount_gt`, `amount_gte`, `amount_lt`, `amount_lte`).
+- El simulador no crea solicitudes reales; solo evalua coincidencia y resolucion de aprobadores.
+
+---
+
+## Sistema de Asignación — Correcciones (5 problemas auditados)
+
+### Problema 1 (Crítico): `record_routing_outcome` nunca llamado al resolver/cerrar ticket
+
+**Antes**: El ML de routing nunca recibía retroalimentación de resultados (tiempo de resolución, CSAT). El modelo no aprendía de tickets cerrados. Solo existía un endpoint manual de backfill (`run_outcome_scan`).
+
+**Después**: Al transicionar un ticket a `resolved` o `closed`, el flag `record_routing_outcome` se añade al dict de efectos devuelto por `apply_ticket_update`. El endpoint PATCH llama a `enqueue_routing_outcome(background_tasks, ticket_id)` que, en background, persiste el resultado en `RoutingFeedback` vía `record_routing_outcome()`.
+
+### Archivos modificados
+
+- `app/services/service_desk/ticket_update_service.py`: retorna `"record_routing_outcome": normalized_status in ("resolved", "closed")` en el dict de efectos.
+- `app/services/service_desk/semantic_feedback_service.py`: nueva función `enqueue_routing_outcome(background_tasks, ticket_id)`.
+- `app/api/v1/endpoints/service_desk/tickets.py`: importa y llama `enqueue_routing_outcome` en el handler PATCH.
+
+---
+
+### Problema 2 (Alto): `SemAssignment` nunca persistido desde frontend → feedback loop roto
+
+**Antes**: El frontend llamaba a `semanticApi.suggestTask()` y aplicaba la sugerencia al formulario, pero nunca llamaba a `POST /semantic/record-assignment`. La tabla `SemAssignment` quedaba vacía, haciendo que `record_reassign_feedback_bg` fuera un no-op.
+
+**Después**:
+- **TaskDetailModal** (tarea existente): `acceptSuggestion()` llama `semanticApi.recordAssignment()` inmediatamente con `task.id` y `was_accepted=true`. Fire-and-forget.
+- **CreateTaskModal** (tarea nueva): se guarda la sugerencia aceptada en `pendingSuggestion` state; el `onSuccess(newTask)` de la mutación de creación llama `recordAssignment` con `newTask.id`.
+
+### Archivos modificados
+
+- `frontend/src/services/api.js`: añadido `recordAssignment: (data) => api.post('/semantic/record-assignment', data)` a `semanticApi`.
+- `frontend/src/pages/TasksPage.jsx`: `TaskDetailModal.acceptSuggestion` → llama `recordAssignment`; `CreateTaskModal` → añade `pendingSuggestion` state, registra en `onSuccess`.
+
+---
+
+### Problema 3 (Alto): Dos rutas paralelas de sugerencia de tarea con comportamiento distinto
+
+**Antes**: `POST /tasks/suggest-assignee` y `POST /semantic/suggest/task` usaban la misma lógica interna (`SemanticAssigner` + `enrich_suggestion`) pero devolvían formatos diferentes. El frontend solo usaba la ruta semántica; la ruta legacy no tenía marcadores de obsolescencia.
+
+**Después**: `POST /tasks/suggest-assignee` marcado como deprecated (`[DEPRECATED]` en el summary de FastAPI) con cabeceras HTTP `Deprecation: true` y `Link: </api/v1/semantic/suggest/task>; rel="successor-version"` en cada respuesta.
+
+### Archivos modificados
+
+- `app/api/v1/endpoints/tasks.py`: summary actualizado a `[DEPRECATED]`; se añade parámetro `response: Response` para emitir headers de deprecación.
+
+---
+
+### Problema 4 (Medio): `IncidentAssignmentPanel` mostraba recomendación pero no permitía ejecutarla
+
+**Antes**: El panel ML de asignación de incidencias recomendaba un agente pero no tenía botón de acción. El usuario debía ir manualmente al ticket y reasignarlo.
+
+**Después**: Tras recibir la recomendación, aparece el botón "✓ Aplicar asignación" que llama `PATCH /sd/tickets/{ticketId}` con `assigned_to_user_id`. Al éxito, muestra confirmación inline y refresca las estadísticas de carga.
+
+### Archivos modificados
+
+- `frontend/src/components/servicedesk/IncidentAssignmentPanel.jsx`: añadido `applyMutation` + `applySuccess` state + botón "Aplicar asignación" en el bloque de recomendación.
+
+---
+
+### Problema 5 (Medio): Resultados de routing solo actualizados por backfill manual
+
+**Antes**: `run_outcome_scan()` debía ejecutarse manualmente (vía endpoint o cron) para registrar resultados en `RoutingFeedback`.
+
+**Después**: Resuelto automáticamente por el Fix 1. Cada cierre/resolución de ticket dispara `record_routing_outcome` en background. El backfill manual (`run_outcome_scan`) sigue disponible para datos históricos.
+

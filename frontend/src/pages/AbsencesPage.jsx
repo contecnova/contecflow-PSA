@@ -403,6 +403,32 @@ export default function AbsencesPage() {
   })
   const { sort: teamAbsSort, setSort: setTeamAbsSort, sortedData: sortedTeamAbs } = useSort(filteredTeamAbs, 'start_date', 'desc')
 
+  // Mine filters
+  const [mineFilterType, setMineFilterType] = useState('')
+  const [mineFilterStatus, setMineFilterStatus] = useState('')
+  const [mineFilterFrom, setMineFilterFrom] = useState('')
+  const [mineFilterTo, setMineFilterTo] = useState('')
+  const filteredMine = myAbsences.filter(a => {
+    if (mineFilterType && a.type !== mineFilterType) return false
+    if (mineFilterStatus && a.status !== mineFilterStatus) return false
+    if (mineFilterFrom && a.end_date && a.end_date < mineFilterFrom) return false
+    if (mineFilterTo && a.start_date && a.start_date > mineFilterTo) return false
+    return true
+  })
+
+  // Pending filters
+  const [pendingSearch, setPendingSearch] = useState('')
+  const [pendingFilterType, setPendingFilterType] = useState('')
+  const [pendingFilterFrom, setPendingFilterFrom] = useState('')
+  const [pendingFilterTo, setPendingFilterTo] = useState('')
+  const filteredPending = pending.filter(a => {
+    if (pendingSearch && !(a.user_name || '').toLowerCase().includes(pendingSearch.toLowerCase())) return false
+    if (pendingFilterType && a.type !== pendingFilterType) return false
+    if (pendingFilterFrom && a.end_date && a.end_date < pendingFilterFrom) return false
+    if (pendingFilterTo && a.start_date && a.start_date > pendingFilterTo) return false
+    return true
+  })
+
   const { mutate: cancel } = useMutation({
     mutationFn: (id) => absencesApi.deleteMy(id),
     onSuccess: () => { qc.invalidateQueries(['absences-my']); qc.invalidateQueries(['vacation-balance-my']); qc.invalidateQueries(['cal-absences']); qc.invalidateQueries(['absence-calendar']); },
@@ -442,32 +468,59 @@ export default function AbsencesPage() {
           {loadingMine ? <Spinner /> : myAbsences.length === 0 ? (
             <EmptyState icon="🏖" title={t('absences.no_absences')} description={t('absences.empty_mine_desc')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {myAbsences.map(a => (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                      {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
+            <>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+                <FilterSelect value={mineFilterType} onChange={setMineFilterType} placeholder={t('absences.type_label')} options={Object.entries(typeLabels(t)).map(([v, l]) => ({ value: v, label: l.replace(/^\S+\s/, '') }))} />
+                <FilterSelect value={mineFilterStatus} onChange={setMineFilterStatus} placeholder={t('common.status')} options={[
+                  { value: 'pending', label: t('absences.status_pending') },
+                  { value: 'approved', label: t('absences.status_approved') },
+                  { value: 'rejected', label: t('absences.status_rejected') },
+                  { value: 'cancelled', label: t('absences.status_cancelled') },
+                ]} />
+                <input type="date" aria-label={t('absences.start_label')} value={mineFilterFrom} onChange={e => setMineFilterFrom(e.target.value)}
+                  style={{ background: mineFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${mineFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: mineFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+                <span style={{ color: 'var(--text-3)' }}>—</span>
+                <input type="date" aria-label={t('absences.end_label')} value={mineFilterTo} onChange={e => setMineFilterTo(e.target.value)}
+                  style={{ background: mineFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${mineFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: mineFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+                {(mineFilterType || mineFilterStatus || mineFilterFrom || mineFilterTo) && (
+                  <button onClick={() => { setMineFilterType(''); setMineFilterStatus(''); setMineFilterFrom(''); setMineFilterTo('') }}
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {t('common.clear', 'Limpiar')}
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredMine.length} / {myAbsences.length}</span>
+              </div>
+              {filteredMine.length === 0 ? (
+                <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {filteredMine.map(a => (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: `1px solid ${a.status === 'rejected' ? 'var(--danger-border)' : a.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>{typeLabels(t)[a.type] || a.type}</div>
+                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                          {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · <span style={{ color: 'var(--text-1)' }}>{a.working_days} {t('absences.workdays_unit')}</span>
+                        </div>
+                        {a.rejection_reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
+                      </div>
+                      <StatusBadge status={a.status} />
+                      <div style={{ display:'flex', gap:6 }}>
+                        {a.status === 'pending' && (
+                          <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => setEditingAbsence(a)}
+                            style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
+                              padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
+                            {t('absences.edit_action')}
+                          </button>
+                        )}
+                        {(a.status === 'pending' || a.status === 'approved') && (
+                          <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
+                        )}
+                      </div>
                     </div>
-                    {a.rejection_reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', marginTop: 4 }}>💬 {a.rejection_reason}</div>}
-                  </div>
-                  <StatusBadge status={a.status} />
-                  <div style={{ display:'flex', gap:6 }}>
-                    {a.status === 'pending' && (
-                      <button aria-label={`${t('absences.edit_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => setEditingAbsence(a)}
-                        style={{ background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
-                          padding:'3px 10px', color:'var(--accent)', cursor:'pointer', fontSize: "var(--text-sm)", fontFamily:'inherit' }}>
-                        {t('absences.edit_action')}
-                      </button>
-                    )}
-                    {(a.status === 'pending' || a.status === 'approved') && (
-                      <button aria-label={`${t('absences.cancel_action')} ${typeLabels(t)[a.type] || a.type}`} onClick={() => { openConfirmGlobal({ message: t('absences.cancel_confirm'), onConfirm: () => cancel(a.id), danger: true }) }} style={{ background: 'none', border: '1px solid var(--danger-border)', borderRadius: 6, padding: '4px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)", fontFamily: 'inherit' }}>{t('absences.cancel_action')}</button>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -490,21 +543,43 @@ export default function AbsencesPage() {
           {pending.length === 0 ? (
             <EmptyState icon="✅" title={t('absences.empty_pending_title')} description={t('absences.empty_pending_desc')} />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pending.map(a => (
-                <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.user_name}</div>
-                    <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
-                      {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
+            <>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+                <SearchInput value={pendingSearch} onChange={setPendingSearch} placeholder={t('absences.search_person', 'Buscar persona...')} style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 320 }} />
+                <FilterSelect value={pendingFilterType} onChange={setPendingFilterType} placeholder={t('absences.type_label')} options={Object.entries(typeLabels(t)).map(([v, l]) => ({ value: v, label: l.replace(/^\S+\s/, '') }))} />
+                <input type="date" aria-label={t('absences.start_label')} value={pendingFilterFrom} onChange={e => setPendingFilterFrom(e.target.value)}
+                  style={{ background: pendingFilterFrom ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${pendingFilterFrom ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: pendingFilterFrom ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+                <span style={{ color: 'var(--text-3)' }}>—</span>
+                <input type="date" aria-label={t('absences.end_label')} value={pendingFilterTo} onChange={e => setPendingFilterTo(e.target.value)}
+                  style={{ background: pendingFilterTo ? 'var(--accent-muted)' : 'var(--surface-2)', border: `1px solid ${pendingFilterTo ? 'var(--accent)' : 'var(--surface-4)'}`, borderRadius: 8, padding: '8px 12px', color: pendingFilterTo ? 'var(--accent)' : 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit', outline: 'none' }} />
+                {(pendingSearch || pendingFilterType || pendingFilterFrom || pendingFilterTo) && (
+                  <button onClick={() => { setPendingSearch(''); setPendingFilterType(''); setPendingFilterFrom(''); setPendingFilterTo('') }}
+                    style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {t('common.clear', 'Limpiar')}
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredPending.length} / {pending.length}</span>
+              </div>
+              {filteredPending.length === 0 ? (
+                <EmptyState icon="🔍" title={t('common.no_results', 'Sin resultados con los filtros aplicados')} />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {filteredPending.map(a => (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{a.user_name}</div>
+                        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+                          {typeLabels(t)[a.type]} · {fmtDate(a.start_date)} {'->'} {fmtDate(a.end_date)} · {a.working_days} {t('absences.days_unit')}
+                        </div>
+                        {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
+                      </div>
+                      <StatusBadge status={a.status} />
+                      <Button size="sm" onClick={() => setReviewing(a)}>{t('absences.review_action')}</Button>
                     </div>
-                    {a.reason && <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginTop: 2 }}>{a.reason}</div>}
-                  </div>
-                  <StatusBadge status={a.status} />
-                  <Button size="sm" onClick={() => setReviewing(a)}>{t('absences.review_action')}</Button>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -18,11 +18,23 @@ const lbl = { fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-2)
 const panel = { background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12 }
 
 const entityLabels = (t) => ({
-  timesheet: { label: t('approvals.entity_timesheet'), icon: '🕐', color: 'var(--accent)' },
-  expense: { label: t('approvals.entity_expense'), icon: '💶', color: 'var(--warning)' },
-  change_request: { label: t('approvals.entity_change_request'), icon: '🔄', color: 'var(--purple)' },
-  milestone: { label: t('approvals.entity_milestone'), icon: '◎', color: 'var(--success)' },
-  purchase: { label: t('approvals.entity_purchase'), icon: '🛒', color: 'var(--danger)' },
+  document:      { label: 'Document',       icon: '📄', color: 'var(--accent)' },
+  timesheet:     { label: t('approvals.entity_timesheet'),      icon: '🕐', color: 'var(--accent)' },
+  expense:       { label: t('approvals.entity_expense'),        icon: '💶', color: 'var(--warning)' },
+  change_request:{ label: t('approvals.entity_change_request'), icon: '🔄', color: 'var(--purple)' },
+  milestone:     { label: t('approvals.entity_milestone'),      icon: '◎', color: 'var(--success)' },
+  purchase:      { label: t('approvals.entity_purchase'),       icon: '🛒', color: 'var(--danger)' },
+  // v2 entity types
+  invoice:       { label: 'Factura',        icon: '🧾', color: 'var(--warning)' },
+  contract:      { label: 'Contrato',       icon: '📝', color: 'var(--purple)' },
+  budget:        { label: 'Presupuesto',    icon: '💰', color: 'var(--success)' },
+  leave:         { label: 'Ausencia',       icon: '🏖️', color: 'var(--accent)' },
+  deliverable:   { label: 'Entregable',     icon: '📦', color: 'var(--text-2)' },
+  proposal:      { label: 'Propuesta',      icon: '📋', color: 'var(--purple)' },
+  subcontractor: { label: 'Subcontratista', icon: '🤝', color: 'var(--warning)' },
+  scope_change:  { label: 'Cambio Alcance', icon: '🔀', color: 'var(--danger)' },
+  hire:          { label: 'Contratación',   icon: '👤', color: 'var(--success)' },
+  price_change:  { label: 'Cambio Precio',  icon: '💲', color: 'var(--danger)' },
 })
 
 const approverTypeLabels = (t) => ({
@@ -30,6 +42,7 @@ const approverTypeLabels = (t) => ({
   role: t('approvals.approver_role'),
   manager: t('approvals.approver_manager'),
   any_in_department: t('approvals.approver_any_department'),
+  group: 'Grupo de aprobadores',
 })
 
 const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
@@ -52,11 +65,23 @@ function StepModal({ workflowId, step, onClose }) {
     is_optional:         step?.is_optional         || false,
     timeout_hours:       step?.timeout_hours       || 72,
     on_timeout:          step?.on_timeout          || 'escalate',
+    // v2 enterprise
+    approver_group_id:   step?.approver_group_id   || '',
+    parallel_quorum:     step?.parallel_quorum     || false,
+    required_approvals:  step?.required_approvals  || 1,
+    step_condition:      step?.step_condition      || '',
+    requires_attachment: step?.requires_attachment || false,
+    reminder_hours:      step?.reminder_hours      || '',
   })
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
     queryFn: () => usersApi.list().then(r => r.data),
+  })
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ['approval-groups'],
+    queryFn: () => approvalsApi.listGroups().then(r => r.data),
   })
 
   const { mutate, isPending } = useMutation({
@@ -133,6 +158,56 @@ function StepModal({ workflowId, step, onClose }) {
             <input id={`${idPrefix}-is-optional`} type="checkbox" checked={form.is_optional} onChange={e => setForm(f=>({...f,is_optional:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
             {t('approvals.optional_step_label')}
           </label>
+        </div>
+
+        {/* ── v2 enterprise fields ── */}
+        {form.approver_type === 'group' && (
+          <div style={{ gridColumn: '1/-1' }}>
+            <label htmlFor={`${idPrefix}-group`} style={lbl}>Grupo de aprobadores</label>
+            <select id={`${idPrefix}-group`} value={form.approver_group_id} onChange={e => setForm(f=>({...f,approver_group_id:e.target.value}))} style={inp}>
+              <option value="">— Seleccionar grupo —</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+            <input type="checkbox" checked={form.parallel_quorum} onChange={e => setForm(f=>({...f,parallel_quorum:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            Quórum paralelo (varios aprobadores simultáneos)
+          </label>
+        </div>
+
+        {form.parallel_quorum && (
+          <div>
+            <label htmlFor={`${idPrefix}-req-approvals`} style={lbl}>Aprobaciones requeridas</label>
+            <input id={`${idPrefix}-req-approvals`} type="number" min="1" value={form.required_approvals}
+              onChange={e => setForm(f=>({...f,required_approvals:+e.target.value}))} style={inp} />
+          </div>
+        )}
+
+        <div>
+          <label htmlFor={`${idPrefix}-reminder`} style={lbl}>Recordatorio (horas, opcional)</label>
+          <input id={`${idPrefix}-reminder`} type="number" min="1" value={form.reminder_hours}
+            onChange={e => setForm(f=>({...f,reminder_hours:e.target.value ? +e.target.value : ''}))} style={inp} placeholder="p.e. 24" />
+        </div>
+
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+            <input type="checkbox" checked={form.requires_attachment} onChange={e => setForm(f=>({...f,requires_attachment:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+            Requiere adjunto obligatorio para aprobar
+          </label>
+        </div>
+
+        <div style={{ gridColumn: '1/-1' }}>
+          <label htmlFor={`${idPrefix}-condition`} style={lbl}>Condición de paso (JSON, opcional)</label>
+          <textarea id={`${idPrefix}-condition`} value={form.step_condition} rows={2}
+            onChange={e => setForm(f=>({...f,step_condition:e.target.value}))}
+            style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
+            placeholder='{"amount_gt": 5000, "department": "finance"}' />
+          <p style={{ fontSize:'var(--text-xs)', color:'var(--text-3)', margin:'2px 0 0' }}>
+            Si se define, este paso solo se activa cuando la condición se cumple.
+          </p>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -464,17 +539,545 @@ function MyPendingTab() {
   )
 }
 
+function WorkflowTemplatesTab() {
+  const toast = useToast()
+  const qc = useQueryClient()
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['approval-workflow-templates'],
+    queryFn: () => approvalsApi.listTemplates().then(r => r.data || []),
+  })
+  const { mutate: createFromTemplate, isPending } = useMutation({
+    mutationFn: (payload) => approvalsApi.createFromTemplate(payload),
+    onSuccess: () => {
+      qc.invalidateQueries(['approval-workflows'])
+      toast.success('Flujo creado desde plantilla')
+    },
+    onError: e => toast.error(extractErr(e, 'Error creando flujo desde plantilla')),
+  })
+
+  if (isLoading) return <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-2)' }}>Cargando plantillas...</div>
+  if (!templates.length) return <EmptyState icon="🧩" title="Sin plantillas" description="No hay plantillas disponibles" />
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+      {templates.map(tpl => (
+        <div key={tpl.id} style={{ ...panel, padding: '14px 16px' }}>
+          <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>{tpl.name}</div>
+          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>{tpl.description || 'Plantilla de flujo lista para usar.'}</div>
+          <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>Entidad: {tpl.entity_type} · Pasos: {(tpl.steps || []).length}</div>
+          <Button size="sm" onClick={() => createFromTemplate({ template_id: tpl.id })} loading={isPending}>Usar plantilla</Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function WorkflowSimulatorTab() {
+  const [entityType, setEntityType] = useState('document')
+  const [category, setCategory] = useState('')
+  const [department, setDepartment] = useState('')
+  const [amount, setAmount] = useState('')
+  const [requestedByUserId, setRequestedByUserId] = useState('')
+  const [result, setResult] = useState(null)
+  const toast = useToast()
+
+  const { mutate: simulate, isPending } = useMutation({
+    mutationFn: (payload) => approvalsApi.simulate(payload),
+    onSuccess: (res) => setResult(res.data),
+    onError: e => toast.error(extractErr(e, 'Error simulando flujo')),
+  })
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+      <div style={{ ...panel, padding: '14px 16px' }}>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 10 }}>Simula antes de publicar para validar ruta, aprobadores y SLA estimado.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px,1fr))', gap: 10 }}>
+          <div>
+            <label style={lbl}>Entity Type</label>
+            <select value={entityType} onChange={e => setEntityType(e.target.value)} style={inp}>
+              <option value="document">document</option>
+              <option value="expense">expense</option>
+              <option value="timesheet">timesheet</option>
+              <option value="milestone">milestone</option>
+              <option value="purchase">purchase</option>
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>Category</label>
+            <input value={category} onChange={e => setCategory(e.target.value)} style={inp} placeholder="legal, deliverable..." />
+          </div>
+          <div>
+            <label style={lbl}>Department</label>
+            <input value={department} onChange={e => setDepartment(e.target.value)} style={inp} placeholder="IT, Finance..." />
+          </div>
+          <div>
+            <label style={lbl}>Amount</label>
+            <input value={amount} onChange={e => setAmount(e.target.value)} style={inp} type="number" placeholder="1000" />
+          </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={lbl}>Requested by user id (opcional)</label>
+            <input value={requestedByUserId} onChange={e => setRequestedByUserId(e.target.value)} style={inp} placeholder="uuid del solicitante" />
+          </div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <Button onClick={() => simulate({ entity_type: entityType, context: { category, department, amount: amount ? Number(amount) : undefined, requested_by_user_id: requestedByUserId || undefined } })} loading={isPending}>Simular flujo</Button>
+        </div>
+      </div>
+
+      {result && (
+        <div style={{ ...panel, padding: '14px 16px' }}>
+          {!result.matched ? (
+            <div style={{ color: 'var(--warning)', fontWeight: 700 }}>Sin coincidencia: {result.reason}</div>
+          ) : (
+            <>
+              <div style={{ fontSize: "var(--text-md)", fontWeight: 800, marginBottom: 6 }}>Flujo seleccionado: {result.workflow?.name}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginBottom: 8 }}>SLA estimado total: {result.estimated_total_timeout_hours}h</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(result.route || []).map(step => (
+                  <div key={step.step_order} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: 700 }}>Paso {step.step_order}: {step.step_name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)' }}>Aprobador: {step.resolved_approver || 'No resoluble'} · Timeout: {step.timeout_hours}h · On timeout: {step.on_timeout}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function exportBottlenecksCSV(items, recommendations, days, workflowFilterName) {
+  const header = ['Workflow', 'Paso', 'Step name', 'Decisiones', 'Avg h', 'Reject %', 'Pending', 'SLA risk %', 'Score']
+  const rows = items.map(it => [
+    it.workflow_name,
+    it.step_order,
+    it.step_name,
+    it.decisions_total,
+    it.avg_decision_time_hours,
+    it.rejection_rate_pct,
+    it.pending_count,
+    it.sla_risk_pct,
+    it.bottleneck_score,
+  ])
+
+  const recHeader = ['Priority', 'Title', 'Action', 'Why']
+  const recRows = recommendations.map(r => [r.priority, r.title, r.action, r.why])
+
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const toCSV = (hdr, data) => [hdr, ...data].map(r => r.map(escape).join(',')).join('\n')
+
+  const label = workflowFilterName ? `Workflow: ${workflowFilterName}` : 'Todos los flujos'
+  const content = [
+    `# Bottleneck Analytics — ${label} — últimos ${days} días`,
+    '',
+    '## Pasos por score de cuello de botella',
+    toCSV(header, rows),
+    '',
+    '## Recomendaciones automáticas',
+    toCSV(recHeader, recRows),
+  ].join('\n')
+
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `bottlenecks_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function WorkflowBottlenecksTab() {
+  const [days, setDays] = useState(90)
+  const [workflowFilter, setWorkflowFilter] = useState('')
+
+  const { data: workflowsData = [] } = useQuery({
+    queryKey: ['approval-workflows'],
+    queryFn: () => approvalsApi.listWorkflows().then(r => r.data),
+  })
+
+  const params = { days, ...(workflowFilter ? { workflow_id: workflowFilter } : {}) }
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['approval-bottlenecks', days, workflowFilter],
+    queryFn: () => approvalsApi.bottlenecks(params).then(r => r.data),
+  })
+
+  const items = data?.items || []
+  const summary = data?.summary || {
+    steps_analyzed: items.length,
+    critical_steps: items.filter(it => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
+    pending_total: items.reduce((acc, it) => acc + (it.pending_count || 0), 0),
+    avg_decision_time_hours: items.length ? Number((items.reduce((acc, it) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
+  }
+  const topWorkflows = data?.top_workflows || []
+  const weeklyTrend = data?.weekly_trend || []
+  const recommendations = data?.recommendations || []
+
+  const selectedWorkflowName = workflowFilter
+    ? (workflowsData.find(w => w.id === workflowFilter)?.name || workflowFilter)
+    : null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ ...panel, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Ventana</span>
+        <select value={String(days)} onChange={e => setDays(Number(e.target.value))} style={{ ...inp, width: 130 }}>
+          <option value="30">30 dias</option>
+          <option value="60">60 dias</option>
+          <option value="90">90 dias</option>
+          <option value="180">180 dias</option>
+        </select>
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Flujo</span>
+        <select value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} style={{ ...inp, width: 200 }}>
+          <option value="">Todos los flujos</option>
+          {workflowsData.map(w => (
+            <option key={w.id} value={w.id}>{w.name}</option>
+          ))}
+        </select>
+        <Button size="sm" onClick={() => refetch()} loading={isFetching}>Actualizar</Button>
+        {items.length > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => exportBottlenecksCSV(items, recommendations, days, selectedWorkflowName)}>
+            Export CSV
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 28, color: 'var(--text-2)' }}>Cargando cuellos de botella...</div>
+      ) : items.length === 0 ? (
+        <EmptyState icon="📉" title="Sin datos suficientes" description="No hay decisiones historicas para calcular cuellos de botella." />
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {[
+              { label: 'Steps analyzed', value: summary.steps_analyzed, color: 'var(--accent)' },
+              { label: 'Critical steps', value: summary.critical_steps, color: 'var(--danger)' },
+              { label: 'Pending total', value: summary.pending_total, color: 'var(--warning)' },
+              { label: 'Avg decision (h)', value: summary.avg_decision_time_hours, color: 'var(--text-1)' },
+            ].map(k => (
+              <div key={k.label} style={{ ...panel, padding: '12px 14px' }}>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: k.color, fontFamily: 'var(--font-mono)' }}>{k.value}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {(topWorkflows.length > 0 || weeklyTrend.length > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+              <div style={{ ...panel, padding: '12px 14px' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Top workflows at risk</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {topWorkflows.map((wf, idx) => (
+                    <div key={wf.workflow_id || idx} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'center', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 10px', background: 'var(--surface-3)' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{wf.workflow_name}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>Score {wf.avg_bottleneck_score}</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: wf.max_sla_risk_pct >= 80 ? 'var(--danger)' : wf.max_sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>SLA {wf.max_sla_risk_pct}%</span>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)' }}>Pend {wf.pending_total}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ ...panel, padding: '12px 14px' }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Weekly rejection trend</div>
+                {weeklyTrend.length === 0 ? (
+                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Sin tendencia semanal disponible.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {weeklyTrend.slice(-8).map(row => (
+                      <div key={row.week} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 52px', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', fontFamily: 'var(--font-mono)' }}>{row.week}</span>
+                        <div style={{ height: 8, borderRadius: 999, background: 'var(--surface-4)', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(100, row.rejection_rate_pct)}%`, height: '100%', background: row.rejection_rate_pct >= 25 ? 'var(--danger)' : row.rejection_rate_pct >= 10 ? 'var(--warning)' : 'var(--success)' }} />
+                        </div>
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)' }}>{row.rejection_rate_pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {recommendations.length > 0 && (
+            <div style={{ ...panel, padding: '12px 14px' }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Recommended actions</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recommendations.map((rec, idx) => (
+                  <div key={`${rec.title}-${idx}`} style={{ border: '1px solid var(--surface-4)', borderRadius: 8, background: 'var(--surface-3)', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: rec.priority === 'high' ? 'var(--danger)' : 'var(--warning)', textTransform: 'uppercase', fontWeight: 700 }}>{rec.priority}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{rec.title}</span>
+                    </div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginTop: 4 }}>{rec.action}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)', marginTop: 2 }}>{rec.why}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ ...panel, padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 70px 90px 90px 90px 90px 90px', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', fontSize: 'var(--text-xs)', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span>Paso</span>
+              <span>Decis.</span>
+              <span>Avg h</span>
+              <span>Reject %</span>
+              <span>Pending</span>
+              <span>SLA risk</span>
+              <span>Score</span>
+            </div>
+            {items.slice(0, 30).map((it) => (
+              <div key={`${it.workflow_id}-${it.step_order}`} style={{ display: 'grid', gridTemplateColumns: '1.5fr 70px 90px 90px 90px 90px 90px', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--surface-4)', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.workflow_name}</div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>Paso {it.step_order}: {it.step_name}</div>
+                </div>
+                <span style={{ fontSize: 'var(--text-sm)' }}>{it.decisions_total}</span>
+                <span style={{ fontSize: 'var(--text-sm)' }}>{it.avg_decision_time_hours}</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: it.rejection_rate_pct >= 20 ? 'var(--danger)' : 'var(--text-2)' }}>{it.rejection_rate_pct}%</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: it.pending_count > 0 ? 'var(--warning)' : 'var(--text-2)' }}>{it.pending_count}</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: it.sla_risk_pct >= 80 ? 'var(--danger)' : it.sla_risk_pct >= 50 ? 'var(--warning)' : 'var(--success)' }}>{it.sla_risk_pct}%</span>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{it.bottleneck_score}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Grupos de aprobadores ─────────────────────────────────────────────────────
+function ApprovalGroupsTab() {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const { data: groups = [], isLoading } = useQuery({
+    queryKey: ['approval-groups'],
+    queryFn: () => approvalsApi.listGroups().then(r => r.data),
+  })
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => usersApi.list().then(r => r.data),
+  })
+  const [showCreate, setShowCreate] = useState(false)
+  const [editGroup, setEditGroup] = useState(null)
+  const [form, setForm] = useState({ name: '', description: '', member_ids: [] })
+
+  const { mutate: save, isPending } = useMutation({
+    mutationFn: d => editGroup ? approvalsApi.updateGroup(editGroup.id, d) : approvalsApi.createGroup(d),
+    onSuccess: () => { qc.invalidateQueries(['approval-groups']); setShowCreate(false); setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); toast.success(editGroup ? 'Grupo actualizado' : 'Grupo creado') },
+    onError: e => toast.error(extractErr(e, 'Error guardando grupo')),
+  })
+  const { mutate: del } = useMutation({
+    mutationFn: approvalsApi.deleteGroup,
+    onSuccess: () => { qc.invalidateQueries(['approval-groups']); toast.success('Grupo eliminado') },
+    onError: e => toast.error(extractErr(e, 'Error eliminando grupo')),
+  })
+
+  const openEdit = (g) => {
+    setEditGroup(g)
+    const members = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
+    setForm({ name: g.name, description: g.description || '', member_ids: members })
+    setShowCreate(true)
+  }
+
+  const toggleMember = (uid) => setForm(f => ({
+    ...f,
+    member_ids: f.member_ids.includes(uid) ? f.member_ids.filter(x => x !== uid) : [...f.member_ids, uid],
+  }))
+
+  if (isLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando grupos…</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <Button onClick={() => { setEditGroup(null); setForm({ name: '', description: '', member_ids: [] }); setShowCreate(true) }}>+ Nuevo grupo</Button>
+      </div>
+      {groups.length === 0 ? (
+        <EmptyState icon="👥" title="Sin grupos" description="Crea grupos de aprobadores para asignarlos a pasos de flujo." />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          {groups.map(g => {
+            const members = (() => { try { return JSON.parse(g.member_ids || '[]') } catch { return [] } })()
+            return (
+              <div key={g.id} style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, padding: '16px 18px' }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>👥 {g.name}</div>
+                {g.description && <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-2)', marginBottom: 8 }}>{g.description}</div>}
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{members.length} miembro{members.length !== 1 ? 's' : ''}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={() => openEdit(g)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>Editar</button>
+                  <button onClick={() => openConfirmGlobal({ message: `¿Eliminar grupo "${g.name}"?`, onConfirm: () => del(g.id), danger: true })} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>🗑</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {showCreate && (
+        <Modal open title={editGroup ? 'Editar grupo' : 'Nuevo grupo de aprobadores'} onClose={() => { setShowCreate(false); setEditGroup(null) }} width={480}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+            <div>
+              <label style={lbl}>Nombre *</label>
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} style={inp} placeholder="Ej: Comité financiero" />
+            </div>
+            <div>
+              <label style={lbl}>Descripción</label>
+              <input value={form.description} onChange={e => setForm(f=>({...f,description:e.target.value}))} style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>Miembros</label>
+              <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--surface-4)', borderRadius: 8, padding: 8 }}>
+                {users.map(u => (
+                  <label key={u.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0', cursor: 'pointer', fontSize: 'var(--text-sm)' }}>
+                    <input type="checkbox" checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} style={{ accentColor: 'var(--accent)' }} />
+                    {u.full_name} <span style={{ color: 'var(--text-3)', fontSize: 'var(--text-xs)' }}>({u.role})</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setShowCreate(false); setEditGroup(null) }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>Cancelar</button>
+            <Button onClick={() => save(form)} loading={isPending} disabled={!form.name || isPending}>Guardar</Button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ── Carga de aprobadores ──────────────────────────────────────────────────────
+function ApproverLoadTab() {
+  const [days, setDays] = useState(90)
+  const { data, isLoading } = useQuery({
+    queryKey: ['approver-load', days],
+    queryFn: () => approvalsApi.approverLoad({ days }).then(r => r.data),
+  })
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>Período:</span>
+        {[30, 60, 90, 180].map(d => (
+          <button key={d} onClick={() => setDays(d)}
+            style={{ background: days === d ? 'var(--accent)' : 'var(--surface-3)', border: 'none', borderRadius: 6, padding: '4px 12px', color: days === d ? '#fff' : 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}>
+            {d}d
+          </button>
+        ))}
+      </div>
+      {isLoading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)' }}>Cargando carga de aprobadores…</div>
+      ) : !data ? null : (
+        <>
+          {(data.overloaded_approvers || []).length > 0 && (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+              <strong style={{ color: 'var(--danger)' }}>⚠ Aprobadores sobrecargados:</strong>
+              <span style={{ marginLeft: 8, fontSize: 'var(--text-sm)', color: 'var(--text-1)' }}>{data.overloaded_approvers.join(', ')}</span>
+            </div>
+          )}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--text-sm)' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--surface-4)' }}>
+                  {['Aprobador', 'Pendientes', 'Tiempo Resp. (h)', 'Tasa Rechazo', 'Score Carga', ''].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(data.load || []).map(row => (
+                  <tr key={row.user_id} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 600 }}>{row.user_name}</td>
+                    <td style={{ padding: '10px 12px' }}>{row.pending_count}</td>
+                    <td style={{ padding: '10px 12px' }}>{row.avg_response_hours != null ? row.avg_response_hours.toFixed(1) : '—'}</td>
+                    <td style={{ padding: '10px 12px' }}>{row.rejection_rate != null ? (row.rejection_rate * 100).toFixed(0) + '%' : '—'}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: row.load_score > 7 ? 'var(--danger)' : row.load_score > 4 ? 'var(--warning)' : 'var(--success)' }}>
+                        {row.load_score?.toFixed(1) || '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      {row.load_score > 7 && <span style={{ fontSize: 'var(--text-xs)', padding: '2px 8px', borderRadius: 4, background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700 }}>Sobrecargado</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Matriz de aprobación ──────────────────────────────────────────────────────
+function ApprovalMatrixTab({ workflows = [] }) {
+  const t = useAppT()
+  const entityMap = entityLabels(t)
+  const entityTypes = Object.keys(entityMap)
+  // Collect all unique workflow names (across entity types)
+  const allWorkflowNames = [...new Set(workflows.map(w => w.name))]
+
+  return (
+    <div>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)', marginBottom: 16 }}>
+        Vista de qué flujos están activos por tipo de entidad. Verde = activo por defecto, azul = activo no-default, gris = inactivo.
+      </p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 'var(--text-xs)', minWidth: 600 }}>
+          <thead>
+            <tr>
+              <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-2)', fontWeight: 600, minWidth: 130 }}>Entidad</th>
+              {allWorkflowNames.map(name => (
+                <th key={name} style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--text-2)', fontWeight: 600, minWidth: 100 }}>{name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {entityTypes.map(et => {
+              const cfg = entityMap[et]
+              return (
+                <tr key={et} style={{ borderBottom: '1px solid var(--surface-4)' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 600 }}>
+                    {cfg.icon} {cfg.label}
+                  </td>
+                  {allWorkflowNames.map(name => {
+                    const wf = workflows.find(w => w.entity_type === et && w.name === name)
+                    if (!wf) return <td key={name} style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--text-3)' }}>—</td>
+                    const bg = wf.is_default ? 'var(--success)' : wf.is_active ? 'var(--accent)' : 'var(--surface-4)'
+                    const color = wf.is_active ? '#fff' : 'var(--text-3)'
+                    return (
+                      <td key={name} style={{ padding: '8px 10px', textAlign: 'center' }}>
+                        <span style={{ background: bg, color, borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+                          {wf.is_default ? 'Default' : wf.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
-export default function ApprovalsPage() {
+export default function ApprovalsPage({ mode = 'inbox' }) {
   const createIdPrefix = useId()
   const t = useAppT()
   const { user, loading } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
-  const [tab, setTab]           = useState('pending')   // pending | workflows | stats
+  const isConfigMode = mode === 'config'
+  const [tab, setTab]           = useState(isConfigMode ? 'workflows' : 'pending')
   const [selected, setSelected] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false })
+  const [form, setForm] = useState({ name: '', description: '', entity_type: 'timesheet', is_default: false, chain_on_approval_workflow_id: '', sla_block_on_breach: false, auto_approval_rules: '' })
   const canQueryProtected = !loading && !!user
 
   const { data: workflows = [], isLoading } = useQuery({
@@ -507,14 +1110,60 @@ export default function ApprovalsPage() {
     onError: e => toast.error(extractErr(e, t('approvals.error_generic')))
   })
 
+  const runValidate = async (e, workflowId) => {
+    e.stopPropagation()
+    try {
+      const res = await approvalsApi.validateWorkflow(workflowId)
+      if (res.data?.valid) {
+        toast.success('Flujo valido y listo para publicar')
+      } else {
+        toast.error(`Flujo no valido: ${(res.data?.issues || []).join(' | ') || 'revisar configuracion'}`)
+      }
+    } catch (err) {
+      toast.error(extractErr(err, 'Error validando flujo'))
+    }
+  }
+
+  const runPublish = async (e, workflowId) => {
+    e.stopPropagation()
+    try {
+      await approvalsApi.publishWorkflow(workflowId)
+      qc.invalidateQueries(['approval-workflows'])
+      toast.success('Flujo publicado')
+    } catch (err) {
+      toast.error(extractErr(err, 'Error publicando flujo'))
+    }
+  }
+
+  const runClone = async (e, workflowId) => {
+    e.stopPropagation()
+    try {
+      await approvalsApi.cloneVersion(workflowId, {})
+      qc.invalidateQueries(['approval-workflows'])
+      toast.success('Nueva version clonada')
+    } catch (err) {
+      toast.error(extractErr(err, 'Error clonando flujo'))
+    }
+  }
+
   if (selected) return <WorkflowDetail workflowId={selected} onBack={() => setSelected(null)} />
 
   return (
     <PageShell>
-      <PageHeader icon={<CheckCircle size={18} />} title={t('approvals.title')} subtitle={t('approvals.subtitle')} />
+      <PageHeader
+        icon={<CheckCircle size={18} />}
+        title={isConfigMode ? t('approvals.page_title_config') : t('approvals.page_title_inbox')}
+        subtitle={isConfigMode ? t('approvals.page_subtitle_config') : t('approvals.page_subtitle_inbox')}
+      />
+
+      <div style={{ ...panel, padding: '10px 14px', marginBottom: 14 }}>
+        <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)' }}>
+          {isConfigMode ? t('approvals.info_config') : t('approvals.info_inbox')}
+        </div>
+      </div>
 
       {/* KPIs */}
-      {stats && (
+      {stats && tab === 'workflows' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
           {[
             { label: t('approvals.pending'), value: stats.pending, color: 'var(--warning)' },
@@ -532,10 +1181,19 @@ export default function ApprovalsPage() {
 
       {/* Tabs */}
       <Tabs
-        items={[
-          { id: 'pending',   label: t('approvals.my_pending'), count: stats?.pending },
-          { id: 'workflows', label: t('approvals.tab_workflows') },
-        ]}
+        items={
+          isConfigMode
+            ? [
+              { id: 'workflows',   label: t('approvals.tab_workflows') },
+              { id: 'templates',   label: 'Templates' },
+              { id: 'simulator',   label: 'Simulator' },
+              { id: 'bottlenecks', label: 'Bottlenecks' },
+              { id: 'groups',      label: 'Grupos' },
+              { id: 'load',        label: 'Carga' },
+              { id: 'matrix',      label: 'Matriz' },
+            ]
+            : [{ id: 'pending', label: t('approvals.my_pending') }]
+        }
         active={tab}
         onChange={setTab}
         ariaLabel={t('approvals.sections_aria')}
@@ -596,7 +1254,10 @@ export default function ApprovalsPage() {
                         {t('approvals.steps_count', { count: wf.step_count, suffix: wf.step_count !== 1 ? t('approvals.steps_suffix_plural') : '' })}
                         {wf.description && ` · ${wf.description}`}
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
+                        <button onClick={(e) => runValidate(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Validar</button>
+                        <button onClick={(e) => runPublish(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--success)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Publicar</button>
+                        <button onClick={(e) => runClone(e, wf.id)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--accent)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>Clonar v</button>
                         <button aria-label={t('approvals.workflow_delete_aria', { name: wf.name })} onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('approvals.workflow_delete_confirm', { name: wf.name }), onConfirm:()=>del(wf.id),danger:true}) }}
                           style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 6, padding: '3px 10px', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-xs)" }}>
                           🗑
@@ -617,6 +1278,13 @@ export default function ApprovalsPage() {
           )}
         </div>
       )}
+
+      {tab === 'templates' && isConfigMode && <WorkflowTemplatesTab />}
+      {tab === 'simulator' && isConfigMode && <WorkflowSimulatorTab />}
+      {tab === 'bottlenecks' && isConfigMode && <WorkflowBottlenecksTab />}
+      {tab === 'groups' && isConfigMode && <ApprovalGroupsTab />}
+      {tab === 'load' && isConfigMode && <ApproverLoadTab />}
+      {tab === 'matrix' && isConfigMode && <ApprovalMatrixTab workflows={workflows} />}
 
       {showCreate && (
         <Modal open title={t('approvals.new_workflow_title')} onClose={() => setShowCreate(false)} width={480}>
@@ -639,6 +1307,26 @@ export default function ApprovalsPage() {
               <input id={`${createIdPrefix}-is-default`} type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
               {t('approvals.default_flow_label')}
             </label>
+            {/* v2 enterprise */}
+            <div>
+              <label htmlFor={`${createIdPrefix}-chain`} style={lbl}>Encadenar con flujo (al aprobar, opcional)</label>
+              <select id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
+                onChange={e => setForm(f=>({...f,chain_on_approval_workflow_id:e.target.value}))} style={inp}>
+                <option value="">— Sin encadenamiento —</option>
+                {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: "var(--text-sm)", color: 'var(--text-1)' }}>
+              <input type="checkbox" checked={form.sla_block_on_breach} onChange={e => setForm(f=>({...f,sla_block_on_breach:e.target.checked}))} style={{ accentColor: 'var(--accent)' }} />
+              Bloquear entidad si se supera el SLA
+            </label>
+            <div>
+              <label htmlFor={`${createIdPrefix}-auto-rules`} style={lbl}>Reglas de auto-aprobación (JSON, opcional)</label>
+              <textarea id={`${createIdPrefix}-auto-rules`} value={form.auto_approval_rules} rows={2}
+                onChange={e => setForm(f=>({...f,auto_approval_rules:e.target.value}))}
+                style={{...inp, resize:'vertical', fontFamily:'monospace', fontSize:'var(--text-xs)'}}
+                placeholder='[{"condition":"amount_lt","value":100,"action":"auto_approve"}]' />
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowCreate(false)} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '7px 16px', color: 'var(--text-2)', cursor: 'pointer', fontSize: "var(--text-sm)", fontFamily: 'inherit' }}>{t('common.cancel')}</button>

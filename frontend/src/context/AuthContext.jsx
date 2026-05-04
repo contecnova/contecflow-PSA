@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import api from '../services/api'
 import { useToast } from './ToastContext'
 
+// Prevent Vite from hot-replacing this module individually: a partial HMR reload
+// creates a new context reference while AuthProvider still injects the old one,
+// causing "useAuth must be used inside AuthProvider" in consumers.
+if (import.meta.hot) import.meta.hot.decline()
+
 export const AuthContext = createContext(null)
 
 // Key used to hint that an active session cookie may exist.

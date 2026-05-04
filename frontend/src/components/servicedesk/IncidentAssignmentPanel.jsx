@@ -55,6 +55,8 @@ export default function IncidentAssignmentPanel() {
   const [priority, setPriority] = useState('p3_medium')
   const [recommendation, setRecommendation] = useState(null)
 
+  const [applySuccess, setApplySuccess] = useState(false)
+
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['incident-assign-stats'],
     queryFn: () => api.get('/sd/assignment/stats').then(r => r.data),
@@ -83,6 +85,16 @@ export default function IncidentAssignmentPanel() {
     },
     onSuccess: (data) => {
       setRecommendation(data)
+      setApplySuccess(false)
+      refetchStats()
+    },
+  })
+
+  const applyMutation = useMutation({
+    mutationFn: ({ ticketId, userId }) =>
+      api.patch(`/sd/tickets/${ticketId}`, { assigned_to_user_id: userId }),
+    onSuccess: () => {
+      setApplySuccess(true)
       refetchStats()
     },
   })
@@ -200,6 +212,27 @@ export default function IncidentAssignmentPanel() {
                   )}
                   <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
                     Método: <span style={{ fontFamily: 'var(--font-mono)' }}>{recommendation.method_used}</span>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    {applySuccess ? (
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--success)' }}>
+                        ✓ Ticket asignado correctamente
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => applyMutation.mutate({ ticketId: ticketId.trim(), userId: recommendation.recommended_user_id })}
+                        disabled={applyMutation.isPending || !ticketId.trim()}
+                        loading={applyMutation.isPending}
+                        style={{ fontSize: 'var(--text-sm)' }}
+                      >
+                        ✓ Aplicar asignación
+                      </Button>
+                    )}
+                    {applyMutation.isError && (
+                      <div style={{ marginTop: 6, fontSize: 'var(--text-xs)', color: 'var(--danger)' }}>
+                        {applyMutation.error?.response?.data?.detail || 'Error al aplicar asignación'}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (

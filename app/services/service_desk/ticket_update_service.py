@@ -128,4 +128,5 @@ def apply_ticket_update(
     return {
         "refresh_profile": normalized_status in ("resolved", "closed") and bool(ticket.assigned_to_user_id),
         "reassigned": bool(payload.assigned_to_user_id and old_assigned_to and payload.assigned_to_user_id != old_assigned_to),
+        "record_routing_outcome": normalized_status in ("resolved", "closed"),
     }

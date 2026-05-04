@@ -115,6 +115,7 @@ class DocumentOut(DocumentBase):
     versions: List[DocumentVersionOut] = []
     permissions: List[DocumentPermissionOut] = []
     tags: List[str] = []
+    approval_request: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -143,6 +144,7 @@ class DocumentVersionCreate(BaseModel):
 
 class DocumentApprovalPayload(BaseModel):
     status: ApprovalStatus = ApprovalStatus.approved
+    note: Optional[str] = None
     notes: Optional[str] = None
 
 

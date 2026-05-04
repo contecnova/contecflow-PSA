@@ -539,9 +539,15 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
   });
 
   const approveMutation = useMutation({
-    mutationFn: status => documentsApi.approve(documentId, { status }),
-    onSuccess: (_, s) => { toast.success(s === 'approved' ? 'Documento aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
+    mutationFn: ({ status, note }) => documentsApi.approve(documentId, { status, note }),
+    onSuccess: (_, { status }) => { toast.success(status === 'approved' ? 'Paso aprobado' : 'Documento rechazado'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
     onError: e => toast.error(e.response?.data?.detail || 'Error'),
+  });
+
+  const submitApprovalMutation = useMutation({
+    mutationFn: () => documentsApi.submitApproval(documentId),
+    onSuccess: () => { toast.success('Solicitud de aprobación enviada'); qc.invalidateQueries({ queryKey: ['document', documentId] }); onRefresh(); },
+    onError: e => toast.error(e.response?.data?.detail || 'No hay ningún flujo de aprobación configurado para esta categoría'),
   });
 
   const summaryMutation = useMutation({
@@ -636,12 +642,21 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
 
               {/* Action row */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {doc.requires_approval && doc.approval_status === 'pending' && (
+                {doc.requires_approval && doc.approval_status === 'pending' && !doc.approval_request && (
+                  <button
+                    onClick={() => submitApprovalMutation.mutate()}
+                    disabled={submitApprovalMutation.isPending}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: '#f59e0b', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <FileClock size={13} /> {submitApprovalMutation.isPending ? 'Enviando...' : 'Enviar para aprobación'}
+                  </button>
+                )}
+                {doc.requires_approval && doc.approval_status === 'pending' && doc.approval_request?.status === 'pending' && (
                   <>
-                    <button onClick={() => approveMutation.mutate('approved')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--success)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <CheckCircle size={13} /> Aprobar
+                    <button onClick={() => approveMutation.mutate({ status: 'approved' })} disabled={approveMutation.isPending} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--success)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <CheckCircle size={13} /> Aprobar paso
                     </button>
-                    <button onClick={() => approveMutation.mutate('rejected')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <button onClick={() => approveMutation.mutate({ status: 'rejected' })} disabled={approveMutation.isPending} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: 'var(--danger)', color: 'white', fontSize: "var(--text-sm)", fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
                       <XCircle size={13} /> Rechazar
                     </button>
                   </>
@@ -823,7 +838,74 @@ function DocumentDrawer({ documentId, onClose, onRefresh }) {
                   </button>
                 </div>
               )}
-
+                    {/* Approval workflow panel */}
+                    {doc.approval_request && (
+                      <div style={{ marginTop: 16, background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ fontWeight: 700, fontSize: "var(--text-sm)", color: 'var(--text-1)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <FileClock size={14} style={{ color: '#f59e0b' }} />
+                          Flujo de aprobación — {doc.approval_request.workflow_name}
+                        </div>
+                        {/* Step indicator */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 12, flexWrap: 'wrap', gap: 4 }}>
+                          {Array.from({ length: doc.approval_request.total_steps || 1 }, (_, i) => {
+                            const stepNum = i + 1;
+                            const isDone = stepNum < (doc.approval_request.current_step || 1);
+                            const isCurrent = stepNum === (doc.approval_request.current_step || 1) && doc.approval_request.status === 'pending';
+                            const isRejected = doc.approval_request.status === 'rejected';
+                            const color = isDone ? 'var(--success)' : isCurrent ? '#f59e0b' : isRejected && stepNum === doc.approval_request.current_step ? 'var(--danger)' : 'var(--surface-4)';
+                            return (
+                              <div key={stepNum} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: "var(--text-xs)", fontWeight: 700, color: (isDone || isCurrent) ? 'white' : 'var(--text-3)' }}>
+                                  {isDone ? '✓' : stepNum}
+                                </div>
+                                {stepNum < (doc.approval_request.total_steps || 1) && (
+                                  <div style={{ width: 20, height: 2, backgroundColor: isDone ? 'var(--success)' : 'var(--surface-4)', borderRadius: 2 }} />
+                                )}
+                              </div>
+                            );
+                          })}
+                          <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", color: 'var(--text-3)' }}>
+                            Paso {doc.approval_request.current_step} de {doc.approval_request.total_steps}
+                          </span>
+                        </div>
+                        {/* Current step info */}
+                        {doc.approval_request.status === 'pending' && doc.approval_request.current_step_name && (
+                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--text-2)', marginBottom: 8 }}>
+                            <span style={{ fontWeight: 700 }}>{doc.approval_request.current_step_name}</span>
+                            {doc.approval_request.current_approver_name && (
+                              <> — Pendiente de <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_name}</span></>
+                            )}
+                            {!doc.approval_request.current_approver_name && doc.approval_request.current_approver_role && (
+                              <> — Pendiente de rol <span style={{ color: 'var(--accent)' }}>{doc.approval_request.current_approver_role}</span></>
+                            )}
+                          </div>
+                        )}
+                        {doc.approval_request.status === 'approved' && (
+                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--success)', fontWeight: 700 }}>✓ Aprobado completamente</div>
+                        )}
+                        {doc.approval_request.status === 'rejected' && (
+                          <div style={{ fontSize: "var(--text-sm)", color: 'var(--danger)', fontWeight: 700 }}>✗ Rechazado</div>
+                        )}
+                        {/* Decisions trail */}
+                        {doc.approval_request.decisions?.length > 0 && (
+                          <div style={{ marginTop: 10, borderTop: '1px solid var(--surface-4)', paddingTop: 10 }}>
+                            <div style={{ fontSize: "var(--text-2xs)", fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Historial de decisiones</div>
+                            {doc.approval_request.decisions.map((d, idx) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                                <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: d.decision === 'approved' ? '#34d39920' : '#f8717120', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <span style={{ fontSize: 10, color: d.decision === 'approved' ? 'var(--success)' : 'var(--danger)' }}>{d.decision === 'approved' ? '✓' : '✗'}</span>
+                                </div>
+                                <div>
+                                  <span style={{ fontSize: "var(--text-xs)", fontWeight: 700, color: 'var(--text-1)' }}>{d.approver_name || 'Desconocido'}</span>
+                                  <span style={{ fontSize: "var(--text-xs)", color: 'var(--text-3)', marginLeft: 6 }}>Paso {d.step_order} · {d.decided_at ? new Date(d.decided_at).toLocaleDateString('es-ES') : ''}</span>
+                                  {d.note && <div style={{ fontSize: "var(--text-xs)", color: 'var(--text-2)', marginTop: 2, fontStyle: 'italic' }}>"{d.note}"</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
               {tab === 'meta' && isEditingMeta && metaForm && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>

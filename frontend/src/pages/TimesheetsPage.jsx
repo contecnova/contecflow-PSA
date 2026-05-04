@@ -198,6 +198,16 @@ export default function TimesheetsPage() {
   const [reviewing, setReviewing] = useState(null)
   const [teamSortKey, setTeamSortKey] = useState('week_start')
   const [teamSortDir, setTeamSortDir] = useState('desc')
+  const [mineStatusFilter, setMineStatusFilter] = useState('')
+  const [mineFrom, setMineFrom] = useState('')
+  const [mineTo, setMineTo] = useState('')
+  const [pendingSearch, setPendingSearch] = useState('')
+  const [pendingFrom, setPendingFrom] = useState('')
+  const [pendingTo, setPendingTo] = useState('')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [teamStatusFilter, setTeamStatusFilter] = useState('')
+  const [teamFrom, setTeamFrom] = useState('')
+  const [teamTo, setTeamTo] = useState('')
 
   const toggleTeamSort = (key) => {
     if (teamSortKey === key) setTeamSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -228,6 +238,40 @@ export default function TimesheetsPage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
+  const dateInRange = (value, from, to) => {
+    if (!value) return true
+    if (from && value < from) return false
+    if (to && value > to) return false
+    return true
+  }
+
+  const filteredMine = mySheets.filter(ts => {
+    if (mineStatusFilter && ts.status !== mineStatusFilter) return false
+    if (!dateInRange(ts.week_start, mineFrom, mineTo)) return false
+    return true
+  })
+
+  const filteredPending = pending.filter(ts => {
+    if (pendingSearch) {
+      const q = pendingSearch.toLowerCase()
+      const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    if (!dateInRange(ts.week_start, pendingFrom, pendingTo)) return false
+    return true
+  })
+
+  const filteredTeam = teamSheets.filter(ts => {
+    if (teamSearch) {
+      const q = teamSearch.toLowerCase()
+      const haystack = `${ts.user_name || ''} ${ts.week_start || ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
+    }
+    if (teamStatusFilter && ts.status !== teamStatusFilter) return false
+    if (!dateInRange(ts.week_start, teamFrom, teamTo)) return false
+    return true
+  })
+
   const tabs = [
     { id: 'mine', label: 'Mis timesheets' },
     ...(hasRole('admin', 'pm', 'hr') ? [
@@ -253,7 +297,27 @@ export default function TimesheetsPage() {
             <EmptyState icon="📋" title="Sin timesheets" description="Aun no has generado ningun parte semanal" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {mySheets.map(ts => (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+                  <option value="">Estado: todos</option>
+                  <option value="draft">Borrador</option>
+                  <option value="submitted">Enviado</option>
+                  <option value="approved">Aprobado</option>
+                  <option value="rejected">Rechazado</option>
+                </select>
+                <input type="date" value={mineFrom} onChange={e => setMineFrom(e.target.value)} aria-label="Semana desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <span style={{ color: 'var(--text-3)' }}>—</span>
+                <input type="date" value={mineTo} onChange={e => setMineTo(e.target.value)} aria-label="Semana hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                {(mineStatusFilter || mineFrom || mineTo) && (
+                  <button onClick={() => { setMineStatusFilter(''); setMineFrom(''); setMineTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Limpiar
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredMine.length} / {mySheets.length}</span>
+              </div>
+              {filteredMine.length === 0 ? (
+                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets que coincidan con los filtros" />
+              ) : filteredMine.map(ts => (
                 <div key={ts.week_start} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: `1px solid ${ts.status === 'rejected' ? 'var(--danger-border)' : ts.status === 'approved' ? 'var(--success-border)' : 'var(--surface-4)'}`, borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700, marginBottom: 4 }}>
@@ -290,7 +354,21 @@ export default function TimesheetsPage() {
             <EmptyState icon="✅" title="Sin pendientes" description="No hay timesheets pendientes de revision" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pending.map(ts => (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar pendientes" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <input type="date" value={pendingFrom} onChange={e => setPendingFrom(e.target.value)} aria-label="Pendientes desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <span style={{ color: 'var(--text-3)' }}>—</span>
+                <input type="date" value={pendingTo} onChange={e => setPendingTo(e.target.value)} aria-label="Pendientes hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                {(pendingSearch || pendingFrom || pendingTo) && (
+                  <button onClick={() => { setPendingSearch(''); setPendingFrom(''); setPendingTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Limpiar
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredPending.length} / {pending.length}</span>
+              </div>
+              {filteredPending.length === 0 ? (
+                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets pendientes que coincidan con los filtros" />
+              ) : filteredPending.map(ts => (
                 <div key={ts.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'var(--surface-2)', border: '1px solid var(--warning-border)', borderRadius: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "var(--text-md)", fontWeight: 700 }}>{ts.user_name}</div>
@@ -312,6 +390,29 @@ export default function TimesheetsPage() {
           {loadingTeam ? <Spinner /> : teamSheets.length === 0 ? (
             <EmptyState icon="👥" title="Sin timesheets de equipo" description="Todavia no hay partes semanales del equipo" />
           ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar persona o semana..." aria-label="Buscar equipo" style={{ minWidth: 220, flex: '1 1 220px', maxWidth: 340, background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <select value={teamStatusFilter} onChange={e => setTeamStatusFilter(e.target.value)} style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }}>
+                  <option value="">Estado: todos</option>
+                  <option value="draft">Borrador</option>
+                  <option value="submitted">Enviado</option>
+                  <option value="approved">Aprobado</option>
+                  <option value="rejected">Rechazado</option>
+                </select>
+                <input type="date" value={teamFrom} onChange={e => setTeamFrom(e.target.value)} aria-label="Equipo desde" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                <span style={{ color: 'var(--text-3)' }}>—</span>
+                <input type="date" value={teamTo} onChange={e => setTeamTo(e.target.value)} aria-label="Equipo hasta" style={{ background: 'var(--surface-3)', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-1)', fontSize: 'var(--text-sm)', fontFamily: 'inherit' }} />
+                {(teamSearch || teamStatusFilter || teamFrom || teamTo) && (
+                  <button onClick={() => { setTeamSearch(''); setTeamStatusFilter(''); setTeamFrom(''); setTeamTo('') }} style={{ background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-2)', fontSize: 'var(--text-sm)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Limpiar
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-3)' }}>{filteredTeam.length} / {teamSheets.length}</span>
+              </div>
+              {filteredTeam.length === 0 ? (
+                <EmptyState icon="🔍" title="Sin resultados" description="No hay timesheets de equipo que coincidan con los filtros" />
+              ) : (
             <div style={{ background: 'var(--surface-2)', border: '1px solid var(--surface-4)', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 80px 80px 80px 100px 80px', gap: 16, padding: '10px 20px', borderBottom: '1px solid var(--surface-4)', fontSize: "var(--text-xs)", fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                 {[['user_name','Persona'],['week_start','Semana'],['total_hours','Total'],['billable_hours','Fact.'],['total_cost','Coste'],['status','Estado']].map(([key, label]) => (
@@ -325,7 +426,7 @@ export default function TimesheetsPage() {
                 ))}
                 <span></span>
               </div>
-              {[...teamSheets].sort((a, b) => {
+              {[...filteredTeam].sort((a, b) => {
                 const va = a[teamSortKey] ?? ''
                 const vb = b[teamSortKey] ?? ''
                 const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb))
@@ -341,6 +442,8 @@ export default function TimesheetsPage() {
                   {ts.status === 'submitted' && <Button size="sm" onClick={() => setReviewing(ts)}>Revisar</Button>}
                 </div>
               ))}
+            </div>
+              )}
             </div>
           )}
         </div>

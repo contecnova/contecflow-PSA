@@ -48,7 +48,7 @@ from app.services.service_desk.incident_intelligence_service import score_auto_r
 from app.services.service_desk.kb_service import create_kb_from_ticket
 from app.services.service_desk.portal_auth_service import require_portal_client
 from app.services.service_desk.semantic_feedback_service import (
-    enqueue_profile_refresh, enqueue_reassign_feedback,
+    enqueue_profile_refresh, enqueue_reassign_feedback, enqueue_routing_outcome,
 )
 
 router = APIRouter()
@@ -182,6 +182,8 @@ def update_ticket(
         enqueue_profile_refresh(background_tasks, ticket.assigned_to_user_id)
     if effects["reassigned"]:
         enqueue_reassign_feedback(background_tasks, ticket_id, "ticket")
+    if effects.get("record_routing_outcome"):
+        enqueue_routing_outcome(background_tasks, ticket_id)
     return _ticket_out(ticket)
 
 

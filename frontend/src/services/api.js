@@ -116,19 +116,33 @@ export const forecastApi = {
 // ── Approvals ─────────────────────────────────────────────────────────────────
 export const approvalsApi = {
   listWorkflows:     (params)      => api.get('/approvals/workflows', { params }),
+  listTemplates:     ()            => api.get('/approvals/workflow-templates'),
   getWorkflow:       (id)          => api.get(`/approvals/workflows/${id}`),
   createWorkflow:    (d)           => api.post('/approvals/workflows', d),
+  createFromTemplate:(d)           => api.post('/approvals/workflows/from-template', d),
   updateWorkflow:    (id, d)       => api.patch(`/approvals/workflows/${id}`, d),
+  validateWorkflow:  (id)          => api.get(`/approvals/workflows/${id}/validate`),
+  publishWorkflow:   (id)          => api.post(`/approvals/workflows/${id}/publish`),
+  cloneVersion:      (id, d)       => api.post(`/approvals/workflows/${id}/clone-version`, d || {}),
   deleteWorkflow:    (id)          => api.delete(`/approvals/workflows/${id}`),
   addStep:           (wid, d)      => api.post(`/approvals/workflows/${wid}/steps`, d),
   updateStep:        (wid, sid, d) => api.patch(`/approvals/workflows/${wid}/steps/${sid}`, d),
   deleteStep:        (wid, sid)    => api.delete(`/approvals/workflows/${wid}/steps/${sid}`),
-  listRequests:      (params)      => api.get('/approvals/requests', { params }), // ya estaba correcto
+  simulate:          (d)           => api.post('/approvals/simulate', d),
+  bottlenecks:       (params)      => api.get('/approvals/analytics/bottlenecks', { params }),
+  approverLoad:      (params)      => api.get('/approvals/analytics/approver-load', { params }),
+  listRequests:      (params)      => api.get('/approvals/requests', { params }),
   pendingMyAction:   ()            => api.get('/approvals/requests/pending-my-action'),
   createRequest:     (d)           => api.post('/approvals/requests', d),
   decide:            (id, d)       => api.post(`/approvals/requests/${id}/decide`, d),
   cancel:            (id)          => api.post(`/approvals/requests/${id}/cancel`),
   stats:             ()            => api.get('/approvals/stats'),
+  // Groups
+  listGroups:        ()            => api.get('/approvals/groups'),
+  getGroup:          (id)          => api.get(`/approvals/groups/${id}`),
+  createGroup:       (d)           => api.post('/approvals/groups', d),
+  updateGroup:       (id, d)       => api.patch(`/approvals/groups/${id}`, d),
+  deleteGroup:       (id)          => api.delete(`/approvals/groups/${id}`),
 }
 
 export const uatApi = {
@@ -775,6 +789,7 @@ export const documentsApi = {
   update:    (id, data) => api.patch(`/documents/${id}`, data),
   delete:    (id)       => api.delete(`/documents/${id}`),
   approve:   (id, data) => api.post(`/documents/${id}/approve`, data),
+    submitApproval: (id) => api.post(`/documents/${id}/submit-approval`),
   aiSummary: (id)       => api.post(`/documents/${id}/ai-summary`),
   addVersion:(id, fd)   => api.post(`/documents/${id}/versions`, fd),
 }
@@ -1082,6 +1097,7 @@ export const semanticApi = {
   stats:              () => api.get('/semantic/stats'),
   autoGenerate:       () => api.post('/semantic/profiles/auto-generate'),
   rebuildEmbeddings:  () => api.post('/semantic/profiles/rebuild-embeddings'),
+  recordAssignment:   (data) => api.post('/semantic/record-assignment', data),
 }
 
 // ── GRC ───────────────────────────────────────────────────────────────────────
@@ -1324,6 +1340,8 @@ export const projectWorkflowsApi = {
   deleteState:      (projectId, stateId) => api.delete(`/project-workflows/${projectId}/states/${stateId}`),
   createTransition: (projectId, data) => api.post(`/project-workflows/${projectId}/transitions`, data),
   deleteTransition: (projectId, transId) => api.delete(`/project-workflows/${projectId}/transitions/${transId}`),
+  transitionTask:   (projectId, taskId, data) => api.post(`/project-workflows/${projectId}/tasks/${taskId}/transition`, data),
+  resetWorkflow:    (projectId) => api.delete(`/project-workflows/${projectId}/reset`),
 }
 
 // ── Sprint Plans ──────────────────────────────────────────────────────────────

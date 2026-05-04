@@ -163,6 +163,15 @@ def init_default_workflow(
     return _svc.init_default_workflow(project_id, db)
 
 
+@router.delete("/project-workflows/{project_id}/reset", summary="Restablecer workflow a Scrum estándar")
+def reset_workflow(
+    project_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_or_pm),
+):
+    return _svc.reset_workflow(project_id, db)
+
+
 @router.post("/project-workflows/{project_id}/tasks/{task_id}/transition", summary="Transicionar tarea")
 def transition_task(
     project_id: str, task_id: str,

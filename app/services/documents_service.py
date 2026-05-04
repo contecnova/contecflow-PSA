@@ -248,7 +248,54 @@ def serialize_document(db, doc, user, generate_s3_urls: bool = True):
             granted_at=p.granted_at, expires_at=p.expires_at,
         ) for p in visible_perms],
         tags=[t.tag_name for t in doc.tags],
+        approval_request=_serialize_approval_request(db, doc),
     )
+
+
+def _serialize_approval_request(db, doc) -> Optional[dict]:
+    """Serialize current approval workflow state for a document."""
+    if not getattr(doc, 'approval_request_id', None):
+        return None
+    try:
+        from app.models.billing_reports import ApprovalRequest, ApprovalDecision as ADec, ApprovalStep
+        ar = db.query(ApprovalRequest).filter(ApprovalRequest.id == doc.approval_request_id).first()
+        if not ar:
+            return None
+        wf = ar.workflow
+        steps = sorted(wf.steps, key=lambda s: s.step_order) if wf else []
+        current_step_obj = next((s for s in steps if s.step_order == ar.current_step), None)
+        decisions = db.query(ADec).filter(ADec.request_id == ar.id).order_by(ADec.created_at).all()
+        return {
+            "id": ar.id,
+            "status": ar.status,
+            "workflow_name": wf.name if wf else None,
+            "total_steps": len(steps),
+            "current_step": ar.current_step,
+            "current_step_name": current_step_obj.name if current_step_obj else None,
+            "current_approver_type": current_step_obj.approver_type if current_step_obj else None,
+            "current_approver_role": current_step_obj.approver_role if current_step_obj else None,
+            "current_approver_user_id": current_step_obj.approver_user_id if current_step_obj else None,
+            "current_approver_name": (
+                current_step_obj.approver.full_name
+                if current_step_obj and current_step_obj.approver else None
+            ),
+            "requested_at": ar.created_at.isoformat() if ar.created_at else None,
+            "completed_at": ar.completed_at.isoformat() if ar.completed_at else None,
+            "decisions": [
+                {
+                    "step_order": d.step_order,
+                    "approver_id": d.actor_user_id,
+                    "approver_name": d.actor.full_name if d.actor else None,
+                    "decision": d.decision,
+                    "note": d.note,
+                    "decided_at": d.created_at.isoformat() if d.created_at else None,
+                }
+                for d in decisions
+            ],
+        }
+    except Exception:
+        logger.warning("Failed to serialize approval_request for doc %s", doc.id, exc_info=True)
+        return None
 
 
 # ── Entity-list helper ────────────────────────────────────────────────────────
@@ -298,6 +345,53 @@ def extract_document_text(file_key: str, file_name: str, file_mime_type: str) ->
     return None
 
 
+# ── Approval-engine helpers ─────────────────────────────────────────────────
+
+def _auto_create_approval_request(db, doc, current_user):
+    """Find the best workflow for this document and open an ApprovalRequest.
+
+    Returns the created ApprovalRequest id, or None if no workflow is configured.
+    """
+    from app.services.approval_engine import find_document_workflow
+    from app.models.billing_reports import ApprovalRequest as ARModel
+    import uuid as _uuid
+
+    category = doc.category.value if hasattr(doc.category, 'value') else str(doc.category)
+    wf = find_document_workflow(db, category)
+    if not wf:
+        return None
+
+    steps = sorted(wf.steps or [], key=lambda s: s.step_order)
+    if not steps:
+        return None
+
+    ar = ARModel(
+        id=str(_uuid.uuid4()),
+        workflow_id=wf.id,
+        entity_type="document",
+        entity_id=doc.id,
+        entity_summary=doc.title,
+        requested_by=current_user.id,
+        status="pending",
+        current_step=steps[0].step_order,
+        step_started_at=datetime.now(timezone.utc),
+    )
+    db.add(ar)
+    db.flush()
+    doc.approval_request_id = ar.id
+    db.add(doc)
+    db.flush()
+
+    # Notify first approver
+    try:
+        from app.services.approval_engine import notify_approver
+        notify_approver(ar, steps[0], db)
+    except Exception:
+        logger.warning("Could not notify first approver for document %s", doc.id, exc_info=True)
+
+    return ar.id
+
+
 # ── CRUD service functions ────────────────────────────────────────────────────
 
 def create_document(db, payload, current_user):
@@ -313,6 +407,8 @@ def create_document(db, payload, current_user):
     )
     db.add(doc)
     db.flush()
+    if doc.requires_approval:
+        _auto_create_approval_request(db, doc, current_user)
     db.commit()
     db.refresh(doc)
     return serialize_document(db, doc, current_user)
@@ -428,10 +524,39 @@ def remove_document_permission(db, doc_id: str, perm_id: str):
 def approve_document(db, doc, payload, current_user):
     if not doc.requires_approval:
         raise HTTPException(status_code=400, detail="This document does not require approval")
+
+    if doc.approval_request_id:
+        # Route through the multi-level workflow engine
+        from app.services.approval_engine import decide_approval_request
+        decision_str = payload.status.value if hasattr(payload.status, 'value') else str(payload.status)
+        note = getattr(payload, 'note', None) or getattr(payload, 'notes', None)
+        decide_approval_request(doc.approval_request_id, decision_str, note, None, db, current_user)
+        db.refresh(doc)
+        return serialize_document(db, doc, current_user)
+
+    # Legacy path: no workflow linked — direct approval
     doc.approval_status = payload.status
     if payload.status == ApprovalStatus.approved:
         doc.approved_by = current_user.id
         doc.approved_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(doc)
+    return serialize_document(db, doc, current_user)
+
+
+def submit_for_approval(db, doc, current_user):
+    """Explicitly submit a document for approval when no workflow was found at creation time."""
+    if not doc.requires_approval:
+        raise HTTPException(status_code=400, detail="This document does not require approval")
+    if doc.approval_request_id:
+        raise HTTPException(status_code=409, detail="Document already has an active approval request")
+    ar_id = _auto_create_approval_request(db, doc, current_user)
+    if not ar_id:
+        raise HTTPException(
+            status_code=422,
+            detail="No approval workflow configured for this document category. "
+                   "Please configure a workflow in Settings > Approval Workflows.",
+        )
     db.commit()
     db.refresh(doc)
     return serialize_document(db, doc, current_user)
@@ -471,6 +596,8 @@ def create_and_upload_document(db, current_user, file, content: bytes, title: st
     if tags:
         for tag in [t.strip() for t in tags.split(",") if t.strip()]:
             db.add(DocumentTag(document_id=doc.id, tag_name=tag))
+    if requires_approval:
+        _auto_create_approval_request(db, doc, current_user)
     db.commit()
     db.refresh(doc)
     return serialize_document(db, doc, current_user)

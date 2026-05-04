@@ -29,6 +29,20 @@ from app.services.approval_engine import (
     get_financial_audit_entries,
     get_approval_stats,
     process_approval_timeouts,
+    list_workflow_templates,
+    create_workflow_from_template,
+    simulate_workflow,
+    validate_workflow,
+    publish_workflow,
+    clone_workflow_as_version,
+    get_workflow_bottlenecks,
+    get_approver_load,
+    list_approval_groups,
+    get_approval_group,
+    create_approval_group,
+    update_approval_group,
+    delete_approval_group,
+    serialize_approval_group as _group_out,
     serialize_step as _step_out,
     serialize_workflow as _workflow_out,
     serialize_approval_request as _request_out,
@@ -39,7 +53,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
-_FINANCIAL_ENTITY_TYPES = {"timesheet", "expense", "milestone", "purchase", "invoice"}
+_FINANCIAL_ENTITY_TYPES = {
+    "timesheet", "expense", "milestone", "purchase", "invoice",
+    "contract", "budget", "leave", "deliverable", "proposal",
+    "subcontractor", "scope_change", "hire", "price_change",
+}
 
 
 
@@ -60,6 +78,27 @@ def create_workflow_endpoint(
     current_user: User = Depends(require_admin),
 ):
     w = create_workflow(db, payload.model_dump())
+    return _workflow_out(w, include_steps=True)
+
+
+@router.get("/workflow-templates", summary="Listar plantillas de flujos")
+def list_workflow_templates_endpoint(
+    current_user: User = Depends(get_current_user),
+):
+    return list_workflow_templates()
+
+
+@router.post("/workflows/from-template", summary="Crear flujo desde plantilla")
+def create_workflow_from_template_endpoint(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    template_id = payload.get("template_id")
+    name = payload.get("name")
+    if not template_id:
+        raise HTTPException(400, "template_id es obligatorio")
+    w = create_workflow_from_template(db, template_id, override_name=name)
     return _workflow_out(w, include_steps=True)
 
 
@@ -86,6 +125,50 @@ def update_workflow_endpoint(
     if not w:
         raise HTTPException(404)
     return _workflow_out(w, include_steps=True)
+
+
+@router.get("/workflows/{workflow_id}/validate", summary="Validar flujo")
+def validate_workflow_endpoint(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return validate_workflow(db, workflow_id)
+
+
+@router.post("/workflows/{workflow_id}/publish", summary="Publicar flujo")
+def publish_workflow_endpoint(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    w = publish_workflow(db, workflow_id)
+    return _workflow_out(w, include_steps=True)
+
+
+@router.post("/workflows/{workflow_id}/clone-version", summary="Clonar flujo como nueva versión")
+def clone_workflow_version_endpoint(
+    workflow_id: str,
+    payload: dict = Body(default={}),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    suffix = payload.get("suffix")
+    w = clone_workflow_as_version(db, workflow_id, suffix=suffix)
+    return _workflow_out(w, include_steps=True)
+
+
+@router.post("/simulate", summary="Simular selección y ruta de flujo")
+def simulate_workflow_endpoint(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    entity_type = payload.get("entity_type")
+    context = payload.get("context") or {}
+    if not entity_type:
+        raise HTTPException(400, "entity_type es obligatorio")
+    return simulate_workflow(db, entity_type=entity_type, context=context)
 
 
 @router.delete("/workflows/{workflow_id}", summary="Eliminar flujo")
@@ -185,7 +268,9 @@ def decide_request(
     current_user: User = Depends(get_current_user),
 ):
     req = decide_approval_request(
-        request_id, payload.decision, payload.note, payload.delegate_to, db, current_user
+        request_id, payload.decision, payload.note, payload.delegate_to,
+        db, current_user,
+        attachment_url=getattr(payload, "attachment_url", None),
     )
     return _request_out(req)
 
@@ -263,3 +348,88 @@ def approval_stats(
     current_user: User = Depends(require_any_manager),
 ):
     return get_approval_stats(db, current_user)
+
+
+@router.get("/analytics/bottlenecks", summary="Cuellos de botella por flujo/paso")
+def approval_bottlenecks(
+    workflow_id: Optional[str] = Query(None),
+    days: int = Query(90, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    return get_workflow_bottlenecks(db, current_user, workflow_id=workflow_id, days=days)
+
+
+@router.get("/analytics/approver-load", summary="Carga de trabajo por aprobador")
+def approver_load_endpoint(
+    days: int = Query(90, ge=1, le=365),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_manager),
+):
+    return get_approver_load(db, current_user, days=days)
+
+
+# ── Approver Groups ──────────────────────────────────────────────────────────────
+@router.get("/groups", summary="Listar grupos de aprobadores")
+def list_groups(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return [_group_out(g) for g in list_approval_groups(db)]
+
+
+@router.post("/groups", summary="Crear grupo de aprobadores")
+def create_group(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    g = create_approval_group(
+        db,
+        name=payload.get("name", "Nuevo grupo"),
+        description=payload.get("description"),
+        member_ids=payload.get("member_ids", []),
+        created_by=current_user.id,
+    )
+    return _group_out(g)
+
+
+@router.get("/groups/{group_id}", summary="Detalle de grupo")
+def get_group(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    g = get_approval_group(db, group_id)
+    if not g:
+        raise HTTPException(404)
+    return _group_out(g)
+
+
+@router.patch("/groups/{group_id}", summary="Actualizar grupo")
+def update_group(
+    group_id: str,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    g = update_approval_group(
+        db, group_id,
+        name=payload.get("name"),
+        description=payload.get("description"),
+        member_ids=payload.get("member_ids"),
+    )
+    if not g:
+        raise HTTPException(404)
+    return _group_out(g)
+
+
+@router.delete("/groups/{group_id}", summary="Eliminar grupo")
+def delete_group(
+    group_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if not delete_approval_group(db, group_id):
+        raise HTTPException(404)
+    return {"ok": True}

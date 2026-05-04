@@ -22,12 +22,14 @@ const _DEP_TYPE_LABELS = {
 }
 
 function IssueTypeForm({ projectId, type, customFields, onClose }) {
+  const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!type?.id
+  const autoValue = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
   const [form, setForm] = useState({
     name:       type?.name        || '',
-    value:      type?.value       || '',
+    value:      type?.value       || autoValue(type?.name || ''),
     icon:       type?.icon        || '',
     color:      type?.color       || '#7a8aaa',
     description:type?.description || '',
@@ -36,14 +38,17 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
     field_keys: type?.field_keys  || [],
   })
   const set = k => v => setForm(f => ({...f, [k]: v}))
-  const autoValue = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
 
   const { mutate, isPending } = useMutation({
     mutationFn: d => isEdit
       ? issueTypesApi.update(projectId, type.id, d).then(r => r.data)
       : issueTypesApi.create(projectId, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries(['issue-types', projectId]); onClose() },
-    onError: e => toast.error(extractErr(e, 'Error al guardar')),
+    onSuccess: () => {
+      qc.invalidateQueries(['issue-types', projectId])
+      toast.success(isEdit ? t('issue_types.saved_ok') : t('issue_types.created_ok'))
+      onClose()
+    },
+    onError: e => toast.error(extractErr(e, t('issue_types.error_save'))),
   })
 
   const toggleField = (key) => {
@@ -52,7 +57,6 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
       : [...form.field_keys, key])
   }
 
-  const t = useAppT();
   return (
     <Modal open onClose={onClose} title={isEdit ? t('issue_types.edit_modal_title') : t('issue_types.new_modal_title')}>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
@@ -115,7 +119,7 @@ function IssueTypeForm({ projectId, type, customFields, onClose }) {
         )}
         <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:8}}>
           <Button variant="secondary" onClick={onClose}>{t('issue_types.cancel')}</Button>
-          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || !form.value} loading={isPending}>
+          <Button onClick={() => mutate(form)} disabled={isPending || !form.name || (!isEdit && !form.value)} loading={isPending}>
             {isPending ? t('issue_types.saving') : isEdit ? t('issue_types.save_changes') : t('issue_types.create_type')}
           </Button>
         </div>
@@ -149,31 +153,37 @@ export default function IssueTypesPage() {
 
   const { mutate: initTypes, isPending: initing } = useMutation({
     mutationFn: () => issueTypesApi.init(project).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries(['issue-types', project]),
-    onError: e => toast.error(extractErr(e, 'Error al inicializar')),
+    onSuccess: () => {
+      qc.invalidateQueries(['issue-types', project])
+      toast.success(t('issue_types.init_ok'))
+    },
+    onError: e => toast.error(extractErr(e, t('issue_types.error_init'))),
   })
   const { mutate: deleteType } = useMutation({
     mutationFn: id => issueTypesApi.delete(project, id),
-    onSuccess: () => qc.invalidateQueries(['issue-types', project]),
-    onError: e => toast.error(extractErr(e, 'Error al eliminar')),
+    onSuccess: () => {
+      qc.invalidateQueries(['issue-types', project])
+      toast.success(t('issue_types.deleted_ok'))
+    },
+    onError: e => toast.error(extractErr(e, t('issue_types.error_delete'))),
   })
 
   return (
     <PageShell>
       <PageHeader icon={<Tag size={18} />} title={t('issue_types.title')} subtitle={t('issue_types.subtitle')}
         actions={project && types.length > 0 && (
-          <Button onClick={() => { setEditing(null); setShowForm(true) }}>+ Nuevo tipo</Button>
+          <Button onClick={() => { setEditing(null); setShowForm(true) }}>{`+ ${t('issue_types.new_type')}`}</Button>
         )} />
 
       <div style={{...ps, marginBottom:20}}>
-        <label style={ls}>Proyecto</label>
+        <label style={ls}>{t('issue_types.project_label')}</label>
         <select value={project} onChange={e => setProject(e.target.value)} style={{...is, width:360}}>
-          <option value="">Selecciona un proyecto...</option>
+          <option value="">{t('issue_types.select_project_option')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
-      {!project && <EmptyState icon="🏷" title="Selecciona un proyecto" description="Elige un proyecto para gestionar los tipos de issue" />}
+      {!project && <EmptyState icon="🏷" title={t('issue_types.select_project_title')} description={t('issue_types.select_project_desc')} />}
       {project && isLoading && <Spinner />}
 
       {project && !isLoading && types.length === 0 && (
@@ -196,13 +206,13 @@ export default function IssueTypesPage() {
         <div>
           {/* Resumen visual */}
           <div style={{display:'flex', gap:10, flexWrap:'wrap', marginBottom:20}}>
-            {types.map(t => (
-              <div key={t.id} style={{background:'var(--surface-2)', border:`1px solid ${t.color}40`,
+            {types.map(typeItem => (
+              <div key={typeItem.id} style={{background:'var(--surface-2)', border:`1px solid ${typeItem.color}40`,
                 borderRadius:10, padding:'12px 16px', minWidth:120, textAlign:'center'}}>
-                <div style={{fontSize: "var(--text-3xl)", marginBottom:4}}>{t.icon || '📌'}</div>
-                <div style={{fontWeight:600, fontSize: "var(--text-base)", color:t.color}}>{t.name}</div>
-                <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', fontFamily:'var(--font-mono)'}}>{t.value}</div>
-                {t.is_subtask && <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
+                <div style={{fontSize: "var(--text-3xl)", marginBottom:4}}>{typeItem.icon || '📌'}</div>
+                <div style={{fontWeight:600, fontSize: "var(--text-base)", color:typeItem.color}}>{typeItem.name}</div>
+                <div style={{fontSize: "var(--text-xs)", color:'var(--text-3)', fontFamily:'var(--font-mono)'}}>{typeItem.value}</div>
+                {typeItem.is_subtask && <div style={{fontSize: "var(--text-2xs)", color:'var(--text-2)', marginTop:4}}>{t('issue_types.subtask')}</div>}
               </div>
             ))}
           </div>
@@ -222,37 +232,37 @@ export default function IssueTypesPage() {
                 </tr>
               </thead>
               <tbody>
-                {types.map((t, i) => (
-                  <tr key={t.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                {types.map((typeItem, i) => (
+                  <tr key={typeItem.id} style={{borderBottom:'1px solid #1e2d45', background:i%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', alignItems:'center', gap:10}}>
-                        <div style={{width:32, height:32, borderRadius:8, background:t.color+'20',
+                        <div style={{width:32, height:32, borderRadius:8, background:typeItem.color+'20',
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize: "var(--text-lg)"}}>
-                          {t.icon || '📌'}
+                          {typeItem.icon || '📌'}
                         </div>
-                        <span style={{fontWeight:600, color:t.color}}>{t.name}</span>
+                        <span style={{fontWeight:600, color:typeItem.color}}>{typeItem.name}</span>
                       </div>
                     </td>
-                    <td style={{padding:'10px 12px', fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{t.value}</td>
+                    <td style={{padding:'10px 12px', fontFamily:'var(--font-mono)', fontSize: "var(--text-xs)", color:'var(--text-2)'}}>{typeItem.value}</td>
                     <td style={{padding:'10px 12px', color:'var(--text-2)', fontSize: "var(--text-sm)", maxWidth:220}}>
-                      {t.description || '—'}
+                      {typeItem.description || '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
-                      <span style={{color: t.is_subtask ? 'var(--success)' : 'var(--text-3)', fontSize: "var(--text-base)"}}>
-                        {t.is_subtask ? '✓' : '—'}
+                      <span style={{color: typeItem.is_subtask ? 'var(--success)' : 'var(--text-3)', fontSize: "var(--text-base)"}}>
+                        {typeItem.is_subtask ? '✓' : '—'}
                       </span>
                     </td>
                     <td style={{padding:'10px 12px', fontSize: "var(--text-sm)", color:'var(--text-2)'}}>
-                      {t.field_keys?.length > 0 ? t.field_keys.join(', ') : '—'}
+                      {typeItem.field_keys?.length > 0 ? typeItem.field_keys.join(', ') : '—'}
                     </td>
                     <td style={{padding:'10px 12px'}}>
                       <div style={{display:'flex', gap:8}}>
-                        <button onClick={() => { setEditing(t); setShowForm(true) }}
+                        <button onClick={() => { setEditing(typeItem); setShowForm(true) }}
                           style={{background:'none', border:'1px solid var(--surface-4)', borderRadius:6,
                             padding:'4px 10px', color:'var(--text-2)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
                           {t('issue_types.edit')}
                         </button>
-                        <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', t.name), onConfirm: () => deleteType(t.id), danger: true }) }}
+                        <button onClick={() => { openConfirmGlobal({ message: t('issue_types.confirm_delete').replace('{name}', typeItem.name), onConfirm: () => deleteType(typeItem.id), danger: true }) }}
                           style={{background:'none', border:'1px solid var(--danger-border)', borderRadius:6,
                             padding:'4px 10px', color:'var(--danger)', cursor:'pointer', fontSize: "var(--text-xs)"}}>
                           {t('issue_types.delete')}

@@ -41,3 +41,24 @@ def enqueue_reassign_feedback(background_tasks: BackgroundTasks, item_id: str, i
             db.close()
 
     background_tasks.add_task(_run)
+
+
+def enqueue_routing_outcome(background_tasks: BackgroundTasks, ticket_id: str) -> None:
+    """Record ML routing outcome (resolution time + CSAT) when a ticket is resolved/closed."""
+
+    def _run():
+        from app.models.service_desk import Ticket
+        from app.services.service_desk.ml_routing_service import record_routing_outcome
+
+        db = SessionLocal()
+        try:
+            ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+            if ticket:
+                record_routing_outcome(db, ticket)
+                db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+
+    background_tasks.add_task(_run)

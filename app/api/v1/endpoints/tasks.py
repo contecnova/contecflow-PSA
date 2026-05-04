@@ -41,12 +41,18 @@ from app.models.semantic_engine import SemConfig
 router = APIRouter()
 
 
-@router.post("/suggest-assignee", summary="Sugerir asignación de tarea (requiere confirmación manual)")
+@router.post("/suggest-assignee", summary="[DEPRECATED] Sugerir asignación de tarea — usar /semantic/suggest/task")
 def suggest_task_assignee(
     payload: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
+    # Deprecated: canonical path is POST /semantic/suggest/task (returns flat suggestion + records SemAssignment)
+    if response is not None:
+        response.headers["Deprecation"] = "true"
+        response.headers["Link"] = '</api/v1/semantic/suggest/task>; rel="successor-version"'
+
     enforce_abac(db, current_user, "task", action="read")
 
     title = str(payload.get("title") or "").strip()

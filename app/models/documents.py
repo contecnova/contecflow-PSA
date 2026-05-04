@@ -62,6 +62,8 @@ class Document(Base):
     approval_status = Column(Enum(ApprovalStatus), default=ApprovalStatus.pending)
     approved_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
+    # Link to the active ApprovalRequest in the multi-level approval engine
+    approval_request_id = Column(String(36), ForeignKey("approval_requests.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Metadata
     is_archived = Column(Boolean, default=False, index=True)

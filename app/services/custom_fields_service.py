@@ -356,6 +356,15 @@ def transition_task(project_id: str, task_id: str, payload, current_user, db: Se
     }
 
 
+def reset_workflow(project_id: str, db: Session) -> dict:
+    """Elimina todos los estados y transiciones personalizados y recrea el Scrum estándar."""
+    get_project_or_404(project_id, db)
+    db.query(WorkflowTransition).filter(WorkflowTransition.project_id == project_id).delete()
+    db.query(WorkflowState).filter(WorkflowState.project_id == project_id).delete()
+    db.commit()
+    return init_default_workflow(project_id, db)
+
+
 # ── Project permissions ───────────────────────────────────────────────────────
 
 def get_permissions(project_id: str, db: Session) -> list:

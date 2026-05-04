@@ -312,11 +312,24 @@ def approve_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Approve or reject document."""
+    """Approve or reject document — routes through multi-level workflow engine when a workflow is linked."""
     doc = get_document_or_404(db, doc_id)
     check_document_access(doc, current_user, DocumentAccessLevel.admin)
 
     return doc_svc.approve_document(db, doc, payload, current_user)
+
+
+@router.post("/{doc_id}/submit-approval", response_model=DocumentOut, summary="Submit document for approval")
+def submit_for_approval(
+    doc_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Explicitly open an approval request for a document that requires_approval=True but has no active workflow yet."""
+    doc = get_document_or_404(db, doc_id)
+    check_document_access(doc, current_user, DocumentAccessLevel.write)
+
+    return doc_svc.submit_for_approval(db, doc, current_user)
 
 
 # ── Combined create + upload in one request ────────────────────────────────

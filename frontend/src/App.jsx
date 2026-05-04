@@ -475,11 +475,13 @@ function AppRoutes() {
           <Layout><CustomFieldsPage /></Layout>
         </ProtectedRoute>
       } />
-      <Route path="/workflows" element={
+      <Route path="/settings/project-workflows" element={
         <ProtectedRoute roles={['admin','pm']}>
           <Layout><WorkflowsPage /></Layout>
         </ProtectedRoute>
       } />
+      <Route path="/settings/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
+      <Route path="/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
       <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
       <Route path="/wiki" element={<ProtectedRoute><Layout><WikiPage/></Layout></ProtectedRoute>}/>
       <Route path="/epics" element={<ProtectedRoute><Layout><EpicsPage/></Layout></ProtectedRoute>}/>
@@ -507,7 +509,8 @@ function AppRoutes() {
       <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
       <Route path="/rate-cards"        element={<ProtectedRoute roles={['admin','pm']}><Layout><RateCardsPage /></Layout></ProtectedRoute>} />
       <Route path="/milestone-billing" element={<ProtectedRoute roles={['admin','pm']}><Layout><MilestoneBillingPage /></Layout></ProtectedRoute>} />
-      <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage /></Layout></ProtectedRoute>} />
+      <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
+      <Route path="/settings/approval-workflows" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="config" /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><GanttPage /></Layout></ProtectedRoute>} />

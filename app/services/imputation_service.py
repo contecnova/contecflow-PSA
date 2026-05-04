@@ -231,7 +231,11 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             Imputation.date == payload.date,
         ).first()
         if duplicate:
-            raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
+            if not getattr(payload, 'force_duplicate', False):
+                raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
+            duplicate_imputation_id = duplicate[0]
+        else:
+            duplicate_imputation_id = None
     else:
         # task_id is None: NULL != NULL in SQL so the unique index doesn't protect us;
         # enforce the duplicate check explicitly at the application level.
@@ -242,10 +246,14 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
             Imputation.date == payload.date,
         ).first()
         if dup:
-            raise HTTPException(
-                status_code=409,
-                detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.",
-            )
+            if not getattr(payload, 'force_duplicate', False):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.",
+                )
+            duplicate_imputation_id = dup[0]
+        else:
+            duplicate_imputation_id = None
 
     # Weekly cap
     week_start = payload.date - timedelta(days=payload.date.weekday())
@@ -280,10 +288,22 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     )
     db.add(imputation)
     try:
-        db.commit()
+        db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.") from exc
+
+    if getattr(payload, 'force_duplicate', False) and duplicate_imputation_id:
+        _notify_duplicate_imputation_manager(
+            db,
+            current_user,
+            project,
+            task,
+            imputation,
+            duplicate_imputation_id,
+        )
+
+    db.commit()
     db.refresh(imputation)
     return imputation
 

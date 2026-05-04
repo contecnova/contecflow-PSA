@@ -201,6 +201,16 @@ export default function WorkflowsPage() {
     onError: e => toast.error(extractErr(e, 'Error')),
   })
 
+  const { mutate: resetWorkflow, isPending: isResetting } = useMutation({
+    mutationFn: () => projectWorkflowsApi.resetWorkflow(selectedProject).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries(['workflow', selectedProject])
+      qc.invalidateQueries(['project-workflow', selectedProject])
+      toast.success('Workflow restablecido al Scrum estándar')
+    },
+    onError: e => toast.error(extractErr(e, 'Error al restablecer')),
+  })
+
   const _selectedProj = projects.find(p => p.id === selectedProject)
   const totalTransitions = states.reduce((sum, s) => sum + (s.transitions_from?.length || 0), 0)
 
@@ -208,10 +218,20 @@ export default function WorkflowsPage() {
     <PageShell>
       <PageHeader
         icon={<Workflow size={18} />}
-        title={t('workflows.title')}
-        subtitle={t('workflows.subtitle')}
+        title={t('project_workflows.page_title')}
+        subtitle={t('project_workflows.page_subtitle')}
         actions={selectedProject && states.length > 0 && (
           <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => openConfirmGlobal({
+                message: `¿Restablecer el workflow de "${_selectedProj?.name}" al Scrum estándar?\n\nEsto eliminará todos los estados y transiciones personalizados y los sustituirá por los 5 estados Scrum por defecto. Las tareas conservarán su valor de estado actual.`,
+                onConfirm: () => resetWorkflow(),
+                danger: true,
+              })}
+              disabled={isResetting}
+              style={{ background: 'transparent', border: '1px solid var(--danger-border)', borderRadius: 8, padding: '7px 14px', color: 'var(--danger)', cursor: 'pointer', fontSize: 'var(--text-sm)', fontFamily: 'inherit', fontWeight: 600 }}>
+              {isResetting ? '⏳' : '↺ Restablecer'}
+            </button>
             <Button variant="secondary" onClick={() => setShowTransitionForm(true)}>+ Transición</Button>
             <Button onClick={() => { setEditingState(null); setShowStateForm(true) }}>+ Estado</Button>
           </div>
@@ -306,27 +326,27 @@ export default function WorkflowsPage() {
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {states.flatMap(s =>
-                (s.transitions_from || []).map(t => {
-                  const toState = states.find(ss => ss.id === t.to_state_id)
+                (s.transitions_from || []).map(tr => {
+                  const toState = states.find(ss => ss.id === tr.to_state_id)
                   return (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
+                    <div key={tr.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface-1)', borderRadius: 8, border: '1px solid var(--surface-4)', fontSize: "var(--text-sm)" }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
                         <span style={{ color: 'var(--text-1)' }}>{s.icon} {s.name}</span>
                         <span style={{ color: 'var(--text-3)' }}>→</span>
                         <span style={{ width: 8, height: 8, borderRadius: '50%', background: toState?.color || 'var(--text-2)', display: 'inline-block' }} />
                         <span style={{ color: 'var(--text-1)' }}>{toState?.icon} {toState?.name}</span>
-                        {t.label && <span style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>&quot;{t.label}&quot;</span>}
+                        {tr.label && <span style={{ color: 'var(--text-2)', fontStyle: 'italic' }}>&quot;{tr.label}&quot;</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        {t.required_role && (
-                          <span style={{ fontSize: "var(--text-2xs)", padding: '1px 5px', borderRadius: 4, background: 'var(--warning-bg)', color: 'var(--warning)' }}>{t.required_role}</span>
+                        {tr.required_role && (
+                          <span style={{ fontSize: "var(--text-2xs)", padding: '1px 5px', borderRadius: 4, background: 'var(--warning-bg)', color: 'var(--warning)' }}>{tr.required_role}</span>
                         )}
-                        {t.requires_comment && (
+                        {tr.requires_comment && (
                           <span style={{ fontSize: "var(--text-2xs)", padding: '1px 5px', borderRadius: 4, background: 'var(--purple-bg)', color: 'var(--purple)' }}>💬</span>
                         )}
                       </div>
-                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta transición?', onConfirm: () => deleteTransition(t.id), danger: true }) }}
+                      <button onClick={() => { openConfirmGlobal({ message: '¿Eliminar esta transición?', onConfirm: () => deleteTransition(tr.id), danger: true }) }}
                         style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: "var(--text-base)", padding: '2px 4px' }}>✕</button>
                     </div>
                   )

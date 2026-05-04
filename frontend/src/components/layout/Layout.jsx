@@ -71,6 +71,8 @@ const ROUTE_LABELS = {
   '/search': 'Search',
   '/public-forms': 'Public Forms',
   '/developer': 'Developer Portal',
+  '/settings/approval-workflows': 'Approval Flows (Config)',
+  '/settings/project-workflows': 'Project Issue Flows',
 }
 
 const ROUTE_SECTION = {
@@ -110,6 +112,8 @@ const ROUTE_SECTION = {
   '/enterprise': 'Settings', '/webhook-log': 'Settings',
   '/jira-integration': 'Settings',
   '/project-templates': 'Settings',
+  '/settings/approval-workflows': 'Settings',
+  '/settings/project-workflows': 'Settings',
   '/search': 'My Work',
   '/public-forms': 'Settings',
   '/developer': 'Settings',
@@ -134,6 +138,8 @@ const PATH_NAV_KEY = {
   '/exports': 'data_exports', '/jira-integration': 'jira_integration',
   '/public-forms': 'public_forms',
   '/developer': 'developer_portal',
+  '/settings/approval-workflows': 'approval_flows',
+  '/settings/project-workflows': 'project_issue_flows',
 }
 
 const SZ = 13
@@ -258,7 +264,7 @@ const NAV_GROUPS = [
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
-    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approvals',       roles: ['admin','pm','team_lead'] },
+    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead'] },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },
@@ -336,7 +342,8 @@ const NAV_GROUPS = [
   { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, roles: ['admin','pm','hr','employee','team_lead'], items: [
     { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings',               roles: ['admin'] },
       { to: '/project-templates',   icon: <Layers size={SZ} />,      label: 'Project Templates',      roles: ['admin','pm'] },
-    { to: '/workflows',           icon: <GitMerge size={SZ} />,    label: 'Workflows',              roles: ['admin','pm'] },
+    { to: '/settings/approval-workflows', icon: <CheckCircle size={SZ} />, label: 'Approval Flows (Config)', roles: ['admin','pm','team_lead'] },
+    { to: '/settings/project-workflows',  icon: <GitMerge size={SZ} />,    label: 'Project Issue Flows',     roles: ['admin','pm'] },
     { to: '/issue-types',         icon: <Tag size={SZ} />,         label: 'Issue Types',            roles: ['admin','pm'] },
     { to: '/custom-fields',       icon: <Sliders size={SZ} />,     label: 'Custom Fields',          roles: ['admin','pm'] },
     { to: '/project-permissions', icon: <Lock size={SZ} />,        label: 'Project Permissions',    roles: ['admin','pm'] },

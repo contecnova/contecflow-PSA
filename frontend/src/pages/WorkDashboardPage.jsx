@@ -115,14 +115,14 @@ export default function WorkDashboardPage() {
           params: {
             assigned_to_me: true,
             status: 'backlog,todo,in_progress,blocked,in_review,review',
-            page_size: 1,
+            page_size: 500,
           },
         }),
         api.get('/tasks', {
           params: {
             assigned_to_me: true,
             overdue_only: true,
-            page_size: 1,
+            page_size: 500,
           },
         }),
         api.get('/tasks', {
@@ -134,8 +134,15 @@ export default function WorkDashboardPage() {
         }),
       ])
 
+      const openItems = Array.isArray(openRes?.data) ? openRes.data : []
+      const overdueItems = Array.isArray(overdueRes?.data) ? overdueRes.data : []
+      const openTaskIds = new Set(openItems.map(t => t.id).filter(Boolean))
+      overdueItems.forEach(t => {
+        if (t?.id) openTaskIds.add(t.id)
+      })
+
       return {
-        open: totalCountFrom(openRes),
+        open: openTaskIds.size,
         overdue: totalCountFrom(overdueRes),
         done: totalCountFrom(doneRes),
       }
@@ -271,13 +278,13 @@ export default function WorkDashboardPage() {
           value={tasksOpen}
           color={tasksOpen > 10 ? COLOR.warning : 'var(--text-1)'}
           accentBar={COLOR.accent}
-          action={{ label: 'Ver tareas', to: '/tasks' }} />
+          action={{ label: 'Ver tareas', to: '/tasks?view=list&mine=1&status=open' }} />
         <KpiCard icon="⚠️" label="Tareas vencidas"
           value={tasksOverdue}
           color={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
           accentBar={tasksOverdue > 0 ? COLOR.danger : COLOR.success}
           sub={tasksOverdue > 0 ? 'Requieren atención' : 'Todo al día'}
-          action={tasksOverdue > 0 ? { label: 'Revisar vencidas', to: '/tasks' } : undefined} />
+          action={tasksOverdue > 0 ? { label: 'Revisar vencidas', to: '/tasks?view=list&mine=1&status=open&overdue=1' } : undefined} />
         <KpiCard icon="⏱" label="Horas esta semana"
           value={hoursWeek.toFixed(1)}
           color={hoursColor} accentBar={hoursColor}

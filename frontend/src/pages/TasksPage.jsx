@@ -4,7 +4,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasksApi, projectsApi, customFieldsApi, semanticApi } from '../services/api'
+import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi } from '../services/api'
 import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import VirtualList from '../components/ui/VirtualList'
@@ -33,7 +33,10 @@ const STATUSES = ['todo', 'in_progress', 'blocked', 'review', 'done']
 const _STATUS_ICONS = { todo: '○', in_progress: '◑', blocked: '✕', review: '◐', done: '●' }
 
 const PRIORITIES = Object.entries(PRIORITY_LABELS).map(([v, l]) => ({ value: v, label: l }))
-const TASK_STATUSES = STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] }))
+const TASK_STATUSES = [
+  { value: 'open', label: 'Abiertas' },
+  ...STATUSES.map(v => ({ value: v, label: STATUS_LABELS[v] })),
+]
 
 function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }) {
   const wasDragged = useRef(false)
@@ -119,6 +122,31 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
   )
 }
 
+function useWorkflowStatusOptions(projectId, t) {
+  const { data } = useQuery({
+    queryKey: ['project-workflow', projectId],
+    queryFn: () => projectWorkflowsApi.get(projectId).then(r => r.data).catch(() => null),
+    enabled: !!projectId,
+    staleTime: 60000,
+    retry: false,
+  })
+  if (data?.states?.length > 0) {
+    return data.states
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      .map(s => ({ value: s.value, icon: s.icon || '○', label: s.name }))
+  }
+  return [
+    { value: 'backlog',     icon: '○', label: t('tasks.status_backlog')     },
+    { value: 'todo',        icon: '○', label: t('tasks.status_todo')        },
+    { value: 'in_progress', icon: '◑', label: t('tasks.status_in_progress') },
+    { value: 'review',      icon: '◐', label: t('tasks.status_review')      },
+    { value: 'blocked',     icon: '✕', label: t('tasks.status_blocked')     },
+    { value: 'done',        icon: '●', label: t('tasks.status_done')        },
+    { value: 'cancelled',   icon: '✕', label: t('tasks.status_cancelled')   },
+  ]
+}
+
 function TaskDetailModal({ task, open, onClose }) {
   const t = useAppT()
   const qc = useQueryClient()
@@ -155,6 +183,8 @@ function TaskDetailModal({ task, open, onClose }) {
     queryKey: ['users'],
     queryFn: () => import('../services/api').then(m => m.usersApi.list().then(r => r.data)),
   })
+
+  const statusOptions = useWorkflowStatusOptions(task?.project_id, t)
 
   const { data: customFields = [] } = useQuery({
     queryKey: ['custom-fields', task?.project_id],
@@ -212,8 +242,22 @@ function TaskDetailModal({ task, open, onClose }) {
   }
 
   const acceptSuggestion = () => {
-    if (semSuggestion?.suggested_user_id)
+    if (semSuggestion?.suggested_user_id) {
       setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      // Persist SemAssignment so the feedback loop has a base row for this task
+      semanticApi.recordAssignment({
+        item_type: 'task',
+        item_id: task.id,
+        item_title: form.title || task.title || '',
+        suggested_user_id: semSuggestion.suggested_user_id,
+        accepted_user_id: semSuggestion.suggested_user_id,
+        was_accepted: true,
+        confidence: semSuggestion.confidence,
+        needs_review: semSuggestion.needs_review,
+        engine_mode: semSuggestion.engine_mode,
+        reasoning: semSuggestion.reasoning,
+      }).catch(() => { /* non-blocking */ })
+    }
     if (semEffort?.base_hours && !form.estimated_hours)
       setForm(f => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
     setSemSuggestion(null); setSemEffort(null)
@@ -409,13 +453,9 @@ function TaskDetailModal({ task, open, onClose }) {
           <div>
             <label style={ls}>{t('common.status')}</label>
             <select value={form.status} onChange={set('status')} style={fs}>
-              <option value="backlog">○ {t('tasks.status_backlog')}</option>
-              <option value="todo">○ {t('tasks.status_todo')}</option>
-              <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
-              <option value="review">◐ {t('tasks.status_review')}</option>
-              <option value="blocked">✕ {t('tasks.status_blocked')}</option>
-              <option value="done">● {t('tasks.status_done')}</option>
-              <option value="cancelled">✕ {t('tasks.status_cancelled')}</option>
+              {statusOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -706,6 +746,8 @@ export default function TasksPage() {
   const search         = searchParams.get('search') || ''
   const priorityFilter = searchParams.get('priority') || ''
   const assigneeFilter = searchParams.get('assignee') || ''
+  const overdueOnly    = searchParams.get('overdue') === '1'
+  const mineOnly       = searchParams.get('mine') === '1'
   const setTaskParam = (k, v) => setSearchParams(p => { const n = new URLSearchParams(p); v ? n.set(k, v) : n.delete(k); return n }, { replace: true })
   const setView           = (v) => setTaskParam('view', v === 'kanban' ? '' : v)
   const setProjectFilter  = (v) => setTaskParam('project_id', v)
@@ -713,6 +755,18 @@ export default function TasksPage() {
   const setSearch         = (v) => setTaskParam('search', v)
   const setPriorityFilter = (v) => setTaskParam('priority', v)
   const setAssigneeFilter = (v) => setTaskParam('assignee', v)
+  const clearQuickFilters = () => setSearchParams(p => {
+    const n = new URLSearchParams(p)
+    n.delete('mine')
+    n.delete('overdue')
+    if (n.get('status') === 'open') n.delete('status')
+    return n
+  }, { replace: true })
+  const quickFilterPills = [
+    mineOnly ? { key: 'mine', label: 'Solo mis tareas', onClear: () => setTaskParam('mine', '') } : null,
+    overdueOnly ? { key: 'overdue', label: 'Solo vencidas', onClear: () => setTaskParam('overdue', '') } : null,
+    statusFilter === 'open' ? { key: 'open', label: 'Estado: abiertas', onClear: () => setTaskParam('status', '') } : null,
+  ].filter(Boolean)
   const [selectedTask, setSelectedTask] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(new Set())  // bulk selection
@@ -738,17 +792,22 @@ export default function TasksPage() {
   })
 
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ['tasks', projectFilter, statusFilter, view, search, priorityFilter, assigneeFilter],
+    queryKey: ['tasks', projectFilter, statusFilter, view, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly],
     queryFn: () => {
+      const effectiveStatus = statusFilter === 'open'
+        ? 'backlog,todo,in_progress,blocked,in_review,review'
+        : (statusFilter || undefined)
       if (view === 'kanban' && projectFilter) {
         return tasksApi.kanban(projectFilter).then(r => r.data)
       }
       return tasksApi.list({
         project_id: projectFilter || undefined,
-        status: statusFilter || undefined,
+        status: effectiveStatus,
         search: search || undefined,
         priority: priorityFilter || undefined,
         assignee_id: assigneeFilter || undefined,
+        overdue_only: overdueOnly || undefined,
+        assigned_to_me: mineOnly || undefined,
       }).then(r => r.data)
     },
     keepPreviousData: true,
@@ -841,6 +900,31 @@ export default function TasksPage() {
       />
 
       {/* Filters */}
+      {quickFilterPills.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {quickFilterPills.map(pill => (
+            <span key={pill.key} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'var(--accent-muted)', border: '1px solid var(--accent-glow)',
+              color: 'var(--accent)', borderRadius: 999, padding: '4px 10px',
+              fontSize: 'var(--text-xs)', fontWeight: 700,
+            }}>
+              {pill.label}
+              <button type="button" onClick={pill.onClear} aria-label={`Quitar filtro ${pill.label}`} style={{
+                background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer',
+                fontSize: 'var(--text-sm)', lineHeight: 1, padding: 0,
+              }}>×</button>
+            </span>
+          ))}
+          <button type="button" onClick={clearQuickFilters} style={{
+            background: 'transparent', border: '1px solid var(--surface-4)', borderRadius: 999,
+            color: 'var(--text-2)', cursor: 'pointer', fontSize: 'var(--text-xs)',
+            fontWeight: 600, padding: '4px 10px', fontFamily: 'inherit',
+          }}>
+            Limpiar filtros rápidos
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 2, minWidth: 200 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)', fontSize: "var(--text-md)" }}>🔍</span>
@@ -1090,6 +1174,7 @@ function CreateTaskModal({ open, onClose, projects }) {
   const [semSuggestion, setSemSuggestion] = useState(null)
   const [semEffort, setSemEffort] = useState(null)
   const [suggesting, setSuggesting] = useState(false)
+  const [pendingSuggestion, setPendingSuggestion] = useState(null)
   const [customValues, setCustomValues] = useState({})
 
   const { data: customFields = [] } = useQuery({
@@ -1098,6 +1183,8 @@ function CreateTaskModal({ open, onClose, projects }) {
     enabled: !!form.project_id,
     retry: false,
   })
+
+  const statusOptions = useWorkflowStatusOptions(form.project_id, t)
 
   const { mutate, isPending } = useMutation({
     mutationFn: async ({ taskData, cfValues, cfFields }) => {
@@ -1109,7 +1196,21 @@ function CreateTaskModal({ open, onClose, projects }) {
       }
       return task
     },
-    onSuccess: () => {
+    onSuccess: (newTask) => {
+      if (pendingSuggestion?.suggested_user_id && newTask?.id) {
+        semanticApi.recordAssignment({
+          item_type: 'task',
+          item_id: newTask.id,
+          item_title: newTask.title || '',
+          suggested_user_id: pendingSuggestion.suggested_user_id,
+          accepted_user_id: pendingSuggestion.suggested_user_id,
+          was_accepted: true,
+          confidence: pendingSuggestion.confidence,
+          needs_review: pendingSuggestion.needs_review,
+          engine_mode: pendingSuggestion.engine_mode,
+          reasoning: pendingSuggestion.reasoning,
+        }).catch(() => { /* non-blocking */ })
+      }
       qc.invalidateQueries(['tasks'])
       qc.invalidateQueries(['dash-my-tasks'])
       qc.invalidateQueries(['dash-overdue-tasks'])
@@ -1118,7 +1219,7 @@ function CreateTaskModal({ open, onClose, projects }) {
       onClose()
       setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
       setCustomValues({})
-      setSemSuggestion(null); setSemEffort(null)
+      setSemSuggestion(null); setSemEffort(null); setPendingSuggestion(null)
     },
     onError: e => toast.error(extractErr(e, 'Error')),
   })
@@ -1142,8 +1243,11 @@ function CreateTaskModal({ open, onClose, projects }) {
   }
 
   const acceptSuggestion = () => {
-    if (semSuggestion?.suggested_user_id)
+    if (semSuggestion?.suggested_user_id) {
       setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      // Store suggestion so we can persist SemAssignment once the task is created (task.id is known)
+      setPendingSuggestion({ ...semSuggestion })
+    }
     if (semEffort?.base_hours && !form.estimated_hours)
       setForm(f => ({ ...f, estimated_hours: String(semEffort.base_hours) }))
     setSemSuggestion(null); setSemEffort(null)
@@ -1168,11 +1272,9 @@ function CreateTaskModal({ open, onClose, projects }) {
         <div>
           <label style={ls}>{t('common.status')}</label>
           <select value={form.status} onChange={set('status')} style={fs}>
-            <option value="todo">○ {t('tasks.status_todo')}</option>
-            <option value="in_progress">◑ {t('tasks.status_in_progress')}</option>
-            <option value="blocked">✕ {t('tasks.status_blocked')}</option>
-            <option value="review">◐ {t('tasks.status_review')}</option>
-            <option value="done">● {t('tasks.status_done')}</option>
+            {statusOptions.map(o => (
+              <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
+            ))}
           </select>
         </div>
         <div>

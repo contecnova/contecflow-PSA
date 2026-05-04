@@ -9,7 +9,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { fmtDate, extractErr} from '../utils/helpers'
+import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
@@ -36,14 +36,14 @@ function WeekGrid({ weekData, t }) {
                 fontFamily: 'var(--font-mono)', fontSize: "var(--text-base)", fontWeight: 700,
                 color: hasHours ? 'var(--accent)' : 'var(--text-3)',
               }}>
-                {hasHours ? `${entry.hours}h` : '—'}
+                {hasHours ? `${fmtNumber(entry.hours, 2)}h` : '—'}
               </div>
             </div>
           )
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: "var(--text-base)", color: 'var(--text-2)' }}>
-        <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{weekData.total_hours?.toFixed(1)}h</span></span>
+        <span>{t('imputa_page.total')}: <span style={{ color: 'var(--text-1)', fontWeight: 700 }}>{fmtNumber(weekData.total_hours, 2)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span style={{ color: 'var(--text-1)' }}>{weekData.capacity_hours}h</span></span>
         <span style={{ color: weekData.load_pct > 100 ? 'var(--danger)' : weekData.load_pct > 85 ? 'var(--warning)' : 'var(--success)', fontWeight: 700 }}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
@@ -69,6 +69,8 @@ export default function ImputarPage() {
     is_billable: false,
   })
   const [saved, setSaved] = useState(false)
+  const [duplicateError, setDuplicateError] = useState(null)
+  const [forceDuplicate, setForceDuplicate] = useState(false)
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -101,13 +103,21 @@ export default function ImputarPage() {
     mutationFn: (data) => imputationsApi.create(data),
     onSuccess: () => {
       setSaved(true)
+      setDuplicateError(null)
+      setForceDuplicate(false)
       setTimeout(() => setSaved(false), 2500)
       setForm(f => ({ ...f, task_id: '', hours: 0, description: '' }))
       qc.invalidateQueries(['my-week'])
       qc.invalidateQueries(['imputations-today'])
       qc.invalidateQueries(['dash-hours-week'])
     },
-    onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),
+    onError: e => {
+      if (e?.response?.status === 409) {
+        setDuplicateError(e?.response?.data?.detail || 'Ya existe una imputación para esta tarea en esa fecha.')
+      } else {
+        toast.error(extractErr(e, t('common.error') || 'Error'))
+      }
+    },
   })
 
   // Offline-aware submit: if offline, queue to IndexedDB instead
@@ -125,7 +135,7 @@ export default function ImputarPage() {
       }
       return
     }
-    mutate(form)
+    mutate({ ...form, force_duplicate: forceDuplicate })
   }
 
   const [editingId, setEditingId] = useState(null)
@@ -154,7 +164,13 @@ export default function ImputarPage() {
     onError: e => toast.error(extractErr(e, t('common.error') || 'Error')),  
   })
 
-  const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k) => (v) => {
+    setForm(f => ({ ...f, [k]: v }))
+    if (k === 'task_id' || k === 'date') {
+      setDuplicateError(null)
+      setForceDuplicate(false)
+    }
+  }
   const todayHours = todayImputations.reduce((s, i) => s + i.hours, 0)
   const canSubmit = form.project_id && form.hours > 0 && form.date
 
@@ -288,14 +304,38 @@ export default function ImputarPage() {
           />
         </div>
 
+        {/* Duplicate error panel */}
+        {duplicateError && (
+          <div style={{
+            background: 'color-mix(in srgb, var(--warning) 12%, transparent)',
+            border: '1px solid var(--warning)',
+            borderRadius: 10,
+            padding: '12px 16px',
+            marginBottom: 16,
+          }}>
+            <div style={{ fontSize: '13px', color: 'var(--warning)', fontWeight: 700, marginBottom: 8 }}>
+              ⚠️ {duplicateError}
+            </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '13px', color: 'var(--text-2)', lineHeight: 1.5 }}>
+              <input
+                type="checkbox"
+                checked={forceDuplicate}
+                onChange={e => setForceDuplicate(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--warning)', cursor: 'pointer', marginTop: 2, flexShrink: 0 }}
+              />
+              <span>Permitir imputación duplicada y avisar al manager para revisión.</span>
+            </label>
+          </div>
+        )}
+
         <button
           onClick={handleSubmit}
-          disabled={!canSubmit || isPending}
+          disabled={!canSubmit || isPending || (!!duplicateError && !forceDuplicate)}
           style={{
             width: '100%', padding: '14px', borderRadius: 10, border: 'none',
-            background: saved ? 'var(--success)' : canSubmit ? 'var(--accent)' : 'var(--surface-4)',
-            color: canSubmit ? 'var(--surface-0)' : 'var(--text-2)',
-            fontWeight: 800, fontSize: "var(--text-md-em)", cursor: canSubmit ? 'pointer' : 'not-allowed',
+            background: saved ? 'var(--success)' : (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--accent)' : 'var(--surface-4)',
+            color: (canSubmit && (!duplicateError || forceDuplicate)) ? 'var(--surface-0)' : 'var(--text-2)',
+            fontWeight: 800, fontSize: "var(--text-md-em)", cursor: (canSubmit && (!duplicateError || forceDuplicate)) ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit', transition: 'all 0.3s',
           }}
         >
